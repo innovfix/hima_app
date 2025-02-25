@@ -458,7 +458,7 @@ class FemaleHomeFragment : BaseFragment() {
 
     fun addUserInDB(femaleUserId: Int?) {
 
-        firebaseViewModel.addFemaleUserInDB(femaleUserId, null, false)
+        firebaseViewModel.addFemaleUserInDB(null, femaleUserId, false)
 
     }
 

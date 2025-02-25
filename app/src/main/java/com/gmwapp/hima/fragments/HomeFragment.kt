@@ -25,7 +25,6 @@ import com.gmwapp.hima.retrofit.responses.FemaleUsersResponseData
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.gmwapp.hima.viewmodels.FirebaseViewModel
-import com.google.firebase.firestore.FirebaseFirestore
 import com.onesignal.OneSignal
 import dagger.hilt.android.AndroidEntryPoint
 

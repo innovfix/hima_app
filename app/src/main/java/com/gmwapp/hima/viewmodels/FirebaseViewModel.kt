@@ -43,7 +43,7 @@ class FirebaseViewModel :ViewModel() {
     }
 
 
-    fun addFemaleUserInDB(maleUserId: Int?, femaleUserId: String?, isCalling: Boolean?) {
+    fun addFemaleUserInDB(maleUserId: Int?, femaleUserId: Int?, isCalling: Boolean?) {
         val femaleData = mapOf(
             "femaleUserId" to femaleUserId,
             "callerUserId" to maleUserId,
