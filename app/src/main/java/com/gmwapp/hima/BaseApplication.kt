@@ -1,31 +1,25 @@
 package com.gmwapp.hima
 
 import android.app.Activity
-import android.app.ActivityManager
-import android.app.AlertDialog
 import android.app.Application
 import android.content.Intent
 import android.content.IntentFilter
 import android.media.MediaPlayer
 import android.os.Bundle
-import android.os.Handler
-import android.content.Context
 
-import android.os.Looper
 import android.util.Log
-import android.view.WindowManager
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.utils.DPreferences
 import com.google.firebase.FirebaseApp
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.onesignal.OneSignal
-import com.onesignal.common.OneSignalUtils
 import com.onesignal.debug.LogLevel
 import com.onesignal.notifications.INotification
-import com.onesignal.notifications.INotificationClickEvent
-import com.onesignal.notifications.INotificationClickListener
 import com.onesignal.notifications.INotificationLifecycleListener
 import com.onesignal.notifications.INotificationWillDisplayEvent
 import com.zegocloud.uikit.prebuilt.call.core.CallInvitationServiceImpl
@@ -34,7 +28,6 @@ import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 
@@ -51,19 +44,26 @@ class BaseApplication : Application(), Configuration.Provider {
     private var roomId: String? = null
     private var mediaPlayer: MediaPlayer? = null
     private var endCallUpdatePending: Boolean? = null
-    val ONESIGNAL_APP_ID = "2c7d72ae-8f09-48ea-a3c8-68d9c913c592"
-
+    //val ONESIGNAL_APP_ID = "2c7d72ae-8f09-48ea-a3c8-68d9c913c592"
+    val ONESIGNAL_APP_ID = "5cd4154a-1ece-4c3b-b6af-e88bafee64cd"
+    private lateinit var db: FirebaseFirestore
+    private var listenerRegistration: ListenerRegistration? = null
+    lateinit var gender : String
+    lateinit var userid : String
     private val lifecycleCallbacks: ActivityLifecycleCallbacks =
         object : ActivityLifecycleCallbacks {
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
+                currentActivity = activity
 
             }
 
             override fun onActivityStarted(activity: Activity) {
+                currentActivity = activity
 
             }
 
             override fun onActivityResumed(activity: Activity) {
+                currentActivity = activity
 
                 if(getInstance()?.getPrefs()?.getUserData()?.gender == DConstants.MALE) {
                     CallInvitationServiceImpl.getInstance().hideIncomingCallDialog()
@@ -81,7 +81,9 @@ class BaseApplication : Application(), Configuration.Provider {
             }
 
             override fun onActivityDestroyed(activity: Activity) {
-
+                if (currentActivity == activity) {
+                    currentActivity = null
+                }
             }
 
         }
@@ -91,6 +93,9 @@ class BaseApplication : Application(), Configuration.Provider {
 
     companion object {
         private var mInstance: BaseApplication? = null
+        private var currentActivity: Activity? = null
+
+        var notificationId: String? = null  // Store notification ID globally
 
 
         fun getInstance(): BaseApplication? {
@@ -98,7 +103,9 @@ class BaseApplication : Application(), Configuration.Provider {
         }
 
 
-
+        fun getCurrentActivity(): Activity? {
+            return currentActivity
+        }
     }
 
     override fun onCreate() {
@@ -106,6 +113,7 @@ class BaseApplication : Application(), Configuration.Provider {
         mInstance = this
         mPreferences = DPreferences(this)
         FirebaseApp.initializeApp(this)
+        db = FirebaseFirestore.getInstance()
         registerReceiver(ShutdownReceiver(), IntentFilter(Intent.ACTION_SHUTDOWN));
         if(BuildConfig.DEBUG) {
             OneSignal.Debug.logLevel = LogLevel.VERBOSE
@@ -135,7 +143,122 @@ class BaseApplication : Application(), Configuration.Provider {
         registerActivityLifecycleCallbacks(lifecycleCallbacks)
 
 
+        genderCheck()
 
+
+
+    }
+
+    private fun genderCheck() {
+        val userData = getInstance()?.getPrefs()?.getUserData()
+
+        if (userData?.gender != null && userData.id != null) {
+            gender = if (userData.gender == DConstants.MALE) "maleUsers" else "femaleUsers"
+            userid = userData.id.toString()
+
+            if (gender == "maleUsers"){
+                listenForCallChangesMale(gender,userid)
+            }else{
+                listenForCallChangesFemale(gender, userid)
+
+            }
+
+        }
+    }
+
+
+    private fun listenForCallChangesFemale(gender:String, maleUserId:String) {
+        val callDocRef =  db.collection(gender).document(maleUserId)
+
+        listenerRegistration = callDocRef.addSnapshotListener { snapshot, e ->
+            if (e != null || snapshot == null || !snapshot.exists()) return@addSnapshotListener
+
+            val isCalling = snapshot.getBoolean("isCalling") ?: false
+            if (isCalling) {
+                playIncomingCallSound()
+                navigateToWalletActivity()
+            }else{
+                navigateToMainActivityIfNotThere()
+                stopRingtone()
+            }
+        }
+    }
+
+    private fun listenForCallChangesMale(gender:String, maleUserId:String) {
+        val callDocRef =  db.collection(gender).document(maleUserId)
+
+        listenerRegistration = callDocRef.addSnapshotListener { snapshot, e ->
+            if (e != null || snapshot == null || !snapshot.exists()) return@addSnapshotListener
+
+            val isCalling = snapshot.getBoolean("isCalling") ?: false
+            if (!isCalling) {
+                navigateToMainActivityIfNotThere()
+            }
+        }
+    }
+
+
+
+    private fun navigateToWalletActivity() {
+        val activity = getCurrentActivity()
+        Log.d("HelloRishabh", "Current Activity: $activity")
+
+        if (activity != null && !activity.isFinishing) {
+            activity.runOnUiThread {
+                val intent = Intent(activity, WalletActivity::class.java).apply {
+                    putExtra("ChannelName", "Hima")
+                }
+                activity.startActivity(intent)
+            }
+        } else {
+            Log.e("HelloRishabh", "No active activity found!")
+        }
+    }
+
+    private fun navigateToMainActivityIfNotThere() {
+        val activity = getCurrentActivity()
+        Log.d("ActivityCheck", "Current Activity: $activity")
+
+        if (activity != null && activity !is MainActivity) {
+            activity.runOnUiThread {
+                stopRingtone()
+                val intent = Intent(activity, MainActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                activity.startActivity(intent)
+            }
+        } else {
+            Log.d("ActivityCheck", "Already in MainActivity, no action needed.")
+        }
+    }
+
+
+
+
+
+
+
+
+    private fun playIncomingCallSound() {
+        stopRingtone() // Stop any existing ringtone before playing a new one
+
+        mediaPlayer = MediaPlayer.create(applicationContext, R.raw.rhythm)
+        mediaPlayer?.setOnCompletionListener {
+            it.release()
+            mediaPlayer = null // Set to null to avoid using a released player
+        }
+        mediaPlayer?.start()
+    }
+
+
+    private fun stopRingtone() {
+        mediaPlayer?.let {
+            if (it.isPlaying) {
+                it.stop()
+            }
+            it.release()  // Release resources
+        }
+        mediaPlayer = null  // Ensure it's set to null after stopping
+        Log.d("MediaPlayer", "Ringtone stopped and released.")
     }
 
 

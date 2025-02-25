@@ -64,6 +64,7 @@ android {
 
 dependencies {
     implementation(libs.firebase.firestore)
+    implementation(libs.firebase.firestore.ktx)
     val lifecycleVersion = "2.6.2"
     val glideVersion = "4.11.0"
 
