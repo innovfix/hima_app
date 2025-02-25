@@ -53,8 +53,6 @@ class BaseApplication : Application(), Configuration.Provider {
     private var endCallUpdatePending: Boolean? = null
     val ONESIGNAL_APP_ID = "2c7d72ae-8f09-48ea-a3c8-68d9c913c592"
 
-    //
-    
     private val lifecycleCallbacks: ActivityLifecycleCallbacks =
         object : ActivityLifecycleCallbacks {
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
