@@ -11,7 +11,6 @@ import android.util.Log
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.gmwapp.hima.activities.MainActivity
-import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.utils.DPreferences
 import com.google.firebase.FirebaseApp
@@ -19,9 +18,6 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.onesignal.OneSignal
 import com.onesignal.debug.LogLevel
-import com.onesignal.notifications.INotification
-import com.onesignal.notifications.INotificationLifecycleListener
-import com.onesignal.notifications.INotificationWillDisplayEvent
 import com.zegocloud.uikit.prebuilt.call.core.CallInvitationServiceImpl
 import com.zegocloud.uikit.prebuilt.call.core.notification.RingtoneManager
 import dagger.hilt.android.HiltAndroidApp
@@ -64,6 +60,10 @@ class BaseApplication : Application(), Configuration.Provider {
 
             override fun onActivityResumed(activity: Activity) {
                 currentActivity = activity
+
+                if (activity is FemaleCallingActivity) {
+                    stopRingtone()
+                }
 
                 if(getInstance()?.getPrefs()?.getUserData()?.gender == DConstants.MALE) {
                     CallInvitationServiceImpl.getInstance().hideIncomingCallDialog()
@@ -167,22 +167,40 @@ class BaseApplication : Application(), Configuration.Provider {
     }
 
 
-    private fun listenForCallChangesFemale(gender:String, maleUserId:String) {
-        val callDocRef =  db.collection(gender).document(maleUserId)
+    private fun listenForCallChangesFemale(gender: String, maleUserId: String) {
+        val callDocRef = db.collection(gender).document(maleUserId)
+
+        Log.d("FirestoreListener", "Listening for changes on: $gender / $maleUserId")
 
         listenerRegistration = callDocRef.addSnapshotListener { snapshot, e ->
-            if (e != null || snapshot == null || !snapshot.exists()) return@addSnapshotListener
+            if (e != null) {
+                Log.e("FirestoreListener", "Error listening to Firestore updates", e)
+                return@addSnapshotListener
+            }
+
+            if (snapshot == null || !snapshot.exists()) {
+                Log.e("FirestoreListener", "Document does not exist or is null")
+                return@addSnapshotListener
+            }
 
             val isCalling = snapshot.getBoolean("isCalling") ?: false
+            val maleUserId = snapshot.getString("maleUserId")
+            val channelName = snapshot.getString("channelName")
+
+            Log.d("FirestoreListener", "isCalling value: $isCalling")
+
             if (isCalling) {
+                Log.d("FirestoreListener", "Incoming call detected")
                 playIncomingCallSound()
-                navigateToWalletActivity()
-            }else{
+                navigateToCallAcceptActivity(maleUserId, channelName)
+            } else {
+                Log.d("FirestoreListener", "Call ended")
                 navigateToMainActivityIfNotThere()
                 stopRingtone()
             }
         }
     }
+
 
     private fun listenForCallChangesMale(gender:String, maleUserId:String) {
         val callDocRef =  db.collection(gender).document(maleUserId)
@@ -199,14 +217,20 @@ class BaseApplication : Application(), Configuration.Provider {
 
 
 
-    private fun navigateToWalletActivity() {
+    private fun navigateToCallAcceptActivity(maleUserId: String?, channelName: String?) {
         val activity = getCurrentActivity()
         Log.d("HelloRishabh", "Current Activity: $activity")
 
+        if (activity is FemaleCallAcceptActivity) {
+            Log.d("HelloRishabh", "Already in FemaleCallAcceptActivity, no need to navigate.")
+            return
+        }
+
         if (activity != null && !activity.isFinishing) {
             activity.runOnUiThread {
-                val intent = Intent(activity, WalletActivity::class.java).apply {
-                    putExtra("ChannelName", "Hima")
+                val intent = Intent(activity, FemaleCallAcceptActivity::class.java).apply {
+                    putExtra("channelName", channelName)
+                    putExtra("maleUserId", maleUserId)
                 }
                 activity.startActivity(intent)
             }

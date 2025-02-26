@@ -14,6 +14,8 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.MaleCallConnectActivity
+import com.gmwapp.hima.MaleCallingActivty
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.RandomUserActivity
 import com.gmwapp.hima.activities.WalletActivity
@@ -188,9 +190,13 @@ class HomeFragment : BaseFragment() {
                         },
                         object : OnItemSelectionListener<FemaleUsersResponseData> {
                             override fun onItemSelected(data: FemaleUsersResponseData) {
-                                val intent = Intent(context, RandomUserActivity::class.java)
+                              //  val intent = Intent(context, RandomUserActivity::class.java)
+                                val intent = Intent(context, MaleCallConnectActivity::class.java)
+
                                 intent.putExtra(DConstants.CALL_TYPE, "video")
-                                intent.putExtra(DConstants.RECEIVER_ID, data.id)
+                                intent.putExtra(DConstants.RECEIVER_ID, data.id.toString())
+                                Log.e("OnItemSelected", "Selected Female User ID: ${data.id}")
+
                                 intent.putExtra(DConstants.RECEIVER_NAME, data.name)
                                 intent.putExtra(DConstants.CALL_ID, 0)
                                 intent.putExtra(DConstants.IMAGE, data.image)
@@ -341,7 +347,7 @@ class HomeFragment : BaseFragment() {
 
     fun addUserInDB(maleUserId: Int?) {
 
-        firebaseViewModel.addMaleUserInDB(maleUserId, null, false)
+        firebaseViewModel.addMaleUserInDB(maleUserId.toString(), null, false)
 
     }
 

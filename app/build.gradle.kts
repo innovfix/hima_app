@@ -137,6 +137,11 @@ dependencies {
 
     implementation ("com.github.NorthernCaptain:TAndroidLame:1.1")
 
+    //agora
+    implementation("io.agora.rtc:full-sdk:4.5.0")
+    implementation("io.agora:agora-rtm:2.2.2")
+    implementation("commons-codec:commons-codec:1.9")
+
 
 
 

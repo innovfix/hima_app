@@ -37,6 +37,18 @@
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
         <activity
+            android:name=".FemaleCallingActivity"
+            android:exported="false" />
+        <activity
+            android:name=".FemaleCallAcceptActivity"
+            android:exported="false" />
+        <activity
+            android:name=".MaleCallingActivty"
+            android:exported="false" />
+        <activity
+            android:name=".MaleCallConnectActivity"
+            android:exported="false" />
+        <activity
             android:name=".YoutubeRechargeActivity"
             android:exported="false" />
         <activity

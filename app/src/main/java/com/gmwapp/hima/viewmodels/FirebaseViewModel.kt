@@ -19,11 +19,13 @@ class FirebaseViewModel :ViewModel() {
     private val _femaleUserStatus = MutableLiveData<Boolean>()
     val femaleUserStatus: LiveData<Boolean> get() = _femaleUserStatus
 
-    fun addMaleUserInDB(maleUserId: Int?, femaleUserId: String?, isCalling: Boolean?) {
+    fun addMaleUserInDB(maleUserId: String?, femaleUserId: String?, isCalling: Boolean?) {
         val maleData = mapOf(
             "maleUserId" to maleUserId, // Nullable values will be stored
             "femaleUserId" to femaleUserId,
-            "isCalling" to isCalling
+            "isCalling" to isCalling,
+            "channelName" to null,
+            "isConnected" to false
         )
 
 
@@ -43,11 +45,13 @@ class FirebaseViewModel :ViewModel() {
     }
 
 
-    fun addFemaleUserInDB(maleUserId: Int?, femaleUserId: Int?, isCalling: Boolean?) {
+    fun addFemaleUserInDB(maleUserId: String?, femaleUserId: String?, isCalling: Boolean?) {
         val femaleData = mapOf(
             "femaleUserId" to femaleUserId,
-            "callerUserId" to maleUserId,
-            "isCalling" to isCalling
+            "maleUserId" to maleUserId,
+            "isCalling" to isCalling,
+            "channelName" to null,
+            "isConnected" to false
         )
 
         // Update female user document
