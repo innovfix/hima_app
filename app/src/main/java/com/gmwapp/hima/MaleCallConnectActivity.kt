@@ -58,16 +58,23 @@ class MaleCallConnectActivity : AppCompatActivity() {
 
     private fun listenForCallStatusChanges(maleUserId: Int) {
         val callDocRef = db.collection("maleUsers").document(maleUserId.toString())
-
         callListener = callDocRef.addSnapshotListener { snapshot, e ->
-            if (e != null || snapshot == null || !snapshot.exists()) return@addSnapshotListener
-
+            if (e != null) {
+                Log.e("FirestoreListenercheck", "Error listening for call status changes", e)
+                return@addSnapshotListener
+            }
+            if (snapshot == null || !snapshot.exists()) {
+                Log.e("FirestoreListenercheck", "Snapshot does not exist")
+                return@addSnapshotListener
+            }
             val isConnected = snapshot.getBoolean("isConnected") ?: false
+            Log.d("FirestoreListenercheck", "isConnected updated: $isConnected")
 
             if (isConnected) {
                 navigateToCallingActivity(channel)
             }
         }
+
     }
 
     private fun navigateToCallingActivity(channelName: String?) {

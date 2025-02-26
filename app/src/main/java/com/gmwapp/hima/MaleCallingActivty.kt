@@ -17,7 +17,9 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.gmwapp.hima.BaseApplication.Companion.getInstance
 import com.gmwapp.hima.constants.DConstants
+import com.gmwapp.hima.databinding.ActivityFemaleCallAcceptBinding
 import com.gmwapp.hima.databinding.ActivityFemaleCallingBinding
+import com.gmwapp.hima.databinding.ActivityMaleCallingActivtyBinding
 import com.gmwapp.hima.media.RtcTokenBuilder2
 import com.google.firebase.firestore.FirebaseFirestore
 import io.agora.rtc2.ChannelMediaOptions
@@ -35,7 +37,7 @@ class MaleCallingActivty : AppCompatActivity() {
 
 
 
-    lateinit var binding: ActivityFemaleCallingBinding
+    lateinit var binding: ActivityMaleCallingActivtyBinding
 
     private val appId = "a41e9245489d44a2ac9af9525f1b508c"
 
@@ -100,7 +102,8 @@ class MaleCallingActivty : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContentView(R.layout.activity_male_calling_activty)
+        binding = ActivityMaleCallingActivtyBinding.inflate(layoutInflater)
+        setContentView(binding.root)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)

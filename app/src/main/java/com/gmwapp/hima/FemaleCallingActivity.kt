@@ -53,6 +53,8 @@ class FemaleCallingActivity : AppCompatActivity() {
     private var remoteSurfaceView: SurfaceView? = null
     private var mRtcEngine: RtcEngine? = null
 
+    lateinit var femaleUserId: String
+
 
 
     private val PERMISSION_REQ_ID = 22
@@ -113,6 +115,9 @@ class FemaleCallingActivity : AppCompatActivity() {
             insets
         }
 
+        val userData = getInstance()?.getPrefs()?.getUserData()
+        femaleUserId = userData?.id.toString()
+
         channelName = intent.getStringExtra("channelName")
         maleUserId = intent.getStringExtra("maleUserId")
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -143,6 +148,8 @@ class FemaleCallingActivity : AppCompatActivity() {
             setupVideoSDKEngine()
             joinChannel(binding.JoinButton) // Automatically join the channel
         }
+
+        callIsconnected()
 
 
     }
@@ -302,6 +309,46 @@ class FemaleCallingActivity : AppCompatActivity() {
 
         }
     }
+
+    private fun callIsconnected() {
+
+        Log.d("maleUserIdfemaleUserId","$maleUserId, $femaleUserId")
+
+        if (maleUserId != null && femaleUserId !=null) {
+            val db = FirebaseFirestore.getInstance()
+            db.collection("maleUsers").document(maleUserId.toString())
+                .update(mapOf(
+                    "isConnected" to true
+                ))
+                .addOnSuccessListener {
+
+                }
+                .addOnFailureListener { e ->
+                    Log.e("FirestoreUpdate", "Failed to update Firestore: ", e)
+                }
+
+
+            db.collection("femaleUsers").document(femaleUserId!!)
+                .update(
+                    mapOf(
+                        "isConnected" to true,
+                    )
+                )
+                .addOnSuccessListener {
+
+                }
+                .addOnFailureListener { e ->
+                    Log.e("FirestoreUpdate", "Failed to update Firestore: ", e)
+                }
+
+
+
+
+        } else {
+            Log.e("FemaleCallAcceptActivity", "callerUserId is null, cannot update Firestore")
+        }
+    }
+
 
 
 }
