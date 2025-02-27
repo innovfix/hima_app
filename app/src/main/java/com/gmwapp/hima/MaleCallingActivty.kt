@@ -2,6 +2,7 @@ package com.gmwapp.hima
 
 import android.Manifest
 import android.app.AlertDialog
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
@@ -16,12 +17,14 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.gmwapp.hima.BaseApplication.Companion.getInstance
+import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityFemaleCallAcceptBinding
 import com.gmwapp.hima.databinding.ActivityFemaleCallingBinding
 import com.gmwapp.hima.databinding.ActivityMaleCallingActivtyBinding
 import com.gmwapp.hima.media.RtcTokenBuilder2
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import io.agora.rtc2.ChannelMediaOptions
 import io.agora.rtc2.Constants
 import io.agora.rtc2.IRtcEngineEventHandler
@@ -33,6 +36,8 @@ import io.agora.rtm.RtmClient
 class MaleCallingActivty : AppCompatActivity() {
     private var channelName: String? = null
     private var femaleUserId: String? = null
+
+    private var listenerRegistration: ListenerRegistration? = null
 
 
 
@@ -138,11 +143,66 @@ class MaleCallingActivty : AppCompatActivity() {
             ActivityCompat.requestPermissions(this, REQUESTED_PERMISSIONS, PERMISSION_REQ_ID)
         } else {
             setupVideoSDKEngine()
-            joinChannel(binding.JoinButton) // Automatically join the channel
+            binding.root.postDelayed({
+                joinChannel(binding.JoinButton)
+            }, 1000) // 1000 milliseconds = 1 second
         }
 
 
+
     }
+
+
+    private fun listenForCallStatusChanges() {
+        val userData = getInstance()?.getPrefs()?.getUserData()
+        val maleUserId = userData?.id ?: return // Return if user ID is null
+
+        val db = FirebaseFirestore.getInstance()
+        val maleUserRef = db.collection("maleUsers").document(maleUserId.toString())
+
+        // 🛑 Remove any existing listener before attaching a new one
+        listenerRegistration?.remove()
+        listenerRegistration = null
+
+        listenerRegistration = maleUserRef.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                Log.e("FirestoreError", "Error listening for changes", error)
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null && snapshot.exists()) {
+                val isConnected = snapshot.getBoolean("isConnected") ?: true
+
+                if (!isConnected) {
+                    Log.d("CallStatus", "isConnected became false. Returning to MainActivity")
+                    showMessage("Call ended. Returning to MainActivity.")
+
+                    // 🛑 Check if Agora Engine is null before calling leaveChannel()
+                    agoraEngine?.leaveChannel()?.also {
+                        showMessage("You left the channel")
+                    } ?: Log.e("AgoraError", "agoraEngine is null, cannot leave channel")
+
+                    // Hide video views safely
+                    remoteSurfaceView?.visibility = View.GONE
+                    localSurfaceView?.visibility = View.GONE
+                    isJoined = false
+
+                    // 🛑 Stop listening for changes to prevent multiple triggers
+                    listenerRegistration?.remove()
+                    listenerRegistration = null
+
+                    // Navigate to MainActivity
+                    val intent = Intent(this@MaleCallingActivty, MainActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    }
+                    startActivity(intent)
+                    finish()
+                }
+            }
+        }
+    }
+
+
 
 
     private fun showExitDialog() {
@@ -165,13 +225,6 @@ class MaleCallingActivty : AppCompatActivity() {
 
     private fun rejectCall() {
 
-        agoraEngine!!.leaveChannel()
-        showMessage("You left the channel")
-        if (remoteSurfaceView != null) remoteSurfaceView!!.visibility = View.GONE
-        if (localSurfaceView != null) localSurfaceView!!.visibility = View.GONE
-        isJoined = false
-
-
         val userData = getInstance()?.getPrefs()?.getUserData()
         val maleUserId = userData?.id
 
@@ -187,7 +240,7 @@ class MaleCallingActivty : AppCompatActivity() {
                 ))
                 .addOnSuccessListener {
                     Log.d("FirestoreUpdate", "isCalling set to false successfully")
-                    finish() // Close activity after rejection
+                   // finish() // Close activity after rejection
                 }
                 .addOnFailureListener { e ->
                     Log.e("FirestoreUpdate", "Failed to update Firestore: ", e)
@@ -219,16 +272,7 @@ class MaleCallingActivty : AppCompatActivity() {
         }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        agoraEngine!!.stopPreview()
-        agoraEngine!!.leaveChannel()
 
-        Thread {
-            RtcEngine.destroy()
-            agoraEngine = null
-        }.start()
-    }
 
     private val mRtcEventHandler: IRtcEngineEventHandler = object : IRtcEngineEventHandler() {
         override fun onUserJoined(uid: Int, elapsed: Int) {
@@ -246,6 +290,12 @@ class MaleCallingActivty : AppCompatActivity() {
         override fun onUserOffline(uid: Int, reason: Int) {
             showMessage("Remote user offline $uid $reason")
             runOnUiThread { remoteSurfaceView!!.visibility = View.GONE }
+
+            agoraEngine!!.leaveChannel()
+            showMessage("You left the channel")
+            if (remoteSurfaceView != null) remoteSurfaceView!!.visibility = View.GONE
+            if (localSurfaceView != null) localSurfaceView!!.visibility = View.GONE
+            isJoined = false
         }
     }
 
@@ -274,31 +324,79 @@ class MaleCallingActivty : AppCompatActivity() {
             )
         )
     }
-
     fun joinChannel(view: View) {
         if (checkSelfPermission()) {
-            val options = ChannelMediaOptions()
+            // Ensure Agora is properly initialized before joining
+            if (agoraEngine == null) {
+                setupVideoSDKEngine()
+            }
 
+            val options = ChannelMediaOptions()
             options.channelProfile = Constants.CHANNEL_PROFILE_COMMUNICATION
             options.clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
             setupLocalVideo()
             localSurfaceView!!.visibility = View.VISIBLE
             agoraEngine!!.startPreview()
             agoraEngine!!.joinChannel(token, channelName, uid, options)
+            Log.d("AgoraTag", "Joined channel: $channelName with token: $token")
+
         } else {
-            Toast.makeText(applicationContext, "Permissions was not granted", Toast.LENGTH_SHORT)
+            Toast.makeText(applicationContext, "Permissions were not granted", Toast.LENGTH_SHORT)
                 .show()
         }
     }
+
 
     fun leaveChannel(view: View) {
         if (!isJoined) {
             showMessage("Join a channel first")
         } else {
-            showExitDialog()
+            agoraEngine?.leaveChannel()
+            showMessage("You left the channel")
+
+            // Clear video views
+            remoteSurfaceView?.visibility = View.GONE
+            localSurfaceView?.visibility = View.GONE
+            isJoined = false
+
+            // Destroy the Agora engine instance completely
+            RtcEngine.destroy()
+            agoraEngine = null
+
+            val intent = Intent(this@MaleCallingActivty, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            }
+            startActivity(intent)
+            finish()
+
 
         }
     }
+
+    override fun onDestroy() {
+        super.onDestroy()
+
+        // 🛑 Remove Firestore listener to prevent memory leaks
+        listenerRegistration?.remove()
+        listenerRegistration = null
+
+        // 🛑 Check if agoraEngine is null before using it
+        agoraEngine?.apply {
+            stopPreview()
+            leaveChannel()
+        }
+
+        // Destroy Agora engine safely in a background thread
+        Thread {
+            RtcEngine.destroy()
+            agoraEngine = null
+        }.start()
+
+        Log.d("Lifecycle", "onDestroy() called. Firestore listener removed.")
+        Log.d("MaleCallingActivitydestory", "onDestroy called - Activity is being fully destroyed")
+
+    }
+
 
 
 }

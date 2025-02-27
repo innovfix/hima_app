@@ -2,6 +2,7 @@ package com.gmwapp.hima.fragments
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -9,6 +10,7 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.MaleCallConnectActivity
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.RandomUserActivity
 import com.gmwapp.hima.adapters.CoinAdapter
@@ -91,14 +93,20 @@ class RecentFragment : BaseFragment() {
                         },
                         object : OnItemSelectionListener<CallsListResponseData> {
                             override fun onItemSelected(data: CallsListResponseData) {
-                                val intent = Intent(context, RandomUserActivity::class.java)
+                                val intent = Intent(context, MaleCallConnectActivity::class.java)
+
                                 intent.putExtra(DConstants.CALL_TYPE, "video")
-                                intent.putExtra(DConstants.RECEIVER_ID, data.id)
+                                intent.putExtra(DConstants.RECEIVER_ID, data.id.toString())
+                                Log.e("OnItemSelected", "Selected Female User ID: ${data.id}")
+
                                 intent.putExtra(DConstants.RECEIVER_NAME, data.name)
                                 intent.putExtra(DConstants.CALL_ID, 0)
                                 intent.putExtra(DConstants.IMAGE, data.image)
                                 intent.putExtra(DConstants.IS_RECEIVER_DETAILS_AVAILABLE, true)
-                                intent.putExtra(DConstants.TEXT, getString(R.string.wait_user_hint, data.name))
+                                intent.putExtra(
+                                    DConstants.TEXT,
+                                    getString(R.string.wait_user_hint, data.name)
+                                )
                                 startActivity(intent)
                             }
                         })

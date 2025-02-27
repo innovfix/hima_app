@@ -62,6 +62,7 @@ class HomeFragment : BaseFragment() {
         }
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        var userId = userData?.id
         val language = userData?.language
 
         sharedPreferences = requireContext().getSharedPreferences("MyAppPrefs", Context.MODE_PRIVATE)
@@ -69,11 +70,14 @@ class HomeFragment : BaseFragment() {
 
         val isTagSet = sharedPreferences.getBoolean("isOneSignalTagSet", false)
 
-        OneSignal.User.addTag("gender", "male")
+      //  OneSignal.User.addTag("gender", "male")
         language?.let {
             OneSignal.User.addTag("language", it)
             Log.d("OneSignalTag", "Language tag added: $it")
         }
+
+        OneSignal.User.addTag("user_id", userId.toString()) // Save user ID as a OneSignal tag
+
 
         language?.let {
             OneSignal.User.addTag("gender_language", "male_$it")

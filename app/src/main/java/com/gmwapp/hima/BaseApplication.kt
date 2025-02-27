@@ -188,15 +188,26 @@ class BaseApplication : Application(), Configuration.Provider {
             val channelName = snapshot.getString("channelName")
 
             Log.d("FirestoreListener", "isCalling value: $isCalling")
+            val activity = getCurrentActivity()
+
 
             if (isCalling) {
-                Log.d("FirestoreListener", "Incoming call detected")
-                playIncomingCallSound()
-                navigateToCallAcceptActivity(maleUserId, channelName)
+                if (currentActivity !is FemaleCallingActivity) {
+                    Log.d("FirestoreListener", "Incoming call detected")
+                    playIncomingCallSound()
+                    navigateToCallAcceptActivity(maleUserId, channelName)
+                }
+
+
             } else {
-                Log.d("FirestoreListener", "Call ended")
-                navigateToMainActivityIfNotThere()
-                stopRingtone()
+
+                if (currentActivity !is FemaleCallingActivity) {
+                    Log.d("FirestoreListener", "Call ended")
+                    navigateToMainActivityIfNotThere()
+                    stopRingtone()
+                }
+
+
             }
         }
     }
@@ -205,12 +216,21 @@ class BaseApplication : Application(), Configuration.Provider {
     private fun listenForCallChangesMale(gender:String, maleUserId:String) {
         val callDocRef =  db.collection(gender).document(maleUserId)
 
+        val activity = getCurrentActivity()
+
         listenerRegistration = callDocRef.addSnapshotListener { snapshot, e ->
             if (e != null || snapshot == null || !snapshot.exists()) return@addSnapshotListener
 
             val isCalling = snapshot.getBoolean("isCalling") ?: false
+
             if (!isCalling) {
-                navigateToMainActivityIfNotThere()
+
+                if (currentActivity !is MaleCallingActivty) {
+                    Log.d("HelloRishabh2", "$isCalling , done navigation")
+
+                    navigateToMainActivityIfNotThere()
+                }
+
             }
         }
     }
@@ -225,6 +245,8 @@ class BaseApplication : Application(), Configuration.Provider {
             Log.d("HelloRishabh", "Already in FemaleCallAcceptActivity, no need to navigate.")
             return
         }
+
+
 
         if (activity != null && !activity.isFinishing) {
             activity.runOnUiThread {

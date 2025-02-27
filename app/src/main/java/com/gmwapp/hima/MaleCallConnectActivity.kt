@@ -1,12 +1,16 @@
 package com.gmwapp.hima
 
+import android.Manifest
 import android.app.AlertDialog
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.gmwapp.hima.BaseApplication.Companion.getInstance
@@ -21,6 +25,22 @@ class MaleCallConnectActivity : AppCompatActivity() {
     private var callListener: ListenerRegistration? = null
     private val db = FirebaseFirestore.getInstance()
     private lateinit var channel: String
+    private val PERMISSION_REQ_ID = 22
+    private val REQUESTED_PERMISSIONS = arrayOf<String>(
+        Manifest.permission.RECORD_AUDIO,
+        Manifest.permission.CAMERA
+    )
+
+    private fun checkSelfPermission(): Boolean {
+        return !(ContextCompat.checkSelfPermission(
+            this,
+            REQUESTED_PERMISSIONS[0]
+        ) != PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(
+                    this,
+                    REQUESTED_PERMISSIONS[1]
+                ) != PackageManager.PERMISSION_GRANTED)
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -52,7 +72,15 @@ class MaleCallConnectActivity : AppCompatActivity() {
             }
         })
 
-        maleUserid?.let { listenForCallStatusChanges(it) }
+        // Request permissions if not granted
+        if (!checkSelfPermission()) {
+            ActivityCompat.requestPermissions(this, REQUESTED_PERMISSIONS, PERMISSION_REQ_ID)
+        } else {
+            maleUserid?.let { listenForCallStatusChanges(it) }
+        }
+
+
+
     }
 
 
@@ -78,6 +106,7 @@ class MaleCallConnectActivity : AppCompatActivity() {
     }
 
     private fun navigateToCallingActivity(channelName: String?) {
+
         val intent = Intent(this, MaleCallingActivty::class.java).apply {
             putExtra("channelName", channelName)
             putExtra("femaleUserId", femaleUserId)

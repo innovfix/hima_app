@@ -49,7 +49,7 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
                 putExtra("channelName", channelName)
                 putExtra("maleUserId", maleUserId)
             }
-           //callIsconnected()
+           callIsconnected()
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
 
             startActivity(intent)

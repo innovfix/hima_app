@@ -28,7 +28,7 @@
             android:background="@android:color/darker_gray" />
         <Button
             android:id="@+id/JoinButton"
-            android:visibility="gone"
+            android:visibility="visible"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_below="@+id/remote_video_view_container"
