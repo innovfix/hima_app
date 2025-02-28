@@ -37,28 +37,28 @@
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
         <activity
-            android:name=".MaleAudioCallConnectActivity"
+            android:name=".agora.audio.MaleAudioCallConnectActivity"
             android:exported="false" />
         <activity
-            android:name=".FemaleAudioCallAcceptActivity"
+            android:name=".agora.audio.FemaleAudioCallAcceptActivity"
             android:exported="false" />
         <activity
-            android:name=".MaleAudioCallingActivity"
+            android:name=".agora.audio.MaleAudioCallingActivity"
             android:exported="false" />
         <activity
-            android:name=".FemaleAudioCallingActivity"
+            android:name=".agora.audio.FemaleAudioCallingActivity"
             android:exported="false" />
         <activity
-            android:name=".FemaleCallingActivity"
+            android:name=".agora.video.FemaleCallingActivity"
             android:exported="false" />
         <activity
-            android:name=".FemaleCallAcceptActivity"
+            android:name=".agora.video.FemaleCallAcceptActivity"
             android:exported="false" />
         <activity
-            android:name=".MaleCallingActivty"
+            android:name=".agora.video.MaleCallingActivty"
             android:exported="false" />
         <activity
-            android:name=".MaleCallConnectActivity"
+            android:name=".agora.video.MaleCallConnectActivity"
             android:exported="false" />
         <activity
             android:name=".YoutubeRechargeActivity"

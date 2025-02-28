@@ -14,9 +14,8 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.gmwapp.hima.BaseApplication
-import com.gmwapp.hima.MaleAudioCallConnectActivity
-import com.gmwapp.hima.MaleCallConnectActivity
-import com.gmwapp.hima.MaleCallingActivty
+import com.gmwapp.hima.agora.audio.MaleAudioCallConnectActivity
+import com.gmwapp.hima.agora.video.MaleCallConnectActivity
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.RandomUserActivity
 import com.gmwapp.hima.activities.WalletActivity

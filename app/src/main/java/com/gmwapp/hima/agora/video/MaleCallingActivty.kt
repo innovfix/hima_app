@@ -1,4 +1,4 @@
-package com.gmwapp.hima
+package com.gmwapp.hima.agora.video
 
 import android.Manifest
 import android.app.AlertDialog
@@ -17,10 +17,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.gmwapp.hima.BaseApplication.Companion.getInstance
+import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
-import com.gmwapp.hima.constants.DConstants
-import com.gmwapp.hima.databinding.ActivityFemaleCallAcceptBinding
-import com.gmwapp.hima.databinding.ActivityFemaleCallingBinding
 import com.gmwapp.hima.databinding.ActivityMaleCallingActivtyBinding
 import com.gmwapp.hima.media.RtcTokenBuilder2
 import com.google.firebase.firestore.FirebaseFirestore

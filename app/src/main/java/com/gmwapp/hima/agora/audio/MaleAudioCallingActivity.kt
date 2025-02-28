@@ -1,4 +1,4 @@
-package com.gmwapp.hima
+package com.gmwapp.hima.agora.audio
 
 import android.Manifest
 import android.app.AlertDialog
@@ -16,6 +16,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.gmwapp.hima.BaseApplication.Companion.getInstance
+import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.databinding.ActivityMaleAudioCallingBinding
 import com.gmwapp.hima.media.RtcTokenBuilder2
@@ -26,7 +27,6 @@ import io.agora.rtc2.Constants
 import io.agora.rtc2.IRtcEngineEventHandler
 import io.agora.rtc2.RtcEngine
 import io.agora.rtc2.RtcEngineConfig
-import io.agora.rtm.RtmClient
 
 class MaleAudioCallingActivity : AppCompatActivity() {
 
@@ -154,7 +154,11 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
         override fun onUserOffline(uid: Int, reason: Int) {
             showMessage("Remote user left")
-            leaveChannel(binding.LeaveButton)
+            val intent = Intent(this@MaleAudioCallingActivity, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            }
+            startActivity(intent)
+            finish()
         }
     }
 

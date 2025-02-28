@@ -1,4 +1,4 @@
-package com.gmwapp.hima
+package com.gmwapp.hima.agora.audio
 
 import android.Manifest
 import android.app.AlertDialog
@@ -157,7 +157,12 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         }
 
         override fun onUserOffline(uid: Int, reason: Int) {
-            leaveChannel(binding.LeaveButton)
+
+            val intent = Intent(this@FemaleAudioCallingActivity, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            }
+            startActivity(intent)
+            finish()
         }
     }
 
@@ -209,6 +214,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         listenerRegistration?.remove()
+        listenerRegistration = null
+
         agoraEngine?.apply {
             stopPreview()
             leaveChannel()

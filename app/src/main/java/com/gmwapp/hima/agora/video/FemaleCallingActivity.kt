@@ -1,4 +1,4 @@
-package com.gmwapp.hima
+package com.gmwapp.hima.agora.video
 
 import android.app.AlertDialog
 import android.content.pm.PackageManager
@@ -18,6 +18,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.gmwapp.hima.BaseApplication.Companion.getInstance
+import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.databinding.ActivityFemaleCallingBinding
 import com.gmwapp.hima.media.RtcTokenBuilder2

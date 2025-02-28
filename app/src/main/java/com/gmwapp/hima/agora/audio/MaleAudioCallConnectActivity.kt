@@ -1,19 +1,16 @@
-package com.gmwapp.hima
+package com.gmwapp.hima.agora.audio
 
-import android.Manifest
 import android.app.AlertDialog
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.gmwapp.hima.BaseApplication.Companion.getInstance
+import com.gmwapp.hima.R
 import com.gmwapp.hima.constants.DConstants
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration

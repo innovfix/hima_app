@@ -10,20 +10,14 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.gmwapp.hima.BaseApplication
-import com.gmwapp.hima.MaleAudioCallConnectActivity
-import com.gmwapp.hima.MaleCallConnectActivity
+import com.gmwapp.hima.agora.audio.MaleAudioCallConnectActivity
+import com.gmwapp.hima.agora.video.MaleCallConnectActivity
 import com.gmwapp.hima.R
-import com.gmwapp.hima.activities.RandomUserActivity
-import com.gmwapp.hima.adapters.CoinAdapter
-import com.gmwapp.hima.adapters.FemaleUserAdapter
 import com.gmwapp.hima.adapters.RecentCallsAdapter
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentRecentBinding
 import com.gmwapp.hima.retrofit.responses.CallsListResponseData
-import com.gmwapp.hima.retrofit.responses.CoinsResponseData
-import com.gmwapp.hima.retrofit.responses.FemaleUsersResponseData
-import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.RecentViewModel
 import dagger.hilt.android.AndroidEntryPoint
 

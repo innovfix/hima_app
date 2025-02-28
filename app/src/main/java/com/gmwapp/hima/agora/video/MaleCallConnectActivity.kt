@@ -1,4 +1,4 @@
-package com.gmwapp.hima
+package com.gmwapp.hima.agora.video
 
 import android.Manifest
 import android.app.AlertDialog
@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.gmwapp.hima.BaseApplication.Companion.getInstance
+import com.gmwapp.hima.R
 import com.gmwapp.hima.constants.DConstants
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration

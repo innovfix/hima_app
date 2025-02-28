@@ -11,6 +11,11 @@ import android.util.Log
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.gmwapp.hima.activities.MainActivity
+import com.gmwapp.hima.agora.audio.FemaleAudioCallAcceptActivity
+import com.gmwapp.hima.agora.audio.FemaleAudioCallingActivity
+import com.gmwapp.hima.agora.video.FemaleCallAcceptActivity
+import com.gmwapp.hima.agora.video.FemaleCallingActivity
+import com.gmwapp.hima.agora.video.MaleCallingActivty
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.utils.DPreferences
 import com.google.firebase.FirebaseApp

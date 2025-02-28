@@ -1,37 +1,35 @@
-package com.gmwapp.hima
+package com.gmwapp.hima.agora.audio
 
-import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.gmwapp.hima.BaseApplication.Companion.getInstance
-import com.gmwapp.hima.databinding.ActivityFemaleCallAcceptBinding
+import com.gmwapp.hima.R
+import com.gmwapp.hima.databinding.ActivityFemaleAudioCallAcceptBinding
 import com.google.firebase.firestore.FirebaseFirestore
-import android.app.AlertDialog
-import android.content.DialogInterface
-import androidx.activity.OnBackPressedCallback
 
-class FemaleCallAcceptActivity : AppCompatActivity() {
-    lateinit var binding: ActivityFemaleCallAcceptBinding
+class FemaleAudioCallAcceptActivity : AppCompatActivity() {
+    lateinit var binding: ActivityFemaleAudioCallAcceptBinding
     private var channelName: String? = null
     private var maleUserId: String? = null
     private var femaleUserId: String? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityFemaleCallAcceptBinding.inflate(layoutInflater)
+
+        binding = ActivityFemaleAudioCallAcceptBinding.inflate(layoutInflater)
         setContentView(binding.root)
         enableEdgeToEdge()
-
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
-
         // Handle the back press
 
 
@@ -45,11 +43,11 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
 
 
         binding.accpet.setOnClickListener {
-            val intent = Intent(this@FemaleCallAcceptActivity, FemaleCallingActivity::class.java).apply {
+            val intent = Intent(this@FemaleAudioCallAcceptActivity, FemaleAudioCallingActivity::class.java).apply {
                 putExtra("channelName", channelName)
                 putExtra("maleUserId", maleUserId)
             }
-           callIsconnected()
+            callIsconnected()
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
 
             startActivity(intent)
@@ -120,7 +118,9 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
                 .update(mapOf(
                     "isCalling" to false,
                     "channelName" to null,
-                    "femaleUserId" to null
+                    "femaleUserId" to null,
+                    "callType" to null
+
 
                 ))
                 .addOnSuccessListener {
@@ -137,7 +137,9 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
                     mapOf(
                         "isCalling" to false,
                         "channelName" to null,
-                        "callerUserId" to null
+                        "callerUserId" to null,
+                        "callType" to null
+
                     )
                 )
                 .addOnSuccessListener {
@@ -158,7 +160,7 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
 
 
     private fun showExitDialog() {
-        val builder = AlertDialog.Builder(this@FemaleCallAcceptActivity)
+        val builder = AlertDialog.Builder(this@FemaleAudioCallAcceptActivity)
         builder.setTitle("Reject Call")
         builder.setMessage("Do you want to reject the call?")
 
