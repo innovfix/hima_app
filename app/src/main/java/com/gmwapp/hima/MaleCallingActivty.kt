@@ -116,6 +116,7 @@ class MaleCallingActivty : AppCompatActivity() {
         }
 
         channelName = intent.getStringExtra("channelName")
+        Log.d("channelname2","$channelName")
         femaleUserId = intent.getStringExtra("femaleUserId")
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -143,9 +144,8 @@ class MaleCallingActivty : AppCompatActivity() {
             ActivityCompat.requestPermissions(this, REQUESTED_PERMISSIONS, PERMISSION_REQ_ID)
         } else {
             setupVideoSDKEngine()
-            binding.root.postDelayed({
-                joinChannel(binding.JoinButton)
-            }, 1000) // 1000 milliseconds = 1 second
+            joinChannel(binding.JoinButton)
+
         }
 
 
@@ -288,6 +288,12 @@ class MaleCallingActivty : AppCompatActivity() {
         }
 
         override fun onUserOffline(uid: Int, reason: Int) {
+
+            val intent = Intent(this@MaleCallingActivty, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            }
+            startActivity(intent)
+            finish()
             showMessage("Remote user offline $uid $reason")
             runOnUiThread { remoteSurfaceView!!.visibility = View.GONE }
 
@@ -296,6 +302,7 @@ class MaleCallingActivty : AppCompatActivity() {
             if (remoteSurfaceView != null) remoteSurfaceView!!.visibility = View.GONE
             if (localSurfaceView != null) localSurfaceView!!.visibility = View.GONE
             isJoined = false
+
         }
     }
 
@@ -363,6 +370,7 @@ class MaleCallingActivty : AppCompatActivity() {
             RtcEngine.destroy()
             agoraEngine = null
 
+            rejectCall()
             val intent = Intent(this@MaleCallingActivty, MainActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
             }

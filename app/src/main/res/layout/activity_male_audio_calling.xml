@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    >
+
+
+
+    <TextView
+        android:id="@+id/userid"
+        android:layout_width="match_parent"
+        android:textSize="@dimen/_22sdp"
+        android:gravity="center"
+        android:fontFamily="@font/poppins_semibold"
+        android:layout_height="wrap_content"
+        android:text="Female user id"/>
+
+        <Button
+            android:id="@+id/JoinButton"
+            android:visibility="gone"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="40dp"
+            android:onClick="joinChannel"
+            android:text="Join" />
+
+        <Button
+            android:id="@+id/LeaveButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+
+            android:gravity="center"
+            android:layout_marginTop="120dp"
+            android:onClick="leaveChannel"
+            android:text="Leave" />
+
+</LinearLayout>

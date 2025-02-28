@@ -18,43 +18,33 @@ import com.gmwapp.hima.constants.DConstants
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 
-class MaleCallConnectActivity : AppCompatActivity() {
+class MaleAudioCallConnectActivity : AppCompatActivity() {
     private var femaleUserId: String? = null
     private var callType: String? = null
     private var maleUserid: Int? = null
     private var callListener: ListenerRegistration? = null
     private val db = FirebaseFirestore.getInstance()
     private lateinit var channel: String
-    private val PERMISSION_REQ_ID = 22
-    private val REQUESTED_PERMISSIONS = arrayOf<String>(
-        Manifest.permission.RECORD_AUDIO,
-        Manifest.permission.CAMERA
-    )
 
-    private fun checkSelfPermission(): Boolean {
-        return !(ContextCompat.checkSelfPermission(
-            this,
-            REQUESTED_PERMISSIONS[0]
-        ) != PackageManager.PERMISSION_GRANTED ||
-                ContextCompat.checkSelfPermission(
-                    this,
-                    REQUESTED_PERMISSIONS[1]
-                ) != PackageManager.PERMISSION_GRANTED)
-    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContentView(R.layout.activity_male_call_connect)
+        setContentView(R.layout.activity_main_audio_call_connect)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
+
         }
+
         val userData = getInstance()?.getPrefs()?.getUserData()
 
         maleUserid = userData?.id
         femaleUserId = intent.getStringExtra(DConstants.RECEIVER_ID)
         callType = intent.getStringExtra(DConstants.CALL_TYPE)
+
+        Log.d("useridcehcking","$maleUserid,$femaleUserId, $callType")
 
         channel = generateChannelName(maleUserid)
 
@@ -72,12 +62,8 @@ class MaleCallConnectActivity : AppCompatActivity() {
             }
         })
 
-        // Request permissions if not granted
-        if (!checkSelfPermission()) {
-            ActivityCompat.requestPermissions(this, REQUESTED_PERMISSIONS, PERMISSION_REQ_ID)
-        } else {
             maleUserid?.let { listenForCallStatusChanges(it) }
-        }
+
 
 
 
@@ -109,7 +95,7 @@ class MaleCallConnectActivity : AppCompatActivity() {
 
     private fun navigateToCallingActivity(channelName: String?) {
 
-        val intent = Intent(this, MaleCallingActivty::class.java).apply {
+        val intent = Intent(this, MaleAudioCallingActivity::class.java).apply {
             Log.d("channelname3","$channelName")
 
             putExtra("channelName", channelName)
@@ -121,7 +107,7 @@ class MaleCallConnectActivity : AppCompatActivity() {
         finish()  // Close this activity to avoid stacking
     }
     private fun showExitDialog() {
-        val builder = AlertDialog.Builder(this@MaleCallConnectActivity)
+        val builder = AlertDialog.Builder(this@MaleAudioCallConnectActivity)
         builder.setTitle("Reject Call")
         builder.setMessage("Do you want to reject the call?")
 
@@ -146,7 +132,9 @@ class MaleCallConnectActivity : AppCompatActivity() {
                 .update(mapOf(
                     "isCalling" to false,
                     "channelName" to null,
-                    "femaleUserId" to null
+                    "femaleUserId" to null,
+                    "callType" to null
+
 
                 ))
                 .addOnSuccessListener {
@@ -163,7 +151,9 @@ class MaleCallConnectActivity : AppCompatActivity() {
                     mapOf(
                         "isCalling" to false,
                         "channelName" to null,
-                        "maleUserId" to null
+                        "maleUserId" to null,
+                        "callType" to null
+
                     )
                 )
                 .addOnSuccessListener {
@@ -195,7 +185,9 @@ class MaleCallConnectActivity : AppCompatActivity() {
             .update(
                 mapOf(
                     "isCalling" to true,
-                    "channelName" to channel
+                    "channelName" to channel,
+                    "callType" to callType
+
                 )
             )
             .addOnSuccessListener {
@@ -211,7 +203,9 @@ class MaleCallConnectActivity : AppCompatActivity() {
                 mapOf(
                     "isCalling" to true,
                     "maleUserId" to maleUserId.toString(),
-                    "channelName" to channel
+                    "channelName" to channel,
+                    "callType" to callType
+
                 )
             )
             .addOnSuccessListener {

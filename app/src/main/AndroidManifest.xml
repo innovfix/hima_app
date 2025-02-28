@@ -37,6 +37,18 @@
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
         <activity
+            android:name=".MaleAudioCallConnectActivity"
+            android:exported="false" />
+        <activity
+            android:name=".FemaleAudioCallAcceptActivity"
+            android:exported="false" />
+        <activity
+            android:name=".MaleAudioCallingActivity"
+            android:exported="false" />
+        <activity
+            android:name=".FemaleAudioCallingActivity"
+            android:exported="false" />
+        <activity
             android:name=".FemaleCallingActivity"
             android:exported="false" />
         <activity

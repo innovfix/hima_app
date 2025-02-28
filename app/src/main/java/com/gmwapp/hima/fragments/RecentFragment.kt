@@ -10,6 +10,7 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.MaleAudioCallConnectActivity
 import com.gmwapp.hima.MaleCallConnectActivity
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.RandomUserActivity
@@ -80,9 +81,9 @@ class RecentFragment : BaseFragment() {
                         it.data,
                         object : OnItemSelectionListener<CallsListResponseData> {
                             override fun onItemSelected(data: CallsListResponseData) {
-                                val intent = Intent(context, RandomUserActivity::class.java)
+                                val intent = Intent(context, MaleAudioCallConnectActivity::class.java)
                                 intent.putExtra(DConstants.CALL_TYPE, "audio")
-                                intent.putExtra(DConstants.RECEIVER_ID, data.id)
+                                intent.putExtra(DConstants.RECEIVER_ID, data.id.toString())
                                 intent.putExtra(DConstants.RECEIVER_NAME, data.name)
                                 intent.putExtra(DConstants.CALL_ID, 0)
                                intent.putExtra(DConstants.IMAGE, data.image)

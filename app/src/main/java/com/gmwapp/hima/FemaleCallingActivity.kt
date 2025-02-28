@@ -151,9 +151,8 @@ class FemaleCallingActivity : AppCompatActivity() {
             ActivityCompat.requestPermissions(this, REQUESTED_PERMISSIONS, PERMISSION_REQ_ID)
         } else {
             setupVideoSDKEngine()
-            binding.root.postDelayed({
-                joinChannel(binding.JoinButton)
-            }, 1000)
+            joinChannel(binding.JoinButton)
+
         }
 
 
@@ -295,6 +294,12 @@ class FemaleCallingActivity : AppCompatActivity() {
         }
 
         override fun onUserOffline(uid: Int, reason: Int) {
+
+            val intent = Intent(this@FemaleCallingActivity, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            }
+            startActivity(intent)
+            finish()
             showMessage("Remote user offline $uid $reason")
             runOnUiThread { remoteSurfaceView!!.visibility = View.GONE }
 
@@ -303,6 +308,9 @@ class FemaleCallingActivity : AppCompatActivity() {
             if (remoteSurfaceView != null) remoteSurfaceView!!.visibility = View.GONE
             if (localSurfaceView != null) localSurfaceView!!.visibility = View.GONE
             isJoined = false
+
+
+
         }
     }
 
@@ -371,6 +379,7 @@ class FemaleCallingActivity : AppCompatActivity() {
             RtcEngine.destroy()
             agoraEngine = null
 
+            rejectCall()
 
             val intent = Intent(this@FemaleCallingActivity, MainActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)

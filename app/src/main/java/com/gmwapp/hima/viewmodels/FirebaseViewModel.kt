@@ -25,7 +25,8 @@ class FirebaseViewModel :ViewModel() {
             "femaleUserId" to femaleUserId,
             "isCalling" to isCalling,
             "channelName" to null,
-            "isConnected" to false
+            "isConnected" to false,
+            "callType" to null
         )
 
 
@@ -51,7 +52,9 @@ class FirebaseViewModel :ViewModel() {
             "maleUserId" to maleUserId,
             "isCalling" to isCalling,
             "channelName" to null,
-            "isConnected" to false
+            "isConnected" to false,
+            "callType" to null
+
         )
 
         // Update female user document

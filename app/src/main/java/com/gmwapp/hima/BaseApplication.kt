@@ -61,7 +61,7 @@ class BaseApplication : Application(), Configuration.Provider {
             override fun onActivityResumed(activity: Activity) {
                 currentActivity = activity
 
-                if (activity is FemaleCallingActivity) {
+                if (activity is FemaleCallingActivity || activity is FemaleAudioCallingActivity) {
                     stopRingtone()
                 }
 
@@ -186,17 +186,29 @@ class BaseApplication : Application(), Configuration.Provider {
             val isCalling = snapshot.getBoolean("isCalling") ?: false
             val maleUserId = snapshot.getString("maleUserId")
             val channelName = snapshot.getString("channelName")
+            val calltype = snapshot.getString("callType")
 
             Log.d("FirestoreListener", "isCalling value: $isCalling")
             val activity = getCurrentActivity()
 
 
             if (isCalling) {
-                if (currentActivity !is FemaleCallingActivity) {
-                    Log.d("FirestoreListener", "Incoming call detected")
-                    playIncomingCallSound()
-                    navigateToCallAcceptActivity(maleUserId, channelName)
+
+                if (calltype=="audio"){
+                    if (currentActivity !is FemaleAudioCallingActivity) {
+                        Log.d("FirestoreListenertrigger", "Incoming call detected")
+                        playIncomingCallSound()
+                        navigateToAudioCallAcceptActivity(maleUserId, channelName)
+                    }
+                }else{
+                    if (currentActivity !is FemaleCallingActivity) {
+                        Log.d("FirestoreListener", "Incoming call detected")
+                        playIncomingCallSound()
+                        navigateToCallAcceptActivity(maleUserId, channelName)
+                    }
                 }
+
+
 
 
             } else {
@@ -251,6 +263,31 @@ class BaseApplication : Application(), Configuration.Provider {
         if (activity != null && !activity.isFinishing) {
             activity.runOnUiThread {
                 val intent = Intent(activity, FemaleCallAcceptActivity::class.java).apply {
+                    putExtra("channelName", channelName)
+                    putExtra("maleUserId", maleUserId)
+                }
+                activity.startActivity(intent)
+            }
+        } else {
+            Log.e("HelloRishabh", "No active activity found!")
+        }
+    }
+
+
+    private fun navigateToAudioCallAcceptActivity(maleUserId: String?, channelName: String?) {
+        val activity = getCurrentActivity()
+        Log.d("HelloRishabh", "Current Activity: $activity")
+
+        if (activity is FemaleCallAcceptActivity) {
+            Log.d("HelloRishabh", "Already in FemaleCallAcceptActivity, no need to navigate.")
+            return
+        }
+
+
+
+        if (activity != null && !activity.isFinishing) {
+            activity.runOnUiThread {
+                val intent = Intent(activity, FemaleAudioCallAcceptActivity::class.java).apply {
                     putExtra("channelName", channelName)
                     putExtra("maleUserId", maleUserId)
                 }
