@@ -63,6 +63,7 @@ class FemaleHomeFragment : BaseFragment() {
     private val CALL_PERMISSIONS_REQUEST_CODE = 1
     private val NOTIFICATIONS_ENABLED_REQUEST_CODE = 3
     lateinit var binding: FragmentFemaleHomeBinding
+    lateinit var language : String
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
     private lateinit var sharedPreferences: SharedPreferences
     private var isPermissionDenied: Boolean = false
@@ -262,7 +263,7 @@ class FemaleHomeFragment : BaseFragment() {
         val userData = prefs?.getUserData()
 
 
-        val language = userData?.language
+        language = userData?.language.toString()
 
         val sharedPreferences = requireContext().getSharedPreferences("MyAppPrefs", Context.MODE_PRIVATE)
         val isTagSet = sharedPreferences.getBoolean("isOneSignalTagSet", false)
@@ -299,7 +300,7 @@ class FemaleHomeFragment : BaseFragment() {
 //        }
 
         binding.whatsapp.setOnClickListener {
-            val groupLink = "https://whatsapp.com/channel/0029Vazps3mFsn0p4KSOYF0f" // Replace with your actual WhatsApp group link
+            val groupLink = getWhatsAppGroupLink()
             openWhatsAppGroup(groupLink)
         }
 
@@ -379,6 +380,20 @@ class FemaleHomeFragment : BaseFragment() {
         } catch (e: Exception) {
             e.printStackTrace()
 //            Toast.makeText(this, "WhatsApp is not installed", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun getWhatsAppGroupLink(): String {
+        val userlanguage = language
+
+        return when (userlanguage) {
+            "Tamil" -> "https://whatsapp.com/channel/0029Vazps3mFsn0p4KSOYF0f"
+            "Hindi" -> "https://whatsapp.com/channel/0029Vazay5MHVvTZuoDKOv1h"
+            "Punjabi" -> "https://whatsapp.com/channel/0029Vb3h23eLCoX5GRLz0y2B"
+            "Telugu" -> "https://whatsapp.com/channel/0029Vb3CXKIFSAt2vcFGUC09"
+            "Malayalam" -> "https://whatsapp.com/channel/0029Vb7tuimFnSzCEAPBgc2U"
+            "Kannada" -> "https://whatsapp.com/channel/0029VauVGRCFi8xeS3Klvl1m"
+            else -> "https://whatsapp.com/channel/0029Vazps3mFsn0p4KSOYF0f"
         }
     }
 
