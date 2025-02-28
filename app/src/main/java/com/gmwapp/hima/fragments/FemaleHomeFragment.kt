@@ -298,6 +298,12 @@ class FemaleHomeFragment : BaseFragment() {
 //            Log.d("OneSignalTag", "Tag already set, skipping... ")
 //        }
 
+        binding.whatsapp.setOnClickListener {
+            val groupLink = "https://whatsapp.com/channel/0029Vb53H0q8PgsDJKx6EN2i" // Replace with your actual WhatsApp group link
+            openWhatsAppGroup(groupLink)
+        }
+
+
 
 
         binding.clCoins.setOnSingleClickListener({
@@ -361,6 +367,19 @@ class FemaleHomeFragment : BaseFragment() {
         })
 
 
+    }
+
+
+    private fun openWhatsAppGroup(groupLink: String) {
+        try {
+            val intent = Intent(Intent.ACTION_VIEW)
+            intent.data = Uri.parse(groupLink)
+            intent.setPackage("com.whatsapp") // Ensures only WhatsApp handles the intent
+            startActivity(intent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+//            Toast.makeText(this, "WhatsApp is not installed", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun addRoomStateChangedListener() {
