@@ -299,7 +299,7 @@ class FemaleHomeFragment : BaseFragment() {
 //        }
 
         binding.whatsapp.setOnClickListener {
-            val groupLink = "https://whatsapp.com/channel/0029Vb53H0q8PgsDJKx6EN2i" // Replace with your actual WhatsApp group link
+            val groupLink = "https://whatsapp.com/channel/0029Vazps3mFsn0p4KSOYF0f" // Replace with your actual WhatsApp group link
             openWhatsAppGroup(groupLink)
         }
 
