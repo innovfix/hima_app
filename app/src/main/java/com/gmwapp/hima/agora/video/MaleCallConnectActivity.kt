@@ -5,9 +5,12 @@ import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.CountDownTimer
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -15,7 +18,9 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.gmwapp.hima.BaseApplication.Companion.getInstance
 import com.gmwapp.hima.R
+import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.constants.DConstants
+import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 
@@ -27,6 +32,10 @@ class MaleCallConnectActivity : AppCompatActivity() {
     private val db = FirebaseFirestore.getInstance()
     private lateinit var channel: String
     private val PERMISSION_REQ_ID = 22
+    private var callTimeoutTimer: CountDownTimer? = null
+    private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
+
+
     private val REQUESTED_PERMISSIONS = arrayOf<String>(
         Manifest.permission.RECORD_AUDIO,
         Manifest.permission.CAMERA
@@ -60,11 +69,7 @@ class MaleCallConnectActivity : AppCompatActivity() {
         channel = generateChannelName(maleUserid)
 
         // If both user IDs exist, update Firestore to mark the call as connected
-        if (maleUserid != null && femaleUserId != null) {
-            updateFirestoreForCallConnect(maleUserid!!, femaleUserId!!, channel)
-        } else {
-            Log.e("MaleCallConnectActivity", "User ID or Receiver ID is null")
-        }
+
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -77,13 +82,35 @@ class MaleCallConnectActivity : AppCompatActivity() {
         if (!checkSelfPermission()) {
             ActivityCompat.requestPermissions(this, REQUESTED_PERMISSIONS, PERMISSION_REQ_ID)
         } else {
-            maleUserid?.let { listenForCallStatusChanges(it) }
+            if (maleUserid != null && femaleUserId != null) {
+                updateFirestoreForCallConnect(maleUserid!!, femaleUserId!!, channel)
+            } else {
+                Log.e("MaleCallConnectActivity", "User ID or Receiver ID is null")
+            }
+
         }
 
+
+        maleUserid?.let { listenForCallStatusChanges(it) }
 
 
     }
 
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == PERMISSION_REQ_ID) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Permission granted, update Firestore for the call
+                if (maleUserid != null && femaleUserId != null) {
+                    updateFirestoreForCallConnect(maleUserid!!, femaleUserId!!, channel)
+                } else {
+                    Log.e("MaleCallConnectActivity", "User ID or Receiver ID is null")
+                }
+            } else {
+                Log.e("Permission", "Audio permission denied")
+            }
+        }
+    }
 
     private fun listenForCallStatusChanges(maleUserId: Int) {
         val callDocRef = db.collection("maleUsers").document(maleUserId.toString())
@@ -102,6 +129,7 @@ class MaleCallConnectActivity : AppCompatActivity() {
             Log.d("FirestoreListenercheck", "isConnected updated: $isConnected")
 
             if (isConnected) {
+                callTimeoutTimer?.cancel()
                 navigateToCallingActivity(latestChannelName)
             }
         }
@@ -152,7 +180,7 @@ class MaleCallConnectActivity : AppCompatActivity() {
                 ))
                 .addOnSuccessListener {
                     Log.d("FirestoreUpdate", "isCalling set to false successfully")
-                    finish() // Close activity after rejection
+                  //  finish() // Close activity after rejection
                 }
                 .addOnFailureListener { e ->
                     Log.e("FirestoreUpdate", "Failed to update Firestore: ", e)
@@ -169,7 +197,9 @@ class MaleCallConnectActivity : AppCompatActivity() {
                 )
                 .addOnSuccessListener {
                     Log.d("FirestoreUpdate", "isCalling set to false and channelName set to null successfully")
-                    finish() // Close activity after rejection
+                    callTimeoutTimer?.cancel()
+
+                    finish() // Close this activity
                 }
                 .addOnFailureListener { e ->
                     Log.e("FirestoreUpdate", "Failed to update Firestore: ", e)
@@ -191,39 +221,78 @@ class MaleCallConnectActivity : AppCompatActivity() {
     ) {
         val db = FirebaseFirestore.getInstance()
 
-        // Update male user's Firestore document
-        db.collection("maleUsers").document(maleUserId.toString())
-            .update(
-                mapOf(
-                    "isCalling" to true,
-                    "channelName" to channel
-                )
-            )
-            .addOnSuccessListener {
-                Log.d("FirestoreUpdate", "Male user isInCall set to true")
-            }
-            .addOnFailureListener { e ->
-                Log.e("FirestoreUpdate", "Failed to update male user: ", e)
-            }
-
-        // Update female user's Firestore document
+        // First, check if the female user's "isCalling" is false
         db.collection("femaleUsers").document(femaleUserId)
-            .update(
-                mapOf(
-                    "isCalling" to true,
-                    "maleUserId" to maleUserId.toString(),
-                    "channelName" to channel
-                )
-            )
-            .addOnSuccessListener {
-                Log.d("FirestoreUpdate", "Female user isInCall and callerUserId updated")
+            .get()
+            .addOnSuccessListener { femaleSnapshot ->
+                val isFemaleCalling = femaleSnapshot.getBoolean("isCalling") ?: false
+
+                if (!isFemaleCalling) {
+                    // If the female user is NOT in a call, proceed with the updates
+
+                    // Update male user's Firestore document
+                    db.collection("maleUsers").document(maleUserId.toString())
+                        .update(
+                            mapOf(
+                                "isCalling" to true,
+                                "channelName" to channel
+                            )
+                        )
+                        .addOnSuccessListener {
+                            Log.d("FirestoreUpdate", "Male user isCalling set to true")
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("FirestoreUpdate", "Failed to update male user: ", e)
+                        }
+
+                    // Update female user's Firestore document
+                    db.collection("femaleUsers").document(femaleUserId)
+                        .update(
+                            mapOf(
+                                "isCalling" to true,
+                                "maleUserId" to maleUserId.toString(),
+                                "channelName" to channel
+                            )
+                        )
+                        .addOnSuccessListener {
+                            startCallTimeout()
+                            Log.d("FirestoreUpdate", "Female user isCalling set to true")
+
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("FirestoreUpdate", "Failed to update female user: ", e)
+                        }
+                } else {
+                    // Female user is already in a call, show Toast
+                    Toast.makeText(this@MaleCallConnectActivity, "User is busy", Toast.LENGTH_LONG).show()
+                    Log.d("FirestoreCheck", "Female user is already in a call. Skipping update.")
+                    goToMainActivity()
+                }
             }
             .addOnFailureListener { e ->
-                Log.e("FirestoreUpdate", "Failed to update female user: ", e)
+                Log.e("FirestoreCheck", "Failed to check female isCalling status", e)
             }
     }
 
     fun generateChannelName(maleUserId: Int?): String {
         return "${maleUserId}_${System.currentTimeMillis()}"
+    }
+
+    private fun startCallTimeout() {
+        callTimeoutTimer = object : CountDownTimer(18_000, 1000) { // 18 seconds
+            override fun onTick(millisUntilFinished: Long) {
+                Log.d("CallTimeout", "Waiting for connection: ${millisUntilFinished / 1000} sec remaining")
+            }
+
+            override fun onFinish() {
+                Log.d("CallTimeout", "Timeout reached, rejecting call.")
+                rejectCall() // Reject call if not connected
+            }
+        }.start()
+    }
+    private fun goToMainActivity(){
+        var intent = Intent(this@MaleCallConnectActivity, MainActivity::class.java)
+        startActivity(intent)
+        finish()
     }
 }

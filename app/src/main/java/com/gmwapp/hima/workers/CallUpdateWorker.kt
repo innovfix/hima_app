@@ -48,6 +48,7 @@ class CallUpdateWorker @AssistedInject constructor(
                 if (updateConnectedCall.isSuccessful == true) {
                     if (updateConnectedCall.body()?.success == true) {
                         Result.success()
+
                     } else {
                         Result.failure()
                     }

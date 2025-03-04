@@ -47,6 +47,7 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
             val intent = Intent(this@FemaleCallAcceptActivity, FemaleCallingActivity::class.java).apply {
                 putExtra("channelName", channelName)
                 putExtra("maleUserId", maleUserId)
+
             }
            callIsconnected()
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)

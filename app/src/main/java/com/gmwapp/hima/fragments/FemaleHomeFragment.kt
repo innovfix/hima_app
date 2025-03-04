@@ -67,6 +67,7 @@ class FemaleHomeFragment : BaseFragment() {
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
     private val firebaseViewModel: FirebaseViewModel by viewModels()
 
+   lateinit var userid : String
     private lateinit var sharedPreferences: SharedPreferences
     private var isUserAddedInDB: Boolean = false
     private var isPermissionDenied: Boolean = false
@@ -247,6 +248,8 @@ class FemaleHomeFragment : BaseFragment() {
                     val intent = Intent(context, GrantPermissionsActivity::class.java)
                     startActivity(intent)
                 } else {
+                    BaseApplication.getInstance()?.listenForCallChangesFemale("femaleUsers",userid)
+
                     checkOverlayPermission()
                 }
             }
@@ -268,6 +271,9 @@ class FemaleHomeFragment : BaseFragment() {
         val prefs = BaseApplication.getInstance()?.getPrefs()
         val userData = prefs?.getUserData()
 
+        if (userData != null) {
+            userid = userData?.id.toString()
+        }
 
         val language = userData?.language
 
@@ -343,7 +349,14 @@ class FemaleHomeFragment : BaseFragment() {
         femaleUsersViewModel.updateCallStatusResponseLiveData.observe(viewLifecycleOwner, Observer {
             if (it != null && it.success) {
                 prefs.setUserData(it.data)
+                Log.d("updateCallStatusResponse2","${it}")
+
             } else {
+                Log.d("updateCallStatusResponse2","${it}")
+
+                Log.d("updateCallStatusResponse2","${it.message}")
+                Log.d("updateCallStatusResponse2","${it}")
+
                 Toast.makeText(context, it?.message, Toast.LENGTH_SHORT).show()
                 binding.sAudio.isChecked = prefs.getUserData()?.audio_status == 1
                 binding.sVideo.isChecked = prefs.getUserData()?.video_status == 1
@@ -468,6 +481,7 @@ class FemaleHomeFragment : BaseFragment() {
                 sharedPreferences.edit().putBoolean("isUserAddedInDB", true).apply()
 
             } else {
+                BaseApplication.getInstance()?.listenForCallChangesFemale("femaleUsers",userid)
                 Log.d("firstoreusercreated","Not Succesfully")
 
             }

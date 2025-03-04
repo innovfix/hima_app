@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.Manifest
 import android.content.Intent
+import android.os.CountDownTimer
 
 import android.util.Log
 import android.view.SurfaceView
@@ -12,6 +13,7 @@ import android.view.View
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -22,8 +24,12 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.databinding.ActivityFemaleCallingBinding
 import com.gmwapp.hima.media.RtcTokenBuilder2
+import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
+import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
+import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import dagger.hilt.android.AndroidEntryPoint
 import io.agora.rtc2.ChannelMediaOptions
 import io.agora.rtc2.Constants
 import io.agora.rtc2.IRtcEngineEventHandler
@@ -31,14 +37,21 @@ import io.agora.rtc2.RtcEngine
 import io.agora.rtc2.RtcEngineConfig
 import io.agora.rtc2.video.VideoCanvas
 import io.agora.rtm.RtmClient
+import retrofit2.Call
+import retrofit2.Response
 
+@AndroidEntryPoint
 class FemaleCallingActivity : AppCompatActivity() {
     private var channelName: String? = null
     private var maleUserId: String? = null
 
 
+    private val profileViewModel: ProfileViewModel by viewModels()
+
 
     private var listenerRegistration: ListenerRegistration? = null
+    private var countDownTimer: CountDownTimer? = null
+
 
 
     lateinit var binding: ActivityFemaleCallingBinding
@@ -126,6 +139,14 @@ class FemaleCallingActivity : AppCompatActivity() {
 
         channelName = intent.getStringExtra("channelName")
         maleUserId = intent.getStringExtra("maleUserId")
+
+        var maleid = intent.getStringExtra("maleUserId")?.toIntOrNull()
+
+
+
+        listenRemainingTime()
+
+
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 Log.d("FemaleCallAcceptActivity", "onBackPressed called via Dispatcher")
@@ -162,53 +183,28 @@ class FemaleCallingActivity : AppCompatActivity() {
     }
 
 
-    private fun listenForCallStatusChanges() {
 
+    private fun listenRemainingTime() {
         val db = FirebaseFirestore.getInstance()
-        val maleUserRef = db.collection("femaleUsers").document(femaleUserId)
+        val callDocRef = db.collection("femaleUsers").document(femaleUserId)
 
-        // 🛑 Remove any existing listener before attaching a new one
-        listenerRegistration?.remove()
-        listenerRegistration = null
-
-        listenerRegistration = maleUserRef.addSnapshotListener { snapshot, error ->
+        listenerRegistration = callDocRef.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                Log.e("FirestoreError", "Error listening for changes", error)
+                Log.e("Firestore", "Error listening to remainingTime updates", error)
                 return@addSnapshotListener
             }
 
             if (snapshot != null && snapshot.exists()) {
-                val isConnected = snapshot.getBoolean("isConnected") ?: true
+                val remainingTime = snapshot.getString("remainingTime")
+                Log.d("Firestore", "Remaining Time Updated: $remainingTime")
 
-                if (!isConnected) {
-                    Log.d("CallStatus", "isConnected became false. Returning to MainActivity")
-                    showMessage("Call ended. Returning to MainActivity.")
-
-                    // 🛑 Check if Agora Engine is null before calling leaveChannel()
-                    agoraEngine?.leaveChannel()?.also {
-                        showMessage("You left the channel")
-                    } ?: Log.e("AgoraError", "agoraEngine is null, cannot leave channel")
-
-                    // Hide video views safely
-                    remoteSurfaceView?.visibility = View.GONE
-                    localSurfaceView?.visibility = View.GONE
-                    isJoined = false
-
-                    // 🛑 Stop listening for changes to prevent multiple triggers
-                    listenerRegistration?.remove()
-                    listenerRegistration = null
-
-                    // Navigate to MainActivity
-                    val intent = Intent(this@FemaleCallingActivity, MainActivity::class.java).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                    }
-                    startActivity(intent)
-                    finish()
+                if (remainingTime != null) {
+                    stopCountdown()
+                    startCountdown(remainingTime)
                 }
             }
         }
     }
-
 
 
     private fun showExitDialog() {
@@ -261,11 +257,14 @@ class FemaleCallingActivity : AppCompatActivity() {
                         "isCalling" to false,
                         "channelName" to null,
                         "isConnected" to false,
-                        "maleUserId" to null
+                        "maleUserId" to null,
+                        "remainingTime" to null
                     )
                 )
                 .addOnSuccessListener {
                     Log.d("FirestoreUpdate", "isCalling set to false and channelName set to null successfully")
+                    stopCountdown()
+
                     finish() // Close activity after rejection
                 }
                 .addOnFailureListener { e ->
@@ -295,6 +294,8 @@ class FemaleCallingActivity : AppCompatActivity() {
         }
 
         override fun onUserOffline(uid: Int, reason: Int) {
+
+            stopCountdown()
 
             val intent = Intent(this@FemaleCallingActivity, MainActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -380,6 +381,8 @@ class FemaleCallingActivity : AppCompatActivity() {
             RtcEngine.destroy()
             agoraEngine = null
 
+            stopCountdown()
+
             rejectCall()
 
             val intent = Intent(this@FemaleCallingActivity, MainActivity::class.java).apply {
@@ -415,6 +418,43 @@ class FemaleCallingActivity : AppCompatActivity() {
         Log.d("MaleCallingActivitydestory", "onDestroy called - Activity is being fully destroyed")
 
     }
+
+
+    fun startCountdown(remainingTime: String) {
+        // Convert "MM:SS" format to milliseconds
+        val timeParts = remainingTime.split(":").map { it.toInt() }
+        val minutes = timeParts[0]
+        val seconds = timeParts[1]
+        val totalMillis = (minutes * 60 + seconds) * 1000L
+
+      countDownTimer =  object : CountDownTimer(totalMillis, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+                val hours = millisUntilFinished / 3600000
+                val minutes = (millisUntilFinished % 3600000) / 60000
+                val secs = (millisUntilFinished % 60000) / 1000
+
+                binding.tvRemainingTime?.text = String.format("%02d:%02d:%02d", hours, minutes, secs)
+            }
+
+            override fun onFinish() {
+                binding.tvRemainingTime?.text = "00:00:00" // When countdown finishes
+                rejectCall()
+
+                val intent = Intent(this@FemaleCallingActivity, MainActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                }
+                startActivity(intent)
+                finish()
+            }
+        }.start()
+    }
+
+    private fun stopCountdown() {
+        countDownTimer?.cancel() // Cancel the countdown timer
+        countDownTimer = null
+    }
+
+
 
 
 

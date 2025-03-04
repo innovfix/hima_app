@@ -8,6 +8,13 @@
     android:layout_height="match_parent"
     >
 
+    <TextView
+        android:id="@+id/tv_remaining_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="00:00:00"
+        android:layout_marginBottom="@dimen/_10sdp"
+        android:textSize="@dimen/_14sdp"/>
 
 
     <TextView

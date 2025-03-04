@@ -119,7 +119,8 @@ class FemaleAudioCallAcceptActivity : AppCompatActivity() {
                     "isCalling" to false,
                     "channelName" to null,
                     "femaleUserId" to null,
-                    "callType" to null
+                    "callType" to null,
+                    "callId" to null
 
 
                 ))
@@ -138,7 +139,8 @@ class FemaleAudioCallAcceptActivity : AppCompatActivity() {
                         "isCalling" to false,
                         "channelName" to null,
                         "callerUserId" to null,
-                        "callType" to null
+                        "callType" to null,
+                        "callId" to null
 
                     )
                 )

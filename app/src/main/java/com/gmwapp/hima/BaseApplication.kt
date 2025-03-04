@@ -172,7 +172,7 @@ class BaseApplication : Application(), Configuration.Provider {
     }
 
 
-    private fun listenForCallChangesFemale(gender: String, maleUserId: String) {
+     fun listenForCallChangesFemale(gender: String, maleUserId: String) {
         val callDocRef = db.collection(gender).document(maleUserId)
 
         Log.d("FirestoreListener", "Listening for changes on: $gender / $maleUserId")

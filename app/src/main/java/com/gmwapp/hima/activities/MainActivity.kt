@@ -388,7 +388,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     fun generateRandomTxnId(userId: Int, coinId: String): String {
         return "$userId-$coinId-${System.currentTimeMillis()}"
     }
-    
+
+
     
     }
 

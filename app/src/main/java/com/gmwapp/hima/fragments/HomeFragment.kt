@@ -10,10 +10,12 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.BaseApplication.Companion.getInstance
 import com.gmwapp.hima.agora.audio.MaleAudioCallConnectActivity
 import com.gmwapp.hima.agora.video.MaleCallConnectActivity
 import com.gmwapp.hima.R
@@ -23,12 +25,16 @@ import com.gmwapp.hima.adapters.FemaleUserAdapter
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentHomeBinding
+import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponseData
+import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.gmwapp.hima.viewmodels.FirebaseViewModel
 import com.onesignal.OneSignal
 import dagger.hilt.android.AndroidEntryPoint
+import retrofit2.Call
+import retrofit2.Response
 
 
 @AndroidEntryPoint
@@ -39,6 +45,9 @@ class HomeFragment : BaseFragment() {
     private val firebaseViewModel: FirebaseViewModel by viewModels()
     private lateinit var sharedPreferences: SharedPreferences // Declare it but initialize later
     private var isUserAddedInDB: Boolean = false
+
+    var allowAudioCalling : Boolean = false
+    var allowVideoCalling : Boolean = false
 
 
 
@@ -137,6 +146,8 @@ class HomeFragment : BaseFragment() {
             }
             binding.tvCoins.text = it.data?.coins.toString()
 
+
+
         })
 
 
@@ -178,38 +189,51 @@ class HomeFragment : BaseFragment() {
                         it.data,
                         object : OnItemSelectionListener<FemaleUsersResponseData> {
                             override fun onItemSelected(data: FemaleUsersResponseData) {
-                                val intent = Intent(context, MaleAudioCallConnectActivity::class.java)
-                                intent.putExtra(DConstants.CALL_TYPE, "audio")
-                                intent.putExtra(DConstants.RECEIVER_ID, data.id)
-                                intent.putExtra(DConstants.RECEIVER_NAME, data.name)
-                                intent.putExtra(DConstants.CALL_ID, 0)
-                                intent.putExtra(DConstants.IMAGE, data.image)
-                                intent.putExtra(DConstants.IS_RECEIVER_DETAILS_AVAILABLE, true)
-                                intent.putExtra(
-                                    DConstants.TEXT,
-                                    getString(R.string.wait_user_hint, data.name)
-                                )
-                                startActivity(intent)
+                                getAudioRemainingTime { isAllowed ->
+                                    if (isAllowed) {
+                                        val intent = Intent(context, MaleAudioCallConnectActivity::class.java)
+                                        intent.putExtra(DConstants.CALL_TYPE, "audio")
+                                        intent.putExtra(DConstants.RECEIVER_ID, data.id.toString())
+                                        intent.putExtra(DConstants.RECEIVER_NAME, data.name)
+                                        intent.putExtra(DConstants.CALL_ID, 0)
+                                        intent.putExtra(DConstants.IMAGE, data.image)
+                                        intent.putExtra(DConstants.IS_RECEIVER_DETAILS_AVAILABLE, true)
+                                        intent.putExtra(DConstants.TEXT, getString(R.string.wait_user_hint, data.name))
+                                        startActivity(intent)
+                                    } else {
+                                        Toast.makeText(requireContext(), "Not enough coins", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
                             }
+
                         },
                         object : OnItemSelectionListener<FemaleUsersResponseData> {
                             override fun onItemSelected(data: FemaleUsersResponseData) {
                               //  val intent = Intent(context, RandomUserActivity::class.java)
-                                val intent = Intent(context, MaleCallConnectActivity::class.java)
 
-                                intent.putExtra(DConstants.CALL_TYPE, "video")
-                                intent.putExtra(DConstants.RECEIVER_ID, data.id.toString())
-                                Log.e("OnItemSelected", "Selected Female User ID: ${data.id}")
+                                getVideoRemainingTime { isAllowed ->
+                                    if (isAllowed){
+                                        val intent = Intent(context, MaleCallConnectActivity::class.java)
 
-                                intent.putExtra(DConstants.RECEIVER_NAME, data.name)
-                                intent.putExtra(DConstants.CALL_ID, 0)
-                                intent.putExtra(DConstants.IMAGE, data.image)
-                                intent.putExtra(DConstants.IS_RECEIVER_DETAILS_AVAILABLE, true)
-                                intent.putExtra(
-                                    DConstants.TEXT,
-                                    getString(R.string.wait_user_hint, data.name)
-                                )
-                                startActivity(intent)
+                                        intent.putExtra(DConstants.CALL_TYPE, "video")
+                                        intent.putExtra(DConstants.RECEIVER_ID, data.id.toString())
+                                        Log.e("OnItemSelected", "Selected Female User ID: ${data.id}")
+
+                                        intent.putExtra(DConstants.RECEIVER_NAME, data.name)
+                                        intent.putExtra(DConstants.CALL_ID, 0)
+                                        intent.putExtra(DConstants.IMAGE, data.image)
+                                        intent.putExtra(DConstants.IS_RECEIVER_DETAILS_AVAILABLE, true)
+                                        intent.putExtra(
+                                            DConstants.TEXT,
+                                            getString(R.string.wait_user_hint, data.name)
+                                        )
+                                        context.startActivity(intent)
+
+                                    }else {
+                                        Toast.makeText(requireContext(), "Not enough coins", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+
                             }
                         })
                 }
@@ -366,5 +390,80 @@ class HomeFragment : BaseFragment() {
             }
         })
 
+    }
+
+
+    private fun getAudioRemainingTime(callback: (Boolean) -> Unit) {
+        val userData = getInstance()?.getPrefs()?.getUserData()
+        val maleUserId = userData?.id
+        maleUserId?.let {
+            profileViewModel.getRemainingTime(it, "audio", object :
+                NetworkCallback<GetRemainingTimeResponse> {
+                override fun onNoNetwork() {
+                    callback(false) // No network, so not allowed
+                }
+
+                override fun onFailure(call: Call<GetRemainingTimeResponse>, t: Throwable) {
+                    callback(false) // API failure, so not allowed
+                }
+
+                override fun onResponse(
+                    call: Call<GetRemainingTimeResponse>,
+                    response: Response<GetRemainingTimeResponse>
+                ) {
+                    response.body()?.data?.let { data ->
+                        val timeParts = data.remaining_time?.split(":")
+                        val remainingTimeInSeconds = if (timeParts?.size == 2) {
+                            val minutes = timeParts[0].toIntOrNull() ?: 0
+                            val seconds = timeParts[1].toIntOrNull() ?: 0
+                            (minutes * 60) + seconds
+                        } else {
+                            0 // Default if format is incorrect
+                        }
+
+                        val isAllowed = remainingTimeInSeconds >= 60
+                        callback(isAllowed) // Return the result
+                    } ?: callback(false)
+                }
+            })
+        } ?: callback(false)
+    }
+
+    private fun getVideoRemainingTime(callback: (Boolean) -> Unit) {
+        val userData = getInstance()?.getPrefs()?.getUserData()
+        val maleUserId = userData?.id
+        maleUserId?.let {
+            profileViewModel.getRemainingTime(it, "video", object :
+                NetworkCallback<GetRemainingTimeResponse> {
+                override fun onNoNetwork() {
+                    callback(false) // No internet, disallow call
+                }
+
+                override fun onFailure(call: Call<GetRemainingTimeResponse>, t: Throwable) {
+                    callback(false) // API failure, disallow call
+                }
+
+                override fun onResponse(
+                    call: Call<GetRemainingTimeResponse>,
+                    response: Response<GetRemainingTimeResponse>
+                ) {
+                    response.body()?.data?.let { data ->
+                        val timeParts = data.remaining_time?.split(":")
+                        val remainingTimeInSeconds = if (timeParts?.size == 2) {
+                            val minutes = timeParts[0].toIntOrNull() ?: 0
+                            val seconds = timeParts[1].toIntOrNull() ?: 0
+                            (minutes * 60) + seconds
+                        } else {
+                            0 // Default if format is incorrect
+                        }
+
+                        val isAllowed = remainingTimeInSeconds >= 60
+                        allowVideoCalling = isAllowed
+                        Log.d("remaining_time", "Video Call Allowed: $allowVideoCalling")
+                        callback(isAllowed)
+                    } ?: callback(false) // If no data, disallow call
+                }
+            })
+        } ?: callback(false) // If user ID is null, disallow call
     }
 }

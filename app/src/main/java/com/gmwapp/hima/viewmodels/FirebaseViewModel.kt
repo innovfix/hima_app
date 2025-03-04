@@ -26,7 +26,9 @@ class FirebaseViewModel :ViewModel() {
             "isCalling" to isCalling,
             "channelName" to null,
             "isConnected" to false,
-            "callType" to null
+            "callType" to null,
+            "callId" to null
+
         )
 
 
@@ -53,7 +55,9 @@ class FirebaseViewModel :ViewModel() {
             "isCalling" to isCalling,
             "channelName" to null,
             "isConnected" to false,
-            "callType" to null
+            "callType" to null,
+            "remainingTime" to  null,
+            "callId" to null
 
         )
 

@@ -126,6 +126,7 @@ class FemaleUsersViewModel @Inject constructor(private val femaleUsersRepositori
                     response: Response<UpdateCallStatusResponse>
                 ) {
                     updateCallStatusResponseLiveData.postValue(response.body());
+                    Log.d("updateCallStatusResponse","${response.body()}")
                 }
 
                 override fun onFailure(call: Call<UpdateCallStatusResponse>, t: Throwable) {

@@ -5,12 +5,14 @@ import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.CountDownTimer
 import android.util.Log
 import android.view.SurfaceView
 import android.view.View
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -19,10 +21,16 @@ import androidx.core.view.WindowInsetsCompat
 import com.gmwapp.hima.BaseApplication.Companion.getInstance
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
+import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.databinding.ActivityMaleCallingActivtyBinding
 import com.gmwapp.hima.media.RtcTokenBuilder2
+import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
+import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
+import com.gmwapp.hima.utils.setOnSingleClickListener
+import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import dagger.hilt.android.AndroidEntryPoint
 import io.agora.rtc2.ChannelMediaOptions
 import io.agora.rtc2.Constants
 import io.agora.rtc2.IRtcEngineEventHandler
@@ -30,14 +38,22 @@ import io.agora.rtc2.RtcEngine
 import io.agora.rtc2.RtcEngineConfig
 import io.agora.rtc2.video.VideoCanvas
 import io.agora.rtm.RtmClient
-
+import retrofit2.Call
+import retrofit2.Response
+@AndroidEntryPoint
 class MaleCallingActivty : AppCompatActivity() {
     private var channelName: String? = null
     private var femaleUserId: String? = null
 
     private var listenerRegistration: ListenerRegistration? = null
 
+    private val profileViewModel: ProfileViewModel by viewModels()
 
+
+    val db = FirebaseFirestore.getInstance()
+
+
+    private var storedRemainingTime: String? = null
 
 
     lateinit var binding: ActivityMaleCallingActivtyBinding
@@ -58,6 +74,8 @@ class MaleCallingActivty : AppCompatActivity() {
     private var remoteSurfaceView: SurfaceView? = null
     private var mRtcEngine: RtcEngine? = null
 
+
+    private var countDownTimer: CountDownTimer? = null
 
 
     private val PERMISSION_REQ_ID = 22
@@ -113,6 +131,9 @@ class MaleCallingActivty : AppCompatActivity() {
             insets
         }
 
+        val userData = getInstance()?.getPrefs()?.getUserData()
+        val maleUserId = userData?.id
+
         channelName = intent.getStringExtra("channelName")
         Log.d("channelname2","$channelName")
         femaleUserId = intent.getStringExtra("femaleUserId")
@@ -124,6 +145,7 @@ class MaleCallingActivty : AppCompatActivity() {
         })
 
 
+        getRemainingTime()
 
         val tokenBuilder = RtcTokenBuilder2()
         val timestamp = (System.currentTimeMillis() / 1000 + expirationTimeInSeconds).toInt()
@@ -147,59 +169,53 @@ class MaleCallingActivty : AppCompatActivity() {
         }
 
 
-
+        onAddCoinBtnClicket()
     }
 
-
-    private fun listenForCallStatusChanges() {
-        val userData = getInstance()?.getPrefs()?.getUserData()
-        val maleUserId = userData?.id ?: return // Return if user ID is null
-
-        val db = FirebaseFirestore.getInstance()
-        val maleUserRef = db.collection("maleUsers").document(maleUserId.toString())
-
-        // 🛑 Remove any existing listener before attaching a new one
-        listenerRegistration?.remove()
-        listenerRegistration = null
-
-        listenerRegistration = maleUserRef.addSnapshotListener { snapshot, error ->
-            if (error != null) {
-                Log.e("FirestoreError", "Error listening for changes", error)
-                return@addSnapshotListener
-            }
-
-            if (snapshot != null && snapshot.exists()) {
-                val isConnected = snapshot.getBoolean("isConnected") ?: true
-
-                if (!isConnected) {
-                    Log.d("CallStatus", "isConnected became false. Returning to MainActivity")
-                    showMessage("Call ended. Returning to MainActivity.")
-
-                    // 🛑 Check if Agora Engine is null before calling leaveChannel()
-                    agoraEngine?.leaveChannel()?.also {
-                        showMessage("You left the channel")
-                    } ?: Log.e("AgoraError", "agoraEngine is null, cannot leave channel")
-
-                    // Hide video views safely
-                    remoteSurfaceView?.visibility = View.GONE
-                    localSurfaceView?.visibility = View.GONE
-                    isJoined = false
-
-                    // 🛑 Stop listening for changes to prevent multiple triggers
-                    listenerRegistration?.remove()
-                    listenerRegistration = null
-
-                    // Navigate to MainActivity
-                    val intent = Intent(this@MaleCallingActivty, MainActivity::class.java).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                    }
-                    startActivity(intent)
-                    finish()
-                }
-            }
+    private fun onAddCoinBtnClicket(){
+        binding.btnAddCoins.setOnSingleClickListener {
+            var intent = Intent(this@MaleCallingActivty, WalletActivity::class.java)
+            startActivity(intent)
         }
     }
 
+
+    private  fun getRemainingTime(){
+        val userData = getInstance()?.getPrefs()?.getUserData()
+        val maleUserId = userData?.id
+        maleUserId?.let { profileViewModel.getRemainingTime(it,"audio", object :
+            NetworkCallback<GetRemainingTimeResponse>{
+            override fun onNoNetwork() {
+                TODO("Not yet implemented")
+            }
+
+            override fun onFailure(call: Call<GetRemainingTimeResponse>, t: Throwable) {
+                TODO("Not yet implemented")
+            }
+
+            override fun onResponse(
+                call: Call<GetRemainingTimeResponse>,
+                response: Response<GetRemainingTimeResponse>
+            ) {
+                response.body()?.data?.let { data ->
+                    val newTime = data.remaining_time
+                    updateRemainigTime(newTime)
+                    if (storedRemainingTime == null) {
+                        Log.d("storedRemainingTime","storedRemainingTime is not null")
+                        storedRemainingTime = newTime // Store first-time value
+                    }
+
+                    startCountdown(newTime)
+                }
+            }
+
+        }) }
+    }
+
+    private fun updateRemainigTime(newTime:String){
+        db.collection("femaleUsers").document(femaleUserId!!)
+            .update("remainingTime", newTime)
+    }
 
 
 
@@ -233,7 +249,7 @@ class MaleCallingActivty : AppCompatActivity() {
                     "isCalling" to false,
                     "channelName" to null,
                     "femaleUserId" to null,
-                    "isConnected" to false
+                    "isConnected" to false,
 
                 ))
                 .addOnSuccessListener {
@@ -251,10 +267,14 @@ class MaleCallingActivty : AppCompatActivity() {
                         "isCalling" to false,
                         "channelName" to null,
                         "isConnected" to false,
-                        "maleUserId" to null
+                        "maleUserId" to null,
+                        "remainingTime" to null
+
                     )
                 )
                 .addOnSuccessListener {
+                    stopCountdown()
+
                     Log.d("FirestoreUpdate", "isCalling set to false and channelName set to null successfully")
                     finish() // Close activity after rejection
                 }
@@ -286,6 +306,8 @@ class MaleCallingActivty : AppCompatActivity() {
         }
 
         override fun onUserOffline(uid: Int, reason: Int) {
+            stopCountdown()
+
 
             val intent = Intent(this@MaleCallingActivty, MainActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -368,6 +390,8 @@ class MaleCallingActivty : AppCompatActivity() {
             RtcEngine.destroy()
             agoraEngine = null
 
+            stopCountdown()
+
             rejectCall()
             val intent = Intent(this@MaleCallingActivty, MainActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -401,6 +425,79 @@ class MaleCallingActivty : AppCompatActivity() {
         Log.d("Lifecycle", "onDestroy() called. Firestore listener removed.")
         Log.d("MaleCallingActivitydestory", "onDestroy called - Activity is being fully destroyed")
 
+    }
+
+
+    fun startCountdown(remainingTime: String) {
+        // Convert "MM:SS" format to milliseconds
+        val timeParts = remainingTime.split(":").map { it.toInt() }
+        val minutes = timeParts[0]
+        val seconds = timeParts[1]
+        val totalMillis = (minutes * 60 + seconds) * 1000L
+
+      countDownTimer =  object : CountDownTimer(totalMillis, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+                val hours = millisUntilFinished / 3600000
+                val minutes = (millisUntilFinished % 3600000) / 60000
+                val secs = (millisUntilFinished % 60000) / 1000
+
+                binding.tvRemainingTime?.text = String.format("%02d:%02d:%02d", hours, minutes, secs)
+            }
+
+            override fun onFinish() {
+                binding.tvRemainingTime?.text = "00:00:00" // When countdown finishes
+                rejectCall()
+                val intent = Intent(this@MaleCallingActivty, MainActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                }
+                startActivity(intent)
+                finish()
+            }
+        }.start()
+    }
+
+    private fun stopCountdown() {
+        countDownTimer?.cancel() // Cancel the countdown timer
+        countDownTimer = null
+    }
+
+    private fun newRemainingTime(){
+        val userData = getInstance()?.getPrefs()?.getUserData()
+        val maleUserId = userData?.id
+
+        maleUserId?.let { profileViewModel.getRemainingTime(it, "audio", object :
+            NetworkCallback<GetRemainingTimeResponse> {
+            override fun onNoNetwork() {}
+
+            override fun onFailure(call: Call<GetRemainingTimeResponse>, t: Throwable) {}
+
+            override fun onResponse(
+                call: Call<GetRemainingTimeResponse>,
+                response: Response<GetRemainingTimeResponse>
+            ) {
+                response.body()?.data?.let { data ->
+                    val newTime = data.remaining_time
+                    Log.d("storedRemainingTime","$storedRemainingTime is not null")
+                    Log.d("storedRemainingTime","$newTime new time")
+
+                    if (storedRemainingTime != null && newTime > storedRemainingTime!!) {
+                        storedRemainingTime = newTime // Update stored value
+                        updateRemainigTime(newTime)
+                        stopCountdown()
+                        startCountdown(newTime)
+                    }
+                }
+            }
+        }) }
+    }
+
+
+
+
+    override fun onResume() {
+        super.onResume()
+        Log.d("resumedtag","resumed")
+        newRemainingTime()
     }
 
 
