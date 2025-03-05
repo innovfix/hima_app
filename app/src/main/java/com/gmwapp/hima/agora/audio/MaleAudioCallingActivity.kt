@@ -380,6 +380,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                binding.tvRemainingTime?.text = "00:00:00" // When countdown finishes
                 rejectCall()
 
+                Log.d("countowndfinsh","countfownfinsh")
                 val intent = Intent(this@MaleAudioCallingActivity, MainActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                 }

@@ -312,8 +312,11 @@ class FemaleCallingActivity : AppCompatActivity() {
                     Log.d("FirestoreUpdate", "isCalling set to false and channelName set to null successfully")
                     stopCountdown()
 
-                    finish() // Close activity after rejection
-                }
+                    val intent = Intent(this@FemaleCallingActivity, MainActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    }
+                    startActivity(intent)
+                    finish()                }
                 .addOnFailureListener { e ->
                     Log.e("FirestoreUpdate", "Failed to update Firestore: ", e)
                 }
@@ -488,11 +491,11 @@ class FemaleCallingActivity : AppCompatActivity() {
                 binding.tvRemainingTime?.text = "00:00:00" // When countdown finishes
                 rejectCall()
 
-                val intent = Intent(this@FemaleCallingActivity, MainActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                }
-                startActivity(intent)
-                finish()
+//                val intent = Intent(this@FemaleCallingActivity, MainActivity::class.java).apply {
+//                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+//                }
+//                startActivity(intent)
+//                finish()
             }
         }.start()
     }

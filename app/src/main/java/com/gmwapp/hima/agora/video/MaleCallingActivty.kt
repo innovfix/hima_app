@@ -261,6 +261,10 @@ class MaleCallingActivty : AppCompatActivity() {
     private fun rejectCall() {
 
 
+
+        stopCountdown()
+
+
         endTime = dateFormat.format(Date()) // Set call end time in IST
 
 
@@ -320,10 +324,27 @@ class MaleCallingActivty : AppCompatActivity() {
                     )
                 )
                 .addOnSuccessListener {
-                    stopCountdown()
+                                agoraEngine?.leaveChannel()
+            showMessage("You left the channel")
+
+            // Clear video views
+            remoteSurfaceView?.visibility = View.GONE
+            localSurfaceView?.visibility = View.GONE
+            isJoined = false
+
+            // Destroy the Agora engine instance completely
+            RtcEngine.destroy()
+            agoraEngine = null
+
+            stopCountdown()
 
                     Log.d("FirestoreUpdate", "isCalling set to false and channelName set to null successfully")
-                    finish() // Close activity after rejection
+                    val intent = Intent(this@MaleCallingActivty, MainActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    }
+                    startActivity(intent)
+                    finish()
+
                 }
                 .addOnFailureListener { e ->
                     Log.e("FirestoreUpdate", "Failed to update Firestore: ", e)
@@ -497,11 +518,11 @@ class MaleCallingActivty : AppCompatActivity() {
             override fun onFinish() {
                 binding.tvRemainingTime?.text = "00:00:00" // When countdown finishes
                 rejectCall()
-                val intent = Intent(this@MaleCallingActivty, MainActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                }
-                startActivity(intent)
-                finish()
+//                val intent = Intent(this@MaleCallingActivty, MainActivity::class.java).apply {
+//                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+//                }
+//                startActivity(intent)
+//                finish()
             }
         }.start()
     }
