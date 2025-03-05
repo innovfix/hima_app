@@ -13,12 +13,15 @@ import com.gmwapp.hima.BaseApplication.Companion.getInstance
 import com.gmwapp.hima.R
 import com.gmwapp.hima.databinding.ActivityFemaleAudioCallAcceptBinding
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 
 class FemaleAudioCallAcceptActivity : AppCompatActivity() {
     lateinit var binding: ActivityFemaleAudioCallAcceptBinding
     private var channelName: String? = null
     private var maleUserId: String? = null
     private var femaleUserId: String? = null
+    private var listenerRegistration: ListenerRegistration? = null
+    var isRandomCalling : Boolean = false
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -65,6 +68,7 @@ class FemaleAudioCallAcceptActivity : AppCompatActivity() {
             }
         })
 
+        listenRandomcall()
 
     }
 
@@ -107,30 +111,14 @@ class FemaleAudioCallAcceptActivity : AppCompatActivity() {
 
     private fun rejectCall() {
 
+        val db = FirebaseFirestore.getInstance()
+
 
         val userData = getInstance()?.getPrefs()?.getUserData()
         val userid = userData?.id
 
 
-        if (maleUserId != null && userid !=null) {
-            val db = FirebaseFirestore.getInstance()
-            db.collection("maleUsers").document(maleUserId!!)
-                .update(mapOf(
-                    "isCalling" to false,
-                    "channelName" to null,
-                    "femaleUserId" to null,
-                    "callType" to null,
-                    "callId" to null
-
-
-                ))
-                .addOnSuccessListener {
-                    Log.d("FirestoreUpdate", "isCalling set to false successfully")
-                    finish() // Close activity after rejection
-                }
-                .addOnFailureListener { e ->
-                    Log.e("FirestoreUpdate", "Failed to update Firestore: ", e)
-                }
+        if (isRandomCalling) {
 
 
             db.collection("femaleUsers").document(userid.toString())
@@ -138,14 +126,18 @@ class FemaleAudioCallAcceptActivity : AppCompatActivity() {
                     mapOf(
                         "isCalling" to false,
                         "channelName" to null,
-                        "callerUserId" to null,
+                        "maleUserId" to null,
                         "callType" to null,
-                        "callId" to null
+                        "callId" to null,
+                        "isRandomCalling" to false
 
                     )
                 )
                 .addOnSuccessListener {
-                    Log.d("FirestoreUpdate", "isCalling set to false and channelName set to null successfully")
+                    Log.d(
+                        "FirestoreUpdate",
+                        "isCalling set to false and channelName set to null successfully"
+                    )
                     finish() // Close activity after rejection
                 }
                 .addOnFailureListener { e ->
@@ -153,14 +145,59 @@ class FemaleAudioCallAcceptActivity : AppCompatActivity() {
                 }
 
 
-
-
         } else {
-            Log.e("FemaleCallAcceptActivity", "callerUserId is null, cannot update Firestore")
+
+            if (maleUserId != null && userid != null) {
+                db.collection("maleUsers").document(maleUserId!!)
+                    .update(
+                        mapOf(
+                            "isCalling" to false,
+                            "channelName" to null,
+                            "femaleUserId" to null,
+                            "callType" to null,
+                            "callId" to null
+
+
+                        )
+                    )
+                    .addOnSuccessListener {
+                        Log.d("FirestoreUpdate", "isCalling set to false successfully")
+                        finish() // Close activity after rejection
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e("FirestoreUpdate", "Failed to update Firestore: ", e)
+                    }
+
+
+                db.collection("femaleUsers").document(userid.toString())
+                    .update(
+                        mapOf(
+                            "isCalling" to false,
+                            "channelName" to null,
+                            "maleUserId" to null,
+                            "callType" to null,
+                            "callId" to null
+
+                        )
+                    )
+                    .addOnSuccessListener {
+                        Log.d(
+                            "FirestoreUpdate",
+                            "isCalling set to false and channelName set to null successfully"
+                        )
+                        finish() // Close activity after rejection
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e("FirestoreUpdate", "Failed to update Firestore: ", e)
+                    }
+
+
+            } else {
+                Log.e("FemaleCallAcceptActivity", "callerUserId is null, cannot update Firestore")
+            }
         }
+
     }
-
-
     private fun showExitDialog() {
         val builder = AlertDialog.Builder(this@FemaleAudioCallAcceptActivity)
         builder.setTitle("Reject Call")
@@ -177,6 +214,24 @@ class FemaleAudioCallAcceptActivity : AppCompatActivity() {
 
         builder.setCancelable(false)
         builder.show()
+    }
+
+    private fun listenRandomcall() {
+
+        val userData = getInstance()?.getPrefs()?.getUserData()
+        femaleUserId = userData?.id.toString()
+        val db = FirebaseFirestore.getInstance()
+        val callDocRef = db.collection("femaleUsers").document(femaleUserId!!)
+
+        listenerRegistration = callDocRef.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null && snapshot.exists()) {
+                isRandomCalling = snapshot.getBoolean("isRandomCalling") ?: false
+            }
+        }
     }
 
 }

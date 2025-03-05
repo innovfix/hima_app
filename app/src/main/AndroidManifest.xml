@@ -37,6 +37,9 @@
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
         <activity
+            android:name=".agora.AgoraRandomCallActivity"
+            android:exported="false" />
+        <activity
             android:name=".agora.audio.MaleAudioCallConnectActivity"
             android:exported="false" />
         <activity

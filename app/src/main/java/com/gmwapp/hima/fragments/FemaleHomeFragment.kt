@@ -268,6 +268,8 @@ class FemaleHomeFragment : BaseFragment() {
 
     private fun initUI() {
 
+        BaseApplication.getInstance()?.genderCheck()
+
         val prefs = BaseApplication.getInstance()?.getPrefs()
         val userData = prefs?.getUserData()
 

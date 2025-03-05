@@ -2,6 +2,7 @@ package com.gmwapp.hima.workers
 
 import android.content.Context
 import android.util.Log
+import android.widget.Toast
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -29,7 +30,11 @@ class CallUpdateWorker @AssistedInject constructor(
         return withContext(Dispatchers.IO) {
             try {
                 var updateConnectedCall: Response<UpdateConnectedCallResponse>? = null
+
+                Log.d("CallUpdateWorkerCheck", "Starting worker execution")
+
                 if (workerParams.inputData.getBoolean(DConstants.IS_INDIVIDUAL, false)) {
+                    Log.d("CallUpdateWorkerCheck", "Updating Individual Call")
                     updateConnectedCall = femaleUsersRepositories.individualUpdateConnectedCall(
                         workerParams.inputData.getInt(DConstants.USER_ID, 0),
                         workerParams.inputData.getInt(DConstants.CALL_ID, 0),
@@ -37,6 +42,7 @@ class CallUpdateWorker @AssistedInject constructor(
                         workerParams.inputData.getString(DConstants.ENDED_TIME).toString(),
                     )
                 } else {
+                    Log.d("CallUpdateWorkerCheck", "Updating Group Call")
                     updateConnectedCall = femaleUsersRepositories.updateConnectedCall(
                         workerParams.inputData.getInt(DConstants.USER_ID, 0),
                         workerParams.inputData.getInt(DConstants.CALL_ID, 0),
@@ -45,20 +51,23 @@ class CallUpdateWorker @AssistedInject constructor(
                     )
                 }
 
-                if (updateConnectedCall.isSuccessful == true) {
+                return@withContext if (updateConnectedCall.isSuccessful) {
                     if (updateConnectedCall.body()?.success == true) {
+                        Log.d("CallUpdateWorkerCheck", "Call update successful")
                         Result.success()
-
                     } else {
+                        Log.e("CallUpdateWorkerCheck", "Call update failed: ${updateConnectedCall.body()?.message}")
                         Result.failure()
                     }
                 } else {
+                    Log.e("CallUpdateWorkerCheck", "API call failed: ${updateConnectedCall.errorBody()?.string()}")
                     Result.failure()
                 }
             } catch (e: Exception) {
+                Log.e("CallUpdateWorkerCheck", "Exception: ${e.localizedMessage}", e)
                 Result.failure()
             }
-
         }
     }
 }
+

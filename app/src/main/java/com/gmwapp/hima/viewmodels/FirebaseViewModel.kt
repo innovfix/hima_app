@@ -57,7 +57,8 @@ class FirebaseViewModel :ViewModel() {
             "isConnected" to false,
             "callType" to null,
             "remainingTime" to  null,
-            "callId" to null
+            "callId" to null,
+            "isRandomCalling" to false
 
         )
 

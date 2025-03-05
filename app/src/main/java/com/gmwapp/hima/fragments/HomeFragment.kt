@@ -22,6 +22,7 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.RandomUserActivity
 import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.adapters.FemaleUserAdapter
+import com.gmwapp.hima.agora.AgoraRandomCallActivity
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentHomeBinding
@@ -61,10 +62,14 @@ class HomeFragment : BaseFragment() {
         initUI()
         setupSwipeToRefresh()
         addObserver()
+
         return binding.root
     }
 
     private fun initUI() {
+
+        BaseApplication.getInstance()?.genderCheck()
+
         binding.clCoins.setOnSingleClickListener {
             val intent = Intent(context, WalletActivity::class.java)
             startActivity(intent)
@@ -140,27 +145,35 @@ class HomeFragment : BaseFragment() {
         }
         userData?.id?.let { profileViewModel.getUsers(it) }
 
-        profileViewModel.getUserLiveData.observe(viewLifecycleOwner, Observer {
-            it.data?.let { it1 ->
-                BaseApplication.getInstance()?.getPrefs()?.setUserData(it1)
+        profileViewModel.getUserLiveData.observe(viewLifecycleOwner) { response ->
+            try {
+                if (response == null || response.data == null) {
+                    Log.e("ProfileObserver", "User data is null")
+                    return@observe
+                }
+
+                response.data.let { userData ->
+                    BaseApplication.getInstance()?.getPrefs()?.setUserData(userData)
+
+                    binding.tvCoins.text = userData.coins?.toString() ?: "0" // Default to "0" if null
+                }
+            } catch (e: Exception) {
+                Log.e("ProfileObserver", "Exception in observer: ${e.message}")
             }
-            binding.tvCoins.text = it.data?.coins.toString()
+        }
 
-
-
-        })
 
 
 
         binding.fabAudio.setOnSingleClickListener {
-            val intent = Intent(context, RandomUserActivity::class.java)
+            val intent = Intent(context, AgoraRandomCallActivity::class.java)
             intent.putExtra(DConstants.CALL_TYPE, "audio")
             intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             startActivity(intent)
         }
 
         binding.fabVideo.setOnSingleClickListener {
-            val intent = Intent(context, RandomUserActivity::class.java)
+            val intent = Intent(context, AgoraRandomCallActivity::class.java)
             intent.putExtra(DConstants.CALL_TYPE, "video")
             startActivity(intent)
         }
@@ -175,9 +188,7 @@ class HomeFragment : BaseFragment() {
 //                Toast.makeText(activity, "No Data Found", Toast.LENGTH_SHORT).show()
 //            }
 
-            it.data?.firstOrNull()?.audio_status?.let { audioStatus ->
-                Log.d("responsecheck", "Audio Status: $audioStatus")
-            }
+
 
             if (it?.data != null) {
                 binding.rvProfiles.layoutManager =
@@ -194,6 +205,8 @@ class HomeFragment : BaseFragment() {
                                         val intent = Intent(context, MaleAudioCallConnectActivity::class.java)
                                         intent.putExtra(DConstants.CALL_TYPE, "audio")
                                         intent.putExtra(DConstants.RECEIVER_ID, data.id.toString())
+                                        Log.e("OnItemSelected", "Selected Female User ID: ${data.id}")
+
                                         intent.putExtra(DConstants.RECEIVER_NAME, data.name)
                                         intent.putExtra(DConstants.CALL_ID, 0)
                                         intent.putExtra(DConstants.IMAGE, data.image)
@@ -466,4 +479,17 @@ class HomeFragment : BaseFragment() {
             })
         } ?: callback(false) // If user ID is null, disallow call
     }
+
+    override fun onResume() {
+        super.onResume()
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+
+        userData?.id?.let {
+            if (context?.let { it1 -> isInternetAvailable(it1) } == true) {
+                loadFemaleUsers(it)
+            } else {
+                binding.tvNointernet.visibility = View.VISIBLE
+            }
+        }    }
+
 }

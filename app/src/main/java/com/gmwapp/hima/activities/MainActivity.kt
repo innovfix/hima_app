@@ -141,9 +141,14 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         val prefs = BaseApplication.getInstance()?.getPrefs()
         prefs?.getUserData()?.id?.let { profileViewModel.getUsers(it) }
 
-        profileViewModel.getUserLiveData.observe(this, Observer {
-            prefs?.setUserData(it.data);
-        });
+        profileViewModel.getUserLiveData.observe(this, Observer { response ->
+            if (response != null && response.data != null) {
+                prefs?.setUserData(response.data)
+            } else {
+                Log.e("ProfileViewModel", "User data is null")
+            }
+        })
+
 
         userID?.let { offerViewModel.getOffer(it.toInt()) }
         binding.bottomNavigationView.setOnNavigationItemSelectedListener(this)

@@ -132,6 +132,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         channelName = intent.getStringExtra("channelName")
         Log.d("channelname2", "$channelName")
         femaleUserId = intent.getStringExtra("femaleUserId")
+        Log.d("femaleUserIdintent", "$femaleUserId")
+
         binding.userid.setText("Female user id $femaleUserId")
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -217,15 +219,29 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         builder.show()
     }
 
-    private fun updateRemainigTime(newTime:String){
-        db.collection("femaleUsers").document(femaleUserId!!)
-            .update("remainingTime", newTime)
-    }
 
-    private fun rejectCall() {
+
+        private fun updateRemainigTime(newTime: String) {
+            if (femaleUserId == null) {
+                Log.e("FirestoreUpdateError", "femaleUserId is null. Cannot update Firestore.")
+                return
+            }
+
+            Log.d("FemaleidTag", "Updating Firestore for femaleUserId: $femaleUserId, newTime: $newTime")
+
+            db.collection("femaleUsers").document(femaleUserId.toString())
+                .update("remainingTime", newTime)
+                .addOnSuccessListener {
+                    Log.d("FirestoreUpdate", "Successfully updated remainingTime to $newTime")
+                }
+                .addOnFailureListener { e ->
+                    Log.e("FirestoreUpdate", "Failed to update remainingTime", e)
+                }
+        }
+
+
+        private fun rejectCall() {
         endTime = dateFormat.format(Date()) // Set call end time in IST
-
-
         val constraints =
             Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED)
                 .build()
@@ -242,7 +258,6 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         ).setInputData(data).setConstraints(constraints).build()
         WorkManager.getInstance(this@MaleAudioCallingActivity)
             .enqueue(oneTimeWorkRequest)
-
 
 
         val userData = getInstance()?.getPrefs()?.getUserData()
@@ -273,6 +288,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         }
 
         override fun onUserOffline(uid: Int, reason: Int) {
+            rejectCall()
             stopCountdown()
             showMessage("Remote user left")
             val intent = Intent(this@MaleAudioCallingActivity, MainActivity::class.java).apply {
@@ -302,25 +318,27 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     }
 
     fun leaveChannel(view: View) {
-        if (!isJoined) {
-            showMessage("Join a channel first")
-        } else {
-            agoraEngine?.leaveChannel()
-            showMessage("You left the channel")
-            isJoined = false
+//        if (!isJoined) {
+//            showMessage("Join a channel first")
+//        } else {
+//            agoraEngine?.leaveChannel()
+//            showMessage("You left the channel")
+//            isJoined = false
+//
+//            RtcEngine.destroy()
+//            agoraEngine = null
+//            stopCountdown()
+//
+//            rejectCall()
+//
+//            val intent = Intent(this@MaleAudioCallingActivity, MainActivity::class.java).apply {
+//                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+//            }
+//            startActivity(intent)
+//            finish()
+//        }
 
-            RtcEngine.destroy()
-            agoraEngine = null
-            stopCountdown()
-
-            rejectCall()
-
-            val intent = Intent(this@MaleAudioCallingActivity, MainActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-            }
-            startActivity(intent)
-            finish()
-        }
+        showExitDialog()
     }
 
     override fun onDestroy() {
@@ -328,6 +346,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         listenerRegistration?.remove()
         listenerRegistration = null
 
+        rejectCall()
         agoraEngine?.apply {
             leaveChannel()
         }

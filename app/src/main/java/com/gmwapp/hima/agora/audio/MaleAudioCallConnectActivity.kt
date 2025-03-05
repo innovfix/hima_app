@@ -133,30 +133,31 @@ class MaleAudioCallConnectActivity : AppCompatActivity() {
             }
             val isConnected = snapshot.getBoolean("isConnected") ?: false
             val latestChannelName = snapshot.getString("channelName") ?: ""
+            val newFemaleUserId = snapshot.getString("femaleUserId") // Ensure this is updated
+
 
             Log.d("FirestoreListenercheck", "isConnected updated: $isConnected")
 
             if (isConnected) {
                 callTimeoutTimer?.cancel()
-                navigateToCallingActivity(latestChannelName)
+                navigateToCallingActivity(latestChannelName, newFemaleUserId)
             }
         }
 
     }
-
-    private fun navigateToCallingActivity(channelName: String?) {
-
+    private fun navigateToCallingActivity(channelName: String?, updatedFemaleUserId: String?) {
         val intent = Intent(this, MaleAudioCallingActivity::class.java).apply {
-            Log.d("channelname3","$channelName")
-
             putExtra("channelName", channelName)
-            putExtra("femaleUserId", femaleUserId)
+            putExtra("femaleUserId", updatedFemaleUserId) // Ensure the latest ID is sent
         }
+        Log.d("femaleUserIdnavi", "$updatedFemaleUserId")
+
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
 
         startActivity(intent)
-        finish()  // Close this activity to avoid stacking
+        finish() // Close this activity to avoid stacking
     }
+
     private fun showExitDialog() {
         val builder = AlertDialog.Builder(this@MaleAudioCallConnectActivity)
         builder.setTitle("Reject Call")
@@ -229,12 +230,89 @@ class MaleAudioCallConnectActivity : AppCompatActivity() {
     }
 
 
+//    private fun updateFirestoreForCallConnect(
+//        maleUserId: Int,
+//        femaleUserId: String,
+//        channel: String
+//    ) {
+//        val db = FirebaseFirestore.getInstance()
+//        val femaleUserIdInt = femaleUserId?.toIntOrNull()
+//
+//        femaleUserIdInt?.let { it1 ->
+//            femaleUsersViewModel.callFemaleUser(
+//                maleUserId, it1, callType.toString()
+//            )
+//            observer()
+//        }
+//
+//        Log.d("isFemaleCalling", "$femaleUserId")
+//
+//        // First, check if the female user's "isCalling" is false
+//        db.collection("femaleUsers").document(femaleUserId)
+//            .get()
+//            .addOnSuccessListener { femaleSnapshot ->
+//                val isFemaleCalling = femaleSnapshot.getBoolean("isCalling") ?: false
+//
+//                Log.d("isFemaleCalling", "$isFemaleCalling")
+//
+//                if (!isFemaleCalling) {
+//                    // Only proceed if the female user is not already in a call
+//                    db.collection("maleUsers").document(maleUserId.toString())
+//                        .update(
+//                            mapOf(
+//                                "isCalling" to true,
+//                                "channelName" to channel,
+//                                "callType" to callType,
+//                                "callId" to callId
+//                            )
+//                        )
+//                        .addOnSuccessListener {
+//                            Log.d("FirestoreUpdate", "Male user isCalling set to true")
+//
+//                            // Now update female user's Firestore document
+//                            db.collection("femaleUsers").document(femaleUserId)
+//                                .update(
+//                                    mapOf(
+//                                        "isCalling" to true,
+//                                        "maleUserId" to maleUserId.toString(),
+//                                        "channelName" to channel,
+//                                        "callType" to callType,
+//                                        "callId" to callId
+//                                    )
+//                                )
+//                                .addOnSuccessListener {
+//                                    Log.d("FirestoreUpdate", "Female user isCalling set to true")
+//                                    startCallTimeout()
+//                                }
+//                                .addOnFailureListener { e ->
+//                                    Log.e("FirestoreUpdate", "Failed to update female user: ", e)
+//                                }
+//                        }
+//                        .addOnFailureListener { e ->
+//                            Log.e("FirestoreUpdate", "Failed to update male user: ", e)
+//                        }
+//                } else {
+//                    // Female user is already in a call, so do nothing
+//                    Toast.makeText(this@MaleAudioCallConnectActivity,"User is busy",Toast.LENGTH_LONG).show()
+//                   goToMainActivity()
+//                }
+//            }
+//            .addOnFailureListener { e ->
+//                Log.e("FirestoreCheck", "Failed to check female isCalling status", e)
+//            }
+//    }
+
+
     private fun updateFirestoreForCallConnect(
         maleUserId: Int,
         femaleUserId: String,
         channel: String
     ) {
         val db = FirebaseFirestore.getInstance()
+        val femaleUserDocRef = db.collection("femaleUsers").document(femaleUserId)
+        val maleUserDocRef = db.collection("maleUsers").document(maleUserId.toString())
+
+
         val femaleUserIdInt = femaleUserId?.toIntOrNull()
 
         femaleUserIdInt?.let { it1 ->
@@ -244,62 +322,42 @@ class MaleAudioCallConnectActivity : AppCompatActivity() {
             observer()
         }
 
-        Log.d("isFemaleCalling", "$femaleUserId")
+        db.runTransaction { transaction ->
+            val femaleSnapshot = transaction.get(femaleUserDocRef)
+            val isFemaleCalling = femaleSnapshot.getBoolean("isCalling") ?: false
 
-        // First, check if the female user's "isCalling" is false
-        db.collection("femaleUsers").document(femaleUserId)
-            .get()
-            .addOnSuccessListener { femaleSnapshot ->
-                val isFemaleCalling = femaleSnapshot.getBoolean("isCalling") ?: false
-
-                Log.d("isFemaleCalling", "$isFemaleCalling")
-
-                if (!isFemaleCalling) {
-                    // Only proceed if the female user is not already in a call
-                    db.collection("maleUsers").document(maleUserId.toString())
-                        .update(
-                            mapOf(
-                                "isCalling" to true,
-                                "channelName" to channel,
-                                "callType" to callType,
-                                "callId" to callId
-                            )
-                        )
-                        .addOnSuccessListener {
-                            Log.d("FirestoreUpdate", "Male user isCalling set to true")
-
-                            // Now update female user's Firestore document
-                            db.collection("femaleUsers").document(femaleUserId)
-                                .update(
-                                    mapOf(
-                                        "isCalling" to true,
-                                        "maleUserId" to maleUserId.toString(),
-                                        "channelName" to channel,
-                                        "callType" to callType,
-                                        "callId" to callId
-                                    )
-                                )
-                                .addOnSuccessListener {
-                                    Log.d("FirestoreUpdate", "Female user isCalling set to true")
-                                    startCallTimeout()
-                                }
-                                .addOnFailureListener { e ->
-                                    Log.e("FirestoreUpdate", "Failed to update female user: ", e)
-                                }
-                        }
-                        .addOnFailureListener { e ->
-                            Log.e("FirestoreUpdate", "Failed to update male user: ", e)
-                        }
-                } else {
-                    // Female user is already in a call, so do nothing
-                    Toast.makeText(this@MaleAudioCallConnectActivity,"User is busy",Toast.LENGTH_LONG).show()
-                   goToMainActivity()
-                }
+            if (isFemaleCalling) {
+                // Agar female already call me hai, toh doosra male user connect nahi karega
+                throw Exception("User is already in a call")
             }
-            .addOnFailureListener { e ->
-                Log.e("FirestoreCheck", "Failed to check female isCalling status", e)
-            }
+
+            // Female User Firestore Update
+            transaction.update(femaleUserDocRef, mapOf(
+                "isCalling" to true,
+                "maleUserId" to maleUserId.toString(),
+                "channelName" to channel,
+                "callType" to callType,
+                "callId" to callId
+            ))
+
+            // Male User Firestore Update
+            transaction.update(maleUserDocRef, mapOf(
+                "isCalling" to true,
+                "channelName" to channel,
+                "callType" to callType,
+                "callId" to callId,
+                "femaleUserId" to femaleUserId
+            ))
+        }.addOnSuccessListener {
+            Log.d("FirestoreTransaction", "Call setup successfully")
+            startCallTimeout()
+        }.addOnFailureListener { e ->
+            Log.e("FirestoreTransaction", "Failed to start call: ${e.message}")
+            Toast.makeText(this, "User is already busy", Toast.LENGTH_LONG).show()
+            goToMainActivity()
+        }
     }
+
 
     fun generateChannelName(maleUserId: Int?): String {
         return "${maleUserId}_${System.currentTimeMillis()}"

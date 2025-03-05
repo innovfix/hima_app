@@ -19,14 +19,22 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.work.Constraints
+import androidx.work.Data
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequest
+import androidx.work.WorkManager
+import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.BaseApplication.Companion.getInstance
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
+import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityFemaleCallingBinding
 import com.gmwapp.hima.media.RtcTokenBuilder2
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
 import com.gmwapp.hima.viewmodels.ProfileViewModel
+import com.gmwapp.hima.workers.CallUpdateWorker
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import dagger.hilt.android.AndroidEntryPoint
@@ -39,6 +47,9 @@ import io.agora.rtc2.video.VideoCanvas
 import io.agora.rtm.RtmClient
 import retrofit2.Call
 import retrofit2.Response
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.TimeZone
 
 @AndroidEntryPoint
 class FemaleCallingActivity : AppCompatActivity() {
@@ -50,6 +61,7 @@ class FemaleCallingActivity : AppCompatActivity() {
 
 
     private var listenerRegistration: ListenerRegistration? = null
+
     private var countDownTimer: CountDownTimer? = null
 
 
@@ -73,6 +85,10 @@ class FemaleCallingActivity : AppCompatActivity() {
     private var mRtcEngine: RtcEngine? = null
 
     lateinit var femaleUserId: String
+    private var startTime: String = ""
+    private var endTime: String = ""
+
+    var callIdInt : Int = 0
 
 
 
@@ -145,6 +161,7 @@ class FemaleCallingActivity : AppCompatActivity() {
 
 
         listenRemainingTime()
+        getCallId()
 
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -175,6 +192,8 @@ class FemaleCallingActivity : AppCompatActivity() {
             setupVideoSDKEngine()
             joinChannel(binding.JoinButton)
 
+            startTime = dateFormat.format(Date()) // Set call start time in IST
+
         }
 
 
@@ -182,6 +201,10 @@ class FemaleCallingActivity : AppCompatActivity() {
 
     }
 
+
+    private val dateFormat = SimpleDateFormat("HH:mm:ss").apply {
+        timeZone = TimeZone.getTimeZone("Asia/Kolkata") // Set to IST time zone
+    }
 
 
     private fun listenRemainingTime() {
@@ -227,6 +250,30 @@ class FemaleCallingActivity : AppCompatActivity() {
 
     private fun rejectCall() {
 
+
+        endTime = dateFormat.format(Date()) // Set call end time in IST
+
+
+        Log.d("callUpdatecheck","$callIdInt")
+        Log.d("callUpdatecheck","$startTime")
+        Log.d("callUpdatecheck","$endTime")
+
+        val constraints =
+            Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+        val data: Data = Data.Builder().putInt(
+            DConstants.USER_ID,
+            BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+        ).putInt(DConstants.CALL_ID, callIdInt)
+            .putString(DConstants.STARTED_TIME, startTime)
+            .putBoolean(DConstants.IS_INDIVIDUAL, true)
+            .putString(DConstants.ENDED_TIME, endTime).build()
+
+        val oneTimeWorkRequest = OneTimeWorkRequest.Builder(
+            CallUpdateWorker::class.java
+        ).setInputData(data).setConstraints(constraints).build()
+        WorkManager.getInstance(this@FemaleCallingActivity)
+            .enqueue(oneTimeWorkRequest)
 
 
         val userData = getInstance()?.getPrefs()?.getUserData()
@@ -366,32 +413,33 @@ class FemaleCallingActivity : AppCompatActivity() {
 
 
     fun leaveChannel(view: View) {
-        if (!isJoined) {
-            showMessage("Join a channel first")
-        } else {
-            agoraEngine?.leaveChannel()
-            showMessage("You left the channel")
+//        if (!isJoined) {
+//            showMessage("Join a channel first")
+//        } else {
+//            agoraEngine?.leaveChannel()
+//            showMessage("You left the channel")
+//
+//            // Clear video views
+//            remoteSurfaceView?.visibility = View.GONE
+//            localSurfaceView?.visibility = View.GONE
+//            isJoined = false
+//
+//            // Destroy the Agora engine instance completely
+//            RtcEngine.destroy()
+//            agoraEngine = null
+//
+//            stopCountdown()
+//
+//            rejectCall()
+//
+//            val intent = Intent(this@FemaleCallingActivity, MainActivity::class.java).apply {
+//                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+//            }
+//            startActivity(intent)
+//            finish()
+//   }
 
-            // Clear video views
-            remoteSurfaceView?.visibility = View.GONE
-            localSurfaceView?.visibility = View.GONE
-            isJoined = false
-
-            // Destroy the Agora engine instance completely
-            RtcEngine.destroy()
-            agoraEngine = null
-
-            stopCountdown()
-
-            rejectCall()
-
-            val intent = Intent(this@FemaleCallingActivity, MainActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-            }
-            startActivity(intent)
-            finish()
-
-        }
+        showExitDialog()
     }
 
 
@@ -447,6 +495,33 @@ class FemaleCallingActivity : AppCompatActivity() {
                 finish()
             }
         }.start()
+    }
+
+
+    fun getCallId(){
+        val userData = getInstance()?.getPrefs()?.getUserData()
+        val femaleUserId = userData?.id
+
+        val db = FirebaseFirestore.getInstance()
+        val callDocRef = db.collection("femaleUsers").document(femaleUserId.toString())
+
+        listenerRegistration = callDocRef.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                Log.e("Firestore", "Error listening to remainingTime updates", error)
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null && snapshot.exists()) {
+                val callId =snapshot.getLong("callId")?.toInt()
+
+
+                if (callId != null) {
+                    callIdInt = callId
+                    Log.d("callId", "callId: $callIdInt")
+                }
+            }
+        }
+
     }
 
     private fun stopCountdown() {

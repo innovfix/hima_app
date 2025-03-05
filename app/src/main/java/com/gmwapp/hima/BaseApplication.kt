@@ -150,11 +150,13 @@ class BaseApplication : Application(), Configuration.Provider {
 
         genderCheck()
 
-
-
     }
 
-    private fun genderCheck() {
+    fun genderCheck() {
+
+        listenerRegistration?.remove()
+        listenerRegistration = null
+
         val userData = getInstance()?.getPrefs()?.getUserData()
 
         if (userData?.gender != null && userData.id != null) {
@@ -162,8 +164,11 @@ class BaseApplication : Application(), Configuration.Provider {
             userid = userData.id.toString()
 
             if (gender == "maleUsers"){
+                Log.d("gendercheck","maleUsers")
                 listenForCallChangesMale(gender,userid)
             }else{
+                Log.d("gendercheck","femaleUsers")
+
                 listenForCallChangesFemale(gender, userid)
 
             }
