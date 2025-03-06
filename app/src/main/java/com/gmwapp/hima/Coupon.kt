@@ -11,3 +11,6 @@ data class Coupon(
     val discountedPrice: String,
     val coins: String,
 )
+
+
+
