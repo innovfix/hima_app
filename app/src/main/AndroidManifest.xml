@@ -37,6 +37,13 @@
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
         <activity
+            android:name=".FirebaseActivity"
+            android:exported="true" >
+
+
+
+        </activity>
+        <activity
             android:name=".agora.AgoraRandomCallActivity"
             android:exported="false" />
         <activity
@@ -81,6 +88,7 @@
             android:name=".activities.SplashScreenActivity"
             android:exported="true"
             android:resizeableActivity="true">
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -185,6 +193,14 @@
             android:exported="false"
             android:foregroundServiceType="microphone" />
 
+        <service
+            android:name=".MyFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
         <receiver
             android:name=".receivers.CallReceiver"
             android:enabled="true"
@@ -193,6 +209,8 @@
                 <action android:name="im.zego.zim.zpns.intent.action.MESSAGE" />
             </intent-filter>
         </receiver>
+
+
     </application>
 
 </manifest>

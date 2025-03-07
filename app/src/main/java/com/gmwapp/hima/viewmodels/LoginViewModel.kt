@@ -63,8 +63,12 @@ class LoginViewModel @Inject constructor(private val loginRepositories: LoginRep
                     response: Response<AppUpdateResponse>
                 ) {
                     appUpdateResponseLiveData.postValue(response.body());
-            }
+                    Log.d("getUserLiveData","${response.body()}")
+
+                }
                 override fun onFailure(call: Call<AppUpdateResponse>, t: Throwable) {
+
+                    Log.d("getUserLiveData","${t.message}")
 
                 }
                 override fun onNoNetwork() {

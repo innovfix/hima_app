@@ -1,5 +1,6 @@
 package com.gmwapp.hima.viewmodels
 
+import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -28,6 +29,8 @@ class WalletViewModel @Inject constructor(private val walletRepositories: Wallet
                 }
 
                 override fun onFailure(call: Call<CoinsResponse>, t: Throwable) {
+                    Log.d("Walletfaliure","${t.message}")
+
                 }
 
                 override fun onNoNetwork() {

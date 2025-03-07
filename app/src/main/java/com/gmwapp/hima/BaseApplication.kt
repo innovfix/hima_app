@@ -331,7 +331,7 @@ class BaseApplication : Application(), Configuration.Provider {
 
 
 
-    private fun playIncomingCallSound() {
+    fun playIncomingCallSound() {
         stopRingtone() // Stop any existing ringtone before playing a new one
 
         mediaPlayer = MediaPlayer.create(applicationContext, R.raw.rhythm)
