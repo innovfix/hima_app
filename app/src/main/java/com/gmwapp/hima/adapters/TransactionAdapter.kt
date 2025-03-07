@@ -1,10 +1,13 @@
 package com.gmwapp.hima.adapters
 
 import android.app.Activity
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.gmwapp.hima.R
+import java.text.SimpleDateFormat
+import java.util.Locale
 import com.gmwapp.hima.databinding.AdapterTransactionBinding
 import com.gmwapp.hima.retrofit.responses.TransactionsResponseData
 
@@ -36,7 +39,8 @@ class TransactionAdapter(
             holder.binding.tvCoins.setTextColor(activity.getColor(android.R.color.holo_red_dark))
         }
         holder.binding.tvTransactionTitle.text = transaction.type
-        holder.binding.tvTransactionDate.text = transaction.datetime
+        holder.binding.tvTransactionDate.text = formatTime(transaction.datetime)
+        Log.d("transaction_datetime","$transaction.datetime")
         holder.binding.tvTransactionHint.text = activity.getString(R.string.session_id)+transaction.id
     }
 
@@ -46,5 +50,15 @@ class TransactionAdapter(
 
     internal class ItemHolder(val binding: AdapterTransactionBinding) :
         RecyclerView.ViewHolder(binding.root) {
+    }
+
+    fun formatTime(datetime: String): String {
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        val outputFormat = SimpleDateFormat("hh:mm a", Locale.getDefault()) // 12-hour format
+
+        val date = inputFormat.parse(datetime) // Convert string to Date
+        val formattedTime = outputFormat.format(date!!) // Convert Date to formatted string
+
+        return datetime.substring(0, 10) + " " + formattedTime // Keep original date, change time
     }
 }
