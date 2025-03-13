@@ -18,6 +18,7 @@ import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 
+
 @HiltWorker
 class CallUpdateWorker @AssistedInject constructor(
     val femaleUsersRepositories: FemaleUsersRepositories,
@@ -29,7 +30,17 @@ class CallUpdateWorker @AssistedInject constructor(
         return withContext(Dispatchers.IO) {
             try {
                 var updateConnectedCall: Response<UpdateConnectedCallResponse>? = null
+
+                Log.d("CallUpdateWorkerCheck", "Starting worker execution")
+
                 if (workerParams.inputData.getBoolean(DConstants.IS_INDIVIDUAL, false)) {
+                    Log.d("CallUpdateWorkerCheck", "Updating Individual Call")
+                    val userId = workerParams.inputData.getInt(DConstants.USER_ID, 0)
+                    val callId = workerParams.inputData.getInt(DConstants.CALL_ID, 0)
+                    val startedTime = workerParams.inputData.getString(DConstants.STARTED_TIME).toString()
+                    val endedTime = workerParams.inputData.getString(DConstants.ENDED_TIME).toString()
+
+                    Log.d("CallUpdateWorkerCheck", "User ID: $userId, Call ID: $callId, Started Time: $startedTime, Ended Time: $endedTime")
                     updateConnectedCall = femaleUsersRepositories.individualUpdateConnectedCall(
                         workerParams.inputData.getInt(DConstants.USER_ID, 0),
                         workerParams.inputData.getInt(DConstants.CALL_ID, 0),
@@ -37,6 +48,14 @@ class CallUpdateWorker @AssistedInject constructor(
                         workerParams.inputData.getString(DConstants.ENDED_TIME).toString(),
                     )
                 } else {
+                    Log.d("CallUpdateWorkerCheck", "Updating Group Call")
+                    val userId = workerParams.inputData.getInt(DConstants.USER_ID, 0)
+                    val callId = workerParams.inputData.getInt(DConstants.CALL_ID, 0)
+                    val startedTime = workerParams.inputData.getString(DConstants.STARTED_TIME).toString()
+                    val endedTime = workerParams.inputData.getString(DConstants.ENDED_TIME).toString()
+
+                    Log.d("CallUpdateWorkerCheck", "User ID: $userId, Call ID: $callId, Started Time: $startedTime, Ended Time: $endedTime")
+
                     updateConnectedCall = femaleUsersRepositories.updateConnectedCall(
                         workerParams.inputData.getInt(DConstants.USER_ID, 0),
                         workerParams.inputData.getInt(DConstants.CALL_ID, 0),
@@ -45,19 +64,86 @@ class CallUpdateWorker @AssistedInject constructor(
                     )
                 }
 
-                if (updateConnectedCall.isSuccessful == true) {
+                return@withContext if (updateConnectedCall.isSuccessful) {
                     if (updateConnectedCall.body()?.success == true) {
+                        Log.d("CallUpdateWorkerCheck", "Call update successful")
                         Result.success()
                     } else {
+                        Log.e("CallUpdateWorkerCheck", "Call update failed: ${updateConnectedCall.body()?.message}")
                         Result.failure()
                     }
                 } else {
+                    Log.e("CallUpdateWorkerCheck", "API call failed: ${updateConnectedCall.errorBody()?.string()}")
                     Result.failure()
                 }
             } catch (e: Exception) {
+                Log.e("CallUpdateWorkerCheck", "Exception: ${e.localizedMessage}", e)
                 Result.failure()
             }
-
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//@HiltWorker
+//class CallUpdateWorker @AssistedInject constructor(
+//    val femaleUsersRepositories: FemaleUsersRepositories,
+//    @Assisted appContext: Context,
+//    @Assisted val workerParams: WorkerParameters
+//) : CoroutineWorker(appContext, workerParams) {
+//
+//    override suspend fun doWork(): Result {
+//        return withContext(Dispatchers.IO) {
+//            try {
+//                var updateConnectedCall: Response<UpdateConnectedCallResponse>? = null
+//                if (workerParams.inputData.getBoolean(DConstants.IS_INDIVIDUAL, false)) {
+//                    updateConnectedCall = femaleUsersRepositories.individualUpdateConnectedCall(
+//                        workerParams.inputData.getInt(DConstants.USER_ID, 0),
+//                        workerParams.inputData.getInt(DConstants.CALL_ID, 0),
+//                        workerParams.inputData.getString(DConstants.STARTED_TIME).toString(),
+//                        workerParams.inputData.getString(DConstants.ENDED_TIME).toString(),
+//                    )
+//                } else {
+//                    updateConnectedCall = femaleUsersRepositories.updateConnectedCall(
+//                        workerParams.inputData.getInt(DConstants.USER_ID, 0),
+//                        workerParams.inputData.getInt(DConstants.CALL_ID, 0),
+//                        workerParams.inputData.getString(DConstants.STARTED_TIME).toString(),
+//                        workerParams.inputData.getString(DConstants.ENDED_TIME).toString(),
+//                    )
+//                }
+//
+//                if (updateConnectedCall.isSuccessful == true) {
+//                    if (updateConnectedCall.body()?.success == true) {
+//                        Result.success()
+//                    } else {
+//                        Result.failure()
+//                    }
+//                } else {
+//                    Result.failure()
+//                }
+//            } catch (e: Exception) {
+//                Result.failure()
+//            }
+//
+//        }
+//    }
+//}

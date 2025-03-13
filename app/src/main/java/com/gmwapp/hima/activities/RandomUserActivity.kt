@@ -209,6 +209,7 @@ class RandomUserActivity : BaseActivity(), OnButtonClickListener {
 
                     if (it != null && it.success) {
                         val callId = it.data?.call_id
+                        Log.d("CallIdInActivity","$callId")
                         val balanceTime = it.data?.balance_time
                         if (callId != null) {
                             setupCall(
@@ -498,7 +499,7 @@ class RandomUserActivity : BaseActivity(), OnButtonClickListener {
         ZegoUIKit.addRoomStateChangedListener { room, reason, _, _ ->
             when (reason) {
                 ZegoRoomStateChangedReason.LOGINED -> {
-                    Log.d("RoomStateChanged", "Login successful")
+                    Log.d("RoomStateChangedCheck", "Login reason: $reason")
                     if(CallInvitationServiceImpl.getInstance().callInvitationData.type == 1) {
                         activateWakeLock()
                     }
@@ -506,6 +507,8 @@ class RandomUserActivity : BaseActivity(), OnButtonClickListener {
                     timer?.cancel();
                     lastActiveTime = System.currentTimeMillis()
                     roomID = room
+                    Log.d("RoomStateChangedCheck", "Login room: $roomID")
+
                     BaseApplication.getInstance()?.setRoomId(roomID)
                     userId = BaseApplication.getInstance()?.getPrefs()
                         ?.getUserData()?.id.toString() // Set user_id
@@ -516,19 +519,24 @@ class RandomUserActivity : BaseActivity(), OnButtonClickListener {
                 }
 
                 ZegoRoomStateChangedReason.LOGOUT -> {
-                    Log.d("RoomStateChanged", "Logout successful")
-                    Log.d("RoomStateChanged", "Logout reason: $reason")  // This will give you the reason
+                    Log.d("RoomStateChangedCheck", "Logout reason: $reason")
 
                     releaseWakeLock()
                     lifecycleScope.launch {
                         stopService(Intent(this@RandomUserActivity, CallingService::class.java))
                         lastActiveTime = null
                         delay(500)
+
                         if (roomID != null) {
                             roomID = null
                             BaseApplication.getInstance()?.setRoomId(null)
                             BaseApplication.getInstance()?.setCallId(null)
                             endTime = dateFormat.format(Date()) // Set call end time in IST
+                            Log.d("RoomStateChangedCheck", "Login room: $roomID")
+                            Log.d("RoomStateChangedCheck", "Start time: $startTime")
+                            Log.d("RoomStateChangedCheck", "EndTime: $endTime")
+                            Log.d("RoomStateChangedCheck", "isReceiverDetailsAvailable: $isReceiverDetailsAvailable")
+                            Log.d("RoomStateChangedCheck", "isReceiverDetailsAvailable: $callId")
 
                             val constraints =
                                 Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED)
@@ -541,6 +549,7 @@ class RandomUserActivity : BaseActivity(), OnButtonClickListener {
                                 .putBoolean(DConstants.IS_INDIVIDUAL, isReceiverDetailsAvailable)
                                 .putString(DConstants.ENDED_TIME, endTime).build()
 
+                            Log.d("CallIDValue","$callId")
                             val oneTimeWorkRequest = OneTimeWorkRequest.Builder(
                                 CallUpdateWorker::class.java
                             ).setInputData(data).setConstraints(constraints).build()

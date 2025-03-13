@@ -400,6 +400,8 @@ class FemaleHomeFragment : BaseFragment() {
     private fun addRoomStateChangedListener() {
 
         ZegoUIKit.addRoomStateChangedListener { room, reason, _, _ ->
+            Log.d("roomStateCheck","reason : $reason, room : $room")
+
             when (reason) {
                 ZegoRoomStateChangedReason.LOGINED -> {
                     if (CallInvitationServiceImpl.getInstance().callInvitationData.type == 1) {
@@ -413,6 +415,8 @@ class FemaleHomeFragment : BaseFragment() {
                     CallInvitationServiceImpl.getInstance().dismissCallNotification()
                     lastActiveTime = System.currentTimeMillis()
                     roomID = room
+                    Log.d("roomidCheck","Login $room")
+
                     startTime = dateFormat.format(Date()) // Set call start time in IST
                     femaleUsersViewModel.femaleCallAttend(receivedId,
                         callId,
@@ -443,6 +447,8 @@ class FemaleHomeFragment : BaseFragment() {
 
                         lastActiveTime = 0
                         delay(500)
+                        Log.d("roomidCheck","Logout $roomID")
+
                         if (roomID != null) {
                             roomID = null
                             endTime = dateFormat.format(Date()) // Set call end time in IST
@@ -450,6 +456,11 @@ class FemaleHomeFragment : BaseFragment() {
                             val constraints =
                                 Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED)
                                     .build()
+                            Log.d("RoomStateChangedCheck", "Login room: $roomID")
+                            Log.d("RoomStateChangedCheck", "Start time: $startTime")
+                            Log.d("RoomStateChangedCheck", "EndTime: $endTime")
+                            Log.d("RoomStateChangedCheck", "callId: $callId")
+                            Log.d("RoomStateChangedCheck", "USER_ID: $receivedId")
                             val data: Data = Data.Builder().putInt(DConstants.USER_ID, receivedId)
                                 .putInt(DConstants.CALL_ID, callId)
                                 .putString(DConstants.STARTED_TIME, startTime).putBoolean(

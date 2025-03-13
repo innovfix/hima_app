@@ -165,6 +165,7 @@
                         android:singleLine="true"
                         android:inputType="number"
                         android:textColor="@color/pink"
+                        android:maxLength="2"
                         android:textCursorDrawable="@drawable/color_cursor"
                         app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintEnd_toEndOf="parent"
