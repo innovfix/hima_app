@@ -10,7 +10,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        Log.d("FCM", "New token: $token")
+        Log.d("FCMNewToken", "New token: $token")
         // Send this token to your backend server if needed.
     }
 
