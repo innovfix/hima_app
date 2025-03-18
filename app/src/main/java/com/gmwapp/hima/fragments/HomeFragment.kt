@@ -13,10 +13,12 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.agora.male.MaleCallConnectingActivity
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.RandomUserActivity
 import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.adapters.FemaleUserAdapter
+import com.gmwapp.hima.agora.AgoraRandomCallActivity
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentHomeBinding
@@ -121,14 +123,14 @@ class HomeFragment : BaseFragment() {
 
 
         binding.fabAudio.setOnSingleClickListener {
-            val intent = Intent(context, RandomUserActivity::class.java)
+            val intent = Intent(context, AgoraRandomCallActivity::class.java)
             intent.putExtra(DConstants.CALL_TYPE, "audio")
             intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             startActivity(intent)
         }
 
         binding.fabVideo.setOnSingleClickListener {
-            val intent = Intent(context, RandomUserActivity::class.java)
+            val intent = Intent(context, AgoraRandomCallActivity::class.java)
             intent.putExtra(DConstants.CALL_TYPE, "video")
             startActivity(intent)
         }
@@ -157,7 +159,7 @@ class HomeFragment : BaseFragment() {
                         it.data,
                         object : OnItemSelectionListener<FemaleUsersResponseData> {
                             override fun onItemSelected(data: FemaleUsersResponseData) {
-                                val intent = Intent(context, RandomUserActivity::class.java)
+                                val intent = Intent(context, MaleCallConnectingActivity::class.java)
                                 intent.putExtra(DConstants.CALL_TYPE, "audio")
                                 intent.putExtra(DConstants.RECEIVER_ID, data.id)
                                 intent.putExtra(DConstants.RECEIVER_NAME, data.name)
@@ -173,7 +175,7 @@ class HomeFragment : BaseFragment() {
                         },
                         object : OnItemSelectionListener<FemaleUsersResponseData> {
                             override fun onItemSelected(data: FemaleUsersResponseData) {
-                                val intent = Intent(context, RandomUserActivity::class.java)
+                                val intent = Intent(context, MaleCallConnectingActivity::class.java)
                                 intent.putExtra(DConstants.CALL_TYPE, "video")
                                 intent.putExtra(DConstants.RECEIVER_ID, data.id)
                                 intent.putExtra(DConstants.RECEIVER_NAME, data.name)

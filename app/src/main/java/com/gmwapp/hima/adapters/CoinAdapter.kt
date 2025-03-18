@@ -2,6 +2,7 @@ package com.gmwapp.hima.adapters
 
 import android.app.Activity
 import android.graphics.Paint
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -11,7 +12,7 @@ import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.databinding.AdapterCoinBinding
 import com.gmwapp.hima.retrofit.responses.CoinsResponseData
 import com.gmwapp.hima.utils.setOnSingleClickListener
-import com.zego.ve.Log
+//import com.zego.ve.Log
 
 
 class CoinAdapter(
@@ -32,6 +33,7 @@ class CoinAdapter(
     override fun onBindViewHolder(holderParent: RecyclerView.ViewHolder, position: Int) {
         val holder: ItemHolder = holderParent as ItemHolder
         val coin: CoinsResponseData = coins[position]
+
 
         Log.d("save percent","${coin.save}")
 

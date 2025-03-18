@@ -1,8 +1,10 @@
 package com.gmwapp.hima.activities
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.util.Log
@@ -10,6 +12,7 @@ import android.view.MenuItem
 import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -26,6 +29,7 @@ import com.gmwapp.hima.fragments.ProfileFragment
 import com.gmwapp.hima.fragments.RecentFragment
 import com.gmwapp.hima.retrofit.responses.RazorPayApiResponse
 import com.gmwapp.hima.viewmodels.AccountViewModel
+import com.gmwapp.hima.viewmodels.FcmTokenViewModel
 import com.gmwapp.hima.viewmodels.OfferViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.viewmodels.UpiPaymentViewModel
@@ -34,6 +38,7 @@ import com.google.android.material.bottomnavigation.BottomNavigationMenuView
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.navigation.NavigationBarView
 import com.google.androidbrowserhelper.trusted.LauncherActivity
+import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.AndroidEntryPoint
 import retrofit2.Call
 import kotlin.math.round
@@ -50,6 +55,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     val offerViewModel: OfferViewModel by viewModels()
     private val profileViewModel: ProfileViewModel by viewModels()
     private val accountViewModel: AccountViewModel by viewModels()
+    private val fcmTokenViewModel: FcmTokenViewModel by viewModels()
     private val upiPaymentViewModel: UpiPaymentViewModel by viewModels()
 
     private lateinit var call: Call<ApiResponse>
@@ -58,6 +64,15 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     lateinit var total_amount : String
     lateinit var coinId: String
 
+    private val requestPermissionsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions[Manifest.permission.MANAGE_OWN_CALLS] == true) {
+            // Permission granted, proceed with call service
+        } else {
+            // Show an error or disable call-related functionality
+        }
+    }
 
 
 
@@ -75,10 +90,10 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         userID = userData?.id.toString()
 
-
-
         initUI()
         addObservers()
+
+        updateFcmToken(userData?.id)
 
         userName = userData?.name
 
@@ -151,7 +166,9 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             prefs?.setUserData(it.data);
         });
 
-        userID?.let { offerViewModel.getOffer(it.toInt()) }
+        Log.d("DEBUG", "Received userID: $userID")
+
+        userID?.toIntOrNull()?.let { offerViewModel.getOffer(it) }
         binding.bottomNavigationView.setOnNavigationItemSelectedListener(this)
         removeShiftMode()
     }
@@ -167,6 +184,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
                 val originalPrice = calculateOriginalPrice(discountedPrice, save)
 
+
+               // Log.d("offerRechargeTotalCount","totalcount ${response.data[0].total_count}")
 
                 Log.d("OrinalPrice","OriginalPrice $originalPrice")
                 Log.d("OrinalPrice","discountPrice $discountedPrice")
@@ -394,7 +413,50 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     fun generateRandomTxnId(userId: Int, coinId: String): String {
         return "$userId-$coinId-${System.currentTimeMillis()}"
     }
-    
-    
+
+
+    fun updateFcmToken(userId: Int?) {
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (!task.isSuccessful) {
+                Log.w("FCM", "Fetching FCM registration token failed", task.exception)
+                return@addOnCompleteListener
+            }
+            // Get new FCM registration token
+            val token = task.result
+            Log.d("FCM", "Device token: $token")
+
+            userId?.let { fcmTokenViewModel.sendToken(it, token) }
+            observeTokenResponse()
+        }
+    }
+
+    fun observeTokenResponse() {
+        fcmTokenViewModel.tokenResponseLiveData.observe(this) { response ->
+            response?.let {
+                if (it.success) {
+                    Log.d("FCMToken", "Token saved successfully!")
+                } else {
+                    Log.e("FCMToken", "Failed to save token")
+                }
+            }
+        }
+
+    }
+
+    private fun requestPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) { // Android 10+
+            requestPermissionsLauncher.launch(
+                arrayOf(
+                    Manifest.permission.MANAGE_OWN_CALLS
+                )
+            )
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        requestPermissions()
+    }
+
     }
 

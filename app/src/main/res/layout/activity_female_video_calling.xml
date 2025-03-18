@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    >
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+
+        <TextView
+            android:id="@+id/tv_remaining_time"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="00:00:00"
+            android:gravity="center"
+            android:layout_marginBottom="@dimen/_10sdp"
+            android:textSize="@dimen/_14sdp"/>
+
+        <FrameLayout
+            android:id="@+id/local_video_view_container"
+            android:layout_width="320dp"
+            android:layout_height="240dp"
+            android:layout_centerHorizontal="true"
+            android:layout_below="@+id/tv_remaining_time"
+
+            android:layout_margin="6dp"
+            android:background="@android:color/darker_gray" />
+
+        <FrameLayout
+            android:id="@+id/remote_video_view_container"
+            android:layout_width="320dp"
+            android:layout_height="240dp"
+            android:layout_below="@+id/local_video_view_container"
+            android:layout_centerHorizontal="true"
+            android:layout_margin="6dp"
+            android:background="@android:color/darker_gray" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:layout_below="@id/remote_video_view_container"
+            android:layout_alignParentRight="true"
+            android:layout_alignParentStart="true"
+            android:paddingBottom="@dimen/_15sdp"
+            android:orientation="horizontal">
+
+
+            <Button
+                android:id="@+id/JoinButton"
+                android:visibility="gone"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="40dp"
+                android:onClick="joinChannel"
+                android:text="Join" />
+
+
+
+            <ImageView
+                android:id="@+id/mute_unmute"
+                android:layout_width="32dp"
+                android:layout_marginTop="@dimen/_12sdp"
+                android:layout_height="52dp"
+                android:layout_marginBottom="@dimen/_12sdp"
+
+                android:src="@drawable/unmute"/>
+
+
+            <Button
+                android:id="@+id/LeaveButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+
+                android:layout_marginHorizontal="@dimen/_12sdp"
+                android:onClick="leaveChannel"
+                android:text="Leave" />
+
+            <ImageView
+                android:id="@+id/speaker"
+                android:layout_width="32dp"
+                android:layout_marginTop="@dimen/_12sdp"
+                android:layout_marginBottom="@dimen/_12sdp"
+                android:layout_height="52dp"
+                android:src="@drawable/speaker_on"/>
+
+        </LinearLayout>
+
+    </RelativeLayout>
+</ScrollView>

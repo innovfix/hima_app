@@ -42,6 +42,8 @@ class TransactionAdapter(
         holder.binding.tvTransactionDate.text = formatTime(transaction.datetime)
         Log.d("transaction_datetime","$transaction.datetime")
         holder.binding.tvTransactionHint.text = activity.getString(R.string.session_id)+transaction.id
+        Log.d("transaction_date_Name","${transaction.date}${transaction.user_name}")
+
     }
 
      override fun getItemCount(): Int {

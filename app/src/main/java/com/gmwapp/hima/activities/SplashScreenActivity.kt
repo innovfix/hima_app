@@ -8,6 +8,7 @@ import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
@@ -16,6 +17,7 @@ import androidx.activity.viewModels
 import androidx.lifecycle.Observer
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
+import com.gmwapp.hima.agora.female.FemaleCallAcceptActivity
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivitySplashScreenBinding
 import com.gmwapp.hima.retrofit.responses.UserData
@@ -62,6 +64,30 @@ class SplashScreenActivity : BaseActivity() {
             currentVersion = pInfo.versionCode.toString()
         } catch (e: PackageManager.NameNotFoundException) {
             e.printStackTrace()
+        }
+
+        val isIncomingCall = BaseApplication.getInstance()?.isIncomingCall() ?: false
+        val senderId = BaseApplication.getInstance()?.getSenderId2() ?: -1
+        val callType = BaseApplication.getInstance()?.getCallType2() ?: "audio"
+        val channelName = BaseApplication.getInstance()?.getChannelName() ?: "default_channel"
+        val callId = BaseApplication.getInstance()?.getCallId2() ?: 0
+
+        if (isIncomingCall) {
+            Log.d("SplashActivity", "Incoming call detected! Redirecting to Call Accept Screen.")
+
+            Handler(Looper.getMainLooper()).postDelayed({
+                val intent = Intent(this, FemaleCallAcceptActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    putExtra("CALL_TYPE", callType)
+                    putExtra("SENDER_ID", senderId)
+                    putExtra("CHANNEL_NAME", channelName)
+                    putExtra("CALL_ID", callId)
+                }
+                startActivity(intent)
+                finish()
+            }, 2000)  // Delay ONLY if there's an incoming call
+        } else {
+            Log.d("SplashActivity", "No incoming call. Redirecting to MainActivity.")
         }
 
 

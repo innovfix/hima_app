@@ -12,6 +12,8 @@ import com.gmwapp.hima.retrofit.responses.CoinsResponse
 import com.gmwapp.hima.retrofit.responses.DeleteUserResponse
 import com.gmwapp.hima.retrofit.responses.EarningsResponse
 import com.gmwapp.hima.retrofit.responses.ExplanationVideoResponse
+import com.gmwapp.hima.retrofit.responses.FcmNotificationResponse
+import com.gmwapp.hima.retrofit.responses.FcmTokenResponse
 import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponse
 import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
@@ -51,8 +53,6 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     private fun getApiInterface(): ApiInterface {
         return retrofit.create(ApiInterface::class.java)
     }
-
-
 
 
     fun login(
@@ -490,6 +490,37 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun sendFcmToken(
+        userId: Int,
+        token: String,
+        callback: NetworkCallback<FcmTokenResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<FcmTokenResponse> = getApiInterface().sendFcmToken(userId, token)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun sendFcmNotification(
+        senderId: Int,
+        receiverId: Int,
+        callType: String,
+        channelName: String,
+        message: String,
+        callback: NetworkCallback<FcmNotificationResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<FcmNotificationResponse> =
+                getApiInterface().sendFcmNotification(senderId, receiverId, callType, channelName, message)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+
     fun getSpeechText(
         userId: Int, language: String, callback: NetworkCallback<SpeechTextResponse>
     ) {
@@ -774,6 +805,23 @@ interface ApiInterface {
         @Field("client_txn_id") clientTxnId: String,
         @Field("amount") amount: String
     ): Call<UpiPaymentResponse>
+
+    @FormUrlEncoded
+    @POST("send_fcm_token")
+    fun sendFcmToken(
+        @Field("user_id") userId: Int,
+        @Field("token") token: String
+    ): Call<FcmTokenResponse>
+
+    @FormUrlEncoded
+    @POST("send-fcm-notification")
+    fun sendFcmNotification(
+        @Field("senderId") senderId: Int,
+        @Field("receiverId") receiverId: Int,
+        @Field("callType") callType: String,
+        @Field("channelName") channelName: String,
+        @Field("message") message: String
+    ): Call<FcmNotificationResponse>
 
 
 }

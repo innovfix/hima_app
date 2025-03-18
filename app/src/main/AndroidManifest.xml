@@ -15,6 +15,13 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
+    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
+
+
+
     <uses-feature
         android:glEsVersion="0x00020000"
         android:required="true" />
@@ -36,6 +43,27 @@
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
+        <activity
+            android:name=".agora.AgoraRandomCallActivity"
+            android:exported="false" />
+        <activity
+            android:name=".agora.female.FemaleVideoCallingActivity"
+            android:exported="false" />
+        <activity
+            android:name=".agora.female.FemaleAudioCallingActivity"
+            android:exported="false" />
+        <activity
+            android:name=".agora.male.MaleVideoCallingActivity"
+            android:exported="false" />
+        <activity
+            android:name=".agora.male.MaleAudioCallingActivity"
+            android:exported="false" />
+        <activity
+            android:name=".agora.female.FemaleCallAcceptActivity"
+            android:exported="false" />
+        <activity
+            android:name=".agora.male.MaleCallConnectingActivity"
+            android:exported="true" />
         <activity
             android:name=".YoutubeRechargeActivity"
             android:exported="false" />
@@ -157,6 +185,22 @@
             android:name=".services.CallingService"
             android:exported="false"
             android:foregroundServiceType="microphone" />
+
+        <service
+            android:name=".agora.FcmCallService"
+            android:foregroundServiceType="phoneCall"
+            android:permission="android.permission.FOREGROUND_SERVICE_PHONE_CALL"
+            android:exported="false" />
+
+
+
+        <service
+            android:name=".agora.MyFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
 
         <receiver
             android:name=".receivers.CallReceiver"

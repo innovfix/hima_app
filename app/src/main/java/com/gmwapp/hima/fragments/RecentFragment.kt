@@ -14,6 +14,9 @@ import com.gmwapp.hima.activities.RandomUserActivity
 import com.gmwapp.hima.adapters.CoinAdapter
 import com.gmwapp.hima.adapters.FemaleUserAdapter
 import com.gmwapp.hima.adapters.RecentCallsAdapter
+import com.gmwapp.hima.agora.male.MaleAudioCallingActivity
+import com.gmwapp.hima.agora.male.MaleCallConnectingActivity
+import com.gmwapp.hima.agora.male.MaleVideoCallingActivity
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentRecentBinding
@@ -78,7 +81,7 @@ class RecentFragment : BaseFragment() {
                         it.data,
                         object : OnItemSelectionListener<CallsListResponseData> {
                             override fun onItemSelected(data: CallsListResponseData) {
-                                val intent = Intent(context, RandomUserActivity::class.java)
+                                val intent = Intent(context, MaleCallConnectingActivity::class.java)
                                 intent.putExtra(DConstants.CALL_TYPE, "audio")
                                 intent.putExtra(DConstants.RECEIVER_ID, data.id)
                                 intent.putExtra(DConstants.RECEIVER_NAME, data.name)
@@ -91,7 +94,7 @@ class RecentFragment : BaseFragment() {
                         },
                         object : OnItemSelectionListener<CallsListResponseData> {
                             override fun onItemSelected(data: CallsListResponseData) {
-                                val intent = Intent(context, RandomUserActivity::class.java)
+                                val intent = Intent(context, MaleCallConnectingActivity::class.java)
                                 intent.putExtra(DConstants.CALL_TYPE, "video")
                                 intent.putExtra(DConstants.RECEIVER_ID, data.id)
                                 intent.putExtra(DConstants.RECEIVER_NAME, data.name)
