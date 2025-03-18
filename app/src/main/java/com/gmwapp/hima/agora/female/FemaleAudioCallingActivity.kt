@@ -54,6 +54,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private lateinit var channelName: String
     var receiverId = 0
 
+    //check
     private lateinit var binding: ActivityFemaleAudioCallingBinding
     private val appId = "a41e9245489d44a2ac9af9525f1b508c"
     private val appCertificate = "9565a122acba4144926a12214064fd57"
