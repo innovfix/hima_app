@@ -19,7 +19,8 @@ class BottomSheetWelcomeBonus(
     private val coins: Int,
     private val orinalPrice: Int,
     private val discountedPrice: Int,
-    private val coinId: Int
+    private val coinId: Int,
+    private val total_count: Int
 ) : BottomSheetDialogFragment() {
 
     interface OnAddCoinsListener {
@@ -54,6 +55,8 @@ class BottomSheetWelcomeBonus(
         binding.tvBonusText.text = "$coins Coins"
         binding.tvBonusOriginal.text = "₹$orinalPrice"
         binding.tvBonusDiscount.text = "₹$discountedPrice"
+        binding.tvUsedBy.text=  "Used by ${total_count+100} people in the last 30 mins"
+
 
         val twoPercentage = discountedPrice.toDouble() * 0.02
         val roundedAmount = Math.round(twoPercentage)

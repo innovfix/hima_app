@@ -38,11 +38,21 @@ class TransactionAdapter(
             holder.binding.tvCoins.text = "-"+transaction.coins
             holder.binding.tvCoins.setTextColor(activity.getColor(android.R.color.holo_red_dark))
         }
-        holder.binding.tvTransactionTitle.text = transaction.type
-        holder.binding.tvTransactionDate.text = formatTime(transaction.datetime)
+        var callType = transaction.call_type.orEmpty().replaceFirstChar { it.uppercase() }
+        var call_user_name = transaction.call_user_name
+        if (transaction.type=="add_coins"){
+            holder.binding.tvTransactionTitle.text = "Wallet Recharge"
+            holder.binding.tvTransactionDate.text = "${transaction.date}"
+
+        }else if(transaction.type=="coins_deduction"){
+            holder.binding.tvTransactionTitle.text = "$callType call with $call_user_name"
+            holder.binding.tvTransactionDate.text = "${transaction.date} · ${transaction.duration}"
+
+        }
+
+        //  holder.binding.tvTransactionDate.text = formatTime(transaction.datetime)
         Log.d("transaction_datetime","$transaction.datetime")
         holder.binding.tvTransactionHint.text = activity.getString(R.string.session_id)+transaction.id
-        Log.d("transaction_date_Name","${transaction.date}${transaction.user_name}")
 
     }
 
