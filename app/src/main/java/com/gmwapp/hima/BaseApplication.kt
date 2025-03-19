@@ -29,8 +29,8 @@ import com.onesignal.notifications.INotificationClickEvent
 import com.onesignal.notifications.INotificationClickListener
 import com.onesignal.notifications.INotificationLifecycleListener
 import com.onesignal.notifications.INotificationWillDisplayEvent
-import com.zegocloud.uikit.prebuilt.call.core.CallInvitationServiceImpl
-import com.zegocloud.uikit.prebuilt.call.core.notification.RingtoneManager
+//import com.zegocloud.uikit.prebuilt.call.core.CallInvitationServiceImpl
+//import com.zegocloud.uikit.prebuilt.call.core.notification.RingtoneManager
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -81,8 +81,8 @@ class BaseApplication : Application(), Configuration.Provider {
                 currentActivity = activity
 
                 if(getInstance()?.getPrefs()?.getUserData()?.gender == DConstants.MALE) {
-                    CallInvitationServiceImpl.getInstance().hideIncomingCallDialog()
-                    RingtoneManager.stopRingTone()
+//                    CallInvitationServiceImpl.getInstance().hideIncomingCallDialog()
+//                    RingtoneManager.stopRingTone()
                 }
             }
 
@@ -307,8 +307,8 @@ class BaseApplication : Application(), Configuration.Provider {
 
     fun isIncomingCall(): Boolean = incomingCall
     fun getSenderId2(): Int = senderId ?: -1
-    fun getCallType2(): String = callType ?: "audio"
-    fun getChannelName(): String = channelName ?: "default_channel"
-    fun getCallId2(): Int = callId ?: 0
+    fun getCallType2(): String = callType2.toString()
+    fun getChannelName(): String = channelName.toString()
+    fun getCallId2(): Int? = callId2
 
 }

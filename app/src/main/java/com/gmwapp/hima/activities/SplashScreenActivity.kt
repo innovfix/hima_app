@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
@@ -24,8 +25,9 @@ import com.gmwapp.hima.retrofit.responses.UserData
 import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.google.android.material.bottomsheet.BottomSheetDialog
-import com.zego.ve.Log
+//import com.zego.ve.Log
 import dagger.hilt.android.AndroidEntryPoint
+import org.greenrobot.eventbus.EventBus
 
 @AndroidEntryPoint
 class SplashScreenActivity : BaseActivity() {
@@ -68,9 +70,9 @@ class SplashScreenActivity : BaseActivity() {
 
         val isIncomingCall = BaseApplication.getInstance()?.isIncomingCall() ?: false
         val senderId = BaseApplication.getInstance()?.getSenderId2() ?: -1
-        val callType = BaseApplication.getInstance()?.getCallType2() ?: "audio"
+        val callType = BaseApplication.getInstance()?.getCallType2()
         val channelName = BaseApplication.getInstance()?.getChannelName() ?: "default_channel"
-        val callId = BaseApplication.getInstance()?.getCallId2() ?: 0
+        val callId = BaseApplication.getInstance()?.getCallId2()
 
         if (isIncomingCall) {
             Log.d("SplashActivity", "Incoming call detected! Redirecting to Call Accept Screen.")
@@ -82,6 +84,8 @@ class SplashScreenActivity : BaseActivity() {
                     putExtra("SENDER_ID", senderId)
                     putExtra("CHANNEL_NAME", channelName)
                     putExtra("CALL_ID", callId)
+                    Log.d("CALL_TYPE_Data", "$callType")
+
                 }
                 startActivity(intent)
                 finish()
@@ -224,6 +228,12 @@ class SplashScreenActivity : BaseActivity() {
 
         bottomSheetDialog.show()
     }
+
+    override fun onStart() {
+        super.onStart()
+        EventBus.getDefault().unregister(this) // Prevent unwanted registration
+    }
+
 
 }
 

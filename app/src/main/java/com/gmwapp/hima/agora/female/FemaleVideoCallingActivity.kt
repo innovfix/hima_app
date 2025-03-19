@@ -40,7 +40,6 @@ import io.agora.rtc2.IRtcEngineEventHandler
 import io.agora.rtc2.RtcEngine
 import io.agora.rtc2.RtcEngineConfig
 import io.agora.rtc2.video.VideoCanvas
-import io.agora.rtm.RtmClient
 import retrofit2.Call
 import retrofit2.Response
 import java.text.SimpleDateFormat
@@ -74,7 +73,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     var call_Id: Int = 0
 
     private var isJoined = false
-    private var mRtmClient: RtmClient? = null
+  //  private var mRtmClient: RtmClient? = null
 
     private var agoraEngine: RtcEngine? = null
 

@@ -202,14 +202,14 @@
             </intent-filter>
         </service>
 
-        <receiver
-            android:name=".receivers.CallReceiver"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="im.zego.zim.zpns.intent.action.MESSAGE" />
-            </intent-filter>
-        </receiver>
+<!--        <receiver-->
+<!--            android:name=".receivers.CallReceiver"-->
+<!--            android:enabled="true"-->
+<!--            android:exported="true">-->
+<!--            <intent-filter>-->
+<!--                <action android:name="im.zego.zim.zpns.intent.action.MESSAGE" />-->
+<!--            </intent-filter>-->
+<!--        </receiver>-->
     </application>
 
 </manifest>

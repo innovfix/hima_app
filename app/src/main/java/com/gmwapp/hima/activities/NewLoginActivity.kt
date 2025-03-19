@@ -24,6 +24,7 @@ import android.text.TextUtils
 import android.text.TextWatcher
 import android.text.method.LinkMovementMethod
 import android.text.style.ClickableSpan
+import android.util.Log
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import androidx.activity.enableEdgeToEdge
@@ -40,7 +41,7 @@ import com.gmwapp.hima.dialogs.BottomSheetCountry
 import com.gmwapp.hima.retrofit.responses.Country
 import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.google.android.material.snackbar.Snackbar
-import com.zego.ve.Log
+//import com.zego.ve.Log
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

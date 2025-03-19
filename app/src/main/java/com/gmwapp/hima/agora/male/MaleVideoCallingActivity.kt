@@ -13,7 +13,6 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.databinding.ActivityMaleVideoCallingBinding
 import io.agora.rtc2.RtcEngine
 import io.agora.rtc2.RtcEngineConfig
-import io.agora.rtm.RtmClient
 import android.Manifest
 import android.content.Intent
 import android.os.CountDownTimer
@@ -73,7 +72,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     private val fcmNotificationViewModel: FcmNotificationViewModel by viewModels()
     private val uid = 0
     private var isJoined = false
-    private var mRtmClient: RtmClient? = null
+//    private var mRtmClient: RtmClient? = null
 
     private var agoraEngine: RtcEngine? = null
 

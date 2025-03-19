@@ -113,10 +113,10 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             }
         }
     }
-    override fun resumeZegoCloud(){
-        addRoomStateChangedListener()
-        moveTaskToBack(true)
-    }
+//    override fun resumeZegoCloud(){
+//        addRoomStateChangedListener()
+//        moveTaskToBack(true)
+//    }
 
     private fun initUI() {
 

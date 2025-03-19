@@ -17,7 +17,7 @@ import com.gmwapp.hima.retrofit.responses.ReportsResponse
 import com.gmwapp.hima.retrofit.responses.TransactionsResponse
 import com.gmwapp.hima.retrofit.responses.UpdateCallStatusResponse
 import dagger.hilt.android.lifecycle.HiltViewModel
-import im.zego.uikit.libuikitreport.CommonUtils.getApplication
+//import im.zego.uikit.libuikitreport.CommonUtils.getApplication
 import kotlinx.coroutines.launch
 import retrofit2.Call
 import retrofit2.Response
@@ -107,7 +107,7 @@ class FemaleUsersViewModel @Inject constructor(private val femaleUsersRepositori
 
                 override fun onFailure(call: Call<ReportsResponse>, t: Throwable) {
                     reportsErrorLiveData.postValue(DConstants.LOGIN_ERROR)
-                    Toast.makeText(getApplication(), "Something went wrong: ${t.message}", Toast.LENGTH_SHORT).show()
+                   // Toast.makeText(getApplication(), "Something went wrong: ${t.message}", Toast.LENGTH_SHORT).show()
                     Log.e("API_FAILURE", "Error: ", t)
                 }
 

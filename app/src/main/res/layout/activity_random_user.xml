@@ -31,15 +31,15 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/tv_title" />
 
-    <com.gmwapp.hima.widgets.SendCallInvitationButton
-        android:visibility="gone"
-        android:layout_marginTop="10dp"
-        android:id="@+id/voiceCallButton"
-        android:layout_width="100dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        android:layout_height="100dp"/>
+<!--    <com.gmwapp.hima.widgets.SendCallInvitationButton-->
+<!--        android:visibility="gone"-->
+<!--        android:layout_marginTop="10dp"-->
+<!--        android:id="@+id/voiceCallButton"-->
+<!--        android:layout_width="100dp"-->
+<!--        app:layout_constraintStart_toStartOf="parent"-->
+<!--        app:layout_constraintEnd_toEndOf="parent"-->
+<!--        app:layout_constraintTop_toTopOf="parent"-->
+<!--        android:layout_height="100dp"/>-->
 
 
     <ImageView

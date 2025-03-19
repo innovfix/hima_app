@@ -41,12 +41,12 @@ import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.gmwapp.hima.workers.CallUpdateWorker
 import com.onesignal.OneSignal
-import com.tencent.mmkv.MMKV
-import com.zegocloud.uikit.ZegoUIKit
-import com.zegocloud.uikit.prebuilt.call.core.CallInvitationServiceImpl
-import com.zegocloud.uikit.prebuilt.call.core.notification.PrebuiltCallNotificationManager
+//import com.tencent.mmkv.MMKV
+//import com.zegocloud.uikit.ZegoUIKit
+//import com.zegocloud.uikit.prebuilt.call.core.CallInvitationServiceImpl
+//import com.zegocloud.uikit.prebuilt.call.core.notification.PrebuiltCallNotificationManager
 import dagger.hilt.android.AndroidEntryPoint
-import im.zego.zegoexpress.constants.ZegoRoomStateChangedReason
+//import im.zego.zegoexpress.constants.ZegoRoomStateChangedReason
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import retrofit2.Call
@@ -124,37 +124,37 @@ class FemaleHomeFragment : BaseFragment() {
     }
 
     private fun askNotificationsEnabled(){
-        if(mContext!=null) {
-            val invitationConfig = CallInvitationServiceImpl.getInstance()
-                .callInvitationConfig
-            var channelID = MMKV.defaultMMKV().getString("channelID", null)
-            if (channelID == null) {
-                channelID = if (invitationConfig?.notificationConfig != null) {
-                    invitationConfig.notificationConfig.channelID
-                } else {
-                    PrebuiltCallNotificationManager.incoming_call_channel_id
-                }
-            }
-            if (NotificationManagerCompat.from(mContext!!).areNotificationsEnabled()
-                && NotificationManagerCompat.from(mContext!!)
-                    .getNotificationChannel(channelID.toString())?.importance != IMPORTANCE_NONE
-                && NotificationManagerCompat.from(mContext!!)
-                    .getNotificationChannel(CallingService.callingChannelId)?.importance != IMPORTANCE_NONE
-            ) {
-                initializeCall()
-            }else{
-                try {
-                    val settingsIntent: Intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                        .putExtra(Settings.EXTRA_APP_PACKAGE, mContext?.packageName)
-                    Toast.makeText(context, getString(R.string.enable_notification), Toast.LENGTH_SHORT).show()
-                    startActivityForResult(settingsIntent, NOTIFICATIONS_ENABLED_REQUEST_CODE)
-                } catch (e: Exception) {
-                    initializeCall()
-                }
-            }
-        }else{
-            initializeCall()
-        }
+//        if(mContext!=null) {
+//            val invitationConfig = CallInvitationServiceImpl.getInstance()
+//                .callInvitationConfig
+//            var channelID = MMKV.defaultMMKV().getString("channelID", null)
+//            if (channelID == null) {
+//                channelID = if (invitationConfig?.notificationConfig != null) {
+//                    invitationConfig.notificationConfig.channelID
+//                } else {
+//                    PrebuiltCallNotificationManager.incoming_call_channel_id
+//                }
+//            }
+//            if (NotificationManagerCompat.from(mContext!!).areNotificationsEnabled()
+//                && NotificationManagerCompat.from(mContext!!)
+//                    .getNotificationChannel(channelID.toString())?.importance != IMPORTANCE_NONE
+//                && NotificationManagerCompat.from(mContext!!)
+//                    .getNotificationChannel(CallingService.callingChannelId)?.importance != IMPORTANCE_NONE
+//            ) {
+//                initializeCall()
+//            }else{
+//                try {
+//                    val settingsIntent: Intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+//                        .putExtra(Settings.EXTRA_APP_PACKAGE, mContext?.packageName)
+//                    Toast.makeText(context, getString(R.string.enable_notification), Toast.LENGTH_SHORT).show()
+//                    startActivityForResult(settingsIntent, NOTIFICATIONS_ENABLED_REQUEST_CODE)
+//                } catch (e: Exception) {
+//                    initializeCall()
+//                }
+//            }
+//        }else{
+//            initializeCall()
+//        }
     }
 
     private fun askNotificationPermission() {
@@ -251,9 +251,9 @@ class FemaleHomeFragment : BaseFragment() {
         val prefs = BaseApplication.getInstance()?.getPrefs()
         val userData = prefs?.getUserData()
         if (userData != null) {
-            registerBroadcastReceiver()
-            setupZegoUIKit(userData.id, userData.name)
-            addRoomStateChangedListener()
+//            registerBroadcastReceiver()
+//            setupZegoUIKit(userData.id, userData.name)
+          //  addRoomStateChangedListener()
         }
     }
 
@@ -396,97 +396,97 @@ class FemaleHomeFragment : BaseFragment() {
             else -> "https://whatsapp.com/channel/0029Vazps3mFsn0p4KSOYF0f"
         }
     }
-
-    private fun addRoomStateChangedListener() {
-
-        ZegoUIKit.addRoomStateChangedListener { room, reason, _, _ ->
-            Log.d("roomStateCheck","reason : $reason, room : $room")
-
-            when (reason) {
-                ZegoRoomStateChangedReason.LOGINED -> {
-                    if (CallInvitationServiceImpl.getInstance().callInvitationData.type == 1) {
-                        activateWakeLock()
-                    }
-                    mContext?.startService(Intent(mContext, CallingService::class.java))
-                    mContext?.let {
-                        NotificationManagerCompat.from(it)
-                            .cancel(PrebuiltCallNotificationManager.incoming_call_notification_id)
-                    }
-                    CallInvitationServiceImpl.getInstance().dismissCallNotification()
-                    lastActiveTime = System.currentTimeMillis()
-                    roomID = room
-                    Log.d("roomidCheck","Login $room")
-
-                    startTime = dateFormat.format(Date()) // Set call start time in IST
-                    femaleUsersViewModel.femaleCallAttend(receivedId,
-                        callId,
-                        startTime,
-                        object : NetworkCallback<FemaleCallAttendResponse> {
-                            override fun onResponse(
-                                call: Call<FemaleCallAttendResponse>,
-                                response: Response<FemaleCallAttendResponse>
-                            ) {
-                                balanceTime = response.body()?.data?.remaining_time
-                            }
-
-                            override fun onFailure(
-                                call: Call<FemaleCallAttendResponse>, t: Throwable
-                            ) {
-                            }
-
-                            override fun onNoNetwork() {
-                            }
-                        })
-
-                }
-
-                ZegoRoomStateChangedReason.LOGOUT -> {
-                    releaseWakeLock()
-                    lifecycleScope.launch {
-                        mContext?.stopService(Intent(mContext, CallingService::class.java))
-
-                        lastActiveTime = 0
-                        delay(500)
-                        Log.d("roomidCheck","Logout $roomID")
-
-                        if (roomID != null) {
-                            roomID = null
-                            endTime = dateFormat.format(Date()) // Set call end time in IST
-
-                            val constraints =
-                                Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED)
-                                    .build()
-                            Log.d("RoomStateChangedCheck", "Login room: $roomID")
-                            Log.d("RoomStateChangedCheck", "Start time: $startTime")
-                            Log.d("RoomStateChangedCheck", "EndTime: $endTime")
-                            Log.d("RoomStateChangedCheck", "callId: $callId")
-                            Log.d("RoomStateChangedCheck", "USER_ID: $receivedId")
-                            val data: Data = Data.Builder().putInt(DConstants.USER_ID, receivedId)
-                                .putInt(DConstants.CALL_ID, callId)
-                                .putString(DConstants.STARTED_TIME, startTime).putBoolean(
-                                    DConstants.IS_INDIVIDUAL,
-                                    BaseApplication.getInstance()
-                                        ?.isReceiverDetailsAvailable() == true
-                                ).putString(DConstants.ENDED_TIME, endTime).build()
-                            val oneTimeWorkRequest = OneTimeWorkRequest.Builder(
-                                CallUpdateWorker::class.java
-                            ).setInputData(data).setConstraints(constraints).build()
-                            mContext?.let {
-                                WorkManager.getInstance(it).enqueue(oneTimeWorkRequest)
-                            }
-                            val prefs = BaseApplication.getInstance()?.getPrefs()
-                            val userData = prefs?.getUserData()
-                            if (userData != null) {
-                                setupZegoUIKit(userData.id, userData.name)
-                            }
-                        }
-                    }
-                }
-
-                else -> {
-                }
-            }
-        }
-    }
+//
+//    private fun addRoomStateChangedListener() {
+//
+//        ZegoUIKit.addRoomStateChangedListener { room, reason, _, _ ->
+//            Log.d("roomStateCheck","reason : $reason, room : $room")
+//
+//            when (reason) {
+//                ZegoRoomStateChangedReason.LOGINED -> {
+//                    if (CallInvitationServiceImpl.getInstance().callInvitationData.type == 1) {
+//                        activateWakeLock()
+//                    }
+//                    mContext?.startService(Intent(mContext, CallingService::class.java))
+//                    mContext?.let {
+//                        NotificationManagerCompat.from(it)
+//                            .cancel(PrebuiltCallNotificationManager.incoming_call_notification_id)
+//                    }
+//                    CallInvitationServiceImpl.getInstance().dismissCallNotification()
+//                    lastActiveTime = System.currentTimeMillis()
+//                    roomID = room
+//                    Log.d("roomidCheck","Login $room")
+//
+//                    startTime = dateFormat.format(Date()) // Set call start time in IST
+//                    femaleUsersViewModel.femaleCallAttend(receivedId,
+//                        callId,
+//                        startTime,
+//                        object : NetworkCallback<FemaleCallAttendResponse> {
+//                            override fun onResponse(
+//                                call: Call<FemaleCallAttendResponse>,
+//                                response: Response<FemaleCallAttendResponse>
+//                            ) {
+//                                balanceTime = response.body()?.data?.remaining_time
+//                            }
+//
+//                            override fun onFailure(
+//                                call: Call<FemaleCallAttendResponse>, t: Throwable
+//                            ) {
+//                            }
+//
+//                            override fun onNoNetwork() {
+//                            }
+//                        })
+//
+//                }
+//
+//                ZegoRoomStateChangedReason.LOGOUT -> {
+//                    releaseWakeLock()
+//                    lifecycleScope.launch {
+//                        mContext?.stopService(Intent(mContext, CallingService::class.java))
+//
+//                        lastActiveTime = 0
+//                        delay(500)
+//                        Log.d("roomidCheck","Logout $roomID")
+//
+//                        if (roomID != null) {
+//                            roomID = null
+//                            endTime = dateFormat.format(Date()) // Set call end time in IST
+//
+//                            val constraints =
+//                                Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED)
+//                                    .build()
+//                            Log.d("RoomStateChangedCheck", "Login room: $roomID")
+//                            Log.d("RoomStateChangedCheck", "Start time: $startTime")
+//                            Log.d("RoomStateChangedCheck", "EndTime: $endTime")
+//                            Log.d("RoomStateChangedCheck", "callId: $callId")
+//                            Log.d("RoomStateChangedCheck", "USER_ID: $receivedId")
+//                            val data: Data = Data.Builder().putInt(DConstants.USER_ID, receivedId)
+//                                .putInt(DConstants.CALL_ID, callId)
+//                                .putString(DConstants.STARTED_TIME, startTime).putBoolean(
+//                                    DConstants.IS_INDIVIDUAL,
+//                                    BaseApplication.getInstance()
+//                                        ?.isReceiverDetailsAvailable() == true
+//                                ).putString(DConstants.ENDED_TIME, endTime).build()
+//                            val oneTimeWorkRequest = OneTimeWorkRequest.Builder(
+//                                CallUpdateWorker::class.java
+//                            ).setInputData(data).setConstraints(constraints).build()
+//                            mContext?.let {
+//                                WorkManager.getInstance(it).enqueue(oneTimeWorkRequest)
+//                            }
+//                            val prefs = BaseApplication.getInstance()?.getPrefs()
+//                            val userData = prefs?.getUserData()
+//                            if (userData != null) {
+//                                setupZegoUIKit(userData.id, userData.name)
+//                            }
+//                        }
+//                    }
+//                }
+//
+//                else -> {
+//                }
+//            }
+//        }
+//    }
 
 }

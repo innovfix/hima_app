@@ -42,7 +42,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
         if (remoteMessage.data.isNotEmpty()) {
             val message = remoteMessage.data["message"] ?: ""
-            val callType = remoteMessage.data["callType"] ?: "audio"
+            val callType = remoteMessage.data["callType"]
             val senderId = remoteMessage.data["senderId"]?.toIntOrNull() ?: -1
             val channelName = remoteMessage.data["channelName"] ?: "default_channel"
 
@@ -71,7 +71,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                         BaseApplication.getInstance()?.saveSenderId(senderId)
                         BaseApplication.getInstance()?.playIncomingCallSound()
 
-                        BaseApplication.getInstance()?.setIncomingCall(senderId, callType, channelName, callId.toIntOrNull() ?: 0)
+                        callType?.let {
+                            BaseApplication.getInstance()?.setIncomingCall(senderId,
+                                it, channelName, callId.toIntOrNull() ?: 0)
+                        }
 
 
 

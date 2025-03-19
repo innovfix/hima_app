@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.os.CountDownTimer
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.View
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -18,7 +19,7 @@ import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityVerifyOtpBinding
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.LoginViewModel
-import com.zego.ve.Log
+//import com.zego.ve.Log
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
