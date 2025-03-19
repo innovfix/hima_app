@@ -164,6 +164,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 val discountedPrice = response.data[0].price
                 val save = response.data[0].save
                 val coinId = response.data[0].id
+                val total_count = response.data[0].total_count
 
                 val originalPrice = calculateOriginalPrice(discountedPrice, save)
 
@@ -174,7 +175,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 if (BaseApplication.getInstance()?.getPrefs()
                         ?.getUserData()?.gender == DConstants.MALE
                 ) {
-                    val bottomSheet = BottomSheetWelcomeBonus(coin, originalPrice, discountedPrice,coinId)
+                    val bottomSheet = BottomSheetWelcomeBonus(coin, originalPrice, discountedPrice,coinId, total_count)
                     bottomSheet.show(supportFragmentManager, "BottomSheetWelcomeBonus")
                 }
             }

@@ -15,6 +15,7 @@ data class OfferModel(
     val popular: Int,
     val best_offer: Int,
     val updated_at: String,
-    val created_at: String
+    val created_at: String,
+    val total_count: Int
 )
 

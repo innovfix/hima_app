@@ -14,5 +14,9 @@ data class TransactionsResponseData(
     val coins: Int,
     val payment_type: String,
     val datetime: String,
+    val call_type: String,
+    val duration: String,
+    val call_user_name: String,
+    val date: String,
 )
 
