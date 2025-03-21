@@ -15,6 +15,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Observer
 import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.BillingManager.BillingManager
 import com.gmwapp.hima.R
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityMainBinding
@@ -51,6 +52,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     private val profileViewModel: ProfileViewModel by viewModels()
     private val accountViewModel: AccountViewModel by viewModels()
     private val upiPaymentViewModel: UpiPaymentViewModel by viewModels()
+    private var billingManager: BillingManager? = null
+
 
     private lateinit var call: Call<ApiResponse>
     private lateinit var callRazor: Call<RazorPayApiResponse>
@@ -75,6 +78,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         userID = userData?.id.toString()
 
+
+        billingManager = BillingManager(this)
 
 
         initUI()
@@ -126,22 +131,22 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
 
 
-        accountViewModel.settingsLiveData.observe(this, Observer { response ->
-            if (response?.success == true) {
-                response.data?.let { settingsList ->
-                    if (settingsList.isNotEmpty()) {
-                        val settingsData = settingsList[0]
-                        settingsData.payment_gateway_type?.let { paymentGatewayType ->
-                            Log.d("settingsData", "settingsData $paymentGatewayType")
-                            handlePaymentGateway(paymentGatewayType)
-                        } ?: run {
-                            // Show Toast if payment_gateway_type is null
-                            Toast.makeText(this, "Please try again later", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
-            }
-        })
+//        accountViewModel.settingsLiveData.observe(this, Observer { response ->
+//            if (response?.success == true) {
+//                response.data?.let { settingsList ->
+//                    if (settingsList.isNotEmpty()) {
+//                        val settingsData = settingsList[0]
+//                        settingsData.payment_gateway_type?.let { paymentGatewayType ->
+//                            Log.d("settingsData", "settingsData $paymentGatewayType")
+//                            handlePaymentGateway(paymentGatewayType)
+//                        } ?: run {
+//                            // Show Toast if payment_gateway_type is null
+//                            Toast.makeText(this, "Please try again later", Toast.LENGTH_SHORT).show()
+//                        }
+//                    }
+//                }
+//            }
+//        })
 
 
         val prefs = BaseApplication.getInstance()?.getPrefs()
@@ -235,162 +240,182 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
 
     override fun onAddCoins(amount: String, id: Int) {
-
-        total_amount = "$amount"
-        var pointsId = "$id"
-        coinId = id.toString()
-        Log.d("amount", "amount $total_amount")
-
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-
         val userId = userData?.id
-        val name = userData?.name ?: ""
-        val email = "test@gmail.com"
-        val mobile = userData?.mobile ?: ""
+        var pointsId = "$id"
+        val pointsIdInt = pointsId.toIntOrNull()
 
-        if (userId != null && pointsId.isNotEmpty() && total_amount.isNotEmpty()) {
-            val userIdWithPoints = "$userId-$pointsId"
-
-            val apiService = RetrofitClient.instance
-            call = apiService.addCoins(name, total_amount, email, mobile, userIdWithPoints)
-
-            callRazor = apiService.addCoinsRazorPay(userIdWithPoints,name,total_amount,email,mobile)
-
-            accountViewModel.getSettings()
-
-
-
-
-//            call.enqueue(object : retrofit2.Callback<ApiResponse> {
-//                override fun onResponse(
-//                    call: retrofit2.Call<ApiResponse>,
-//                    response: retrofit2.Response<ApiResponse>
-//                ) {
-//                    if (response.isSuccessful && response.body()?.success == true) {
-//                        Toast.makeText(
-//                            this@MainActivity,
-//                            response.body()?.message,
-//                            Toast.LENGTH_SHORT
-//                        ).show()
-//                    } else {
-//                        // println("Long URL: ${it.longurl}") // Print to the terminal
-//                        //Toast.makeText(mContext, it.longurl, Toast.LENGTH_SHORT).show()
-//                        val intent = Intent(this@MainActivity, LauncherActivity::class.java)
-//                        intent.setData(Uri.parse(response.body()?.longurl))
-//                        startActivity(intent)
-//                        //  Toast.makeText(this@WalletActivity, response.body()?.message ?: "Error", Toast.LENGTH_SHORT).show()
-//                    }
-//                }
-//
-//                override fun onFailure(call: retrofit2.Call<ApiResponse>, t: Throwable) {
-//                    Toast.makeText(this@MainActivity, "Failed: ${t.message}", Toast.LENGTH_SHORT)
-//                        .show()
-//                }
-//            })
+        if (userId != null && pointsId.isNotEmpty()) {
+            if (pointsIdInt != null) {
+                billingManager!!.purchaseProduct(
+                    pointsId,
+                    userId,
+                    pointsIdInt
+                )
+            }
         } else {
             Toast.makeText(this, "Invalid input data", Toast.LENGTH_SHORT).show()
         }
     }
+
+
+//    override fun onAddCoins(amount: String, id: Int) {
+//
+//        total_amount = "$amount"
+//        var pointsId = "$id"
+//        coinId = id.toString()
+//        Log.d("amount", "amount $total_amount")
+//
+//        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+//
+//        val userId = userData?.id
+//        val name = userData?.name ?: ""
+//        val email = "test@gmail.com"
+//        val mobile = userData?.mobile ?: ""
+//
+//        if (userId != null && pointsId.isNotEmpty() && total_amount.isNotEmpty()) {
+//            val userIdWithPoints = "$userId-$pointsId"
+//
+//            val apiService = RetrofitClient.instance
+//            call = apiService.addCoins(name, total_amount, email, mobile, userIdWithPoints)
+//
+//            callRazor = apiService.addCoinsRazorPay(userIdWithPoints,name,total_amount,email,mobile)
+//
+//            accountViewModel.getSettings()
+//
+//
+//
+//
+////            call.enqueue(object : retrofit2.Callback<ApiResponse> {
+////                override fun onResponse(
+////                    call: retrofit2.Call<ApiResponse>,
+////                    response: retrofit2.Response<ApiResponse>
+////                ) {
+////                    if (response.isSuccessful && response.body()?.success == true) {
+////                        Toast.makeText(
+////                            this@MainActivity,
+////                            response.body()?.message,
+////                            Toast.LENGTH_SHORT
+////                        ).show()
+////                    } else {
+////                        // println("Long URL: ${it.longurl}") // Print to the terminal
+////                        //Toast.makeText(mContext, it.longurl, Toast.LENGTH_SHORT).show()
+////                        val intent = Intent(this@MainActivity, LauncherActivity::class.java)
+////                        intent.setData(Uri.parse(response.body()?.longurl))
+////                        startActivity(intent)
+////                        //  Toast.makeText(this@WalletActivity, response.body()?.message ?: "Error", Toast.LENGTH_SHORT).show()
+////                    }
+////                }
+////
+////                override fun onFailure(call: retrofit2.Call<ApiResponse>, t: Throwable) {
+////                    Toast.makeText(this@MainActivity, "Failed: ${t.message}", Toast.LENGTH_SHORT)
+////                        .show()
+////                }
+////            })
+//        } else {
+//            Toast.makeText(this, "Invalid input data", Toast.LENGTH_SHORT).show()
+//        }
+//    }
 
     fun calculateOriginalPrice(price: Int, savePercentage: Int): Int {
         val originalPrice = price / (1 - (savePercentage / 100.0)) // Use Double for division
         return round(originalPrice).toInt() // Round to the nearest integer
     }
 
-    private fun handlePaymentGateway(paymentGatewayType: String) {
-        // Handle the payment gateway type logic
-        when (paymentGatewayType) {
-            "razorpay" -> {
-
-
-                callRazor.enqueue(object : retrofit2.Callback<RazorPayApiResponse> {
-                    override fun onResponse(call: retrofit2.Call<RazorPayApiResponse>, response: retrofit2.Response<RazorPayApiResponse>) {
-                        if (response.isSuccessful && response.body() != null) {
-                            val apiResponse = response.body()
-
-                            // Extract the Razorpay payment link
-                            val paymentUrl = apiResponse?.short_url
-                            Log.d("WalletResponse","${ apiResponse?.short_url}")
-
-
-                            if (!paymentUrl.isNullOrEmpty()) {
-
-                                val intent =Intent(this@MainActivity, LauncherActivity::class.java)
-                                intent.setData(Uri.parse(response.body()?.short_url))
-                                Log.d("WalletResponse","${response.body()?.short_url}")
-                                startActivity(intent)
-
-//                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(paymentUrl))
+//    private fun handlePaymentGateway(paymentGatewayType: String) {
+//        // Handle the payment gateway type logic
+//        when (paymentGatewayType) {
+//            "razorpay" -> {
+//
+//
+//                callRazor.enqueue(object : retrofit2.Callback<RazorPayApiResponse> {
+//                    override fun onResponse(call: retrofit2.Call<RazorPayApiResponse>, response: retrofit2.Response<RazorPayApiResponse>) {
+//                        if (response.isSuccessful && response.body() != null) {
+//                            val apiResponse = response.body()
+//
+//                            // Extract the Razorpay payment link
+//                            val paymentUrl = apiResponse?.short_url
+//                            Log.d("WalletResponse","${ apiResponse?.short_url}")
+//
+//
+//                            if (!paymentUrl.isNullOrEmpty()) {
+//
+//                                val intent =Intent(this@MainActivity, LauncherActivity::class.java)
+//                                intent.setData(Uri.parse(response.body()?.short_url))
+//                                Log.d("WalletResponse","${response.body()?.short_url}")
 //                                startActivity(intent)
-                            } else {
-                                Toast.makeText(this@MainActivity, "Failed to get payment link", Toast.LENGTH_SHORT).show()
-                            }
-                        } else {
-                            Toast.makeText(this@MainActivity, "Error: ${response.errorBody()?.string()}", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-
-                    override fun onFailure(call: retrofit2.Call<RazorPayApiResponse>, t: Throwable) {
-                        Toast.makeText(this@MainActivity, "Failed: ${t.message}", Toast.LENGTH_SHORT).show()
-                    }
-                })
-
-
-
-
-
-            }
-
-            "upigateway" ->{
-
-                val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-                var userid = userData?.id
-
-
-                userid?.let {
-                    val clientTxnId = generateRandomTxnId(it,coinId)  // Generate a new transaction ID
-                    upiPaymentViewModel.createUpiPayment(it, clientTxnId, total_amount)
-                }
-
-            }
-
-
-            "instamojo" -> {
-
-
-                call.enqueue(object : retrofit2.Callback<ApiResponse> {
-                    override fun onResponse(call: retrofit2.Call<ApiResponse>, response: retrofit2.Response<ApiResponse>) {
-                        if (response.isSuccessful && response.body()?.success == true) {
-                            Toast.makeText(this@MainActivity, response.body()?.message, Toast.LENGTH_SHORT).show()
-                        } else {
-                            // println("Long URL: ${it.longurl}") // Print to the terminal
-                            //Toast.makeText(mContext, it.longurl, Toast.LENGTH_SHORT).show()
-
-                            val intent =
-                                Intent(this@MainActivity, LauncherActivity::class.java)
-                            intent.setData(Uri.parse(response.body()?.longurl))
-                            Log.d("WalletResponse","${response.body()?.longurl}")
-                            startActivity(intent)
-                            finish()// Directly starting the intent without launcher
-                            //  Toast.makeText(this@WalletActivity, response.body()?.message ?: "Error", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-
-                    override fun onFailure(call: retrofit2.Call<ApiResponse>, t: Throwable) {
-                        Toast.makeText(this@MainActivity, "Failed: ${t.message}", Toast.LENGTH_SHORT).show()
-                    }
-                })
-
-
-
-
-            }
-            else -> {
-                Toast.makeText(this, "Invalid Payment Gateway", Toast.LENGTH_SHORT).show()
-            }
-        }
-
-    }
+//
+////                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(paymentUrl))
+////                                startActivity(intent)
+//                            } else {
+//                                Toast.makeText(this@MainActivity, "Failed to get payment link", Toast.LENGTH_SHORT).show()
+//                            }
+//                        } else {
+//                            Toast.makeText(this@MainActivity, "Error: ${response.errorBody()?.string()}", Toast.LENGTH_SHORT).show()
+//                        }
+//                    }
+//
+//                    override fun onFailure(call: retrofit2.Call<RazorPayApiResponse>, t: Throwable) {
+//                        Toast.makeText(this@MainActivity, "Failed: ${t.message}", Toast.LENGTH_SHORT).show()
+//                    }
+//                })
+//
+//
+//
+//
+//
+//            }
+//
+//            "upigateway" ->{
+//
+//                val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+//                var userid = userData?.id
+//
+//
+//                userid?.let {
+//                    val clientTxnId = generateRandomTxnId(it,coinId)  // Generate a new transaction ID
+//                    upiPaymentViewModel.createUpiPayment(it, clientTxnId, total_amount)
+//                }
+//
+//            }
+//
+//
+//            "instamojo" -> {
+//
+//
+//                call.enqueue(object : retrofit2.Callback<ApiResponse> {
+//                    override fun onResponse(call: retrofit2.Call<ApiResponse>, response: retrofit2.Response<ApiResponse>) {
+//                        if (response.isSuccessful && response.body()?.success == true) {
+//                            Toast.makeText(this@MainActivity, response.body()?.message, Toast.LENGTH_SHORT).show()
+//                        } else {
+//                            // println("Long URL: ${it.longurl}") // Print to the terminal
+//                            //Toast.makeText(mContext, it.longurl, Toast.LENGTH_SHORT).show()
+//
+//                            val intent =
+//                                Intent(this@MainActivity, LauncherActivity::class.java)
+//                            intent.setData(Uri.parse(response.body()?.longurl))
+//                            Log.d("WalletResponse","${response.body()?.longurl}")
+//                            startActivity(intent)
+//                            finish()// Directly starting the intent without launcher
+//                            //  Toast.makeText(this@WalletActivity, response.body()?.message ?: "Error", Toast.LENGTH_SHORT).show()
+//                        }
+//                    }
+//
+//                    override fun onFailure(call: retrofit2.Call<ApiResponse>, t: Throwable) {
+//                        Toast.makeText(this@MainActivity, "Failed: ${t.message}", Toast.LENGTH_SHORT).show()
+//                    }
+//                })
+//
+//
+//
+//
+//            }
+//            else -> {
+//                Toast.makeText(this, "Invalid Payment Gateway", Toast.LENGTH_SHORT).show()
+//            }
+//        }
+//
+//    }
 
     fun generateRandomTxnId(userId: Int, coinId: String): String {
         return "$userId-$coinId-${System.currentTimeMillis()}"

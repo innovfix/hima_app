@@ -2,12 +2,21 @@ package com.gmwapp.hima.repositories
 
 import com.gmwapp.hima.retrofit.ApiManager
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
+import com.gmwapp.hima.retrofit.responses.AddCoinsResponse
 import com.gmwapp.hima.retrofit.responses.CoinsResponse
 import javax.inject.Inject
 
 class WalletRepositories @Inject constructor(private val apiManager: ApiManager) {
   fun getCoins(userId: Int, callback: NetworkCallback<CoinsResponse>) {
         apiManager.getCoins(userId, callback)
+    }
+
+    fun addCoins(
+        userId: Int,
+        coinId: Int,
+        callback: NetworkCallback<AddCoinsResponse>
+    ) {
+        apiManager.addCoins(userId, coinId, callback)
     }
 
  }

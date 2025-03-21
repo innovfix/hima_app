@@ -2,6 +2,7 @@ package com.gmwapp.hima.retrofit
 
 import com.gmwapp.hima.activities.RetrofitClient
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
+import com.gmwapp.hima.retrofit.responses.AddCoinsResponse
 import com.gmwapp.hima.retrofit.responses.AddPointsResponse
 import com.gmwapp.hima.retrofit.responses.AppUpdateResponse
 import com.gmwapp.hima.retrofit.responses.AvatarsListResponse
@@ -112,6 +113,20 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+
+    fun addCoins(
+        userId: Int,
+        coinsId: Int,
+        callback: NetworkCallback<AddCoinsResponse>
+    ) {
+
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<AddCoinsResponse> = getApiInterface().addCoins(userId, coinsId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
     fun register(
         mobile: String,
         language: String,
@@ -775,5 +790,11 @@ interface ApiInterface {
         @Field("amount") amount: String
     ): Call<UpiPaymentResponse>
 
+    @POST("add_coins")
+    @FormUrlEncoded
+    fun addCoins(
+        @Field("user_id") userId: Int,
+        @Field("coins_id") coinsId: Int,
+    ): Call<AddCoinsResponse>
 
 }

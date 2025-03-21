@@ -134,6 +134,7 @@ dependencies {
     implementation("com.google.androidbrowserhelper:androidbrowserhelper:2.5.0")
 
     implementation ("com.github.NorthernCaptain:TAndroidLame:1.1")
+    implementation ("com.android.billingclient:billing:7.1.1")
 
 
 

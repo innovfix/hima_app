@@ -60,6 +60,16 @@ class DPreferences(context: Context) {
         }
     }
 
+
+    fun setAfterAddCoins(coins: String) {
+        try {
+            mPrefsWrite.putString("after_add_coins", coins)
+            mPrefsWrite.apply()
+        } catch (e: Exception) {
+            e.message?.let { Log.e("DPreferences", it) }
+        }
+    }
+
     fun setAuthenticationToken(authenticationToken: String?) {
         try {
             mPrefsWrite.putString(
