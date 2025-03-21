@@ -3,11 +3,14 @@ package com.gmwapp.hima.agora.female
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Outline
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.util.Log
 import android.view.SurfaceView
 import android.view.View
+import android.view.ViewGroup
+import android.view.ViewOutlineProvider
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
@@ -17,6 +20,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
 import androidx.work.Constraints
 import androidx.work.Data
 import androidx.work.NetworkType
@@ -31,6 +35,7 @@ import com.gmwapp.hima.databinding.ActivityMaleVideoCallingBinding
 import com.gmwapp.hima.media.RtcTokenBuilder2
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
+import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.workers.CallUpdateWorker
 import dagger.hilt.android.AndroidEntryPoint
@@ -57,6 +62,8 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     private var endTime: String = ""
     private var isMuted = false
     private var isSpeakerOn = true
+    var isClicked : Boolean = false
+
     private val appId = "a41e9245489d44a2ac9af9525f1b508c"
 
     var appCertificate = "9565a122acba4144926a12214064fd57"
@@ -142,7 +149,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         receiverId = intent.getIntExtra("RECEIVER_ID", -1)
         call_Id = intent.getIntExtra("CALL_ID", 0)
 
-        Log.d("MaleAudioCalling", "Channel: $channelName, Receiver: $receiverId")
+        Log.d("VideoCallingLog", "Channel: $channelName, Receiver: $receiverId, callId : $call_Id")
 
 
         val tokenBuilder = RtcTokenBuilder2()
@@ -155,26 +162,38 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         )
 
 
+
         token = result
+
 
         // Request permissions if not granted
         if (!checkSelfPermission()) {
             ActivityCompat.requestPermissions(this, REQUESTED_PERMISSIONS, PERMISSION_REQ_ID)
         } else {
+
             setupVideoSDKEngine()
+
+
+            if (agoraEngine != null) {
+                Log.d("AgoraCheck", "Agora is initialized.")
+            } else {
+                Log.e("AgoraCheck", "Agora is NULL! Check initialization.")
+            }
+
             joinChannel(binding.JoinButton) // Automatically join the channel
         }
 
         observeRemainingTimeUpdated()
-        binding.muteUnmute.setOnClickListener {
+        binding.btnMuteUnmute.setOnClickListener {
             toggleMute()
         }
 
-        binding.speaker.setOnClickListener {
+        binding.btnSpeaker.setOnClickListener {
             toggleSpeaker()
         }
 
         onBackPressedBtn()
+        onMenuClicked()
 
     }
 
@@ -218,14 +237,15 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         override fun onUserJoined(uid: Int, elapsed: Int) {
             showMessage("Remote user joined $uid")
             getRemainingTime()
+            startTime = dateFormat.format(Date()) // Set call end time in IST
 
             runOnUiThread { setupRemoteVideo(uid) }
         }
 
         override fun onJoinChannelSuccess(channel: String, uid: Int, elapsed: Int) {
             isJoined = true
-            startTime = dateFormat.format(Date()) // Set call end time in IST
 
+            Log.d("JoinedSuccessFully","$channel")
             showMessage("Joined Channel $channel")
 
         }
@@ -245,12 +265,12 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     private fun setupRemoteVideo(uid: Int) {
         remoteSurfaceView = SurfaceView(baseContext)
-        remoteSurfaceView!!.setZOrderMediaOverlay(true)
+        remoteSurfaceView!!.setZOrderMediaOverlay(false)
         binding.remoteVideoViewContainer.addView(remoteSurfaceView)
         agoraEngine!!.setupRemoteVideo(
             VideoCanvas(
                 remoteSurfaceView,
-                VideoCanvas.RENDER_MODE_FIT,
+                VideoCanvas.RENDER_MODE_HIDDEN,
                 uid
             )
         )
@@ -260,6 +280,8 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     private fun setupLocalVideo() {
         localSurfaceView = SurfaceView(baseContext)
         binding.localVideoViewContainer.addView(localSurfaceView)
+        localSurfaceView!!.setZOrderMediaOverlay(true)
+
         agoraEngine!!.setupLocalVideo(
             VideoCanvas(
                 localSurfaceView,
@@ -267,6 +289,9 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                 0
             )
         )
+
+
+
     }
     private val dateFormat = SimpleDateFormat("HH:mm:ss").apply {
         timeZone = TimeZone.getTimeZone("Asia/Kolkata") // Set to IST time zone
@@ -274,7 +299,10 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     fun updateCallEndDetails(){
 
-        endTime = dateFormat.format(Date()) // Set call end time in IST
+
+        if (startTime.isNotEmpty()) {
+            endTime = dateFormat.format(Date()) // Set call end time only if startTime is not empty
+        }
         val constraints =
             Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED)
                 .build()
@@ -298,13 +326,25 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         if (checkSelfPermission()) {
             val options = ChannelMediaOptions()
 
+            Log.d("AgoraDebug", "Joining channel: $channelName, Token: $token")
+
             options.channelProfile = Constants.CHANNEL_PROFILE_COMMUNICATION
             options.clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
             setupLocalVideo()
             localSurfaceView!!.visibility = View.VISIBLE
             agoraEngine!!.startPreview()
-            agoraEngine!!.joinChannel(token, channelName, uid, options)
-        } else {
+            val result = agoraEngine!!.joinChannel(token, channelName, uid, options)
+            if (result == 0) {
+                Log.d("AgorajoinChannel", "joinChannel: Success $result")
+                localSurfaceView!!.visibility = View.VISIBLE
+                var startpreview = agoraEngine!!.startPreview()
+                Log.d("startpreview", "$startpreview")
+
+            } else {
+                Log.e("AgorajoinChannel", "joinChannel failed with error code: $result")
+                showMessage("Join channel failed: $result")
+
+            }} else {
             Toast.makeText(applicationContext, "Permissions was not granted", Toast.LENGTH_SHORT)
                 .show()
         }
@@ -313,6 +353,10 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     fun leaveChannel(view: View) {
         if (!isJoined) {
             showMessage("Join a channel first")
+            val intent = Intent(this@FemaleVideoCallingActivity, MainActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            startActivity(intent)
+            finish()
         } else {
             agoraEngine!!.leaveChannel()
             showMessage("You left the channel")
@@ -435,15 +479,31 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     private fun toggleMute() {
         isMuted = !isMuted
         agoraEngine?.muteLocalAudioStream(isMuted)  // Mute or unmute audio
-        val muteIcon = if (isMuted) R.drawable.mute else R.drawable.unmute
-        binding.muteUnmute.setImageResource(muteIcon)
+        val muteIcon = if (isMuted) R.drawable.mute_img else R.drawable.unmute_img
+        binding.btnMuteUnmute.setImageResource(muteIcon)
     }
 
     // Function to toggle speaker on/off
     private fun toggleSpeaker() {
         isSpeakerOn = !isSpeakerOn
         agoraEngine?.setEnableSpeakerphone(isSpeakerOn)  // Enable or disable speakerphone
-        val speakerIcon = if (isSpeakerOn) R.drawable.speaker_on else R.drawable.speaker_off
-        binding.speaker.setImageResource(speakerIcon)
+        val speakerIcon = if (isSpeakerOn) R.drawable.speakeron_img else R.drawable.speakeroff_img
+        binding.btnSpeaker.setImageResource(speakerIcon)
     }
+
+    private fun onMenuClicked(){
+        binding.btnMenu.setOnSingleClickListener {
+            if (!isClicked) {
+                binding.layoutButtons.visibility = View.VISIBLE
+
+                isClicked = true
+
+
+            } else {
+                binding.layoutButtons.visibility = View.INVISIBLE
+
+                isClicked = false
+            }
+        }}
+
 }

@@ -58,6 +58,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
     private var isMuted = false
     private var isSpeakerOn = true
+    var isClicked : Boolean = false
+
     private val appId = "a41e9245489d44a2ac9af9525f1b508c"
 
     var appCertificate = "9565a122acba4144926a12214064fd57"
@@ -152,7 +154,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         receiverId = intent.getIntExtra("RECEIVER_ID", -1)
         callId = intent.getIntExtra("CALL_ID", 0)
 
-        Log.d("MaleAudioCalling", "Channel: $channelName, Receiver: $receiverId")
+        Log.d("VideoCallingLog", "Channel: $channelName, Receiver: $receiverId, callId:$callId")
 
 
         val tokenBuilder = RtcTokenBuilder2()
@@ -176,14 +178,16 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         }
 
         onAddcoinClicked()
-        binding.muteUnmute.setOnClickListener {
+        binding.btnMuteUnmute.setOnClickListener {
             toggleMute()
         }
 
-        binding.speaker.setOnClickListener {
+        binding.btnSpeaker.setOnClickListener {
             toggleSpeaker()
         }
         onBackPressedBtn()
+        onMenuClicked()
+
     }
 
     private fun onBackPressedBtn() {
@@ -227,6 +231,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
             getRemainingTime()
 
+            startTime = dateFormat.format(Date()) // Set call end time in IST
+
             // Set the remote video view
             runOnUiThread { setupRemoteVideo(uid) }
         }
@@ -234,7 +240,6 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         override fun onJoinChannelSuccess(channel: String, uid: Int, elapsed: Int) {
             isJoined = true
             showMessage("Joined Channel $channel")
-            startTime = dateFormat.format(Date()) // Set call end time in IST
 
         }
 
@@ -259,7 +264,10 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
     fun updateCallEndDetails(){
 
-        endTime = dateFormat.format(Date()) // Set call end time in IST
+
+        if (startTime.isNotEmpty()) {
+            endTime = dateFormat.format(Date()) // Set call end time only if startTime is not empty
+        }
         val constraints =
             Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED)
                 .build()
@@ -279,14 +287,15 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
     }
 
+
     private fun setupRemoteVideo(uid: Int) {
         remoteSurfaceView = SurfaceView(baseContext)
-        remoteSurfaceView!!.setZOrderMediaOverlay(true)
+        remoteSurfaceView!!.setZOrderMediaOverlay(false)
         binding.remoteVideoViewContainer.addView(remoteSurfaceView)
         agoraEngine!!.setupRemoteVideo(
             VideoCanvas(
                 remoteSurfaceView,
-                VideoCanvas.RENDER_MODE_FIT,
+                VideoCanvas.RENDER_MODE_HIDDEN,
                 uid
             )
         )
@@ -296,6 +305,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     private fun setupLocalVideo() {
         localSurfaceView = SurfaceView(baseContext)
         binding.localVideoViewContainer.addView(localSurfaceView)
+        localSurfaceView!!.setZOrderMediaOverlay(true)
+
         agoraEngine!!.setupLocalVideo(
             VideoCanvas(
                 localSurfaceView,
@@ -303,6 +314,9 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 0
             )
         )
+
+
+
     }
 
     fun joinChannel(view: View) {
@@ -324,6 +338,10 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     fun leaveChannel(view: View) {
         if (!isJoined) {
             showMessage("Join a channel first")
+            val intent = Intent(this@MaleVideoCallingActivity, MainActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            startActivity(intent)
+            finish()
         } else {
             stopCountdown()
             agoraEngine!!.leaveChannel()
@@ -453,25 +471,39 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         newRemainingTime()
     }
     private fun onAddcoinClicked(){
-        binding.tvRemainingTime.setOnSingleClickListener {
+        binding.timerContainer.setOnSingleClickListener {
             var intent = Intent(this@MaleVideoCallingActivity, WalletActivity::class.java)
             startActivity(intent)
         }
     }
-
     private fun toggleMute() {
         isMuted = !isMuted
         agoraEngine?.muteLocalAudioStream(isMuted)  // Mute or unmute audio
-        val muteIcon = if (isMuted) R.drawable.mute else R.drawable.unmute
-        binding.muteUnmute.setImageResource(muteIcon)
+        val muteIcon = if (isMuted) R.drawable.mute_img else R.drawable.unmute_img
+        binding.btnMuteUnmute.setImageResource(muteIcon)
     }
 
     // Function to toggle speaker on/off
     private fun toggleSpeaker() {
         isSpeakerOn = !isSpeakerOn
         agoraEngine?.setEnableSpeakerphone(isSpeakerOn)  // Enable or disable speakerphone
-        val speakerIcon = if (isSpeakerOn) R.drawable.speaker_on else R.drawable.speaker_off
-        binding.speaker.setImageResource(speakerIcon)
+        val speakerIcon = if (isSpeakerOn) R.drawable.speakeron_img else R.drawable.speakeroff_img
+        binding.btnSpeaker.setImageResource(speakerIcon)
     }
+
+    private fun onMenuClicked(){
+        binding.btnMenu.setOnSingleClickListener {
+            if (!isClicked) {
+                binding.layoutButtons.visibility = View.VISIBLE
+
+                isClicked = true
+
+
+            } else {
+                binding.layoutButtons.visibility = View.INVISIBLE
+
+                isClicked = false
+            }
+        }}
 
 }

@@ -6,34 +6,7 @@
     android:layout_width="match_parent"
     android:background="@drawable/d_call_screen_background"
     android:layout_height="match_parent"
-    >
-
-
-
-    <androidx.cardview.widget.CardView
-        android:id="@+id/localCardView"
-        android:layout_width="@dimen/_120sdp"
-        android:layout_height="190dp"
-        android:visibility="gone"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        android:layout_marginLeft="@dimen/_6sdp"
-        android:layout_marginBottom="@dimen/_2sdp"
-        app:cardElevation="5dp">
-
-        <FrameLayout
-            android:id="@+id/local_video_view_container"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@android:color/black"/>
-    </androidx.cardview.widget.CardView>
-    <FrameLayout
-        android:id="@+id/remote_video_view_container"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:visibility="gone"
-        android:layout_centerHorizontal="true"
-        android:background="@android:color/darker_gray" />
+    tools:context=".DemoActivity">
 
     <!-- Timer Text (Next to Three-dot Menu) -->
     <!-- Timer Container (Rounded) -->
@@ -50,11 +23,11 @@
 
         <!-- Timer Text -->
         <TextView
-            android:id="@+id/tvRemainingTime"
+            android:id="@+id/tv_remainingTime"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:paddingEnd="5dp"
-            android:text=""
+            android:text="05:59:00"
             android:textColor="@android:color/white"
             android:textSize="16sp"
             android:textStyle="bold"
@@ -69,9 +42,8 @@
             android:layout_height="14dp"
             android:background="@drawable/d_button_bg_white"
             android:src="@drawable/baseline_add_24"
-            android:visibility="gone"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toEndOf="@id/tvRemainingTime"
+            app:layout_constraintStart_toEndOf="@id/tv_remainingTime"
             app:layout_constraintTop_toTopOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
@@ -144,10 +116,8 @@
         android:layout_width="50dp"
         android:visibility="gone"
         android:layout_height="wrap_content"
-        android:layout_marginRight="10dp"
-        android:layout_marginTop="15dp"
         android:background="@drawable/d_button_bg_white"
-        app:layout_constraintTop_toBottomOf="@id/btn_menu"
+        app:layout_constraintTop_toTopOf="@id/iv_male_user"
         app:layout_constraintEnd_toEndOf="parent"
         android:padding="8dp">
 
@@ -164,7 +134,7 @@
 
         <!-- Mute Button -->
         <ImageView
-            android:id="@+id/btn_MuteUnmute"
+            android:id="@+id/btn_mute"
             android:layout_width="30dp"
             android:layout_height="30dp"
             android:src="@drawable/unmute_img"
@@ -181,142 +151,11 @@
             android:src="@drawable/speakeron_img"
             android:layout_marginTop="@dimen/_12sdp"
 
-            app:layout_constraintTop_toBottomOf="@id/btn_MuteUnmute"
+            app:layout_constraintTop_toBottomOf="@id/btn_mute"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"/>
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <Button
-        android:id="@+id/JoinButton"
-        android:visibility="gone"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="40dp"
-        android:onClick="joinChannel"
-        android:text="Join"
-        tools:ignore="MissingConstraints" />
 
-    <Button
-        android:id="@+id/LeaveButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:visibility="gone"
-        android:layout_marginHorizontal="@dimen/_12sdp"
-        android:onClick="leaveChannel"
-        android:text="Leave"
-        tools:ignore="MissingConstraints" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<!--<?xml version="1.0" encoding="UTF-8"?>-->
-<!--<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"-->
-<!--    xmlns:tools="http://schemas.android.com/tools"-->
-<!--    android:id="@+id/main"-->
-<!--    android:orientation="vertical"-->
-<!--    android:gravity="center"-->
-<!--    android:layout_width="match_parent"-->
-<!--    android:layout_height="match_parent"-->
-<!--    >-->
-
-<!--    <TextView-->
-<!--        android:id="@+id/tv_remaining_time"-->
-<!--        android:layout_width="wrap_content"-->
-<!--        android:layout_height="wrap_content"-->
-<!--        android:text="00:00:00"-->
-<!--        android:layout_marginBottom="@dimen/_10sdp"-->
-<!--        android:textSize="@dimen/_14sdp"/>-->
-
-
-<!--    <TextView-->
-<!--        android:id="@+id/userid"-->
-<!--        android:layout_width="match_parent"-->
-<!--        android:textSize="@dimen/_22sdp"-->
-<!--        android:gravity="center"-->
-<!--        android:fontFamily="@font/poppins_semibold"-->
-<!--        android:layout_height="wrap_content"-->
-<!--        android:text="Male user id"/>-->
-
-<!--    <LinearLayout-->
-<!--        android:layout_width="match_parent"-->
-<!--        android:layout_height="wrap_content"-->
-<!--        android:gravity="center"-->
-<!--        android:paddingBottom="@dimen/_15sdp"-->
-<!--        android:orientation="horizontal">-->
-
-
-<!--        <Button-->
-<!--            android:id="@+id/JoinButton"-->
-<!--            android:visibility="gone"-->
-<!--            android:layout_width="wrap_content"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:layout_marginTop="40dp"-->
-<!--            android:onClick="joinChannel"-->
-<!--            android:text="Join" />-->
-
-
-
-<!--        <ImageView-->
-<!--            android:id="@+id/mute_unmute"-->
-<!--            android:layout_width="32dp"-->
-<!--            android:layout_marginTop="@dimen/_12sdp"-->
-<!--            android:layout_height="52dp"-->
-<!--            android:layout_marginBottom="@dimen/_12sdp"-->
-
-<!--            android:src="@drawable/unmute"/>-->
-
-
-<!--        <Button-->
-<!--            android:id="@+id/LeaveButton"-->
-<!--            android:layout_width="wrap_content"-->
-<!--            android:layout_height="wrap_content"-->
-
-<!--            android:layout_marginHorizontal="@dimen/_12sdp"-->
-<!--            android:onClick="leaveChannel"-->
-<!--            android:text="Leave" />-->
-
-<!--        <ImageView-->
-<!--            android:id="@+id/speaker"-->
-<!--            android:layout_width="32dp"-->
-<!--            android:layout_marginTop="@dimen/_12sdp"-->
-<!--            android:layout_marginBottom="@dimen/_12sdp"-->
-<!--            android:layout_height="52dp"-->
-<!--            android:src="@drawable/speaker_on"/>-->
-
-<!--    </LinearLayout>-->
-
-
-<!--</LinearLayout>-->

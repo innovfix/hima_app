@@ -48,6 +48,7 @@ class BottomSheetLogout : BottomSheetDialogFragment() {
         binding.btnLogout.setOnSingleClickListener {
 
             updateFcmToken(userData?.id)
+            Log.d("LogoutBtn", "Clicked")
 
         }
 
@@ -65,6 +66,16 @@ class BottomSheetLogout : BottomSheetDialogFragment() {
 
     fun observeTokenResponse() {
         fcmTokenViewModel.tokenResponseLiveData.observe(this) { response ->
+            Log.d("FCMToken", "$response")
+
+            if (response==null){
+                val prefs = BaseApplication.getInstance()?.getPrefs()
+                prefs?.clearUserData()
+                val intent = Intent(context, NewLoginActivity::class.java)
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                startActivity(intent)
+
+            }
             response?.let {
                 if (it.success) {
                     Log.d("FCMToken", "Token updated successfully!")

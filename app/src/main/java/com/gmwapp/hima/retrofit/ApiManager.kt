@@ -34,6 +34,7 @@ import com.gmwapp.hima.retrofit.responses.UpdateConnectedCallResponse
 import com.gmwapp.hima.retrofit.responses.UpdateProfileResponse
 import com.gmwapp.hima.retrofit.responses.UpiPaymentResponse
 import com.gmwapp.hima.retrofit.responses.UpiUpdateResponse
+import com.gmwapp.hima.retrofit.responses.UserAvatarResponse
 import com.gmwapp.hima.retrofit.responses.UserValidationResponse
 import com.gmwapp.hima.retrofit.responses.VoiceUpdateResponse
 import com.gmwapp.hima.retrofit.responses.WithdrawResponse
@@ -520,6 +521,19 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun getUserAvatar(
+        userId: Int,
+        callback: NetworkCallback<UserAvatarResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<UserAvatarResponse> = getApiInterface().getUserAvatar(userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+
 
     fun getSpeechText(
         userId: Int, language: String, callback: NetworkCallback<SpeechTextResponse>
@@ -823,5 +837,11 @@ interface ApiInterface {
         @Field("message") message: String
     ): Call<FcmNotificationResponse>
 
+
+    @FormUrlEncoded
+    @POST("user_avatar_image")
+    fun getUserAvatar(
+        @Field("user_id") userId: Int,
+    ): Call<UserAvatarResponse>
 
 }

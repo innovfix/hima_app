@@ -10,8 +10,6 @@ import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.agora.female.FemaleAudioCallingActivity
 import com.gmwapp.hima.agora.female.FemaleCallAcceptActivity
 import com.gmwapp.hima.agora.female.FemaleVideoCallingActivity
-import com.gmwapp.hima.agora.male.MaleAudioCallingActivity
-import com.gmwapp.hima.agora.male.MaleVideoCallingActivity
 import com.gmwapp.hima.repositories.FcmNotificationRepository
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.FcmNotificationResponse
@@ -24,8 +22,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     @Inject
     lateinit var fcmNotificationRepository: FcmNotificationRepository
-    val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-    var gender = userData?.gender
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
@@ -35,7 +31,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        var gender2 = userData?.gender
+        var gender = userData?.gender
         Log.d("FCM", "From: ${remoteMessage.from}")
         Log.d("FCM_Message", "Message data payload: ${remoteMessage.data}")
 
@@ -53,10 +49,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 val parts = message.split(" ")
                 if (parts.size == 3) {
                     val callId = parts[2]  // Extract callId from the message
-                    Log.d("startingActvity","$gender2")
+                    Log.d("startingActvity","$gender")
 
 
-                    if (gender2 == "female") {
+                    if (gender == "female") {
                         if (currentActivity is FemaleCallAcceptActivity ||
                             currentActivity is FemaleAudioCallingActivity ||
                             currentActivity is FemaleVideoCallingActivity) {
@@ -106,11 +102,11 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
 
 
-            if (message == "accepted" || message == "rejected" && gender2=="male") {
+            if (message == "accepted" || message == "rejected" && gender=="male") {
                 FcmUtils.updateCallStatus(message, channelName)
             }
 
-            if (message == "userBusy" && gender2 == "male") {
+            if (message == "userBusy" && gender == "male") {
                 Log.d("FCM", "User is busy. Redirecting to MainActivity.")
 
                 Handler(Looper.getMainLooper()).post {
@@ -124,7 +120,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             }
 
 
-            if (message == "callDeclined" && gender2 == "female") {
+            if (message == "callDeclined" && gender == "female") {
                 Log.d("FCM", "User is busy. Redirecting to MainActivity.")
 
 
@@ -140,7 +136,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
             }
 
-            if (message == "remainingTimeUpdated" && gender2 == "female") {
+            if (message == "remainingTimeUpdated" && gender == "female") {
 
                 var previousSenderId = BaseApplication.getInstance()?.getSenderId()
                 if (senderId==previousSenderId){
@@ -148,6 +144,34 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     FcmUtils.updateRemainingTime(message)
 
                 }
+
+            }
+
+
+            if (message.startsWith("switchToVideo") && gender == "female") {
+                    val parts = message.split(" ")
+                    if (parts.size == 2) {
+                        val callId = parts[1]  // Extract callId from the message
+                        val callidInt: Int = callId.toIntOrNull() ?: 0  // Defaults to 0 if conversion fails
+                        Log.d("callIdofSwitch", "$callId")
+
+
+                var previousSenderId = BaseApplication.getInstance()?.getSenderId()
+                if (senderId==previousSenderId){
+
+                    Log.d("switchToVideo","$message")
+                    FcmUtils.UpdateCallSwitch("switchToVideo",callidInt)
+
+                }
+
+            }}
+
+            if (message == "VideoAccepted" && gender == "male") {
+
+                Log.d("switchToVideo","$message")
+                FcmUtils.UpdateCallSwitch(message, senderId)
+
+
 
             }
 

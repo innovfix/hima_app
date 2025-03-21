@@ -3,19 +3,27 @@ package com.gmwapp.hima.agora.female
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Resources
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.util.Log
+import android.view.MotionEvent
+import android.view.SurfaceView
 import android.view.View
+import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.cardview.widget.CardView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
@@ -46,8 +54,14 @@ import androidx.work.Data
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequest
 import androidx.work.WorkManager
+import com.bumptech.glide.Glide
+import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.constants.DConstants
+import com.gmwapp.hima.utils.setOnSingleClickListener
+import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
+import com.gmwapp.hima.viewmodels.UserAvatarViewModel
 import com.gmwapp.hima.workers.CallUpdateWorker
+import io.agora.rtc2.video.VideoCanvas
 
 @AndroidEntryPoint
 class FemaleAudioCallingActivity : AppCompatActivity() {
@@ -61,9 +75,19 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private val expirationTimeInSeconds = 3600
     private var token: String? = null
     private val uid = 0
+    private var videoUid = 0
     private var isJoined = false
     private var agoraEngine: RtcEngine? = null
     private val profileViewModel: ProfileViewModel by viewModels()
+    private val userAvatarViewModel: UserAvatarViewModel by viewModels()
+    private val fcmNotificationViewModel: FcmNotificationViewModel by viewModels()
+
+    private var remoteSurfaceView: SurfaceView? = null
+
+    var isClicked : Boolean = false
+
+    var switchCallID =0
+    var receiverName = ""
 
     private var isMuted = false
     private var isSpeakerOn = true
@@ -118,6 +142,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+
         channelName = intent.getStringExtra("CHANNEL_NAME") ?: ""
         receiverId = intent.getIntExtra("RECEIVER_ID", -1)
         call_Id = intent.getIntExtra("CALL_ID", 0)
@@ -126,7 +152,6 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         Log.d("FemaleAudioCallingCheck", "$call_Id")
 
 
-        binding.userid.setText("Male userID - $receiverId")
         val tokenBuilder = RtcTokenBuilder2()
         val timestamp = (System.currentTimeMillis() / 1000 + expirationTimeInSeconds).toInt()
 
@@ -145,16 +170,60 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
 
         observeRemainingTimeUpdated()
-        binding.muteUnmute.setOnClickListener {
+        observeCallSwitchRequest()
+
+        binding.btnMuteUnmute.setOnClickListener {
             toggleMute()
         }
 
-        binding.speaker.setOnClickListener {
+        binding.btnSpeaker.setOnClickListener {
             toggleSpeaker()
         }
 
+        onMenuClicked()
         onBackPressedBtn()
+        userAvatarViewModel.getUserAvatar(receiverId)
+        avatarObservers()
+
+        userData?.let { setMyAvatar(it.image, it.name) }
+
     }
+
+
+    private fun setMyAvatar(image: String, name: String) {
+        binding.tvFemaleName.setText(name)
+        Glide.with(this)
+            .load(image)
+            .apply(RequestOptions.circleCropTransform())
+            .into(binding.ivFemaleUser)
+
+    }
+
+    private fun avatarObservers() {
+        userAvatarViewModel.userAvatarLiveData.observe(this) { response ->
+            Log.d("userAvatarLiveData", "Image URL: $response")
+
+            if (response != null && response.success) {
+                val imageUrl = response.data?.image
+                receiverName = response.data?.name.toString()
+                Log.d("UserAvatar", "Image URL: $imageUrl")
+
+                // Load the avatar image into an ImageView using Glide or Picasso
+                // Glide.with(this).load(imageUrl).into(binding.ivMaleUser)
+                Glide.with(this)
+                    .load(imageUrl)
+                    .apply(RequestOptions.circleCropTransform())
+                    .into(binding.ivMaleUser)
+
+                binding.tvMaleName.setText(response.data?.name)
+            }
+        }
+
+        userAvatarViewModel.userAvatarErrorLiveData.observe(this) { errorMessage ->
+            Log.e("UserAvatarError", errorMessage)
+        }
+    }
+
 
     private fun onBackPressedBtn() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -182,7 +251,6 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         override fun onJoinChannelSuccess(channel: String, uid: Int, elapsed: Int) {
             isJoined = true
             showMessage("Joined Channel $channel")
-            startTime = dateFormat.format(Date()) // Set call end time in IST
 
         }
 
@@ -200,8 +268,10 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         }
         override fun onUserJoined(uid: Int, elapsed: Int) {
             showMessage("Remote user joined $uid")
+            startTime = dateFormat.format(Date()) // Set call end time in IST
 
-           getRemainingTime()
+            videoUid = uid
+            getRemainingTime()
         }
     }
 
@@ -218,7 +288,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             options.channelProfile = Constants.CHANNEL_PROFILE_COMMUNICATION
             options.clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
             options.autoSubscribeAudio = true
-            options.autoSubscribeVideo = false  // ✅ Ensure video is OFF
+            options.autoSubscribeVideo = true  // ✅ Ensure video is OFF
 
             agoraEngine!!.joinChannel(token, channelName, uid, options)
             Log.d("AgoraTag", "Joined channel: $channelName with token: $token")
@@ -232,6 +302,10 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     fun leaveChannel(view: View) {
         if (!isJoined) {
             showMessage("Join a channel first")
+            val intent = Intent(this@FemaleAudioCallingActivity, MainActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            startActivity(intent)
+            finish()
         } else {
             agoraEngine?.leaveChannel()
             showMessage("You left the channel")
@@ -254,7 +328,10 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
     fun updateCallEndDetails(){
 
-        endTime = dateFormat.format(Date()) // Set call end time in IST
+        if (startTime.isNotEmpty()) {
+            endTime = dateFormat.format(Date()) // Set call end time only if startTime is not empty
+        }
+
         val constraints =
             Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED)
                 .build()
@@ -272,6 +349,9 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         WorkManager.getInstance(this@FemaleAudioCallingActivity)
             .enqueue(oneTimeWorkRequest)
 
+        if (switchCallID!=0){
+            call_Id = switchCallID
+        }
     }
 
     private  fun getRemainingTime(){
@@ -384,6 +464,137 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         })
     }
 
+    fun observeCallSwitchRequest() {
+        FcmUtils.updatedCallSwitch.observe(this, androidx.lifecycle.Observer { updatedCallSwitch ->
+            if (updatedCallSwitch != null) {
+                val (switchType, newCallId) = updatedCallSwitch
+
+                val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                var userid = userData?.id
+                switchCallID = newCallId
+
+                if (switchType=="switchToVideo"){
+                    AlertDialog.Builder(this)
+                        .setTitle("Switch to Video Call ?")
+                        .setMessage("$receiverName requested for video call")
+                        .setPositiveButton("Confirm") { _, _ ->
+
+
+                            val remainingTime = binding.tvRemainingTime?.text.toString() // Get the current countdown time
+                            val timeParts = remainingTime.split(":").map { it.toInt() }
+
+
+                            if (timeParts.size == 3) {  // Ensure we have HH:MM:SS format
+                                val hours = timeParts[0]
+                                val minutes = timeParts[1]
+                                val seconds = timeParts[2]
+
+                                val totalSeconds = (hours * 3600) + (minutes * 60) + seconds
+
+
+                                if (totalSeconds>360){
+                                    if (userid != null && switchCallID !=0) {
+                                        Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
+
+                                        sendVideoCallAcceptNotification(userid,receiverId,"video","VideoAccepted")
+                                        FcmUtils.clearCallSwitch()
+                                        Log.d("NewCallID","$newCallId")
+                                        enableVideoCall()
+                                    }
+                                }else{
+                                    Toast.makeText(this, "$receiverName don't have enough coins", Toast.LENGTH_SHORT).show()
+                                    FcmUtils.clearCallSwitch()
+
+                                }
+
+
+
+                            }
+
+
+
+                        }
+                        .setNegativeButton("Decline") { dialog, _ ->
+                            // Dismiss dialog if No is clicked
+                            dialog.dismiss()
+                            FcmUtils.clearCallSwitch()
+
+                        }
+                        .show()
+
+                }
+                FcmUtils.clearCallSwitch()
+
+
+            }
+        })
+    }
+
+    private fun enableVideoCall() {
+
+        FcmUtils.clearCallSwitch()
+        updateCallEndDetails()
+
+        binding.ivFemaleUser.visibility = View.GONE
+        binding.ivMaleUser.visibility = View.GONE
+        binding.tvFemaleName.visibility = View.GONE
+        binding.tvMaleName.visibility = View.GONE
+
+
+        runOnUiThread {
+            // Enable video module
+            agoraEngine?.enableVideo()
+
+            // Set up the local video view
+            val localContainer = binding.localVideoViewContainer
+            val localView = SurfaceView(this)
+            localView.setZOrderMediaOverlay(true)
+            localContainer.addView(localView)
+
+            // Attach local video feed
+            agoraEngine?.setupLocalVideo(VideoCanvas(localView, VideoCanvas.RENDER_MODE_HIDDEN, 0))
+
+            // Make video UI visible
+           binding.localVideoViewContainer.visibility = View.VISIBLE
+           binding.localCardView.visibility = View.VISIBLE
+            binding.remoteVideoViewContainer.visibility = View.VISIBLE
+
+
+
+            remoteSurfaceView = SurfaceView(this)
+            remoteSurfaceView!!.setZOrderMediaOverlay(false)
+            binding.remoteVideoViewContainer.addView(remoteSurfaceView)
+            agoraEngine!!.setupRemoteVideo(
+                VideoCanvas(
+                    remoteSurfaceView,
+                    VideoCanvas.RENDER_MODE_HIDDEN,
+                    videoUid
+                )
+            )
+            remoteSurfaceView!!.visibility = View.VISIBLE
+
+            agoraEngine!!.startPreview()
+
+
+            startTime = dateFormat.format(Date()) // Set call end time only if startTime is not empty
+
+
+            // Notify remote user to switch to video (if required)
+        }
+    }
+
+
+
+    fun sendVideoCallAcceptNotification(senderId:Int, receiverId:Int, callType:String, message:String) {
+        fcmNotificationViewModel.sendNotification(
+            senderId = senderId,
+            receiverId = receiverId,
+            callType = callType,
+            channelName = channelName,
+            message = message
+        )
+    }
+
     override fun onResume() {
         super.onResume()
         Log.d("resumedtag","resumed")
@@ -392,15 +603,55 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private fun toggleMute() {
         isMuted = !isMuted
         agoraEngine?.muteLocalAudioStream(isMuted)  // Mute or unmute audio
-        val muteIcon = if (isMuted) R.drawable.mute else R.drawable.unmute
-        binding.muteUnmute.setImageResource(muteIcon)
+        val muteIcon = if (isMuted) R.drawable.mute_img else R.drawable.unmute_img
+        binding.btnMuteUnmute.setImageResource(muteIcon)
     }
 
     // Function to toggle speaker on/off
     private fun toggleSpeaker() {
         isSpeakerOn = !isSpeakerOn
         agoraEngine?.setEnableSpeakerphone(isSpeakerOn)  // Enable or disable speakerphone
-        val speakerIcon = if (isSpeakerOn) R.drawable.speaker_on else R.drawable.speaker_off
-        binding.speaker.setImageResource(speakerIcon)
+        val speakerIcon = if (isSpeakerOn) R.drawable.speakeron_img else R.drawable.speakeroff_img
+        binding.btnSpeaker.setImageResource(speakerIcon)
     }
+
+    private fun onMenuClicked(){
+        binding.btnMenu.setOnSingleClickListener {
+            if (!isClicked){
+                binding.layoutButtons.visibility = View.VISIBLE
+                binding.ivMaleUser.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                    marginEnd =  14.dpToPx()
+                }
+                isClicked = true
+
+
+
+            }else{
+                binding.layoutButtons.visibility = View.INVISIBLE
+                binding.ivMaleUser.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                    marginEnd =  0
+                }
+                isClicked= false
+            }
+        }
+
+
+        binding.main.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_DOWN) { // Detect touch down event
+                val screenWidth = binding.main.width
+                val clickX = event.x  // Get X position relative to `main`
+
+                if (clickX < screenWidth * 0.75) { // Clicked outside the rightmost 20%
+                    isClicked = false
+                    binding.layoutButtons.visibility = View.INVISIBLE
+                    binding.ivMaleUser.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                        marginEnd = 0
+                    }
+                }
+            }
+            false // Return false to allow other touch events
+        }
+
+    }
+    fun Int.dpToPx() = (this * Resources.getSystem().displayMetrics.density).toInt()
 }

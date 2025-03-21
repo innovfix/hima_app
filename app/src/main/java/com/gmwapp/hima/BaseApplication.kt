@@ -1,41 +1,28 @@
 package com.gmwapp.hima
 
 import android.app.Activity
-import android.app.ActivityManager
-import android.app.AlertDialog
 import android.app.Application
 import android.content.Intent
 import android.content.IntentFilter
 import android.media.MediaPlayer
 import android.os.Bundle
-import android.os.Handler
 import android.content.Context
 import android.content.SharedPreferences
 
-import android.os.Looper
 import android.util.Log
-import android.view.WindowManager
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
-import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.utils.DPreferences
 import com.google.firebase.FirebaseApp
 import com.onesignal.OneSignal
-import com.onesignal.common.OneSignalUtils
 import com.onesignal.debug.LogLevel
-import com.onesignal.notifications.INotification
-import com.onesignal.notifications.INotificationClickEvent
-import com.onesignal.notifications.INotificationClickListener
-import com.onesignal.notifications.INotificationLifecycleListener
-import com.onesignal.notifications.INotificationWillDisplayEvent
 //import com.zegocloud.uikit.prebuilt.call.core.CallInvitationServiceImpl
 //import com.zegocloud.uikit.prebuilt.call.core.notification.RingtoneManager
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 
@@ -58,9 +45,9 @@ class BaseApplication : Application(), Configuration.Provider {
     private var currentActivity: Activity? = null
 
     private var senderId: Int? = null
-    private var callType2: String? = null
+    private var callTypeForSplashActivity: String? = null
     private var channelName: String? = null
-    private var callId2: Int? = null
+    private var callIdForSplashActivity: Int? = null
     private var incomingCall: Boolean = false
 
 
@@ -295,9 +282,9 @@ class BaseApplication : Application(), Configuration.Provider {
 
     fun setIncomingCall(senderId: Int, callType: String, channelName: String, callId: Int) {
         this.senderId = senderId
-        this.callType2 = callType
+        this.callTypeForSplashActivity = callType
         this.channelName = channelName
-        this.callId2 = callId
+        this.callIdForSplashActivity = callId
         this.incomingCall = true
     }
 
@@ -306,9 +293,9 @@ class BaseApplication : Application(), Configuration.Provider {
     }
 
     fun isIncomingCall(): Boolean = incomingCall
-    fun getSenderId2(): Int = senderId ?: -1
-    fun getCallType2(): String = callType2.toString()
+    fun getSenderIdForSplashActivity(): Int = senderId ?: -1
+    fun getCallTypeForSplashActivity(): String = callTypeForSplashActivity.toString()
     fun getChannelName(): String = channelName.toString()
-    fun getCallId2(): Int? = callId2
+    fun getCallIdForSplashActivity(): Int? = callIdForSplashActivity
 
 }

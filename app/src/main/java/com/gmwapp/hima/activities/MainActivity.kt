@@ -162,9 +162,14 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         val prefs = BaseApplication.getInstance()?.getPrefs()
         prefs?.getUserData()?.id?.let { profileViewModel.getUsers(it) }
 
-        profileViewModel.getUserLiveData.observe(this, Observer {
-            prefs?.setUserData(it.data);
-        });
+        profileViewModel.getUserLiveData.observe(this, Observer { response ->
+            response?.data?.let { userData ->
+                prefs?.setUserData(userData)
+            } ?: run {
+                Log.e("Observer", "RegisterResponse is null")
+            }
+        })
+
 
         Log.d("DEBUG", "Received userID: $userID")
 

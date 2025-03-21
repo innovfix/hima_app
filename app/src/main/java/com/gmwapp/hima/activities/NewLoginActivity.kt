@@ -346,10 +346,12 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             val enteredOTP = binding.pvOtp.text.toString().toInt()
             val default = "011011".toInt() // Convert default to Int
             if (enteredOTP == otp) {
+                Log.d("defaultOtp","$enteredOTP")
                 binding.pbVerifyOtpLoader.visibility = View.VISIBLE
                 binding.btnVerifyOtp.text = ""
                 login(mobile)
             } else if (enteredOTP == default) {
+                Log.d("defaultOtp","$enteredOTP")
                 binding.pbVerifyOtpLoader.visibility = View.VISIBLE
                 binding.btnVerifyOtp.text = ""
                 login(mobile)

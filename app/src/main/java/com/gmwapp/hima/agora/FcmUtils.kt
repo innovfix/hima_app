@@ -14,6 +14,8 @@ object FcmUtils {
     private val _updatedTime = MutableLiveData<String?>()
     val updatedTime: LiveData<String?> get() = _updatedTime
 
+    private val _updatedCallSwitch = MutableLiveData<Pair<String, Int>?>()
+    val updatedCallSwitch: LiveData<Pair<String, Int>?> get() = _updatedCallSwitch
 
     fun updateCallStatus(status: String, channelName: String) {
         _callStatus.postValue(Pair(status, channelName))
@@ -34,6 +36,18 @@ object FcmUtils {
     fun clearRemainingTime() {
         _updatedTime.postValue(null)
     }
+
+
+
+    fun UpdateCallSwitch(message: String, senderId: Int) {
+        _updatedCallSwitch.postValue(Pair(message,senderId))
+    }
+
+    fun clearCallSwitch() {
+        _updatedCallSwitch.postValue(null)
+    }
+
+
 
 
 

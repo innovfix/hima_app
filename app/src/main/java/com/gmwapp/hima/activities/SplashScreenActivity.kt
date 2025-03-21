@@ -69,10 +69,10 @@ class SplashScreenActivity : BaseActivity() {
         }
 
         val isIncomingCall = BaseApplication.getInstance()?.isIncomingCall() ?: false
-        val senderId = BaseApplication.getInstance()?.getSenderId2() ?: -1
-        val callType = BaseApplication.getInstance()?.getCallType2()
+        val senderId = BaseApplication.getInstance()?.getSenderIdForSplashActivity() ?: -1
+        val callType = BaseApplication.getInstance()?.getCallTypeForSplashActivity()
         val channelName = BaseApplication.getInstance()?.getChannelName() ?: "default_channel"
-        val callId = BaseApplication.getInstance()?.getCallId2()
+        val callId = BaseApplication.getInstance()?.getCallIdForSplashActivity()
 
         if (isIncomingCall) {
             Log.d("SplashActivity", "Incoming call detected! Redirecting to Call Accept Screen.")
@@ -101,8 +101,8 @@ class SplashScreenActivity : BaseActivity() {
 
 
         profileViewModel.getUserLiveData.observe(this, Observer {
-            prefs?.setUserData(it.data)
-            userData = it.data
+            prefs?.setUserData(it?.data)
+            userData = it?.data
 
             intent = when {
                 userData?.status == 2 -> {
