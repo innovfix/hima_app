@@ -1,9 +1,7 @@
 package com.gmwapp.hima.activities
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -14,7 +12,6 @@ import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.GridLayoutManager
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.BillingManager.BillingManager
-import com.gmwapp.hima.PaymentWebViewActivity
 import com.gmwapp.hima.R
 import com.gmwapp.hima.YoutubeRechargeActivity
 import com.gmwapp.hima.adapters.CoinAdapter
@@ -22,13 +19,13 @@ import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.databinding.ActivityWalletBinding
 import com.gmwapp.hima.retrofit.responses.CoinsResponseData
 import com.gmwapp.hima.retrofit.responses.RazorPayApiResponse
+import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.viewmodels.UpiPaymentViewModel
 import com.gmwapp.hima.viewmodels.UpiViewModel
 import com.gmwapp.hima.viewmodels.WalletViewModel
-import com.google.androidbrowserhelper.trusted.LauncherActivity
 import dagger.hilt.android.AndroidEntryPoint
 import retrofit2.Call
 
@@ -151,32 +148,46 @@ class WalletActivity : BaseActivity()  {
 
             if (userId != null && pointsId.isNotEmpty()) {
                 if (pointsIdInt != null) {
+
+                    // ✅ Save userId and pointsIdInt BEFORE launching billing
+                    val preferences = DPreferences(this)
+                    preferences.setSelectedUserId(userId.toString())
+                    preferences.setSelectedPlanId(java.lang.String.valueOf(pointsIdInt))
                     billingManager!!.purchaseProduct(
+                        //"coins_12",
                         pointsId,
                         userId,
                         pointsIdInt
                     )
-                    WalletViewModel.afterAddCoinsLiveData.observe(this) { afterAddCoins ->
-                        Log.d("UI Update", "Refreshing UI after coin addition")
+                    WalletViewModel.navigateToMain.observe(this, Observer { shouldNavigate ->
 
-                        // ✅ Update TextView with new coin balance
-                        binding.tvCoins.text = afterAddCoins.toString()
+                        if (shouldNavigate) {
+                            Toast.makeText(this, "Coin purchased successfully", Toast.LENGTH_SHORT)
+                                .show()
+                            userData?.id?.let { profileViewModel.getUsers(it) }
 
-                        BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
-                            profileViewModel.getUsers(it)
+                            profileViewModel.getUserLiveData.observe(this, Observer {
+                                it.data?.let { it1 ->
+                                    BaseApplication.getInstance()?.getPrefs()?.setUserData(it1)
+                                }
+                                binding.tvCoins.text = it.data?.coins.toString()
+                                WalletViewModel._navigateToMain.postValue(false)
+                            })
+                        }else{
+
+                            profileViewModel.getUserLiveData.observe(this, Observer {
+                                it.data?.let { it1 ->
+                                    BaseApplication.getInstance()?.getPrefs()?.setUserData(it1)
+                                }
+                                binding.tvCoins.text = it.data?.coins.toString()
+
+                            })
                         }
-
-                        // ✅ Navigate to HomeActivity after success
-                        if (afterAddCoins > "0") {
-                            val intent = Intent(this, MainActivity::class.java)
-                            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                            startActivity(intent)
-                            finish() // Close WalletActivity
-                        }
-
-                        // ✅ Refresh the screen if needed
-//                        refreshUI()
-                    }
+//                        val intent = Intent(this, MainActivity::class.java)
+//                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+//                        startActivity(intent)
+//                        finish() // ✅ Now this works because we are in an Activity
+                    })
                 }
             } else {
                 Toast.makeText(this, "Invalid input data", Toast.LENGTH_SHORT).show()

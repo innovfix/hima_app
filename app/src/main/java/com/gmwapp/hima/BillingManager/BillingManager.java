@@ -16,7 +16,9 @@ import com.android.billingclient.api.Purchase;
 import com.android.billingclient.api.PurchasesUpdatedListener;
 import com.android.billingclient.api.SkuDetails;
 import com.android.billingclient.api.SkuDetailsParams;
+import com.gmwapp.hima.utils.DPreferences;
 import com.gmwapp.hima.viewmodels.WalletViewModel;
+
 
 import java.util.List;
 
@@ -57,7 +59,7 @@ public class BillingManager {
     }
 
     private void queryAvailableProducts() {
-        List<String> skuList = List.of("2", "3", "4", "5", "6", "7", "8", "9", "coins_12", "coins_11", "coins_11"); // Ensure these match Play Console
+        List<String> skuList = List.of( "2", "3", "4", "5", "6", "7", "8", "9"); // Ensure these match Play Console
         SkuDetailsParams params = SkuDetailsParams.newBuilder()
                 .setSkusList(skuList)
                 .setType(BillingClient.SkuType.INAPP)  // Use .SkuType.SUBS for subscriptions
@@ -112,12 +114,14 @@ public class BillingManager {
     private final PurchasesUpdatedListener purchasesUpdatedListener = (billingResult, purchases) -> {
         if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK && purchases != null) {
             for (Purchase purchase : purchases) {
-                handlePurchase(purchase, this.userId, this.coinId); // ✅ Pass userId and coinId explicitly
+                handlePurchase(purchase); // ✅ Pass userId and coinId explicitly
             }
         }
     };
 
-    private void handlePurchase(Purchase purchase, int userId, int coinId) {
+    private void handlePurchase(Purchase purchase) {
+        Log.e("Billing", "handlePurchase called!");
+
         if (purchase.getPurchaseState() == Purchase.PurchaseState.PURCHASED) {
             ConsumeParams consumeParams = ConsumeParams.newBuilder()
                     .setPurchaseToken(purchase.getPurchaseToken())
@@ -125,31 +129,45 @@ public class BillingManager {
 
             billingClient.consumeAsync(consumeParams, (billingResult, purchaseToken) -> {
                 if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK) {
-                    Log.d("Billing", "Product consumed successfully. Now it can be purchased again!");
+                    Log.d("Billing", "Product consumed successfully!");
 
-                    // ✅ Ensure the correct userId and coinId are used
-                    Log.e("Billing", "handlePurchase: userId=" + userId + ", coinId=" + coinId);
+                    // ✅ Retrieve userId and pointsIdInt from SharedPreferences
+                    DPreferences preferences = new DPreferences(activity);
+                    String savedUserId = preferences.getSelectedUserId();
+                    String savedCoinId = preferences.getSelectedPlanId();
+
+                    // ✅ Ensure retrieved values are valid
+                    if (savedUserId.equals("0") || savedCoinId.equals("0")) {
+                        Log.e("Billing", "Invalid saved userId or coinId");
+                        return;
+                    }
+
+                    int user_id = Integer.parseInt(savedUserId);
+                    int coin_id = Integer.parseInt(savedCoinId);
 
                     try {
                         WalletViewModel walletViewModel = new ViewModelProvider((ViewModelStoreOwner) activity).get(WalletViewModel.class);
-                        walletViewModel.addCoins(userId, coinId);
+                        Log.e("Billing", "Calling addCoins with userId=" + user_id + ", coinId=" + coin_id);
+                        walletViewModel.addCoins(user_id, coin_id);
 
-                        // ✅ Show Toast on UI thread to avoid Looper.prepare() error
-                        activity.runOnUiThread(() -> {
-                            Toast.makeText(activity, "Coins purchased successfully", Toast.LENGTH_SHORT).show();
-//                            Toast.makeText(activity, "Coins added! userId: " + userId + " coinId: " + coinId, Toast.LENGTH_SHORT).show();
-                        });
+                        activity.runOnUiThread(() ->
+                                Toast.makeText(activity, "Coins purchased successfully", Toast.LENGTH_SHORT).show()
+//                                Toast.makeText(activity, "Calling addCoins with userId=" + user_id + ", coinId=" + coin_id, Toast.LENGTH_SHORT).show()
+                        );
 
                     } catch (Exception e) {
                         Log.e("Billing", "Error updating coins: " + e.getMessage());
-                        activity.runOnUiThread(() -> {
-                            Toast.makeText(activity, "Billing Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                        });
+                        activity.runOnUiThread(() ->
+                                Toast.makeText(activity, "Billing Error: " + e.getMessage(), Toast.LENGTH_SHORT).show()
+                        );
                     }
                 } else {
+                    Toast.makeText(activity, "Failed to consume purchase: " + billingResult.getResponseCode(), Toast.LENGTH_SHORT).show();
                     Log.e("Billing", "Failed to consume purchase: " + billingResult.getResponseCode());
                 }
             });
         }
     }
+
+
 }

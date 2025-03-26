@@ -1,15 +1,17 @@
 package com.gmwapp.hima.viewmodels
 
 import android.util.Log
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.app.Application
+
 import com.gmwapp.hima.repositories.WalletRepositories
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.AddCoinsResponse
 import com.gmwapp.hima.retrofit.responses.CoinsResponse
 import com.gmwapp.hima.utils.DPreferences
-import com.zegocloud.uikit.prebuilt.call.core.utils.Storage.context
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import retrofit2.Call
@@ -18,11 +20,17 @@ import javax.inject.Inject
 
 
 @HiltViewModel
-class WalletViewModel @Inject constructor(private val walletRepositories: WalletRepositories) : ViewModel() {
+class WalletViewModel @Inject constructor(private val walletRepositories: WalletRepositories,application: Application
+) : ViewModel() {
+
+    private val appContext = application.applicationContext  // Get application context
 
     val coinsLiveData = MutableLiveData<CoinsResponse>()
     val addCoinsResponse = MutableLiveData<AddCoinsResponse>()
     val afterAddCoinsLiveData = MutableLiveData<String>()
+
+    val _navigateToMain = MutableLiveData<Boolean>()
+    val navigateToMain: LiveData<Boolean> get() = _navigateToMain
 
 
 
@@ -47,6 +55,7 @@ class WalletViewModel @Inject constructor(private val walletRepositories: Wallet
 
 
     fun addCoins(userId: Int, coinId: Int) {
+        _navigateToMain.postValue(false)
         viewModelScope.launch {
             walletRepositories.addCoins(userId, coinId, object : NetworkCallback<AddCoinsResponse> {
                 override fun onResponse(call: Call<AddCoinsResponse>, response: Response<AddCoinsResponse>) {
@@ -63,8 +72,11 @@ class WalletViewModel @Inject constructor(private val walletRepositories: Wallet
                             Log.d("UPI PaymentCheck", "Message: ${it.message}")
                             if (it.success) {
                                 Log.d("addCoins", "Coins added successfully! Fetching updated balance...")
+
+                                _navigateToMain.postValue(true) // ✅ Notify Activity to navigate
+
                                 // ✅ Save new coin balance to SharedPreferences
-                                DPreferences(context).setAfterAddCoins(it.data.coins)
+                                DPreferences(appContext).setAfterAddCoins(it.data.coins)
 
                                 // ✅ Notify UI via LiveData
                                 afterAddCoinsLiveData.postValue(it.data.coins)

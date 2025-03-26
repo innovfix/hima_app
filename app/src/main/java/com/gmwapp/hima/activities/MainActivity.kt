@@ -26,15 +26,16 @@ import com.gmwapp.hima.fragments.ProfileFemaleFragment
 import com.gmwapp.hima.fragments.ProfileFragment
 import com.gmwapp.hima.fragments.RecentFragment
 import com.gmwapp.hima.retrofit.responses.RazorPayApiResponse
+import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.OfferViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.viewmodels.UpiPaymentViewModel
+import com.gmwapp.hima.viewmodels.WalletViewModel
 import com.google.android.material.bottomnavigation.BottomNavigationItemView
 import com.google.android.material.bottomnavigation.BottomNavigationMenuView
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.navigation.NavigationBarView
-import com.google.androidbrowserhelper.trusted.LauncherActivity
 import dagger.hilt.android.AndroidEntryPoint
 import retrofit2.Call
 import kotlin.math.round
@@ -53,6 +54,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     private val accountViewModel: AccountViewModel by viewModels()
     private val upiPaymentViewModel: UpiPaymentViewModel by viewModels()
     private var billingManager: BillingManager? = null
+    private val WalletViewModel: WalletViewModel by viewModels()
+
 
 
     private lateinit var call: Call<ApiResponse>
@@ -247,16 +250,29 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
         if (userId != null && pointsId.isNotEmpty()) {
             if (pointsIdInt != null) {
+
+                // ✅ Save userId and pointsIdInt BEFORE launching billing
+                val preferences = DPreferences(this)
+                preferences.setSelectedUserId(userId.toString())
+                preferences.setSelectedPlanId(java.lang.String.valueOf(pointsIdInt))
                 billingManager!!.purchaseProduct(
+//                    "coins_12",
                     pointsId,
                     userId,
                     pointsIdInt
                 )
+                WalletViewModel.navigateToMain.observe(this, Observer { shouldNavigate ->
+                    val intent = Intent(this, MainActivity::class.java)
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    startActivity(intent)
+                    finish() // ✅ Now this works because we are in an Activity
+                })
             }
         } else {
             Toast.makeText(this, "Invalid input data", Toast.LENGTH_SHORT).show()
         }
     }
+
 
 
 //    override fun onAddCoins(amount: String, id: Int) {

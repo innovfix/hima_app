@@ -17,8 +17,8 @@ android {
         applicationId = "com.gmwapp.hima"
         minSdk = 26
         targetSdk = 35
-        versionCode = 11
-        versionName = "11.0"
+        versionCode = 13
+        versionName = "13.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -134,7 +134,9 @@ dependencies {
     implementation("com.google.androidbrowserhelper:androidbrowserhelper:2.5.0")
 
     implementation ("com.github.NorthernCaptain:TAndroidLame:1.1")
+
     implementation ("com.android.billingclient:billing:7.1.1")
+
 
 
 
