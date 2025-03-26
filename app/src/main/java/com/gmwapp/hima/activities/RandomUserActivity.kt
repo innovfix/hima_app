@@ -81,7 +81,7 @@ class RandomUserActivity : BaseActivity(), OnButtonClickListener {
     //    private var timer: CountDownTimer? = null;
 //    private var isReceiverDetailsAvailable: Boolean = false
 //    private val CALL_PERMISSIONS_REQUEST_CODE = 1
-//    lateinit var binding: ActivityRandomUserBinding
+ //  lateinit var binding: ActivityRandomUserBinding
 //    private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
 //    private val GiftImageViewModel: GiftImageViewModel by viewModels()
 //    private var usersCount: Int = 0

@@ -6,6 +6,8 @@ import android.content.pm.PackageManager
 import android.content.res.Resources
 import android.os.Bundle
 import android.os.CountDownTimer
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.MotionEvent
 import android.view.SurfaceView
@@ -57,8 +59,10 @@ import androidx.work.WorkManager
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.constants.DConstants
+import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
+import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.gmwapp.hima.viewmodels.UserAvatarViewModel
 import com.gmwapp.hima.workers.CallUpdateWorker
 import io.agora.rtc2.video.VideoCanvas
@@ -81,8 +85,15 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private val profileViewModel: ProfileViewModel by viewModels()
     private val userAvatarViewModel: UserAvatarViewModel by viewModels()
     private val fcmNotificationViewModel: FcmNotificationViewModel by viewModels()
+    private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
 
+    private var isVideoCallGoing : Boolean = false
     private var remoteSurfaceView: SurfaceView? = null
+    var isAudioCallIdReceived: Boolean = false
+
+
+    private var isSwitchingToAudio = false // ✅ Prevent multiple calls
+    private var isSwitchingToVideo = false // ✅ Prevent multiple calls
 
     var isClicked : Boolean = false
 
@@ -92,6 +103,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private var isMuted = false
     private var isSpeakerOn = true
     private var storedRemainingTime: String? = null
+    private var storedVideoRemainingTime: String? = null
     private var countDownTimer: CountDownTimer? = null
 
     private var startTime: String = ""
@@ -180,10 +192,14 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             toggleSpeaker()
         }
 
+        endcallBtn()
+
         onMenuClicked()
         onBackPressedBtn()
         userAvatarViewModel.getUserAvatar(receiverId)
         avatarObservers()
+
+        handleCallSwitch()
 
         userData?.let { setMyAvatar(it.image, it.name) }
 
@@ -272,6 +288,28 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
             videoUid = uid
             getRemainingTime()
+
+
+                    femaleUsersViewModel.femaleCallAttend(receiverId,
+                        call_Id,
+                        startTime,
+                        object : NetworkCallback<FemaleCallAttendResponse> {
+                            override fun onResponse(
+                                call: Call<FemaleCallAttendResponse>,
+                                response: Response<FemaleCallAttendResponse>
+                            ) {
+                            }
+
+                            override fun onFailure(
+                                call: Call<FemaleCallAttendResponse>, t: Throwable
+                            ) {
+                            }
+
+                            override fun onNoNetwork() {
+                            }
+                        })
+
+
         }
     }
 
@@ -351,6 +389,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
         if (switchCallID!=0){
             call_Id = switchCallID
+            Log.d("switchCallIDAfterUpdate","$switchCallID")
+            Log.d("switchCallIDAfterUpdate","$call_Id")
         }
     }
 
@@ -371,6 +411,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             ) {
                 response.body()?.data?.let { data ->
                     val newTime = data.remaining_time
+                    Log.d("newtime","$newTime")
                     if (storedRemainingTime == null) {
                         storedRemainingTime = newTime // Store first-time value
                     }
@@ -428,7 +469,41 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
     private fun newRemainingTime(){
 
-        receiverId?.let { profileViewModel.getRemainingTime(it, "audio", object :
+        if (isVideoCallGoing){
+
+            receiverId?.let { profileViewModel.getRemainingTime(it, "video", object :
+                NetworkCallback<GetRemainingTimeResponse> {
+                override fun onNoNetwork() {}
+
+                override fun onFailure(call: Call<GetRemainingTimeResponse>, t: Throwable) {}
+
+                override fun onResponse(
+                    call: Call<GetRemainingTimeResponse>,
+                    response: Response<GetRemainingTimeResponse>
+                ) {
+                    response.body()?.data?.let { data ->
+                        val newTime = data.remaining_time
+                        Log.d("resumedtag","videocalltime - $newTime")
+                        if (storedVideoRemainingTime == null) {
+                            storedVideoRemainingTime = newTime // Store first-time value
+                            startCountdown(newTime)
+
+                        }
+
+                        if (storedVideoRemainingTime != null) {
+                            storedVideoRemainingTime = newTime // Update stored value
+                            stopCountdown()
+                            startCountdown(newTime)
+                        }
+
+
+
+                    }
+                }
+            }) }
+
+        }else{
+            receiverId?.let { profileViewModel.getRemainingTime(it, "audio", object :
             NetworkCallback<GetRemainingTimeResponse> {
             override fun onNoNetwork() {}
 
@@ -440,14 +515,18 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             ) {
                 response.body()?.data?.let { data ->
                     val newTime = data.remaining_time
-                    if (storedRemainingTime != null && newTime > storedRemainingTime!!) {
+                    Log.d("resumedtag","auidocalltime - $newTime")
+
+                    if (storedRemainingTime != null) {
                         storedRemainingTime = newTime // Update stored value
                         stopCountdown()
                         startCountdown(newTime)
+
+
                     }
                 }
             }
-        }) }
+        }) }}
     }
 
 
@@ -464,6 +543,189 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         })
     }
 
+
+    private fun handleCallSwitch() {
+
+        binding.btnVideoCall.setOnClickListener {
+            val currentDrawable = binding.btnVideoCall.drawable
+            val audioDrawable = ContextCompat.getDrawable(this, R.drawable.audiocall_img)
+            val videoDrawable = ContextCompat.getDrawable(this, R.drawable.videocall_img)
+
+            if (currentDrawable != null && audioDrawable != null && currentDrawable.constantState == audioDrawable.constantState) {
+                // If button image is AUDIO, switch
+                switchToAudio()
+            } else if (currentDrawable != null && videoDrawable != null && currentDrawable.constantState == videoDrawable.constantState) {
+                // If button image is VIDEO, switch
+                switchToVideo()
+            } else {
+                Toast.makeText(this, "Error: Unknown state", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+
+    }
+
+    private fun switchToVideo() {
+
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        var userid = userData?.id
+
+
+        getCallIdforCallSwitch("video")
+
+        val remainingTime = binding.tvRemainingTime?.text.toString().trim()
+        if (remainingTime.isEmpty() || !remainingTime.contains(":")) {
+            Log.e("switchToVideo", "Invalid remaining time format: $remainingTime")
+            Toast.makeText(this, "Error: Invalid remaining time", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val timeParts = remainingTime.split(":").mapNotNull {
+            it.toIntOrNull() // ✅ Safely parse integers, avoid crash
+        }
+
+            if (timeParts.size == 3) {  // Ensure we have HH:MM:SS format
+                val hours = timeParts[0]
+                val minutes = timeParts[1]
+                val seconds = timeParts[2]
+
+                val totalSeconds = (hours * 3600) + (minutes * 60) + seconds
+
+
+                AlertDialog.Builder(this)
+                    .setTitle("Want to Switch to Video Call?")
+                    .setPositiveButton("Yes") { _, _ ->
+                        // Show toast message
+                        if (totalSeconds>360){
+                            if (switchCallID==0){
+                                Toast.makeText(this, "Try Again", Toast.LENGTH_SHORT).show()
+
+                            }else{
+                                if (userid != null) {
+                                    Log.d("SwitchCallIdWhileSending","$switchCallID")
+                                    sendSwitchCallRequestNotification(userid, receiverId, "video", "switchToVideo $switchCallID")
+                                }
+                                Toast.makeText(this, "Video call request sent", Toast.LENGTH_SHORT).show()
+                            }
+
+                        }else{
+                            Toast.makeText(this, "$receiverName don’t have enough coins", Toast.LENGTH_SHORT).show()
+
+                        }
+
+
+                    }
+                    .setNegativeButton("No") { dialog, _ ->
+                        dialog.dismiss()
+                    }
+                    .show()
+
+
+            }
+
+    }
+
+
+    fun sendSwitchCallRequestNotification(senderId:Int, receiverId:Int, callType:String, message:String) {
+        fcmNotificationViewModel.sendNotification(
+            senderId = senderId,
+            receiverId = receiverId,
+            callType = callType,
+            channelName = channelName,
+            message = message
+        )
+        observeCallSwitchAcceptance()
+        isSwitchingToAudio = false
+        isSwitchingToVideo = false
+
+        Log.d("SwitchCallIdAfterSending","$switchCallID")
+
+    }
+
+    fun observeCallSwitchAcceptance() {
+        FcmUtils.updatedCallSwitch.observe(this, androidx.lifecycle.Observer { updatedCallSwitch ->
+            if (updatedCallSwitch != null) {
+                val (switchType, receiverId) = updatedCallSwitch
+
+                Log.d("SwitchCallIdAfterAcceptance","$switchCallID")
+
+                if (switchType=="VideoAccepted" && receiverId==this.receiverId){
+
+                    val remainingTime = binding.tvRemainingTime?.text.toString() // Get the current countdown time
+                    val timeParts = remainingTime.split(":").map { it.toInt() }
+
+
+                    if (timeParts.size == 3) {  // Ensure we have HH:MM:SS format
+                        val hours = timeParts[0]
+                        val minutes = timeParts[1]
+                        val seconds = timeParts[2]
+
+                        val totalSeconds = (hours * 3600) + (minutes * 60) + seconds
+
+                        if (totalSeconds>360){
+                            Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
+                            stopCountdown()
+                            FcmUtils.clearCallSwitch()
+                            enableVideoCall()
+                        }else{
+                            Toast.makeText(this, "You don't have enough coins for video call", Toast.LENGTH_SHORT).show()
+                            FcmUtils.clearCallSwitch()
+                            updateCallEndDetails()
+
+                        }
+                    }
+
+
+                }
+
+                if (switchType == "AudioAccepted" && receiverId == this.receiverId) {
+
+                    Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
+                    stopCountdown()
+                    FcmUtils.clearCallSwitch()
+                    enableAudioCall()
+                }
+
+            }
+        })
+    }
+
+
+    fun getCallIdforCallSwitch(callType: String){
+
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+
+        var userId = userData?.id
+        receiverId?.let { it1 ->
+            userId?.let {
+                femaleUsersViewModel.callFemaleUser(
+                    it1, it,callType
+                )
+            }
+            callIdObserver()
+        }
+    }
+
+    private fun callIdObserver() {
+        femaleUsersViewModel.callFemaleUserResponseLiveData.observe(this){
+            if (it != null && it.success) {
+                switchCallID = it.data?.call_id ?: 0
+
+                isAudioCallIdReceived = true
+
+                Log.d("switchCallIdObserver", "$switchCallID")
+
+            }
+        }
+    }
+
+
+
+
+
+
+
+
     fun observeCallSwitchRequest() {
         FcmUtils.updatedCallSwitch.observe(this, androidx.lifecycle.Observer { updatedCallSwitch ->
             if (updatedCallSwitch != null) {
@@ -471,9 +733,10 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
                 val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
                 var userid = userData?.id
-                switchCallID = newCallId
 
                 if (switchType=="switchToVideo"){
+                    switchCallID = newCallId
+
                     AlertDialog.Builder(this)
                         .setTitle("Switch to Video Call ?")
                         .setMessage("$receiverName requested for video call")
@@ -496,9 +759,12 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                                     if (userid != null && switchCallID !=0) {
                                         Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
 
-                                        sendVideoCallAcceptNotification(userid,receiverId,"video","VideoAccepted")
+                                        sendCallAcceptNotification(userid,receiverId,"video","VideoAccepted")
                                         FcmUtils.clearCallSwitch()
                                         Log.d("NewCallID","$newCallId")
+                                        stopCountdown()
+                                        isSwitchingToVideo = false
+
                                         enableVideoCall()
                                     }
                                 }else{
@@ -523,6 +789,39 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                         .show()
 
                 }
+
+                if (switchType=="switchToAudio"){
+                    switchCallID = newCallId
+
+                    AlertDialog.Builder(this)
+                        .setTitle("Switch to audio Call ?")
+                        .setMessage("$receiverName requested for audio call")
+                        .setPositiveButton("Confirm") { _, _ ->
+
+                                    if (userid != null && switchCallID !=0) {
+                                        Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
+
+                                        sendCallAcceptNotification(userid,receiverId,"audio","AudioAccepted")
+                                        FcmUtils.clearCallSwitch()
+                                        Log.d("NewCallID","$newCallId")
+                                        stopCountdown()
+                                        isSwitchingToAudio = false
+
+                                        enableAudioCall()
+                                    }
+
+                        }
+                        .setNegativeButton("Decline") { dialog, _ ->
+                            // Dismiss dialog if No is clicked
+                            dialog.dismiss()
+                            FcmUtils.clearCallSwitch()
+
+                        }
+                        .show()
+
+                }
+
+
                 FcmUtils.clearCallSwitch()
 
 
@@ -532,8 +831,24 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
     private fun enableVideoCall() {
 
+        Log.d("isSwitchingToVideo","$isSwitchingToVideo")
+
+        if (isSwitchingToVideo) {
+            Log.d("enableAudioCall", "Already switching to video, skipping duplicate call")
+            return
+        }
+
+        isSwitchingToVideo = true // ✅ Set flag to prevent duplicate calls
+
         FcmUtils.clearCallSwitch()
         updateCallEndDetails()
+        isVideoCallGoing = true
+        storedVideoRemainingTime = null  // Reset stored time
+        storedRemainingTime = null
+        Handler(Looper.getMainLooper()).postDelayed({
+            stopCountdown()
+            getVideoRemainingTime()  // ✅ Get fresh time after resetting
+        }, 1000)
 
         binding.ivFemaleUser.visibility = View.GONE
         binding.ivMaleUser.visibility = View.GONE
@@ -555,11 +870,11 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             agoraEngine?.setupLocalVideo(VideoCanvas(localView, VideoCanvas.RENDER_MODE_HIDDEN, 0))
 
             // Make video UI visible
-           binding.localVideoViewContainer.visibility = View.VISIBLE
-           binding.localCardView.visibility = View.VISIBLE
+            binding.localVideoViewContainer.visibility = View.VISIBLE
+            binding.localCardView.visibility = View.VISIBLE
             binding.remoteVideoViewContainer.visibility = View.VISIBLE
 
-
+            // Notify remote user to switch to video (if required)
 
             remoteSurfaceView = SurfaceView(this)
             remoteSurfaceView!!.setZOrderMediaOverlay(false)
@@ -569,23 +884,43 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                     remoteSurfaceView,
                     VideoCanvas.RENDER_MODE_HIDDEN,
                     videoUid
+
                 )
             )
             remoteSurfaceView!!.visibility = View.VISIBLE
 
-            agoraEngine!!.startPreview()
+            startTime =
+                dateFormat.format(Date()) // Set call end time only if startTime is not empty
 
+            binding.btnVideoCall.setImageResource(R.drawable.audiocall_img)
 
-            startTime = dateFormat.format(Date()) // Set call end time only if startTime is not empty
+            femaleUsersViewModel.femaleCallAttend(receiverId,
+                switchCallID,
+                startTime,
+                object : NetworkCallback<FemaleCallAttendResponse> {
+                    override fun onResponse(
+                        call: Call<FemaleCallAttendResponse>,
+                        response: Response<FemaleCallAttendResponse>
+                    ) {
+                        Log.d("femaleCallAttend","${response.body()}")
+                        Log.d("femaleCallAttend","${switchCallID}")
+                    }
 
+                    override fun onFailure(
+                        call: Call<FemaleCallAttendResponse>, t: Throwable
+                    ) {
+                    }
 
-            // Notify remote user to switch to video (if required)
+                    override fun onNoNetwork() {
+                    }
+                })
+
         }
     }
 
 
 
-    fun sendVideoCallAcceptNotification(senderId:Int, receiverId:Int, callType:String, message:String) {
+    fun sendCallAcceptNotification(senderId:Int, receiverId:Int, callType:String, message:String) {
         fcmNotificationViewModel.sendNotification(
             senderId = senderId,
             receiverId = receiverId,
@@ -613,6 +948,13 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         agoraEngine?.setEnableSpeakerphone(isSpeakerOn)  // Enable or disable speakerphone
         val speakerIcon = if (isSpeakerOn) R.drawable.speakeron_img else R.drawable.speakeroff_img
         binding.btnSpeaker.setImageResource(speakerIcon)
+    }
+
+    private fun endcallBtn() {
+        binding.btnEndCall.setOnSingleClickListener {
+            leaveChannel(binding.LeaveButton)
+
+        }
     }
 
     private fun onMenuClicked(){
@@ -654,4 +996,179 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
     }
     fun Int.dpToPx() = (this * Resources.getSystem().displayMetrics.density).toInt()
+
+    private fun enableAudioCall() {
+
+        if (isSwitchingToAudio) {
+            Log.d("enableAudioCall", "Already switching to audio, skipping duplicate call")
+            return
+        }
+
+        isSwitchingToAudio = true // ✅ Set flag to prevent duplicate calls
+
+        Log.d("enableAudioCall","$1")
+        stopCountdown()
+
+        FcmUtils.clearCallSwitch()
+        isVideoCallGoing = false
+
+        updateCallEndDetails()
+        storedVideoRemainingTime = null  // Reset stored time
+        storedRemainingTime = null
+        Handler(Looper.getMainLooper()).postDelayed({
+            stopCountdown()
+            getAudioRemainingTime() // ✅ Get fresh time after resetting
+        }, 1000)
+        binding.ivFemaleUser.visibility = View.VISIBLE
+        binding.ivMaleUser.visibility = View.VISIBLE
+        binding.tvFemaleName.visibility = View.VISIBLE
+        binding.tvMaleName.visibility = View.VISIBLE
+
+
+        runOnUiThread {
+            // Enable video module
+            agoraEngine?.disableVideo()
+
+            // Hide local video view
+            binding.localVideoViewContainer.removeAllViews()
+            binding.localVideoViewContainer.visibility = View.GONE
+            binding.localCardView.visibility = View.GONE
+
+            // Hide remote video view
+            binding.remoteVideoViewContainer.removeAllViews()
+            binding.remoteVideoViewContainer.visibility = View.GONE
+
+            // Reset video surfaces
+            remoteSurfaceView = null
+
+            // **Update button to reflect audio call**
+            binding.btnVideoCall.setImageResource(R.drawable.videocall_img)
+
+            startTime =
+                dateFormat.format(Date()) // Set call end time only if startTime is not empty
+
+            femaleUsersViewModel.femaleCallAttend(receiverId,
+                switchCallID,
+                startTime,
+                object : NetworkCallback<FemaleCallAttendResponse> {
+                    override fun onResponse(
+                        call: Call<FemaleCallAttendResponse>,
+                        response: Response<FemaleCallAttendResponse>
+                    ) {
+                        Log.d("femaleCallAttend","${response.body()}")
+                        Log.d("femaleCallAttend","${switchCallID}")
+                    }
+
+                    override fun onFailure(
+                        call: Call<FemaleCallAttendResponse>, t: Throwable
+                    ) {
+                    }
+
+                    override fun onNoNetwork() {
+                    }
+                })
+
+        }
+
+    }
+
+    private fun switchToAudio() {
+
+
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        var userid = userData?.id
+        isAudioCallIdReceived = false
+        getCallIdforCallSwitch("audio")
+
+        AlertDialog.Builder(this)
+            .setTitle("Want to Switch to Audio Call?")
+            .setPositiveButton("Yes") { _, _ ->
+                if (isAudioCallIdReceived == false) {
+                    Toast.makeText(this, "Try Again", Toast.LENGTH_SHORT).show()
+
+                } else {
+                    if (userid != null) {
+                        sendSwitchCallRequestNotification(
+                            userid,
+                            receiverId,
+                            "audio",
+                            "switchToAudio $switchCallID"
+                        )
+                    }
+                    Toast.makeText(this, "Audio call request sent", Toast.LENGTH_SHORT)
+                        .show()
+                }
+            }
+            .setNegativeButton("No") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
+
+
+    }
+
+
+    private fun getAudioRemainingTime() {
+        receiverId?.let {
+            profileViewModel.getRemainingTime(it, "audio", object :
+                NetworkCallback<GetRemainingTimeResponse> {
+                override fun onNoNetwork() {
+                    TODO("Not yet implemented")
+                }
+
+                override fun onFailure(call: Call<GetRemainingTimeResponse>, t: Throwable) {
+                    TODO("Not yet implemented")
+                }
+
+                override fun onResponse(
+                    call: Call<GetRemainingTimeResponse>,
+                    response: Response<GetRemainingTimeResponse>
+                ) {
+                    response.body()?.data?.let { data ->
+                        val newTime = data.remaining_time
+                        Log.d("newtime","$newTime")
+
+                        stopCountdown()
+                        storedRemainingTime = newTime // Store first-time value
+                        startCountdown(newTime)
+                    }
+                }
+
+            })
+        }
+    }
+
+
+
+    private fun getVideoRemainingTime() {
+        receiverId?.let {
+            profileViewModel.getRemainingTime(it, "video", object :
+                NetworkCallback<GetRemainingTimeResponse> {
+                override fun onNoNetwork() {
+                    TODO("Not yet implemented")
+                }
+
+                override fun onFailure(call: Call<GetRemainingTimeResponse>, t: Throwable) {
+                    TODO("Not yet implemented")
+                }
+
+                override fun onResponse(
+                    call: Call<GetRemainingTimeResponse>,
+                    response: Response<GetRemainingTimeResponse>
+                ) {
+                    response.body()?.data?.let { data ->
+                        val newTime = data.remaining_time
+                        Log.d("newtime","$newTime")
+
+                        stopCountdown()
+                        storedVideoRemainingTime = newTime // Store first-time value
+                        startCountdown(newTime)
+                    }
+                }
+
+            })
+        }
+    }
+
+
 }

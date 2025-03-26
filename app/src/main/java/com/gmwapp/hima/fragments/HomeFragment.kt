@@ -118,6 +118,8 @@ class HomeFragment : BaseFragment() {
                 BaseApplication.getInstance()?.getPrefs()?.setUserData(it1)
             }
             binding.tvCoins.text = it.data?.coins.toString()
+            Log.d("coinsvalue","${it.data?.coins}")
+            Log.d("coinsvalue","${it.data?.name}")
 
         })
 

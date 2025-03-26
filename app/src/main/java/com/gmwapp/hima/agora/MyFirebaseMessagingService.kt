@@ -166,6 +166,24 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
             }}
 
+            if (message.startsWith("switchToAudio") && gender == "female") {
+                val parts = message.split(" ")
+                if (parts.size == 2) {
+                    val callId = parts[1]  // Extract callId from the message
+                    val callidInt: Int = callId.toIntOrNull() ?: 0  // Defaults to 0 if conversion fails
+                    Log.d("callIdofSwitch", "$callId")
+
+
+                    var previousSenderId = BaseApplication.getInstance()?.getSenderId()
+                    if (senderId==previousSenderId){
+
+                        Log.d("switchToVideo","$message")
+                        FcmUtils.UpdateCallSwitch("switchToAudio",callidInt)
+
+                    }
+
+                }}
+
             if (message == "VideoAccepted" && gender == "male") {
 
                 Log.d("switchToVideo","$message")
@@ -175,8 +193,56 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
             }
 
+            if (message == "AudioAccepted" && gender == "male") {
+
+                Log.d("AudioAccepted","$message")
+                FcmUtils.UpdateCallSwitch(message, senderId)
 
 
+
+            }
+
+
+            if (message.startsWith("switchToVideo") && gender == "male") {
+                val parts = message.split(" ")
+                if (parts.size == 2) {
+                    val callId = parts[1]  // Extract callId from the message
+                    val callidInt: Int = callId.toIntOrNull() ?: 0  // Defaults to 0 if conversion fails
+                    Log.d("callIdofSwitch", "$callId")
+                    Log.d("switchToVideo","$message")
+                    FcmUtils.UpdateCallSwitch("switchToVideo",callidInt)
+
+                }}
+
+
+
+
+            if (message == "VideoAccepted" && gender == "female") {
+
+                Log.d("switchToVideo","$message")
+                FcmUtils.UpdateCallSwitch(message, senderId)
+
+            }
+
+
+            if (message.startsWith("switchToAudio") && gender == "male") {
+                val parts = message.split(" ")
+                if (parts.size == 2) {
+                    val callId = parts[1]  // Extract callId from the message
+                    val callidInt: Int = callId.toIntOrNull() ?: 0  // Defaults to 0 if conversion fails
+                    Log.d("callIdofSwitch", "$callId")
+                    Log.d("switchToAudio","$message")
+                    FcmUtils.UpdateCallSwitch("switchToAudio",callidInt)
+
+                }}
+
+
+            if (message == "AudioAccepted" && gender == "female") {
+
+                Log.d("AudioAccepted","$message")
+                FcmUtils.UpdateCallSwitch(message, senderId)
+
+            }
 
 
         }

@@ -3,7 +3,9 @@ package com.gmwapp.hima.agora
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
+import android.os.Looper
 import android.util.Log
+import android.widget.ProgressBar
 import androidx.lifecycle.Observer
 
 import android.widget.Toast
@@ -13,12 +15,15 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.bumptech.glide.Glide
+import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.agora.male.MaleAudioCallingActivity
 import com.gmwapp.hima.agora.male.MaleVideoCallingActivity
 import com.gmwapp.hima.constants.DConstants
+import com.gmwapp.hima.databinding.ActivityAgoraRandomCallBinding
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -26,6 +31,7 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class AgoraRandomCallActivity : AppCompatActivity() {
     private val fcmNotificationViewModel: FcmNotificationViewModel by viewModels()
+    private lateinit var binding : ActivityAgoraRandomCallBinding
     var callType: String? = null
     var receiverId: Int = -1
     var userId: Int? = null
@@ -33,12 +39,17 @@ class AgoraRandomCallActivity : AppCompatActivity() {
     private var callAttempts = 0
     private val maxAttempts = 4
     private val triedUserIds = mutableSetOf<Int>()
+    private lateinit var progressBar: ProgressBar
+    private val handler = Handler(Looper.getMainLooper())
+    private var progressStatus = 0
+    private var isRunning = true  // Keeps the loop running
 
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContentView(R.layout.activity_agora_random_call)
+        binding = ActivityAgoraRandomCallBinding.inflate(layoutInflater)
+        setContentView(binding.root)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
@@ -53,6 +64,7 @@ class AgoraRandomCallActivity : AppCompatActivity() {
 
         getRandomUser()
 
+        initUI()
         observeCallAcceptance()
         observeRandomUser()
 
@@ -85,6 +97,106 @@ class AgoraRandomCallActivity : AppCompatActivity() {
 
 
     }
+
+    fun initUI(){
+        progressBar = findViewById(R.id.progressBar)
+        startProgressLoop()
+        if (callType=="audio"){
+            binding.tvTitle.setText("Audio Call")
+
+        }else{
+            binding.tvTitle.setText("Video Call")
+
+        }
+
+
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+
+
+        Glide.with(this)
+            .load(userData?.image)
+            .apply(RequestOptions.circleCropTransform())
+            .into(binding.ivCallerProfile)
+
+
+        Glide.with(this)
+            .asGif()
+            .load(R.drawable.double_arrow_gif) // Replace with your GIF file
+            .into(binding.ivDoubleArrow)
+
+        startImageSequence()
+    }
+
+    private fun startProgressLoop() {
+        Thread {
+            while (isRunning) {
+                progressStatus = 0  // Reset progress
+
+                while (progressStatus < 100 && isRunning) {
+                    progressStatus += 1  // Increase progress
+                    handler.post { progressBar.progress = progressStatus }
+
+                    try {
+                        Thread.sleep(200)  // Smooth animation delay
+                    } catch (e: InterruptedException) {
+                        e.printStackTrace()
+                    }
+                }
+
+                // Reset to 0 and repeat the loop
+                if (isRunning) {
+                    handler.post { progressBar.progress = 0 }
+                }
+            }
+        }.start()
+
+    }
+
+    private fun startImageSequence() {
+        // List of image resources
+        val images = listOf(
+            R.drawable.avatar1,
+            R.drawable.avatar2,
+            R.drawable.avatar3,
+            R.drawable.avatar4,
+            R.drawable.avatar5,
+            R.drawable.avatar6,
+
+            )
+
+        // Handler to post delayed tasks
+        val handler = Handler(Looper.getMainLooper())
+
+        // Function to update image sequence
+        val updateImageSequence = object : Runnable {
+            var currentImageIndex = 0
+
+            override fun run() {
+                if (isFinishing || isDestroyed) {
+                    return // Exit if the activity is finishing or destroyed
+                }
+
+                // Apply circle crop using Glide
+                val requestOptions = RequestOptions().circleCrop()
+
+                // Load the image using Glide with circle crop
+                Glide.with(this@AgoraRandomCallActivity)
+                    .load(images[currentImageIndex])  // Load the current image resource
+                    .apply(requestOptions)  // Apply the circle crop transformation
+                    .into(binding.ivLogo)  // Set image into the ImageView
+
+                // Move to the next image
+                currentImageIndex = (currentImageIndex + 1) % images.size  // Loop back to the first image after the last one
+
+                // Post the next update with a delay of 1 second
+                handler.postDelayed(this, 1000)  // 1 second delay
+            }
+        }
+
+        // Start the image sequence
+        handler.post(updateImageSequence)
+    }
+
 
 
     private fun getRandomUser() {

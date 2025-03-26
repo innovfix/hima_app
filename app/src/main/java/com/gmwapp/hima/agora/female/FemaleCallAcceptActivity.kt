@@ -9,6 +9,8 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.bumptech.glide.Glide
+import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
@@ -17,6 +19,7 @@ import com.gmwapp.hima.agora.male.MaleAudioCallingActivity
 import com.gmwapp.hima.agora.male.MaleVideoCallingActivity
 import com.gmwapp.hima.databinding.ActivityFemaleCallAcceptBinding
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
+import com.gmwapp.hima.viewmodels.UserAvatarViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -27,6 +30,9 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
     private var callType: String? = null
     private var receiverId: Int = -1
     private var call_Id: Int = 0
+    var callerName = ""
+    private val userAvatarViewModel: UserAvatarViewModel by viewModels()
+
     private var channelName: String? = null
     var userId: Int? = null
 
@@ -51,11 +57,21 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
         receiverId = intent.getIntExtra("SENDER_ID", -1)
         channelName = intent.getStringExtra("CHANNEL_NAME")
 
+        userAvatarViewModel.getUserAvatar(receiverId)
+
+        avatarObservers()
         call_Id = intent.getIntExtra("CALL_ID", 0)
 
         Log.d("CallID","$call_Id")
-        binding.calltype.setText("$callType call is coming")
-        binding.accept.setOnClickListener {
+
+        if (callType=="audio"){
+            binding.calltype.setText("Incoming Voice Call")
+        }else{
+            binding.calltype.setText("Incoming Video Call")
+
+        }
+
+        binding.accpet.setOnClickListener {
 
             if (receiverId != -1 && !channelName.isNullOrEmpty() && !callType.isNullOrEmpty()) {
                 sendCallNotification(userId!!, receiverId, callType!!, channelName!!, "accepted")
@@ -104,20 +120,45 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-
-                if (receiverId != -1 && !channelName.isNullOrEmpty() && !callType.isNullOrEmpty()) {
-                    sendCallNotification(userId!!, receiverId, callType!!, channelName!!, "rejected")
-
-                    BaseApplication.getInstance()?.stopRingtone()
-                    val intent = Intent(this@FemaleCallAcceptActivity, MainActivity::class.java)
-                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    startActivity(intent)
-                    finish()
-
-                }
+//
+//                if (receiverId != -1 && !channelName.isNullOrEmpty() && !callType.isNullOrEmpty()) {
+//                    sendCallNotification(userId!!, receiverId, callType!!, channelName!!, "rejected")
+//
+//                    BaseApplication.getInstance()?.stopRingtone()
+//                    val intent = Intent(this@FemaleCallAcceptActivity, MainActivity::class.java)
+//                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+//                    startActivity(intent)
+//                    finish()
+//
+//                }
 
             }
         })
+    }
+
+    private fun avatarObservers() {
+        userAvatarViewModel.userAvatarLiveData.observe(this) { response ->
+            Log.d("userAvatarLiveData", "Image URL: $response")
+
+            if (response != null && response.success) {
+                val imageUrl = response.data?.image
+                callerName = response.data?.name.toString()
+                Log.d("UserAvatar", "Image URL: $imageUrl")
+
+                binding.callerName.setText(callerName)
+                // Load the avatar image into an ImageView using Glide or Picasso
+                // Glide.with(this).load(imageUrl).into(binding.ivMaleUser)
+                Glide.with(this)
+                    .load(imageUrl)
+                    .apply(RequestOptions.circleCropTransform())
+                    .into(binding.ivLogo)
+
+            }
+        }
+
+        userAvatarViewModel.userAvatarErrorLiveData.observe(this) { errorMessage ->
+            Log.e("UserAvatarError", errorMessage)
+        }
     }
 
     fun sendCallNotification(senderId:Int, receiverId:Int, callType:String,channelName:String,message:String  ) {
