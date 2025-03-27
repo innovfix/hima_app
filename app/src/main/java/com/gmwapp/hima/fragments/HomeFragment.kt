@@ -322,4 +322,21 @@ class HomeFragment : BaseFragment() {
                 capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
     }
 
+    override fun onResume() {
+        super.onResume()
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        userData?.id?.let { profileViewModel.getUsers(it) }
+        observeCoins()
+    }
+
+    fun observeCoins(){
+        profileViewModel.getUserLiveData.observe(this, Observer {
+            it.data?.let { it1 ->
+                BaseApplication.getInstance()?.getPrefs()?.setUserData(it1)
+            }
+            Log.d("coinsUpdated_","$${it.data?.coins.toString()}")
+            binding.tvCoins.text = it.data?.coins.toString()
+        })
+    }
+
 }

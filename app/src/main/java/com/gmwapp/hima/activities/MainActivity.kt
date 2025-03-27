@@ -64,6 +64,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     lateinit var total_amount : String
     lateinit var coinId: String
 
+    var paymentGateway = ""
 
 
 
@@ -84,6 +85,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
         billingManager = BillingManager(this)
 
+        accountViewModel.getSettings()
 
         initUI()
         addObservers()
@@ -134,22 +136,24 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
 
 
-//        accountViewModel.settingsLiveData.observe(this, Observer { response ->
-//            if (response?.success == true) {
-//                response.data?.let { settingsList ->
-//                    if (settingsList.isNotEmpty()) {
-//                        val settingsData = settingsList[0]
-//                        settingsData.payment_gateway_type?.let { paymentGatewayType ->
-//                            Log.d("settingsData", "settingsData $paymentGatewayType")
-//                            handlePaymentGateway(paymentGatewayType)
-//                        } ?: run {
-//                            // Show Toast if payment_gateway_type is null
-//                            Toast.makeText(this, "Please try again later", Toast.LENGTH_SHORT).show()
-//                        }
-//                    }
-//                }
-//            }
-//        })
+        accountViewModel.settingsLiveData.observe(this, Observer { response ->
+            if (response?.success == true) {
+                response.data?.let { settingsList ->
+                    if (settingsList.isNotEmpty()) {
+                        val settingsData = settingsList[0]
+                        settingsData.payment_gateway_type?.let { paymentGatewayType ->
+                            Log.d("settingsData", "settingsData $paymentGatewayType")
+                            //handlePaymentGateway(paymentGatewayType)
+                            paymentGateway = paymentGatewayType
+                            Log.d("paymentGateway","$paymentGateway")
+                        } ?: run {
+                            // Show Toast if payment_gateway_type is null
+                            Toast.makeText(this, "Please try again later", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+        })
 
 
         val prefs = BaseApplication.getInstance()?.getPrefs()
@@ -242,36 +246,73 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     }
 
 
+
     override fun onAddCoins(amount: String, id: Int) {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val userId = userData?.id
         var pointsId = "$id"
         val pointsIdInt = pointsId.toIntOrNull()
+        total_amount = "$amount"
 
         if (userId != null && pointsId.isNotEmpty()) {
             if (pointsIdInt != null) {
 
-                // ✅ Save userId and pointsIdInt BEFORE launching billing
-                val preferences = DPreferences(this)
-                preferences.setSelectedUserId(userId.toString())
-                preferences.setSelectedPlanId(java.lang.String.valueOf(pointsIdInt))
-                billingManager!!.purchaseProduct(
-//                    "coins_12",
-                    pointsId,
-                    userId,
-                    pointsIdInt
-                )
-                WalletViewModel.navigateToMain.observe(this, Observer { shouldNavigate ->
-                    val intent = Intent(this, MainActivity::class.java)
-                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                    startActivity(intent)
-                    finish() // ✅ Now this works because we are in an Activity
-                })
+                if (paymentGateway.isNotEmpty()) {
+
+                    when (paymentGateway) {
+                        "gpay" -> {
+
+                            // ✅ Save userId and pointsIdInt BEFORE launching billing
+                            val preferences = DPreferences(this)
+                            preferences.setSelectedUserId(userId.toString())
+                            preferences.setSelectedPlanId(java.lang.String.valueOf(pointsIdInt))
+                            billingManager!!.purchaseProduct(
+                                //"coin_14",
+                                 pointsId,
+                                userId,
+                                pointsIdInt
+                            )
+                            WalletViewModel.navigateToMain.observe(
+                                this,
+                                Observer { shouldNavigate ->
+                                    val intent = Intent(this, MainActivity::class.java)
+                                    intent.flags =
+                                        Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                    startActivity(intent)
+                                    finish() // ✅ Now this works because we are in an Activity
+                                })
+
+                        }
+
+                        "upigateway" -> {
+
+                            val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                            var userid = userData?.id
+                            userid?.let {
+                                val clientTxnId = generateRandomTxnId(
+                                    it,
+                                    id.toString()
+                                )  // Generate a new transaction ID
+                                upiPaymentViewModel.createUpiPayment(it, clientTxnId, total_amount)
+                            }
+
+                        }
+
+
+                        else -> {
+                            Toast.makeText(this, "Invalid Payment Gateway", Toast.LENGTH_SHORT)
+                                .show()
+                        }
+
+
+                    }
+                }
             }
         } else {
             Toast.makeText(this, "Invalid input data", Toast.LENGTH_SHORT).show()
         }
     }
+
 
 
 

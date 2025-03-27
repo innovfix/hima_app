@@ -59,7 +59,7 @@ public class BillingManager {
     }
 
     private void queryAvailableProducts() {
-        List<String> skuList = List.of( "2", "3", "4", "5", "6", "7", "8", "9"); // Ensure these match Play Console
+        List<String> skuList = List.of( "2", "3", "4", "5", "6", "7", "8", "9","coin_14"); // Ensure these match Play Console
         SkuDetailsParams params = SkuDetailsParams.newBuilder()
                 .setSkusList(skuList)
                 .setType(BillingClient.SkuType.INAPP)  // Use .SkuType.SUBS for subscriptions

@@ -1,7 +1,9 @@
 package com.gmwapp.hima.activities
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -57,6 +59,8 @@ class WalletActivity : BaseActivity()  {
     private val viewModel: UpiViewModel by viewModels()
     var amount = ""
     var pointsId = ""
+    var paymentGateway = ""
+
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,9 +74,67 @@ class WalletActivity : BaseActivity()  {
             insets
         }
         initUI()
+        observeCoins()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        userData?.id?.let { profileViewModel.getUsers(it) }
+    }
+
+    fun observeCoins(){
+        profileViewModel.getUserLiveData.observe(this, Observer {
+            it.data?.let { it1 ->
+                BaseApplication.getInstance()?.getPrefs()?.setUserData(it1)
+            }
+            Log.d("coinsUpdated_","$${it.data?.coins.toString()}")
+            binding.tvCoins.text = it.data?.coins.toString()
+        })
     }
 
     private fun initUI() {
+
+        accountViewModel.getSettings()
+
+        upiPaymentViewModel.upiPaymentLiveData.observe(this, Observer { response ->
+            if (response != null && response.status) {
+                val paymentUrl = response.data.firstOrNull()?.payment_url
+
+                if (!paymentUrl.isNullOrEmpty()) {
+                    Log.d("UPI Payment", "Payment URL: $paymentUrl")
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(paymentUrl))
+                    startActivity(intent)
+                } else {
+                    Log.e("UPI Payment Error", "Payment URL is null or empty")
+                    Toast.makeText(this, "Payment URL not found. Please try again later.", Toast.LENGTH_LONG).show()
+                }
+            } else {
+                Log.e("UPI Payment Error", "Invalid response: ${response?.data}")
+                Toast.makeText(this, "Payment failed. Please check your internet or payment details.", Toast.LENGTH_LONG).show()
+            }
+        })
+
+        accountViewModel.settingsLiveData.observe(this, Observer { response ->
+            if (response?.success == true) {
+                response.data?.let { settingsList ->
+                    if (settingsList.isNotEmpty()) {
+                        val settingsData = settingsList[0]
+                        settingsData.payment_gateway_type?.let { paymentGatewayType ->
+                            Log.d("settingsData", "settingsData $paymentGatewayType")
+                            //handlePaymentGateway(paymentGatewayType)
+                            paymentGateway = paymentGatewayType
+                            Log.d("paymentGateway","$paymentGateway")
+                        } ?: run {
+                            // Show Toast if payment_gateway_type is null
+                            Toast.makeText(this, "Please try again later", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+        })
+
+
 
         binding.llRecharge.setOnSingleClickListener {
             val intent = Intent(this, YoutubeRechargeActivity::class.java)
@@ -141,53 +203,90 @@ class WalletActivity : BaseActivity()  {
 
 
         binding.btnAddCoins.setOnClickListener(View.OnClickListener { view: View? ->
-
+            accountViewModel.getSettings()
             val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
             val userId = userData?.id
             val pointsIdInt = pointsId.toIntOrNull()
+            val twoPercentage = amount.toDouble() * 0.02
+            val roundedAmount = Math.round(twoPercentage)
+            total_amount = (amount.toDouble() + roundedAmount).toString()
 
             if (userId != null && pointsId.isNotEmpty()) {
                 if (pointsIdInt != null) {
 
-                    // ✅ Save userId and pointsIdInt BEFORE launching billing
-                    val preferences = DPreferences(this)
-                    preferences.setSelectedUserId(userId.toString())
-                    preferences.setSelectedPlanId(java.lang.String.valueOf(pointsIdInt))
-                    billingManager!!.purchaseProduct(
-                        //"coins_12",
-                        pointsId,
-                        userId,
-                        pointsIdInt
-                    )
-                    WalletViewModel.navigateToMain.observe(this, Observer { shouldNavigate ->
 
-                        if (shouldNavigate) {
-                            Toast.makeText(this, "Coin purchased successfully", Toast.LENGTH_SHORT)
-                                .show()
-                            userData?.id?.let { profileViewModel.getUsers(it) }
+                    if (paymentGateway.isNotEmpty()) {
 
-                            profileViewModel.getUserLiveData.observe(this, Observer {
-                                it.data?.let { it1 ->
-                                    BaseApplication.getInstance()?.getPrefs()?.setUserData(it1)
+                        when (paymentGateway) {
+                            "gpay" -> {
+
+                                // ✅ Save userId and pointsIdInt BEFORE launching billing
+                                val preferences = DPreferences(this)
+                                preferences.setSelectedUserId(userId.toString())
+                                preferences.setSelectedPlanId(java.lang.String.valueOf(pointsIdInt))
+                                billingManager!!.purchaseProduct(
+                                    //"coin_14",
+                                    pointsId,
+                                    userId,
+                                    pointsIdInt
+                                )
+                                WalletViewModel.navigateToMain.observe(this, Observer { shouldNavigate ->
+
+                                    if (shouldNavigate) {
+                                        Toast.makeText(
+                                            this,
+                                            "Coin purchased successfully",
+                                            Toast.LENGTH_SHORT
+                                        )
+                                            .show()
+                                        userData?.id?.let { profileViewModel.getUsers(it) }
+
+                                        profileViewModel.getUserLiveData.observe(this, Observer {
+                                            it.data?.let { it1 ->
+                                                BaseApplication.getInstance()?.getPrefs()
+                                                    ?.setUserData(it1)
+                                            }
+                                            binding.tvCoins.text = it.data?.coins.toString()
+                                            WalletViewModel._navigateToMain.postValue(false)
+                                        })
+                                    } else {
+
+                                        profileViewModel.getUserLiveData.observe(this, Observer {
+                                            it.data?.let { it1 ->
+                                                BaseApplication.getInstance()?.getPrefs()
+                                                    ?.setUserData(it1)
+                                            }
+                                            binding.tvCoins.text = it.data?.coins.toString()
+
+                                        })
+                                    }
+                                })
                                 }
-                                binding.tvCoins.text = it.data?.coins.toString()
-                                WalletViewModel._navigateToMain.postValue(false)
-                            })
-                        }else{
 
-                            profileViewModel.getUserLiveData.observe(this, Observer {
-                                it.data?.let { it1 ->
-                                    BaseApplication.getInstance()?.getPrefs()?.setUserData(it1)
+                            "upigateway" -> {
+
+                                Log.d("upigateway","Clicked")
+                                val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                                var userid = userData?.id
+                                userid?.let {
+                                    val clientTxnId = generateRandomTxnId(
+                                        it,
+                                        pointsId
+                                    )  // Generate a new transaction ID
+                                    upiPaymentViewModel.createUpiPayment(it, clientTxnId, total_amount)
                                 }
-                                binding.tvCoins.text = it.data?.coins.toString()
 
-                            })
+                            }
+
+
+                            else -> {
+                                Toast.makeText(this, "Invalid Payment Gateway", Toast.LENGTH_SHORT)
+                                    .show()
+                            }
+
+
                         }
-//                        val intent = Intent(this, MainActivity::class.java)
-//                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-//                        startActivity(intent)
-//                        finish() // ✅ Now this works because we are in an Activity
-                    })
+                    }
                 }
             } else {
                 Toast.makeText(this, "Invalid input data", Toast.LENGTH_SHORT).show()
@@ -389,14 +488,15 @@ class WalletActivity : BaseActivity()  {
 //
 //    }
 
+//    fun generateRandomTxnId(userId: Int, coinId: String): String {
+//        return "$userId-$coinId-${System.currentTimeMillis()}"
+//    }
+
+}
+
     fun generateRandomTxnId(userId: Int, coinId: String): String {
         return "$userId-$coinId-${System.currentTimeMillis()}"
     }
 
 
-
-
-
-
-
-}}
+}

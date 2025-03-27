@@ -42,6 +42,13 @@
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
+
+        <activity
+            android:name="com.android.billingclient.api.ProxyBillingActivity"
+            tools:replace="android:theme"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar"/>
+
+
         <activity
             android:name=".YoutubeRechargeActivity"
             android:exported="false" />
