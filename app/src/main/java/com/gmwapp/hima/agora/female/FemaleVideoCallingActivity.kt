@@ -15,6 +15,7 @@ import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
@@ -122,6 +123,39 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     private var mRtcEngine: RtcEngine? = null
 
 
+    private var isRemoteUserJoined = false
+    private var elapsedTime = 0  // Tracks elapsed seconds
+    private val timeoutHandler = Handler(Looper.getMainLooper())
+    private val timeoutRunnable = object : Runnable {
+        override fun run() {
+            elapsedTime++
+            Log.d("CallTimeoutTracking", "Seconds passed: $elapsedTime")
+
+            if (elapsedTime >=10) { // 20 seconds timeout
+                if (isRemoteUserJoined==false){
+                    Log.d("isUserJoinedTimer","Leave Button")
+                    Toast.makeText(this@FemaleVideoCallingActivity,"User did not join", Toast.LENGTH_LONG).show()
+
+                    cancelTimeoutTracking()
+                    leaveChannel(binding.LeaveButton)
+                }else{
+                    cancelTimeoutTracking()
+                }
+            } else {
+                timeoutHandler.postDelayed(this, 1000) // Update every second
+            }
+        }
+    }
+
+    fun startTimeoutTracking() {
+        elapsedTime = 0  // Reset counter
+        timeoutHandler.post(timeoutRunnable) // Start tracking
+    }
+
+    fun cancelTimeoutTracking() {
+        timeoutHandler.removeCallbacks(timeoutRunnable) // Stop tracking if call is accepted
+        Log.d("isUserJoinedTimer","Cancelled")
+    }
 
     private val PERMISSION_REQ_ID = 22
     private val REQUESTED_PERMISSIONS = arrayOf<String>(
@@ -177,6 +211,8 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+        window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
+
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
 
         channelName = intent.getStringExtra("CHANNEL_NAME") ?: ""
@@ -303,6 +339,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
 
+        cancelTimeoutTracking()
         // Ensure agoraEngine is not null before using it
         agoraEngine?.let {
             it.stopPreview()
@@ -318,6 +355,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     private val mRtcEventHandler: IRtcEngineEventHandler = object : IRtcEngineEventHandler() {
         override fun onUserJoined(uid: Int, elapsed: Int) {
             showMessage("Remote user joined $uid")
+            isRemoteUserJoined=true
             getRemainingTime()
             startTime = dateFormat.format(Date()) // Set call end time in IST
 
@@ -349,6 +387,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         override fun onJoinChannelSuccess(channel: String, uid: Int, elapsed: Int) {
             isJoined = true
 
+            startTimeoutTracking()
             Log.d("JoinedSuccessFully","$channel")
             showMessage("Joined Channel $channel")
 

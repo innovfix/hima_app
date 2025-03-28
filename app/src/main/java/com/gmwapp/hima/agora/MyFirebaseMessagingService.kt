@@ -1,11 +1,24 @@
 package com.gmwapp.hima.agora
 
+import android.Manifest
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.widget.Toast
+import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.R
+import com.gmwapp.hima.activities.BankUpdateActivity
+import com.gmwapp.hima.activities.EarningsActivity
 import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.agora.female.FemaleAudioCallingActivity
 import com.gmwapp.hima.agora.female.FemaleCallAcceptActivity
@@ -33,7 +46,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         var gender = userData?.gender
         Log.d("FCM", "From: ${remoteMessage.from}")
-        Log.d("FCM_Message", "Message data payload: ${remoteMessage.data}")
+        Log.d("FCM_Message", "Message data payload: ${remoteMessage.data["message"]}")
 
 
         if (remoteMessage.data.isNotEmpty()) {
@@ -82,19 +95,36 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             putExtra("CALL_ID", callId.toIntOrNull() ?: 0)
                         }
 
-                        Log.d("startingActvity","startingActivity")
+                        Log.d("callType","$callType")
                         startActivity(intent)
+
+
+                        if (currentActivity !is MainActivity &&
+                            currentActivity !is EarningsActivity &&
+                            currentActivity !is BankUpdateActivity) {
+
+                            // App is NOT in these activities → Show notification
+                            showIncomingCallNotification(callType, senderId, channelName, callId.toIntOrNull() ?: 0)
+                        } else {
+                            Log.d("currentActivity", "User is in $currentActivity, skipping notification")
+                        }
+
+
                     }
 
 
+
+
+//
 //                    val serviceIntent = Intent(this, FcmCallService::class.java).apply {
 //                        putExtra("CALL_TYPE", callType)
 //                        putExtra("SENDER_ID", senderId)
 //                        putExtra("CHANNEL_NAME", channelName)
-//                        putExtra("CALL_ID", callId)  // Include CALL_ID
+//                        putExtra("CALL_ID", callId)
 //                    }
-//                    startForegroundService(serviceIntent) // Start the service
-//                }
+//                    startForegroundService(serviceIntent)
+
+
 
 
                 }
@@ -128,6 +158,11 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 if (senderId==previousSenderId){
                     BaseApplication.getInstance()?.clearIncomingCall()
                     BaseApplication.getInstance()?.stopRingtone()
+//                    // Stop the foreground service
+//                    val serviceIntent = Intent(this, FcmCallService::class.java)
+//                    stopService(serviceIntent)  // Stop the service
+                    cancelIncomingCallNotification()
+
                     val mainIntent = Intent(this, MainActivity::class.java).apply {
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                     }
@@ -272,4 +307,74 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             )
         }
     }
+
+    private fun showIncomingCallNotification(callType: String?, senderId: Int, channelName: String, callId: Int) {
+        createNotificationChannel() // Ensure the notification channel exists
+
+        // Check if we have permission to post notifications
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+
+            if (ActivityCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                Log.e("Notification", "Permission for notifications not granted!")
+                return  // Exit if permission is not granted
+            }
+        }
+
+        val intent = Intent(this, FemaleCallAcceptActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("CALL_TYPE", callType)
+            putExtra("SENDER_ID", senderId)
+            putExtra("CHANNEL_NAME", channelName)
+            putExtra("CALL_ID", callId)
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            this, 1, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+
+        try {
+            val builder = NotificationCompat.Builder(this, "calls")
+                .setSmallIcon(R.drawable.notification_icon)
+                .setContentTitle("Incoming Call")
+                .setContentText("Tap to Answer ($callType)")
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setCategory(NotificationCompat.CATEGORY_CALL)
+                .setFullScreenIntent(pendingIntent, true)
+                .setAutoCancel(true)
+
+            val manager = NotificationManagerCompat.from(this)
+            manager.notify(1, builder.build())
+
+        } catch (e: SecurityException) {
+            Log.e("NotificationError", "SecurityException: ${e.message}")
+        }
+    }
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                "calls",
+                "Incoming Calls",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
+
+            val manager = getSystemService(NotificationManager::class.java)
+            manager?.createNotificationChannel(channel)
+        }
+    }
+
+
+    private fun cancelIncomingCallNotification() {
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager?.cancel(1) // 1 is the notification ID used in showIncomingCallNotification()
+    }
+
+
+
+
 }

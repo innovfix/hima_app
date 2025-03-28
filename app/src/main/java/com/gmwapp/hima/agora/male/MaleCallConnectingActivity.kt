@@ -14,6 +14,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Observer
+import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
@@ -25,6 +26,8 @@ import com.gmwapp.hima.databinding.ActivityMaleCallConnectingBinding
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.job
+import kotlinx.coroutines.launch
 
 
 @AndroidEntryPoint
@@ -42,6 +45,30 @@ class MaleCallConnectingActivity : AppCompatActivity() {
     private var progressStatus = 0
     private var isRunning = true  // Keeps the loop running
 
+    private var elapsedTime = 0  // Tracks elapsed seconds
+    private val timeoutHandler = Handler(Looper.getMainLooper())
+    private val timeoutRunnable = object : Runnable {
+        override fun run() {
+            elapsedTime++
+            Log.d("CallTimeoutTracker", "Seconds passed: $elapsedTime")
+
+            if (elapsedTime >= 20) { // 20 seconds timeout
+                disconnectCall()
+            } else {
+                timeoutHandler.postDelayed(this, 1000) // Update every second
+            }
+        }
+    }
+
+    fun startTimeoutTracking() {
+        elapsedTime = 0  // Reset counter
+        timeoutHandler.post(timeoutRunnable) // Start tracking
+    }
+
+    fun cancelTimeoutTracking() {
+        timeoutHandler.removeCallbacks(timeoutRunnable) // Stop tracking if call is accepted
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -53,41 +80,50 @@ class MaleCallConnectingActivity : AppCompatActivity() {
             insets
         }
 
-        FcmUtils.clearCallStatus()
-        val callStatusValue = FcmUtils.callStatus.value
-        if (callStatusValue?.first == "accepted") {
+         lifecycleScope.launch {
+             FcmUtils.clearCallStatus()
 
-            Toast.makeText(this, "Try again", Toast.LENGTH_LONG).show()
+             Log.d("callStatusValueLog", "${FcmUtils.callStatus.value}")
+             val callStatusValue = FcmUtils.callStatus.value
+             if (callStatusValue?.first == "accepted") {
 
-            val intent = Intent(this@MaleCallConnectingActivity, MainActivity::class.java)
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            startActivity(intent)
-            finish()
-        }
+               //  Toast.makeText(this, "Try again", Toast.LENGTH_LONG).show()
+                 Log.d("NavigationDebug", "Redirecting to MainActivity due to call accepted.")
 
-
-        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-
-        userData?.id?.let { userId = userData?.id}
-
-         callType = intent.getStringExtra(DConstants.CALL_TYPE)
-         receiverId = intent.getIntExtra(DConstants.RECEIVER_ID, -1)
-         receiverImg = intent.getStringExtra(DConstants.IMAGE)
-
-        getCallId()
+                 val intent = Intent(this@MaleCallConnectingActivity, MainActivity::class.java)
+                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                 startActivity(intent)
+                 finish()
+             }
 
 
-        initUI()
-        observeCallAcceptance()
+             val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+
+             userData?.id?.let { userId = userData?.id }
+
+             callType = intent.getStringExtra(DConstants.CALL_TYPE)
+             receiverId = intent.getIntExtra(DConstants.RECEIVER_ID, -1)
+             receiverImg = intent.getStringExtra(DConstants.IMAGE)
+
+             getCallId()
+
+
+             initUI()
+             observeCallAcceptance()
+
+         }
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 Log.d("FemaleCallAcceptActivity", "onBackPressed called via Dispatcher")
                 if (userId != null && receiverId != -1 && callType != null) {
-                    sendCallNotification(userId!!, receiverId,callType!!,"callDeclined")
+                    sendCallNotification(userId!!, receiverId, callType!!, "callDeclined")
                     FcmUtils.clearCallStatus()  // Clear before moving to MainActivity
 
-                    val intent = Intent(this@MaleCallConnectingActivity, MainActivity::class.java)
+                    Log.d("NavigationDebug", "Redirecting to MainActivity due to back pressed when user id is not null")
+
+                    val intent =
+                        Intent(this@MaleCallConnectingActivity, MainActivity::class.java)
                     intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                     startActivity(intent)
                     finish()
@@ -96,17 +132,22 @@ class MaleCallConnectingActivity : AppCompatActivity() {
 
                     FcmUtils.clearCallStatus()  // Clear before moving to MainActivity
 
-                    val intent = Intent(this@MaleCallConnectingActivity, MainActivity::class.java)
+                    Log.d("NavigationDebug", "Redirecting to MainActivity due to back pressed when user id is null")
+
+                    val intent =
+                        Intent(this@MaleCallConnectingActivity, MainActivity::class.java)
                     intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                     startActivity(intent)
                     finish()
 
-                    Log.e("MaleCallConnectingActivity", "Missing required data: userId=$userId, receiverId=$receiverId, callType=$callType")
+                    Log.e(
+                        "MaleCallConnectingActivity",
+                        "Missing required data: userId=$userId, receiverId=$receiverId, callType=$callType"
+                    )
                 }
 
             }
         })
-
 
     }
 
@@ -152,6 +193,7 @@ class MaleCallConnectingActivity : AppCompatActivity() {
                     progressStatus += 1  // Increase progress
                     handler.post { progressBar.progress = progressStatus }
 
+                    Log.d("progressStatus","$progressStatus")
                     try {
                         Thread.sleep(200)  // Smooth animation delay
                     } catch (e: InterruptedException) {
@@ -189,10 +231,9 @@ class MaleCallConnectingActivity : AppCompatActivity() {
 
                 if (userId != null && receiverId != -1 && callType != null) {
                     sendCallNotification(userId!!, receiverId,callType!!,"incoming call $callId")
+                    startTimeoutTracking()
 
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        disconnectCall()
-                    }, 20000) // 20 seconds delay
+
 
                 } else {
                     Log.e("MaleCallConnectingActivity", "Missing required data: userId=$userId, receiverId=$receiverId, callType=$callType")
@@ -212,7 +253,11 @@ class MaleCallConnectingActivity : AppCompatActivity() {
         var currentActivity = BaseApplication.getInstance()?.getCurrentActivity()
         if (currentActivity is MaleCallConnectingActivity){
         sendCallNotification(userId!!, receiverId,callType!!,"callDeclined")
+        cancelTimeoutTracking()
         FcmUtils.clearCallStatus()  // Clear before moving to MainActivity
+
+
+        Log.d("NavigationDebug", "Redirecting to MainActivity due to timeout.")
 
         val intent = Intent(this@MaleCallConnectingActivity, MainActivity::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -257,6 +302,8 @@ class MaleCallConnectingActivity : AppCompatActivity() {
 
                     Log.d("callTypeData","$callType")
                     if (callType=="audio") {
+                        cancelTimeoutTracking()
+
                         val intent = Intent(this, MaleAudioCallingActivity::class.java).apply {
                             putExtra("CHANNEL_NAME", channelName)
                             putExtra("RECEIVER_ID", receiverId)
@@ -267,6 +314,8 @@ class MaleCallConnectingActivity : AppCompatActivity() {
                         startActivity(intent)
                         finish()
                     }else{
+                        cancelTimeoutTracking()
+
                         FcmUtils.clearCallStatus()
                         val intent = Intent(this, MaleVideoCallingActivity::class.java).apply {
                                 putExtra("CHANNEL_NAME", channelName)
@@ -282,9 +331,14 @@ class MaleCallConnectingActivity : AppCompatActivity() {
                 } else if (status == "rejected") {
                     FcmUtils.clearCallStatus()  // Clear before moving to MainActivity
 
+                    cancelTimeoutTracking()
+                    Log.d("NavigationDebug", "Redirecting to MainActivity due to call rejected")
+
                     val intent = Intent(this, MainActivity::class.java)
                     intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                     startActivity(intent)
+                    Log.d("wentToMain","$status")
+
                     finish()
                 }
             }
@@ -299,7 +353,9 @@ class MaleCallConnectingActivity : AppCompatActivity() {
 
         override fun onDestroy() {
             super.onDestroy()
-            isRunning = false  // Stop the loop to prevent memory leaks
+            isRunning = false
+            cancelTimeoutTracking()
+
         }
 
 

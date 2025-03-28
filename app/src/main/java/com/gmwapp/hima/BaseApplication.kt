@@ -8,6 +8,7 @@ import android.media.MediaPlayer
 import android.os.Bundle
 import android.content.Context
 import android.content.SharedPreferences
+import android.content.pm.ActivityInfo
 
 import android.util.Log
 import androidx.hilt.work.HiltWorkerFactory

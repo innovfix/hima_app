@@ -23,6 +23,7 @@ import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
@@ -123,6 +124,41 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     var maleUserId = 0
 
 
+    private var isRemoteUserJoined = false
+    private var elapsedTime = 0  // Tracks elapsed seconds
+    private val timeoutHandler = Handler(Looper.getMainLooper())
+    private val timeoutRunnable = object : Runnable {
+        override fun run() {
+            elapsedTime++
+            Log.d("CallTimeoutTracking", "Seconds passed: $elapsedTime")
+
+            if (elapsedTime >=10) { // 20 seconds timeout
+                if (isRemoteUserJoined==false){
+                    Log.d("isUserJoinedTimer","Leave Button")
+                    Toast.makeText(this@MaleVideoCallingActivity,"User did not join", Toast.LENGTH_LONG).show()
+
+                    cancelTimeoutTracking()
+                    leaveChannel(binding.LeaveButton)
+                }else{
+                    cancelTimeoutTracking()
+                }
+            } else {
+                timeoutHandler.postDelayed(this, 1000) // Update every second
+            }
+        }
+    }
+
+    fun startTimeoutTracking() {
+        elapsedTime = 0  // Reset counter
+        timeoutHandler.post(timeoutRunnable) // Start tracking
+    }
+
+    fun cancelTimeoutTracking() {
+        timeoutHandler.removeCallbacks(timeoutRunnable) // Stop tracking if call is accepted
+        Log.d("isUserJoinedTimer","Cancelled")
+    }
+
+
     private val PERMISSION_REQ_ID = 22
     private val REQUESTED_PERMISSIONS = arrayOf<String>(
         Manifest.permission.RECORD_AUDIO,
@@ -176,6 +212,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+        window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
+
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         if (userData != null) {
@@ -292,6 +330,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
 
+        cancelTimeoutTracking()
         // Ensure agoraEngine is not null before using it
         agoraEngine?.let {
             it.stopPreview()
@@ -307,6 +346,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         override fun onUserJoined(uid: Int, elapsed: Int) {
             showMessage("Remote user joined $uid")
 
+            isRemoteUserJoined= true
             videoUid = uid
 
             getRemainingTime()
@@ -320,7 +360,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         override fun onJoinChannelSuccess(channel: String, uid: Int, elapsed: Int) {
             isJoined = true
             showMessage("Joined Channel $channel")
-
+            startTimeoutTracking()
         }
 
 

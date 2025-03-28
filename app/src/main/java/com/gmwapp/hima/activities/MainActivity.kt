@@ -3,6 +3,7 @@ package com.gmwapp.hima.activities
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -14,6 +15,7 @@ import androidx.activity.addCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Observer
@@ -87,6 +89,16 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, 0)
             insets
         }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+
+
+
+
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         userID = userData?.id.toString()
 
@@ -117,6 +129,16 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 //        addRoomStateChangedListener()
 //        moveTaskToBack(true)
 //    }
+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            // Permission granted, notifications will work
+        } else {
+            // Permission denied, notify the user
+        }
+    }
 
     private fun initUI() {
 

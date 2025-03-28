@@ -14,9 +14,6 @@ import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
-import com.gmwapp.hima.agora.FcmUtils
-import com.gmwapp.hima.agora.male.MaleAudioCallingActivity
-import com.gmwapp.hima.agora.male.MaleVideoCallingActivity
 import com.gmwapp.hima.databinding.ActivityFemaleCallAcceptBinding
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.UserAvatarViewModel
@@ -57,6 +54,8 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
         receiverId = intent.getIntExtra("SENDER_ID", -1)
         channelName = intent.getStringExtra("CHANNEL_NAME")
 
+        Log.d("callType","from notification $callType")
+
         userAvatarViewModel.getUserAvatar(receiverId)
 
         avatarObservers()
@@ -66,10 +65,24 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
 
         if (callType=="audio"){
             binding.calltype.setText("Incoming Voice Call")
+
+            Glide.with(this)
+                .asGif()
+                .load(R.drawable.audio_accept_gif) // Replace with your GIF file
+                .into(binding.accpet)
         }else{
+            Glide.with(this)
+                .asGif()
+                .load(R.drawable.accept_videocall_gif) // Replace with your GIF file
+                .into(binding.accpet)
             binding.calltype.setText("Incoming Video Call")
 
         }
+
+        Glide.with(this)
+            .asGif()
+            .load(R.drawable.endcall_gif) // Replace with your GIF file
+            .into(binding.reject)
 
         binding.accpet.setOnClickListener {
 
