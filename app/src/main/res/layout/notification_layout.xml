@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="10dp">
+
+    <!-- Profile Picture -->
+    <ImageView
+        android:id="@+id/profile_image"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:scaleType="centerCrop"
+        android:layout_alignParentStart="true"
+        android:layout_centerVertical="true"
+        />
+
+    <!-- Caller Name -->
+    <TextView
+        android:id="@+id/caller_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="luv1"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/white"
+        android:layout_marginStart="10dp"
+        android:layout_toEndOf="@id/profile_image"
+        android:layout_alignTop="@id/profile_image"/>
+
+    <!-- Incoming Call Text -->
+    <TextView
+        android:id="@+id/call_type"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Incoming voice call..."
+        android:textSize="14sp"
+        android:textColor="@android:color/white"
+        android:layout_below="@id/caller_name"
+        android:layout_alignStart="@id/caller_name"/>
+
+    <!-- Decline Button -->
+    <ImageView
+        android:id="@+id/btn_decline"
+        android:layout_width="40dp"
+        android:layout_height="50dp"
+        android:src="@drawable/accept_audio"
+        android:background="@null"
+        android:layout_alignParentEnd="true"
+        android:layout_centerVertical="true"
+        />
+
+    <!-- Accept Button -->
+    <ImageView
+        android:id="@+id/btn_accept"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:src="@drawable/endcall"
+        android:background="@null"
+        android:layout_toStartOf="@id/btn_decline"
+        android:layout_centerVertical="true"
+        />
+</RelativeLayout>
+

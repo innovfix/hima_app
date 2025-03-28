@@ -37,6 +37,7 @@ class MaleCallConnectingActivity : AppCompatActivity() {
     var callType: String? = null
     var receiverId: Int = -1
     var receiverImg : String? = null
+    var receiverName : String? = null
     var userId: Int? = null
     private var callId = 0
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
@@ -104,6 +105,7 @@ class MaleCallConnectingActivity : AppCompatActivity() {
              callType = intent.getStringExtra(DConstants.CALL_TYPE)
              receiverId = intent.getIntExtra(DConstants.RECEIVER_ID, -1)
              receiverImg = intent.getStringExtra(DConstants.IMAGE)
+             receiverName = intent.getStringExtra(DConstants.RECEIVER_NAME)
 
              getCallId()
 
@@ -222,6 +224,9 @@ class MaleCallConnectingActivity : AppCompatActivity() {
     }
 
     private fun callIdObserver(){
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        var myname = userData?.name
+        var myAvatar = userData?.image
         femaleUsersViewModel.callFemaleUserResponseLiveData.observe(this, Observer {
             if (it != null && it.success) {
                 callId = it.data?.call_id ?: 0
@@ -230,7 +235,7 @@ class MaleCallConnectingActivity : AppCompatActivity() {
 
 
                 if (userId != null && receiverId != -1 && callType != null) {
-                    sendCallNotification(userId!!, receiverId,callType!!,"incoming call $callId")
+                    sendCallNotification(userId!!, receiverId,callType!!,"incoming call $callId $myAvatar $myname")
                     startTimeoutTracking()
 
 

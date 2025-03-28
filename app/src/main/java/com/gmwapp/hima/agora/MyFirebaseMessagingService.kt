@@ -7,14 +7,24 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.widget.ImageView
+import android.widget.RemoteViews
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
+import com.bumptech.glide.request.transition.Transition
+import com.bumptech.glide.Glide
+import com.bumptech.glide.request.RequestOptions
+import com.bumptech.glide.request.target.CustomTarget
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.BankUpdateActivity
@@ -48,6 +58,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         Log.d("FCM", "From: ${remoteMessage.from}")
         Log.d("FCM_Message", "Message data payload: ${remoteMessage.data["message"]}")
 
+        if (remoteMessage.getPriority() == RemoteMessage.PRIORITY_HIGH) {
+            Log.d("FCM_Message", "🔥 High-priority notification received!");
+        } else {
+            Log.d("FCM_Message", "⚠️ Low-priority notification received!");
+        }
+
 
         if (remoteMessage.data.isNotEmpty()) {
             val message = remoteMessage.data["message"] ?: ""
@@ -60,8 +76,11 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
             if (message.startsWith("incoming call")) {
                 val parts = message.split(" ")
-                if (parts.size == 3) {
+                if (parts.size >= 5) {
                     val callId = parts[2]  // Extract callId from the message
+                    val receiverImg = parts[3]  // Extract receiver image URL
+                    val receiverName = parts[4]  // Extract receiver name
+
                     Log.d("startingActvity","$gender")
 
 
@@ -79,6 +98,8 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
                         BaseApplication.getInstance()?.saveSenderId(senderId)
                         BaseApplication.getInstance()?.playIncomingCallSound()
+                        showIncomingCallNotification(callType, senderId, channelName, callId.toIntOrNull() ?: 0, receiverName, receiverImg)
+
 
                         callType?.let {
                             BaseApplication.getInstance()?.setIncomingCall(senderId,
@@ -88,10 +109,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
 
                         val intent = Intent(this, FemaleCallAcceptActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                             putExtra("CALL_TYPE", callType)
                             putExtra("SENDER_ID", senderId)
                             putExtra("CHANNEL_NAME", channelName)
+                            putExtra("Caller_NAME", receiverName)
+                            putExtra("Caller_Image", receiverImg)
                             putExtra("CALL_ID", callId.toIntOrNull() ?: 0)
                         }
 
@@ -104,9 +127,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             currentActivity !is BankUpdateActivity) {
 
                             // App is NOT in these activities → Show notification
-                            showIncomingCallNotification(callType, senderId, channelName, callId.toIntOrNull() ?: 0)
+                          //  showIncomingCallNotification(callType, senderId, channelName, callId.toIntOrNull() ?: 0, receiverName, receiverImg)
                         } else {
                             Log.d("currentActivity", "User is in $currentActivity, skipping notification")
+
                         }
 
 
@@ -308,7 +332,14 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         }
     }
 
-    private fun showIncomingCallNotification(callType: String?, senderId: Int, channelName: String, callId: Int) {
+    private fun showIncomingCallNotification(
+        callType: String?,
+        senderId: Int,
+        channelName: String,
+        callId: Int,
+        receiverName: String,
+        receiverImg: String
+    ) {
         createNotificationChannel() // Ensure the notification channel exists
 
         // Check if we have permission to post notifications
@@ -329,22 +360,80 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             putExtra("SENDER_ID", senderId)
             putExtra("CHANNEL_NAME", channelName)
             putExtra("CALL_ID", callId)
+            putExtra("Caller_NAME", receiverName)
+            putExtra("Caller_Image", receiverImg)
         }
 
         val pendingIntent = PendingIntent.getActivity(
             this, 1, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val acceptIntent = Intent(this, CallActionReceiver::class.java).apply {
+            action = "ACTION_ACCEPT_CALL"
+            putExtra("CALL_TYPE", callType)
+            putExtra("SENDER_ID", senderId)
+            putExtra("CHANNEL_NAME", channelName)
+            putExtra("CALL_ID", callId)
+        }
+        val acceptPendingIntent = PendingIntent.getBroadcast(
+            this, 2, acceptIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val rejectIntent = Intent(this, CallActionReceiver::class.java).apply {
+            action = "ACTION_REJECT_CALL"
+            putExtra("CALL_ID", callId)
+        }
+        val rejectPendingIntent = PendingIntent.getBroadcast(
+            this, 3, rejectIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+
 
         try {
+            val remoteViews = RemoteViews(packageName, R.layout.notification_layout)
+            remoteViews.setTextViewText(R.id.caller_name, "$receiverName")
+            remoteViews.setTextViewText(R.id.call_type, "Incoming ${callType?.capitalize()} Call")
+
+
+            // Detect Dark Mode
+            val isDarkMode = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+            val textColor = if (isDarkMode) ContextCompat.getColor(this, R.color.white)
+            else ContextCompat.getColor(this, R.color.black)
+
+            // Set text color dynamically
+            remoteViews.setTextColor(R.id.caller_name, textColor)
+            remoteViews.setTextColor(R.id.call_type, textColor)
+
+            remoteViews.setOnClickPendingIntent(R.id.btn_accept, pendingIntent)
+            remoteViews.setOnClickPendingIntent(R.id.btn_decline, pendingIntent)
+
             val builder = NotificationCompat.Builder(this, "calls")
                 .setSmallIcon(R.drawable.notification_icon)
-                .setContentTitle("Incoming Call")
-                .setContentText("Tap to Answer ($callType)")
+                .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+                .setCustomContentView(remoteViews)
+                .setCustomBigContentView(remoteViews)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setCategory(NotificationCompat.CATEGORY_CALL)
+                .setCustomContentView(remoteViews)
                 .setFullScreenIntent(pendingIntent, true)
                 .setAutoCancel(true)
+
+            Glide.with(this)
+                .asBitmap()
+                .load(receiverImg)
+                .apply(RequestOptions.circleCropTransform())
+                .into(object : CustomTarget<Bitmap>() {
+                    override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                        remoteViews.setImageViewBitmap(R.id.profile_image, resource)
+                        val manager = NotificationManagerCompat.from(applicationContext)
+                        manager.notify(1, builder.build()) // Update notification with image
+                    }
+
+                    override fun onLoadCleared(placeholder: Drawable?) {
+                        // Handle if needed
+                    }
+                })
+
 
             val manager = NotificationManagerCompat.from(this)
             manager.notify(1, builder.build())
@@ -353,6 +442,8 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             Log.e("NotificationError", "SecurityException: ${e.message}")
         }
     }
+
+
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -369,7 +460,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     }
 
 
-    private fun cancelIncomingCallNotification() {
+    fun cancelIncomingCallNotification() {
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager?.cancel(1) // 1 is the notification ID used in showIncomingCallNotification()
     }

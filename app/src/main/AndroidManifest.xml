@@ -202,7 +202,16 @@
             </intent-filter>
         </service>
 
-        <receiver android:name=".agora.CallActionReceiver" android:exported="false"/>
+        <receiver android:name=".agora.CallActionReceiver" android:exported="true">
+
+
+                <intent-filter>
+                    <action android:name="ACTION_ACCEPT_CALL" />
+                    <action android:name="ACTION_REJECT_CALL" />
+                </intent-filter>
+
+
+        </receiver>
 
     </application>
 

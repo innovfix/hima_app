@@ -1,7 +1,10 @@
 package com.gmwapp.hima.agora.female
 
+import android.app.NotificationManager
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
@@ -14,6 +17,7 @@ import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
+import com.gmwapp.hima.agora.MyFirebaseMessagingService
 import com.gmwapp.hima.databinding.ActivityFemaleCallAcceptBinding
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.UserAvatarViewModel
@@ -28,6 +32,7 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
     private var receiverId: Int = -1
     private var call_Id: Int = 0
     var callerName = ""
+    var callerImage = ""
     private val userAvatarViewModel: UserAvatarViewModel by viewModels()
 
     private var channelName: String? = null
@@ -43,6 +48,15 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager?.cancel(1) // 1 is the notification ID used in showIncomingCallNotification()
+
+        Handler(Looper.getMainLooper()).postDelayed({
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            notificationManager?.cancel(1)
+        }, 500) // Delay by 500ms
+
+
         BaseApplication.getInstance()?.clearIncomingCall()
         if (BaseApplication.getInstance()?.isRingtonePlaying() == false) {
             BaseApplication.getInstance()?.playIncomingCallSound()
@@ -54,14 +68,18 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
         receiverId = intent.getIntExtra("SENDER_ID", -1)
         channelName = intent.getStringExtra("CHANNEL_NAME")
 
-        Log.d("callType","from notification $callType")
+        callerName = intent.getStringExtra("Caller_NAME").toString()
+        callerImage = intent.getStringExtra("Caller_Image").toString()
 
-        userAvatarViewModel.getUserAvatar(receiverId)
-
-        avatarObservers()
         call_Id = intent.getIntExtra("CALL_ID", 0)
 
-        Log.d("CallID","$call_Id")
+
+
+        binding.callerName.setText(callerName)
+        Glide.with(this)
+            .load(callerImage)
+            .apply(RequestOptions.circleCropTransform())
+            .into(binding.ivLogo)
 
         if (callType=="audio"){
             binding.calltype.setText("Incoming Voice Call")
@@ -83,6 +101,17 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
             .asGif()
             .load(R.drawable.endcall_gif) // Replace with your GIF file
             .into(binding.reject)
+
+
+        Log.d("callType","from notification $callType")
+
+        userAvatarViewModel.getUserAvatar(receiverId)
+
+        avatarObservers()
+
+        Log.d("CallID","$call_Id")
+
+
 
         binding.accpet.setOnClickListener {
 
@@ -196,5 +225,6 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
             }
         }
     }
+
 
 }
