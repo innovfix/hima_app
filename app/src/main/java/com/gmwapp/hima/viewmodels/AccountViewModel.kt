@@ -27,7 +27,7 @@ class AccountViewModel @Inject constructor(private val accountRepositories: Acco
                 ) {
                     settingsLiveData.postValue(response.body());
                     Log.d("settingResponse", "Request URL: ${call.request().url}")
-                    Log.d("supportUrl", "Request URL: ${response.body()?.data?.firstOrNull()?.support_mail}")
+                    Log.d("responsesetting", "Request URL: ${response.body()}")
 
 
 

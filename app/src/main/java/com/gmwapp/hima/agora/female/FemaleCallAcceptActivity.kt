@@ -1,10 +1,14 @@
 package com.gmwapp.hima.agora.female
 
+import android.app.KeyguardManager
 import android.app.NotificationManager
+import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.util.Log
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
@@ -22,6 +26,7 @@ import com.gmwapp.hima.databinding.ActivityFemaleCallAcceptBinding
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.UserAvatarViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import kotlin.system.exitProcess
 
 @AndroidEntryPoint
 class FemaleCallAcceptActivity : AppCompatActivity() {
@@ -48,19 +53,7 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
-        val notificationManager = getSystemService(NotificationManager::class.java)
-        notificationManager?.cancel(1) // 1 is the notification ID used in showIncomingCallNotification()
 
-        Handler(Looper.getMainLooper()).postDelayed({
-            val notificationManager = getSystemService(NotificationManager::class.java)
-            notificationManager?.cancel(1)
-        }, 500) // Delay by 500ms
-
-
-        BaseApplication.getInstance()?.clearIncomingCall()
-        if (BaseApplication.getInstance()?.isRingtonePlaying() == false) {
-            BaseApplication.getInstance()?.playIncomingCallSound()
-        }
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         userData?.id?.let { userId = userData?.id}
 
@@ -71,7 +64,75 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
         callerName = intent.getStringExtra("Caller_NAME").toString()
         callerImage = intent.getStringExtra("Caller_Image").toString()
 
+        Log.d("callerdeatails","$callerImage")
+        Log.d("callerdeatails","$callerName")
         call_Id = intent.getIntExtra("CALL_ID", 0)
+
+        // Allow the activity to show when the device is locked
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setTurnScreenOn(true)
+        }
+
+        if (callType=="audio"){
+            binding.calltype.setText("Incoming Voice Call")
+
+            binding.accpet.setImageResource(R.drawable.audio_accept_gif)
+
+        }else{
+            binding.accpet.setImageResource(R.drawable.accept_videocall_gif)
+
+            binding.calltype.setText("Incoming Video Call")
+
+        }
+
+
+        val keyguardManager = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
+        val isLocked = keyguardManager.isKeyguardLocked // Check if device is locked
+
+        if (BaseApplication.getInstance()?.isAppInForeground() == true && !isLocked) {
+            // Sirf agar app foreground me hai aur lockscreen pe nahi tabhi notification remove karo
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            notificationManager?.cancel(1)
+
+            Handler(Looper.getMainLooper()).postDelayed({
+                notificationManager?.cancel(1)
+            }, 500)
+
+            Handler(Looper.getMainLooper()).postDelayed({
+                notificationManager?.cancel(1)
+            }, 1000)
+
+            Glide.with(this)
+                .asGif()
+                .load(R.drawable.endcall_gif) // Replace with your GIF file
+                .into(binding.reject)
+
+            if (callType=="audio"){
+                binding.calltype.setText("Incoming Voice Call")
+
+                Glide.with(this)
+                    .asGif()
+                    .load(R.drawable.audio_accept_gif) // Replace with your GIF file
+                    .into(binding.accpet)
+            }else{
+                Glide.with(this)
+                    .asGif()
+                    .load(R.drawable.accept_videocall_gif) // Replace with your GIF file
+                    .into(binding.accpet)
+                binding.calltype.setText("Incoming Video Call")
+
+            }
+        }
+
+
+        BaseApplication.getInstance()?.clearIncomingCall()
+        if (BaseApplication.getInstance()?.isRingtonePlaying() == false) {
+            BaseApplication.getInstance()?.playIncomingCallSound()
+        }
+
 
 
 
@@ -81,26 +142,8 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
             .apply(RequestOptions.circleCropTransform())
             .into(binding.ivLogo)
 
-        if (callType=="audio"){
-            binding.calltype.setText("Incoming Voice Call")
 
-            Glide.with(this)
-                .asGif()
-                .load(R.drawable.audio_accept_gif) // Replace with your GIF file
-                .into(binding.accpet)
-        }else{
-            Glide.with(this)
-                .asGif()
-                .load(R.drawable.accept_videocall_gif) // Replace with your GIF file
-                .into(binding.accpet)
-            binding.calltype.setText("Incoming Video Call")
 
-        }
-
-        Glide.with(this)
-            .asGif()
-            .load(R.drawable.endcall_gif) // Replace with your GIF file
-            .into(binding.reject)
 
 
         Log.d("callType","from notification $callType")
@@ -149,6 +192,14 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
 
             if (receiverId != -1 && !channelName.isNullOrEmpty() && !callType.isNullOrEmpty()) {
                 sendCallNotification(userId!!, receiverId, callType!!, channelName!!, "rejected")
+
+                if (isLocked) {
+                    val notificationManager = getSystemService(NotificationManager::class.java)
+                    notificationManager?.cancel(1)
+                    finishAffinity()  // Closes all activities in the task
+                    exitProcess(0)    // Force closes the app
+                }
+
 
                 BaseApplication.getInstance()?.stopRingtone()
                 val intent = Intent(this@FemaleCallAcceptActivity, MainActivity::class.java)

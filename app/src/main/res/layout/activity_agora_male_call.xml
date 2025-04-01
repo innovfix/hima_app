@@ -1,50 +1,182 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="wrap_content"
+    tools:context=".activities.LoginActivity">
 
-    <RelativeLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content">
 
-        <FrameLayout
-            android:id="@+id/local_video_view_container"
-            android:layout_width="320dp"
-            android:layout_height="240dp"
-            android:layout_centerHorizontal="true"
-            android:layout_margin="6dp"
-            android:background="@android:color/darker_gray" />
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/gl_left_margin"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_begin="16dp" />
 
-        <FrameLayout
-            android:id="@+id/remote_video_view_container"
-            android:layout_width="320dp"
-            android:layout_height="240dp"
-            android:layout_below="@+id/local_video_view_container"
-            android:layout_centerHorizontal="true"
-            android:layout_margin="6dp"
-            android:background="@android:color/darker_gray" />
-        <Button
-            android:id="@+id/JoinButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:visibility="invisible"
-            android:layout_below="@+id/remote_video_view_container"
-            android:layout_alignStart="@id/remote_video_view_container"
-            android:layout_marginTop="40dp"
-            android:onClick="joinChannel"
-            android:text="Join" />
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/gl_right_margin"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.96" />
 
-        <Button
-            android:id="@+id/LeaveButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@+id/remote_video_view_container"
-            android:layout_alignEnd="@id/remote_video_view_container"
-            android:layout_marginTop="52dp"
-            android:layout_marginEnd="115dp"
-            android:onClick="leaveChannel"
-            android:text="Leave" />
-    </RelativeLayout>
-</ScrollView>
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/gl_top_margin"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_begin="7dp" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/gl_bottom_margin"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_begin="58dp" />
+
+
+    <ImageView
+        android:id="@+id/profile_image"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        app:layout_constraintStart_toStartOf="@id/gl_left_margin"
+        app:layout_constraintTop_toBottomOf="@id/gl_top_margin"
+        android:scaleType="centerCrop"
+        app:layout_constraintBottom_toTopOf="@id/gl_bottom_margin"
+        android:layout_alignParentStart="true"
+        android:layout_centerVertical="true"
+        />
+
+    <TextView
+        android:id="@+id/caller_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="luv1"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toEndOf="@id/profile_image"
+        app:layout_constraintTop_toBottomOf="@id/gl_top_margin"
+        android:textColor="@android:color/white"
+        android:layout_marginStart="10dp"
+        android:layout_toEndOf="@id/profile_image"
+        android:layout_alignTop="@id/profile_image"/>
+
+    <TextView
+        android:id="@+id/call_type"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Incoming voice call..."
+        android:textSize="14sp"
+        android:layout_marginStart="10dp"
+
+        app:layout_constraintStart_toEndOf="@id/profile_image"
+        app:layout_constraintTop_toBottomOf="@id/caller_name"
+        android:textColor="@android:color/white"
+        android:layout_below="@id/caller_name"
+        android:layout_alignStart="@id/caller_name"/>
+
+
+
+    <ImageView
+        android:id="@+id/btn_accept"
+        android:layout_width="40dp"
+        android:layout_height="50dp"
+
+        app:layout_constraintEnd_toStartOf="@id/btn_decline"
+        app:layout_constraintTop_toBottomOf="@id/gl_top_margin"
+        app:layout_constraintBottom_toTopOf="@id/gl_bottom_margin"
+        android:src="@drawable/accept_audio"
+        android:background="@null"
+        android:layout_alignParentEnd="true"
+        android:layout_centerVertical="true"
+        />
+
+    <!-- Accept Button -->
+    <ImageView
+        android:id="@+id/btn_decline"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
+        app:layout_constraintTop_toBottomOf="@id/gl_top_margin"
+        app:layout_constraintBottom_toTopOf="@id/gl_bottom_margin"
+        android:src="@drawable/endcall"
+        android:background="@null"
+        android:layout_toStartOf="@id/btn_decline"
+        android:layout_centerVertical="true"
+        />
+
+
+
+
+
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!--<?xml version="1.0" encoding="UTF-8"?>-->
+<!--<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"-->
+<!--    xmlns:tools="http://schemas.android.com/tools"-->
+<!--    android:id="@+id/main"-->
+<!--    android:layout_width="match_parent"-->
+<!--    android:layout_height="match_parent">-->
+
+<!--    <RelativeLayout-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="wrap_content">-->
+
+<!--        <FrameLayout-->
+<!--            android:id="@+id/local_video_view_container"-->
+<!--            android:layout_width="320dp"-->
+<!--            android:layout_height="240dp"-->
+<!--            android:layout_centerHorizontal="true"-->
+<!--            android:layout_margin="6dp"-->
+<!--            android:background="@android:color/darker_gray" />-->
+
+<!--        <FrameLayout-->
+<!--            android:id="@+id/remote_video_view_container"-->
+<!--            android:layout_width="320dp"-->
+<!--            android:layout_height="240dp"-->
+<!--            android:layout_below="@+id/local_video_view_container"-->
+<!--            android:layout_centerHorizontal="true"-->
+<!--            android:layout_margin="6dp"-->
+<!--            android:background="@android:color/darker_gray" />-->
+<!--        <Button-->
+<!--            android:id="@+id/JoinButton"-->
+<!--            android:layout_width="wrap_content"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:visibility="invisible"-->
+<!--            android:layout_below="@+id/remote_video_view_container"-->
+<!--            android:layout_alignStart="@id/remote_video_view_container"-->
+<!--            android:layout_marginTop="40dp"-->
+<!--            android:onClick="joinChannel"-->
+<!--            android:text="Join" />-->
+
+<!--        <Button-->
+<!--            android:id="@+id/LeaveButton"-->
+<!--            android:layout_width="wrap_content"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:layout_below="@+id/remote_video_view_container"-->
+<!--            android:layout_alignEnd="@id/remote_video_view_container"-->
+<!--            android:layout_marginTop="52dp"-->
+<!--            android:layout_marginEnd="115dp"-->
+<!--            android:onClick="leaveChannel"-->
+<!--            android:text="Leave" />-->
+<!--    </RelativeLayout>-->
+<!--</ScrollView>-->

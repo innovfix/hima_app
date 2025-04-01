@@ -14,6 +14,7 @@ import android.util.Log
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.gmwapp.hima.constants.DConstants
+import com.gmwapp.hima.repositories.FcmNotificationRepository
 import com.gmwapp.hima.utils.DPreferences
 import com.google.firebase.FirebaseApp
 import com.onesignal.OneSignal
@@ -61,7 +62,7 @@ class BaseApplication : Application(), Configuration.Provider {
 
             override fun onActivityStarted(activity: Activity) {
                 currentActivity = activity
-
+                Log.d("myCurrentActivity","$currentActivity")
             }
 
             override fun onActivityResumed(activity: Activity) {
@@ -94,6 +95,9 @@ class BaseApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
 
+    @Inject
+    lateinit var fcmNotificationRepository: FcmNotificationRepository
+
     companion object {
         private var mInstance: BaseApplication? = null
 
@@ -101,6 +105,8 @@ class BaseApplication : Application(), Configuration.Provider {
         fun getInstance(): BaseApplication? {
             return mInstance
         }
+
+
 
 
 
@@ -299,4 +305,17 @@ class BaseApplication : Application(), Configuration.Provider {
     fun getChannelName(): String = channelName.toString()
     fun getCallIdForSplashActivity(): Int? = callIdForSplashActivity
 
+    fun isAppInForeground(): Boolean {
+        val activityManager = getSystemService(ACTIVITY_SERVICE) as android.app.ActivityManager
+        val appProcesses = activityManager.runningAppProcesses ?: return false
+        val packageName = applicationContext.packageName
+
+        for (appProcess in appProcesses) {
+            if (appProcess.processName == packageName &&
+                appProcess.importance == android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND) {
+                return true  // App is in foreground
+            }
+        }
+        return false  // App is in background
+    }
 }

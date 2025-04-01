@@ -1,10 +1,15 @@
 package com.gmwapp.hima.agora
 
 import android.Manifest
+import android.app.ActivityManager
+import android.app.KeyguardManager
 import android.app.Notification
+import android.provider.Settings
+
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -21,6 +26,8 @@ import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ProcessLifecycleOwner
 import com.bumptech.glide.request.transition.Transition
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
@@ -40,6 +47,8 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlin.system.exitProcess
+
 @AndroidEntryPoint
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
@@ -118,8 +127,29 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             putExtra("CALL_ID", callId.toIntOrNull() ?: 0)
                         }
 
+
+
                         Log.d("callType","$callType")
-                        startActivity(intent)
+                        if (!Settings.canDrawOverlays(this)) {
+                            startActivity(intent)
+                        }else{
+                            if (isAppInBackground(applicationContext)) {
+                                Log.d("FCMService", "App is in background (Minimized)")
+                                // Handle background notification logic
+                            } else {
+                                Log.d("FCMService", "App is in foreground (Visible)")
+                                startActivity(intent)
+                            }
+
+                        }
+
+//                        if (BaseApplication.getInstance()?.isAppInForeground() == true) {
+//                            // App is in foreground, open activity directly
+//                            startActivity(intent)
+//                        } else {
+//                            // App is in background, show notification instead
+//                            showIncomingCallNotification(callType, senderId, channelName, callId.toIntOrNull() ?: 0, receiverName, receiverImg)
+//                        }
 
 
                         if (currentActivity !is MainActivity &&
@@ -178,8 +208,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 Log.d("FCM", "User is busy. Redirecting to MainActivity.")
 
 
+                val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+                val isScreenLocked = keyguardManager.isKeyguardLocked
                 var previousSenderId = BaseApplication.getInstance()?.getSenderId()
-                if (senderId==previousSenderId){
+                if (senderId==previousSenderId) {
                     BaseApplication.getInstance()?.clearIncomingCall()
                     BaseApplication.getInstance()?.stopRingtone()
 //                    // Stop the foreground service
@@ -187,10 +219,49 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 //                    stopService(serviceIntent)  // Stop the service
                     cancelIncomingCallNotification()
 
-                    val mainIntent = Intent(this, MainActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    if (isScreenLocked) {
+                        // If the screen is locked, forcefully close the app
+                        Log.d("isScreenLocked", "$isScreenLocked")
+                        val mainIntent = Intent(this, MainActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        }
+                        startActivity(mainIntent)
+                        currentActivity?.moveTaskToBack(true) // Move app to background
+                        currentActivity?.finishAffinity()
+                    }else{
+                        val currentActivity = BaseApplication.getInstance()?.getCurrentActivity()
+
+
+                        if (isAppInBackground(applicationContext)) {
+                            Log.d("FCMService", "App is in background (Minimized)")
+                            val mainIntent = Intent(this, MainActivity::class.java).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            }
+                            startActivity(mainIntent)
+                            currentActivity?.moveTaskToBack(true) // Move app to background
+                            currentActivity?.finishAffinity()
+
+                        } else {
+                            Log.d("FCMService", "App is in foreground (Visible)")
+                            val mainIntent = Intent(this, MainActivity::class.java).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            }
+                            startActivity(mainIntent)
+//                        Log.d("currentactvityt","$mainIntent")
+
+//                            if (currentActivity is FemaleCallAcceptActivity) {
+//                                currentActivity.finishAffinity() // Close all activities
+//                                currentActivity.moveTaskToBack(true) // Send app to background
+//                            }
+
                     }
-                    startActivity(mainIntent)
+
+
+
+                    }
+
+
+
                 }
 
             }
@@ -311,6 +382,20 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     }
 
 
+
+    private fun isAppInBackground(context: Context): Boolean {
+        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val appProcesses = activityManager.runningAppProcesses ?: return true
+
+        for (process in appProcesses) {
+            if (process.processName == context.packageName) {
+                return process.importance != ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+            }
+        }
+        return true
+    }
+
+
     private fun sendAutoRejectNotification(senderId: Int?, receiverId: Int?, callType: String?, channelName: String?) {
         if (senderId != null && receiverId != null && callType != null && channelName != null) {
             fcmNotificationRepository.sendFcmNotification(
@@ -381,6 +466,9 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
         val rejectIntent = Intent(this, CallActionReceiver::class.java).apply {
             action = "ACTION_REJECT_CALL"
+            putExtra("CALL_TYPE", callType)
+            putExtra("SENDER_ID", senderId)
+            putExtra("CHANNEL_NAME", channelName)
             putExtra("CALL_ID", callId)
         }
         val rejectPendingIntent = PendingIntent.getBroadcast(
@@ -415,6 +503,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setCategory(NotificationCompat.CATEGORY_CALL)
                 .setCustomContentView(remoteViews)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setFullScreenIntent(pendingIntent, true)
                 .setAutoCancel(true)
 
@@ -437,9 +526,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
             val manager = NotificationManagerCompat.from(this)
             manager.notify(1, builder.build())
+            Log.d("NotificationDebug", "Notification sent")
 
         } catch (e: SecurityException) {
             Log.e("NotificationError", "SecurityException: ${e.message}")
+        } catch (e: Exception){
+            Log.e("NotificationError", "General Exception: ${e.message}")
         }
     }
 
@@ -451,7 +543,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 "Incoming Calls",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
             }
 
             val manager = getSystemService(NotificationManager::class.java)
@@ -464,6 +556,9 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager?.cancel(1) // 1 is the notification ID used in showIncomingCallNotification()
     }
+
+
+
 
 
 

@@ -63,6 +63,7 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidx.lifecycle.process)
     val lifecycleVersion = "2.6.2"
     val glideVersion = "4.11.0"
 

@@ -1,6 +1,7 @@
 package com.gmwapp.hima.agora.female
 
 import android.Manifest
+import android.app.Dialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Resources
@@ -13,7 +14,9 @@ import android.view.MotionEvent
 import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
+import android.view.Window
 import android.view.WindowManager
+import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -61,6 +64,7 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
+import com.gmwapp.hima.agora.services.CallingService
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
@@ -149,14 +153,20 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
     private val PERMISSION_REQ_ID = 22
     private val REQUESTED_PERMISSIONS = arrayOf(
-        Manifest.permission.RECORD_AUDIO
+        Manifest.permission.RECORD_AUDIO,
+        Manifest.permission.CAMERA
+
     )
 
     private fun checkSelfPermission(): Boolean {
-        return ContextCompat.checkSelfPermission(
+        return !(ContextCompat.checkSelfPermission(
             this,
             REQUESTED_PERMISSIONS[0]
-        ) == PackageManager.PERMISSION_GRANTED
+        ) != PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(
+                    this,
+                    REQUESTED_PERMISSIONS[1]
+                ) != PackageManager.PERMISSION_GRANTED)
     }
 
     private fun showMessage(message: String?) {
@@ -282,14 +292,43 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private fun onBackPressedBtn() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                leaveChannel(binding.LeaveButton)
-
+                showExitDialog()
             }
         })
     }
 
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+    private fun showExitDialog() {
+        val dialog = Dialog(this)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.setContentView(R.layout.exit_dialog_layout)
+
+        // Set dialog width to match the screen width
+        dialog.window?.setLayout(
+            (resources.displayMetrics.widthPixels * 0.9).toInt(),  // 90% of screen width
+            WindowManager.LayoutParams.WRAP_CONTENT
+        )
+
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        val btnNo = dialog.findViewById<Button>(R.id.btnNo)
+        val btnYes = dialog.findViewById<Button>(R.id.btnYes)
+
+        btnNo.setOnClickListener { dialog.dismiss() }
+        btnYes.setOnClickListener {
+            dialog.dismiss()
+            leaveChannel(binding.LeaveButton)
+        }
+
+        dialog.show()
+    }
+
+
+
+
+
+
+        override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == PERMISSION_REQ_ID) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
@@ -299,6 +338,16 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                 ActivityCompat.requestPermissions(this, REQUESTED_PERMISSIONS, PERMISSION_REQ_ID)
             }
         }
+    }
+
+    fun startCallingService() {
+        val intent = Intent(this, CallingService::class.java)
+        startService(intent)
+    }
+
+    fun stopCallingService() {
+        val intent = Intent(this, CallingService::class.java)
+        stopService(intent)
     }
 
     private val mRtcEventHandler: IRtcEngineEventHandler = object : IRtcEngineEventHandler() {
@@ -326,6 +375,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             startTime = dateFormat.format(Date()) // Set call end time in IST
             isRemoteUserJoined= true
             videoUid = uid
+            startCallingService()
             getRemainingTime()
 
 
@@ -494,6 +544,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         cancelTimeoutTracking()
+        stopCallingService()
         stopCountdown()
         agoraEngine?.apply {
             leaveChannel()

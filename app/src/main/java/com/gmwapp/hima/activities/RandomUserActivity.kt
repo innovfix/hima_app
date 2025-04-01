@@ -40,7 +40,7 @@ import com.gmwapp.hima.callbacks.OnButtonClickListener
 import com.gmwapp.hima.R
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityRandomUserBinding
-import com.gmwapp.hima.services.CallingService
+import com.gmwapp.hima.agora.services.CallingService
 import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.utils.GiftManager
 import com.gmwapp.hima.utils.GiftViewModelProvider

@@ -1,6 +1,7 @@
 package com.gmwapp.hima.agora.female
 
 import android.Manifest
+import android.app.Dialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Resources
@@ -15,7 +16,9 @@ import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
+import android.view.Window
 import android.view.WindowManager
+import android.widget.Button
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
@@ -45,6 +48,7 @@ import com.gmwapp.hima.media.RtcTokenBuilder2
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
 import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
+import com.gmwapp.hima.agora.services.CallingService
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
@@ -279,6 +283,17 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     }
 
+    fun startCallingService() {
+        val intent = Intent(this, CallingService::class.java)
+        startService(intent)
+    }
+
+    fun stopCallingService() {
+        val intent = Intent(this, CallingService::class.java)
+        stopService(intent)
+    }
+
+
 
     private fun setMyAvatar(image: String, name: String) {
         binding.tvFemaleName.setText(name)
@@ -318,10 +333,35 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     private fun onBackPressedBtn() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                leaveChannel(binding.LeaveButton)
 
+                showExitDialog()
             }
         })
+    }
+
+    private fun showExitDialog() {
+        val dialog = Dialog(this)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.setContentView(R.layout.exit_dialog_layout)
+
+        // Set dialog width to match the screen width
+        dialog.window?.setLayout(
+            (resources.displayMetrics.widthPixels * 0.9).toInt(),  // 90% of screen width
+            WindowManager.LayoutParams.WRAP_CONTENT
+        )
+
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        val btnNo = dialog.findViewById<Button>(R.id.btnNo)
+        val btnYes = dialog.findViewById<Button>(R.id.btnYes)
+
+        btnNo.setOnClickListener { dialog.dismiss() }
+        btnYes.setOnClickListener {
+            dialog.dismiss()
+            leaveChannel(binding.LeaveButton)
+        }
+
+        dialog.show()
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -339,6 +379,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
 
+        stopCallingService()
         cancelTimeoutTracking()
         // Ensure agoraEngine is not null before using it
         agoraEngine?.let {
@@ -359,6 +400,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             getRemainingTime()
             startTime = dateFormat.format(Date()) // Set call end time in IST
 
+            startCallingService()
             videoUid = uid
             runOnUiThread { setupRemoteVideo(uid) }
 

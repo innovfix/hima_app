@@ -12,5 +12,6 @@ data class SettingsResponseData(
     val support_mail: String,
     val demo_video: String,
     val minimum_withdrawals: Int,
-    val payment_gateway_type : String
+    val payment_gateway_type : String,
+    val auto_disable_info : Any?
 )

@@ -80,7 +80,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:fontFamily="@font/poppins_medium"
-        android:text="Connecting with your\nperfect match"
+        android:text=""
         android:textAlignment="center"
         android:textColor="@color/white"
         android:textSize="14sp"

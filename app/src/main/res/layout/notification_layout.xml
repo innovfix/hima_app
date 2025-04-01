@@ -2,7 +2,7 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="10dp">
+    android:padding="1dp">
 
     <!-- Profile Picture -->
     <ImageView
@@ -40,7 +40,7 @@
 
     <!-- Decline Button -->
     <ImageView
-        android:id="@+id/btn_decline"
+        android:id="@+id/btn_accept"
         android:layout_width="40dp"
         android:layout_height="50dp"
         android:src="@drawable/accept_audio"
@@ -51,12 +51,12 @@
 
     <!-- Accept Button -->
     <ImageView
-        android:id="@+id/btn_accept"
+        android:id="@+id/btn_decline"
         android:layout_width="50dp"
         android:layout_height="50dp"
         android:src="@drawable/endcall"
         android:background="@null"
-        android:layout_toStartOf="@id/btn_decline"
+        android:layout_toStartOf="@id/btn_accept"
         android:layout_centerVertical="true"
         />
 </RelativeLayout>

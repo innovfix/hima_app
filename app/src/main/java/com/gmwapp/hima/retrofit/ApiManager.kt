@@ -37,6 +37,7 @@ import com.gmwapp.hima.retrofit.responses.UpiUpdateResponse
 import com.gmwapp.hima.retrofit.responses.UserAvatarResponse
 import com.gmwapp.hima.retrofit.responses.UserValidationResponse
 import com.gmwapp.hima.retrofit.responses.VoiceUpdateResponse
+import com.gmwapp.hima.retrofit.responses.WhatsappLinkResponse
 import com.gmwapp.hima.retrofit.responses.WithdrawResponse
 import com.gmwapp.hima.utils.Helper
 import okhttp3.MultipartBody
@@ -381,6 +382,18 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<ExplanationVideoResponse> = getApiInterface().getExplanationVideos(language)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getWhatsappLink(
+        language: String,
+        callback: NetworkCallback<WhatsappLinkResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<WhatsappLinkResponse> = getApiInterface().getWhatsappLink(language)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -799,6 +812,12 @@ interface ApiInterface {
     fun getExplanationVideos(
         @Field("language") language: String
     ): Call<ExplanationVideoResponse>
+
+    @FormUrlEncoded
+    @POST("whatsapplink_list")
+    fun getWhatsappLink(
+        @Field("language") language: String
+    ): Call<WhatsappLinkResponse>
 
 
     @POST("gifts_list")

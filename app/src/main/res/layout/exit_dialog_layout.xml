@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:background="@drawable/d_exit_dialog_background"
+    android:padding="8dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="End Call?"
+        android:paddingLeft="@dimen/_12sdp"
+        android:paddingTop="@dimen/_8sdp"
+        android:fontFamily="@font/poppins_semibold"
+        android:textStyle="bold"
+        android:textSize="16sp"
+        android:textColor="#545454"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingLeft="@dimen/_12sdp"
+        android:text="Are you sure you want to \ndisconnect the call?"
+        android:textSize="13sp"
+        android:fontFamily="@font/poppins_medium"
+        android:textColor="#545454"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="-20dp"
+        android:orientation="horizontal"
+        android:gravity="end"
+       >
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNo"
+            android:layout_width="70dp"
+            android:layout_height="wrap_content"
+            android:text="No"
+            app:cornerRadius="@dimen/_10sdp"
+
+            android:backgroundTint="#E2FFF3"
+            android:textColor="#019A66"
+            android:layout_marginEnd="10dp"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnYes"
+            android:layout_width="70dp"
+            android:layout_height="wrap_content"
+            android:text="Yes"
+            app:cornerRadius="@dimen/_10sdp"
+            android:backgroundTint="#FFE2E2"
+            android:textColor="#FE1C67"/>
+    </LinearLayout>
+
+</LinearLayout>

@@ -17,6 +17,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.browser.customtabs.CustomTabsClient.getPackageName
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -36,9 +37,11 @@ import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentFemaleHomeBinding
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
-import com.gmwapp.hima.services.CallingService
+import com.gmwapp.hima.agora.services.CallingService
 import com.gmwapp.hima.utils.setOnSingleClickListener
+import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
+import com.gmwapp.hima.viewmodels.WhatsappLinkViewModel
 import com.gmwapp.hima.workers.CallUpdateWorker
 import com.onesignal.OneSignal
 //import com.tencent.mmkv.MMKV
@@ -65,8 +68,12 @@ class FemaleHomeFragment : BaseFragment() {
     lateinit var binding: FragmentFemaleHomeBinding
     lateinit var language : String
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
+    private val whatsappLinkViewModel: WhatsappLinkViewModel by viewModels()
+    private val accountViewModel: AccountViewModel by viewModels()
+
     private lateinit var sharedPreferences: SharedPreferences
     private var isPermissionDenied: Boolean = false
+     var whataspplink : String = ""
     private val dateFormat = SimpleDateFormat("HH:mm:ss").apply {
         timeZone = TimeZone.getTimeZone("Asia/Kolkata") // Set to IST time zone
     }
@@ -119,7 +126,9 @@ class FemaleHomeFragment : BaseFragment() {
             } != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(permissionNeeded, CALL_PERMISSIONS_REQUEST_CODE)
         } else {
-            checkOverlayPermission()
+           checkOverlayPermission()
+//            askNotificationPermission() // Directly proceed to notification permission
+
         }
     }
 
@@ -241,7 +250,9 @@ class FemaleHomeFragment : BaseFragment() {
                     val intent = Intent(context, GrantPermissionsActivity::class.java)
                     startActivity(intent)
                 } else {
-                    checkOverlayPermission()
+                   checkOverlayPermission()
+//                    askNotificationPermission() // Directly proceed to notification permission
+
                 }
             }
         }
@@ -259,6 +270,7 @@ class FemaleHomeFragment : BaseFragment() {
 
     private fun initUI() {
 
+        accountViewModel.getSettings()
         val prefs = BaseApplication.getInstance()?.getPrefs()
         val userData = prefs?.getUserData()
 
@@ -283,6 +295,37 @@ class FemaleHomeFragment : BaseFragment() {
         }
 
 
+        language?.let { whatsappLinkViewModel.fetchLink(it) }
+
+        whatsappLinkViewModel.whatsappResponseLiveData.observe(viewLifecycleOwner) { response ->
+            response?.let {
+                if (it.success && it.data.isNotEmpty()) {
+                    whataspplink = it.data[0].link
+
+                } else {
+                    Log.e("VideoError", "Failed to load video")
+                }
+            }
+        }
+
+        accountViewModel.settingsLiveData.observe(viewLifecycleOwner, Observer { response ->
+            if (response?.success == true) {
+                response.data?.let { settingsList ->
+                    Log.d("settinglist","$settingsList")
+                    if (settingsList.isNotEmpty()) {
+                        val settingsData = settingsList[0]
+                        settingsData.auto_disable_info?.let { auto_disable_info ->
+                            //binding.tvDisclaimer.setText(auto_disable_info)
+                        }
+                    }
+                }
+            }
+        })
+
+
+
+
+
 
 //
 //        // Send the tag only if it hasn't been set before
@@ -300,8 +343,9 @@ class FemaleHomeFragment : BaseFragment() {
 //        }
 
         binding.whatsapp.setOnClickListener {
-            val groupLink = getWhatsAppGroupLink()
-            openWhatsAppGroup(groupLink)
+            if (whataspplink.isNotEmpty() && whataspplink!=null){
+                openWhatsAppGroup(whataspplink)
+            }
         }
 
 
@@ -385,6 +429,7 @@ class FemaleHomeFragment : BaseFragment() {
 
     private fun getWhatsAppGroupLink(): String {
         val userlanguage = language
+        language?.let { whatsappLinkViewModel.fetchLink(it) }
 
         return when (userlanguage) {
             "Tamil" -> "https://whatsapp.com/channel/0029Vazps3mFsn0p4KSOYF0f"
@@ -395,6 +440,7 @@ class FemaleHomeFragment : BaseFragment() {
             "Kannada" -> "https://whatsapp.com/channel/0029VauVGRCFi8xeS3Klvl1m"
             else -> "https://whatsapp.com/channel/0029Vazps3mFsn0p4KSOYF0f"
         }
+
     }
 //
 //    private fun addRoomStateChangedListener() {

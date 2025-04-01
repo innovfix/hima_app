@@ -155,7 +155,9 @@ class MaleCallConnectingActivity : AppCompatActivity() {
 
     fun initUI(){
         progressBar = findViewById(R.id.progressBar)
-
+        if (receiverName != null) {
+            binding.tlWaitTitle.setText("Connecting with $receiverName")
+        }
         startProgressLoop()
         if (callType=="audio"){
             binding.tvTitle.setText("Audio Call")
