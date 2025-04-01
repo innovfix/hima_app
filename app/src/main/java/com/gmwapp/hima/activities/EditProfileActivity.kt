@@ -55,6 +55,8 @@ class EditProfileActivity : BaseActivity() {
     private fun initUI() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         binding.etUserName.setText(userData?.name)
+        val sharedPreferences = getSharedPreferences("UserPrefs", MODE_PRIVATE)
+        val hasChangedName = sharedPreferences.getBoolean("hasChangedName", false)
 
         val gender = userData?.gender
 
@@ -64,7 +66,12 @@ class EditProfileActivity : BaseActivity() {
         else
         {
             binding.tvGender.text = "Female"
-            binding.etUserName.isEnabled = false
+            if (hasChangedName) {
+                binding.etUserName.isEnabled = false
+             //   Toast.makeText(this, "You can change your name only once.", Toast.LENGTH_SHORT).show()
+            } else {
+                binding.etUserName.isEnabled = true
+            }
         }
 
         binding.tvPreferredLanguage.text = userData?.language
@@ -266,6 +273,8 @@ class EditProfileActivity : BaseActivity() {
                 Toast.makeText(
                     this@EditProfileActivity, getString(R.string.profile_updated), Toast.LENGTH_LONG
                 ).show()
+                sharedPreferences.edit().putBoolean("hasChangedName", true).apply()
+
                 BaseApplication.getInstance()?.getPrefs()?.setUserData(it.data)
                 setResult(RESULT_OK)
                 finish()
