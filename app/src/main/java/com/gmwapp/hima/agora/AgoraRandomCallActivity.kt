@@ -62,6 +62,7 @@ class AgoraRandomCallActivity : AppCompatActivity() {
         callType = intent.getStringExtra(DConstants.CALL_TYPE)
 
 
+
         getRandomUser()
 
         initUI()
@@ -218,6 +219,9 @@ class AgoraRandomCallActivity : AppCompatActivity() {
     private fun observeRandomUser() {
         femaleUsersViewModel.randomUsersResponseLiveData.removeObservers(this)
 
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        var myname = userData?.name
+        var myAvatar = userData?.image
         femaleUsersViewModel.randomUsersResponseLiveData.observe(this, Observer { response ->
             Log.d("RandomUsersResponse", "$response")
 
@@ -238,7 +242,7 @@ class AgoraRandomCallActivity : AppCompatActivity() {
 
                         triedUserIds.add(receiverId)
 
-                        sendCallNotification(userId!!, receiverId!!, callType!!, "incoming call $callId")
+                        sendCallNotification(userId!!, receiverId!!, callType!!, "incoming call $callId $myAvatar $myname")
                         observeNotificationResponse()
                         waitForCallAcceptance()
                     } else {

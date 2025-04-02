@@ -120,7 +120,7 @@ class FemaleAboutActivity : BaseActivity() {
             intent.putExtra(DConstants.GENDER, getIntent().getStringExtra(DConstants.GENDER))
             val age = binding.etEnterYourAge.text.toString()
             val interests = selectedInterests.toString()
-            val summary = binding.etSummary.text.toString()
+            val summary = binding.etSummary.text.toString().trim().replace("\\s+".toRegex(), " ")
             intent.putExtra(DConstants.AGE, age)
             intent.putExtra(DConstants.INTERESTS, interests)
             intent.putExtra(DConstants.SUMMARY, summary)

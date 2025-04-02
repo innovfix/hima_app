@@ -17,8 +17,8 @@ android {
         applicationId = "com.gmwapp.hima"
         minSdk = 26
         targetSdk = 35
-        versionCode = 14
-        versionName = "14.0"
+        versionCode = 20
+        versionName = "20.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -142,7 +142,12 @@ dependencies {
     implementation("io.agora.rtc:full-sdk:4.5.0")
 //    implementation("io.agora:agora-rtm:2.2.2")
     implementation("commons-codec:commons-codec:1.9")
+    implementation ("com.android.billingclient:billing:7.1.1")
 
+
+    //inAppUpdate
+    implementation ("com.google.android.play:app-update:2.1.0")
+    implementation ("com.google.android.play:app-update-ktx:2.1.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

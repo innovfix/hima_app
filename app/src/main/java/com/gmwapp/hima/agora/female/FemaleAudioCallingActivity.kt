@@ -353,7 +353,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private val mRtcEventHandler: IRtcEngineEventHandler = object : IRtcEngineEventHandler() {
         override fun onJoinChannelSuccess(channel: String, uid: Int, elapsed: Int) {
             isJoined = true
-            showMessage("Joined Channel $channel")
+           // showMessage("Joined Channel $channel")
             startTimeoutTracking()
 
         }
@@ -362,7 +362,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
             updateCallEndDetails()
             stopCountdown()
-            showMessage("Remote user left")
+           // showMessage("Remote user left")
 
 
             val intent = Intent(this@FemaleAudioCallingActivity, MainActivity::class.java)
@@ -371,7 +371,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             finish()
         }
         override fun onUserJoined(uid: Int, elapsed: Int) {
-            showMessage("Remote user joined $uid")
+         //   showMessage("Remote user joined $uid")
             startTime = dateFormat.format(Date()) // Set call end time in IST
             isRemoteUserJoined= true
             videoUid = uid
@@ -428,14 +428,14 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
     fun leaveChannel(view: View) {
         if (!isJoined) {
-            showMessage("Join a channel first")
+           // showMessage("Join a channel first")
             val intent = Intent(this@FemaleAudioCallingActivity, MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             startActivity(intent)
             finish()
         } else {
             agoraEngine?.leaveChannel()
-            showMessage("You left the channel")
+          //  showMessage("You left the channel")
             isJoined = false
 
             RtcEngine.destroy()

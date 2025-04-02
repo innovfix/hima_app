@@ -1,5 +1,7 @@
 package com.gmwapp.hima.retrofit.responses
 
+import com.google.gson.annotations.SerializedName
+
 data class SettingsResponse(
     val success: Boolean,
     val message: String,
@@ -13,5 +15,6 @@ data class SettingsResponseData(
     val demo_video: String,
     val minimum_withdrawals: Int,
     val payment_gateway_type : String,
-    val auto_disable_info : Any?
+    @SerializedName("auto_disable_info ") // Notice the space at the end
+    val auto_disable_info: String?
 )

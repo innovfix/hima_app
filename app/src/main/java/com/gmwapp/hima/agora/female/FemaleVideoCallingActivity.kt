@@ -395,7 +395,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     private val mRtcEventHandler: IRtcEngineEventHandler = object : IRtcEngineEventHandler() {
         override fun onUserJoined(uid: Int, elapsed: Int) {
-            showMessage("Remote user joined $uid")
+         //   showMessage("Remote user joined $uid")
             isRemoteUserJoined=true
             getRemainingTime()
             startTime = dateFormat.format(Date()) // Set call end time in IST
@@ -431,12 +431,12 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
             startTimeoutTracking()
             Log.d("JoinedSuccessFully","$channel")
-            showMessage("Joined Channel $channel")
+        //    showMessage("Joined Channel $channel")
 
         }
 
         override fun onUserOffline(uid: Int, reason: Int) {
-            showMessage("Remote user offline $uid $reason")
+          //  showMessage("Remote user offline $uid $reason")
 
             updateCallEndDetails()
             stopCountdown()
@@ -548,14 +548,14 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     fun leaveChannel(view: View) {
         if (!isJoined) {
-            showMessage("Join a channel first")
+        //    showMessage("Join a channel first")
             val intent = Intent(this@FemaleVideoCallingActivity, MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             startActivity(intent)
             finish()
         } else {
             agoraEngine!!.leaveChannel()
-            showMessage("You left the channel")
+         //   showMessage("You left the channel")
             if (remoteSurfaceView != null) remoteSurfaceView!!.visibility = View.GONE
             if (localSurfaceView != null) localSurfaceView!!.visibility = View.GONE
             isJoined = false

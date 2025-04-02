@@ -48,6 +48,7 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.activities.MainActivity
+import com.gmwapp.hima.activities.RatingActivity
 import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.constants.DConstants
@@ -369,7 +370,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private val mRtcEventHandler: IRtcEngineEventHandler = object : IRtcEngineEventHandler() {
         override fun onJoinChannelSuccess(channel: String, uid: Int, elapsed: Int) {
             isJoined = true
-            showMessage("Joined Channel $channel")
+         //   showMessage("Joined Channel $channel")
             startTimeoutTracking()
         }
 
@@ -377,7 +378,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
             updateCallEndDetails()
             stopCountdown()
-            showMessage("Remote user left")
+          //  showMessage("Remote user left")
 
             val intent = Intent(this@MaleAudioCallingActivity, MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -387,7 +388,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         }
 
         override fun onUserJoined(uid: Int, elapsed: Int) {
-            showMessage("Remote user joined $uid")
+          //  showMessage("Remote user joined $uid")
             isRemoteUserJoined = true
             Log.d("videoUid", "$uid")
             videoUid = uid
@@ -422,7 +423,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     fun leaveChannel(view: View) {
         if (!isJoined) {
-            showMessage("Join a channel first")
+          //  showMessage("Join a channel first")
             val intent = Intent(this@MaleAudioCallingActivity, MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             startActivity(intent)
@@ -430,7 +431,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         } else {
             stopCountdown()
             agoraEngine?.leaveChannel()
-            showMessage("You left the channel")
+          //  showMessage("You left the channel")
             isJoined = false
 
             RtcEngine.destroy()
@@ -490,7 +491,15 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             agoraEngine = null
         }.start()
 
-        Log.d("Lifecycle", "onDestroy() called. Firestore listener removed.")
+        if (isRemoteUserJoined==true){
+            val intent = Intent(this@MaleAudioCallingActivity, RatingActivity::class.java)
+            intent.putExtra(DConstants.RECEIVER_NAME, receiverName)
+            intent.putExtra(DConstants.RECEIVER_ID, receiverId)
+            startActivity(intent)
+            Log.d("Lifecycle", "onDestroy() called. Firestore listener removed.")
+        }
+
+
     }
 
     private fun getRemainingTime() {

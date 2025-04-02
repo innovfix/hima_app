@@ -315,7 +315,7 @@ class FemaleHomeFragment : BaseFragment() {
                     if (settingsList.isNotEmpty()) {
                         val settingsData = settingsList[0]
                         settingsData.auto_disable_info?.let { auto_disable_info ->
-                            //binding.tvDisclaimer.setText(auto_disable_info)
+                            binding.tvDisclaimer.setText(auto_disable_info)
                         }
                     }
                 }

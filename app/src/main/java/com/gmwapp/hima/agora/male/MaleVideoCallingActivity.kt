@@ -42,6 +42,7 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.activities.MainActivity
+import com.gmwapp.hima.activities.RatingActivity
 import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.constants.DConstants
@@ -381,10 +382,19 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 agoraEngine = null
             }.start()
         }
+
+        if (isRemoteUserJoined==true){
+            val intent = Intent(this@MaleVideoCallingActivity, RatingActivity::class.java)
+            intent.putExtra(DConstants.RECEIVER_NAME, receiverName)
+            intent.putExtra(DConstants.RECEIVER_ID, receiverId)
+            startActivity(intent)
+            Log.d("Lifecycle", "onDestroy() called. Firestore listener removed.")
+        }
+
     }
     private val mRtcEventHandler: IRtcEngineEventHandler = object : IRtcEngineEventHandler() {
         override fun onUserJoined(uid: Int, elapsed: Int) {
-            showMessage("Remote user joined $uid")
+           // showMessage("Remote user joined $uid")
 
             startCallingService()
             isRemoteUserJoined= true
@@ -400,14 +410,14 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
         override fun onJoinChannelSuccess(channel: String, uid: Int, elapsed: Int) {
             isJoined = true
-            showMessage("Joined Channel $channel")
+           // showMessage("Joined Channel $channel")
             startTimeoutTracking()
         }
 
 
 
         override fun onUserOffline(uid: Int, reason: Int) {
-            showMessage("Remote user offline $uid $reason")
+          //  showMessage("Remote user offline $uid $reason")
             stopCountdown()
             updateCallEndDetails()
             runOnUiThread {
@@ -507,7 +517,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
     fun leaveChannel(view: View) {
         if (!isJoined) {
-            showMessage("Join a channel first")
+         //   showMessage("Join a channel first")
             val intent = Intent(this@MaleVideoCallingActivity, MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             startActivity(intent)
@@ -515,7 +525,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         } else {
             stopCountdown()
             agoraEngine!!.leaveChannel()
-            showMessage("You left the channel")
+         //   showMessage("You left the channel")
             if (remoteSurfaceView != null) remoteSurfaceView!!.visibility = View.GONE
             if (localSurfaceView != null) localSurfaceView!!.visibility = View.GONE
             isJoined = false

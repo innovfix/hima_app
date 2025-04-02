@@ -14,6 +14,10 @@ import android.view.View
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.ActivityResult
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.lifecycle.Observer
 import com.gmwapp.hima.BaseApplication
@@ -25,6 +29,10 @@ import com.gmwapp.hima.retrofit.responses.UserData
 import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.play.core.appupdate.AppUpdateManagerFactory
+import com.google.android.play.core.appupdate.AppUpdateOptions
+import com.google.android.play.core.install.model.AppUpdateType
+import com.google.android.play.core.install.model.UpdateAvailability
 //import com.zego.ve.Log
 import dagger.hilt.android.AndroidEntryPoint
 import org.greenrobot.eventbus.EventBus
@@ -35,6 +43,7 @@ class SplashScreenActivity : BaseActivity() {
     val profileViewModel: ProfileViewModel by viewModels()
     val viewModel: LoginViewModel by viewModels()
     var currentVersion = ""
+    private lateinit var activityResultLauncher: ActivityResultLauncher<IntentSenderRequest>
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,6 +51,15 @@ class SplashScreenActivity : BaseActivity() {
         binding = ActivitySplashScreenBinding.inflate(layoutInflater)
         setContentView(binding.root)
         enableEdgeToEdge()
+        activityResultLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+            if (result.resultCode == RESULT_OK) {
+                Log.i("UpdateSuccess", "Update successful! Restarting app...")
+                restartApp()
+            } else {
+                Log.e("UpdateFailed", "Update flow failed! Result code: ${result.resultCode}")
+            }
+        }
+        checkForInAppUpdate()
         initUI()
     }
 
@@ -216,10 +234,11 @@ class SplashScreenActivity : BaseActivity() {
         val dialogMessage = view.findViewById<TextView>(R.id.dialog_message)
         dialogMessage.text = description
         btnUpdate.setOnClickListener(View.OnClickListener {
-            val url = link;
-            val i = Intent(Intent.ACTION_VIEW)
-            i.data = Uri.parse(url)
-            startActivity(i)
+//            val url = link;
+//            val i = Intent(Intent.ACTION_VIEW)
+//            i.data = Uri.parse(url)
+//            startActivity(i)
+            checkForInAppUpdate()
         })
 
 
@@ -233,6 +252,54 @@ class SplashScreenActivity : BaseActivity() {
         super.onStart()
         EventBus.getDefault().unregister(this) // Prevent unwanted registration
     }
+
+
+    private fun checkForInAppUpdate(){
+        val appUpdateManager = AppUpdateManagerFactory.create(applicationContext)
+
+      // Returns an intent object that you use to check for an update.
+        val appUpdateInfoTask = appUpdateManager.appUpdateInfo
+
+       // Checks that the platform will allow the specified type of update.
+        appUpdateInfoTask.addOnSuccessListener { appUpdateInfo ->
+            if (appUpdateInfo.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE
+                // This example applies an immediate update. To apply a flexible update
+                // instead, pass in AppUpdateType.FLEXIBLE
+                && appUpdateInfo.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE)) {
+                // Request the update.
+
+                appUpdateManager.startUpdateFlowForResult(
+                    // Pass the intent that is returned by 'getAppUpdateInfo()'.
+                    appUpdateInfo,
+                    // an activity result launcher registered via registerForActivityResult
+                    activityResultLauncher,
+                    // Or pass 'AppUpdateType.FLEXIBLE' to newBuilder() for
+                    // flexible updates.
+                    AppUpdateOptions.newBuilder(AppUpdateType.IMMEDIATE).build())
+
+
+            }
+        }
+//
+//        activityResultLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result: ActivityResult ->
+//            // handle callback
+//            if (result.resultCode != RESULT_OK) {
+//               // log("Update flow failed! Result code: " + result.resultCode);
+//                // If the update is canceled or fails,
+//                // you can request to start the update again.
+//            }
+//        }
+
+
+    }
+
+    private fun restartApp() {
+        val intent = packageManager.getLaunchIntentForPackage(packageName)
+        intent?.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(intent)
+        finishAffinity() // Close all activities
+    }
+
 
 
 }

@@ -243,10 +243,13 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
                         } else {
                             Log.d("FCMService", "App is in foreground (Visible)")
-                            val mainIntent = Intent(this, MainActivity::class.java).apply {
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            if (currentActivity !is MainActivity) {
+                                val mainIntent = Intent(this, MainActivity::class.java).apply {
+                                    flags =
+                                        Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                                }
+                                startActivity(mainIntent)
                             }
-                            startActivity(mainIntent)
 //                        Log.d("currentactvityt","$mainIntent")
 
 //                            if (currentActivity is FemaleCallAcceptActivity) {

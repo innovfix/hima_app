@@ -2,6 +2,7 @@ package com.gmwapp.hima.retrofit
 
 import com.gmwapp.hima.activities.RetrofitClient
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
+import com.gmwapp.hima.retrofit.responses.AddCoinsResponse
 import com.gmwapp.hima.retrofit.responses.AddPointsResponse
 import com.gmwapp.hima.retrofit.responses.AppUpdateResponse
 import com.gmwapp.hima.retrofit.responses.AvatarsListResponse
@@ -454,6 +455,20 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun addCoins(
+        userId: Int,
+        coinsId: Int,
+        callback: NetworkCallback<AddCoinsResponse>
+    ) {
+
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<AddCoinsResponse> = getApiInterface().addCoins(userId, coinsId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun deleteUsers(
         userId: Int, deleteReason: String, callback: NetworkCallback<DeleteUserResponse>
     ) {
@@ -773,6 +788,14 @@ interface ApiInterface {
     @FormUrlEncoded
     @POST("coins_list")
     fun getCoins(@Field("user_id") userId: Int): Call<CoinsResponse>
+
+
+    @POST("add_coins")
+    @FormUrlEncoded
+    fun addCoins(
+        @Field("user_id") userId: Int,
+        @Field("coins_id") coinsId: Int,
+    ): Call<AddCoinsResponse>
 
     @FormUrlEncoded
     @POST("delete_users")
