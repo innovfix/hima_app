@@ -107,15 +107,16 @@
 
 
     <ImageView
-        android:visibility="gone"
+        android:visibility="visible"
         android:id="@+id/iv_bonus"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="0dp"
-        android:src="@drawable/bonus"
+        android:layout_marginTop="@dimen/_6sdp"
+        android:src="@drawable/offer_banner"
         app:layout_constraintHeight_default="percent"
-        app:layout_constraintHeight_percent="0.17"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintHeight_percent="0.1"
+        app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
+        app:layout_constraintStart_toStartOf="@id/gl_left_margin"
         app:layout_constraintTop_toBottomOf="@+id/tv_wallet"
         tools:ignore="ContentDescription" />
 
@@ -133,7 +134,7 @@
         app:layout_constraintEnd_toEndOf="parent" />
 
     <androidx.recyclerview.widget.RecyclerView
-        android:layout_marginTop="@dimen/_30sdp"
+        android:layout_marginTop="@dimen/_5sdp"
         android:id="@+id/rv_plans"
         android:layout_width="0dp"
         android:layout_height="0dp"

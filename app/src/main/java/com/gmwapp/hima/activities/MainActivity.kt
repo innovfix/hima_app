@@ -13,6 +13,8 @@ import android.view.MenuItem
 import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
@@ -42,6 +44,14 @@ import com.google.android.material.bottomnavigation.BottomNavigationItemView
 import com.google.android.material.bottomnavigation.BottomNavigationMenuView
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.navigation.NavigationBarView
+import com.google.android.material.snackbar.Snackbar
+import com.google.android.play.core.appupdate.AppUpdateManager
+import com.google.android.play.core.appupdate.AppUpdateManagerFactory
+import com.google.android.play.core.appupdate.AppUpdateOptions
+import com.google.android.play.core.install.InstallStateUpdatedListener
+import com.google.android.play.core.install.model.AppUpdateType
+import com.google.android.play.core.install.model.InstallStatus
+import com.google.android.play.core.install.model.UpdateAvailability
 import com.google.androidbrowserhelper.trusted.LauncherActivity
 import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.AndroidEntryPoint
@@ -73,6 +83,10 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
     var paymentGateway = ""
 
+    private lateinit var activityResultLauncher: ActivityResultLauncher<IntentSenderRequest>
+    private lateinit var appUpdateManager: AppUpdateManager
+
+
 
     private val requestPermissionsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -103,6 +117,15 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
+
+        appUpdateManager = AppUpdateManagerFactory.create(applicationContext)
+
+        activityResultLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+            if (result.resultCode != RESULT_OK) {
+                Log.e("Update", "Update flow failed! Result code: ${result.resultCode}")
+            }
+        }
+        checkForInAppUpdate()
 
 
 
@@ -151,6 +174,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             // Permission denied, notify the user
         }
     }
+
 
 
     private fun initUI() {
@@ -317,6 +341,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                             val preferences = DPreferences(this)
                             preferences.setSelectedUserId(userId.toString())
                             preferences.setSelectedPlanId(java.lang.String.valueOf(pointsIdInt))
+                            WalletViewModel.tryCoins(userId, pointsIdInt)
                             billingManager!!.purchaseProduct(
                               //  "coin_14",
                                pointsId,
@@ -480,5 +505,94 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         requestPermissions()
     }
 
+
+    private fun checkForInAppUpdate(){
+        appUpdateManager = AppUpdateManagerFactory.create(applicationContext)
+        // Before starting an update, register a listener for updates.
+        appUpdateManager.registerListener(listener)
+
+        // Returns an intent object that you use to check for an update.
+        val appUpdateInfoTask = appUpdateManager.appUpdateInfo
+
+        // Checks that the platform will allow the specified type of update.
+        appUpdateInfoTask.addOnSuccessListener { appUpdateInfo ->
+            if (appUpdateInfo.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE
+                // This example applies an immediate update. To apply a flexible update
+                // instead, pass in AppUpdateType.FLEXIBLE
+                && appUpdateInfo.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE)) {
+                // Request the update.
+
+                appUpdateManager.startUpdateFlowForResult(
+                    // Pass the intent that is returned by 'getAppUpdateInfo()'.
+                    appUpdateInfo,
+                    // an activity result launcher registered via registerForActivityResult
+                    activityResultLauncher,
+                    // Or pass 'AppUpdateType.FLEXIBLE' to newBuilder() for
+                    // flexible updates.
+                    AppUpdateOptions.newBuilder(AppUpdateType.FLEXIBLE).build()
+
+                )
+
+            }else {
+                Log.d("UpdateCheck", "No update available.")
+            }
+
+
+        }.addOnFailureListener { exception ->
+            Log.e("UpdateCheck", "Failed to check for update: ${exception.message}")
+        }
+
+
+
     }
+
+    val listener = InstallStateUpdatedListener { state ->
+        if (state.installStatus() == InstallStatus.DOWNLOADED) {
+            popupSnackbarForCompleteUpdate()
+        }
+    }
+
+    fun popupSnackbarForCompleteUpdate() {
+        Snackbar.make(
+            binding.root,  // Default root container
+            "An update has just been downloaded.",
+            Snackbar.LENGTH_INDEFINITE
+        ).apply {
+            setAction("RESTART") { appUpdateManager.completeUpdate() }
+            setActionTextColor(getColor(R.color.pink))
+            show()
+        }
+    }
+
+
+    override fun onStop() {
+        super.onStop()
+        appUpdateManager.unregisterListener(listener)
+
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        appUpdateManager.unregisterListener(listener)
+    }
+
+
+
+    override fun onResume() {
+        super.onResume()
+
+        appUpdateManager
+            .appUpdateInfo
+            .addOnSuccessListener { appUpdateInfo ->
+                // If the update is downloaded but not installed,
+                // notify the user to complete the update.
+                if (appUpdateInfo.installStatus() == InstallStatus.DOWNLOADED) {
+                    popupSnackbarForCompleteUpdate()
+                }
+            }
+    }
+
+
+
+}
 

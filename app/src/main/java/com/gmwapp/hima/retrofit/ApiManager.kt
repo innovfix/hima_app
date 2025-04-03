@@ -458,11 +458,27 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     fun addCoins(
         userId: Int,
         coinsId: Int,
+        status: Int,
+        massage: String,
         callback: NetworkCallback<AddCoinsResponse>
     ) {
 
         if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<AddCoinsResponse> = getApiInterface().addCoins(userId, coinsId)
+            val apiCall: Call<AddCoinsResponse> = getApiInterface().addCoins(userId, coinsId, status, massage)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun tryCoins(
+        userId: Int,
+        coinsId: Int,
+        callback: NetworkCallback<AddCoinsResponse>
+    ) {
+
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<AddCoinsResponse> = getApiInterface().tryCoins(userId, coinsId)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -793,6 +809,15 @@ interface ApiInterface {
     @POST("add_coins")
     @FormUrlEncoded
     fun addCoins(
+        @Field("user_id") userId: Int,
+        @Field("coins_id") coinsId: Int,
+        @Field("status") status: Int,
+        @Field("massage") massage: String,
+    ): Call<AddCoinsResponse>
+
+    @POST("try_coins")
+    @FormUrlEncoded
+    fun tryCoins(
         @Field("user_id") userId: Int,
         @Field("coins_id") coinsId: Int,
     ): Call<AddCoinsResponse>

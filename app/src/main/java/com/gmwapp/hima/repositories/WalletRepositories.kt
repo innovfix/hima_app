@@ -14,9 +14,19 @@ class WalletRepositories @Inject constructor(private val apiManager: ApiManager)
     fun addCoins(
         userId: Int,
         coinId: Int,
+        status: Int,
+        massage: String,
         callback: NetworkCallback<AddCoinsResponse>
     ) {
-        apiManager.addCoins(userId, coinId, callback)
+        apiManager.addCoins(userId, coinId, status, massage, callback)
+    }
+
+    fun tryCoins(
+        userId: Int,
+        coinId: Int,
+        callback: NetworkCallback<AddCoinsResponse>
+    ) {
+        apiManager.tryCoins(userId, coinId, callback)
     }
 
  }

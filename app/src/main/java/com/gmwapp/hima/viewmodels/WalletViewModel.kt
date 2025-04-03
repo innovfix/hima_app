@@ -54,10 +54,10 @@ class WalletViewModel @Inject constructor(private val walletRepositories: Wallet
     }
 
 
-    fun addCoins(userId: Int, coinId: Int) {
+    fun addCoins(userId: Int, coinId: Int, status: Int, massage: String) {
         _navigateToMain.postValue(false)
         viewModelScope.launch {
-            walletRepositories.addCoins(userId, coinId, object : NetworkCallback<AddCoinsResponse> {
+            walletRepositories.addCoins(userId, coinId, status, massage, object : NetworkCallback<AddCoinsResponse> {
                 override fun onResponse(call: Call<AddCoinsResponse>, response: Response<AddCoinsResponse>) {
                     Log.d("addCoins", "Raw Response: ${response.body()?.toString()}")
 
@@ -110,5 +110,63 @@ class WalletViewModel @Inject constructor(private val walletRepositories: Wallet
             })
         }
     }
+
+    fun tryCoins(userId: Int, coinId: Int) {
+        _navigateToMain.postValue(false)
+        viewModelScope.launch {
+            walletRepositories.tryCoins(userId, coinId, object : NetworkCallback<AddCoinsResponse> {
+                override fun onResponse(call: Call<AddCoinsResponse>, response: Response<AddCoinsResponse>) {
+                    Log.d("addCoins", "Raw Response: ${response.body()?.toString()}")
+
+                    if (response.isSuccessful) {
+                        Log.d("addCoins", "Response Successful: ${response.isSuccessful}")
+                        Log.d("addCoins", "Response Message: ${response.message()}")
+
+                        val responseBody = response.body()
+
+                        responseBody?.let {
+                            Log.d("UPI PaymentCheck", "Success: ${it.success}")
+                            Log.d("UPI PaymentCheck", "Message: ${it.message}")
+                            if (it.success) {
+                                Log.d("addCoins", "Coins added successfully! Fetching updated balance...")
+
+                                _navigateToMain.postValue(true) // ✅ Notify Activity to navigate
+
+                                // ✅ Save new coin balance to SharedPreferences
+                                DPreferences(appContext).setAfterAddCoins(it.data.coins)
+
+                                // ✅ Notify UI via LiveData
+                                afterAddCoinsLiveData.postValue(it.data.coins)
+
+                                // ✅ Fetch updated coins
+                                getCoins(userId)
+                            }
+                        }
+                    } else {
+                        val errorMessage = response.errorBody()?.string()
+                        Log.e("UPI Payment Error", "Failed with response: $errorMessage")
+                    }
+                }
+
+                override fun onFailure(call: Call<AddCoinsResponse>, t: Throwable) {
+                    Log.e("UPI Payment API", "API call failed: ${t.localizedMessage}")
+
+                    // ✅ Retry logic (Optional)
+                    viewModelScope.launch {
+                        Log.d("addCoins", "Retrying addCoins API call after failure...")
+//                        addCoins(userId, coinId)  // Retry once if it failed
+                    }
+
+                    // ✅ Fetch latest coins to check if they were actually added
+                    getCoins(userId)
+                }
+
+                override fun onNoNetwork() {
+                    Log.e("UPI Payment", "No internet connection")
+                }
+            })
+        }
+    }
+
 
 }

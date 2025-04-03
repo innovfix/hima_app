@@ -50,10 +50,9 @@
 
         <activity
             android:name=".DemoActivity"
-            android:exported="true" >
+            android:exported="false" />
 
 
-        </activity>
         <activity
             android:name=".agora.AgoraRandomCallActivity"
             android:exported="false" />

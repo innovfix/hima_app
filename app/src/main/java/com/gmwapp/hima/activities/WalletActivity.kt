@@ -224,6 +224,7 @@ class WalletActivity : BaseActivity()  {
                                 val preferences = DPreferences(this)
                                 preferences.setSelectedUserId(userId.toString())
                                 preferences.setSelectedPlanId(java.lang.String.valueOf(pointsIdInt))
+                                WalletViewModel.tryCoins(userId, pointsIdInt)
                                 billingManager!!.purchaseProduct(
                                     //"coin_14",
                                    pointsId,

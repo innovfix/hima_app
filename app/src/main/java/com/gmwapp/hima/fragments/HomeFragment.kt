@@ -148,9 +148,9 @@ class HomeFragment : BaseFragment() {
 //                Toast.makeText(activity, "No Data Found", Toast.LENGTH_SHORT).show()
 //            }
 
-            it.data?.firstOrNull()?.audio_status?.let { audioStatus ->
-                Log.d("responsecheck", "Audio Status: $audioStatus")
-            }
+//            it.data?.firstOrNull()?.audio_status?.let { audioStatus ->
+//                Log.d("responsecheck", "Audio Status: $audioStatus")
+//            }
 
             if (it?.data != null) {
                 binding.rvProfiles.layoutManager =

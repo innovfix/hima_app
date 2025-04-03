@@ -52,14 +52,11 @@ class SplashScreenActivity : BaseActivity() {
         setContentView(binding.root)
         enableEdgeToEdge()
         activityResultLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-            if (result.resultCode == RESULT_OK) {
-                Log.i("UpdateSuccess", "Update successful! Restarting app...")
-                restartApp()
-            } else {
-                Log.e("UpdateFailed", "Update flow failed! Result code: ${result.resultCode}")
+            if (result.resultCode != RESULT_OK) {
+                Log.e("Update", "Update flow failed! Result code: ${result.resultCode}")
             }
         }
-        checkForInAppUpdate()
+       // checkForInAppUpdate()
         initUI()
     }
 
@@ -275,10 +272,13 @@ class SplashScreenActivity : BaseActivity() {
                     activityResultLauncher,
                     // Or pass 'AppUpdateType.FLEXIBLE' to newBuilder() for
                     // flexible updates.
-                    AppUpdateOptions.newBuilder(AppUpdateType.IMMEDIATE).build())
+                    AppUpdateOptions.newBuilder(AppUpdateType.IMMEDIATE).build()
 
+                )
 
             }
+
+
         }
 //
 //        activityResultLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result: ActivityResult ->
@@ -291,13 +291,6 @@ class SplashScreenActivity : BaseActivity() {
 //        }
 
 
-    }
-
-    private fun restartApp() {
-        val intent = packageManager.getLaunchIntentForPackage(packageName)
-        intent?.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
-        startActivity(intent)
-        finishAffinity() // Close all activities
     }
 
 

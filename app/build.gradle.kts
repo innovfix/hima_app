@@ -9,6 +9,8 @@ plugins {
     id("com.google.firebase.crashlytics")
 }
 
+
+
 android {
     namespace = "com.gmwapp.hima"
     compileSdk = 35
@@ -17,8 +19,9 @@ android {
         applicationId = "com.gmwapp.hima"
         minSdk = 26
         targetSdk = 35
-        versionCode = 20
-        versionName = "20.0"
+        versionCode = 32
+        versionName = "32.0"
+
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
