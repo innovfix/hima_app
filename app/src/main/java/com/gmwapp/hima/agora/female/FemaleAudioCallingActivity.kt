@@ -116,6 +116,9 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
     var call_Id: Int = 0
 
+    private var switchDialog: AlertDialog? = null  // Track current dialog
+
+
     private var isRemoteUserJoined = false
     private var elapsedTime = 0  // Tracks elapsed seconds
     private val timeoutHandler = Handler(Looper.getMainLooper())
@@ -826,9 +829,12 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                 var userid = userData?.id
 
                 if (switchType=="switchToVideo"){
+                    if (isVideoCallGoing==false){
                     switchCallID = newCallId
 
-                    AlertDialog.Builder(this)
+                    switchDialog?.dismiss()
+
+                   switchDialog =  AlertDialog.Builder(this)
                         .setTitle("Switch to Video Call ?")
                         .setMessage("$receiverName requested for video call")
                         .setPositiveButton("Confirm") { _, _ ->
@@ -863,12 +869,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                                     FcmUtils.clearCallSwitch()
 
                                 }
-
-
-
                             }
-
-
 
                         }
                         .setNegativeButton("Decline") { dialog, _ ->
@@ -877,14 +878,20 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                             FcmUtils.clearCallSwitch()
 
                         }
-                        .show()
+                       .setOnDismissListener { switchDialog = null }  // Reset when dismissed
+                       .show()
 
                 }
+}
+
 
                 if (switchType=="switchToAudio"){
+                    if (isVideoCallGoing){
                     switchCallID = newCallId
 
-                    AlertDialog.Builder(this)
+                    switchDialog?.dismiss()
+
+                    switchDialog =  AlertDialog.Builder(this)
                         .setTitle("Switch to audio Call ?")
                         .setMessage("$receiverName requested for audio call")
                         .setPositiveButton("Confirm") { _, _ ->
@@ -908,6 +915,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                             FcmUtils.clearCallSwitch()
 
                         }
+                        .setOnDismissListener { switchDialog = null }  // Reset when dismissed
                         .show()
 
                 }
@@ -916,7 +924,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                 FcmUtils.clearCallSwitch()
 
 
-            }
+            }}
         })
     }
 

@@ -10,6 +10,7 @@ data class AppUpdateModel(
     val id: Int,
     val link: String,
     val app_version: Int,
+    val minimum_required_version: Int,
     val description: String,
     val bank:Int,
     val upi:Int

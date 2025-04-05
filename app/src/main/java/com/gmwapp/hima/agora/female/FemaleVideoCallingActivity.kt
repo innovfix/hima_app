@@ -98,6 +98,8 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     private var storedRemainingTime: String? = null
 
     private var countDownTimer: CountDownTimer? = null
+    private var switchDialog: AlertDialog? = null  // Track current dialog
+
 
     var receiverName = ""
 
@@ -1016,9 +1018,12 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                 var userid = userData?.id
 
                 if (switchType=="switchToVideo"){
+                    if (isAudioCallGoing){
                     switchCallID = newCallId
 
-                    AlertDialog.Builder(this)
+                    switchDialog?.dismiss()
+
+                    switchDialog = AlertDialog.Builder(this)
                         .setTitle("Switch to Video Call ?")
                         .setMessage("$receiverName requested for video call")
                         .setPositiveButton("Confirm") { _, _ ->
@@ -1067,14 +1072,21 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                             FcmUtils.clearCallSwitch()
 
                         }
+                        .setOnDismissListener { switchDialog = null }
                         .show()
 
-                }
+                }}
 
                 if (switchType=="switchToAudio"){
+
+                    if (isAudioCallGoing==false){
+
                     switchCallID = newCallId
 
-                    AlertDialog.Builder(this)
+
+                    switchDialog?.dismiss()
+
+                    switchDialog = AlertDialog.Builder(this)
                         .setTitle("Switch to audio Call ?")
                         .setMessage("$receiverName requested for audio call")
                         .setPositiveButton("Confirm") { _, _ ->
@@ -1098,6 +1110,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                             FcmUtils.clearCallSwitch()
 
                         }
+                        .setOnDismissListener { switchDialog = null }
                         .show()
 
                 }
@@ -1106,7 +1119,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                 FcmUtils.clearCallSwitch()
 
 
-            }
+            }}
         })
     }
 

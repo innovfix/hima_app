@@ -166,7 +166,7 @@ public class BillingManager {
                     try {
                         WalletViewModel walletViewModel = new ViewModelProvider((ViewModelStoreOwner) activity).get(WalletViewModel.class);
                         Log.e("Billing", "Calling addCoins with userId=" + user_id + ", coinId=" + coin_id);
-                        walletViewModel.addCoins(user_id, coin_id, 1, "Failed to consume purchase: " + billingResult.getResponseCode());
+                        walletViewModel.addCoins(user_id, coin_id, 2, "Failed to consume purchase: " + billingResult.getResponseCode());
 
 //                        activity.runOnUiThread(() ->
 //                                        Toast.makeText(activity, "Coins purchased successfully", Toast.LENGTH_SHORT).show()

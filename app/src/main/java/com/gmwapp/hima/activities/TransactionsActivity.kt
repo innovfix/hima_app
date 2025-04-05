@@ -6,13 +6,9 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Bundle
 import android.view.View
-import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.TransactionAdapter
@@ -23,8 +19,13 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class TransactionsActivity : BaseActivity() {
-    lateinit var binding: ActivityTransactionsBinding
+    private lateinit var binding: ActivityTransactionsBinding
     private val transactionsViewModel: TransactionsViewModel by viewModels()
+    private lateinit var transactionAdapter: TransactionAdapter
+
+    private var isLoading = false
+    private var offset = 0
+    private val limit = 10
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,66 +35,61 @@ class TransactionsActivity : BaseActivity() {
     }
 
     private fun initUI() {
-        binding.ivBack.setOnSingleClickListener {
-            finish()
+        binding.ivBack.setOnSingleClickListener { finish() }
+
+        binding.btnAddCoins.setOnSingleClickListener {
+            startActivity(Intent(this, WalletActivity::class.java))
         }
 
-        binding.btnAddCoins.setOnSingleClickListener({
-            val intent = Intent(this, WalletActivity::class.java)
-            startActivity(intent)
-        })
-        BaseApplication.getInstance()?.getPrefs()?.getUserData()
-            ?.let {
+        // Initialize RecyclerView and Adapter
+        transactionAdapter = TransactionAdapter(this, mutableListOf())
+        binding.rvTransactions.layoutManager = LinearLayoutManager(this)
+        binding.rvTransactions.adapter = transactionAdapter
 
-                if (this.let { it1 -> isInternetAvailable(it1) } == true) {
-                    transactionsViewModel.getTransactions(it.id)
-                } else {
+        // Load Initial Transactions
+        if (isInternetAvailable(this)) {
+            loadTransactions()
+        } else {
+            binding.tvNointernet.visibility = View.VISIBLE
+        }
 
-                    binding.tvNointernet.visibility = View.VISIBLE
-
+        // Scroll Listener for Pagination
+        binding.rvTransactions.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                val layoutManager = recyclerView.layoutManager as LinearLayoutManager
+                if (!isLoading && layoutManager.findLastCompletelyVisibleItemPosition() == transactionAdapter.itemCount - 1) {
+                    isLoading = true
+                    offset += limit // Load next batch
+                    loadTransactions()
                 }
-
-            }
-        transactionsViewModel.transactionsResponseLiveData.observe(this, Observer {
-
-            if (it.success) {
-                // Toast or other success logic can be added here
-            } else {
-             //   Toast.makeText(this, it.message, Toast.LENGTH_SHORT).show()
-            }
-
-            if (it.data != null && it.data.isNotEmpty()) {
-                // Hide "No Record Found" message
-                binding.tvNoRecordFound.visibility = View.GONE
-
-                // Populate RecyclerView
-                binding.rvTransactions.layoutManager = LinearLayoutManager(
-                    this,
-                    LinearLayoutManager.VERTICAL,
-                    false
-                )
-                val transactionAdapter = TransactionAdapter(this, it.data)
-                binding.rvTransactions.adapter = transactionAdapter
-            } else {
-                // Show "No Record Found" message
-                binding.tvNoRecordFound.visibility = View.VISIBLE
-
-                // Optionally clear the RecyclerView
-                binding.rvTransactions.adapter = null
             }
         })
 
-
+        // Observe Transactions Data
+        transactionsViewModel.transactionsResponseLiveData.observe(this) { response ->
+            isLoading = false
+            if (response != null && response.success && response.data != null && response.data.isNotEmpty()) {
+                transactionAdapter.addTransactions(response.data)
+                binding.tvNoRecordFound.visibility = View.GONE
+            } else if (transactionAdapter.itemCount == 0) {
+                binding.tvNoRecordFound.visibility = View.VISIBLE
+            }
+        }
     }
 
-
-
-        // Check for Internet Connection
-        fun isInternetAvailable(context: Context): Boolean {
-            val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val network = connectivityManager.activeNetwork ?: return false
-            val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
-            return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
-                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
+    private fun loadTransactions() {
+        BaseApplication.getInstance()?.getPrefs()?.getUserData()?.let {
+            transactionsViewModel.getTransactions(it.id, offset, limit)
         }
+    }
+
+    private fun isInternetAvailable(context: Context): Boolean {
+        val connectivityManager =
+            context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
+    }
 }

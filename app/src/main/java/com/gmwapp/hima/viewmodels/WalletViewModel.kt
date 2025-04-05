@@ -130,7 +130,7 @@ class WalletViewModel @Inject constructor(private val walletRepositories: Wallet
                             if (it.success) {
                                 Log.d("addCoins", "Coins added successfully! Fetching updated balance...")
 
-                                _navigateToMain.postValue(true) // ✅ Notify Activity to navigate
+                               // _navigateToMain.postValue(true) // ✅ Notify Activity to navigate
 
                                 // ✅ Save new coin balance to SharedPreferences
                                 DPreferences(appContext).setAfterAddCoins(it.data.coins)

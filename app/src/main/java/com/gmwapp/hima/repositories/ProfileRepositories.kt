@@ -20,8 +20,8 @@ class ProfileRepositories @Inject constructor(private val apiManager: ApiManager
         apiManager.getAvatarsList(gender, callback)
     }
 
-    fun getCallsList(userId: Int, gender: String, callback: NetworkCallback<CallsListResponse>) {
-        apiManager.getCallsList(userId, gender, callback)
+    fun getCallsList(userId: Int, gender: String,limit: Int, currentOffset: Int, callback: NetworkCallback<CallsListResponse>) {
+        apiManager.getCallsList(userId, gender,limit,currentOffset, callback)
     }
 
     fun register(

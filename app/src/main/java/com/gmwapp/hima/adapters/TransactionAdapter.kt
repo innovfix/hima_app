@@ -14,7 +14,7 @@ import com.gmwapp.hima.retrofit.responses.TransactionsResponseData
 
 class TransactionAdapter(
     val activity: Activity,
-    private val transactions: List<TransactionsResponseData>,
+    private val transactions: MutableList<TransactionsResponseData>,
 ) :
     RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
@@ -55,6 +55,15 @@ class TransactionAdapter(
         holder.binding.tvTransactionHint.text = activity.getString(R.string.session_id)+transaction.id
 
     }
+
+
+    fun addTransactions(newTransactions: List<TransactionsResponseData>) {
+        val startPos = transactions.size
+        transactions.addAll(newTransactions)
+        notifyItemRangeInserted(startPos, newTransactions.size)
+    }
+
+
 
      override fun getItemCount(): Int {
         return transactions.size

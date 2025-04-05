@@ -63,7 +63,7 @@ class LoginViewModel @Inject constructor(private val loginRepositories: LoginRep
                     response: Response<AppUpdateResponse>
                 ) {
                     appUpdateResponseLiveData.postValue(response.body());
-                    Log.d("VerifyOTP", "appUpdate: ${response.body()}")
+                    Log.d("appUpdateCheck", "appUpdate: ${response.body()}")
 
                 }
                 override fun onFailure(call: Call<AppUpdateResponse>, t: Throwable) {

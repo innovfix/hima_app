@@ -96,6 +96,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     var switchCallID = 0
     var receiverName = ""
 
+    private var switchDialog: AlertDialog? = null  // Track current dialog
+
     private var isSwitchingToAudio = false // ✅ Prevent multiple calls
     private var isSwitchingToVideo = false // ✅ Prevent multiple calls
 
@@ -1045,8 +1047,10 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 var userid = userData?.id
 
                 if (switchType == "switchToVideo") {
+                    if (isAudioCallGoing){
                     switchCallID = newCallId
-                    AlertDialog.Builder(this)
+                    switchDialog?.dismiss()
+                    switchDialog = AlertDialog.Builder(this)
                         .setTitle("Switch to Video Call ?")
                         .setMessage("$receiverName requested for video call")
                         .setPositiveButton("Confirm") { _, _ ->
@@ -1102,14 +1106,19 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                             FcmUtils.clearCallSwitch()
 
                         }
+                        .setOnDismissListener { switchDialog = null }  // Reset when dismissed
+
                         .show()
 
-                }
+                }}
 
                 if (switchType=="switchToAudio"){
+                    if (isAudioCallGoing==false){
                     switchCallID = newCallId
 
-                    AlertDialog.Builder(this)
+                    switchDialog?.dismiss()
+
+                    switchDialog = AlertDialog.Builder(this)
                         .setTitle("Switch to audio Call ?")
                         .setMessage("$receiverName requested for audio call")
                         .setPositiveButton("Confirm") { _, _ ->
@@ -1133,9 +1142,11 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                             FcmUtils.clearCallSwitch()
 
                         }
+                        .setOnDismissListener { switchDialog = null }  // Reset when dismissed
+
                         .show()
 
-                }
+                }}
 
 
                 FcmUtils.clearCallSwitch()

@@ -56,7 +56,7 @@ class SplashScreenActivity : BaseActivity() {
                 Log.e("Update", "Update flow failed! Result code: ${result.resultCode}")
             }
         }
-       // checkForInAppUpdate()
+
         initUI()
     }
 
@@ -154,11 +154,12 @@ class SplashScreenActivity : BaseActivity() {
             if (it != null && it.success) {
 
                 val latestVersion = it.data[0].app_version.toString()
+                val minimum_required_version = it.data[0].minimum_required_version.toString()
 
                 val link = it.data[0].link
                 val description = it.data[0].description
 
-                GotoActivity(userData, latestVersion, link, description)
+                GotoActivity(userData, latestVersion,minimum_required_version, link, description)
             }
         })
 
@@ -168,13 +169,14 @@ class SplashScreenActivity : BaseActivity() {
     fun GotoActivity(
         userData: UserData?,
         latestVersion: String,
+        minimum_required_version: String,
         link: String,
         description: String
     ) {
 
 
 
-        if (currentVersion.toInt() >= latestVersion.toInt()) {
+        if (currentVersion.toInt() >= minimum_required_version.toInt()) {
 //            Toast.makeText(this, "1", Toast.LENGTH_SHORT).show()
             if (userData == null) {
 //                Toast.makeText(this, "2", Toast.LENGTH_SHORT).show()
@@ -231,11 +233,10 @@ class SplashScreenActivity : BaseActivity() {
         val dialogMessage = view.findViewById<TextView>(R.id.dialog_message)
         dialogMessage.text = description
         btnUpdate.setOnClickListener(View.OnClickListener {
-//            val url = link;
-//            val i = Intent(Intent.ACTION_VIEW)
-//            i.data = Uri.parse(url)
-//            startActivity(i)
-            checkForInAppUpdate()
+            val url = link;
+            val i = Intent(Intent.ACTION_VIEW)
+            i.data = Uri.parse(url)
+            startActivity(i)
         })
 
 
@@ -251,47 +252,7 @@ class SplashScreenActivity : BaseActivity() {
     }
 
 
-    private fun checkForInAppUpdate(){
-        val appUpdateManager = AppUpdateManagerFactory.create(applicationContext)
 
-      // Returns an intent object that you use to check for an update.
-        val appUpdateInfoTask = appUpdateManager.appUpdateInfo
-
-       // Checks that the platform will allow the specified type of update.
-        appUpdateInfoTask.addOnSuccessListener { appUpdateInfo ->
-            if (appUpdateInfo.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE
-                // This example applies an immediate update. To apply a flexible update
-                // instead, pass in AppUpdateType.FLEXIBLE
-                && appUpdateInfo.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE)) {
-                // Request the update.
-
-                appUpdateManager.startUpdateFlowForResult(
-                    // Pass the intent that is returned by 'getAppUpdateInfo()'.
-                    appUpdateInfo,
-                    // an activity result launcher registered via registerForActivityResult
-                    activityResultLauncher,
-                    // Or pass 'AppUpdateType.FLEXIBLE' to newBuilder() for
-                    // flexible updates.
-                    AppUpdateOptions.newBuilder(AppUpdateType.IMMEDIATE).build()
-
-                )
-
-            }
-
-
-        }
-//
-//        activityResultLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result: ActivityResult ->
-//            // handle callback
-//            if (result.resultCode != RESULT_OK) {
-//               // log("Update flow failed! Result code: " + result.resultCode);
-//                // If the update is canceled or fails,
-//                // you can request to start the update again.
-//            }
-//        }
-
-
-    }
 
 
 

@@ -105,10 +105,10 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     }
 
     fun getCallsList(
-        userId: Int, gender: String, callback: NetworkCallback<CallsListResponse>
+        userId: Int, gender: String,limit: Int, currentOffset: Int, callback: NetworkCallback<CallsListResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<CallsListResponse> = getApiInterface().getCallsList(userId, gender)
+            val apiCall: Call<CallsListResponse> = getApiInterface().getCallsList(userId, gender,currentOffset,limit)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -170,10 +170,10 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     }
 
     fun getTransactions(
-        userId: Int, callback: NetworkCallback<TransactionsResponse>
+        userId: Int, offset: Int,limit: Int, callback: NetworkCallback<TransactionsResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<TransactionsResponse> = getApiInterface().getTransactions(userId)
+            val apiCall: Call<TransactionsResponse> = getApiInterface().getTransactions(userId,offset,limit)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -638,7 +638,12 @@ interface ApiInterface {
 
     @FormUrlEncoded
     @POST("calls_list")
-    fun getCallsList(@Field("user_id") userId: Int,@Field("gender") gender: String): Call<CallsListResponse>
+    fun getCallsList(
+        @Field("user_id") userId: Int,
+        @Field("gender") gender: String,
+        @Field("offset") offset: Int,
+        @Field("limit") limit: Int,
+    ): Call<CallsListResponse>
 
     @FormUrlEncoded
     @POST("register")
@@ -676,7 +681,15 @@ interface ApiInterface {
 
     @FormUrlEncoded
     @POST("transaction_list")
-    fun getTransactions(@Field("user_id") userId: Int): Call<TransactionsResponse>
+    fun getTransactions(
+
+        @Field("user_id") userId: Int,
+        @Field("offset") offset: Int,
+        @Field("limit") limit: Int,
+
+
+
+    ): Call<TransactionsResponse>
 
     @FormUrlEncoded
     @POST("female_users_list")

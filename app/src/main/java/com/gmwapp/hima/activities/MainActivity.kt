@@ -36,6 +36,7 @@ import com.gmwapp.hima.retrofit.responses.RazorPayApiResponse
 import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.FcmTokenViewModel
+import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.viewmodels.OfferViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.viewmodels.UpiPaymentViewModel
@@ -66,7 +67,9 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     var isBackPressedAlready = false
     var userName: String? = null
     var userID: String? = null
+    var currentVersion = ""
 
+    val appUpdateViewModel: LoginViewModel by viewModels()
     val offerViewModel: OfferViewModel by viewModels()
     private val profileViewModel: ProfileViewModel by viewModels()
     private val accountViewModel: AccountViewModel by viewModels()
@@ -118,6 +121,13 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             }
         }
 
+        try {
+            val pInfo = packageManager.getPackageInfo(packageName, 0)
+            currentVersion = pInfo.versionCode.toString()
+        } catch (e: PackageManager.NameNotFoundException) {
+            e.printStackTrace()
+        }
+
         appUpdateManager = AppUpdateManagerFactory.create(applicationContext)
 
         activityResultLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
@@ -125,7 +135,18 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 Log.e("Update", "Update flow failed! Result code: ${result.resultCode}")
             }
         }
-        checkForInAppUpdate()
+        appUpdateViewModel.appUpdate()
+
+
+        appUpdateViewModel.appUpdateResponseLiveData.observe(this, Observer {
+            if (it != null && it.success) {
+
+                val latestVersion = it.data[0].app_version.toString()
+                checkForInAppUpdate(latestVersion)
+
+            }
+        })
+
 
 
 
@@ -351,12 +372,14 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                             WalletViewModel.navigateToMain.observe(
                                 this,
                                 Observer { shouldNavigate ->
+                                    Log.d("shouldNaviage","$shouldNavigate")
+                                    if (shouldNavigate){
                                     val intent = Intent(this, MainActivity::class.java)
                                     intent.flags =
                                         Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                                     startActivity(intent)
                                     finish() // ✅ Now this works because we are in an Activity
-                                })
+                                }})
 
                         }
 
@@ -506,43 +529,47 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     }
 
 
-    private fun checkForInAppUpdate(){
-        appUpdateManager = AppUpdateManagerFactory.create(applicationContext)
-        // Before starting an update, register a listener for updates.
-        appUpdateManager.registerListener(listener)
+    private fun checkForInAppUpdate(latestVersion:String){
 
-        // Returns an intent object that you use to check for an update.
-        val appUpdateInfoTask = appUpdateManager.appUpdateInfo
+        if (latestVersion>currentVersion) {
 
-        // Checks that the platform will allow the specified type of update.
-        appUpdateInfoTask.addOnSuccessListener { appUpdateInfo ->
-            if (appUpdateInfo.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE
-                // This example applies an immediate update. To apply a flexible update
-                // instead, pass in AppUpdateType.FLEXIBLE
-                && appUpdateInfo.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE)) {
-                // Request the update.
+            appUpdateManager = AppUpdateManagerFactory.create(applicationContext)
+            // Before starting an update, register a listener for updates.
+            appUpdateManager.registerListener(listener)
 
-                appUpdateManager.startUpdateFlowForResult(
-                    // Pass the intent that is returned by 'getAppUpdateInfo()'.
-                    appUpdateInfo,
-                    // an activity result launcher registered via registerForActivityResult
-                    activityResultLauncher,
-                    // Or pass 'AppUpdateType.FLEXIBLE' to newBuilder() for
-                    // flexible updates.
-                    AppUpdateOptions.newBuilder(AppUpdateType.FLEXIBLE).build()
+            // Returns an intent object that you use to check for an update.
+            val appUpdateInfoTask = appUpdateManager.appUpdateInfo
 
-                )
+            // Checks that the platform will allow the specified type of update.
+            appUpdateInfoTask.addOnSuccessListener { appUpdateInfo ->
+                if (appUpdateInfo.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE
+                    // This example applies an immediate update. To apply a flexible update
+                    // instead, pass in AppUpdateType.FLEXIBLE
+                    && appUpdateInfo.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE)
+                ) {
+                    // Request the update.
 
-            }else {
-                Log.d("UpdateCheck", "No update available.")
+                    appUpdateManager.startUpdateFlowForResult(
+                        // Pass the intent that is returned by 'getAppUpdateInfo()'.
+                        appUpdateInfo,
+                        // an activity result launcher registered via registerForActivityResult
+                        activityResultLauncher,
+                        // Or pass 'AppUpdateType.FLEXIBLE' to newBuilder() for
+                        // flexible updates.
+                        AppUpdateOptions.newBuilder(AppUpdateType.FLEXIBLE).build()
+
+                    )
+
+                } else {
+                    Log.d("UpdateCheck", "No update available.")
+                }
+
+
+            }.addOnFailureListener { exception ->
+                Log.e("UpdateCheck", "Failed to check for update: ${exception.message}")
             }
 
-
-        }.addOnFailureListener { exception ->
-            Log.e("UpdateCheck", "Failed to check for update: ${exception.message}")
         }
-
-
 
     }
 

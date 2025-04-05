@@ -100,6 +100,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     var switchCallID = 0
     private var isVideoCallGoing: Boolean = false
 
+    private var switchDialog: AlertDialog? = null  // Track current dialog
+
 
     private val appId = "a41e9245489d44a2ac9af9525f1b508c"
     private val appCertificate = "9565a122acba4144926a12214064fd57"
@@ -992,8 +994,11 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 var userid = userData?.id
 
                 if (switchType == "switchToVideo") {
+                    if (isVideoCallGoing==false){
                     switchCallID = newCallId
-                    AlertDialog.Builder(this)
+                    switchDialog?.dismiss()
+
+                    switchDialog = AlertDialog.Builder(this)
                         .setTitle("Switch to Video Call ?")
                         .setMessage("$receiverName requested for video call")
                         .setPositiveButton("Confirm") { _, _ ->
@@ -1049,14 +1054,19 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                             FcmUtils.clearCallSwitch()
 
                         }
+                        .setOnDismissListener { switchDialog = null }  // Reset when dismissed
+
                         .show()
 
-                }
+                }}
 
                 if (switchType=="switchToAudio"){
+                    if (isVideoCallGoing){
                     switchCallID = newCallId
 
-                    AlertDialog.Builder(this)
+                    switchDialog?.dismiss()
+
+                    switchDialog = AlertDialog.Builder(this)
                         .setTitle("Switch to audio Call ?")
                         .setMessage("$receiverName requested for audio call")
                         .setPositiveButton("Confirm") { _, _ ->
@@ -1080,6 +1090,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                             FcmUtils.clearCallSwitch()
 
                         }
+                        .setOnDismissListener { switchDialog = null }  // Reset when dismissed
+
                         .show()
 
                 }
@@ -1088,7 +1100,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 FcmUtils.clearCallSwitch()
 
 
-            }
+            }}
         })
     }
 

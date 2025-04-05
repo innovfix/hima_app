@@ -51,6 +51,25 @@ class RecentCallsAdapter(
         Glide.with(activity).load(call.image).apply(
             RequestOptions().circleCrop()
         ).into(holder.binding.ivImage)
+
+        // Reset Views before applying new data
+        holder.binding.ivAudioCircle.visibility = View.GONE
+        holder.binding.ivVideoCircle.visibility = View.GONE
+        holder.binding.ivAudio.visibility = View.GONE
+        holder.binding.ivVideo.visibility = View.GONE
+        holder.binding.tvAmount.visibility = View.GONE
+
+        holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.white))
+        holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.white))
+
+        holder.binding.ivAudioCircle.clearColorFilter()
+        holder.binding.ivVideoCircle.clearColorFilter()
+
+        holder.binding.ivAudio.isEnabled = true
+        holder.binding.ivVideo.isEnabled = true
+
+
+
         holder.binding.tvName.text = call.name
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         if (userData?.gender == DConstants.MALE) {
@@ -97,10 +116,26 @@ class RecentCallsAdapter(
 
     }
 
+    fun clearData() {
+        //callList.clear()
+        notifyDataSetChanged()
+    }
+    fun addData(newCalls: List<CallsListResponseData>) {
+        val startPosition = callList.size
+        callList.addAll(newCalls)
+        notifyItemRangeInserted(startPosition, newCalls.size)
+        notifyDataSetChanged()
+    }
+
     override fun getItemCount(): Int {
         return callList.size
     }
 
+
+
+
     internal class ItemHolder(val binding: AdapterRecentCallsBinding) :
         RecyclerView.ViewHolder(binding.root)
+
+
 }
