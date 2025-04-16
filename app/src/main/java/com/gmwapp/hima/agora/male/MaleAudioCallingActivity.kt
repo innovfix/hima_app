@@ -81,6 +81,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     private var femaleUserId: String? = null
 
+    private var isSwitchRequestPending = false
+
 
     var isClicked: Boolean = false
     var isAudioCallIdReceived: Boolean = false
@@ -733,17 +735,20 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             val audioDrawable = ContextCompat.getDrawable(this, R.drawable.audiocall_img)
             val videoDrawable = ContextCompat.getDrawable(this, R.drawable.videocall_img)
 
-            if (currentDrawable != null && audioDrawable != null && currentDrawable.constantState == audioDrawable.constantState) {
-                // If button image is AUDIO, switch to VIDEO
-                switchToAudio()
-            } else if (currentDrawable != null && videoDrawable != null && currentDrawable.constantState == videoDrawable.constantState) {
-                // If button image is VIDEO, switch to AUDIO
-                switchToVideo()
-            } else {
-                Toast.makeText(this, "Error: Unknown state", Toast.LENGTH_SHORT).show()
+            if (isSwitchRequestPending == false) {
+                if (currentDrawable != null && audioDrawable != null && currentDrawable.constantState == audioDrawable.constantState) {
+                    // If button image is AUDIO, switch to VIDEO
+                    switchToAudio()
+                } else if (currentDrawable != null && videoDrawable != null && currentDrawable.constantState == videoDrawable.constantState) {
+                    // If button image is VIDEO, switch to AUDIO
+                    switchToVideo()
+                } else {
+                    Toast.makeText(this, "Error: Unknown state", Toast.LENGTH_SHORT).show()
+                }
+            }else{
+                Toast.makeText(this,"Already Request Sent", Toast.LENGTH_SHORT).show()
             }
         }
-
 
     }
 
@@ -826,12 +831,32 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             channelName = channelName,
             message = message
         )
-        observeCallSwitchAcceptance()
-
+        observeSwitchCallNotificationSent()
         isSwitchingToAudio = false
         isSwitchingToVideo = false
 
     }
+
+    fun observeSwitchCallNotificationSent(){
+        fcmNotificationViewModel.notificationResponseLiveData.observe(this) { response ->
+            response?.let {
+                if (it.success) {
+                    Log.d("FCMNotification", "Notification sent successfully!")
+                    var message = it.data_sent?.message?: ""
+                    if (message.startsWith("switchToVideo") || message.startsWith("switchToAudio")) {
+
+                        isSwitchRequestPending= true
+                        observeCallSwitchAcceptance()
+
+                    }
+
+                } else {
+                    Log.e("FCMNotification", "Failed to send notification")
+                }
+            }
+        }
+    }
+
 
     fun observeCallSwitchAcceptance() {
         FcmUtils.updatedCallSwitch.observe(this, androidx.lifecycle.Observer { updatedCallSwitch ->
@@ -841,6 +866,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 Log.d("CallswitchID", "$switchCallID")
 
                 if (switchType == "VideoAccepted" && receiverId == this.receiverId) {
+                    isSwitchRequestPending=false
 
                     val remainingTime =
                         binding.tvRemainingTime?.text.toString() // Get the current countdown time
@@ -876,12 +902,25 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
                 if (switchType == "AudioAccepted" && receiverId == this.receiverId) {
 
+                    isSwitchRequestPending=false
+
                     Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
                             stopCountdown()
                             FcmUtils.clearCallSwitch()
                             enableAudioCall()
                         }
-                    }
+
+
+                if (switchType == "SwitchDeclined" && receiverId == this.receiverId) {
+
+                    isSwitchRequestPending=false
+                    FcmUtils.clearCallSwitch()
+                    Toast.makeText(this, "Request is rejected", Toast.LENGTH_SHORT).show()
+                }
+
+
+            }
+
 
 
         })
@@ -952,6 +991,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 dateFormat.format(Date()) // Set call end time only if startTime is not empty
 
             binding.btnVideoCall.setImageResource(R.drawable.audiocall_img)
+            binding.btnVideoCall.visibility= View.GONE
+
 
 
         }
@@ -1050,8 +1091,18 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                         }
                         .setNegativeButton("Decline") { dialog, _ ->
                             // Dismiss dialog if No is clicked
+
+                            userid?.let {
+                                sendCallAcceptNotification(
+                                    it,
+                                    receiverId,
+                                    "video",
+                                    "SwitchDeclined"
+                                )
+                            }
                             dialog.dismiss()
                             FcmUtils.clearCallSwitch()
+
 
                         }
                         .setOnDismissListener { switchDialog = null }  // Reset when dismissed
@@ -1086,6 +1137,14 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                         }
                         .setNegativeButton("Decline") { dialog, _ ->
                             // Dismiss dialog if No is clicked
+                            userid?.let {
+                                sendCallAcceptNotification(
+                                    it,
+                                    receiverId,
+                                    "audio",
+                                    "SwitchDeclined"
+                                )
+                            }
                             dialog.dismiss()
                             FcmUtils.clearCallSwitch()
 
@@ -1100,7 +1159,17 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 FcmUtils.clearCallSwitch()
 
 
-            }}
+            }
+
+
+
+            }
+
+
+
+
+
+
         })
     }
 

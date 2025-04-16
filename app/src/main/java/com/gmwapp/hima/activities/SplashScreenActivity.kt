@@ -43,7 +43,6 @@ class SplashScreenActivity : BaseActivity() {
     val profileViewModel: ProfileViewModel by viewModels()
     val viewModel: LoginViewModel by viewModels()
     var currentVersion = ""
-    private lateinit var activityResultLauncher: ActivityResultLauncher<IntentSenderRequest>
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -51,11 +50,6 @@ class SplashScreenActivity : BaseActivity() {
         binding = ActivitySplashScreenBinding.inflate(layoutInflater)
         setContentView(binding.root)
         enableEdgeToEdge()
-        activityResultLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-            if (result.resultCode != RESULT_OK) {
-                Log.e("Update", "Update flow failed! Result code: ${result.resultCode}")
-            }
-        }
 
         initUI()
     }

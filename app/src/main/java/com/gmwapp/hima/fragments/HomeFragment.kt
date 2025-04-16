@@ -20,6 +20,7 @@ import com.gmwapp.hima.activities.RandomUserActivity
 import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.adapters.FemaleUserAdapter
 import com.gmwapp.hima.agora.AgoraRandomCallActivity
+import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentHomeBinding
@@ -183,6 +184,7 @@ class HomeFragment : BaseFragment() {
                                     DConstants.TEXT,
                                     getString(R.string.wait_user_hint, data.name)
                                 )
+                                FcmUtils.isUserAvailable=1
                                 startActivity(intent)
                             }
                         },
@@ -199,6 +201,7 @@ class HomeFragment : BaseFragment() {
                                     DConstants.TEXT,
                                     getString(R.string.wait_user_hint, data.name)
                                 )
+                                FcmUtils.isUserAvailable=1
                                 startActivity(intent)
                             }
                         })
@@ -342,6 +345,11 @@ class HomeFragment : BaseFragment() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         userData?.id?.let { profileViewModel.getUsers(it) }
         observeCoins()
+
+        if (FcmUtils.isUserAvailable==0){
+            userData?.let { loadFemaleUsers(it.id) }
+        }
+
     }
 
     fun observeCoins() {

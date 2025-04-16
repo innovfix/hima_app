@@ -107,12 +107,11 @@
 
 
     <ImageView
-        android:visibility="visible"
+        android:visibility="gone"
         android:id="@+id/iv_bonus"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginTop="@dimen/_6sdp"
-        android:src="@drawable/offer_banner"
         app:layout_constraintHeight_default="percent"
         app:layout_constraintHeight_percent="0.1"
         app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
@@ -134,7 +133,7 @@
         app:layout_constraintEnd_toEndOf="parent" />
 
     <androidx.recyclerview.widget.RecyclerView
-        android:layout_marginTop="@dimen/_5sdp"
+        android:layout_marginTop="@dimen/_20sdp"
         android:id="@+id/rv_plans"
         android:layout_width="0dp"
         android:layout_height="0dp"

@@ -175,7 +175,7 @@
             android:textSize="11dp"
             android:textColor="@color/black"
             android:fontFamily="@font/poppins_medium"
-            android:text="Minimum withdrawal : Rs 50"/>
+            android:text=""/>
 
         <TextView
             android:visibility="invisible"

@@ -21,6 +21,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Observer
+import com.bumptech.glide.Glide
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.BillingManager.BillingManager
 import com.gmwapp.hima.R
@@ -77,6 +78,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     private val upiPaymentViewModel: UpiPaymentViewModel by viewModels()
     private var billingManager: BillingManager? = null
     private val WalletViewModel: WalletViewModel by viewModels()
+    private val fetchedSkuList: MutableList<String> = mutableListOf()
+
 
     private lateinit var call: Call<ApiResponse>
     private lateinit var callRazor: Call<RazorPayApiResponse>
@@ -159,6 +162,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         accountViewModel.getSettings()
 
         initUI()
+        getSkuListID()
         addObservers()
 
         updateFcmToken(userData?.id)
@@ -358,21 +362,23 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                     when (paymentGateway) {
                         "gpay" -> {
 
+                            val random4Digit = (1000..9999).random()
+
                             // ✅ Save userId and pointsIdInt BEFORE launching billing
                             val preferences = DPreferences(this)
+                            preferences.clearSelectedOrderId()
                             preferences.setSelectedUserId(userId.toString())
                             preferences.setSelectedPlanId(java.lang.String.valueOf(pointsIdInt))
-                            WalletViewModel.tryCoins(userId, pointsIdInt)
+                            preferences.setSelectedOrderId(java.lang.String.valueOf(random4Digit))
+                            WalletViewModel.tryCoins(userId, pointsIdInt, 0, random4Digit, "try")
                             billingManager!!.purchaseProduct(
                               //  "coin_14",
                                pointsId,
-                                userId,
-                                pointsIdInt
                             )
                             WalletViewModel.navigateToMain.observe(
                                 this,
                                 Observer { shouldNavigate ->
-                                    Log.d("shouldNaviage","$shouldNavigate")
+                                    Log.d("shouldNavigateFromMain","$shouldNavigate")
                                     if (shouldNavigate){
                                     val intent = Intent(this, MainActivity::class.java)
                                     intent.flags =
@@ -586,7 +592,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             Snackbar.LENGTH_INDEFINITE
         ).apply {
             setAction("RESTART") { appUpdateManager.completeUpdate() }
-            setActionTextColor(getColor(R.color.pink))
+            setActionTextColor(getColor(R.color.white))
             show()
         }
     }
@@ -619,7 +625,28 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             }
     }
 
+    fun getSkuListID() {
+        BaseApplication.getInstance()?.getPrefs()?.getUserData()
+            ?.let { WalletViewModel.getCoins(it.id) }
 
+        WalletViewModel.coinsLiveData.observe(this, Observer {
+
+
+            if (it != null && it.success && it.data != null) {
+
+                fetchedSkuList.clear() // Clear old SKUs to avoid duplicates
+                it.data.forEach { coinItem ->
+                    val sku = "${coinItem.id}"
+                    fetchedSkuList.add(sku)
+
+                    val preferences = DPreferences(this)
+                    preferences.setSkuList(fetchedSkuList)
+                }
+
+            }
+
+        })
+    }
 
 }
 

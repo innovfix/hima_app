@@ -6,6 +6,7 @@ import android.util.Log
 import com.gmwapp.hima.retrofit.responses.SettingsResponseData
 import com.gmwapp.hima.retrofit.responses.UserData
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 
 
 class DPreferences(context: Context) {
@@ -73,6 +74,30 @@ class DPreferences(context: Context) {
         return mPrefsRead.getString("after_add_coins", "0") ?: "0"
     }
 
+    fun getSelectedOrderId(): String {
+        return mPrefsRead.getString("selected_order_id", "0") ?: "0"
+    }
+
+    fun clearSelectedOrderId() {
+        try {
+            mPrefsWrite.remove("selected_user_id")
+            mPrefsWrite.remove("selected_plan_id")
+            mPrefsWrite.remove("selected_order_id")
+            mPrefsWrite.apply()
+        } catch (e: Exception) {
+            e.message?.let { Log.e("DPreferences", it) }
+        }
+    }
+
+    fun setSelectedOrderId(orderId: String) {
+        try {
+            mPrefsWrite.putString("selected_order_id", orderId)
+            mPrefsWrite.apply()
+        } catch (e: Exception) {
+            e.message?.let { Log.e("DPreferences", it) }
+        }
+    }
+
     fun setSelectedUserId(userId: String) {
         try {
             mPrefsWrite.putString("selected_user_id", userId)
@@ -99,6 +124,33 @@ class DPreferences(context: Context) {
         return mPrefsRead.getString("selected_plan_id", "0") ?: "0"
     }
 
+
+    fun setSkuList(skuList: List<String>) {
+        try {
+            mPrefsWrite.putString("sku_list", Gson().toJson(skuList))
+            mPrefsWrite.apply()
+        } catch (e: Exception) {
+            e.message?.let { Log.e("DPreferences", it) }
+        }
+    }
+
+    fun getSkuList(): List<String> {
+        return try {
+            val json = mPrefsRead.getString("sku_list", null)
+            if (!json.isNullOrEmpty()) {
+                val type = object : TypeToken<List<String>>() {}.type
+                Gson().fromJson(json, type)
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            Log.e("DPreferences", "Error reading sku list: ${e.message}")
+            emptyList()
+        }
+    }
+
+
+
     fun setAuthenticationToken(authenticationToken: String?) {
         try {
             mPrefsWrite.putString(
@@ -117,6 +169,45 @@ class DPreferences(context: Context) {
             return null
         }
     }
+
+
+    // Save a processed order ID to the list
+    fun markOrderAsProcessed(orderId: String) {
+        try {
+            val usedOrders = mPrefsRead.getStringSet("used_order_ids", mutableSetOf())?.toMutableSet()
+                ?: mutableSetOf()
+            usedOrders.add(orderId)
+            mPrefsWrite.putStringSet("used_order_ids", usedOrders)
+            mPrefsWrite.apply()
+        } catch (e: Exception) {
+            e.message?.let { Log.e("DPreferences", it) }
+        }
+    }
+
+    // Check if an order ID is already processed
+    fun isOrderAlreadyProcessed(orderId: String): Boolean {
+        return try {
+            val usedOrders = mPrefsRead.getStringSet("used_order_ids", mutableSetOf())
+            usedOrders?.contains(orderId) ?: false
+        } catch (e: Exception) {
+            Log.e("DPreferences", "Error checking order ID: ${e.message}")
+            false
+        }
+    }
+
+    // Function to get all processed order IDs
+    fun getAllProcessedOrderIds(): Set<String> {
+        return try {
+            // Retrieve the set of processed order IDs
+            mPrefsRead.getStringSet("used_order_ids", mutableSetOf()) ?: mutableSetOf()
+        } catch (e: Exception) {
+            Log.e("DPreferences", "Error retrieving processed order IDs: ${e.message}")
+            mutableSetOf()
+        }
+    }
+
+
+
 
     companion object {
         private const val AUTHENTICATION_TOKEN: String = "authentication_token"

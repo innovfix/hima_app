@@ -23,6 +23,7 @@ class FcmNotificationViewModel @Inject constructor(
     val notificationResponseLiveData = MutableLiveData<FcmNotificationResponse>()
     val notificationErrorLiveData = MutableLiveData<String>()
 
+
     fun sendNotification(
         senderId: Int,
         receiverId: Int,

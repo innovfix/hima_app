@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
@@ -20,6 +21,7 @@ import androidx.core.animation.addListener
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -28,6 +30,7 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.UpiListAdapter
 import com.gmwapp.hima.databinding.ActivityWithdrawBinding
 import com.gmwapp.hima.utils.setOnSingleClickListener
+import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.viewmodels.UpiViewModel
 import com.gmwapp.hima.viewmodels.WithdrawViewModel
@@ -45,6 +48,9 @@ class WithdrawActivity : BaseActivity() {
 
     var bankDetails: Boolean = false
     var upiid: Boolean = false
+    var minWithdrawAmount :Int?= null
+    private val accountViewModel: AccountViewModel by viewModels()
+
 
     var payment_method = ""
 
@@ -66,6 +72,24 @@ class WithdrawActivity : BaseActivity() {
     }
 
     private fun initUI() {
+
+        accountViewModel.getSettings()
+
+        accountViewModel.settingsLiveData.observe(this, Observer { response ->
+            if (response?.success == true) {
+                response.data?.let { settingsList ->
+                    Log.d("settinglist","$settingsList")
+                    if (settingsList.isNotEmpty()) {
+                        val settingsData = settingsList[0]
+                        settingsData.minimum_withdrawals?.let {
+                            binding.tvMinimumAmount.setText("Minimum withdrawal : Rs $it")
+                            minWithdrawAmount= it
+                        }
+                    }
+                }
+            }
+        })
+
 
         binding.ivBack.setOnClickListener{
             onBackPressed()
@@ -311,7 +335,7 @@ class WithdrawActivity : BaseActivity() {
         // Check if amount is empty or not a valid number
         if (amount.isEmpty() || !isValidAmount(amount)) {
             // Optionally, show a message or highlight the field
-            binding.etAmount.error = "Min withdrwal amount Rs.50"
+            binding.etAmount.error = "Min withdrwal amount Rs.$minWithdrawAmount"
         }
 
 
@@ -321,14 +345,37 @@ class WithdrawActivity : BaseActivity() {
                 binding.ivAddUpi.rotation = 0f
             }
 
-            if (amount.isNotEmpty() && isValidAmount(amount) && amount.toDouble() >= 50.0 && upiid) {
-                binding.btnWithdraw.isEnabled = true
+
+
+            minWithdrawAmount?.let { min ->
+                if (
+                    amount.isNotEmpty() &&
+                    isValidAmount(amount) &&
+                    amount.toDouble() >= min &&
+                    upiid
+                ) {
+                    binding.btnWithdraw.isEnabled = true
+                }
             }
+
         }
         else if (payment_method == "bank_transfer") {
-            if (amount.isNotEmpty() && isValidAmount(amount) && amount.toDouble() >= 50.0 && bankDetails) {
-                binding.btnWithdraw.isEnabled = true
+//            if (amount.isNotEmpty() && isValidAmount(amount)  && amount.toDouble() >= minWithdrawAmount && bankDetails) {
+//                binding.btnWithdraw.isEnabled = true
+//            }
+
+
+            minWithdrawAmount?.let { min ->
+                if (
+                    amount.isNotEmpty() &&
+                    isValidAmount(amount) &&
+                    amount.toDouble() >= min &&
+                    bankDetails
+                ) {
+                    binding.btnWithdraw.isEnabled = true
+                }
             }
+
 
         }
 

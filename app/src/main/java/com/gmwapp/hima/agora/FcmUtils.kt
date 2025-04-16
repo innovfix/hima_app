@@ -11,6 +11,9 @@ object FcmUtils {
     private val _callDeclinedStatus = MutableLiveData<Boolean>()
     val callDeclinedStatus: LiveData<Boolean> get() = _callDeclinedStatus
 
+
+    var isUserAvailable = 1
+
     private val _updatedTime = MutableLiveData<String?>()
     val updatedTime: LiveData<String?> get() = _updatedTime
 

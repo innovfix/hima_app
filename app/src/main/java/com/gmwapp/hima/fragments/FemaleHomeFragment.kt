@@ -371,6 +371,8 @@ class FemaleHomeFragment : BaseFragment() {
         femaleUsersViewModel.reportResponseLiveData.observe(viewLifecycleOwner, Observer {
             if (it.success) {
 
+                Log.d("reportResponseLiveData", "$it")
+
                 binding.tvApproxEarnings.text = it.data[0].today_earnings.toString()
                 binding.tvTotalCalls.text = it.data[0].today_calls.toString()
 
@@ -411,6 +413,14 @@ class FemaleHomeFragment : BaseFragment() {
             }
         })
 
+
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val prefs = BaseApplication.getInstance()?.getPrefs()
+        val userData = prefs?.getUserData()
+        femaleUsersViewModel.getReports(userData?.id!!)
 
     }
 

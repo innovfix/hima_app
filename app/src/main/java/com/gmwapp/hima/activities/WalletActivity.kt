@@ -12,6 +12,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.GridLayoutManager
+import com.bumptech.glide.Glide
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.BillingManager.BillingManager
 import com.gmwapp.hima.R
@@ -29,7 +30,9 @@ import com.gmwapp.hima.viewmodels.UpiPaymentViewModel
 import com.gmwapp.hima.viewmodels.UpiViewModel
 import com.gmwapp.hima.viewmodels.WalletViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import io.agora.base.internal.ContextUtils
 import retrofit2.Call
+
 
 @AndroidEntryPoint
 class WalletActivity : BaseActivity()  {
@@ -50,6 +53,8 @@ class WalletActivity : BaseActivity()  {
     private lateinit var total_amount :String
     private lateinit var userIdWithPoints :String
     private lateinit var name :String
+    private val fetchedSkuList: MutableList<String> = mutableListOf()
+
 
     val apiService = RetrofitClient.instance
 
@@ -164,6 +169,24 @@ class WalletActivity : BaseActivity()  {
 
             if (it!=null && it.success && it.data != null) {
                 // Create the adapter
+                var bannerOfferImage= it.banner_image
+                Glide.with(this)
+                    .load(bannerOfferImage)
+                    .into(binding.ivBonus)
+
+
+                fetchedSkuList.clear() // Clear old SKUs to avoid duplicates
+
+                it.data.forEach { coinItem ->
+                    val sku = "${coinItem.id}"
+                    fetchedSkuList.add(sku)
+
+                    val preferences = DPreferences(this)
+                    preferences.setSkuList(fetchedSkuList)
+                }
+
+
+                Log.d("bannerImage","${it.banner_image}")
                 val coinAdapter = CoinAdapter(this, it.data, object : OnItemSelectionListener<CoinsResponseData> {
                     override fun onItemSelected(coin: CoinsResponseData) {
                         // Update button text and make it visible when an item is selected
@@ -214,22 +237,23 @@ class WalletActivity : BaseActivity()  {
             if (userId != null && pointsId.isNotEmpty()) {
                 if (pointsIdInt != null) {
 
-
                     if (paymentGateway.isNotEmpty()) {
 
                         when (paymentGateway) {
                             "gpay" -> {
 
+                                val random4Digit = (1000..9999).random()
+
                                 // ✅ Save userId and pointsIdInt BEFORE launching billing
                                 val preferences = DPreferences(this)
+                                preferences.clearSelectedOrderId()
                                 preferences.setSelectedUserId(userId.toString())
                                 preferences.setSelectedPlanId(java.lang.String.valueOf(pointsIdInt))
-                                WalletViewModel.tryCoins(userId, pointsIdInt)
+                                preferences.setSelectedOrderId(java.lang.String.valueOf(random4Digit))
+                                WalletViewModel.tryCoins(userId, pointsIdInt, 0, random4Digit, "try")
                                 billingManager!!.purchaseProduct(
-                                    //"coin_14",
-                                   pointsId,
-                                    userId,
-                                    pointsIdInt
+                                   // "coin_14",
+                                  pointsId,
                                 )
                                 WalletViewModel.navigateToMain.observe(this, Observer { shouldNavigate ->
 

@@ -81,7 +81,12 @@ class MaleCallConnectingActivity : AppCompatActivity() {
             insets
         }
 
-         lifecycleScope.launch {
+        FcmUtils.isUserAvailable=1
+
+        Log.d("FcmUtils.isUserAvailable","${FcmUtils.isUserAvailable}")
+
+
+        lifecycleScope.launch {
              FcmUtils.clearCallStatus()
 
              Log.d("callStatusValueLog", "${FcmUtils.callStatus.value}")
@@ -234,7 +239,26 @@ class MaleCallConnectingActivity : AppCompatActivity() {
                 callId = it.data?.call_id ?: 0
 
                 Log.d("callid","$callId")
+                val audioStatus = it.data?.audio_status
+                val videoStatus = it.data?.video_status
 
+                Log.d("callid", "$callId")
+
+                // ✅ Check callType against corresponding status
+                val shouldSendNotification = when (callType) {
+                    "audio" -> audioStatus != 0
+                    "video" -> videoStatus != 0
+                    else -> false
+                }
+
+                if (!shouldSendNotification) {
+                    Log.d("Notification", "Not sending notification because callType=$callType has status=0")
+                    Toast.makeText(
+                        this@MaleCallConnectingActivity, "User is offline", Toast.LENGTH_LONG
+                    ).show()
+                    navigateToMain()
+                    return@Observer
+                }
 
                 if (userId != null && receiverId != -1 && callType != null) {
                     sendCallNotification(userId!!, receiverId,callType!!,"incoming call $callId $myAvatar $myname")
@@ -355,6 +379,7 @@ class MaleCallConnectingActivity : AppCompatActivity() {
 
     fun generateUniqueChannelName(senderId: Int): String {
         val timestamp = System.currentTimeMillis() // Get current timestamp in milliseconds
+        Log.d("ChannelnameCheck","${senderId}_$timestamp")
         return "${senderId}_$timestamp"
     }
 
@@ -364,6 +389,20 @@ class MaleCallConnectingActivity : AppCompatActivity() {
             cancelTimeoutTracking()
 
         }
+
+    fun navigateToMain(){
+        isRunning = false
+        FcmUtils.clearCallStatus()  // Clear before moving to MainActivity
+        FcmUtils.isUserAvailable = 0
+        cancelTimeoutTracking()
+        Log.d("GoinginMain", "${FcmUtils.isUserAvailable}")
+
+        val intent = Intent(this, MainActivity::class.java)
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        startActivity(intent)
+
+        finish()
+    }
 
 
 }

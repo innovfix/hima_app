@@ -3,6 +3,7 @@ package com.gmwapp.hima.retrofit.responses
 data class CoinsResponse(
     val success: Boolean,
     val message: String,
+    val banner_image: String,
     val data: ArrayList<CoinsResponseData>?,
 )
 

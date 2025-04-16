@@ -9,6 +9,8 @@ import android.os.Bundle
 import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.ActivityInfo
+import android.media.AudioAttributes
+import android.net.Uri
 
 import android.util.Log
 import androidx.hilt.work.HiltWorkerFactory
@@ -41,7 +43,8 @@ class BaseApplication : Application(), Configuration.Provider {
     private var roomId: String? = null
     private var mediaPlayer: MediaPlayer? = null
     private var endCallUpdatePending: Boolean? = null
-    val ONESIGNAL_APP_ID = "2c7d72ae-8f09-48ea-a3c8-68d9c913c592"
+   // val ONESIGNAL_APP_ID = "2c7d72ae-8f09-48ea-a3c8-68d9c913c592"
+    val ONESIGNAL_APP_ID = "5cd4154a-1ece-4c3b-b6af-e88bafee64cd"
     private lateinit var sharedPreferences: SharedPreferences
 
     private var currentActivity: Activity? = null
@@ -159,17 +162,24 @@ class BaseApplication : Application(), Configuration.Provider {
 
 
     fun playIncomingCallSound() {
-        stopRingtone() // Stop any existing ringtone before playing a new one
+        stopRingtone()
 
-        mediaPlayer = MediaPlayer.create(applicationContext, R.raw.rhythm)
-        mediaPlayer?.setOnCompletionListener {
-            it.release()
-            mediaPlayer = null // Set to null to avoid using a released player
+        val audioAttributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE) // makes it respect silent mode
+            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+            .build()
+
+        val uri = Uri.parse("android.resource://${packageName}/${R.raw.rhythm}")
+        mediaPlayer = MediaPlayer()
+        mediaPlayer?.apply {
+            setAudioAttributes(audioAttributes)
+            setDataSource(applicationContext, uri)
+            isLooping = true
+            prepare()
+            start()
         }
-        mediaPlayer?.isLooping = true
-
-        mediaPlayer?.start()
     }
+
 
     fun isRingtonePlaying(): Boolean {
         return mediaPlayer?.isPlaying ?: false

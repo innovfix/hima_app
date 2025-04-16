@@ -30,6 +30,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
+import androidx.lifecycle.Observer
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
@@ -48,7 +49,6 @@ import io.agora.rtc2.Constants
 import io.agora.rtc2.IRtcEngineEventHandler
 import io.agora.rtc2.RtcEngine
 import io.agora.rtc2.RtcEngineConfig
-import io.agora.rte.Observer
 import retrofit2.Call
 import retrofit2.Response
 import java.text.SimpleDateFormat
@@ -113,6 +113,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
     private var startTime: String = ""
     private var endTime: String = ""
+    private var isSwitchRequestPending = false
+
 
     var call_Id: Int = 0
 
@@ -645,17 +647,20 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             val audioDrawable = ContextCompat.getDrawable(this, R.drawable.audiocall_img)
             val videoDrawable = ContextCompat.getDrawable(this, R.drawable.videocall_img)
 
-            if (currentDrawable != null && audioDrawable != null && currentDrawable.constantState == audioDrawable.constantState) {
-                // If button image is AUDIO, switch
-                switchToAudio()
-            } else if (currentDrawable != null && videoDrawable != null && currentDrawable.constantState == videoDrawable.constantState) {
-                // If button image is VIDEO, switch
-                switchToVideo()
-            } else {
-                Toast.makeText(this, "Error: Unknown state", Toast.LENGTH_SHORT).show()
+            if (isSwitchRequestPending == false) {
+                if (currentDrawable != null && audioDrawable != null && currentDrawable.constantState == audioDrawable.constantState) {
+                    // If button image is AUDIO, switch
+                    switchToAudio()
+                } else if (currentDrawable != null && videoDrawable != null && currentDrawable.constantState == videoDrawable.constantState) {
+                    // If button image is VIDEO, switch
+                    switchToVideo()
+                } else {
+                    Toast.makeText(this, "Error: Unknown state", Toast.LENGTH_SHORT).show()
+                }
+            }else{
+                Toast.makeText(this,"Already Request Sent", Toast.LENGTH_SHORT).show()
             }
         }
-
 
     }
 
@@ -728,13 +733,34 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             channelName = channelName,
             message = message
         )
-        observeCallSwitchAcceptance()
+        observeSwitchCallNotificationSent()
         isSwitchingToAudio = false
         isSwitchingToVideo = false
 
         Log.d("SwitchCallIdAfterSending","$switchCallID")
 
     }
+
+    fun observeSwitchCallNotificationSent(){
+        fcmNotificationViewModel.notificationResponseLiveData.observe(this) { response ->
+            response?.let {
+                if (it.success) {
+                    Log.d("FCMNotification", "Notification sent successfully!")
+                    var message = it.data_sent?.message?: ""
+                    if (message.startsWith("switchToVideo") || message.startsWith("switchToAudio")) {
+
+                        isSwitchRequestPending= true
+                        observeCallSwitchAcceptance()
+
+                    }
+
+                } else {
+                    Log.e("FCMNotification", "Failed to send notification")
+                }
+            }
+        }
+    }
+
 
     fun observeCallSwitchAcceptance() {
         FcmUtils.updatedCallSwitch.observe(this, androidx.lifecycle.Observer { updatedCallSwitch ->
@@ -745,6 +771,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
                 if (switchType=="VideoAccepted" && receiverId==this.receiverId){
 
+                    isSwitchRequestPending=false
                     val remainingTime = binding.tvRemainingTime?.text.toString() // Get the current countdown time
                     val timeParts = remainingTime.split(":").map { it.toInt() }
 
@@ -774,10 +801,18 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
                 if (switchType == "AudioAccepted" && receiverId == this.receiverId) {
 
+                    isSwitchRequestPending=false
                     Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
                     stopCountdown()
                     FcmUtils.clearCallSwitch()
                     enableAudioCall()
+                }
+
+                if (switchType == "SwitchDeclined" && receiverId == this.receiverId) {
+
+                    isSwitchRequestPending=false
+                    FcmUtils.clearCallSwitch()
+                    Toast.makeText(this, "Request is rejected", Toast.LENGTH_SHORT).show()
                 }
 
             }
@@ -874,6 +909,14 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                         }
                         .setNegativeButton("Decline") { dialog, _ ->
                             // Dismiss dialog if No is clicked
+                            userid?.let {
+                                sendCallAcceptNotification(
+                                    it,
+                                    receiverId,
+                                    "video",
+                                    "SwitchDeclined"
+                                )
+                            }
                             dialog.dismiss()
                             FcmUtils.clearCallSwitch()
 
@@ -911,6 +954,14 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                         }
                         .setNegativeButton("Decline") { dialog, _ ->
                             // Dismiss dialog if No is clicked
+                            userid?.let {
+                                sendCallAcceptNotification(
+                                    it,
+                                    receiverId,
+                                    "audio",
+                                    "SwitchDeclined"
+                                )
+                            }
                             dialog.dismiss()
                             FcmUtils.clearCallSwitch()
 
@@ -992,6 +1043,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                 dateFormat.format(Date()) // Set call end time only if startTime is not empty
 
             binding.btnVideoCall.setImageResource(R.drawable.audiocall_img)
+            binding.btnVideoCall.visibility= View.GONE
 
             femaleUsersViewModel.femaleCallAttend(receiverId,
                 switchCallID,

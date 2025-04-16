@@ -44,6 +44,13 @@ class AgoraRandomCallActivity : AppCompatActivity() {
     private var progressStatus = 0
     private var isRunning = true  // Keeps the loop running
 
+    private var isCallAccepted = false
+    private var currentChannelName: String? = null
+    private var declinedChannelName = "CallDeclined"
+
+    private var isWaitingForAcceptance = false
+
+
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -73,7 +80,7 @@ class AgoraRandomCallActivity : AppCompatActivity() {
             override fun handleOnBackPressed() {
                 Log.d("FemaleCallAcceptActivity", "onBackPressed called via Dispatcher")
                 if (userId != null && receiverId != -1 && callType != null) {
-                    sendCallNotification(userId!!, receiverId,callType!!,"callDeclined")
+                    sendCallNotification(userId!!, receiverId,callType!!,declinedChannelName,"callDeclined")
                     FcmUtils.clearCallStatus()  // Clear before moving to MainActivity
 
                     val intent = Intent(this@AgoraRandomCallActivity, MainActivity::class.java)
@@ -201,11 +208,14 @@ class AgoraRandomCallActivity : AppCompatActivity() {
 
 
     private fun getRandomUser() {
-        if (callAttempts >= maxAttempts) {
-            Log.d("RandomCall", "Max attempts reached. Stopping calls.")
+        Log.d("callAttemptDebug","$callAttempts")
+        if (isWaitingForAcceptance || callAttempts >= maxAttempts) {
+            Log.d("isWaitingForAcceptance", "$isWaitingForAcceptance")
             return
 
         }
+        isWaitingForAcceptance = true
+
 
         userId?.let { userId ->
             callType?.let { callType ->
@@ -234,23 +244,38 @@ class AgoraRandomCallActivity : AppCompatActivity() {
 
                         BaseApplication.getInstance()?.saveSenderId(receiverId)
 
+                        Log.d("receiverIds","$receiverId")
+
                         if (triedUserIds.contains(receiverId)) {
-                            Log.d("AgoraRandomCall", "Already tried user $receiverId, waiting before retrying...")
+                            Log.d("triedUserIds", "Already tried user $receiverId, waiting before retrying...")
+                            isWaitingForAcceptance = false
                             Handler(mainLooper).postDelayed({ retryCall() }, 3000L) // Delay retry by 3 seconds
                             return@Observer
                         }
 
                         triedUserIds.add(receiverId)
 
-                        sendCallNotification(userId!!, receiverId!!, callType!!, "incoming call $callId $myAvatar $myname")
+                        Log.d("triedUserList","$triedUserIds")
+
+                        currentChannelName = generateUniqueChannelName(userId!!)
+
+
+
+                        if (currentChannelName!=null){
+                            sendCallNotification(userId!!, receiverId!!, callType!!,currentChannelName!!, "incoming call $callId $myAvatar $myname")
+                        }
                         observeNotificationResponse()
                         waitForCallAcceptance()
                     } else {
                         Log.e("RandomCall", "Invalid call data: call_id or call_user_id is null")
+                        isWaitingForAcceptance = false
+
                         retryCall()
                     }
                 } ?: run {
                     Log.e("RandomCall", "Response data is null")
+                    isWaitingForAcceptance = false
+
                     retryCall()
                 }
             }else{
@@ -272,6 +297,8 @@ class AgoraRandomCallActivity : AppCompatActivity() {
         Log.d("RandomCall", "Waiting for $waitTime ms before checking call status")
 
         android.os.Handler(mainLooper).postDelayed({
+            isWaitingForAcceptance = false
+
             checkCallStatus()
         }, waitTime)
     }
@@ -280,19 +307,22 @@ class AgoraRandomCallActivity : AppCompatActivity() {
 
     private fun checkCallStatus() {
         // If call is accepted, do nothing
+        isWaitingForAcceptance = false // Allow next user
+
         var currentActivity = BaseApplication.getInstance()?.getCurrentActivity()
 
-        if (currentActivity is AgoraRandomCallActivity) {
+        if (!isCallAccepted && currentActivity is AgoraRandomCallActivity) {
             declineCall()
             retryCall()
         }
+
 
 
     }
 
     private fun declineCall() {
         if (userId != null && receiverId != null && callType != null) {
-            sendCallNotification(userId!!, receiverId!!, callType!!, "callDeclined")
+            sendCallNotification(userId!!, receiverId!!, callType!!, declinedChannelName,"callDeclined")
         }
     }
 
@@ -313,22 +343,25 @@ class AgoraRandomCallActivity : AppCompatActivity() {
 
 
 
-    fun sendCallNotification(senderId:Int, receiverId:Int, callType:String, message:String) {
+    fun sendCallNotification(senderId:Int, receiverId:Int, callType:String,myChannel:String, message:String) {
         fcmNotificationViewModel.sendNotification(
             senderId = senderId,
             receiverId = receiverId,
             callType = callType,
-            channelName = generateUniqueChannelName(senderId),
+            channelName = myChannel,
             message = message
         )
         observeNotificationResponse()
+        Log.d("ChannelNameDebug", "Sending $message to user $receiverId with channel $myChannel")
     }
 
     fun observeNotificationResponse() {
+        fcmNotificationViewModel.notificationResponseLiveData.removeObservers(this) // add this
+
         fcmNotificationViewModel.notificationResponseLiveData.observe(this) { response ->
             response?.let {
                 if (it.success) {
-                    Log.d("FCMNotification", "Notification sent successfully!")
+                    Log.d("FCM_Success", "${it.data_sent?.receiverId}")
                 } else {
                     Log.e("FCMNotification", "Failed to send notification")
                 }
@@ -337,11 +370,17 @@ class AgoraRandomCallActivity : AppCompatActivity() {
     }
 
     fun observeCallAcceptance() {
+
+       FcmUtils.callStatus.removeObservers(this) // 👈 REMOVE existing observers first
+
         FcmUtils.callStatus.observe(this, Observer { callData ->
             if (callData != null) {  // Check if it's not null before destructuring
                 val (status, channelName) = callData
+                Log.d("CallStatusDebug", "Received status=$status, channel=$channelName, expected=$currentChannelName, isAccepted=$isCallAccepted")
 
-                if (status == "accepted") {
+                if (status == "accepted" && !isCallAccepted && channelName == currentChannelName) {
+                    isCallAccepted = true
+                    isWaitingForAcceptance = false // Clear waiting
                     FcmUtils.clearCallStatus()  // Clear before moving to AudioCallingActivity
 
                     var currentActivity = BaseApplication.getInstance()?.getCurrentActivity()
@@ -375,6 +414,7 @@ class AgoraRandomCallActivity : AppCompatActivity() {
                     }}
                 } else if (status == "rejected") {
                     FcmUtils.clearCallStatus()
+                    isWaitingForAcceptance = false
 
                     retryCall()
                 }
@@ -394,8 +434,8 @@ class AgoraRandomCallActivity : AppCompatActivity() {
 
 
     fun generateUniqueChannelName(senderId: Int): String {
-        val timestamp = System.currentTimeMillis() // Get current timestamp in milliseconds
-        return "${senderId}_$timestamp"
+        return "${senderId}_${System.currentTimeMillis()}_${(1000..9999).random()}"
     }
+
 
 }

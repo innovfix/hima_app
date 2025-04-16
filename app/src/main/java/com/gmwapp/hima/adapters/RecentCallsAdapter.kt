@@ -52,6 +52,8 @@ class RecentCallsAdapter(
             RequestOptions().circleCrop()
         ).into(holder.binding.ivImage)
 
+        holder.binding.ivAudioCircle.setOnClickListener(null)
+        holder.binding.ivVideoCircle.setOnClickListener(null)
         // Reset Views before applying new data
         holder.binding.ivAudioCircle.visibility = View.GONE
         holder.binding.ivVideoCircle.visibility = View.GONE
@@ -65,8 +67,8 @@ class RecentCallsAdapter(
         holder.binding.ivAudioCircle.clearColorFilter()
         holder.binding.ivVideoCircle.clearColorFilter()
 
-        holder.binding.ivAudio.isEnabled = true
-        holder.binding.ivVideo.isEnabled = true
+        holder.binding.ivAudio.isEnabled = false
+        holder.binding.ivVideo.isEnabled = false
 
 
 
@@ -116,22 +118,24 @@ class RecentCallsAdapter(
 
     }
 
-    fun clearData() {
-        //callList.clear()
-        notifyDataSetChanged()
-    }
-    fun addData(newCalls: List<CallsListResponseData>) {
-        val startPosition = callList.size
-        callList.addAll(newCalls)
-        notifyItemRangeInserted(startPosition, newCalls.size)
-        notifyDataSetChanged()
-    }
+
 
     override fun getItemCount(): Int {
         return callList.size
     }
 
 
+
+    fun addData(newData: List<CallsListResponseData>) {
+        val start = callList.size
+        callList.addAll(newData)
+        notifyItemRangeInserted(start, newData.size)
+    }
+
+    fun clearData() {
+        callList.clear()
+        notifyDataSetChanged()
+    }
 
 
     internal class ItemHolder(val binding: AdapterRecentCallsBinding) :

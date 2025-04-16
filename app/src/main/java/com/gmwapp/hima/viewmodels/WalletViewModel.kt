@@ -54,16 +54,16 @@ class WalletViewModel @Inject constructor(private val walletRepositories: Wallet
     }
 
 
-    fun addCoins(userId: Int, coinId: Int, status: Int, massage: String) {
+    fun addCoins(userId: Int, coinId: Int, status: Int, orderId: Int, massage: String,) {
         _navigateToMain.postValue(false)
         viewModelScope.launch {
-            walletRepositories.addCoins(userId, coinId, status, massage, object : NetworkCallback<AddCoinsResponse> {
+            walletRepositories.addCoins(userId, coinId, status, orderId, massage,  object : NetworkCallback<AddCoinsResponse> {
                 override fun onResponse(call: Call<AddCoinsResponse>, response: Response<AddCoinsResponse>) {
                     Log.d("addCoins", "Raw Response: ${response.body()?.toString()}")
 
                     if (response.isSuccessful) {
-                        Log.d("addCoins", "Response Successful: ${response.isSuccessful}")
-                        Log.d("addCoins", "Response Message: ${response.message()}")
+                        Log.d("addingCoins", "Response Successful: ${response.isSuccessful}")
+                        Log.d("addingCoins", "Response Message: ${response.message()}")
 
                         val responseBody = response.body()
 
@@ -111,10 +111,10 @@ class WalletViewModel @Inject constructor(private val walletRepositories: Wallet
         }
     }
 
-    fun tryCoins(userId: Int, coinId: Int) {
+    fun tryCoins(userId: Int, coinId: Int, status: Int, orderId: Int, massage: String,) {
         _navigateToMain.postValue(false)
         viewModelScope.launch {
-            walletRepositories.tryCoins(userId, coinId, object : NetworkCallback<AddCoinsResponse> {
+            walletRepositories.tryCoins(userId, coinId, status, orderId, massage, object : NetworkCallback<AddCoinsResponse> {
                 override fun onResponse(call: Call<AddCoinsResponse>, response: Response<AddCoinsResponse>) {
                     Log.d("addCoins", "Raw Response: ${response.body()?.toString()}")
 

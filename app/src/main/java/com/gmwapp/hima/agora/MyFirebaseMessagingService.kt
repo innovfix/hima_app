@@ -335,6 +335,15 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
             }
 
+            if (message == "SwitchDeclined" && gender == "male") {
+
+                Log.d("SwitchDeclined","$message")
+                FcmUtils.UpdateCallSwitch(message, senderId)
+
+
+
+            }
+
 
             if (message.startsWith("switchToVideo") && gender == "male") {
                 val parts = message.split(" ")
@@ -351,10 +360,8 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
 
             if (message == "VideoAccepted" && gender == "female") {
-
                 Log.d("switchToVideo","$message")
                 FcmUtils.UpdateCallSwitch(message, senderId)
-
             }
 
 
@@ -376,6 +383,16 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 FcmUtils.UpdateCallSwitch(message, senderId)
 
             }
+
+            if (message == "SwitchDeclined" && gender == "female") {
+
+                Log.d("SwitchDeclined","$message")
+                FcmUtils.UpdateCallSwitch(message, senderId)
+
+            }
+
+
+
 
 
         }
