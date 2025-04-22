@@ -104,7 +104,7 @@
         android:layout_height="wrap_content"
         android:layout_marginLeft="5dp"
         android:fontFamily="@font/poppins_semibold"
-        android:text="0"
+        android:text=""
         android:textColor="@color/grey"
         android:textSize="17sp"
         app:layout_constraintStart_toEndOf="@+id/iv_profile"
@@ -125,7 +125,7 @@
         android:layout_height="wrap_content"
         android:layout_marginLeft="4dp"
         android:fontFamily="@font/poppins_semibold"
-        android:text="10"
+        android:text=""
         android:textColor="@color/grey"
         android:textSize="17sp"
         app:layout_constraintBottom_toBottomOf="@+id/iv_profile"
@@ -174,7 +174,7 @@
         android:layout_marginTop="1dp"
         android:fontFamily="@font/poppins_semibold"
         android:gravity="center"
-        android:text="0"
+        android:text=""
         android:textColor="@color/grey"
         android:textSize="17sp"
         app:layout_constraintBottom_toBottomOf="@+id/iv_coin2"
@@ -198,18 +198,19 @@
         android:layout_width="wrap_content"
         android:layout_height="@dimen/_21sdp"
         android:fontFamily="@font/poppins_semibold"
-        android:text="9FERDV43"
+        android:text=""
         android:textColor="@color/pink"
         android:textSize="20sp"
         app:layout_constraintStart_toStartOf="@+id/invitecode"
         app:layout_constraintTop_toBottomOf="@+id/invitecode" />
 
     <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/shareLink"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
 
         android:background="@drawable/d_button_share"
-        android:drawableStart="@drawable/light_whatsapp"
+        android:drawableStart="@drawable/whatsapp2"
         android:drawablePadding="8dp"
         android:text="Share Link"
         android:textAllCaps="false"
@@ -289,6 +290,7 @@
 
     <TextView
 
+        android:id="@+id/tv_getFreeCoin"
         android:layout_width="wrap_content"
         android:layout_height="@dimen/_21sdp"
         android:fontFamily="@font/poppins_semibold"
@@ -305,7 +307,25 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        app:layout_constraintGuide_percent="0.5" />
+        app:layout_constraintGuide_percent="0.42" />
+
+
+    <TextView
+
+        android:id="@+id/tv_disclamair"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/_25sdp"
+        android:fontFamily="@font/poppins_semibold"
+        android:text="Disclaimer: You will get money only when the referred user completes their KYC."
+        android:textColor="@color/grey"
+        android:textSize="14sp"
+        android:visibility="gone"
+        android:paddingHorizontal="@dimen/_12sdp"
+        app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
+        app:layout_constraintStart_toStartOf="@+id/gl_left_margin"
+        app:layout_constraintTop_toBottomOf="@+id/textView8" />
+
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

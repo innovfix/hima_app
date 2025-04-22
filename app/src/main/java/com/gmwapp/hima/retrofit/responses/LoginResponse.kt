@@ -39,5 +39,16 @@ data class UserData (
     val ifsc:String?,
     val holder_name:String?,
     val upi_id:String?,
+    val refer_code:String?,
+    val referred_by:String?,
+    val referral_coins_gained:String?,
+    val referral_amount_gained:String?,
+    val total_referrals:String?,
+    val coins_per_referral:String?,
+    val money_per_referral:String?,
+    val pancard_name:String?,
+    val pancard_number:String?,
+    val disclaimer:String?,
+
 
 )

@@ -18,6 +18,7 @@ import com.gmwapp.hima.dialogs.BottomSheetSelectPayment
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.EarningsViewModel
+import com.gmwapp.hima.viewmodels.LoginViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -25,6 +26,8 @@ class EarningsActivity : BaseActivity() {
     lateinit var binding: ActivityEarningsBinding
     private val earningsViewModel: EarningsViewModel by viewModels()
     private val accountViewModel: AccountViewModel by viewModels()
+    private val loginViewModel: LoginViewModel by viewModels()
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,6 +37,9 @@ class EarningsActivity : BaseActivity() {
     }
 
     private fun initUI() {
+
+        panVerification()
+
         binding.ivBack.setOnSingleClickListener {
             finish()
         }
@@ -48,6 +54,12 @@ class EarningsActivity : BaseActivity() {
 
             val bottomSheet: BottomSheetSelectPayment = BottomSheetSelectPayment()
             bottomSheet.show(supportFragmentManager, "BottomSheetSelectPayment")
+
+        }
+
+        binding.cvPanDetails.setOnSingleClickListener {
+            val intent = Intent(this, KycActivity::class.java)
+            startActivity(intent)
 
         }
 
@@ -67,6 +79,7 @@ class EarningsActivity : BaseActivity() {
                     binding.vDivider.visibility = View.VISIBLE
                     binding.ivBalance.visibility = View.VISIBLE
                     binding.tlBalanceHint.visibility = View.VISIBLE
+                    binding.cvPanDetails.visibility = View.VISIBLE
                 } else {
                     binding.btnWithdraw.visibility = View.VISIBLE
                     binding.vDivider.visibility = View.GONE
@@ -129,5 +142,28 @@ class EarningsActivity : BaseActivity() {
             }
         })
 
+    }
+
+    fun panVerification(){
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+
+        userData?.let { loginViewModel.login(it.mobile) }
+        loginViewModel.loginResponseLiveData.observe(this, Observer {
+
+            if (it.success) {
+                if (!it.data?.pancard_name.isNullOrEmpty()&& !it.data?.pancard_number.isNullOrEmpty()){
+                    binding.ivAddPan.setBackgroundResource(R.drawable.tick_circle_svg) // Replace with your valid drawable resource
+                    // Rotate the drawable by a specified angle (e.g., 45 degrees)
+                    binding.ivAddPan.rotation = 0f // This rotates the ImageView by 45 degrees
+                }
+
+            }
+        })
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (binding.cvPanDetails.visibility == View.VISIBLE)
+        panVerification()
     }
 }

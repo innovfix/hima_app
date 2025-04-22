@@ -15,6 +15,8 @@ import android.net.Uri
 import android.util.Log
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.facebook.FacebookSdk
+import com.facebook.appevents.AppEventsLogger
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.repositories.FcmNotificationRepository
 import com.gmwapp.hima.utils.DPreferences
@@ -126,6 +128,17 @@ class BaseApplication : Application(), Configuration.Provider {
         if(BuildConfig.DEBUG) {
             OneSignal.Debug.logLevel = LogLevel.VERBOSE
         }
+
+        FacebookSdk.setApplicationId(getString(R.string.facebook_app_id))
+        FacebookSdk.sdkInitialize(applicationContext)
+        AppEventsLogger.activateApp(this)
+
+        if (BuildConfig.DEBUG) {
+            OneSignal.Debug.logLevel = LogLevel.VERBOSE
+            FacebookSdk.setIsDebugEnabled(true)
+            FacebookSdk.addLoggingBehavior(com.facebook.LoggingBehavior.APP_EVENTS)
+        }
+
 
         sharedPreferences = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
 

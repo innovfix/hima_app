@@ -65,7 +65,7 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
     }
 
     fun register(
-        mobile: String, language: String, avatarId: Int, gender: String
+        mobile: String, language: String, avatarId: Int, gender: String, savedReferCode:String
     ) {
         viewModelScope.launch {
             profileRepositories.register(
@@ -73,6 +73,7 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
                 language,
                 avatarId,
                 gender,
+                savedReferCode,
                 object : NetworkCallback<RegisterResponse> {
                     override fun onResponse(
                         call: Call<RegisterResponse>, response: Response<RegisterResponse>
@@ -130,7 +131,8 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
         gender: String,
         age: String,
         interests: String,
-        describe_yourself: String
+        describe_yourself: String,
+        savedReferCode:String
     ) {
         viewModelScope.launch {
             profileRepositories.registerFemale(
@@ -141,6 +143,7 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
                 age,
                 interests,
                 describe_yourself,
+                savedReferCode,
                 object : NetworkCallback<RegisterResponse> {
                     override fun onResponse(
                         call: Call<RegisterResponse>, response: Response<RegisterResponse>

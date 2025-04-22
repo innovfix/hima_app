@@ -2,6 +2,7 @@ package com.gmwapp.hima.activities
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -17,6 +18,7 @@ import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivitySelectLanguageBinding
 import com.gmwapp.hima.retrofit.responses.Language
+import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.widgets.SpacesItemDecoration
@@ -97,13 +99,16 @@ class SelectLanguageActivity : BaseActivity() {
         })
         binding.btnContinue.setOnSingleClickListener {
             val gender = intent.getStringExtra(DConstants.GENDER).toString()
+            val savedReferCode = DPreferences(this).getReferralCode()
+            Log.d("savedReferCode","$savedReferCode")
+
             if (gender == DConstants.MALE) {
                 profileViewModel.register(
                     intent.getStringExtra(DConstants.MOBILE_NUMBER).toString(),
                     selectedLanguage.toString(),
                     intent.getIntExtra(DConstants.AVATAR_ID, 0),
                     gender,
-
+                    savedReferCode,
                     )
             } else {
                 profileViewModel.registerFemale(
@@ -113,7 +118,8 @@ class SelectLanguageActivity : BaseActivity() {
                     gender,
                     intent.getStringExtra(DConstants.AGE).toString(),
                     intent.getStringExtra(DConstants.INTERESTS).toString(),
-                    intent.getStringExtra(DConstants.SUMMARY).toString()
+                    intent.getStringExtra(DConstants.SUMMARY).toString(),
+                    savedReferCode,
                 )
             }
         }

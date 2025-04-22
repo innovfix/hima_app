@@ -19,8 +19,12 @@ import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.AccountPrivacyActivity
 import com.gmwapp.hima.activities.EditProfileActivity
+import com.gmwapp.hima.activities.RefundWebViewActivity
+import com.gmwapp.hima.activities.ShareActivity
+import com.gmwapp.hima.activities.TermConditionWebViewActivity
 import com.gmwapp.hima.activities.TransactionsActivity
 import com.gmwapp.hima.activities.WalletActivity
+import com.gmwapp.hima.activities.WebviewActivity
 import com.gmwapp.hima.databinding.FragmentProfileBinding
 import com.gmwapp.hima.dialogs.BottomSheetLogout
 import com.gmwapp.hima.utils.setOnSingleClickListener
@@ -102,11 +106,31 @@ class ProfileFragment : BaseFragment() {
             startActivity(intent)
         }
 
+
+        binding.clReferEarn.setOnSingleClickListener {
+            val intent = Intent(context, ShareActivity::class.java)
+            startActivity(intent)
+        }
+
+        binding.clTermsCondition.setOnSingleClickListener {
+            val intent = Intent(context, TermConditionWebViewActivity::class.java)
+
+            startActivity(intent)
+        }
+
+        binding.clRefund.setOnSingleClickListener {
+            val intent = Intent(context, RefundWebViewActivity::class.java)
+
+            startActivity(intent)
+        }
+
         binding.cvLogout.setOnSingleClickListener {
             val bottomSheet = BottomSheetLogout()
             fragmentManager?.let {
                 bottomSheet.show(it, "ProfileFragment")
             }
+
+
         }
 
         accountViewModel.getSettings()

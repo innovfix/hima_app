@@ -21,8 +21,10 @@ import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
 import com.gmwapp.hima.retrofit.responses.GiftImageResponse
 import com.gmwapp.hima.retrofit.responses.LoginResponse
 import com.gmwapp.hima.retrofit.responses.OfferResponse
+import com.gmwapp.hima.retrofit.responses.PanCardResponse
 import com.gmwapp.hima.retrofit.responses.RandomUsersResponse
 import com.gmwapp.hima.retrofit.responses.RatingResponse
+import com.gmwapp.hima.retrofit.responses.ReferralCodeResponse
 import com.gmwapp.hima.retrofit.responses.RegisterResponse
 import com.gmwapp.hima.retrofit.responses.ReportsResponse
 import com.gmwapp.hima.retrofit.responses.SendGiftResponse
@@ -120,11 +122,12 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         language: String,
         avatarId: Int,
         gender: String,
+        savedReferCode: String,
         callback: NetworkCallback<RegisterResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<RegisterResponse> =
-                getApiInterface().register(mobile, language, avatarId, gender)
+                getApiInterface().register(mobile, language, avatarId, gender,savedReferCode)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -157,11 +160,12 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         age: String,
         interests: String,
         describe_yourself: String,
+        savedReferCode:String,
         callback: NetworkCallback<RegisterResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<RegisterResponse> = getApiInterface().registerFemale(
-                mobile, language, avatarId, gender, age, interests, describe_yourself
+                mobile, language, avatarId, gender, age, interests, describe_yourself, savedReferCode
             )
             apiCall.enqueue(callback)
         } else {
@@ -552,6 +556,34 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun checkReferCode(
+        number: String,
+        refer_code: String,
+        callback: NetworkCallback<ReferralCodeResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<ReferralCodeResponse> = getApiInterface().checkReferCode(number, refer_code)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun updatePanCard(
+        userId: Int,
+        pancardName: String,
+        pancardNumber: String,
+        callback: NetworkCallback<PanCardResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().updatePanCard(userId, pancardName, pancardNumber)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+
     fun sendFcmNotification(
         senderId: Int,
         receiverId: Int,
@@ -655,7 +687,8 @@ interface ApiInterface {
         @Field("mobile") mobile: String,
         @Field("language") language: String,
         @Field("avatar_id") avatarId: Int,
-        @Field("gender") gender: String
+        @Field("gender") gender: String,
+        @Field("referred_by") referred_by: String,
     ): Call<RegisterResponse>
 
     @FormUrlEncoded
@@ -680,7 +713,7 @@ interface ApiInterface {
         @Field("age") age: String,
         @Field("interests") interests: String,
         @Field("describe_yourself") describe_yourself: String,
-
+        @Field("referred_by") referred_by: String,
         ): Call<RegisterResponse>
 
     @FormUrlEncoded
@@ -931,5 +964,22 @@ interface ApiInterface {
     fun getUserAvatar(
         @Field("user_id") userId: Int,
     ): Call<UserAvatarResponse>
+
+    @FormUrlEncoded
+    @POST("check_refer_code")
+    fun checkReferCode(
+        @Field("mobile") number: String,
+        @Field("referred_by") refer_code: String
+    ): Call<ReferralCodeResponse>
+
+    @FormUrlEncoded
+    @POST("update_pancard")
+    fun updatePanCard(
+        @Field("user_id") userId: Int,
+        @Field("pancard_name") panName: String,
+        @Field("pancard_number") panNumber: String
+    ): Call<PanCardResponse>
+
+
 
 }

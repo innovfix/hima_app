@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
+<android.widget.ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_gravity="center"
+    android:layout_height="match_parent"
     android:padding="16dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center">
 
 
 
@@ -38,6 +42,7 @@
                 android:contentDescription="@string/profile"
                 android:scaleType="center"
                 android:src="@drawable/star"
+                android:layout_marginTop="@dimen/_7sdp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintHeight_default="percent"
                 app:layout_constraintHeight_percent="0.5"
@@ -194,6 +199,52 @@
                 android:layout_height="1dp"
                 android:layout_gravity="center_vertical"
                 android:background="@color/divider"
+                app:layout_constraintEnd_toEndOf="@+id/cl_wallet"
+                app:layout_constraintStart_toStartOf="@+id/cl_wallet"
+                app:layout_constraintTop_toTopOf="@+id/gl_margin_1" />
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:padding="@dimen/_6sdp"
+                android:id="@+id/cl_refer_earn"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:layout_constraintBottom_toBottomOf="@+id/gl_margin_2"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/gl_margin_1">
+
+                <ImageView
+                    android:id="@+id/iv_refer_earn"
+                    android:layout_width="@dimen/_28sdp"
+                    android:layout_height="@dimen/_28sdp"
+                    android:contentDescription="@string/edit"
+                    android:padding="6dp"
+                    android:src="@drawable/refer_earn"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    tools:ignore="MissingConstraints" />
+
+                <TextView
+                    android:id="@+id/tv_refer_earn"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/refer_earn"
+                    android:textColor="@color/black_light"
+                    android:fontFamily="@font/poppins_medium"
+                    android:layout_marginLeft="@dimen/_10sdp"
+                    android:textSize="18sp"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toEndOf="@+id/iv_refer_earn"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_gravity="center_vertical"
+                android:background="@color/divider"
                 app:layout_constraintEnd_toEndOf="@+id/cl_transactions"
                 app:layout_constraintStart_toStartOf="@+id/cl_transactions"
                 app:layout_constraintTop_toTopOf="@+id/gl_margin_2" />
@@ -234,6 +285,100 @@
 
 
             </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_gravity="center_vertical"
+                android:background="@color/divider"
+                app:layout_constraintEnd_toEndOf="@+id/cl_wallet"
+                app:layout_constraintStart_toStartOf="@+id/cl_wallet"
+                app:layout_constraintTop_toTopOf="@+id/gl_margin_1" />
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:padding="@dimen/_6sdp"
+                android:id="@+id/cl_terms_condition"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:layout_constraintBottom_toBottomOf="@+id/gl_margin_2"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/gl_margin_1">
+
+                <ImageView
+                    android:id="@+id/iv_terms"
+                    android:layout_width="@dimen/_28sdp"
+                    android:layout_height="@dimen/_28sdp"
+                    android:contentDescription="@string/edit"
+                    android:padding="6dp"
+                    android:src="@drawable/terms"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    tools:ignore="MissingConstraints" />
+
+                <TextView
+                    android:id="@+id/tv_terms"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/terms_and_condition"
+                    android:textColor="@color/black_light"
+                    android:fontFamily="@font/poppins_medium"
+                    android:layout_marginLeft="@dimen/_10sdp"
+                    android:textSize="18sp"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toEndOf="@+id/iv_terms"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_gravity="center_vertical"
+                android:background="@color/divider"
+                app:layout_constraintEnd_toEndOf="@+id/cl_wallet"
+                app:layout_constraintStart_toStartOf="@+id/cl_wallet"
+                app:layout_constraintTop_toTopOf="@+id/gl_margin_1" />
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:padding="@dimen/_6sdp"
+                android:id="@+id/cl_refund"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:layout_constraintBottom_toBottomOf="@+id/gl_margin_2"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/gl_margin_1">
+
+                <ImageView
+                    android:id="@+id/iv_refund"
+                    android:layout_width="@dimen/_28sdp"
+                    android:layout_height="@dimen/_28sdp"
+                    android:contentDescription="@string/edit"
+                    android:padding="6dp"
+                    android:src="@drawable/refund"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    tools:ignore="MissingConstraints" />
+
+                <TextView
+                    android:id="@+id/tv_refund"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/refund_and_cancellation"
+                    android:textColor="@color/black_light"
+                    android:fontFamily="@font/poppins_medium"
+                    android:layout_marginLeft="@dimen/_10sdp"
+                    android:textSize="18sp"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toEndOf="@+id/iv_refund"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
@@ -328,6 +473,8 @@
         android:textSize="11sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tv_help" />
+        app:layout_constraintBottom_toTopOf="@id/cl_profile"
+        />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
+</android.widget.ScrollView>

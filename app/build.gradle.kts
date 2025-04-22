@@ -19,8 +19,8 @@ android {
         applicationId = "com.gmwapp.hima"
         minSdk = 26
         targetSdk = 35
-        versionCode = 16
-        versionName = "16.0"
+        versionCode = 17
+        versionName = "17.0"
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -151,6 +151,10 @@ dependencies {
     //inAppUpdate
     implementation ("com.google.android.play:app-update:2.1.0")
     implementation ("com.google.android.play:app-update-ktx:2.1.0")
+
+    // Meta Pixel
+    implementation ("com.facebook.android:facebook-android-sdk:18.0.3")
+
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

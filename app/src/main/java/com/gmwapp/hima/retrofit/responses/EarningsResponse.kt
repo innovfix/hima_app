@@ -12,5 +12,6 @@ data class EarningsResponseData(
     val amount: Int,
     val status: Int,
     val datetime: String,
+    val reason: String,
 )
 

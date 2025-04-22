@@ -20,7 +20,6 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
-
     <uses-feature
         android:glEsVersion="0x00020000"
         android:required="true" />
@@ -42,17 +41,30 @@
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
+        <activity
+            android:name=".activities.TermConditionWebViewActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.RefundWebViewActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.KycActivity"
+            android:exported="false" />
+
+        <meta-data
+            android:name="com.facebook.sdk.ApplicationId"
+            android:value="@string/facebook_app_id" />
+        <meta-data
+            android:name="com.facebook.sdk.ClientToken"
+            android:value="@string/facebook_client_token" />
 
         <activity
             android:name="com.android.billingclient.api.ProxyBillingActivity"
-            tools:replace="android:theme"
-            android:theme="@style/Theme.AppCompat.Light.NoActionBar"/>
-
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar"
+            tools:replace="android:theme" />
         <activity
             android:name=".DemoActivity"
             android:exported="false" />
-
-
         <activity
             android:name=".agora.AgoraRandomCallActivity"
             android:exported="false" />
@@ -62,10 +74,9 @@
         <activity
             android:name=".agora.female.FemaleAudioCallingActivity"
             android:exported="false"
-            android:showWhenLocked="true"
-            android:turnScreenOn="true"
             android:launchMode="singleTask"
-            />
+            android:showWhenLocked="true"
+            android:turnScreenOn="true" />
         <activity
             android:name=".agora.male.MaleVideoCallingActivity"
             android:exported="false" />
@@ -96,13 +107,11 @@
             android:name=".activities.SplashScreenActivity"
             android:exported="true"
             android:resizeableActivity="true">
-
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-
         </activity>
         <activity android:name=".activities.VerifyOTPActivity" />
         <activity
@@ -213,26 +222,19 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
-
-
-
         <service
             android:name=".agora.services.CallingService"
             android:exported="false"
             android:foregroundServiceType="microphone" />
 
-
-        <receiver android:name=".agora.CallActionReceiver" android:exported="true">
-
-
-                <intent-filter>
-                    <action android:name="ACTION_ACCEPT_CALL" />
-                    <action android:name="ACTION_REJECT_CALL" />
-                </intent-filter>
-
-
+        <receiver
+            android:name=".agora.CallActionReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="ACTION_ACCEPT_CALL" />
+                <action android:name="ACTION_REJECT_CALL" />
+            </intent-filter>
         </receiver>
-
     </application>
 
 </manifest>

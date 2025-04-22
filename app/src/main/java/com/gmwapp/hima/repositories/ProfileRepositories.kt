@@ -29,9 +29,10 @@ class ProfileRepositories @Inject constructor(private val apiManager: ApiManager
         language: String,
         avatarId: Int,
         gender: String,
+        savedReferCode:String,
         callback: NetworkCallback<RegisterResponse>
     ) {
-        apiManager.register(mobile, language, avatarId, gender, callback)
+        apiManager.register(mobile, language, avatarId, gender,savedReferCode, callback)
     }
 
     fun getUser(
@@ -55,10 +56,11 @@ class ProfileRepositories @Inject constructor(private val apiManager: ApiManager
         age: String,
         interests: String,
         describe_yourself: String,
+        savedReferCode:String,
         callback: NetworkCallback<RegisterResponse>
     ) {
         apiManager.registerFemale(
-            mobile, language, avatarId, gender, age, interests, describe_yourself, callback
+            mobile, language, avatarId, gender, age, interests, describe_yourself, savedReferCode,callback
         )
     }
 

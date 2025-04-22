@@ -30,6 +30,9 @@
     <string name="edit">Edit Profile</string>
     <string name="wallet">Wallet</string>
     <string name="transactions">Transactions</string>
+    <string name="refer_earn">Refer &amp; Earn</string>
+    <string name="terms_and_condition">Terms &amp; Condition</string>
+    <string name="refund_and_cancellation">Refund &amp; Cancellation</string>
     <string name="account_privacy">Account Privacy</string>
     <string name="logout">Logout</string>
     <string name="need_help">Need Help? Please contact </string>
@@ -210,12 +213,15 @@
     <string name="please_login_again_to_continue">Please Login again to Continue</string>
     <string name="audio_mins_txt">10 / min</string>
     <string name="bank_transfer">Bank Transfer</string>
+    <string name="complete_Kyc">Complete KYC</string>
     <string name="add_bank_details">Add bank details</string>
     <string name="branch_name">Branch Name</string>
     <string name="bank_name">Bank Name</string>
     <string name="ifsc_code">IFSC Code</string>
     <string name="account_number">Account Number</string>
     <string name="account_holder_name">Account Holder Name</string>
+    <string name="pan_card_name">Enter your full name as on PAN card</string>
+    <string name="pan_card_number">Please enter 10 digit PAN number</string>
     <string name="your_current_balance">Your Current Balance</string>
     <string name="preferred_payment_method">Preferred payment method</string>
     <string name="select">select</string>
@@ -223,4 +229,7 @@
     <string name="enable_notification">Please enable the notifications to receive the calls properly</string>
     <string name="appupdate">A brand new version of the Hi ma app is available in the Google play store. Please update your app to explore all of new amazing featuresy</string>
 
+
+    <string name="facebook_app_id">1310903060012417</string>
+    <string name="facebook_client_token">ed13227b54f4f5cff5f4d326b1ddefce</string>
 </resources>

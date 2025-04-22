@@ -48,6 +48,11 @@ class TransactionAdapter(
             holder.binding.tvTransactionTitle.text = "$callType call with $call_user_name"
             holder.binding.tvTransactionDate.text = "${transaction.date} · ${transaction.duration}"
 
+        }else if (transaction.type=="refer_bonus"){
+            holder.binding.tvCoins.text = "+"+transaction.coins
+            holder.binding.tvCoins.setTextColor(activity.getColor(android.R.color.holo_green_dark))
+            holder.binding.tvTransactionTitle.text = "Referral Earning"
+            holder.binding.tvTransactionDate.text = "${transaction.date}"
         }
 
         //  holder.binding.tvTransactionDate.text = formatTime(transaction.datetime)

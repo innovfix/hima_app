@@ -27,6 +27,7 @@ import android.text.style.ClickableSpan
 import android.util.Log
 import android.view.View
 import android.view.inputmethod.InputMethodManager
+import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.core.view.ViewCompat
@@ -39,7 +40,10 @@ import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityNewLoginBinding
 import com.gmwapp.hima.dialogs.BottomSheetCountry
 import com.gmwapp.hima.retrofit.responses.Country
+import com.gmwapp.hima.utils.DPreferences
+import com.gmwapp.hima.viewmodels.FcmTokenViewModel
 import com.gmwapp.hima.viewmodels.LoginViewModel
+import com.gmwapp.hima.viewmodels.ReferralCodeViewModel
 import com.google.android.material.snackbar.Snackbar
 //import com.zego.ve.Log
 import dagger.hilt.android.AndroidEntryPoint
@@ -52,6 +56,8 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
     private lateinit var binding: ActivityNewLoginBinding // Ensure you have view binding enabled
     private val loginViewModel: LoginViewModel by viewModels()
+    private val referralCodeViewModel : ReferralCodeViewModel by viewModels()
+
     private var otp: Int? = null
     private var mobile: String? = null
     private var timer: CountDownTimer?=null
@@ -70,6 +76,8 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
         setupOnboarding()
         initUI()
+        observeReferralCodeResponse()
+
         binding.loginSection.visibility  = View.VISIBLE
         binding.otpSection.visibility  = View.GONE
     }
@@ -109,7 +117,15 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
     }
 
 
+
+
     private fun initUI() {
+
+        DPreferences(this).setReferralCode("") // Save empty referral code initially
+        val savedReferCode = DPreferences(this).getReferralCode()
+        Log.d("savedReferCode","$savedReferCode")
+        checkReferal()
+
         binding.btnSendOtp.setOnClickListener {
             closeKeyboard()
             binding.btnSendOtp.isEnabled = false
@@ -401,6 +417,78 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         if (currentFocusedView != null) {
             inputMethodManager.hideSoftInputFromWindow(currentFocusedView.windowToken, InputMethodManager.HIDE_NOT_ALWAYS)
         }
+    }
+
+    fun checkReferal(){
+        binding.referCodeCheckbox.setOnCheckedChangeListener { buttonView, isChecked ->
+            if (isChecked) {
+                //  binding.btnSendOtp.setBackgroundResource(R.drawable.d_button_bg_white)
+                binding.cvReferCode.visibility = View.VISIBLE
+            } else {
+
+                binding.etReferCode.setText("")
+                binding.cvReferCode.visibility = View.GONE
+            }
+        }
+
+        binding.etReferCode.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {
+            }
+
+            override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
+                binding.applyReferral.setText("Apply")
+                DPreferences(this@NewLoginActivity).setReferralCode("") // Save empty referral code initially
+                val savedReferCode = DPreferences(this@NewLoginActivity).getReferralCode()
+
+                Log.d("savedReferCode","$savedReferCode")
+
+
+            }
+
+            override fun afterTextChanged(s: Editable) {
+            }
+        })
+
+
+
+        binding.applyReferral.setOnClickListener {
+            val mobile = binding.etMobileNumber.text.toString()
+
+            val mobileRegex = Regex("^[6-9]\\d{9}$")
+            var refercode = binding.etReferCode.text.toString()
+
+            // Validation logic
+            if (TextUtils.isEmpty(mobile) || !mobile.matches(mobileRegex)) {
+                showSnackbar("Enter a valid 10-digit mobile number")
+            }else if (binding.etReferCode.text.isEmpty()){
+                showSnackbar("Referral code can't be empty")
+            }else{
+                referralCodeViewModel.checkReferCode(mobile,refercode)
+            }
+        }
+    }
+
+    fun observeReferralCodeResponse() {
+
+        referralCodeViewModel.referCodeResponseLiveData.observe(this) { response ->
+            Log.d("referCodeResponseLiveData", "$response")
+
+            response?.let {
+                if (it.success) {
+                    binding.applyReferral.setText("Applied")
+                    Toast.makeText(this@NewLoginActivity, "Refer code applied successfully", Toast.LENGTH_SHORT).show()
+                    val referCode = binding.etReferCode.text.toString()
+                    DPreferences(this).setReferralCode(referCode)
+                    val savedReferCode = DPreferences(this).getReferralCode()
+                    Log.d("savedReferCode","$savedReferCode")
+                } else {
+                    Toast.makeText(this@NewLoginActivity, "${it.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+
+        }
+
     }
 
 }

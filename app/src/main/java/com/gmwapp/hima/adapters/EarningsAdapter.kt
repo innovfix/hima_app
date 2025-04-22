@@ -1,7 +1,9 @@
 package com.gmwapp.hima.adapters
 
 import android.app.Activity
+import android.util.Log
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.gmwapp.hima.R
@@ -42,11 +44,18 @@ class EarningsAdapter(
             else -> {
                 holder.binding.tvStatus.text = activity.getString(R.string.cancelled)
                 holder.binding.tvStatus.setTextColor(activity.getColor(android.R.color.holo_red_dark))
+                if (earning.reason.isNotEmpty() && earning.reason!=null){
+                    holder.binding.tvReason.visibility = View.VISIBLE
+                    holder.binding.tvReason.text = "Reason : ${earning.reason}"
+                }
             }
         }
         holder.binding.tvDate.text = earning.datetime
         holder.binding.tvAmount.text = "₹" + earning.amount.toString()
         holder.binding.tvId.text = activity.getString(R.string.transaction_id, earning.id.toString())
+
+        Log.d("CancelledReason","${earning.reason}")
+
     }
 
      override fun getItemCount(): Int {

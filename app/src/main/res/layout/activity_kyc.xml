@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:fitsSystemWindows="true"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    tools:context=".activities.KycActivity">
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/gl_left_margin"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.04" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/gl_right_margin"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.96" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/gl_top_margin"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.027" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/gl_bottom_margin"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.92" />
+
+    <ImageView
+        android:id="@+id/iv_back"
+        android:layout_width="15dp"
+        android:layout_height="15dp"
+        android:layout_marginStart="4dp"
+        android:layout_marginTop="8dp"
+        android:contentDescription="@string/edit"
+        android:rotation="180"
+        android:src="@drawable/right_arrow"
+        app:layout_constraintHeight_default="percent"
+        app:layout_constraintHeight_percent="0.02"
+        app:layout_constraintStart_toStartOf="@id/gl_left_margin"
+        app:layout_constraintTop_toTopOf="@id/gl_top_margin"
+        app:layout_constraintWidth_default="percent"
+        app:layout_constraintWidth_percent="0.05"
+        app:tint="@color/pink"
+        tools:ignore="MissingConstraints" />
+
+    <TextView
+        android:id="@+id/tv_withdraw"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:text="@string/complete_Kyc"
+        android:textColor="@color/pink"
+        android:textSize="20sp"
+        android:fontFamily="@font/poppins_regular"
+        app:layout_constraintBottom_toBottomOf="@+id/iv_back"
+        app:layout_constraintStart_toEndOf="@+id/iv_back"
+        app:layout_constraintTop_toTopOf="@+id/iv_back" />
+
+    <TextView
+        android:id="@+id/tv_current_balance"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/poppins_semibold"
+        android:text="@string/_0_00"
+        android:visibility="gone"
+        android:textColor="@color/pink"
+        android:textSize="16dp"
+        app:layout_constraintBottom_toBottomOf="@+id/tv_withdraw"
+        app:layout_constraintEnd_toStartOf="@+id/gl_right_margin"
+        app:layout_constraintTop_toTopOf="@+id/tv_withdraw"
+        app:layout_constraintVertical_bias="1.0" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/gl_withdraw_top_margin"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.11080711" />
+
+    <LinearLayout
+        android:id="@+id/llbankdetails"
+        android:layout_width="match_parent"
+        app:layout_constraintTop_toTopOf="@id/tv_withdraw"
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/_10sdp"
+        android:orientation="vertical">
+
+
+    <!-- Holder Name -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="@dimen/_13sdp"
+        android:layout_marginTop="@dimen/_23sdp"
+        android:fontFamily="@font/poppins_semibold"
+        android:text="@string/pan_card_name"
+        android:textColor="@color/black_light"
+        android:textSize="@dimen/_12sdp" />
+
+    <EditText
+        android:id="@+id/etPanName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="@dimen/_13sdp"
+        android:layout_marginBottom="@dimen/_5sdp"
+        android:background="@drawable/edit_text_trip"
+        android:fontFamily="@font/poppins_medium"
+        android:hint="Name"
+        android:text=""
+        android:inputType="textPersonName"
+        android:padding="@dimen/_14sdp"
+        android:textCursorDrawable="@color/colorPrimaryDark"
+        android:textSize="@dimen/_12sdp" />
+
+    <!-- Account Number -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="@dimen/_13sdp"
+        android:layout_marginTop="@dimen/_13sdp"
+        android:fontFamily="@font/poppins_semibold"
+        android:text="@string/pan_card_number"
+        android:textColor="@color/black_light"
+        android:textSize="@dimen/_12sdp" />
+
+    <EditText
+        android:id="@+id/etPanNumber"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="@dimen/_13sdp"
+        android:layout_marginBottom="@dimen/_5sdp"
+        android:background="@drawable/edit_text_trip"
+        android:fontFamily="@font/poppins_medium"
+        android:hint="Pan"
+        android:text=""
+        android:inputType="textCapCharacters"
+        android:maxLength="10"
+        android:padding="@dimen/_14sdp"
+        android:textCursorDrawable="@color/colorPrimaryDark"
+        android:textSize="@dimen/_12sdp"
+
+        />
+
+    </LinearLayout>
+
+
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_withdraw"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginBottom="24dp"
+        android:enabled="false"
+        android:backgroundTint="@color/button_background_tint2"
+        android:fontFamily="@font/poppins_medium"
+        android:text="@string/submit"
+        android:textAllCaps="false"
+        android:textColor="@color/button_text_color2"
+        android:textSize="14sp"
+        app:cornerRadius="@dimen/_18sdp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
+        app:layout_constraintHeight_default="percent"
+        app:layout_constraintHeight_percent="0.08"
+        app:layout_constraintStart_toStartOf="@id/gl_left_margin"
+        app:layout_constraintTop_toTopOf="@+id/gl_bottom_margin" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

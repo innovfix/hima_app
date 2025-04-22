@@ -31,6 +31,7 @@ import com.gmwapp.hima.adapters.UpiListAdapter
 import com.gmwapp.hima.databinding.ActivityWithdrawBinding
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.AccountViewModel
+import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.viewmodels.UpiViewModel
 import com.gmwapp.hima.viewmodels.WithdrawViewModel
@@ -44,6 +45,8 @@ class WithdrawActivity : BaseActivity() {
 
     val profileViewModel: ProfileViewModel by viewModels()
     val withdrawViewModel: WithdrawViewModel by viewModels()
+    private val loginViewModel: LoginViewModel by viewModels()
+
     val upiViewModel: UpiViewModel by viewModels()
 
     var bankDetails: Boolean = false
@@ -73,6 +76,7 @@ class WithdrawActivity : BaseActivity() {
 
     private fun initUI() {
 
+        panVerification()
         accountViewModel.getSettings()
 
         accountViewModel.settingsLiveData.observe(this, Observer { response ->
@@ -184,6 +188,9 @@ class WithdrawActivity : BaseActivity() {
         }
 
 
+
+
+
         val textList = listOf("@ybl", "@sbi", "@okicici", "@okaxis")
 
         var isExpanded = false
@@ -211,6 +218,12 @@ class WithdrawActivity : BaseActivity() {
 
         binding.cvAddBank.setOnSingleClickListener {
             val intent = Intent(this, BankUpdateActivity::class.java)
+            startActivity(intent)
+
+        }
+
+        binding.cvPanDetails.setOnSingleClickListener {
+            val intent = Intent(this, KycActivity::class.java)
             startActivity(intent)
 
         }
@@ -389,6 +402,28 @@ class WithdrawActivity : BaseActivity() {
         } catch (e: NumberFormatException) {
             false // If conversion fails, return false
         }
+    }
+
+    fun panVerification(){
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+
+        userData?.let { loginViewModel.login(it.mobile) }
+        loginViewModel.loginResponseLiveData.observe(this, Observer {
+
+            if (it.success) {
+                if (!it.data?.pancard_name.isNullOrEmpty()&& !it.data?.pancard_number.isNullOrEmpty()){
+                    binding.ivAddPan.setBackgroundResource(R.drawable.tick_circle_svg) // Replace with your valid drawable resource
+                    // Rotate the drawable by a specified angle (e.g., 45 degrees)
+                    binding.ivAddPan.rotation = 0f // This rotates the ImageView by 45 degrees
+                }
+
+            }
+        })
+    }
+
+    override fun onResume() {
+        super.onResume()
+        panVerification()
     }
 
 

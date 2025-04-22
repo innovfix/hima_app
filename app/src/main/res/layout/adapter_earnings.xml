@@ -32,18 +32,31 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/tv_date" />
 
+    <TextView
+        android:id="@+id/tv_reason"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text=""
+        android:visibility="gone"
+        android:textColor="@color/black_light"
+        android:textSize="12sp"
+        android:fontFamily="@font/poppins_semibold"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tv_id" />
+
     <View
         android:id="@+id/v_divider"
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:layout_gravity="center_vertical"
         android:layout_marginStart="2dp"
-        android:layout_marginTop="17dp"
+        android:layout_marginTop="5dp"
         android:layout_marginEnd="2dp"
         android:layout_marginBottom="17dp"
         android:background="@color/transaction_divider"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tv_id"
+        app:layout_constraintTop_toBottomOf="@+id/tv_reason"
         app:layout_goneMarginTop="8dp" />
 
     <androidx.constraintlayout.widget.ConstraintLayout

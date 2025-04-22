@@ -206,6 +206,20 @@ class DPreferences(context: Context) {
         }
     }
 
+    fun setReferralCode(code: String) {
+        try {
+            mPrefsWrite.putString("referral_code", code)
+            mPrefsWrite.apply()
+        } catch (e: Exception) {
+            e.message?.let { Log.e("DPreferences", it) }
+        }
+    }
+
+    fun getReferralCode(): String {
+        return mPrefsRead.getString("referral_code", "") ?: ""
+    }
+
+
 
 
 
