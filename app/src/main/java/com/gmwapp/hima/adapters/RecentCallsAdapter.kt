@@ -36,6 +36,7 @@ class RecentCallsAdapter(
     val onVideoListener: OnItemSelectionListener<CallsListResponseData>
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val itemHolder = ItemHolder(
             AdapterRecentCallsBinding.inflate(
@@ -116,6 +117,19 @@ class RecentCallsAdapter(
         Log.d("RecentCallUserName","${call.name}")
 
 
+        val currentDate : String ? = call.date
+
+        // Show the date if it's different from the last displayed date
+        if (!currentDate.isNullOrEmpty()) {
+            holder.binding.llDate.visibility = View.VISIBLE
+            holder.binding.vDivider.visibility = View.GONE
+            holder.binding.callDate.text= currentDate
+        } else {
+            holder.binding.llDate.visibility = View.GONE
+            holder.binding.vDivider.visibility = View.VISIBLE
+
+        }
+
     }
 
 
@@ -129,11 +143,13 @@ class RecentCallsAdapter(
     fun addData(newData: List<CallsListResponseData>) {
         val start = callList.size
         callList.addAll(newData)
+
         notifyItemRangeInserted(start, newData.size)
     }
 
     fun clearData() {
         callList.clear()
+
         notifyDataSetChanged()
     }
 

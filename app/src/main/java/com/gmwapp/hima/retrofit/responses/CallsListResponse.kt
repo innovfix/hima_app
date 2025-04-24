@@ -9,6 +9,7 @@ data class CallsListResponse(
 data class CallsListResponseData(
     val id: Int,
     val name: String,
+    val date: String,
     val image: String,
     val started_time: String,
     val duration: String,
