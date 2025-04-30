@@ -32,11 +32,10 @@ import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
 import android.widget.Button
-import android.widget.FrameLayout
+import android.widget.ImageView
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
-import androidx.cardview.widget.CardView
 import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.Observer
 import androidx.work.Constraints
@@ -50,15 +49,17 @@ import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.activities.RatingActivity
 import com.gmwapp.hima.activities.WalletActivity
+import com.gmwapp.hima.adapters.GiftAdapter
 import com.gmwapp.hima.agora.FcmUtils
+import com.gmwapp.hima.agora.GiftBottomSheetFragment
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
-import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
 import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
 import com.gmwapp.hima.agora.services.CallingService
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
+import com.gmwapp.hima.viewmodels.GiftImageViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.viewmodels.UserAvatarViewModel
 import com.gmwapp.hima.workers.CallUpdateWorker
@@ -69,7 +70,6 @@ import retrofit2.Response
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.TimeZone
-import kotlin.math.abs
 
 @AndroidEntryPoint
 class MaleAudioCallingActivity : AppCompatActivity() {
@@ -90,6 +90,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     lateinit var binding: ActivityMaleAudioCallingBinding
     private val profileViewModel: ProfileViewModel by viewModels()
     private val fcmNotificationViewModel: FcmNotificationViewModel by viewModels()
+
+    private lateinit var giftAdapter: GiftAdapter
+    private val giftImageViewModel: GiftImageViewModel by viewModels()
 
     private val userAvatarViewModel: UserAvatarViewModel by viewModels()
 
@@ -220,6 +223,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
         window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
 
+        Glide.with(this)
+            .load(R.drawable.gift_png)
+            .into(binding.ivGift)
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         if (userData != null) {
@@ -274,7 +280,25 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
         observeCallSwitchRequest()
 
+        giftIconClicked()
     }
+
+    private fun giftIconClicked(){
+        binding.ivGift.setOnClickListener{
+           // showGiftBottomSheet()
+            if(isVideoCallGoing==true){
+                val bottomSheet = GiftBottomSheetFragment("video",receiverId)
+                bottomSheet.show(supportFragmentManager, "BottomSheetSelectPayment")
+            }else{
+                val bottomSheet = GiftBottomSheetFragment("audio",receiverId)
+                bottomSheet.show(supportFragmentManager, "BottomSheetSelectPayment")
+            }
+
+        }
+    }
+
+
+
 
     private fun setMyAvatar(image: String, name: String) {
         binding.tvMaleName.setText(name)
@@ -575,7 +599,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     }
 
 
-    private fun newRemainingTime() {
+     fun newRemainingTime() {
 
         if (isVideoCallGoing) {
             maleUserId?.let {
@@ -1381,5 +1405,69 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             })
         }
     }
+
+
+    fun animateGift(image: String) {
+        val giftImage = binding.ivGiftImage
+        val femaleImage = binding.ivFemaleUser
+
+        // Reset visibility and alpha
+        giftImage.alpha = 1f
+        giftImage.visibility = View.VISIBLE
+
+        BaseApplication.getInstance()?.playSendGiftSound()
+        Glide.with(this)
+            .load(image)
+            .into(giftImage)
+
+        giftImage.post {
+            val startX = giftImage.x
+            val startY = giftImage.y
+
+            val femaleCenterX = femaleImage.x + femaleImage.width / 2 - giftImage.width / 2
+            val femaleCenterY = femaleImage.y + femaleImage.height / 2 - giftImage.height / 2
+
+            // First: animate movement only
+            giftImage.animate()
+                .x(femaleCenterX)
+                .y(femaleCenterY)
+                .setDuration(2000)
+                .withEndAction {
+                    // Then: fade out
+                    giftImage.animate()
+                        .alpha(0f)
+                        .setDuration(1000)
+                        .withEndAction {
+                            giftImage.visibility = View.INVISIBLE
+                            // Reset position if needed
+                            giftImage.x = startX
+                            giftImage.y = startY
+                        }
+                        .start()
+                }
+                .start()
+        }
+    }
+
+    fun sendGiftSentNotification(giftIcon : String) {
+
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val senderId = userData?.id
+        if (senderId != null) {
+            fcmNotificationViewModel.sendNotification(
+                senderId = senderId,
+                receiverId = receiverId,
+                callType = "$giftIcon",
+                channelName = channelName,
+                message = "giftSent"
+            )
+        }
+    }
+
+
+
+
+
+
 
 }

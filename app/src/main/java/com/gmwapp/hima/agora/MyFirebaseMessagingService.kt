@@ -364,6 +364,11 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 FcmUtils.UpdateCallSwitch(message, senderId)
             }
 
+            if (message == "giftSent" && gender == "female") {
+                var giftImage= callType
+                FcmUtils.giftReceivedImage(giftImage.toString())
+            }
+
 
             if (message.startsWith("switchToAudio") && gender == "male") {
                 val parts = message.split(" ")

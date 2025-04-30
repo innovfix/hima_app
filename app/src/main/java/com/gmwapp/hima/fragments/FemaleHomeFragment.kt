@@ -416,12 +416,24 @@ class FemaleHomeFragment : BaseFragment() {
 
     }
 
+    fun updateEarnings(){
+        BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
+            profileViewModel.getUsers(it)
+        }
+
+        profileViewModel.getUserLiveData.observe(this, Observer {
+            val prefs = BaseApplication.getInstance()?.getPrefs()
+            prefs?.setUserData(it?.data)
+            binding.tvCoins.text = "₹" + it?.data?.balance.toString()
+        })
+    }
+
     override fun onResume() {
         super.onResume()
         val prefs = BaseApplication.getInstance()?.getPrefs()
         val userData = prefs?.getUserData()
         femaleUsersViewModel.getReports(userData?.id!!)
-
+        updateEarnings()
     }
 
 

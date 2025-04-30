@@ -55,6 +55,13 @@ class TransactionAdapter(
             holder.binding.tvTransactionDate.text = "${transaction.date}"
         }
 
+        else if (transaction.type=="send_gift"){
+            holder.binding.tvCoins.text = ""+transaction.coins
+            holder.binding.tvCoins.setTextColor(activity.getColor(android.R.color.holo_red_dark))
+            holder.binding.tvTransactionTitle.text = "Gift sent"
+            holder.binding.tvTransactionDate.text = "${transaction.date}"
+        }
+
         //  holder.binding.tvTransactionDate.text = formatTime(transaction.datetime)
         Log.d("transaction_datetime","$transaction.datetime")
         holder.binding.tvTransactionHint.text = activity.getString(R.string.session_id)+transaction.id

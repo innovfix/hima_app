@@ -193,6 +193,24 @@ class BaseApplication : Application(), Configuration.Provider {
         }
     }
 
+    fun playSendGiftSound() {
+        stopRingtone()
+
+        val audioAttributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE) // makes it respect silent mode
+            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+            .build()
+
+        val uri = Uri.parse("android.resource://${packageName}/${R.raw.gift_tune}")
+        mediaPlayer = MediaPlayer()
+        mediaPlayer?.apply {
+            setAudioAttributes(audioAttributes)
+            setDataSource(applicationContext, uri)
+            prepare()
+            start()
+        }
+    }
+
 
     fun isRingtonePlaying(): Boolean {
         return mediaPlayer?.isPlaying ?: false

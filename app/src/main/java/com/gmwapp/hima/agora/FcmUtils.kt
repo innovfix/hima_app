@@ -51,6 +51,17 @@ object FcmUtils {
     }
 
 
+    private val _giftReceived = MutableLiveData<String?>()
+    val giftReceived: LiveData<String?> get() = _giftReceived
+
+    fun giftReceivedImage(image: String) {
+        _giftReceived.postValue(image)
+    }
+
+    fun cleargiftReceived() {
+        _giftReceived.postValue(null)
+    }
+
 
 
 

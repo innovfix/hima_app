@@ -169,6 +169,7 @@ class WalletActivity : BaseActivity()  {
 
             if (it!=null && it.success && it.data != null) {
                 // Create the adapter
+                binding.ivBonus.visibility= View.VISIBLE
                 var bannerOfferImage= it.banner_image
                 Glide.with(this)
                     .load(bannerOfferImage)

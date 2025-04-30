@@ -1,5 +1,6 @@
 package com.gmwapp.hima.viewmodels
 
+import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -29,6 +30,7 @@ class GiftViewModel @Inject constructor(
                     response: Response<SendGiftResponse>
                 ) {
                     giftResponseLiveData.postValue(response.body())
+                    Log.d("giftSent","${response.body()}")
                 }
 
                 override fun onFailure(call: Call<SendGiftResponse>, t: Throwable) {

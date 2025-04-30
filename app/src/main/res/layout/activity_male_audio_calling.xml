@@ -216,6 +216,30 @@
         android:text="Leave"
         tools:ignore="MissingConstraints" />
 
+
+    <ImageView
+        android:id="@+id/iv_gift"
+        android:layout_width="@dimen/_55sdp"
+        android:layout_height="55dp"
+        android:layout_marginEnd="8dp"
+        android:src="@drawable/gift_png"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tv_male_name"
+        app:layout_constraintVertical_bias="0.26" />
+
+
+    <ImageView
+        android:id="@+id/iv_gift_image"
+        android:layout_width="@dimen/_95sdp"
+        android:layout_height="95dp"
+        android:src="@drawable/gift_png"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="@+id/layout_buttons"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/iv_gift" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>
 
 

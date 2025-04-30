@@ -205,7 +205,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
-        window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
+       window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
 
@@ -235,6 +235,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
 
         observeRemainingTimeUpdated()
+        observeGiftReceived()
         observeCallSwitchRequest()
 
         binding.btnMuteUnmute.setOnClickListener {
@@ -637,6 +638,59 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
             }
         })
+    }
+
+    fun observeGiftReceived() {
+        FcmUtils.giftReceived.observe(this, androidx.lifecycle.Observer { giftReceived ->
+            if (giftReceived != null) {
+                animateGift(giftReceived)
+            }
+            FcmUtils.cleargiftReceived()
+        })
+    }
+
+
+    fun animateGift(image: String) {
+        val giftImage = binding.ivGiftImage
+        val femaleImage = binding.ivFemaleUser
+
+        Toast.makeText(this, "Gift Received", Toast.LENGTH_SHORT).show()
+        // Reset visibility and alpha
+        giftImage.alpha = 1f
+        giftImage.visibility = View.VISIBLE
+
+        BaseApplication.getInstance()?.playSendGiftSound()
+        Glide.with(this)
+            .load(image)
+            .into(giftImage)
+
+        giftImage.post {
+            val startX = giftImage.x
+            val startY = giftImage.y
+
+            val femaleCenterX = femaleImage.x + femaleImage.width / 2 - giftImage.width / 2
+            val femaleCenterY = femaleImage.y + femaleImage.height / 2 - giftImage.height / 2
+
+            // First: animate movement only
+            giftImage.animate()
+                .x(femaleCenterX)
+                .y(femaleCenterY)
+                .setDuration(2000)
+                .withEndAction {
+                    // Then: fade out
+                    giftImage.animate()
+                        .alpha(0f)
+                        .setDuration(1000)
+                        .withEndAction {
+                            giftImage.visibility = View.INVISIBLE
+                            // Reset position if needed
+                            giftImage.x = startX
+                            giftImage.y = startY
+                        }
+                        .start()
+                }
+                .start()
+        }
     }
 
 

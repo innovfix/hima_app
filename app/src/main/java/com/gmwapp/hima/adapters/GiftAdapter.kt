@@ -12,9 +12,10 @@ import com.bumptech.glide.Glide
 import com.gmwapp.hima.R
 import com.gmwapp.hima.retrofit.responses.GiftData
 
-class GiftAdapter(private val context: Context) : RecyclerView.Adapter<GiftAdapter.GiftViewHolder>() {
+class GiftAdapter(private val context: Context,     private val onItemClicked: (GiftData) -> Unit) : RecyclerView.Adapter<GiftAdapter.GiftViewHolder>() {
 
     private var giftList: List<GiftData> = mutableListOf()
+
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): GiftViewHolder {
         val view = LayoutInflater.from(context).inflate(R.layout.adapter_gifts, parent, false)
@@ -28,6 +29,9 @@ class GiftAdapter(private val context: Context) : RecyclerView.Adapter<GiftAdapt
             .into(holder.ivGift)
 
         holder.tvCoinsAmount.text = gift.coins.toString()  // Setting the coin amount
+        holder.itemView.setOnClickListener {
+            onItemClicked(gift)  // <--- Here we call the click listener
+        }
     }
 
     override fun getItemCount(): Int = giftList.size

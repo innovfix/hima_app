@@ -28,7 +28,7 @@ class GiftImageViewModel @Inject constructor(
                     call: Call<GiftImageResponse>,
                     response: Response<GiftImageResponse>
                 ) {
-                    Log.d("GiftIcon", "Gift Icon URL: ${response.body()}")
+                    Log.d("GiftIconChecking", "Gift Icon URL: ${response.body()}")
 
                     giftResponseLiveData.postValue(response.body())
                 }

@@ -19,6 +19,7 @@ import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.EarningsViewModel
 import com.gmwapp.hima.viewmodels.LoginViewModel
+import com.gmwapp.hima.viewmodels.ProfileViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -27,6 +28,8 @@ class EarningsActivity : BaseActivity() {
     private val earningsViewModel: EarningsViewModel by viewModels()
     private val accountViewModel: AccountViewModel by viewModels()
     private val loginViewModel: LoginViewModel by viewModels()
+    val profileViewModel: ProfileViewModel by viewModels()
+
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,6 +42,7 @@ class EarningsActivity : BaseActivity() {
     private fun initUI() {
 
         panVerification()
+        updateEarnings()
 
         binding.ivBack.setOnSingleClickListener {
             finish()
@@ -130,7 +134,7 @@ class EarningsActivity : BaseActivity() {
         })
         earningsViewModel.earningsResponseLiveData.observe(this, Observer {
             if (it.data != null) {
-
+                binding.cvPanDetails.visibility=View.GONE
                 binding.rvEarnings.setLayoutManager(
                     LinearLayoutManager(
                         this, LinearLayoutManager.VERTICAL, false
@@ -161,9 +165,22 @@ class EarningsActivity : BaseActivity() {
         })
     }
 
+    fun updateEarnings(){
+        BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
+            profileViewModel.getUsers(it)
+        }
+
+        profileViewModel.getUserLiveData.observe(this, Observer {
+            val prefs = BaseApplication.getInstance()?.getPrefs()
+            prefs?.setUserData(it?.data)
+
+        })
+    }
+
     override fun onResume() {
         super.onResume()
         if (binding.cvPanDetails.visibility == View.VISIBLE)
         panVerification()
+        updateEarnings()
     }
 }

@@ -80,6 +80,14 @@ class CoinAdapter(
         holder.binding.tvPrice.text = activity.getString(R.string.rupee_text, coin.price)
         if (coin.save==0){
             holder.binding.tvDiscountPrice.visibility = View.INVISIBLE
+        }else{
+            val layoutParamsOriginal = holder.binding.originalPrice.layoutParams as ViewGroup.MarginLayoutParams
+            val layoutParamsDiscount = holder.binding.originalPrice.layoutParams as ViewGroup.MarginLayoutParams
+            layoutParamsOriginal.topMargin = 38 // Hardcoded margin value in pixels
+            layoutParamsDiscount.topMargin = 38 // Hardcoded margin value in pixels
+            holder.binding.originalPrice.layoutParams = layoutParamsOriginal
+            holder.binding.tvPrice.layoutParams = layoutParamsDiscount
+
         }
 
 
@@ -89,6 +97,7 @@ class CoinAdapter(
 
             holder.binding.originalPrice.paintFlags =
                 holder.binding.originalPrice.paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
+
         }
 
     }
