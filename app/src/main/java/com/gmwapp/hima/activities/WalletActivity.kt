@@ -169,7 +169,7 @@ class WalletActivity : BaseActivity()  {
 
             if (it!=null && it.success && it.data != null) {
                 // Create the adapter
-                binding.ivBonus.visibility= View.VISIBLE
+               // binding.ivBonus.visibility= View.VISIBLE
                 var bannerOfferImage= it.banner_image
                 Glide.with(this)
                     .load(bannerOfferImage)
@@ -317,7 +317,18 @@ class WalletActivity : BaseActivity()  {
             } else {
                 Toast.makeText(this, "Invalid input data", Toast.LENGTH_SHORT).show()
             }
+
+//            val intent = Intent(this@WalletActivity, PaymentActivity::class.java).apply {
+//                putExtra("AMOUNT", amount)
+//                putExtra("COIN_SELECTED", selectedCoin )
+//                putExtra("SAVE_PERCENT", selectedSavePercent)
+//
+//            }
+//            startActivity(intent)
         })
+
+
+
 
 
 

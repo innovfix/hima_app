@@ -10,6 +10,7 @@ import com.gmwapp.hima.retrofit.responses.BankUpdateResponse
 import com.gmwapp.hima.retrofit.responses.CallFemaleUserResponse
 import com.gmwapp.hima.retrofit.responses.CallsListResponse
 import com.gmwapp.hima.retrofit.responses.CoinsResponse
+import com.gmwapp.hima.retrofit.responses.CouponsResponse
 import com.gmwapp.hima.retrofit.responses.DeleteUserResponse
 import com.gmwapp.hima.retrofit.responses.EarningsResponse
 import com.gmwapp.hima.retrofit.responses.ExplanationVideoResponse
@@ -583,6 +584,18 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun getCoupons(
+        callback: NetworkCallback<CouponsResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<CouponsResponse> = getApiInterface().getCoupons()
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+
 
     fun sendFcmNotification(
         senderId: Int,
@@ -979,6 +992,10 @@ interface ApiInterface {
         @Field("pancard_name") panName: String,
         @Field("pancard_number") panNumber: String
     ): Call<PanCardResponse>
+
+    @POST("coupons_list")
+    fun getCoupons(): Call<CouponsResponse>
+
 
 
 

@@ -288,7 +288,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
            // showGiftBottomSheet()
             if(isVideoCallGoing==true){
                 val bottomSheet = GiftBottomSheetFragment("video",receiverId)
-                bottomSheet.show(supportFragmentManager, "BottomSheetSelectPayment")
+             //   bottomSheet.show(supportFragmentManager, "BottomSheetSelectPayment")
             }else{
                 val bottomSheet = GiftBottomSheetFragment("audio",receiverId)
                 bottomSheet.show(supportFragmentManager, "BottomSheetSelectPayment")

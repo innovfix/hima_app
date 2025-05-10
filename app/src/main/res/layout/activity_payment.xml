@@ -97,7 +97,7 @@
                             android:textColor="#545454"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="100 Coins"/>
+                            android:text=""/>
 
                         <TextView
                             android:id="@+id/tv_totalAmount"
@@ -109,7 +109,7 @@
                             android:layout_gravity="end"
                             android:gravity="end"
                             android:layout_height="wrap_content"
-                            android:text="₹100.00"/>
+                            android:text=""/>
 
                     </LinearLayout>
 
@@ -121,7 +121,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:textSize="@dimen/_8sdp"
-                        android:text="Save 10%"/>
+                        android:text=""/>
 
                 </LinearLayout>
 
@@ -164,7 +164,7 @@
                             android:gravity="end"
                             android:textColor="@color/white"
                             android:layout_height="wrap_content"
-                            android:text="₹100.00"/>
+                            android:text=""/>
 
                     </LinearLayout>
 

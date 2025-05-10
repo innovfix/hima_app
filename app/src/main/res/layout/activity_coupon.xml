@@ -40,9 +40,10 @@
     </LinearLayout>
 
     <TextView
+        android:id="@+id/tv_bestCoupons"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Best Coupons"
+        android:text=""
         android:layout_marginLeft="@dimen/_12sdp"
         android:textColor="@color/grey"
         android:textSize="14sp"
@@ -72,10 +73,12 @@
                 android:layout_marginRight="@dimen/_12sdp"/>
 
             <TextView
+                android:id="@+id/tv_moreCoupons"
+
                 android:layout_marginTop="@dimen/_15sdp"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="More Coupons"
+                android:text=""
                 android:layout_marginLeft="@dimen/_12sdp"
                 android:textColor="@color/grey"
                 android:textSize="14sp"

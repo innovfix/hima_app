@@ -45,7 +45,7 @@ class PaymentActivity : AppCompatActivity() {
         Log.d("couponcode","$discountedPrice")
         Log.d("couponcode","$save")
 
-        binding.tvCoinsText.text = coinSelected
+        binding.tvCoinsText.text = coinSelected + " Coins"
         binding.tvTotalAmount.text = "₹$amount"
         binding.tvSavePercent.text = "Save $savePercent%"
         binding.tvFinalAmount.text =  "₹$amount"
@@ -72,7 +72,11 @@ class PaymentActivity : AppCompatActivity() {
             finish()
         }
 
-        binding.etCouponCode.setText(couponCode)
+        val cleanedCouponCode = couponCode?.trim()
+        binding.etCouponCode.clearFocus()
+        binding.etCouponCode.error = null
+        binding.etCouponCode.setText(cleanedCouponCode)
+
         if (couponCode != null && originalPrice != null && discountedPrice != null && save != null) {
             binding.etCouponCode.setText(couponCode)
             binding.tvTotalAmount.text = "$originalPrice" // Set original price
@@ -107,9 +111,9 @@ class PaymentActivity : AppCompatActivity() {
 
             binding.etCouponCode?.setText(couponCode)
             binding.tvTotalAmount.text = "$originalPrice" // Set original price
-            binding.tvFinalAmount.text = "$originalPrice" // Use a different field for discounted price
+            binding.tvFinalAmount.text = "$discountedPrice" // Use a different field for discounted price
             binding.tvSavePercent.text = save
-            binding.tvCoinsText.text = coins
+            binding.tvCoinsText.text = coins+" Coins"
 
             Log.d("PaymentActivityCheck", "Coupon Code: $couponCode")
             Log.d("PaymentActivity", "Original Price: $originalPrice")
