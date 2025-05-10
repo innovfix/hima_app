@@ -77,6 +77,60 @@
 
 
 
+<!--            <LinearLayout-->
+<!--                android:layout_alignParentBottom="true"-->
+<!--                android:id="@+id/ll_price"-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="wrap_content"-->
+
+<!--                android:background="@color/pink_extra_light"-->
+<!--                android:gravity="center"-->
+<!--                android:orientation="horizontal"-->
+<!--                android:paddingVertical="@dimen/_6sdp">-->
+
+<!--                <TextView-->
+<!--                    android:id="@+id/original_price"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:fontFamily="@font/poppins_bold"-->
+<!--                    android:gravity="center"-->
+<!--                    android:visibility="gone"-->
+<!--                    android:text="xxx"-->
+<!--                    android:layout_marginTop="@dimen/_4sdp"-->
+<!--                    android:layout_marginRight="@dimen/_3sdp"-->
+<!--                    android:textColor="@color/pink"-->
+<!--                    android:textSize="10sp" />-->
+
+<!--                <TextView-->
+<!--                    android:id="@+id/tv_price"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:fontFamily="@font/poppins_bold"-->
+<!--                    android:gravity="center"-->
+<!--                    android:layout_marginTop="@dimen/_4sdp"-->
+<!--                    android:text="xxx"-->
+<!--                    android:textColor="@color/pink"-->
+<!--                    android:textSize="17sp" />-->
+<!--            </LinearLayout>-->
+
+<!--            <TextView-->
+<!--                android:layout_centerHorizontal="true"-->
+<!--                android:id="@+id/tv_discount_price"-->
+<!--                android:layout_width="wrap_content"-->
+<!--                android:layout_height="wrap_content"-->
+<!--                android:background="@drawable/bg_save"-->
+<!--                android:gravity="center"-->
+<!--                android:text="xxx"-->
+<!--                android:layout_marginBottom="@dimen/_22sdp"-->
+<!--                android:paddingHorizontal="@dimen/_14sdp"-->
+<!--                android:paddingVertical="@dimen/_2sdp"-->
+<!--                android:textColor="@color/white"-->
+<!--                android:textSize="10sp"-->
+<!--                android:layout_alignParentBottom="true"-->
+<!--                android:layout_marginTop="@dimen/_2sdp" />-->
+
+
+
             <LinearLayout
                 android:layout_alignParentBottom="true"
                 android:id="@+id/ll_price"
@@ -84,21 +138,8 @@
                 android:layout_height="wrap_content"
                 android:background="@color/pink_extra_light"
                 android:gravity="center"
-                android:orientation="horizontal"
+                android:orientation="vertical"
                 android:paddingVertical="@dimen/_6sdp">
-
-                <TextView
-                    android:id="@+id/original_price"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="@font/poppins_bold"
-                    android:gravity="center"
-                    android:visibility="gone"
-                    android:text="xxx"
-                    android:layout_marginTop="@dimen/_4sdp"
-                    android:layout_marginRight="@dimen/_3sdp"
-                    android:textColor="@color/pink"
-                    android:textSize="10sp" />
 
                 <TextView
                     android:id="@+id/tv_price"
@@ -106,10 +147,9 @@
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/poppins_bold"
                     android:gravity="center"
-                    android:layout_marginTop="@dimen/_4sdp"
                     android:text="xxx"
                     android:textColor="@color/pink"
-                    android:textSize="17sp" />
+                    android:textSize="12sp" />
             </LinearLayout>
 
             <TextView

@@ -1017,6 +1017,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             binding.btnVideoCall.setImageResource(R.drawable.audiocall_img)
             binding.btnVideoCall.visibility= View.GONE
 
+            binding.ivGift.visibility=View.GONE
+
 
 
         }
