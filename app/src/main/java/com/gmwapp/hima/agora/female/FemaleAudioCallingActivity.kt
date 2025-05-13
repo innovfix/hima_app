@@ -746,7 +746,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
 
                 AlertDialog.Builder(this)
-                    .setTitle("Want to Switch to Video Call?")
+                    .setTitle("Want to Switch to Video Session?")
                     .setPositiveButton("Yes") { _, _ ->
                         // Show toast message
                         if (totalSeconds>360){
@@ -758,7 +758,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                                     Log.d("SwitchCallIdWhileSending","$switchCallID")
                                     sendSwitchCallRequestNotification(userid, receiverId, "video", "switchToVideo $switchCallID")
                                 }
-                                Toast.makeText(this, "Video call request sent", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(this, "Video session request sent", Toast.LENGTH_SHORT).show()
                             }
 
                         }else{
@@ -924,8 +924,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                     switchDialog?.dismiss()
 
                    switchDialog =  AlertDialog.Builder(this)
-                        .setTitle("Switch to Video Call ?")
-                        .setMessage("$receiverName requested for video call")
+                        .setTitle("Switch to Video Session ?")
+                        .setMessage("$receiverName requested for video session")
                         .setPositiveButton("Confirm") { _, _ ->
 
 

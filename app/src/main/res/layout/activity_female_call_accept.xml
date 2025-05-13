@@ -12,7 +12,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:fontFamily="@font/poppins_semibold"
-        android:text="Audio call"
+        android:text="Audio session"
         android:textColor="@color/white"
         android:textSize="20dp"
         android:layout_marginTop="@dimen/_8sdp"

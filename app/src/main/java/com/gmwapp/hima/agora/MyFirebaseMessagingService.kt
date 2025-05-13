@@ -505,7 +505,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         try {
             val remoteViews = RemoteViews(packageName, R.layout.notification_layout)
             remoteViews.setTextViewText(R.id.caller_name, "$receiverName")
-            remoteViews.setTextViewText(R.id.call_type, "Incoming ${callType?.capitalize()} Call")
+            remoteViews.setTextViewText(R.id.call_type, "Incoming ${callType?.capitalize()} Session")
 
 
             // Detect Dark Mode

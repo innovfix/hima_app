@@ -10,7 +10,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="End Call?"
+        android:text="End Session ?"
         android:paddingLeft="@dimen/_12sdp"
         android:paddingTop="@dimen/_8sdp"
         android:fontFamily="@font/poppins_semibold"
@@ -22,7 +22,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:paddingLeft="@dimen/_12sdp"
-        android:text="Are you sure you want to \ndisconnect the call?"
+        android:text="Are you sure you want to \ndisconnect the session ?"
         android:textSize="13sp"
         android:fontFamily="@font/poppins_medium"
         android:textColor="#545454"/>
@@ -30,7 +30,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="-20dp"
+        android:layout_marginTop="-10dp"
         android:orientation="horizontal"
         android:gravity="end"
        >

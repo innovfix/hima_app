@@ -226,7 +226,7 @@
         android:layout_height="wrap_content"
         android:layout_margin="14dp"
         android:paddingHorizontal="8dp"
-        android:text="After enabling audio or video calls, if you do not attend any calls for 1 hour, they will be automatically disabled. Please enable them again."
+        android:text=""
         android:textColor="@color/white"
         android:textSize="16sp"
         app:layout_constraintBottom_toTopOf="@id/cv_today_activity"

@@ -45,7 +45,7 @@ class TransactionAdapter(
             holder.binding.tvTransactionDate.text = "${transaction.date}"
 
         }else if(transaction.type=="coins_deduction"){
-            holder.binding.tvTransactionTitle.text = "$callType call with $call_user_name"
+            holder.binding.tvTransactionTitle.text = "$callType session with $call_user_name"
             holder.binding.tvTransactionDate.text = "${transaction.date} · ${transaction.duration}"
 
         }else if (transaction.type=="refer_bonus"){

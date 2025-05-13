@@ -77,14 +77,14 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
         }
 
         if (callType=="audio"){
-            binding.calltype.setText("Incoming Voice Call")
+            binding.calltype.setText("Incoming Voice Session")
 
             binding.accpet.setImageResource(R.drawable.audio_accept_gif)
 
         }else{
             binding.accpet.setImageResource(R.drawable.accept_videocall_gif)
 
-            binding.calltype.setText("Incoming Video Call")
+            binding.calltype.setText("Incoming Video Session")
 
         }
 
@@ -111,7 +111,7 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
                 .into(binding.reject)
 
             if (callType=="audio"){
-                binding.calltype.setText("Incoming Voice Call")
+                binding.calltype.setText("Incoming Voice Session")
 
                 Glide.with(this)
                     .asGif()
@@ -122,7 +122,7 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
                     .asGif()
                     .load(R.drawable.accept_videocall_gif) // Replace with your GIF file
                     .into(binding.accpet)
-                binding.calltype.setText("Incoming Video Call")
+                binding.calltype.setText("Incoming Video Session")
 
             }
         }

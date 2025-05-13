@@ -165,10 +165,10 @@ class MaleCallConnectingActivity : AppCompatActivity() {
         }
         startProgressLoop()
         if (callType=="audio"){
-            binding.tvTitle.setText("Audio Call")
+            binding.tvTitle.setText("Audio Session")
 
         }else{
-            binding.tvTitle.setText("Video Call")
+            binding.tvTitle.setText("Video Session")
 
         }
 

@@ -38,7 +38,7 @@
     <string name="need_help">Need Help? Please contact </string>
     <string name="version">version 1.0.0</string>
     <string name="welcome_bonus">Welcome Bonus!</string>
-    <string name="recent_calls">Recent Calls</string>
+    <string name="recent_calls">Recent Session</string>
     <string name="privacy_policy">Privacy Policy</string>
     <string name="delete_account">Delete Account</string>
     <string name="delete_reason_text">Please select at least one reason for deleting your account</string>
@@ -168,7 +168,7 @@
     <string name="audio">Audio</string>
     <string name="todays_activity">Today\'s Activity</string>
     <string name="approx_earnings">Approx earnings</string>
-    <string name="total_calls">Total calls</string>
+    <string name="total_calls">Total Session</string>
     <string name="cancel">Cancel</string>
     <string name="wait_hint">Please wait while we find you someone who is available</string>
     <string name="wait_user_hint">Please wait while we are connecting you with %s</string>
@@ -188,7 +188,7 @@
     <string name="warning">Warning</string>
     <string name="confirm">Confirm</string>
     <string name="coins">Coins</string>
-    <string name="review_hint">How was your call with %s</string>
+    <string name="review_hint">How was your session with %s</string>
     <string name="default_notification_channel_id">com.gmwapp.hima</string>
     <string name="notifications">Notifications</string>
     <string name="mobile_number">Mobile number</string>
@@ -225,7 +225,7 @@
     <string name="your_current_balance">Your Current Balance</string>
     <string name="preferred_payment_method">Preferred payment method</string>
     <string name="select">select</string>
-    <string name="running_service_to_call">Your call is in progress</string>
+    <string name="running_service_to_call">Your session is in progress</string>
     <string name="enable_notification">Please enable the notifications to receive the calls properly</string>
     <string name="appupdate">A brand new version of the Hi ma app is available in the Google play store. Please update your app to explore all of new amazing featuresy</string>
 

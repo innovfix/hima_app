@@ -110,10 +110,10 @@ class AgoraRandomCallActivity : AppCompatActivity() {
         progressBar = findViewById(R.id.progressBar)
         startProgressLoop()
         if (callType=="audio"){
-            binding.tvTitle.setText("Audio Call")
+            binding.tvTitle.setText("Audio Sessioon")
 
         }else{
-            binding.tvTitle.setText("Video Call")
+            binding.tvTitle.setText("Video Session")
 
         }
 
