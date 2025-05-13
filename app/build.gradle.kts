@@ -19,8 +19,8 @@ android {
         applicationId = "com.gmwapp.hima"
         minSdk = 26
         targetSdk = 35
-        versionCode = 17
-        versionName = "17.0"
+        versionCode = 19
+        versionName = "19.0"
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
