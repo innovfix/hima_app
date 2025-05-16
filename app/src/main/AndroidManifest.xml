@@ -204,6 +204,13 @@
                     android:host="YOUR_SITE_URL"
                     android:scheme="https" />
             </intent-filter>
+
+
+
+
+
+
+
         </activity>
 
         <service
@@ -235,6 +242,12 @@
                 <action android:name="ACTION_REJECT_CALL" />
             </intent-filter>
         </receiver>
+
+        <meta-data android:name="com.phonepe.android.sdk.isUAT" android:value="false"/>
+        <meta-data android:name="com.phonepe.android.sdk.isSimulator" android:value="false"/>
+        <meta-data android:name="com.phonepe.android.sdk.MerchantId" android:value="M230EWJ65QNFM"/>
+        <meta-data android:name="com.phonepe.android.sdk.AppId" android:value="com.gmwapp.hima"/>
+
     </application>
 
 </manifest>

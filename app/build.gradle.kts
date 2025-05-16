@@ -155,6 +155,9 @@ dependencies {
     // Meta Pixel
     implementation ("com.facebook.android:facebook-android-sdk:18.0.3")
 
+    //Phonepe
+    implementation("phonepe.intentsdk.android.release:IntentSDK:2.4.3")
+
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
