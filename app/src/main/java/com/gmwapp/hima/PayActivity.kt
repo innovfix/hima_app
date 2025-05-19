@@ -41,9 +41,9 @@ class PayActivity : AppCompatActivity() {
 
         val isInitialized = PhonePeKt.init(
             context = this,
-            merchantId = "TEST-M230EWJ65QNFM_25051", // Replace in PROD
+            merchantId = "SU2505161111008337542920", // Replace in PROD
             flowId = "user001",
-            phonePeEnvironment = PhonePeEnvironment.SANDBOX, // Use RELEASE in prod
+            phonePeEnvironment = PhonePeEnvironment.RELEASE, // Use RELEASE in prod
             enableLogging = true,
             appId = null
         )
@@ -60,7 +60,7 @@ class PayActivity : AppCompatActivity() {
         val client = OkHttpClient()
 
         val request = Request.Builder()
-            .url("https://himaapp.in/api/phonepe/create-order") // Should return { token, orderId }
+            .url("https://himaapp.in/api/phonepe/live/create-order") // Should return { token, orderId }
             .post(FormBody.Builder().build())
             .build()
 
