@@ -39,6 +39,9 @@ import java.nio.charset.Charset
 import java.security.MessageDigest
 
 
+
+
+
 @AndroidEntryPoint
 class WalletActivity : BaseActivity()  {
     lateinit var binding: ActivityWalletBinding
@@ -83,7 +86,7 @@ class WalletActivity : BaseActivity()  {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
-        PhonePe.init(this)
+
         initUI()
         observeCoins()
     }
@@ -244,83 +247,81 @@ class WalletActivity : BaseActivity()  {
             if (userId != null && pointsId.isNotEmpty()) {
                 if (pointsIdInt != null) {
 
-                    phonpeIntegrations()
+                    if (paymentGateway.isNotEmpty()) {
 
-//                    if (paymentGateway.isNotEmpty()) {
-//
-//                        when (paymentGateway) {
-//                            "gpay" -> {
-//
-//                                val random4Digit = (1000..9999).random()
-//
-//                                // ✅ Save userId and pointsIdInt BEFORE launching billing
-//                                val preferences = DPreferences(this)
-//                                preferences.clearSelectedOrderId()
-//                                preferences.setSelectedUserId(userId.toString())
-//                                preferences.setSelectedPlanId(java.lang.String.valueOf(pointsIdInt))
-//                                preferences.setSelectedOrderId(java.lang.String.valueOf(random4Digit))
-//                                WalletViewModel.tryCoins(userId, pointsIdInt, 0, random4Digit, "try")
-//                                billingManager!!.purchaseProduct(
-//                                   // "coin_14",
-//                                  pointsId,
-//                                )
-//                                WalletViewModel.navigateToMain.observe(this, Observer { shouldNavigate ->
-//
-//                                    if (shouldNavigate) {
-//                                        Toast.makeText(
-//                                            this,
-//                                            "Coin purchased successfully",
-//                                            Toast.LENGTH_SHORT
-//                                        )
-//                                            .show()
-//                                        userData?.id?.let { profileViewModel.getUsers(it) }
-//
-//                                        profileViewModel.getUserLiveData.observe(this, Observer {
-//                                            it.data?.let { it1 ->
-//                                                BaseApplication.getInstance()?.getPrefs()
-//                                                    ?.setUserData(it1)
-//                                            }
-//                                            binding.tvCoins.text = it.data?.coins.toString()
-//                                            WalletViewModel._navigateToMain.postValue(false)
-//                                        })
-//                                    } else {
-//
-//                                        profileViewModel.getUserLiveData.observe(this, Observer {
-//                                            it.data?.let { it1 ->
-//                                                BaseApplication.getInstance()?.getPrefs()
-//                                                    ?.setUserData(it1)
-//                                            }
-//                                            binding.tvCoins.text = it.data?.coins.toString()
-//
-//                                        })
-//                                    }
-//                                })
-//                            }
-//
-//                            "upigateway" -> {
-//
-//                                Log.d("upigateway","Clicked")
-//                                val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-//                                var userid = userData?.id
-//                                userid?.let {
-//                                    val clientTxnId = generateRandomTxnId(
-//                                        it,
-//                                        pointsId
-//                                    )  // Generate a new transaction ID
-//                                    upiPaymentViewModel.createUpiPayment(it, clientTxnId, total_amount)
-//                                }
-//
-//                            }
-//
-//
-//                            else -> {
-//                                Toast.makeText(this, "Invalid Payment Gateway", Toast.LENGTH_SHORT)
-//                                    .show()
-//                            }
-//
-//
-//                        }
-//                    }
+                        when (paymentGateway) {
+                            "gpay" -> {
+
+                                val random4Digit = (1000..9999).random()
+
+                                // ✅ Save userId and pointsIdInt BEFORE launching billing
+                                val preferences = DPreferences(this)
+                                preferences.clearSelectedOrderId()
+                                preferences.setSelectedUserId(userId.toString())
+                                preferences.setSelectedPlanId(java.lang.String.valueOf(pointsIdInt))
+                                preferences.setSelectedOrderId(java.lang.String.valueOf(random4Digit))
+                                WalletViewModel.tryCoins(userId, pointsIdInt, 0, random4Digit, "try")
+                                billingManager!!.purchaseProduct(
+                                   // "coin_14",
+                                  pointsId,
+                                )
+                                WalletViewModel.navigateToMain.observe(this, Observer { shouldNavigate ->
+
+                                    if (shouldNavigate) {
+                                        Toast.makeText(
+                                            this,
+                                            "Coin purchased successfully",
+                                            Toast.LENGTH_SHORT
+                                        )
+                                            .show()
+                                        userData?.id?.let { profileViewModel.getUsers(it) }
+
+                                        profileViewModel.getUserLiveData.observe(this, Observer {
+                                            it.data?.let { it1 ->
+                                                BaseApplication.getInstance()?.getPrefs()
+                                                    ?.setUserData(it1)
+                                            }
+                                            binding.tvCoins.text = it.data?.coins.toString()
+                                            WalletViewModel._navigateToMain.postValue(false)
+                                        })
+                                    } else {
+
+                                        profileViewModel.getUserLiveData.observe(this, Observer {
+                                            it.data?.let { it1 ->
+                                                BaseApplication.getInstance()?.getPrefs()
+                                                    ?.setUserData(it1)
+                                            }
+                                            binding.tvCoins.text = it.data?.coins.toString()
+
+                                        })
+                                    }
+                                })
+                            }
+
+                            "upigateway" -> {
+
+                                Log.d("upigateway","Clicked")
+                                val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                                var userid = userData?.id
+                                userid?.let {
+                                    val clientTxnId = generateRandomTxnId(
+                                        it,
+                                        pointsId
+                                    )  // Generate a new transaction ID
+                                    upiPaymentViewModel.createUpiPayment(it, clientTxnId, total_amount)
+                                }
+
+                            }
+
+
+                            else -> {
+                                Toast.makeText(this, "Invalid Payment Gateway", Toast.LENGTH_SHORT)
+                                    .show()
+                            }
+
+
+                        }
+                    }
                 }
             } else {
                 Toast.makeText(this, "Invalid input data", Toast.LENGTH_SHORT).show()
@@ -543,66 +544,7 @@ class WalletActivity : BaseActivity()  {
         return "$userId-$coinId-${System.currentTimeMillis()}"
     }
 
-    fun phonpeIntegrations(){
 
-        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        val data = JSONObject().apply {
-            put("merchantTransactionId", System.currentTimeMillis().toString())
-            put("merchantId", "M230EWJ65QNFM")
-            put("merchantUserId", userData?.id.toString())
-            put("amount", 200)
-            put("mobileNumber", "6203224780")
-            put("callbackUrl", "https://webhook.site/4af2f96f-079c-4224-ac1f-c4a6022c30ab")
-
-            val mPaymentInstrument = JSONObject().apply {
-                put("type", "PAY_PAGE")
-            }
-            put("paymentInstrument", mPaymentInstrument)
-        }
-
-
-        val base64Body: String = Base64.encodeToString(data.toString().toByteArray(
-            Charset.defaultCharset()
-        ),Base64.NO_WRAP)
-
-        val checksum: String = sha256(input = base64Body + "/pg/v1/pay" +"4cee5661-2619-4ae1-8275-5efe91679408")+"###1"
-
-
-        val b2BPGRequest = B2BPGRequestBuilder()
-            .setData(base64Body)
-            .setChecksum(checksum)
-            .setUrl("/pg/v1/pay")
-            .build()
-
-
-        //For SDK call below function
-        try {
-            startActivityForResult(PhonePe.getImplicitIntent(
-           this, b2BPGRequest, "")!!, 1);
-        } catch(e:Exception ){
-            e.printStackTrace()
-            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
-
-        }
-
-
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-
-        if (requestCode == 1) {
-            Toast.makeText(this,"check call back url", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-
-    private fun sha256(input: String): String {
-        val bytes: ByteArray = input.toByteArray(Charsets.UTF_8)
-        val md: MessageDigest = MessageDigest.getInstance("SHA-256")
-        val digest: ByteArray = md.digest(bytes)
-        return digest.fold("") { str, it -> str + "%02x".format(it) }
-    }
 
 
 
