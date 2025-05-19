@@ -163,6 +163,9 @@ public class BillingManager {
         int coin_id = Integer.parseInt(savedCoinId);
         int order_id = Integer.parseInt(savedOrderId);
 
+        String coinIdString = String.valueOf(coin_id);
+        String orderIdString = String.valueOf(order_id);
+
         if (purchase.getPurchaseState() == Purchase.PurchaseState.PURCHASED) {
             ConsumeParams consumeParams = ConsumeParams.newBuilder()
                     .setPurchaseToken(purchaseToken)
@@ -175,7 +178,7 @@ public class BillingManager {
                     Log.d("Billing", "Product consumed successfully!");
                     try {
                         Log.d("Billing", "Calling addCoins with userId=" + user_id + ", coinId=" + coin_id);
-                        walletViewModel.addCoins(user_id, coin_id, 1, order_id, "Coins purchased");
+                        walletViewModel.addCoins(user_id, coinIdString, 1, orderIdString, "Coins purchased");
 
                         activity.runOnUiThread(() ->
                                 Toast.makeText(activity, "Coins purchased successfully", Toast.LENGTH_SHORT).show()

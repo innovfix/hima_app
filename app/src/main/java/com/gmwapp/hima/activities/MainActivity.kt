@@ -64,8 +64,20 @@ import com.google.android.play.core.install.model.InstallStatus
 import com.google.android.play.core.install.model.UpdateAvailability
 import com.google.androidbrowserhelper.trusted.LauncherActivity
 import com.google.firebase.messaging.FirebaseMessaging
+import com.phonepe.intent.sdk.api.PhonePeInitException
+import com.phonepe.intent.sdk.api.PhonePeKt
+import com.phonepe.intent.sdk.api.models.PhonePeEnvironment
 import dagger.hilt.android.AndroidEntryPoint
+import okhttp3.Callback
+import okhttp3.FormBody
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody
+import okhttp3.Response
+import org.json.JSONObject
 import retrofit2.Call
+import java.io.IOException
 import kotlin.math.round
 
 
@@ -97,6 +109,9 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
     var paymentGateway = ""
 
+    private var lastOrderId: String = ""
+    private var isPhonePeInitialized = false
+
     private lateinit var activityResultLauncher: ActivityResultLauncher<IntentSenderRequest>
     private lateinit var appUpdateManager: AppUpdateManager
 
@@ -109,6 +124,26 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             // Permission granted, proceed with call service
         } else {
             // Show an error or disable call-related functionality
+        }
+    }
+
+
+    private val activityResultLauncherPhonePe = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val statusCode = result.resultCode
+        val status = result.data?.getStringExtra("status") ?: "UNKNOWN"
+        Log.d("PhonePe", "SDK resultCode: $statusCode, status: $status")
+
+        if (lastOrderId.isNotEmpty()) {
+            Log.d("lastOrderId","$lastOrderId")
+            checkOrderStatus(lastOrderId)
+        }
+
+        if (statusCode == RESULT_OK) {
+            // Toast.makeText(this, "Payment Successful", Toast.LENGTH_LONG).show()
+        } else {
+            //  Toast.makeText(this, "Payment Failed or Cancelled", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -176,6 +211,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         initUI()
         getSkuListID()
         addObservers()
+        intializePhonpe()
 
         updateFcmToken(userData?.id)
 
@@ -372,6 +408,14 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 if (paymentGateway.isNotEmpty()) {
 
                     when (paymentGateway) {
+
+                        "phonepe"->{
+
+                            if (isPhonePeInitialized){
+                                fetchOrderFromBackend(pointsId)
+                            }
+                        }
+
                         "gpay" -> {
 
                             val random4Digit = (1000..9999).random()
@@ -659,6 +703,171 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
         })
     }
+
+    fun intializePhonpe(){
+
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        var userId = userData?.id.toString()
+        val isInitialized = PhonePeKt.init(
+            context = this,
+            merchantId = "SU2505161111008337542920", // Replace in PROD
+            flowId = userId,
+            phonePeEnvironment = PhonePeEnvironment.RELEASE, // Use RELEASE in prod
+            enableLogging = true,
+            appId = null
+        )
+
+        if (isInitialized) {
+            isPhonePeInitialized = true
+        } else {
+            Log.e("PhonePe", "SDK Initialization Failed")
+            Toast.makeText(this, "PhonePe SDK init failed", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun fetchOrderFromBackend(coinId: String) {
+        val client = OkHttpClient()
+
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val user_id = userData?.id.toString()
+        val formBody = FormBody.Builder()
+            .add("user_id", user_id)
+            .add("coins_id", coinId)
+            .build()
+
+        Log.d("SelectedCoinID", " $coinId")
+
+        val request = Request.Builder()
+            .url("https://himaapp.in/api/phonepe/live/create-order") // Should return { token, orderId }
+            .post(formBody)
+            .build()
+
+        client.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                runOnUiThread {
+                    Toast.makeText(this@MainActivity, "API Failure: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                val responseStr = response.body?.string() ?: return
+                Log.d("PhonePeResponse", "Backend Response: $responseStr")
+
+                try {
+                    val json = JSONObject(responseStr)
+                    val token = json.getString("token")
+                    val orderId = json.getString("orderId")
+
+                    lastOrderId = orderId
+
+                    runOnUiThread {
+                        startPhonePeCheckout(orderId, token)
+                    }
+
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        Toast.makeText(this@MainActivity, "Invalid server response", Toast.LENGTH_SHORT).show()
+                        Log.d("PhonpeException","$e")
+                    }
+                }
+            }
+        })
+    }
+
+    private fun startPhonePeCheckout(orderId: String, token: String) {
+        if (!isAnyUPIAppInstalled()) {
+            Toast.makeText(this, "No UPI app installed", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        try {
+            PhonePeKt.startCheckoutPage(
+                context = this,
+                token = token,
+                orderId = orderId,
+                activityResultLauncher = activityResultLauncherPhonePe
+            )
+        } catch (e: PhonePeInitException) {
+            Log.e("PhonePe", "Checkout Failed: ${e.message}")
+            Toast.makeText(this, "Could not start payment", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun checkOrderStatus(orderId: String) {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        var user_id = userData?.id
+        val client = OkHttpClient()
+
+        val json = """{ "orderId": "$orderId" }"""
+        val mediaType = "application/json".toMediaTypeOrNull()
+        val body = RequestBody.create(mediaType, json)
+
+        val request = Request.Builder()
+            .url("https://himaapp.in/api/phonepe/live/check-status")
+            .post(body) // ✅ Correct method
+            .addHeader("Content-Type", "application/json")
+            .build()
+
+        client.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                runOnUiThread {
+                    Toast.makeText(this@MainActivity, "Status check failed", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                val resultStr = response.body?.string()
+                val json = JSONObject(resultStr)
+                val phonePeStatus = json.getJSONObject("phonepe_status")
+                val state = phonePeStatus.getString("state")
+
+                val localRecord = json.getJSONObject("local_record")
+                val coin_id = localRecord.getString("coin_id")
+                val order_id = localRecord.getString("order_id")
+                Log.d("PhonePeOrderStatus", "Order Status: $resultStr")
+                Log.d("PhonePeOrderState", "Order State: $state,  Coin_id : $coin_id , Order_id :$order_id ")
+
+
+                if (state=="COMPLETED"){
+                    runOnUiThread{
+                        Toast.makeText(this@MainActivity, "Payment Successful", Toast.LENGTH_LONG).show()
+                        user_id?.let { WalletViewModel.addCoins(it, coin_id, 1, order_id, "Coins purchased") }
+                        observeAddCoins()
+                    }
+
+                }else{
+                    runOnUiThread{
+                        Toast.makeText(this@MainActivity, "Payment Failed", Toast.LENGTH_LONG).show()
+                    }
+                }
+
+            }
+        })
+    }
+
+    private fun isAnyUPIAppInstalled(): Boolean {
+        val intent = Intent(Intent.ACTION_VIEW)
+        intent.data = Uri.parse("upi://pay")
+        val pm = packageManager
+        val activities = pm.queryIntentActivities(intent, 0)
+        return activities.isNotEmpty()
+    }
+
+    fun observeAddCoins(){
+
+        WalletViewModel.navigateToMain.observe(
+            this,
+            Observer { shouldNavigate ->
+                Log.d("shouldNavigateFromMain","$shouldNavigate")
+                if (shouldNavigate){
+                    val intent = Intent(this, MainActivity::class.java)
+                    intent.flags =
+                        Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    startActivity(intent)
+                    finish() // ✅ Now this works because we are in an Activity
+                                }})
+    }
+
 
 
 

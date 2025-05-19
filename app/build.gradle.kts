@@ -19,8 +19,8 @@ android {
         applicationId = "com.gmwapp.hima"
         minSdk = 26
         targetSdk = 35
-        versionCode = 19
-        versionName = "19.0"
+        versionCode = 20
+        versionName = "20.0"
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -156,7 +156,7 @@ dependencies {
     implementation ("com.facebook.android:facebook-android-sdk:18.0.3")
 
     //Phonepe
-    implementation("phonepe.intentsdk.android.release:IntentSDK:2.4.3")
+    implementation ("phonepe.intentsdk.android.release:IntentSDK:5.1.0")
 
 
     testImplementation(libs.junit)

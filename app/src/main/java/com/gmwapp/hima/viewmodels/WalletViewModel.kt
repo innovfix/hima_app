@@ -54,7 +54,7 @@ class WalletViewModel @Inject constructor(private val walletRepositories: Wallet
     }
 
 
-    fun addCoins(userId: Int, coinId: Int, status: Int, orderId: Int, massage: String,) {
+    fun addCoins(userId: Int, coinId: String, status: Int, orderId: String, massage: String,) {
         _navigateToMain.postValue(false)
         viewModelScope.launch {
             walletRepositories.addCoins(userId, coinId, status, orderId, massage,  object : NetworkCallback<AddCoinsResponse> {

@@ -462,9 +462,9 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
 
     fun addCoins(
         userId: Int,
-        coinsId: Int,
+        coinsId: String,
         status: Int,
-        orderId: Int,
+        orderId: String,
         massage: String,
         callback: NetworkCallback<AddCoinsResponse>
     ) {
@@ -869,13 +869,13 @@ interface ApiInterface {
     fun getCoins(@Field("user_id") userId: Int): Call<CoinsResponse>
 
 
-    @POST("add_coins")
+    @POST("add_coins_phonepe")
     @FormUrlEncoded
     fun addCoins(
         @Field("user_id") userId: Int,
-        @Field("coins_id") coinsId: Int,
+        @Field("coins_id") coinsId: String,
         @Field("status") status: Int,
-        @Field("order_id") orderId: Int,
+        @Field("order_id") orderId: String,
         @Field("message") massage: String,
     ): Call<AddCoinsResponse>
 
