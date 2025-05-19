@@ -17,10 +17,13 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven { url = uri("https://jitpack.io") }
-        maven(url = "<https://jitpack.io>")
         mavenCentral()
 
         maven { url= uri("https://storage.zego.im/maven") }   // <- Add this line.
+        maven {
+            url = uri("https://phonepe.mycloudrepo.io/public/repositories/phonepe-intentsdk-android")
+        }
+
     }
 
     }
