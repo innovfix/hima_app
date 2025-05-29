@@ -11,6 +11,7 @@ import android.os.Handler
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.MenuItem
+import android.view.View
 import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.activity.enableEdgeToEdge
@@ -31,7 +32,9 @@ import com.facebook.appevents.AppEventsLogger
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.BillingManager.BillingManager
 import com.gmwapp.hima.R
+import com.gmwapp.hima.adapters.CoinAdapter
 import com.gmwapp.hima.adapters.GiftAdapter
+import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityMainBinding
 import com.gmwapp.hima.dialogs.BottomSheetWelcomeBonus
@@ -40,6 +43,8 @@ import com.gmwapp.hima.fragments.HomeFragment
 import com.gmwapp.hima.fragments.ProfileFemaleFragment
 import com.gmwapp.hima.fragments.ProfileFragment
 import com.gmwapp.hima.fragments.RecentFragment
+import com.gmwapp.hima.retrofit.responses.CoinsResponseData
+import com.gmwapp.hima.retrofit.responses.NewRazorpayLinkResponse
 import com.gmwapp.hima.retrofit.responses.RazorPayApiResponse
 import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.viewmodels.AccountViewModel
@@ -103,6 +108,10 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
     private lateinit var call: Call<ApiResponse>
     private lateinit var callRazor: Call<RazorPayApiResponse>
+    private lateinit var callNewRazorPay: Call<NewRazorpayLinkResponse>
+    val apiService = RetrofitClient.instance
+
+
 
     lateinit var total_amount : String
     lateinit var coinId: String
@@ -207,6 +216,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
         billingManager = BillingManager(this)
         accountViewModel.getSettings()
+        BaseApplication.getInstance()?.getPrefs()?.getUserData()?.let { WalletViewModel.getCoins(it.id) }
 
         initUI()
         getSkuListID()
@@ -281,7 +291,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                         settingsData.payment_gateway_type?.let { paymentGatewayType ->
                             Log.d("settingsData", "settingsData $paymentGatewayType")
                             //handlePaymentGateway(paymentGatewayType)
-                            paymentGateway = paymentGatewayType
+                           // paymentGateway = paymentGatewayType
                             Log.d("paymentGateway","$paymentGateway")
                         } ?: run {
                             // Show Toast if payment_gateway_type is null
@@ -313,6 +323,19 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     }
 
 
+//    private fun observePaymentType(){
+//        WalletViewModel.coinsLiveData.observe(this, Observer {
+//
+//            val firstCoinItem = it.data?.firstOrNull()
+//                firstCoinItem?.let { coinItem ->
+//                    val paymentGatewayType= "${coinItem.pg}"
+//                    Log.d("paymentType","$paymentGatewayType")
+//                    paymentGateway = paymentGatewayType
+//                }
+//
+//        })
+//    }
+
     private fun addObservers() {
         offerViewModel.offerResponseLiveData.observe(this) { response ->
             if (response.success) {
@@ -321,6 +344,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 val save = response.data[0].save
                 val coinId = response.data[0].id
                 val total_count = response.data[0].total_count
+                paymentGateway = response.data[0].pg
 
 
                 val originalPrice = calculateOriginalPrice(discountedPrice, save)
@@ -444,6 +468,46 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                                 }})
 
                         }
+
+                        "razorpay" -> {
+
+                            callNewRazorPay = apiService.callNewRazorPay(userId,pointsId)
+
+
+                            callNewRazorPay.enqueue(object : retrofit2.Callback<NewRazorpayLinkResponse> {
+                                override fun onResponse(call: retrofit2.Call<NewRazorpayLinkResponse>, response: retrofit2.Response<NewRazorpayLinkResponse>) {
+                                    if (response.isSuccessful && response.body() != null) {
+                                        val apiResponse = response.body()
+
+                                        // Extract the Razorpay payment link
+                                        val paymentUrl = apiResponse?.data?.short_url
+
+                                        Log.d("paymentUrlRazorPay","$paymentUrl")
+
+                                        if (!paymentUrl.isNullOrEmpty()) {
+
+                                            val intent =Intent(this@MainActivity, LauncherActivity::class.java)
+                                            intent.setData(Uri.parse(paymentUrl))
+                                            Log.d("paymentUrlRazorPay","$paymentUrl")
+                                            startActivity(intent)
+
+//                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(paymentUrl))
+//                                startActivity(intent)
+                                        } else {
+                                            Toast.makeText(this@MainActivity, "Failed to get payment link", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } else {
+                                        Toast.makeText(this@MainActivity, "Error: ${response.errorBody()?.string()}", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+
+                                override fun onFailure(call: retrofit2.Call<NewRazorpayLinkResponse>, t: Throwable) {
+                                    Toast.makeText(this@MainActivity, "Failed: ${t.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            })
+                        }
+
+
 
                         "upigateway" -> {
 

@@ -50,6 +50,7 @@ import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.activities.RatingActivity
 import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.adapters.GiftAdapter
+import com.gmwapp.hima.agora.FaceDetectVideoFrameObserver
 import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.agora.GiftBottomSheetFragment
 import com.gmwapp.hima.constants.DConstants
@@ -106,6 +107,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private var isVideoCallGoing: Boolean = false
 
     private var switchDialog: AlertDialog? = null  // Track current dialog
+    private var faceDialog: Dialog? = null
+
 
 
     private val appId = "a41e9245489d44a2ac9af9525f1b508c"
@@ -1020,6 +1023,19 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             binding.ivGift.visibility=View.GONE
 
 
+            if (ContextCompat.checkSelfPermission(this@MaleAudioCallingActivity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                val granted = ContextCompat.checkSelfPermission(this@MaleAudioCallingActivity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+                Log.d("FaceDetection", "CAMERA permission granted: $granted")
+                //startFaceDetectionCamera()
+                val videoObserver = FaceDetectVideoFrameObserver(this@MaleAudioCallingActivity)
+                agoraEngine?.registerVideoFrameObserver(videoObserver)
+
+            } else {
+                Log.d("FaceDetection", "CAMERA permission granted: Not granted")
+
+                ActivityCompat.requestPermissions(this@MaleAudioCallingActivity, arrayOf(Manifest.permission.CAMERA), 22)
+            }
+
 
         }
     }
@@ -1464,6 +1480,39 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 message = "giftSent"
             )
         }
+    }
+
+    fun disableVideo(){
+        binding.blackscreen.visibility=View.VISIBLE
+        agoraEngine?.muteAllRemoteAudioStreams(true)
+        showNoFaceDetectedDialog()
+    }
+
+    fun enableVideo(){
+        binding.blackscreen.visibility=View.GONE
+        agoraEngine?.muteAllRemoteAudioStreams(false)
+        dismissNoFaceDetectedDialog()
+    }
+
+
+    private fun showNoFaceDetectedDialog() {
+        if (faceDialog?.isShowing == true) return  // Already showing
+
+        faceDialog = Dialog(this).apply {
+            requestWindowFeature(Window.FEATURE_NO_TITLE)
+            setContentView(R.layout.dialog_show_face)
+            window?.setLayout(
+                (resources.displayMetrics.widthPixels * 0.9).toInt(),
+                WindowManager.LayoutParams.WRAP_CONTENT
+            )
+            window?.setBackgroundDrawableResource(android.R.color.transparent)
+            show()
+        }
+    }
+
+    private fun dismissNoFaceDetectedDialog() {
+        faceDialog?.dismiss()
+        faceDialog = null
     }
 
 

@@ -46,7 +46,6 @@ import com.gmwapp.hima.activities.RatingActivity
 import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.constants.DConstants
-import com.gmwapp.hima.databinding.ActivityMaleAudioCallingBinding
 import com.gmwapp.hima.media.RtcTokenBuilder2
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
@@ -67,6 +66,17 @@ import retrofit2.Response
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.TimeZone
+
+
+import androidx.camera.core.*
+import androidx.camera.lifecycle.ProcessCameraProvider
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.face.FaceDetection
+import com.google.mlkit.vision.face.FaceDetector
+import com.google.mlkit.vision.face.FaceDetectorOptions
+import androidx.camera.core.ExperimentalGetImage
+import com.gmwapp.hima.agora.FaceDetectVideoFrameObserver
+
 
 @AndroidEntryPoint
 class MaleVideoCallingActivity : AppCompatActivity() {
@@ -99,6 +109,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     var receiverName = ""
 
     private var switchDialog: AlertDialog? = null  // Track current dialog
+    private var faceDialog: Dialog? = null
 
     private var isSwitchingToAudio = false // ✅ Prevent multiple calls
     private var isSwitchingToVideo = false // ✅ Prevent multiple calls
@@ -127,6 +138,12 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     private var isAudioCallGoing: Boolean = false
 
     var isAudioCallIdReceived: Boolean = false
+
+    private var cameraProvider: ProcessCameraProvider? = null
+    private var faceDetector: FaceDetector? = null
+    private var analysisUseCase: ImageAnalysis? = null
+    private var camera: Camera? = null
+    private var lastFaceMissingTime = 0L
 
 
 
@@ -410,6 +427,19 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
             // Set the remote video view
             runOnUiThread { setupRemoteVideo(uid) }
+
+            if (ContextCompat.checkSelfPermission(this@MaleVideoCallingActivity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                val granted = ContextCompat.checkSelfPermission(this@MaleVideoCallingActivity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+                Log.d("FaceDetection", "CAMERA permission granted: $granted")
+                //startFaceDetectionCamera()
+                val videoObserver = FaceDetectVideoFrameObserver(this@MaleVideoCallingActivity)
+                agoraEngine?.registerVideoFrameObserver(videoObserver)
+
+            } else {
+                Log.d("FaceDetection", "CAMERA permission granted: Not granted")
+
+                ActivityCompat.requestPermissions(this@MaleVideoCallingActivity, arrayOf(Manifest.permission.CAMERA), 22)
+            }
         }
 
         override fun onJoinChannelSuccess(channel: String, uid: Int, elapsed: Int) {
@@ -1352,8 +1382,120 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             binding.btnVideoCall.setImageResource(R.drawable.audiocall_img)
 
 
+
         }
     }
 
+//    private fun startFaceDetectionCamera() {
+//        Log.d("FaceDetection", "startFaceDetectionCamera() called")
+//
+//        val options = FaceDetectorOptions.Builder()
+//            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
+//            .build()
+//
+//        faceDetector = FaceDetection.getClient(options)
+//
+//        val cameraProviderFuture = ProcessCameraProvider.getInstance(this@MaleVideoCallingActivity)
+//        cameraProviderFuture.addListener({
+//            cameraProvider = cameraProviderFuture.get()
+//
+//            val preview = Preview.Builder().build() // Do not set surface provider
+//
+//
+//
+//            analysisUseCase = ImageAnalysis.Builder()
+//                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+//                .build()
+//
+//            analysisUseCase?.setAnalyzer(ContextCompat.getMainExecutor(this)) { imageProxy ->
+//                processImageProxy(imageProxy)
+//            }
+//
+//            val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
+//
+//            try {
+//                cameraProvider?.unbindAll()
+//                camera = cameraProvider?.bindToLifecycle(this, cameraSelector, analysisUseCase)
+//            } catch (e: Exception) {
+//                Log.e("CameraX", "Binding failed", e)
+//            }
+//        }, ContextCompat.getMainExecutor(this))
+//    }
+//
+//    @androidx.annotation.OptIn(ExperimentalGetImage::class)
+//    private fun processImageProxy(imageProxy: ImageProxy) {
+//        val mediaImage = imageProxy.image ?: run {
+//            imageProxy.close()
+//            return
+//        }
+//
+//        val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+//
+//        Log.d("FaceDetection", "Processing frame...")
+//
+//        faceDetector?.process(image)
+//            ?.addOnSuccessListener { faces ->
+//                Log.d("FaceDetection", "Faces detected: ${faces.size}")
+//
+//                if (faces.isEmpty()) {
+//                    showToastOnce("Please show your face")
+//                }else{
+//                    showToastOnce("face detected")
+//
+//                }
+//                imageProxy.close()
+//            }
+//            ?.addOnFailureListener {
+//                imageProxy.close()
+//            }
+//    }
+//
+//    private fun showToastOnce(msg: String) {
+//        val now = System.currentTimeMillis()
+//        if (now - lastFaceMissingTime > 3000) { // 3 seconds gap
+//            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+//            lastFaceMissingTime = now
+//        }
+//    }
+
+    fun disableVideo(){
+        binding.blackscreen.visibility=View.VISIBLE
+        agoraEngine?.muteAllRemoteAudioStreams(true)
+        showNoFaceDetectedDialog()
+    }
+
+    fun enableVideo(){
+       binding.blackscreen.visibility=View.GONE
+        agoraEngine?.muteAllRemoteAudioStreams(false)
+        dismissNoFaceDetectedDialog()
+    }
+
+
+    private fun showNoFaceDetectedDialog() {
+        if (faceDialog?.isShowing == true) return  // Already showing
+
+        faceDialog = Dialog(this).apply {
+            requestWindowFeature(Window.FEATURE_NO_TITLE)
+            setContentView(R.layout.dialog_show_face)
+            window?.setLayout(
+                (resources.displayMetrics.widthPixels * 0.9).toInt(),
+                WindowManager.LayoutParams.WRAP_CONTENT
+            )
+            window?.setBackgroundDrawableResource(android.R.color.transparent)
+            show()
+        }
+    }
+
+    private fun dismissNoFaceDetectedDialog() {
+        faceDialog?.dismiss()
+        faceDialog = null
+    }
+
+
+
+
 
 }
+
+
+

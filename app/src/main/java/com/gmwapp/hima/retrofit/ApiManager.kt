@@ -477,6 +477,23 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun addCoinsGpay(
+        userId: Int,
+        coinsId: String,
+        status: Int,
+        orderId: String,
+        massage: String,
+        callback: NetworkCallback<AddCoinsResponse>
+    ) {
+
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<AddCoinsResponse> = getApiInterface().addCoinsGpay(userId, coinsId, status, orderId, massage)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun tryCoins(
         userId: Int,
         coinsId: Int,
@@ -865,13 +882,23 @@ interface ApiInterface {
     ): Call<UpdateProfileResponse>
 
     @FormUrlEncoded
-    @POST("coins_list")
+    @POST("all_coins_list")
     fun getCoins(@Field("user_id") userId: Int): Call<CoinsResponse>
 
 
     @POST("add_coins_phonepe")
     @FormUrlEncoded
     fun addCoins(
+        @Field("user_id") userId: Int,
+        @Field("coins_id") coinsId: String,
+        @Field("status") status: Int,
+        @Field("order_id") orderId: String,
+        @Field("message") massage: String,
+    ): Call<AddCoinsResponse>
+
+    @POST("add_coins")
+    @FormUrlEncoded
+    fun addCoinsGpay(
         @Field("user_id") userId: Int,
         @Field("coins_id") coinsId: String,
         @Field("status") status: Int,

@@ -219,6 +219,22 @@
         android:text="Leave"
         tools:ignore="MissingConstraints" />
 
+    <androidx.camera.view.PreviewView
+        android:id="@+id/previewView"
+        android:layout_width="1dp"
+        android:layout_height="1dp"
+        android:visibility="gone"
+        tools:ignore="MissingConstraints" />
+
+    <ImageView
+        android:id="@+id/blackscreen"
+        android:layout_width="match_parent"
+        android:src="@color/black"
+        android:visibility="gone"
+        android:layout_height="match_parent">
+
+    </ImageView>
+
 </androidx.constraintlayout.widget.ConstraintLayout>
 
 

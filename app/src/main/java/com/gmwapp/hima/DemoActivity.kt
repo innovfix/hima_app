@@ -3,10 +3,18 @@ package com.gmwapp.hima
 import android.content.Intent
 import android.content.res.Resources
 import android.os.Bundle
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.util.Log
+import java.util.Locale
+import android.os.Handler
+import android.os.Looper
+
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.IntentSenderRequest
@@ -32,7 +40,10 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class DemoActivity : AppCompatActivity() {
     private lateinit var binding: ActivityDemoBinding
-    private lateinit var activityResultLauncher: ActivityResultLauncher<IntentSenderRequest>
+
+    private lateinit var speechRecognizer: SpeechRecognizer
+    private lateinit var speechIntent: Intent
+    private val abusiveWords = listOf("idiot", "fuck", "damn", "b****", "asshole")
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,46 +56,60 @@ class DemoActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
-        activityResultLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-            if (result.resultCode != RESULT_OK) {
-                Log.e("Update", "Update flow failed! Result code: ${result.resultCode}")
+
+        startSpeechRecognition()
+    }
+
+    private fun startSpeechRecognition() {
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+        speechIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "hi-IN")
+
+        }
+
+        speechRecognizer.setRecognitionListener(object : RecognitionListener {
+            override fun onResults(results: Bundle?) {
+                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                matches?.let {
+                    val spokenText = it[0].lowercase(Locale.getDefault())
+                    Log.d("spokenText","$spokenText")
+                    Toast.makeText(this@DemoActivity, "$spokenText", Toast.LENGTH_LONG).show()
+
+                    if (abusiveWords.any { word -> spokenText.contains(word) }) {
+                        disconnectAgoraCall()
+                        //return
+                    }
+                }
+                restartRecognition()
             }
-            // After Update, the app will restart, and the Splash screen will be displayed.
-        }
 
-        checkForUpdate()
-    }
-    private fun checkForUpdate() {
-        val appUpdateManager = AppUpdateManagerFactory.create(applicationContext)
-        val appUpdateInfoTask = appUpdateManager.appUpdateInfo
-
-        appUpdateInfoTask.addOnSuccessListener { appUpdateInfo ->
-            if (appUpdateInfo.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE
-                && appUpdateInfo.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE)
-            ) {
-                // Request the update.
-                appUpdateManager.startUpdateFlowForResult(
-                    appUpdateInfo,
-                    activityResultLauncher,
-                    AppUpdateOptions.newBuilder(AppUpdateType.IMMEDIATE).build()
-                )
-            } else {
-                // No update available, go to splash screen
-                goToSplashScreen()
+            override fun onError(error: Int) {
+                restartRecognition()
             }
-        }
 
-        appUpdateInfoTask.addOnFailureListener {
-            // Handle any error during the update check (e.g., network issues)
-            Log.e("Update", "Update check failed: ${it.message}")
-            goToSplashScreen() // Still go to splash screen even if check fails.
-        }
+            override fun onReadyForSpeech(params: Bundle?) {}
+            override fun onBeginningOfSpeech() {}
+            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEndOfSpeech() {}
+            override fun onPartialResults(partialResults: Bundle?) {}
+            override fun onEvent(eventType: Int, params: Bundle?) {}
+        })
+
+        speechRecognizer.startListening(speechIntent)
     }
 
-    private fun goToSplashScreen() {
-        val intent = Intent(this, SplashScreenActivity::class.java) // Replace SplashActivity with your actual splash screen activity
-        startActivity(intent)
-        finish()
+    private fun restartRecognition() {
+        Handler(Looper.getMainLooper()).postDelayed({
+            speechRecognizer.startListening(speechIntent)
+        }, 200)
     }
+
+    private fun disconnectAgoraCall() {
+
+        Toast.makeText(this, "Call disconnected due to abusive language", Toast.LENGTH_LONG).show()
+    }
+
 
 }

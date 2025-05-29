@@ -10,6 +10,9 @@ import android.os.Bundle
 import android.os.CountDownTimer
 import android.os.Handler
 import android.os.Looper
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.util.Log
 import android.view.MotionEvent
 import android.view.SurfaceView
@@ -40,6 +43,7 @@ import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
+import com.gmwapp.hima.agora.FaceDetectVideoFrameObserver
 import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityFemaleVideoCallingBinding
@@ -66,6 +70,7 @@ import retrofit2.Call
 import retrofit2.Response
 import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Locale
 import java.util.TimeZone
 
 @AndroidEntryPoint
@@ -99,6 +104,8 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     private var countDownTimer: CountDownTimer? = null
     private var switchDialog: AlertDialog? = null  // Track current dialog
+    private var faceDialog: Dialog? = null
+
 
 
     var receiverName = ""
@@ -426,6 +433,21 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                     override fun onNoNetwork() {
                     }
                 })
+
+
+            if (ContextCompat.checkSelfPermission(this@FemaleVideoCallingActivity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                val granted = ContextCompat.checkSelfPermission(this@FemaleVideoCallingActivity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+                Log.d("FaceDetection", "CAMERA permission granted: $granted")
+                //startFaceDetectionCamera()
+                val videoObserver = FaceDetectVideoFrameObserver(this@FemaleVideoCallingActivity)
+                agoraEngine?.registerVideoFrameObserver(videoObserver)
+
+            } else {
+                Log.d("FaceDetection", "CAMERA permission granted: Not granted")
+
+                ActivityCompat.requestPermissions(this@FemaleVideoCallingActivity, arrayOf(Manifest.permission.CAMERA), 22)
+            }
+
 
 
         }
@@ -1391,5 +1413,37 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     }
 
 
+    fun disableVideo(){
+        binding.blackscreen.visibility=View.VISIBLE
+        agoraEngine?.muteAllRemoteAudioStreams(true)
+        showNoFaceDetectedDialog()
+    }
+
+    fun enableVideo(){
+        binding.blackscreen.visibility=View.GONE
+        agoraEngine?.muteAllRemoteAudioStreams(false)
+        dismissNoFaceDetectedDialog()
+    }
+
+
+    private fun showNoFaceDetectedDialog() {
+        if (faceDialog?.isShowing == true) return  // Already showing
+
+        faceDialog = Dialog(this).apply {
+            requestWindowFeature(Window.FEATURE_NO_TITLE)
+            setContentView(R.layout.dialog_show_face)
+            window?.setLayout(
+                (resources.displayMetrics.widthPixels * 0.9).toInt(),
+                WindowManager.LayoutParams.WRAP_CONTENT
+            )
+            window?.setBackgroundDrawableResource(android.R.color.transparent)
+            show()
+        }
+    }
+
+    private fun dismissNoFaceDetectedDialog() {
+        faceDialog?.dismiss()
+        faceDialog = null
+    }
 
 }

@@ -178,7 +178,7 @@ public class BillingManager {
                     Log.d("Billing", "Product consumed successfully!");
                     try {
                         Log.d("Billing", "Calling addCoins with userId=" + user_id + ", coinId=" + coin_id);
-                        walletViewModel.addCoins(user_id, coinIdString, 1, orderIdString, "Coins purchased");
+                        walletViewModel.addCoinsGpay(user_id, coinIdString, 1, orderIdString, "Coins purchased");
 
                         activity.runOnUiThread(() ->
                                 Toast.makeText(activity, "Coins purchased successfully", Toast.LENGTH_SHORT).show()

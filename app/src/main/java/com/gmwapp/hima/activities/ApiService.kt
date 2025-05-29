@@ -1,5 +1,6 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.retrofit.responses.NewRazorpayLinkResponse
 import com.gmwapp.hima.retrofit.responses.RazorPayApiResponse
 import retrofit2.Call
 import retrofit2.http.Body
@@ -29,6 +30,12 @@ interface ApiService {
         @Field("phone") phone: String
     ): Call<RazorPayApiResponse>
 
+    @FormUrlEncoded
+    @POST("https://himaapp.in/api/create-upi-payment-link")
+    fun callNewRazorPay(
+        @Field("user_id") userId: Int,
+        @Field("coin_id") coinId: String,
+    ): Call<NewRazorpayLinkResponse>
 
 
 

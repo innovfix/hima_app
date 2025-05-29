@@ -19,8 +19,8 @@ android {
         applicationId = "com.gmwapp.hima"
         minSdk = 26
         targetSdk = 35
-        versionCode = 20
-        versionName = "20.0"
+        versionCode = 22
+        versionName = "22.0"
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -157,6 +157,22 @@ dependencies {
 
     //Phonepe
     implementation ("phonepe.intentsdk.android.release:IntentSDK:5.1.0")
+
+    implementation ("com.google.mlkit:face-detection:16.1.7")
+
+
+    val camerax_version = "1.2.2"
+    implementation("androidx.camera:camera-core:${camerax_version}")
+    implementation("androidx.camera:camera-camera2:${camerax_version}")
+    implementation("androidx.camera:camera-lifecycle:${camerax_version}")
+    implementation("androidx.camera:camera-video:${camerax_version}")
+
+    implementation("androidx.camera:camera-view:${camerax_version}")
+    implementation("androidx.camera:camera-extensions:${camerax_version}")
+
+    implementation ("com.google.guava:guava:31.1-android")
+
+
 
 
     testImplementation(libs.junit)

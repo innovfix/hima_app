@@ -5,3 +5,16 @@ data class RazorPayApiResponse(
     val short_url: String,
     val status: String
 )
+
+
+
+data class NewRazorpayLinkResponse(
+    val success: Boolean,
+    val message: String,
+    val data: LinkData
+)
+
+data class LinkData(
+    val short_url: String
+)
+

@@ -240,6 +240,16 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/iv_gift" />
 
+
+    <ImageView
+        android:id="@+id/blackscreen"
+        android:layout_width="match_parent"
+        android:src="@color/black"
+        android:visibility="gone"
+        android:layout_height="match_parent">
+
+    </ImageView>
+
 </androidx.constraintlayout.widget.ConstraintLayout>
 
 

@@ -22,6 +22,7 @@ import com.gmwapp.hima.adapters.CoinAdapter
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.databinding.ActivityWalletBinding
 import com.gmwapp.hima.retrofit.responses.CoinsResponseData
+import com.gmwapp.hima.retrofit.responses.NewRazorpayLinkResponse
 import com.gmwapp.hima.retrofit.responses.RazorPayApiResponse
 import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.utils.setOnSingleClickListener
@@ -30,6 +31,7 @@ import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.viewmodels.UpiPaymentViewModel
 import com.gmwapp.hima.viewmodels.UpiViewModel
 import com.gmwapp.hima.viewmodels.WalletViewModel
+import com.google.androidbrowserhelper.trusted.LauncherActivity
 import com.phonepe.intent.sdk.api.PhonePeInitException
 import com.phonepe.intent.sdk.api.PhonePeKt
 import com.phonepe.intent.sdk.api.models.PhonePeEnvironment
@@ -54,6 +56,7 @@ class WalletActivity : BaseActivity()  {
     private val upiPaymentViewModel: UpiPaymentViewModel by viewModels()
     private lateinit var call: Call<ApiResponse>
     private lateinit var callRazor: Call<RazorPayApiResponse>
+    private lateinit var callNewRazorPay: Call<NewRazorpayLinkResponse>
 
     val profileViewModel: ProfileViewModel by viewModels()
 
@@ -350,7 +353,7 @@ class WalletActivity : BaseActivity()  {
                         settingsData.payment_gateway_type?.let { paymentGatewayType ->
                             Log.d("settingsData", "settingsData $paymentGatewayType")
                             //handlePaymentGateway(paymentGatewayType)
-                            paymentGateway = paymentGatewayType
+                           // paymentGateway = paymentGatewayType
                             Log.d("paymentGateway","$paymentGateway")
                         } ?: run {
                             // Show Toast if payment_gateway_type is null
@@ -409,7 +412,7 @@ class WalletActivity : BaseActivity()  {
                 }
 
 
-                Log.d("bannerImage","${it.banner_image}")
+
                 val coinAdapter = CoinAdapter(this, it.data, object : OnItemSelectionListener<CoinsResponseData> {
                     override fun onItemSelected(coin: CoinsResponseData) {
                         // Update button text and make it visible when an item is selected
@@ -417,6 +420,7 @@ class WalletActivity : BaseActivity()  {
                         binding.btnAddCoins.visibility = View.VISIBLE
                         amount = coin.price.toString()
                         pointsId = coin.id.toString()
+                        paymentGateway = coin.pg.toString()
 
                         selectedCoin = coin.coins.toString()
                         selectedSavePercent = coin.save.toString()
@@ -437,6 +441,7 @@ class WalletActivity : BaseActivity()  {
                     binding.btnAddCoins.visibility = View.VISIBLE
                     amount = firstCoin.price.toString()
                     pointsId = firstCoin.id.toString()
+                    paymentGateway = firstCoin.pg.toString()
 
                     selectedCoin = firstCoin.coins.toString()
                     selectedSavePercent = firstCoin.save.toString()
@@ -522,6 +527,46 @@ class WalletActivity : BaseActivity()  {
                                     }
                                 })
                             }
+
+                            "razorpay" -> {
+
+                                callNewRazorPay = apiService.callNewRazorPay(userId,pointsId)
+
+
+                                callNewRazorPay.enqueue(object : retrofit2.Callback<NewRazorpayLinkResponse> {
+                    override fun onResponse(call: retrofit2.Call<NewRazorpayLinkResponse>, response: retrofit2.Response<NewRazorpayLinkResponse>) {
+                        if (response.isSuccessful && response.body() != null) {
+                            val apiResponse = response.body()
+
+                            // Extract the Razorpay payment link
+                            val paymentUrl = apiResponse?.data?.short_url
+
+                            Log.d("paymentUrlRazorPay","$paymentUrl")
+
+                            if (!paymentUrl.isNullOrEmpty()) {
+
+                                val intent =Intent(this@WalletActivity, LauncherActivity::class.java)
+                                intent.setData(Uri.parse(paymentUrl))
+                                Log.d("paymentUrlRazorPay","$paymentUrl")
+                                startActivity(intent)
+
+//                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(paymentUrl))
+//                                startActivity(intent)
+                            } else {
+                                Toast.makeText(this@WalletActivity, "Failed to get payment link", Toast.LENGTH_SHORT).show()
+                            }
+                        } else {
+                            Toast.makeText(this@WalletActivity, "Error: ${response.errorBody()?.string()}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+
+                    override fun onFailure(call: retrofit2.Call<NewRazorpayLinkResponse>, t: Throwable) {
+                        Toast.makeText(this@WalletActivity, "Failed: ${t.message}", Toast.LENGTH_SHORT).show()
+                    }
+                })
+                            }
+
+
 
                             "upigateway" -> {
 

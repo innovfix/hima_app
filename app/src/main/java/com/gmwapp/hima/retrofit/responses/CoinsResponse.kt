@@ -15,6 +15,7 @@ data class CoinsResponseData(
     val save: Int?,
     val popular: Int?,
     val updated_at: String?,
+    val pg: String?,
     val created_at: String?,
     var isSelected: Boolean?
 )

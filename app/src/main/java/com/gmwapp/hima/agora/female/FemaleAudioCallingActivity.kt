@@ -62,6 +62,7 @@ import androidx.work.OneTimeWorkRequest
 import androidx.work.WorkManager
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
+import com.gmwapp.hima.agora.FaceDetectVideoFrameObserver
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
 import com.gmwapp.hima.agora.services.CallingService
@@ -119,6 +120,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     var call_Id: Int = 0
 
     private var switchDialog: AlertDialog? = null  // Track current dialog
+    private var faceDialog: Dialog? = null
 
 
     private var isRemoteUserJoined = false
@@ -1120,6 +1122,20 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                     }
                 })
 
+
+            if (ContextCompat.checkSelfPermission(this@FemaleAudioCallingActivity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                val granted = ContextCompat.checkSelfPermission(this@FemaleAudioCallingActivity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+                Log.d("FaceDetection", "CAMERA permission granted: $granted")
+                //startFaceDetectionCamera()
+                val videoObserver = FaceDetectVideoFrameObserver(this@FemaleAudioCallingActivity)
+                agoraEngine?.registerVideoFrameObserver(videoObserver)
+
+            } else {
+                Log.d("FaceDetection", "CAMERA permission granted: Not granted")
+
+                ActivityCompat.requestPermissions(this@FemaleAudioCallingActivity, arrayOf(Manifest.permission.CAMERA), 22)
+            }
+
         }
     }
 
@@ -1373,6 +1389,39 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
             })
         }
+    }
+
+    fun disableVideo(){
+        binding.blackscreen.visibility=View.VISIBLE
+        agoraEngine?.muteAllRemoteAudioStreams(true)
+        showNoFaceDetectedDialog()
+    }
+
+    fun enableVideo(){
+        binding.blackscreen.visibility=View.GONE
+        agoraEngine?.muteAllRemoteAudioStreams(false)
+        dismissNoFaceDetectedDialog()
+    }
+
+
+    private fun showNoFaceDetectedDialog() {
+        if (faceDialog?.isShowing == true) return  // Already showing
+
+        faceDialog = Dialog(this).apply {
+            requestWindowFeature(Window.FEATURE_NO_TITLE)
+            setContentView(R.layout.dialog_show_face)
+            window?.setLayout(
+                (resources.displayMetrics.widthPixels * 0.9).toInt(),
+                WindowManager.LayoutParams.WRAP_CONTENT
+            )
+            window?.setBackgroundDrawableResource(android.R.color.transparent)
+            show()
+        }
+    }
+
+    private fun dismissNoFaceDetectedDialog() {
+        faceDialog?.dismiss()
+        faceDialog = null
     }
 
 

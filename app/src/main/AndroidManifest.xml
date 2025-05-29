@@ -112,6 +112,9 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+
+
         </activity>
         <activity android:name=".activities.VerifyOTPActivity" />
         <activity
@@ -128,8 +131,19 @@
                 <data android:scheme="https" />
                 <data android:host="himaapp.in" />
             </intent-filter>
+
+
         </activity>
-        <activity android:name=".activities.WalletActivity" />
+        <activity android:name=".activities.WalletActivity"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="gmwapp" />
+            </intent-filter>
+        </activity>
         <activity android:name=".activities.TransactionsActivity" />
         <activity android:name=".activities.AccountPrivacyActivity" />
         <activity android:name=".activities.DeleteAccountActivity" />
