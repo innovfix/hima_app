@@ -2,6 +2,7 @@ package com.gmwapp.hima.activities
 
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -13,10 +14,14 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import androidx.lifecycle.Observer
+import androidx.lifecycle.ViewModelProvider
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.databinding.ActivityKycBinding
 import com.gmwapp.hima.retrofit.responses.UserData
+import com.gmwapp.hima.verification.PanRepository
+import com.gmwapp.hima.verification.PanViewModel
+import com.gmwapp.hima.verification.PanViewModelFactory
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.viewmodels.PanCardViewModel
@@ -55,7 +60,7 @@ class KycActivity : AppCompatActivity() {
         setupPanValidation()
         binding.tvCurrentBalance.text = "₹" + userData?.balance.toString()
 
-        binding.btnWithdraw.setOnClickListener {
+        binding.btnSubmit.setOnClickListener {
             val panName = binding.etPanName.text.toString().trim()
             val panNumber = binding.etPanNumber.text.toString().trim()
 
@@ -69,7 +74,8 @@ class KycActivity : AppCompatActivity() {
                 }
 
                 else -> {
-                    userData?.let { it1 -> panCardViewModel.updatePanCard(it1.id, panName, panNumber) }
+                  //  panVerification(panNumber,panName)
+                   userData?.let { it1 -> panCardViewModel.updatePanCard(it1.id, panName, panNumber) }
                 }
             }
         }
@@ -77,7 +83,7 @@ class KycActivity : AppCompatActivity() {
     }
 
     private fun setupPanValidation() {
-        val button = binding.btnWithdraw
+        val button = binding.btnSubmit
         val nameField = binding.etPanName
         val numberField = binding.etPanNumber
 
@@ -126,6 +132,26 @@ class KycActivity : AppCompatActivity() {
 
             }
         })
+
+    }
+
+    fun panVerification(panNumber:String,panName:String){
+
+        val repository = PanRepository()
+        val viewModelFactory = PanViewModelFactory(repository)
+        val viewModel = ViewModelProvider(this, viewModelFactory).get(PanViewModel::class.java)
+
+        viewModel.verifyPan(panNumber, panName)
+
+        viewModel.response.observe(this) { response ->
+            if (response.isSuccessful) {
+                val body = response.body()
+                println("PAN Verified: ${body?.pan}, Name: ${body?.name}")
+                Log.d("PanResponse","$body")
+            } else {
+                println("Error: ${response.code()}")
+            }
+        }
 
     }
 

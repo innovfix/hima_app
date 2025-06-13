@@ -102,24 +102,34 @@ class BottomSheetSelectPayment : BottomSheetDialogFragment() {
             val selectedOption = when {
                 binding.rbUpi.isChecked -> "upi_transfer"
                 binding.rbBank.isChecked -> "bank_transfer"
-                else -> "No Option Selected"
+                else -> null
             }
 
-            val intent = Intent(requireContext(), WithdrawActivity::class.java)
+            if (selectedOption == null) {
+                Toast.makeText(requireContext(), "Please select any one", Toast.LENGTH_SHORT).show()
+                // Do not dismiss if nothing is selected
+            } else {
+                val intent = Intent(requireContext(), WithdrawActivity::class.java)
+                intent.putExtra("payment_method", selectedOption)
+                startActivity(intent)
+                dismiss()
+            }
 
-            // Add optional extras if needed
-            intent.putExtra("payment_method", selectedOption)
-
-            startActivity(intent)
-
-            // Close the bottom sheet
-            dismiss()
+//            val intent = Intent(requireContext(), WithdrawActivity::class.java)
+//
+//            // Add optional extras if needed
+//            intent.putExtra("payment_method", selectedOption)
+//
+//            startActivity(intent)
+//
+//            // Close the bottom sheet
+//            dismiss()
         }
     }
 
     private fun setDefaultSelection() {
         // Set UPI as the default selected option
-        binding.rbUpi.isChecked = true
+        binding.rbUpi.isChecked = false
         binding.btnSelectPayment.isEnabled = true // Enable the button since a default is selected
     }
 }

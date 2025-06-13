@@ -7,6 +7,13 @@ plugins {
     id("kotlin-parcelize")
     id("com.google.gms.google-services")
     id("com.google.firebase.crashlytics")
+    id("hypersdk.plugin") version "2.0.6"
+
+}
+
+hyperSdkPlugin {
+    clientId = "hdfcmaster"
+    sdkVersion = "2.1.20"
 }
 
 
@@ -19,8 +26,8 @@ android {
         applicationId = "com.gmwapp.hima"
         minSdk = 26
         targetSdk = 35
-        versionCode = 22
-        versionName = "22.0"
+        versionCode = 24
+        versionName = "24.0"
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -67,6 +74,7 @@ android {
 
 dependencies {
     implementation(libs.androidx.lifecycle.process)
+    implementation(libs.androidx.core.animation)
     val lifecycleVersion = "2.6.2"
     val glideVersion = "4.11.0"
 
@@ -134,7 +142,8 @@ dependencies {
     implementation(libs.androidx.hilt.work)
     implementation(libs.androidx.work.runtime)
     implementation ("androidx.work:work-runtime-ktx:2.10.0")
-    implementation ("com.onesignal:OneSignal:[5.0.0, 5.99.99]")
+    //implementation ("com.onesignal:OneSignal:[5.0.0, 5.99.99]")
+    implementation("com.onesignal:OneSignal:5.1.34")
     implementation("com.google.androidbrowserhelper:androidbrowserhelper:2.5.0")
 
     implementation ("com.github.NorthernCaptain:TAndroidLame:1.1")
@@ -174,6 +183,8 @@ dependencies {
 
 
 
+    implementation ("com.alphacephei:vosk-android:0.3.47")
+
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -183,3 +194,4 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 }
+

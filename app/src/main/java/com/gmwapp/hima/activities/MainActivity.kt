@@ -2,16 +2,21 @@ package com.gmwapp.hima.activities
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Dialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
+import android.view.Window
+import android.view.WindowManager
+import android.widget.Button
 import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.activity.enableEdgeToEdge
@@ -69,6 +74,7 @@ import com.google.android.play.core.install.model.InstallStatus
 import com.google.android.play.core.install.model.UpdateAvailability
 import com.google.androidbrowserhelper.trusted.LauncherActivity
 import com.google.firebase.messaging.FirebaseMessaging
+import com.onesignal.OneSignal
 import com.phonepe.intent.sdk.api.PhonePeInitException
 import com.phonepe.intent.sdk.api.PhonePeKt
 import com.phonepe.intent.sdk.api.models.PhonePeEnvironment
@@ -104,6 +110,9 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     private var billingManager: BillingManager? = null
     private val WalletViewModel: WalletViewModel by viewModels()
     private val fetchedSkuList: MutableList<String> = mutableListOf()
+
+
+    private var blockWordDialog: Dialog? = null
 
 
     private lateinit var call: Call<ApiResponse>
@@ -211,14 +220,32 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
 
 
+
+
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         userID = userData?.id.toString()
+//        if (userID!=null){
+//            OneSignal.login(userID!!)
+//            Log.e("OneSignalLogin", "User ID is $userID - MainActivity")
+//
+//            val externalId = OneSignal.User.externalId
+//            Log.d("OneSignalExternalId", "externalId : $externalId")
+//
+//           OneSignal.User.pushSubscription.optIn()
+//        }
 
         billingManager = BillingManager(this)
         accountViewModel.getSettings()
         BaseApplication.getInstance()?.getPrefs()?.getUserData()?.let { WalletViewModel.getCoins(it.id) }
 
-        initUI()
+
+        showBlockWordsDetectedDialog()
+
+        Handler(Looper.getMainLooper()).post {
+            checkAndShowBlockwordDialog()
+        }
+
+            initUI()
         getSkuListID()
         addObservers()
         intializePhonpe()
@@ -247,6 +274,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 //        addRoomStateChangedListener()
 //        moveTaskToBack(true)
 //    }
+
+
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -336,6 +365,67 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 //        })
 //    }
 
+    private fun checkAndShowBlockwordDialog() {
+        val prefs = getSharedPreferences("APP_PREFS", MODE_PRIVATE)
+        val wasDetected = prefs.getBoolean("blockword_detected", false)
+
+        Log.d("blockword_detected","$wasDetected")
+        if (wasDetected) {
+            prefs.edit().putBoolean("blockword_detected", false).apply() // Reset
+
+            // Show the dialog
+            showBlockWordsDetectedDialogFemale()
+        }
+    }
+
+    private fun showBlockWordsDetectedDialogFemale(){
+
+
+            if (blockWordDialog?.isShowing == true) return  // Already showing
+
+            blockWordDialog = Dialog(this).apply {
+                requestWindowFeature(Window.FEATURE_NO_TITLE)
+                setContentView(R.layout.dialog_block_words_detected)
+                window?.setLayout(
+                    (resources.displayMetrics.widthPixels * 0.9).toInt(),
+                    WindowManager.LayoutParams.WRAP_CONTENT
+                )
+                window?.setBackgroundDrawableResource(android.R.color.transparent)
+                findViewById<Button>(R.id.btn_iUnderstand)?.setOnClickListener {
+                    dismiss()  // Dismiss the dialog
+                }
+                show()
+            }
+
+
+    }
+
+
+    private fun showBlockWordsDetectedDialog(){
+        val isBlockWord = intent.getBooleanExtra("blockword",false)
+        if (isBlockWord){
+
+            if (blockWordDialog?.isShowing == true) return  // Already showing
+
+            blockWordDialog = Dialog(this).apply {
+                requestWindowFeature(Window.FEATURE_NO_TITLE)
+                setContentView(R.layout.dialog_block_words_detected)
+                window?.setLayout(
+                    (resources.displayMetrics.widthPixels * 0.9).toInt(),
+                    WindowManager.LayoutParams.WRAP_CONTENT
+                )
+                window?.setBackgroundDrawableResource(android.R.color.transparent)
+                findViewById<Button>(R.id.btn_iUnderstand)?.setOnClickListener {
+                    dismiss()  // Dismiss the dialog
+                }
+                show()
+            }
+
+        }
+    }
+
+
+
     private fun addObservers() {
         offerViewModel.offerResponseLiveData.observe(this) { response ->
             if (response.success) {
@@ -355,7 +445,9 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 Log.d("OrinalPrice","OriginalPrice $originalPrice")
                 Log.d("OrinalPrice","discountPrice $discountedPrice")
                 Log.d("OrinalPrice","savePercent $save")
-                if (BaseApplication.getInstance()?.getPrefs()
+                val isBlockWord = intent.getBooleanExtra("blockword", false)
+
+                if (!isBlockWord && BaseApplication.getInstance()?.getPrefs()
                         ?.getUserData()?.gender == DConstants.MALE
                 ) {
                     val bottomSheet = BottomSheetWelcomeBonus(coin, originalPrice, discountedPrice,coinId,total_count)
@@ -734,6 +826,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     override fun onResume() {
         super.onResume()
 
+        checkAndShowBlockwordDialog()
         appUpdateManager
             .appUpdateInfo
             .addOnSuccessListener { appUpdateInfo ->

@@ -102,6 +102,35 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/btn_menu"/>
 
+
+    <com.airbnb.lottie.LottieAnimationView
+        android:id="@+id/female_wave"
+        android:layout_width="@dimen/_150sdp"
+        android:layout_height="@dimen/_150sdp"
+        android:layout_marginTop="-12dp"
+        android:alpha="0"
+        android:scaleType="centerCrop"
+        app:lottie_fileName="wave.json"
+        app:lottie_autoPlay="false"
+        app:lottie_loop="true"
+        app:layout_constraintEnd_toStartOf="@id/iv_male_user"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/btn_menu" />
+
+    <com.airbnb.lottie.LottieAnimationView
+        android:id="@+id/male_wave"
+        android:layout_width="@dimen/_150sdp"
+        android:layout_height="@dimen/_150sdp"
+        android:layout_marginTop="-12dp"
+        android:alpha="0"
+        android:layout_marginLeft="15dp"
+        android:scaleType="centerCrop"
+        app:lottie_fileName="wave.json"
+        app:lottie_autoPlay="false"
+        app:lottie_loop="true"
+        app:layout_constraintStart_toEndOf="@id/iv_female_user"
+        app:layout_constraintTop_toBottomOf="@id/btn_menu" />
+
     <!-- Male User Image -->
     <ImageView
         android:id="@+id/iv_male_user"
@@ -126,6 +155,20 @@
         app:layout_constraintEnd_toEndOf="@id/iv_female_user"
         android:layout_marginTop="8dp"/>
 
+    <ImageView
+        android:id="@+id/femaleMute"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+
+        android:visibility="gone"
+        android:src="@drawable/mute_img"
+        android:textSize="16sp"
+        android:textColor="@android:color/white"
+        app:layout_constraintTop_toBottomOf="@id/tv_female_name"
+        app:layout_constraintStart_toStartOf="@id/iv_female_user"
+        app:layout_constraintEnd_toEndOf="@id/iv_female_user"
+        android:layout_marginTop="8dp"/>
+
     <!-- Male User Name -->
     <TextView
         android:id="@+id/tv_male_name"
@@ -138,6 +181,21 @@
         app:layout_constraintStart_toStartOf="@id/iv_male_user"
         app:layout_constraintEnd_toEndOf="@id/iv_male_user"
         android:layout_marginTop="8dp"/>
+
+    <ImageView
+        android:id="@+id/maleMute"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+
+        android:visibility="gone"
+        android:src="@drawable/mute_img"
+        android:textSize="16sp"
+        android:textColor="@android:color/white"
+        app:layout_constraintTop_toBottomOf="@id/tv_male_name"
+        app:layout_constraintStart_toStartOf="@id/iv_male_user"
+        app:layout_constraintEnd_toEndOf="@id/iv_male_user"
+        android:layout_marginTop="8dp"/>
+
 
     <!-- Vertical Button Stack (Video Call, Mute, Speaker) -->
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -236,6 +294,7 @@
         android:id="@+id/blackscreen"
         android:layout_width="match_parent"
         android:src="@color/black"
+        android:background="@color/black"
         android:visibility="gone"
         android:layout_height="match_parent">
 

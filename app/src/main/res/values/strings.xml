@@ -165,6 +165,7 @@
         and start earning!</string>
     <string name="complete">Complete</string>
     <string name="withdraw">Withdraw</string>
+    <string name="understand">I Understand</string>
     <string name="audio">Audio</string>
     <string name="todays_activity">Today\'s Activity</string>
     <string name="approx_earnings">Approx earnings</string>
@@ -232,4 +233,16 @@
 
     <string name="facebook_app_id">1310903060012417</string>
     <string name="facebook_client_token">ed13227b54f4f5cff5f4d326b1ddefce</string>
+
+
+    <string name="juspay_sdk_"> Juspay SDK Integration Demo </string>
+    <string name="home_screen"> Home Screen</string>
+    <string name="juspay_paym">Juspay Payments SDK should be initiated on this screen.</string>
+    <string name="checkout_sc">Checkout Screen</string>
+    <string name="call_proces">Call process on HyperServices instance on Checkout Button Click</string>
+    <string name="handle_jusp">Handle Juspay Payments SDK Response</string>
+
+
+    <string name="blockwords_disclamair">We ended the call because abusive words were detected. Please speak respectfully to ensure a safe and friendly experience for everyone.</string>
+    <string name="blockwords_disclamair2">Call Disconnected Due to Abusive Language</string>
 </resources>

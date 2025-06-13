@@ -2,7 +2,11 @@ package com.gmwapp.hima.adapters
 
 import android.app.Activity
 import android.util.Log
+import java.text.SimpleDateFormat
+import java.util.*
+import java.util.concurrent.TimeUnit
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
@@ -50,7 +54,17 @@ class FemaleUserAdapter(
 
         Log.d("FemaleName", "${femaleUser.name} audio ${femaleUser.audio_status   } video ${femaleUser.video_status}")
 
+        Log.d("created_at","${femaleUser.created_at}")
 
+
+       var userRegisterDate = getDayDifferenceLabel(femaleUser.created_at)
+        Log.d("userRegisterDate","$userRegisterDate")
+        if (userRegisterDate<3){
+            holder.binding.newUser.visibility= View.VISIBLE
+        }else{
+            holder.binding.newUser.visibility= View.GONE
+
+        }
 
 
 
@@ -128,6 +142,26 @@ class FemaleUserAdapter(
 
     override fun getItemCount(): Int {
         return femaleUsers.size
+    }
+
+    fun getDayDifferenceLabel(createdAt: String): Long {
+        val format = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
+        // Extract date part only (cut off time)
+        val createdDateOnly = createdAt.substring(0, 10)
+        val createdDate: Date = format.parse(createdDateOnly) ?: return 3
+
+        // Get today's date (yyyy-MM-dd)
+        val todayDateOnly = format.format(Date())
+        val todayDate: Date = format.parse(todayDateOnly) ?: return 3
+
+        // Difference in milliseconds
+        val diffMillis = todayDate.time - createdDate.time
+        val diffDays = TimeUnit.MILLISECONDS.toDays(diffMillis)
+
+        Log.d("created_at_label", "Date: $createdDateOnly, Diff: $diffDays ")
+        return diffDays
+
     }
 
     internal class ItemHolder(val binding: AdapterFemaleUserBinding) : RecyclerView.ViewHolder(binding.root)

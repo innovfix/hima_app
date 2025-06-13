@@ -223,7 +223,7 @@ class MaleCallConnectingActivity : AppCompatActivity() {
         receiverId?.let { it1 ->
             userId?.let {
                 femaleUsersViewModel.callFemaleUser(
-                    it, it1, callType.toString()
+                    it, it1, callType.toString(),0
                 )
             }
             callIdObserver()

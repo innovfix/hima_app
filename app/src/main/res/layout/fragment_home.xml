@@ -99,6 +99,7 @@
 
 
     <LinearLayout
+        android:id="@+id/ll_cyber_disclamair"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
@@ -129,7 +130,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Any use of abusive or offensive language may be considered a violation of cyber laws, and appropriate legal action may be taken under cybercrime regulations"
+                android:text="Using abusive language may violate cyber laws and lead to legal action"
                 android:textColor="@color/black"
                 android:layout_marginLeft="@dimen/_10sdp"
                 android:fontFamily="@font/poppins_semibold"
@@ -137,8 +138,8 @@
         </LinearLayout>
 
         <ImageView
-            android:layout_width="@dimen/_63sdp"
-            android:layout_height="@dimen/_73sdp"
+            android:layout_width="@dimen/_43sdp"
+            android:layout_height="@dimen/_53sdp"
             android:src="@drawable/cyber_police" />
     </LinearLayout>
 
@@ -154,7 +155,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
-        android:layout_marginTop="110dp"
+        android:layout_marginTop="80dp"
         app:layout_constraintTop_toBottomOf="@+id/iv_logo"
         >
 

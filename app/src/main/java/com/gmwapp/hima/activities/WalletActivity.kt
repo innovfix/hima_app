@@ -123,6 +123,8 @@ class WalletActivity : BaseActivity()  {
         super.onResume()
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         userData?.id?.let { profileViewModel.getUsers(it) }
+        BaseApplication.getInstance()?.getPrefs()?.getUserData()?.let { WalletViewModel.getCoins(it.id) }
+
     }
 
 
@@ -400,6 +402,8 @@ class WalletActivity : BaseActivity()  {
                     .load(bannerOfferImage)
                     .into(binding.ivBonus)
 
+                Log.d("CoinResposneData","${it.data}")
+
 
                 fetchedSkuList.clear() // Clear old SKUs to avoid duplicates
 
@@ -410,6 +414,7 @@ class WalletActivity : BaseActivity()  {
                     val preferences = DPreferences(this)
                     preferences.setSkuList(fetchedSkuList)
                 }
+
 
 
 
@@ -424,6 +429,8 @@ class WalletActivity : BaseActivity()  {
 
                         selectedCoin = coin.coins.toString()
                         selectedSavePercent = coin.save.toString()
+                        Log.d("pgCheck","${coin.pg}")
+
 
                     }
 

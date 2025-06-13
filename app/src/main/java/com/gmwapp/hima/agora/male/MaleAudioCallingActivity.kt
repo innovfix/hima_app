@@ -20,6 +20,7 @@ import io.agora.rtc2.RtcEngine
 import io.agora.rtc2.RtcEngineConfig
 import io.agora.rtc2.Constants
 import android.Manifest
+import android.animation.AnimatorListenerAdapter
 import android.app.Dialog
 import android.content.Intent
 import android.content.res.Resources
@@ -58,6 +59,7 @@ import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
 import com.gmwapp.hima.agora.services.CallingService
 import com.gmwapp.hima.utils.setOnSingleClickListener
+import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.gmwapp.hima.viewmodels.GiftImageViewModel
@@ -71,6 +73,21 @@ import retrofit2.Response
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.TimeZone
+import org.vosk.Model
+import org.vosk.Recognizer
+import org.vosk.android.RecognitionListener
+import java.util.concurrent.Executors
+import io.agora.rtc2.IAudioFrameObserver
+import java.nio.ByteBuffer
+import io.agora.rtc2.audio.AudioParams
+import org.json.JSONObject
+import java.io.BufferedInputStream
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.io.InputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
 
 @AndroidEntryPoint
 class MaleAudioCallingActivity : AppCompatActivity() {
@@ -87,6 +104,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     var isClicked: Boolean = false
     var isAudioCallIdReceived: Boolean = false
+    private val accountViewModel: AccountViewModel by viewModels()
+
 
     lateinit var binding: ActivityMaleAudioCallingBinding
     private val profileViewModel: ProfileViewModel by viewModels()
@@ -109,6 +128,10 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private var switchDialog: AlertDialog? = null  // Track current dialog
     private var faceDialog: Dialog? = null
 
+    private lateinit var model: Model
+    private lateinit var recognizer: Recognizer
+
+    private val executor = Executors.newSingleThreadExecutor()
 
 
     private val appId = "a41e9245489d44a2ac9af9525f1b508c"
@@ -135,6 +158,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private var startTime: String = ""
     private var endTime: String = ""
 
+    var blockWords: List<String> = emptyList()
+    var isBlockWordDetected : Boolean = false
 
     var callId: Int = 0
 
@@ -230,6 +255,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             .load(R.drawable.gift_png)
             .into(binding.ivGift)
 
+
+
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         if (userData != null) {
             maleUserId = userData.id
@@ -284,7 +311,215 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         observeCallSwitchRequest()
 
         giftIconClicked()
+        getBlockWords()
     }
+
+    private fun getBlockWords(){
+        accountViewModel.getSettings()
+
+        accountViewModel.settingsLiveData.observe(this, Observer { response ->
+            if (response?.success == true) {
+                response.data?.let { settingsList ->
+                    if (settingsList.isNotEmpty()) {
+                        val settingsData = settingsList[0]
+                         blockWords = settingsData.blockWords
+                        Log.d("BlockWords", "$blockWords")
+                    }
+                }
+            }
+        })
+    }
+
+    private fun initVosk() {
+        executor.execute {
+            try {
+                val modelPath = File(copyAssetToCache("vosk-model-small-en-us-0.15.zip"), "vosk-model-small-en-us-0.15").absolutePath
+                model = Model(modelPath)
+                recognizer = Recognizer(model, 16000.0f)
+            } catch (e: IOException) {
+                Log.e("Vosk", "Model load failed", e)
+            }
+        }
+    }
+
+    private fun copyAssetToCache(zipAssetName: String): String {
+        val targetDir = File(cacheDir, "vosk-model")
+        if (!targetDir.exists()) {
+            val inputStream = assets.open(zipAssetName)
+            unzip(inputStream, targetDir.absolutePath)
+        }
+        Log.d("Vosk", "Extracted model to: ${targetDir.absolutePath}, contents: ${targetDir.listFiles()?.joinToString { it.name }}")
+
+        return targetDir.absolutePath
+    }
+
+    fun unzip(zipInputStream: InputStream, targetLocation: String) {
+        val zis = ZipInputStream(BufferedInputStream(zipInputStream))
+        var ze: ZipEntry? = zis.nextEntry
+
+        while (ze != null) {
+            val file = File(targetLocation, ze.name)
+            if (ze.isDirectory) {
+                file.mkdirs()
+            } else {
+                file.parentFile?.mkdirs()
+                val fout = FileOutputStream(file)
+                val buffer = ByteArray(1024)
+                var count: Int
+                while (zis.read(buffer).also { count = it } != -1) {
+                    fout.write(buffer, 0, count)
+                }
+                fout.close()
+            }
+            zis.closeEntry()
+            ze = zis.nextEntry
+        }
+        zis.close()
+    }
+
+
+
+
+
+    private val audioFrameObserver = object : IAudioFrameObserver {
+
+
+        override fun onRecordAudioFrame(
+            channelId: String?,
+            type: Int,
+            samplesPerChannel: Int,
+            bytesPerSample: Int,
+            channels: Int,
+            samplesPerSec: Int,
+            buffer: ByteBuffer?,
+            renderTimeMs: Long,
+            avsync_type: Int
+        ): Boolean {
+            if (buffer == null || !::recognizer.isInitialized) return true
+
+            val pcmData = ByteArray(buffer.remaining())
+            Log.d("VOSK-FINAL", pcmData.size.toString())
+
+            buffer.get(pcmData)
+
+            executor.execute {
+                try {
+                    if (recognizer.acceptWaveForm(pcmData, pcmData.size)) {
+                        val resultJson = recognizer.result  // JSON string like {"text" : "hello"}
+                        val textOnly = JSONObject(resultJson).optString("text", "")
+                        Log.d("VOSK-FINAL-Text", textOnly)  // logs just "hello"
+
+                        runOnUiThread {
+                            val matchedWord = blockWords.firstOrNull { word ->
+                                textOnly.contains(word, ignoreCase = true)
+                            }
+
+                            matchedWord?.let {
+                                isBlockWordDetected = true
+                                leaveChannel(binding.LeaveButton)
+
+//                                Toast.makeText(
+//                                   this@MaleAudioCallingActivity,
+//                                   "\"$it\"",
+//                                 Toast.LENGTH_SHORT
+//                                ).show()
+                            }
+                        }
+
+
+
+                    } else {
+                        Log.d("VOSK-PARTIAL", recognizer.partialResult)
+                    }
+                } catch (e: Exception) {
+                    Log.e("VOSK-ERROR", "Error in recognition: ${e.message}")
+                }
+            }
+
+            return true
+        }
+
+        override fun onPlaybackAudioFrame(
+            channelId: String?,
+            type: Int,
+            samplesPerChannel: Int,
+            bytesPerSample: Int,
+            channels: Int,
+            samplesPerSec: Int,
+            buffer: ByteBuffer?,
+            renderTimeMs: Long,
+            avsync_type: Int
+        ): Boolean {
+            return true
+        }
+
+        override fun onMixedAudioFrame(
+            channelId: String?,
+            type: Int,
+            samplesPerChannel: Int,
+            bytesPerSample: Int,
+            channels: Int,
+            samplesPerSec: Int,
+            buffer: ByteBuffer?,
+            renderTimeMs: Long,
+            avsync_type: Int
+        ): Boolean {
+            return true
+        }
+
+        override fun onEarMonitoringAudioFrame(
+            type: Int,
+            samplesPerChannel: Int,
+            bytesPerSample: Int,
+            channels: Int,
+            samplesPerSec: Int,
+            buffer: ByteBuffer?,
+            renderTimeMs: Long,
+            avsync_type: Int
+        ): Boolean {
+            return true
+        }
+
+        override fun onPlaybackAudioFrameBeforeMixing(
+            channelId: String?,
+            uid: Int,
+            type: Int,
+            samplesPerChannel: Int,
+            bytesPerSample: Int,
+            channels: Int,
+            samplesPerSec: Int,
+            buffer: ByteBuffer?,
+            renderTimeMs: Long,
+            avsync_type: Int,
+            rtpTimestamp: Int
+        ): Boolean {
+            return true
+        }
+
+        override fun getObservedAudioFramePosition(): Int {
+            return Constants.POSITION_RECORD       }
+
+        override fun getRecordAudioParams(): AudioParams {
+            return AudioParams(
+                16000, // sample rate (Hz)
+                1,     // mono
+                Constants.RAW_AUDIO_FRAME_OP_MODE_READ_ONLY,
+                1024   // samples per call
+            )        }
+
+        override fun getPlaybackAudioParams(): AudioParams {
+            return AudioParams(16000, 1, Constants.RAW_AUDIO_FRAME_OP_MODE_READ_ONLY, 1024)
+        }
+
+        override fun getMixedAudioParams(): AudioParams {
+            return AudioParams(16000, 1, Constants.RAW_AUDIO_FRAME_OP_MODE_READ_ONLY, 1024)
+        }
+
+        override fun getEarMonitoringAudioParams(): AudioParams {
+            return AudioParams(16000, 1, Constants.RAW_AUDIO_FRAME_OP_MODE_READ_ONLY, 1024)
+        }
+    }
+
 
     private fun giftIconClicked(){
         binding.ivGift.setOnClickListener{
@@ -426,7 +661,127 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             startTime = dateFormat.format(Date()) // Set call end time in IST
             startCallingService()
             getRemainingTime()
+            initVosk()
+            agoraEngine?.setAudioProfile(Constants.AUDIO_PROFILE_SPEECH_STANDARD, Constants.AUDIO_SCENARIO_DEFAULT)
+
+            agoraEngine?.registerAudioFrameObserver(audioFrameObserver)
+
+
+            agoraEngine?.enableAudioVolumeIndication(200, 3, true)
+
         }
+
+        override fun onUserMuteVideo(uid: Int, muted: Boolean) {
+            super.onUserMuteVideo(uid, muted)
+
+            if (isVideoCallGoing){
+                runOnUiThread {
+                    if (muted){
+                        binding.main.setBackgroundColor(android.graphics.Color.GRAY)
+                        binding.remoteVideoViewContainer.visibility= View.GONE
+
+
+                    }else{
+                        binding.main.setBackgroundResource(R.drawable.d_call_screen_background)
+                        binding.remoteVideoViewContainer.visibility= View.VISIBLE
+
+                    }
+                }
+            }
+        }
+
+
+        override fun onUserMuteAudio(uid: Int, muted: Boolean) {
+            // This is triggered when remote user (with uid) mutes/unmutes their mic
+            if (muted) {
+                Log.d("userMuted","User is muted")
+                runOnUiThread {
+                    if (!isVideoCallGoing){
+                        binding.femaleMute.visibility= View.VISIBLE
+
+                    }else{
+                        binding.femaleMute.visibility= View.GONE
+                    }
+                }
+
+            } else {
+                Log.d("userMuted","User is not muted")
+
+                runOnUiThread {
+                    binding.femaleMute.visibility= View.GONE
+                }
+
+            }
+        }
+
+
+
+        override fun onAudioVolumeIndication(
+            speakers: Array<IRtcEngineEventHandler.AudioVolumeInfo>,
+            totalVolume: Int
+        ) {
+            var isLocalSpeaking = false
+            var isRemoteSpeaking = false
+
+            for (speaker in speakers) {
+                val uid = speaker.uid
+                val volume = speaker.volume
+
+                if (uid == 0 && volume > 50) {
+                    isLocalSpeaking = true
+                } else if (uid != 0 && volume > 50) {
+                    isRemoteSpeaking = true
+                }
+            }
+
+
+            runOnUiThread {
+                // For Male (Local User)
+                if (isLocalSpeaking) {
+                    if (!binding.maleWave.isAnimating) {
+                        binding.maleWave.alpha = 1f
+                        binding.maleWave.visibility = View.VISIBLE
+                        binding.maleWave.playAnimation()
+                    }
+                } else {
+                    if (binding.maleWave.isAnimating) {
+                        binding.maleWave.addAnimatorListener(object : AnimatorListenerAdapter() {
+                            override fun onAnimationEnd(animation: android.animation.Animator) {
+                                super.onAnimationEnd(animation)
+                                binding.maleWave.alpha = 0f
+                                binding.maleWave.visibility = View.GONE
+                                binding.maleWave.removeAnimatorListener(this)
+                            }
+                        })
+                        binding.maleWave.repeatCount = 0 // Let current loop finish, no new ones
+                    }
+
+                }
+
+                // For Female (Remote User)
+                if (isRemoteSpeaking) {
+                    if (!binding.femaleWave.isAnimating) {
+                        binding.femaleWave.alpha = 1f
+                        binding.femaleWave.visibility = View.VISIBLE
+                        binding.femaleWave.playAnimation()
+                    }
+                } else {
+                    if (binding.femaleWave.isAnimating) {
+                        binding.femaleWave.addAnimatorListener(object : AnimatorListenerAdapter() {
+                            override fun onAnimationEnd(animation: android.animation.Animator) {
+                                super.onAnimationEnd(animation)
+                                binding.femaleWave.alpha = 0f
+                                binding.femaleWave.visibility = View.GONE
+                                binding.femaleWave.removeAnimatorListener(this)
+                            }
+                        })
+                        binding.femaleWave.repeatCount = 0 // Let current loop finish, no new ones
+                    }
+
+                }
+            }
+        }
+
     }
 
     fun joinChannel(view: View) {
@@ -522,13 +877,21 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             agoraEngine = null
         }.start()
 
-        if (isRemoteUserJoined==true){
+        if (isRemoteUserJoined==true && isBlockWordDetected==false){
             val intent = Intent(this@MaleAudioCallingActivity, RatingActivity::class.java)
             intent.putExtra(DConstants.RECEIVER_NAME, receiverName)
             intent.putExtra(DConstants.RECEIVER_ID, receiverId)
             startActivity(intent)
             Log.d("Lifecycle", "onDestroy() called. Firestore listener removed.")
         }
+
+        if (isRemoteUserJoined==true && isBlockWordDetected==true){
+            val intent = Intent(this@MaleAudioCallingActivity, MainActivity::class.java)
+            intent.putExtra("blockword", true)
+            startActivity(intent)
+            Log.d("Lifecycle", "onDestroy() called. Firestore listener removed.")
+        }
+
 
 
     }
@@ -1048,7 +1411,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         receiverId?.let { it1 ->
             userId?.let {
                 femaleUsersViewModel.callFemaleUser(
-                    it, it1, callType
+                    it, it1, callType,1
                 )
             }
             callIdObserver()
@@ -1485,12 +1848,18 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     fun disableVideo(){
         binding.blackscreen.visibility=View.VISIBLE
         agoraEngine?.muteAllRemoteAudioStreams(true)
+        agoraEngine?.muteLocalVideoStream(true)
+        agoraEngine?.muteLocalAudioStream(true)
         showNoFaceDetectedDialog()
     }
 
     fun enableVideo(){
         binding.blackscreen.visibility=View.GONE
         agoraEngine?.muteAllRemoteAudioStreams(false)
+        agoraEngine?.muteLocalVideoStream(false)
+        agoraEngine?.muteLocalAudioStream(false)
+
+
         dismissNoFaceDetectedDialog()
     }
 
