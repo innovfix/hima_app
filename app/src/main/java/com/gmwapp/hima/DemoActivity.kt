@@ -43,7 +43,7 @@ class DemoActivity : AppCompatActivity() {
 
     private lateinit var speechRecognizer: SpeechRecognizer
     private lateinit var speechIntent: Intent
-    private val abusiveWords = listOf("idiot", "fuck", "damn", "b****", "asshole")
+    private val abusiveWords = listOf("idiot", "damn")
 
 
     override fun onCreate(savedInstanceState: Bundle?) {

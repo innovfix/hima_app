@@ -100,6 +100,20 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/btn_menu"/>
 
+<!--    <com.airbnb.lottie.LottieAnimationView-->
+<!--        android:id="@+id/female_wave"-->
+<!--        android:layout_width="@dimen/_150sdp"-->
+<!--        android:layout_height="@dimen/_150sdp"-->
+<!--        android:layout_marginTop="-12dp"-->
+<!--        android:alpha="0"-->
+<!--        android:scaleType="centerCrop"-->
+<!--        app:lottie_fileName="wave.json"-->
+<!--        app:lottie_autoPlay="false"-->
+<!--        app:lottie_loop="true"-->
+<!--        app:layout_constraintEnd_toStartOf="@id/iv_male_user"-->
+<!--        app:layout_constraintStart_toStartOf="parent"-->
+<!--        app:layout_constraintTop_toBottomOf="@id/btn_menu" />-->
+
     <com.airbnb.lottie.LottieAnimationView
         android:id="@+id/female_wave"
         android:layout_width="@dimen/_150sdp"
@@ -110,9 +124,12 @@
         app:lottie_fileName="wave.json"
         app:lottie_autoPlay="false"
         app:lottie_loop="true"
-        app:layout_constraintEnd_toStartOf="@id/iv_male_user"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/btn_menu" />
+
+        app:layout_constraintTop_toBottomOf="@id/btn_menu"
+        app:layout_constraintStart_toStartOf="@id/iv_female_user"
+        app:layout_constraintEnd_toEndOf="@id/iv_female_user" />
+
+
 
     <!-- Male User Image -->
     <ImageView
@@ -132,13 +149,18 @@
         android:layout_height="@dimen/_150sdp"
         android:layout_marginTop="-12dp"
         android:alpha="0"
-        android:layout_marginLeft="8dp"
         android:scaleType="centerCrop"
         app:lottie_fileName="wave.json"
         app:lottie_autoPlay="false"
         app:lottie_loop="true"
-        app:layout_constraintStart_toEndOf="@id/iv_female_user"
-        app:layout_constraintTop_toBottomOf="@id/btn_menu" />
+
+        app:layout_constraintTop_toBottomOf="@id/btn_menu"
+        app:layout_constraintStart_toStartOf="@id/iv_male_user"
+        app:layout_constraintEnd_toEndOf="@id/iv_male_user"
+        />
+
+
+
 
 
     <!-- Female User Name -->

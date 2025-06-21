@@ -229,7 +229,7 @@ class WithdrawActivity : BaseActivity() {
         }
 
         binding.btnWithdraw.setOnClickListener {
-            val amount = binding.etAmount.text.toString().toInt()
+            val amount = binding.etAmount.text.toString().toDouble().toInt()
             val paymentMethod = payment_method
 
             val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
@@ -348,7 +348,7 @@ class WithdrawActivity : BaseActivity() {
         // Check if amount is empty or not a valid number
         if (amount.isEmpty() || !isValidAmount(amount)) {
             // Optionally, show a message or highlight the field
-            binding.etAmount.error = "Min withdrwal amount Rs.$minWithdrawAmount"
+         //   binding.etAmount.error = "Min withdrwal amount Rs.$minWithdrawAmount"
         }
 
 

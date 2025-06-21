@@ -86,8 +86,11 @@ class BottomSheetLogout : BottomSheetDialogFragment() {
                     OneSignal.User.removeTag("gender_language") // Clears the tag on logout
                     OneSignal.User.removeTag("gender") // Clears the tag on logout
                     OneSignal.User.removeTag("language") // Clears the tag on logout
+                    OneSignal.User.removeTag("user_id") // Clears the tag on logout
 
-                   // ZegoUIKitPrebuiltCallService.unInit()
+                    OneSignal.logout()
+                    OneSignal.User.pushSubscription.optOut()
+                    // ZegoUIKitPrebuiltCallService.unInit()
                     val prefs = BaseApplication.getInstance()?.getPrefs()
                     prefs?.clearUserData()
                     val intent = Intent(context, NewLoginActivity::class.java)
@@ -99,11 +102,15 @@ class BottomSheetLogout : BottomSheetDialogFragment() {
                     Log.e("FCMToken", "Failed to save token")
 
 
+
 //                    MMKV.defaultMMKV().remove("user_id");
 //                    MMKV.defaultMMKV().remove("user_name");
                     OneSignal.User.removeTag("gender_language") // Clears the tag on logout
                     OneSignal.User.removeTag("gender") // Clears the tag on logout
                     OneSignal.User.removeTag("language") // Clears the tag on logout
+
+                    OneSignal.logout()
+                    OneSignal.User.pushSubscription.optOut()
 
                     //ZegoUIKitPrebuiltCallService.unInit()
                     val prefs = BaseApplication.getInstance()?.getPrefs()

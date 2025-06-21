@@ -9,9 +9,9 @@ pluginManagement {
         }
         mavenCentral()
         gradlePluginPortal()
-        maven {
-            url = uri("https://maven.juspay.in/jp-build-packages/hyper-sdk/")
-        }
+//        maven {
+//            url = uri("https://maven.juspay.in/jp-build-packages/hyper-sdk/")
+//        }
     }
 }
 dependencyResolutionManagement {
@@ -27,9 +27,9 @@ dependencyResolutionManagement {
         }
         mavenCentral()
 
-        maven {
-            url = uri("https://maven.juspay.in/jp-build-packages/hyper-sdk/")
-        }
+//        maven {
+//            url = uri("https://maven.juspay.in/jp-build-packages/hyper-sdk/")
+//        }
 
 //        maven { url= uri("https://storage.zego.im/maven") }   // <- Add this line.
     }

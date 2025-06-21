@@ -38,6 +38,8 @@ class RecentViewModel @Inject constructor(private val profileRepositories: Profi
 
                     override fun onFailure(call: Call<CallsListResponse>, t: Throwable) {
                         callsListErrorLiveData.postValue(t.message)
+                        Log.d("callsListFailed","${t.message}")
+
                     }
 
                     override fun onNoNetwork() {

@@ -16,7 +16,7 @@
     <string name="add_quantity_coins">Add %d Coins</string>
     <string name="view_more_plans">View more plans ></string>
     <string name="random">Random</string>
-    <string name="rupee_text">\u20B9%d</string>
+    <string name="rupee_text">\u20B9%s</string>
     <string name="rupee_symbol">\u20B9</string>
     <string name="home">Home</string>
     <string name="recent">Recent</string>

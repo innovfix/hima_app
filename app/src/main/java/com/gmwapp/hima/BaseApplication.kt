@@ -47,8 +47,7 @@ class BaseApplication : Application(), Configuration.Provider {
     private var mediaPlayer: MediaPlayer? = null
     private var endCallUpdatePending: Boolean? = null
    // val ONESIGNAL_APP_ID = "2c7d72ae-8f09-48ea-a3c8-68d9c913c592"
-   val ONESIGNAL_APP_ID = "5cd" +
-           "4154a-1ece-4c3b-b6af-e88bafee64cd"
+   val ONESIGNAL_APP_ID = "5cd4154a-1ece-4c3b-b6af-e88bafee64cd"
 
     //val testingOneSingalAppId = "b5aee4f0-ef38-4116-a04d-ee279ee1f11f"
     private lateinit var sharedPreferences: SharedPreferences
@@ -172,37 +171,37 @@ class BaseApplication : Application(), Configuration.Provider {
 //            Log.e("OneSignalLogin", "User ID is null or invalid.")
 //        }
 
-        CoroutineScope(Dispatchers.Main).launch {
-            delay(2000) // wait to ensure OneSignal is initialized fully
-
-            // 1. FULL RESET before login
-            OneSignal.logout()
-            OneSignal.User.pushSubscription.optOut()
-
-            // 2. Fetch user ID
-            val userId = getInstance()?.getPrefs()?.getUserData()?.id.toString()
-
-            if (!userId.isNullOrEmpty() && userId != "null") {
-                Log.d("OneSignalFix", "Attempting clean login with userId: $userId")
-
-                // 3. Force fresh login
-                OneSignal.login(userId)
-
-                // 4. Re-subscribe and assign external ID
-                OneSignal.User.pushSubscription.optIn()
-
-                // 5. Prompt notification permission (Android 13+)
-                OneSignal.Notifications.requestPermission(true)
-
-                // 6. Debug logs to confirm status
-                delay(1000)
-                Log.d("OneSignalFix", "externalId: ${OneSignal.User.externalId}")
-                Log.d("OneSignalFix", "pushToken: ${OneSignal.User.pushSubscription.token}")
-                Log.d("OneSignalFix", "optedIn: ${OneSignal.User.pushSubscription.optedIn}")
-            } else {
-                Log.e("OneSignalFix", "Invalid user ID: $userId")
-            }
-        }
+//        CoroutineScope(Dispatchers.Main).launch {
+//            delay(2000) // wait to ensure OneSignal is initialized fully
+//
+//            // 1. FULL RESET before login
+//            OneSignal.logout()
+//            OneSignal.User.pushSubscription.optOut()
+//
+//            // 2. Fetch user ID
+//            val userId = getInstance()?.getPrefs()?.getUserData()?.id.toString()
+//
+//            if (!userId.isNullOrEmpty() && userId != "null") {
+//                Log.d("OneSignalFix", "Attempting clean login with userId: $userId")
+//
+//                // 3. Force fresh login
+//                OneSignal.login(userId)
+//
+//                // 4. Re-subscribe and assign external ID
+//                OneSignal.User.pushSubscription.optIn()
+//
+//                // 5. Prompt notification permission (Android 13+)
+//                OneSignal.Notifications.requestPermission(true)
+//
+//                // 6. Debug logs to confirm status
+//                delay(1000)
+//                Log.d("OneSignalFix", "externalId: ${OneSignal.User.externalId}")
+//                Log.d("OneSignalFix", "pushToken: ${OneSignal.User.pushSubscription.token}")
+//                Log.d("OneSignalFix", "optedIn: ${OneSignal.User.pushSubscription.optedIn}")
+//            } else {
+//                Log.e("OneSignalFix", "Invalid user ID: $userId")
+//            }
+//        }
 
 
         registerActivityLifecycleCallbacks(lifecycleCallbacks)

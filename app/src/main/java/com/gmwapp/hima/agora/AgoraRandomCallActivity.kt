@@ -20,6 +20,7 @@ import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
+import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.agora.male.MaleAudioCallingActivity
 import com.gmwapp.hima.agora.male.MaleVideoCallingActivity
 import com.gmwapp.hima.constants.DConstants
@@ -280,8 +281,20 @@ class AgoraRandomCallActivity : AppCompatActivity() {
                 }
             }else{
 
-                Toast.makeText(this, "${response.message}", Toast.LENGTH_LONG).show()
-                navigateToMainActivity()
+//                Toast.makeText(this, "${response.message}", Toast.LENGTH_LONG).show()
+//                navigateToMainActivity()
+
+                response?.message?.let { message ->
+                    if (message.startsWith("Insufficient coins")) {
+                        val intent = Intent(this@AgoraRandomCallActivity, WalletActivity::class.java)
+                        Toast.makeText(this@AgoraRandomCallActivity, message, Toast.LENGTH_LONG).show()
+                        startActivity(intent)
+                        finish()
+                    } else {
+                        Toast.makeText(this@AgoraRandomCallActivity, message, Toast.LENGTH_LONG).show()
+                        navigateToMainActivity()
+                    }
+                }
             }
         })
     }

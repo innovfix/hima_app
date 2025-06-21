@@ -71,8 +71,8 @@ import io.agora.rtc2.RtcEngineConfig
 import io.agora.rtc2.audio.AudioParams
 import io.agora.rtc2.video.VideoCanvas
 import org.json.JSONObject
-import org.vosk.Model
-import org.vosk.Recognizer
+//import org.vosk.Model
+//import org.vosk.Recognizer
 import retrofit2.Call
 import retrofit2.Response
 import java.io.BufferedInputStream
@@ -123,8 +123,8 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     private var faceDialog: Dialog? = null
 
 
-    private lateinit var model: Model
-    private lateinit var recognizer: Recognizer
+//    private lateinit var model: Model
+//    private lateinit var recognizer: Recognizer
 
     private val executor = Executors.newSingleThreadExecutor()
     private val accountViewModel: AccountViewModel by viewModels()
@@ -337,15 +337,15 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     }
 
     private fun initVosk() {
-        executor.execute {
-            try {
-                val modelPath = File(copyAssetToCache("vosk-model-small-en-us-0.15.zip"), "vosk-model-small-en-us-0.15").absolutePath
-                model = Model(modelPath)
-                recognizer = Recognizer(model, 16000.0f)
-            } catch (e: IOException) {
-                Log.e("Vosk", "Model load failed", e)
-            }
-        }
+//        executor.execute {
+//            try {
+//                val modelPath = File(copyAssetToCache("vosk-model-small-en-us-0.15.zip"), "vosk-model-small-en-us-0.15").absolutePath
+//                model = Model(modelPath)
+//                recognizer = Recognizer(model, 16000.0f)
+//            } catch (e: IOException) {
+//                Log.e("Vosk", "Model load failed", e)
+//            }
+//        }
     }
 
     private fun copyAssetToCache(zipAssetName: String): String {
@@ -383,147 +383,147 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         zis.close()
     }
 
-    private val audioFrameObserver = object : IAudioFrameObserver {
-
-
-        override fun onRecordAudioFrame(
-            channelId: String?,
-            type: Int,
-            samplesPerChannel: Int,
-            bytesPerSample: Int,
-            channels: Int,
-            samplesPerSec: Int,
-            buffer: ByteBuffer?,
-            renderTimeMs: Long,
-            avsync_type: Int
-        ): Boolean {
-            if (buffer == null || !::recognizer.isInitialized) return true
-
-            val pcmData = ByteArray(buffer.remaining())
-            Log.d("VOSK-FINAL", pcmData.size.toString())
-
-            buffer.get(pcmData)
-
-            executor.execute {
-                try {
-                    if (recognizer.acceptWaveForm(pcmData, pcmData.size)) {
-                        val resultJson = recognizer.result  // JSON string like {"text" : "hello"}
-                        val textOnly = JSONObject(resultJson).optString("text", "")
-                        Log.d("VOSK-FINAL-Text", textOnly)  // logs just "hello"
-
-                        runOnUiThread {
-                            val matchedWord = blockWords.firstOrNull { word ->
-                                textOnly.contains(word, ignoreCase = true)
-                            }
-
-                            matchedWord?.let {
-                                isBlockWordDetected = true
-                                val prefs = getSharedPreferences("APP_PREFS", MODE_PRIVATE)
-                                prefs.edit().putBoolean("blockword_detected", isBlockWordDetected).apply()
-
-                                leaveChannel(binding.LeaveButton)
+//    private val audioFrameObserver = object : IAudioFrameObserver {
 //
-//                                Toast.makeText(
-//                                    this@MaleAudioCallingActivity,
-//                                    "Blocked word detected: \"$it\"",
-//                                    Toast.LENGTH_SHORT
-//                                ).show()
-                            }
-                        }
-
-
-
-                    } else {
-                        Log.d("VOSK-PARTIAL", recognizer.partialResult)
-                    }
-                } catch (e: Exception) {
-                    Log.e("VOSK-ERROR", "Error in recognition: ${e.message}")
-                }
-            }
-
-            return true
-        }
-
-        override fun onPlaybackAudioFrame(
-            channelId: String?,
-            type: Int,
-            samplesPerChannel: Int,
-            bytesPerSample: Int,
-            channels: Int,
-            samplesPerSec: Int,
-            buffer: ByteBuffer?,
-            renderTimeMs: Long,
-            avsync_type: Int
-        ): Boolean {
-            return true
-        }
-
-        override fun onMixedAudioFrame(
-            channelId: String?,
-            type: Int,
-            samplesPerChannel: Int,
-            bytesPerSample: Int,
-            channels: Int,
-            samplesPerSec: Int,
-            buffer: ByteBuffer?,
-            renderTimeMs: Long,
-            avsync_type: Int
-        ): Boolean {
-            return true
-        }
-
-        override fun onEarMonitoringAudioFrame(
-            type: Int,
-            samplesPerChannel: Int,
-            bytesPerSample: Int,
-            channels: Int,
-            samplesPerSec: Int,
-            buffer: ByteBuffer?,
-            renderTimeMs: Long,
-            avsync_type: Int
-        ): Boolean {
-            return true
-        }
-
-        override fun onPlaybackAudioFrameBeforeMixing(
-            channelId: String?,
-            uid: Int,
-            type: Int,
-            samplesPerChannel: Int,
-            bytesPerSample: Int,
-            channels: Int,
-            samplesPerSec: Int,
-            buffer: ByteBuffer?,
-            renderTimeMs: Long,
-            avsync_type: Int,
-            rtpTimestamp: Int
-        ): Boolean {
-            return true
-        }
-
-        override fun getObservedAudioFramePosition(): Int {
-            return Constants.POSITION_RECORD       }
-
-        override fun getRecordAudioParams(): AudioParams {
-            return AudioParams(
-                16000, // sample rate (Hz)
-                1,     // mono
-                Constants.RAW_AUDIO_FRAME_OP_MODE_READ_ONLY,
-                1024   // samples per call
-            )        }
-
-        override fun getPlaybackAudioParams(): AudioParams {
-            return AudioParams(16000, 1, Constants.RAW_AUDIO_FRAME_OP_MODE_READ_ONLY, 1024)
-        }
-
-        override fun getMixedAudioParams(): AudioParams {
-            return AudioParams(16000, 1, Constants.RAW_AUDIO_FRAME_OP_MODE_READ_ONLY, 1024)
-        }
-
-        override fun getEarMonitoringAudioParams(): AudioParams {
-            return AudioParams(16000, 1, Constants.RAW_AUDIO_FRAME_OP_MODE_READ_ONLY, 1024)
-        }
-    }
+//
+//        override fun onRecordAudioFrame(
+//            channelId: String?,
+//            type: Int,
+//            samplesPerChannel: Int,
+//            bytesPerSample: Int,
+//            channels: Int,
+//            samplesPerSec: Int,
+//            buffer: ByteBuffer?,
+//            renderTimeMs: Long,
+//            avsync_type: Int
+//        ): Boolean {
+//            if (buffer == null || !::recognizer.isInitialized) return true
+//
+//            val pcmData = ByteArray(buffer.remaining())
+//            Log.d("VOSK-FINAL", pcmData.size.toString())
+//
+//            buffer.get(pcmData)
+//
+//            executor.execute {
+//                try {
+//                    if (recognizer.acceptWaveForm(pcmData, pcmData.size)) {
+//                        val resultJson = recognizer.result  // JSON string like {"text" : "hello"}
+//                        val textOnly = JSONObject(resultJson).optString("text", "")
+//                        Log.d("VOSK-FINAL-Text", textOnly)  // logs just "hello"
+//
+//                        runOnUiThread {
+//                            val matchedWord = blockWords.firstOrNull { word ->
+//                                textOnly.contains(word, ignoreCase = true)
+//                            }
+//
+//                            matchedWord?.let {
+//                                isBlockWordDetected = true
+//                                val prefs = getSharedPreferences("APP_PREFS", MODE_PRIVATE)
+//                                prefs.edit().putBoolean("blockword_detected", isBlockWordDetected).apply()
+//
+//                                leaveChannel(binding.LeaveButton)
+////
+////                                Toast.makeText(
+////                                    this@MaleAudioCallingActivity,
+////                                    "Blocked word detected: \"$it\"",
+////                                    Toast.LENGTH_SHORT
+////                                ).show()
+//                            }
+//                        }
+//
+//
+//
+//                    } else {
+//                        Log.d("VOSK-PARTIAL", recognizer.partialResult)
+//                    }
+//                } catch (e: Exception) {
+//                    Log.e("VOSK-ERROR", "Error in recognition: ${e.message}")
+//                }
+//            }
+//
+//            return true
+//        }
+//
+//        override fun onPlaybackAudioFrame(
+//            channelId: String?,
+//            type: Int,
+//            samplesPerChannel: Int,
+//            bytesPerSample: Int,
+//            channels: Int,
+//            samplesPerSec: Int,
+//            buffer: ByteBuffer?,
+//            renderTimeMs: Long,
+//            avsync_type: Int
+//        ): Boolean {
+//            return true
+//        }
+//
+//        override fun onMixedAudioFrame(
+//            channelId: String?,
+//            type: Int,
+//            samplesPerChannel: Int,
+//            bytesPerSample: Int,
+//            channels: Int,
+//            samplesPerSec: Int,
+//            buffer: ByteBuffer?,
+//            renderTimeMs: Long,
+//            avsync_type: Int
+//        ): Boolean {
+//            return true
+//        }
+//
+//        override fun onEarMonitoringAudioFrame(
+//            type: Int,
+//            samplesPerChannel: Int,
+//            bytesPerSample: Int,
+//            channels: Int,
+//            samplesPerSec: Int,
+//            buffer: ByteBuffer?,
+//            renderTimeMs: Long,
+//            avsync_type: Int
+//        ): Boolean {
+//            return true
+//        }
+//
+//        override fun onPlaybackAudioFrameBeforeMixing(
+//            channelId: String?,
+//            uid: Int,
+//            type: Int,
+//            samplesPerChannel: Int,
+//            bytesPerSample: Int,
+//            channels: Int,
+//            samplesPerSec: Int,
+//            buffer: ByteBuffer?,
+//            renderTimeMs: Long,
+//            avsync_type: Int,
+//            rtpTimestamp: Int
+//        ): Boolean {
+//            return true
+//        }
+//
+//        override fun getObservedAudioFramePosition(): Int {
+//            return Constants.POSITION_RECORD       }
+//
+//        override fun getRecordAudioParams(): AudioParams {
+//            return AudioParams(
+//                16000, // sample rate (Hz)
+//                1,     // mono
+//                Constants.RAW_AUDIO_FRAME_OP_MODE_READ_ONLY,
+//                1024   // samples per call
+//            )        }
+//
+//        override fun getPlaybackAudioParams(): AudioParams {
+//            return AudioParams(16000, 1, Constants.RAW_AUDIO_FRAME_OP_MODE_READ_ONLY, 1024)
+//        }
+//
+//        override fun getMixedAudioParams(): AudioParams {
+//            return AudioParams(16000, 1, Constants.RAW_AUDIO_FRAME_OP_MODE_READ_ONLY, 1024)
+//        }
+//
+//        override fun getEarMonitoringAudioParams(): AudioParams {
+//            return AudioParams(16000, 1, Constants.RAW_AUDIO_FRAME_OP_MODE_READ_ONLY, 1024)
+//        }
+//    }
 
     fun startCallingService() {
         val intent = Intent(this, CallingService::class.java)
@@ -683,7 +683,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             initVosk()
             agoraEngine?.setAudioProfile(Constants.AUDIO_PROFILE_SPEECH_STANDARD, Constants.AUDIO_SCENARIO_DEFAULT)
 
-            agoraEngine?.registerAudioFrameObserver(audioFrameObserver)
+//            agoraEngine?.registerAudioFrameObserver(audioFrameObserver)
 
 
 

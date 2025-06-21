@@ -7,14 +7,14 @@ plugins {
     id("kotlin-parcelize")
     id("com.google.gms.google-services")
     id("com.google.firebase.crashlytics")
-    id("hypersdk.plugin") version "2.0.6"
+//    id("hypersdk.plugin") version "2.0.6"
 
 }
 
-hyperSdkPlugin {
-    clientId = "hdfcmaster"
-    sdkVersion = "2.1.20"
-}
+//hyperSdkPlugin {
+//    clientId = "hdfcmaster"
+//    sdkVersion = "2.1.20"
+//}
 
 
 
@@ -26,8 +26,8 @@ android {
         applicationId = "com.gmwapp.hima"
         minSdk = 26
         targetSdk = 35
-        versionCode = 24
-        versionName = "24.0"
+        versionCode = 26
+        versionName = "26.0"
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -167,9 +167,9 @@ dependencies {
     //Phonepe
     implementation ("phonepe.intentsdk.android.release:IntentSDK:5.1.0")
 
-    implementation ("com.google.mlkit:face-detection:16.1.7")
+   // implementation ("com.google.mlkit:face-detection:16.1.7")
 
-
+    implementation ("com.google.android.gms:play-services-mlkit-face-detection:17.1.0") // Unbundled model
     val camerax_version = "1.2.2"
     implementation("androidx.camera:camera-core:${camerax_version}")
     implementation("androidx.camera:camera-camera2:${camerax_version}")
@@ -183,7 +183,9 @@ dependencies {
 
 
 
-    implementation ("com.alphacephei:vosk-android:0.3.47")
+//    implementation ("com.alphacephei:vosk-android:0.3.47")
+
+    implementation ("io.jsonwebtoken:jjwt:0.9.1")
 
 
     testImplementation(libs.junit)

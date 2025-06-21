@@ -3,6 +3,7 @@ package com.gmwapp.hima.activities
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Base64
 import android.util.Log
 import android.view.View
 import android.widget.Toast
@@ -14,9 +15,12 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.GridLayoutManager
 import com.bumptech.glide.Glide
+import com.facebook.appevents.AppEventsConstants
+import com.facebook.appevents.AppEventsLogger
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.BillingManager.BillingManager
 import com.gmwapp.hima.R
+import com.gmwapp.hima.TokenGenerator
 import com.gmwapp.hima.YoutubeRechargeActivity
 import com.gmwapp.hima.adapters.CoinAdapter
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
@@ -32,10 +36,15 @@ import com.gmwapp.hima.viewmodels.UpiPaymentViewModel
 import com.gmwapp.hima.viewmodels.UpiViewModel
 import com.gmwapp.hima.viewmodels.WalletViewModel
 import com.google.androidbrowserhelper.trusted.LauncherActivity
+import com.onesignal.OneSignal
+import com.onesignal.notifications.INotificationClickEvent
+import com.onesignal.notifications.INotificationClickListener
 import com.phonepe.intent.sdk.api.PhonePeInitException
 import com.phonepe.intent.sdk.api.PhonePeKt
 import com.phonepe.intent.sdk.api.models.PhonePeEnvironment
 import dagger.hilt.android.AndroidEntryPoint
+import io.jsonwebtoken.Jwts
+import io.jsonwebtoken.SignatureAlgorithm
 import okhttp3.Callback
 import okhttp3.FormBody
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -46,6 +55,9 @@ import okhttp3.Response
 import org.json.JSONObject
 import retrofit2.Call
 import java.io.IOException
+import java.security.Key
+import java.util.Date
+import javax.crypto.spec.SecretKeySpec
 
 
 @AndroidEntryPoint
@@ -258,6 +270,7 @@ class WalletActivity : BaseActivity()  {
                         Toast.makeText(this@WalletActivity, "Payment Successful", Toast.LENGTH_LONG).show()
                         user_id?.let { WalletViewModel.addCoins(it, coin_id, 1, order_id, "Coins purchased") }
                         observeAddCoins()
+                        updatePurchaseOnMeta()
                     }
 
                 }else{
@@ -469,6 +482,21 @@ class WalletActivity : BaseActivity()  {
             val roundedAmount = Math.round(twoPercentage)
             total_amount = (amount.toDouble() + roundedAmount).toString()
 
+            val params = Bundle()
+            params.putString(AppEventsConstants.EVENT_PARAM_CURRENCY, "INR")
+            params.putDouble(AppEventsConstants.EVENT_PARAM_VALUE_TO_SUM, amount.toDouble()) // expected amount
+            params.putString("user_id", "$userId") // optional
+            params.putString("coin_id", "$pointsId") // optional
+
+            AppEventsLogger.newLogger(this).logEvent(AppEventsConstants.EVENT_NAME_INITIATED_CHECKOUT, amount.toDouble(), params)
+
+            BaseApplication.getInstance()?.getPrefs()?.apply {
+                setString("last_coin_id", pointsId)
+                setString("last_coin_amount", amount.toString())
+            }
+
+
+
             if (userId != null && pointsId.isNotEmpty()) {
                 if (pointsIdInt != null) {
 
@@ -512,6 +540,8 @@ class WalletActivity : BaseActivity()  {
                                         )
                                             .show()
                                         userData?.id?.let { profileViewModel.getUsers(it) }
+
+                                        updatePurchaseOnMeta()
 
                                         profileViewModel.getUserLiveData.observe(this, Observer {
                                             it.data?.let { it1 ->
@@ -823,6 +853,31 @@ class WalletActivity : BaseActivity()  {
 
 
 
+    fun updatePurchaseOnMeta(){
+        val prefs = BaseApplication.getInstance()?.getPrefs()
+        val userData = prefs?.getUserData()
+        val userId = userData?.id
+        val coinId = prefs?.getString("last_coin_id")
+        val coinAmount = prefs?.getString("last_coin_amount")?.toDoubleOrNull() ?: 0.0
+        val params = Bundle().apply {
+            putString(AppEventsConstants.EVENT_PARAM_CURRENCY, "INR")
+            putDouble(AppEventsConstants.EVENT_PARAM_VALUE_TO_SUM, coinAmount)
+            putString("user_id", "$userId")
+            putString("coin_id", "$coinId")
+        }
+        AppEventsLogger.newLogger(this).logEvent(AppEventsConstants.EVENT_NAME_PURCHASED, coinAmount, params)
+    }
+    fun generateJwtToken(): String {
+
+        val token = TokenGenerator.getToken()
+
+
+        // ✅ Log for Postman testing
+        Log.d("JWT_TOKEN", "Generated Token: $token")
+        return token
+
+
+    }
 
 
 

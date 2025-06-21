@@ -13,6 +13,7 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.BaseApplication.Companion.getInstance
 import com.gmwapp.hima.DemoActivity
 import com.gmwapp.hima.agora.male.MaleCallConnectingActivity
 import com.gmwapp.hima.R
@@ -29,6 +30,10 @@ import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.onesignal.OneSignal
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 
 @AndroidEntryPoint
@@ -61,17 +66,54 @@ class HomeFragment : BaseFragment() {
         val sharedPreferences = requireContext().getSharedPreferences("MyAppPrefs", Context.MODE_PRIVATE)
         val isTagSet = sharedPreferences.getBoolean("isOneSignalTagSet", false)
 
-        OneSignal.User.addTag("gender", "male")
-        language?.let {
-            OneSignal.User.addTag("language", it)
-            Log.d("OneSignalTag", "Language tag added: $it")
+
+        CoroutineScope(Dispatchers.Main).launch {
+            delay(2000) // wait to ensure OneSignal is initialized fully
+
+            // 1. FULL RESET before login
+            OneSignal.logout()
+            OneSignal.User.pushSubscription.optOut()
+
+            // 2. Fetch user ID
+            val userId = getInstance()?.getPrefs()?.getUserData()?.id.toString()
+
+            if (!userId.isNullOrEmpty() && userId != "null") {
+                Log.d("OneSignalFix", "Attempting clean login with userId: $userId")
+
+                // 3. Force fresh login
+                OneSignal.login(userId)
+
+                // 4. Re-subscribe and assign external ID
+                OneSignal.User.pushSubscription.optIn()
+
+                // 5. Prompt notification permission (Android 13+)
+                OneSignal.Notifications.requestPermission(true)
+
+                OneSignal.User.addTag("gender", "male")
+                language?.let {
+                    OneSignal.User.addTag("language", it)
+                    Log.d("OneSignalTag", "Language tag added: $it")
+                }
+
+                language?.let {
+                    OneSignal.User.addTag("gender_language", "male_$it")
+                    Log.d("OneSignalTag", "male_$it")
+
+                }
+
+                // 6. Debug logs to confirm status
+                delay(1000)
+                Log.d("OneSignalFix", "externalId: ${OneSignal.User.externalId}")
+                Log.d("OneSignalFix", "pushToken: ${OneSignal.User.pushSubscription.token}")
+                Log.d("OneSignalFix", "optedIn: ${OneSignal.User.pushSubscription.optedIn}")
+            } else {
+                Log.e("OneSignalFix", "Invalid user ID: $userId")
+            }
         }
 
-        language?.let {
-            OneSignal.User.addTag("gender_language", "male_$it")
-            Log.d("OneSignalTag", "male_$it")
 
-        }
+
+
 
 
 

@@ -20,6 +20,7 @@ import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
+import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityMaleCallConnectingBinding
@@ -272,10 +273,19 @@ class MaleCallConnectingActivity : AppCompatActivity() {
 
 
             } else {
-                Toast.makeText(
-                    this@MaleCallConnectingActivity, it?.message, Toast.LENGTH_LONG
-                ).show()
-                finish()
+
+                it?.message?.let { message ->
+                    if (message.startsWith("Insufficient coins")) {
+                        val intent = Intent(this@MaleCallConnectingActivity, WalletActivity::class.java)
+                        Toast.makeText(this@MaleCallConnectingActivity, message, Toast.LENGTH_LONG).show()
+                        startActivity(intent)
+                        finish()
+                    } else {
+                        Toast.makeText(this@MaleCallConnectingActivity, message, Toast.LENGTH_LONG).show()
+                        finish()
+                    }
+                }
+
             }
         })
     }

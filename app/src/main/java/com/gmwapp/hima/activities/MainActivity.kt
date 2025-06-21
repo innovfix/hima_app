@@ -428,7 +428,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
     private fun addObservers() {
         offerViewModel.offerResponseLiveData.observe(this) { response ->
-            if (response.success) {
+            if (response?.success == true && !response.data.isNullOrEmpty()) {
                 val coin = response.data[0].coins
                 val discountedPrice = response.data[0].price
                 val save = response.data[0].save
@@ -518,6 +518,19 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         val pointsIdInt = pointsId.toIntOrNull()
         total_amount = "$amount"
 
+        val params = Bundle()
+        params.putString(AppEventsConstants.EVENT_PARAM_CURRENCY, "INR")
+        params.putDouble(AppEventsConstants.EVENT_PARAM_VALUE_TO_SUM, amount.toDouble()) // expected amount
+        params.putString("user_id", "$userId") // optional
+        params.putString("coin_id", "$pointsId") // optional
+
+        AppEventsLogger.newLogger(this).logEvent(AppEventsConstants.EVENT_NAME_INITIATED_CHECKOUT, amount.toDouble(), params)
+
+        BaseApplication.getInstance()?.getPrefs()?.apply {
+            setString("last_coin_id", pointsId)
+            setString("last_coin_amount", amount.toString())
+        }
+
         if (userId != null && pointsId.isNotEmpty()) {
             if (pointsIdInt != null) {
 
@@ -552,6 +565,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                                 Observer { shouldNavigate ->
                                     Log.d("shouldNavigateFromMain","$shouldNavigate")
                                     if (shouldNavigate){
+                                        updatePurchaseOnMeta()
                                     val intent = Intent(this, MainActivity::class.java)
                                     intent.flags =
                                         Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -990,6 +1004,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                         Toast.makeText(this@MainActivity, "Payment Successful", Toast.LENGTH_LONG).show()
                         user_id?.let { WalletViewModel.addCoins(it, coin_id, 1, order_id, "Coins purchased") }
                         observeAddCoins()
+                        updatePurchaseOnMeta()
                     }
 
                 }else{
@@ -1023,6 +1038,22 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                     startActivity(intent)
                     finish() // ✅ Now this works because we are in an Activity
                                 }})
+    }
+
+
+    fun updatePurchaseOnMeta(){
+        val prefs = BaseApplication.getInstance()?.getPrefs()
+        val userData = prefs?.getUserData()
+        val userId = userData?.id
+        val coinId = prefs?.getString("last_coin_id")
+        val coinAmount = prefs?.getString("last_coin_amount")?.toDoubleOrNull() ?: 0.0
+        val params = Bundle().apply {
+            putString(AppEventsConstants.EVENT_PARAM_CURRENCY, "INR")
+            putDouble(AppEventsConstants.EVENT_PARAM_VALUE_TO_SUM, coinAmount)
+            putString("user_id", "$userId")
+            putString("coin_id", "$coinId")
+        }
+        AppEventsLogger.newLogger(this).logEvent(AppEventsConstants.EVENT_NAME_PURCHASED, coinAmount, params)
     }
 
 
