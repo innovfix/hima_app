@@ -25,6 +25,7 @@ import com.gmwapp.hima.YoutubeRechargeActivity
 import com.gmwapp.hima.adapters.CoinAdapter
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.databinding.ActivityWalletBinding
+import com.gmwapp.hima.hdfcGateways.HdfcPaymentLinkResponse
 import com.gmwapp.hima.retrofit.responses.CoinsResponseData
 import com.gmwapp.hima.retrofit.responses.NewRazorpayLinkResponse
 import com.gmwapp.hima.retrofit.responses.RazorPayApiResponse
@@ -501,8 +502,9 @@ class WalletActivity : BaseActivity()  {
                 if (pointsIdInt != null) {
 
 
-
+                    paymentGateway = "hdfc"
                     if (paymentGateway.isNotEmpty()) {
+
 
                         when (paymentGateway) {
 
@@ -564,6 +566,36 @@ class WalletActivity : BaseActivity()  {
                                     }
                                 })
                             }
+
+                            "hdfc" ->{
+
+                                // Inside your activity or fragment
+
+                                val callHdfc = apiService.createHdfcPaymentLink()
+
+                                callHdfc.enqueue(object : retrofit2.Callback<HdfcPaymentLinkResponse> {
+                                    override fun onResponse(call: Call<HdfcPaymentLinkResponse>, response: retrofit2.Response<HdfcPaymentLinkResponse>) {
+                                        if (response.isSuccessful && response.body() != null) {
+                                            val paymentUrl = response.body()?.data?.payment_links?.web
+
+                                            if (!paymentUrl.isNullOrEmpty()) {
+                                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(paymentUrl))
+                                                startActivity(intent)
+                                            } else {
+                                                Toast.makeText(this@WalletActivity, "Payment link not found", Toast.LENGTH_SHORT).show()
+                                            }
+                                        } else {
+                                            Toast.makeText(this@WalletActivity, "Error: ${response.errorBody()?.string()}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+
+                                    override fun onFailure(call: Call<HdfcPaymentLinkResponse>, t: Throwable) {
+                                        Toast.makeText(this@WalletActivity, "Failed: ${t.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                })
+
+                            }
+
 
                             "razorpay" -> {
 
