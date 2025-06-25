@@ -450,8 +450,18 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 if (!isBlockWord && BaseApplication.getInstance()?.getPrefs()
                         ?.getUserData()?.gender == DConstants.MALE
                 ) {
-                    val bottomSheet = BottomSheetWelcomeBonus(coin, originalPrice, discountedPrice,coinId,total_count)
-                    bottomSheet.show(supportFragmentManager, "BottomSheetWelcomeBonus")
+                    val existing = supportFragmentManager.findFragmentByTag("BottomSheetWelcomeBonus")
+                    if (existing == null) {
+                        val bottomSheet = BottomSheetWelcomeBonus.newInstance(
+                            coin,
+                            originalPrice,
+                            discountedPrice,
+                            coinId,
+                            total_count
+                        )
+                        bottomSheet.show(supportFragmentManager, "BottomSheetWelcomeBonus")
+                    }
+
                 }
             }
         }
