@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Resources
 import android.graphics.Outline
+import android.os.Build
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.os.Handler
@@ -198,20 +199,24 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     }
 
     private val PERMISSION_REQ_ID = 22
-    private val REQUESTED_PERMISSIONS = arrayOf<String>(
-        Manifest.permission.RECORD_AUDIO,
-        Manifest.permission.CAMERA
-    )
+    private val REQUESTED_PERMISSIONS = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        arrayOf(
+            Manifest.permission.RECORD_AUDIO,
+            Manifest.permission.CAMERA,
+            Manifest.permission.FOREGROUND_SERVICE_MICROPHONE
+        )
+    } else {
+        arrayOf(
+            Manifest.permission.RECORD_AUDIO,
+            Manifest.permission.CAMERA
+        )
+    }
+
 
     private fun checkSelfPermission(): Boolean {
-        return !(ContextCompat.checkSelfPermission(
-            this,
-            REQUESTED_PERMISSIONS[0]
-        ) != PackageManager.PERMISSION_GRANTED ||
-                ContextCompat.checkSelfPermission(
-                    this,
-                    REQUESTED_PERMISSIONS[1]
-                ) != PackageManager.PERMISSION_GRANTED)
+        return REQUESTED_PERMISSIONS.all {
+            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+        }
     }
 
     fun showMessage(message: String?) {

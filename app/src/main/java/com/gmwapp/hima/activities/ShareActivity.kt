@@ -36,16 +36,16 @@ class ShareActivity : AppCompatActivity() {
     private val loginViewModel: LoginViewModel by viewModels()
     private  var isPanCardVerified = false
 
-    @RequiresApi(Build.VERSION_CODES.R)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityShareBinding.inflate(layoutInflater)
         setContentView(binding.root)
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        binding.main.setOnApplyWindowInsetsListener { view, insets ->
-            val systemBarsInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            view.updatePadding(top = systemBarsInsets.top, bottom = systemBarsInsets.bottom)
+        enableEdgeToEdge()
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
         initUI()

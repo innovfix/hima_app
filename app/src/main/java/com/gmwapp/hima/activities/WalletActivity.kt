@@ -478,9 +478,7 @@ class WalletActivity : BaseActivity()  {
             val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
             val userId = userData?.id
             val pointsIdInt = pointsId.toIntOrNull()
-            val twoPercentage = amount.toDouble() * 0.02
-            val roundedAmount = Math.round(twoPercentage)
-            total_amount = (amount.toDouble() + roundedAmount).toString()
+
 
             val params = Bundle()
             params.putString(AppEventsConstants.EVENT_PARAM_CURRENCY, "INR")
@@ -499,7 +497,6 @@ class WalletActivity : BaseActivity()  {
 
             if (userId != null && pointsId.isNotEmpty()) {
                 if (pointsIdInt != null) {
-
 
 
                     if (paymentGateway.isNotEmpty()) {
@@ -606,6 +603,16 @@ class WalletActivity : BaseActivity()  {
 
 
                             "upigateway" -> {
+
+                                val amountValue = amount.toDoubleOrNull()
+                                if (amountValue == null) {
+                                    return@OnClickListener
+                                }
+
+
+                                val twoPercentage = amountValue * 0.02
+                                val roundedAmount = Math.round(twoPercentage)
+                                total_amount = (amountValue + roundedAmount).toString()
 
                                 Log.d("upigateway","Clicked")
                                 val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()

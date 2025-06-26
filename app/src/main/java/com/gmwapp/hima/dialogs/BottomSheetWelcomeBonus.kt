@@ -15,13 +15,7 @@ import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 
-class BottomSheetWelcomeBonus(
-    private val coins: Int,
-    private val orinalPrice: Int,
-    private val discountedPrice: Int,
-    private val coinId: Int,
-    private val total_count: Int
-) : BottomSheetDialogFragment() {
+class BottomSheetWelcomeBonus : BottomSheetDialogFragment() {
 
     interface OnAddCoinsListener {
         fun onAddCoins(coins: String, id: Int)
@@ -30,6 +24,34 @@ class BottomSheetWelcomeBonus(
     private var _binding: BottomSheetWelcomeBonusBinding? = null
     private val binding get() = _binding!!
     private var addCoinsListener: OnAddCoinsListener? = null
+
+    // Variables to receive from arguments
+    private var coins: Int = 0
+    private var originalPrice: Int = 0
+    private var discountedPrice: Int = 0
+    private var coinId: Int = 0
+    private var totalCount: Int = 0
+
+    companion object {
+        fun newInstance(
+            coins: Int,
+            originalPrice: Int,
+            discountedPrice: Int,
+            coinId: Int,
+            totalCount: Int
+        ): BottomSheetWelcomeBonus {
+            val fragment = BottomSheetWelcomeBonus()
+            val args = Bundle().apply {
+                putInt("coins", coins)
+                putInt("originalPrice", originalPrice)
+                putInt("discountedPrice", discountedPrice)
+                putInt("coinId", coinId)
+                putInt("totalCount", totalCount)
+            }
+            fragment.arguments = args
+            return fragment
+        }
+    }
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
@@ -40,6 +62,17 @@ class BottomSheetWelcomeBonus(
         }
     }
 
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        arguments?.let {
+            coins = it.getInt("coins")
+            originalPrice = it.getInt("originalPrice")
+            discountedPrice = it.getInt("discountedPrice")
+            coinId = it.getInt("coinId")
+            totalCount = it.getInt("totalCount")
+        }
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -47,28 +80,26 @@ class BottomSheetWelcomeBonus(
     ): View {
         _binding = BottomSheetWelcomeBonusBinding.inflate(inflater, container, false)
 
-        // Setting the strikethrough effect
+        // Set strikethrough on original price
         binding.tvBonusOriginal.paintFlags =
             binding.tvBonusOriginal.paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
 
-        // Set text views with the provided data
+        // Set UI values
         binding.tvBonusText.text = "$coins Coins"
-        binding.tvBonusOriginal.text = "₹$orinalPrice"
+        binding.tvBonusOriginal.text = "₹$originalPrice"
         binding.tvBonusDiscount.text = "₹$discountedPrice"
-        binding.tvUsedBy.text=  "Used by ${total_count} people in the last 30 mins"
-
+        binding.tvUsedBy.text = "Used by $totalCount people in the last 30 mins"
 
         val twoPercentage = discountedPrice.toDouble() * 0.02
         val roundedAmount = Math.round(twoPercentage)
-        val total_amount = (discountedPrice.toDouble() + roundedAmount).toString()
+        val totalAmount = (discountedPrice + roundedAmount).toString()
 
-        // Button click listeners
         binding.tvViewMorePlans.setOnSingleClickListener {
             startActivity(Intent(context, WalletActivity::class.java))
         }
 
         binding.btnAddCoins.setOnSingleClickListener {
-            addCoinsListener?.onAddCoins(total_amount, coinId)
+            addCoinsListener?.onAddCoins(totalAmount, coinId)
         }
 
         return binding.root
@@ -76,7 +107,7 @@ class BottomSheetWelcomeBonus(
 
     override fun onDestroyView() {
         super.onDestroyView()
-        _binding = null // Avoid memory leaks
+        _binding = null
     }
 
     override fun getTheme(): Int = R.style.BottomSheetDialogTheme
