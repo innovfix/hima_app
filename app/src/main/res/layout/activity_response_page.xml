@@ -4,7 +4,6 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".HdfcGateway.ResponsePage"
     android:id="@+id/responsePageLayout">
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -36,14 +35,15 @@
         <TextView
             android:id="@+id/juspay_sdk_"
             android:layout_width="0dp"
-            android:layout_height="20dp"
+            android:layout_height="wrap_content"
             android:layout_alignParentLeft="true"
             android:layout_alignParentTop="true"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="20dp"
             android:fontFamily="@font/nunito_sans_regular"
             android:paddingLeft="16dp"
-            android:text="@string/juspay_sdk_"
+            android:text="Payment Response"
             android:textAlignment="viewStart"
+            android:textSize="@dimen/_18sdp"
             android:textAppearance="@style/juspay_sdk_"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@+id/imageView1"
@@ -55,6 +55,7 @@
             android:layout_height="19dp"
             android:layout_alignParentLeft="true"
             android:layout_alignParentTop="true"
+            android:visibility="gone"
             android:textAlignment="viewStart"
             android:paddingLeft="16dp"
             android:text="@string/checkout_sc"
@@ -76,6 +77,7 @@
         android:text="@string/handle_jusp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
+        android:visibility="gone"
         android:textAlignment="viewStart"
         android:paddingLeft="16dp"
         android:paddingTop="12dp"
@@ -86,11 +88,11 @@
 
     <ImageView
         android:id="@+id/checked_1"
-        android:layout_width="100dp"
-        android:layout_height="100dp"
+        android:layout_width="140dp"
+        android:layout_height="140dp"
         android:layout_alignParentLeft="true"
         android:layout_alignParentTop="true"
-        app:layout_constraintBottom_toBottomOf="parent"
+        android:layout_marginTop="@dimen/_80sdp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
@@ -98,13 +100,14 @@
 
     <TextView
         android:id="@+id/payment_suc"
-        android:layout_width="150dp"
-        android:layout_height="22dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_alignParentLeft="true"
         android:layout_alignParentTop="true"
         android:layout_marginTop="28dp"
-        android:gravity="center"
-        android:text="Status"
+        android:paddingLeft="@dimen/_5sdp"
+        android:text=""
+        android:textSize="@dimen/_18sdp"
         android:textAppearance="@style/payment_suc"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="@+id/checked_1"
@@ -112,6 +115,40 @@
         app:layout_constraintTop_toBottomOf="@+id/checked_1"
         app:layout_constraintVertical_bias="0.009"
         android:fontFamily="@font/nunito_sans_regular"/>
+
+    <TextView
+        android:id="@+id/payment_amount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentTop="true"
+        android:layout_marginTop="28dp"
+        android:fontFamily="@font/nunito_sans_regular"
+        android:paddingLeft="@dimen/_5sdp"
+        android:textAppearance="@style/payment_suc"
+        android:textSize="@dimen/_18sdp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="@+id/payment_suc"
+        app:layout_constraintStart_toStartOf="@+id/payment_suc"
+        app:layout_constraintTop_toBottomOf="@+id/payment_suc"
+        app:layout_constraintVertical_bias="0.009" />
+
+    <TextView
+        android:id="@+id/orderID"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentTop="true"
+        android:layout_marginTop="28dp"
+        android:fontFamily="@font/nunito_sans_regular"
+        android:paddingLeft="@dimen/_5sdp"
+        android:textAppearance="@style/payment_suc"
+        android:textSize="@dimen/_18sdp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="@+id/payment_suc"
+        app:layout_constraintStart_toStartOf="@+id/payment_suc"
+        app:layout_constraintTop_toBottomOf="@+id/payment_amount"
+        app:layout_constraintVertical_bias="0.009" />
 
     <Button
         android:id="@+id/rectangle_12"

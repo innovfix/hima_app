@@ -1,5 +1,6 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.hdfcGateways.HdfcOrderStatusResponse
 import com.gmwapp.hima.hdfcGateways.HdfcPaymentLinkResponse
 import com.gmwapp.hima.retrofit.responses.NewRazorpayLinkResponse
 import com.gmwapp.hima.retrofit.responses.RazorPayApiResponse
@@ -9,6 +10,7 @@ import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
 import retrofit2.http.Headers
 import retrofit2.http.POST
+import retrofit2.http.Query
 
 interface ApiService {
     @FormUrlEncoded
@@ -38,9 +40,14 @@ interface ApiService {
         @Field("coin_id") coinId: String,
     ): Call<NewRazorpayLinkResponse>
 
-    @POST("https://himaapp.in/api/hdfc/session")
+    @POST("https://demo.himaapp.in/api/hdfc/session")
     fun createHdfcPaymentLink(): Call<HdfcPaymentLinkResponse>
 
 
+
+    @POST("https://demo.himaapp.in/api/hdfc/order_status")
+    fun getHdfcOrderStatus(
+        @Query("order_id") orderId: String
+    ): Call<HdfcOrderStatusResponse>
 
 }

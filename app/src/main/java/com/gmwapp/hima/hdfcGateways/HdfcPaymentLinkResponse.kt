@@ -6,7 +6,8 @@ data class HdfcPaymentLinkResponse(
 )
 
 data class HdfcPaymentData(
-    val payment_links: HdfcPaymentLinks?
+    val payment_links: HdfcPaymentLinks?,
+    val order_id : String
 )
 
 data class HdfcPaymentLinks(

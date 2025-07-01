@@ -92,6 +92,10 @@
         <activity
             android:name=".YoutubeRechargeActivity"
             android:exported="false" />
+
+        <activity
+            android:name=".hdfcGateways.ResponsePage"
+            android:exported="false" />
         <activity
             android:name=".PaymentWebViewActivity"
             android:exported="false" />

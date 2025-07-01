@@ -104,6 +104,7 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
                     ) {
                         getUserLiveData.postValue(response.body())
                         Log.d("getUserLiveData","${response.body()}")
+                        Log.d("API_URL", call.request().url.toString()) // 👈 Logs full URL
                     }
 
                     override fun onFailure(call: Call<RegisterResponse>, t: Throwable) {

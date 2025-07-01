@@ -26,6 +26,7 @@ import com.gmwapp.hima.adapters.CoinAdapter
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.databinding.ActivityWalletBinding
 import com.gmwapp.hima.hdfcGateways.HdfcPaymentLinkResponse
+import com.gmwapp.hima.hdfcGateways.ResponsePage
 import com.gmwapp.hima.retrofit.responses.CoinsResponseData
 import com.gmwapp.hima.retrofit.responses.NewRazorpayLinkResponse
 import com.gmwapp.hima.retrofit.responses.RazorPayApiResponse
@@ -73,6 +74,8 @@ class WalletActivity : BaseActivity()  {
 
     val profileViewModel: ProfileViewModel by viewModels()
 
+    private var openedBrowser = false
+
     private lateinit var selectedCoin : String
     private lateinit var selectedSavePercent : String
 
@@ -95,6 +98,7 @@ class WalletActivity : BaseActivity()  {
     var paymentGateway = ""
 
     private var lastOrderId: String = ""
+    private var hdfcLastOrderId: String = ""
     private var isPhonePeInitialized = false
 
     private val activityResultLauncher = registerForActivityResult(
@@ -137,6 +141,18 @@ class WalletActivity : BaseActivity()  {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         userData?.id?.let { profileViewModel.getUsers(it) }
         BaseApplication.getInstance()?.getPrefs()?.getUserData()?.let { WalletViewModel.getCoins(it.id) }
+
+
+        if (openedBrowser) {
+            openedBrowser = false
+            if (hdfcLastOrderId.isNotEmpty()) {
+                Log.d("hdfclastOrderId","$hdfcLastOrderId")
+                val i = Intent(this@WalletActivity, ResponsePage::class.java)
+                i.putExtra("orderId", hdfcLastOrderId)
+
+                startActivity(i)
+            }
+        }
 
     }
 
@@ -577,9 +593,11 @@ class WalletActivity : BaseActivity()  {
                                     override fun onResponse(call: Call<HdfcPaymentLinkResponse>, response: retrofit2.Response<HdfcPaymentLinkResponse>) {
                                         if (response.isSuccessful && response.body() != null) {
                                             val paymentUrl = response.body()?.data?.payment_links?.web
+                                            hdfcLastOrderId = response.body()?.data?.order_id.toString()
 
                                             if (!paymentUrl.isNullOrEmpty()) {
                                                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(paymentUrl))
+                                                openedBrowser = true
                                                 startActivity(intent)
                                             } else {
                                                 Toast.makeText(this@WalletActivity, "Payment link not found", Toast.LENGTH_SHORT).show()
