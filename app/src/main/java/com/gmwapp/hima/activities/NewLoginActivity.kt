@@ -360,8 +360,8 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         binding.btnVerifyOtp.setOnClickListener {
             closeKeyboard()
             val enteredOTP = binding.pvOtp.text.toString().toInt()
-           val default = "011011".toInt() // Convert default to Int
-          //  val default = "123456".toInt() // Convert default to Int
+           // val default = "011011".toInt() // Convert default to Int
+            val default = "123456".toInt() // Convert default to Int
             if (enteredOTP == otp) {
                 Log.d("defaultOtp","$enteredOTP")
                 binding.pbVerifyOtpLoader.visibility = View.VISIBLE

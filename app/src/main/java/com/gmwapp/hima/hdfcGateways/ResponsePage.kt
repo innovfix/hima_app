@@ -10,6 +10,7 @@ import android.widget.Toast
 import org.json.JSONObject
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
+import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.RetrofitClient
 import com.gmwapp.hima.activities.WalletActivity
@@ -36,7 +37,14 @@ class ResponsePage : AppCompatActivity() {
         
         // block:start:sendGetRequest
 
-        val callStatus = orderId?.let { apiService.getHdfcOrderStatus(it) }
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val userId = userData?.id
+
+        val callStatus = orderId?.let { userId?.let { it1 ->
+            apiService.getHdfcOrderStatus(it,
+                it1
+            )
+        } }
 
         callStatus?.enqueue(object : Callback<HdfcOrderStatusResponse> {
             override fun onResponse(

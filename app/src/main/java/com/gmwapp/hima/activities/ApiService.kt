@@ -40,14 +40,19 @@ interface ApiService {
         @Field("coin_id") coinId: String,
     ): Call<NewRazorpayLinkResponse>
 
-    @POST("https://demo.himaapp.in/api/hdfc/session")
-    fun createHdfcPaymentLink(): Call<HdfcPaymentLinkResponse>
 
+
+    @FormUrlEncoded
+    @POST("https://demo.himaapp.in/api/hdfc/session")
+    fun createHdfcPaymentLink(
+        @Field("user_id") userId: Int
+    ): Call<HdfcPaymentLinkResponse>
 
 
     @POST("https://demo.himaapp.in/api/hdfc/order_status")
     fun getHdfcOrderStatus(
-        @Query("order_id") orderId: String
+        @Query("order_id") orderId: String,
+        @Query("user_id") userId: Int
     ): Call<HdfcOrderStatusResponse>
 
 }

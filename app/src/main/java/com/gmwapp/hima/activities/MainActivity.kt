@@ -459,7 +459,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                             coinId,
                             total_count
                         )
-                        bottomSheet.show(supportFragmentManager, "BottomSheetWelcomeBonus")
+                    //    bottomSheet.show(supportFragmentManager, "BottomSheetWelcomeBonus")
                     }
 
                 }
