@@ -45,7 +45,8 @@ interface ApiService {
     @FormUrlEncoded
     @POST("https://demo.himaapp.in/api/hdfc/session")
     fun createHdfcPaymentLink(
-        @Field("user_id") userId: Int
+        @Field("user_id") userId: Int,
+        @Field("amount") amount: String
     ): Call<HdfcPaymentLinkResponse>
 
 
