@@ -63,11 +63,14 @@ class CouponActivity : AppCompatActivity(), CouponAdapter.OnCouponClickListener 
                     binding.tvBestCoupons.visibility = View.GONE
                 }else{
                     binding.tvBestCoupons.setText( bestCoupons[0].coupon_name)
+                    Log.d("CouponName","${bestCoupons[0].coupon_name}")
                 }
                 if (moreCoupons.isEmpty()){
                     binding.tvMoreCoupons.visibility = View.GONE
                 }else{
                     binding.tvMoreCoupons.setText(  moreCoupons[0].coupon_name)
+                    Log.d("CouponName","${bestCoupons[0].coupon_name}")
+
                 }
 
                 moreCouponsAdapter = CouponAdapter(moreCoupons.map { cd ->
