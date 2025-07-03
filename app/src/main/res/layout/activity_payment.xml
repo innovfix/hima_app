@@ -227,7 +227,7 @@
                             android:textCursorDrawable="@drawable/color_cursor"
                             android:textColor="@color/black"
                             android:textSize="@dimen/_8sdp"
-
+                            android:background="@android:color/transparent"
                             android:layout_weight="0.90"
                             android:fontFamily="@font/poppins_semibold" />
 
