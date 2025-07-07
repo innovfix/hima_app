@@ -67,6 +67,7 @@ class LoginViewModel @Inject constructor(private val loginRepositories: LoginRep
 
                 }
                 override fun onFailure(call: Call<AppUpdateResponse>, t: Throwable) {
+                    Log.d("appUpdateCheck", "appUpdate: $t")
 
                 }
                 override fun onNoNetwork() {

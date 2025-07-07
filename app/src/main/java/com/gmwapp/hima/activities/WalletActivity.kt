@@ -589,7 +589,7 @@ class WalletActivity : BaseActivity()  {
 
                                 val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
                                 val userId = userData?.id
-                                val callHdfc = userId?.let { apiService.createHdfcPaymentLink(it, amount) }
+                                val callHdfc = userId?.let { apiService.createHdfcPaymentLink(it, pointsId) }
 
                                 callHdfc?.enqueue(object : retrofit2.Callback<HdfcPaymentLinkResponse> {
                                     override fun onResponse(call: Call<HdfcPaymentLinkResponse>, response: retrofit2.Response<HdfcPaymentLinkResponse>) {

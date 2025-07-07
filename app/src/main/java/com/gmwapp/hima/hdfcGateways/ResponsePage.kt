@@ -1,15 +1,21 @@
 package com.gmwapp.hima.hdfcGateways
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.view.Gravity
 import android.widget.Button
 import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import org.json.JSONObject
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.content.ContextCompat
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.RetrofitClient
@@ -22,11 +28,14 @@ import retrofit2.Response
 class ResponsePage : AppCompatActivity() {
     private lateinit var constraintLayout: ConstraintLayout
     val apiService = RetrofitClient.instance
+    private var progressDialog: AlertDialog? = null
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_response_page)
         constraintLayout = findViewById(R.id.responsePageLayout);
+        showLoadingDialog(this)
     }
 
     override fun onStart() {
@@ -51,6 +60,7 @@ class ResponsePage : AppCompatActivity() {
                 call: Call<HdfcOrderStatusResponse>,
                 response: Response<HdfcOrderStatusResponse>
             ) {
+                hideLoadingDialog()
                 if (response.isSuccessful && response.body()?.success == true) {
                     val data = response.body()?.data
                     val status = data?.status
@@ -109,4 +119,33 @@ class ResponsePage : AppCompatActivity() {
             89541
         }
     }
+
+
+    fun showLoadingDialog(context: Context) {
+        val padding = (32 * context.resources.displayMetrics.density).toInt() // 32dp padding
+        val progressBar = ProgressBar(context).apply {
+            isIndeterminate = true
+            indeterminateTintList = ContextCompat.getColorStateList(context, R.color.pink)
+        }
+
+        val container = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(padding, padding, padding, padding)
+            minimumHeight = (100 * context.resources.displayMetrics.density).toInt() // 100dp min height
+            gravity = Gravity.CENTER
+            addView(progressBar)
+        }
+
+        progressDialog = AlertDialog.Builder(context)
+            .setView(container)
+            .setCancelable(false)
+            .create()
+
+        progressDialog?.show()
+    }
+
+    fun hideLoadingDialog() {
+        progressDialog?.dismiss()
+    }
+
 }
