@@ -252,8 +252,11 @@ class PaymentActivity : AppCompatActivity() {
                                         response: retrofit2.Response<CouponPriceResponse?>
                                     ) {
 
-                                        Log.d("CheckCouponPrice","${response.body()}")
-                                    }
+                                        if (response.isSuccessful) {
+                                            Log.d("CheckCouponPrice", "Response Body: ${response.body()}")
+                                        } else {
+                                            Log.d("CheckCouponPrice", "Error Body: ${response.errorBody()?.string()}")
+                                        }                                    }
 
                                     override fun onFailure(
                                         call: Call<CouponPriceResponse?>,
