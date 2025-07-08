@@ -23,6 +23,7 @@ import com.gmwapp.hima.adapters.CoinAdapter
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.databinding.ActivityPaymentBinding
 import com.gmwapp.hima.retrofit.responses.CoinsResponseData
+import com.gmwapp.hima.retrofit.responses.CouponPriceResponse
 import com.gmwapp.hima.retrofit.responses.NewRazorpayLinkResponse
 import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.viewmodels.ProfileViewModel
@@ -48,12 +49,14 @@ class PaymentActivity : AppCompatActivity() {
     lateinit var binding: ActivityPaymentBinding
     private val WalletViewModel: WalletViewModel by viewModels()
     var paymentGateway = ""
+    var couponID = ""
     private var billingManager: BillingManager? = null
     val profileViewModel: ProfileViewModel by viewModels()
     private val upiPaymentViewModel: UpiPaymentViewModel by viewModels()
 
 
     private lateinit var callNewRazorPay: Call<NewRazorpayLinkResponse>
+    private lateinit var callCheckCouponPrice: Call<CouponPriceResponse>
 
     val apiService = RetrofitClient.instance
 
@@ -94,6 +97,7 @@ class PaymentActivity : AppCompatActivity() {
         }
 
         getPaymentGateway()
+        getCouponID()
         initUI()
         startPayment()
         observeAddCoins()
@@ -202,6 +206,13 @@ class PaymentActivity : AppCompatActivity() {
         Log.d("LatestPg","$paymentGateway")
     }
 
+    fun getCouponID(){
+
+        couponID = BaseApplication.getInstance()?.getPrefs()?.getString("last_coupon_id").toString()
+
+        Log.d("last_coupon_id","$couponID")
+    }
+
 
     fun startPayment(){
         binding.btnPay.setOnClickListener {
@@ -221,6 +232,8 @@ class PaymentActivity : AppCompatActivity() {
 
                     if (paymentGateway.isNotEmpty()) {
 
+                        paymentGateway = "test"
+
                         when (paymentGateway) {
 
                             "phonepe"->{
@@ -228,6 +241,27 @@ class PaymentActivity : AppCompatActivity() {
                                 if (isPhonePeInitialized){
                                     fetchOrderFromBackend(coinID)
                                 }
+                            }
+
+                            "test"->{
+
+                                callCheckCouponPrice=  apiService.checkCouponPrice(coinID,couponID)
+                                callCheckCouponPrice.enqueue(object : retrofit2.Callback<CouponPriceResponse?> {
+                                    override fun onResponse(
+                                        call: Call<CouponPriceResponse?>,
+                                        response: retrofit2.Response<CouponPriceResponse?>
+                                    ) {
+
+                                        Log.d("CheckCouponPrice","${response.body()}")
+                                    }
+
+                                    override fun onFailure(
+                                        call: Call<CouponPriceResponse?>,
+                                        t: Throwable
+                                    ) {
+                                        Log.d("CheckCouponPrice","$t")
+                                    }
+                                })
                             }
 
 

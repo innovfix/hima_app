@@ -1,5 +1,6 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.retrofit.responses.CouponPriceResponse
 import com.gmwapp.hima.retrofit.responses.NewRazorpayLinkResponse
 import com.gmwapp.hima.retrofit.responses.RazorPayApiResponse
 import retrofit2.Call
@@ -36,6 +37,14 @@ interface ApiService {
         @Field("user_id") userId: Int,
         @Field("coin_id") coinId: String,
     ): Call<NewRazorpayLinkResponse>
+
+    @FormUrlEncoded
+    @POST("https://demo.himaapp.in/api/auth/check_price")
+    fun checkCouponPrice(
+        @Field("coins_id") coinsId: String,
+        @Field("coupons_id") couponsId: String
+    ): Call<CouponPriceResponse>
+
 
 
 

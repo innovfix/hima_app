@@ -56,6 +56,10 @@ class CouponActivity : AppCompatActivity(), CouponAdapter.OnCouponClickListener 
         Log.d("CoinIDSaved","$coinID")
 
 
+        BaseApplication.getInstance()?.getPrefs()?.apply {
+            setString("last_coupon_id", "")
+        }
+
         if (!coinID.isNullOrEmpty()) {
             couponViewModel.getCoupons(coinID)
         } else {
@@ -165,8 +169,14 @@ class CouponActivity : AppCompatActivity(), CouponAdapter.OnCouponClickListener 
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP) // ✅ Add flags before startActivity
 
         }
+
+        BaseApplication.getInstance()?.getPrefs()?.apply {
+            setString("last_coupon_id", coupon.id)
+        }
         startActivity(intent)
         finish()
 
     }
 }
+
+
