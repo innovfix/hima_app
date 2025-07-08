@@ -642,6 +642,7 @@ class WalletActivity : BaseActivity()  {
                 Toast.makeText(this, "Invalid input data", Toast.LENGTH_SHORT).show()
             }
 
+
 //            val intent = Intent(this@WalletActivity, PaymentActivity::class.java).apply {
 //                putExtra("AMOUNT", amount)
 //                putExtra("COIN_SELECTED", selectedCoin )
