@@ -245,6 +245,7 @@ class PaymentActivity : AppCompatActivity() {
 
                             "test"->{
 
+                                var check = "chekcing"
                                 callCheckCouponPrice=  apiService.checkCouponPrice(coinID,couponID)
                                 callCheckCouponPrice.enqueue(object : retrofit2.Callback<CouponPriceResponse?> {
                                     override fun onResponse(
