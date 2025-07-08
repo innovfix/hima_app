@@ -38,13 +38,14 @@ class LoginViewModel @Inject constructor(private val loginRepositories: LoginRep
                 ) {
                     loginResponseLiveData.postValue(response.body());
 
+
                     Log.d("VerifyOTP", "Request URL: ${response.body()}")
 
                 }
 
                 override fun onFailure(call: Call<LoginResponse>, t: Throwable) {
                     loginErrorLiveData.postValue(DConstants.LOGIN_ERROR);
-                    Log.d("VerifyOTPError", "Request URL: ${t.message}")
+                    Log.d("VerifyOTPError", " ${t}")
 
                 }
 

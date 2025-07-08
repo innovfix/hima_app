@@ -18,9 +18,9 @@ class CouponViewModel @Inject constructor(private val couponRepository: CouponRe
 
     val couponsLiveData = MutableLiveData<CouponsResponse>()
 
-    fun getCoupons() {
+    fun getCoupons(coinID: String?) {
         viewModelScope.launch {
-            couponRepository.getCoupons(object : NetworkCallback<CouponsResponse> {
+            couponRepository.getCoupons(coinID,object : NetworkCallback<CouponsResponse> {
                 override fun onResponse(
                     call: Call<CouponsResponse>,
                     response: Response<CouponsResponse>

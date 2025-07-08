@@ -603,10 +603,10 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     }
 
     fun getCoupons(
-        callback: NetworkCallback<CouponsResponse>
+        coinID: String?, callback: NetworkCallback<CouponsResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<CouponsResponse> = getApiInterface().getCoupons()
+            val apiCall: Call<CouponsResponse> = getApiInterface().getCoupons(coinID)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1022,8 +1022,12 @@ interface ApiInterface {
         @Field("pancard_number") panNumber: String
     ): Call<PanCardResponse>
 
+    @FormUrlEncoded
     @POST("coupons_list")
-    fun getCoupons(): Call<CouponsResponse>
+    fun getCoupons(
+        @Field("coins_id") coinID: String?
+    ): Call<CouponsResponse>
+
 
 
 

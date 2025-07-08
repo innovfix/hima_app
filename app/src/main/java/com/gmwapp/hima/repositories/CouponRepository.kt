@@ -6,7 +6,7 @@ import com.gmwapp.hima.retrofit.responses.CouponsResponse
 import javax.inject.Inject
 
 class CouponRepository @Inject constructor(private val apiManager: ApiManager) {
-    fun getCoupons(callback: NetworkCallback<CouponsResponse>) {
-        apiManager.getCoupons(callback)
+    fun getCoupons(coinID: String?, callback: NetworkCallback<CouponsResponse>) {
+        apiManager.getCoupons(coinID,callback)
     }
 }
