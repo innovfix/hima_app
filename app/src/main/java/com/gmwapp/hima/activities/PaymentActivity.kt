@@ -1,10 +1,23 @@
 package com.gmwapp.hima.activities
 
+import android.app.Dialog
+import android.content.Context
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
+import android.view.WindowInsetsController
+import android.widget.LinearLayout
+import android.widget.RelativeLayout
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -13,6 +26,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Observer
+import com.airbnb.lottie.LottieAnimationView
 import com.bumptech.glide.Glide
 import com.facebook.appevents.AppEventsConstants
 import com.facebook.appevents.AppEventsLogger
@@ -26,6 +40,8 @@ import com.gmwapp.hima.retrofit.responses.CoinsResponseData
 import com.gmwapp.hima.retrofit.responses.CouponPriceResponse
 import com.gmwapp.hima.retrofit.responses.NewRazorpayLinkResponse
 import com.gmwapp.hima.utils.DPreferences
+import com.gmwapp.hima.viewmodels.CheckCouponCodeViewModel
+import com.gmwapp.hima.viewmodels.CheckCouponPriceViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.viewmodels.UpiPaymentViewModel
 import com.gmwapp.hima.viewmodels.WalletViewModel
@@ -48,6 +64,8 @@ import java.io.IOException
 class PaymentActivity : AppCompatActivity() {
     lateinit var binding: ActivityPaymentBinding
     private val WalletViewModel: WalletViewModel by viewModels()
+    private val checkCouponPriceViewModel: CheckCouponPriceViewModel by viewModels()
+    private val checkCouponCodeViewModel: CheckCouponCodeViewModel by viewModels()
     var paymentGateway = ""
     var couponID = ""
     private var billingManager: BillingManager? = null
@@ -56,7 +74,6 @@ class PaymentActivity : AppCompatActivity() {
 
 
     private lateinit var callNewRazorPay: Call<NewRazorpayLinkResponse>
-    private lateinit var callCheckCouponPrice: Call<CouponPriceResponse>
 
     val apiService = RetrofitClient.instance
 
@@ -96,12 +113,40 @@ class PaymentActivity : AppCompatActivity() {
             insets
         }
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.setSystemBarsAppearance(
+                0,
+                WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+        }
+
+        window.statusBarColor = resources.getColor(R.color.pink, theme)
+
         getPaymentGateway()
         getCouponID()
         initUI()
         startPayment()
         observeAddCoins()
         intializePhonpe()
+        applybutton()
+
+
+        checkCouponPriceViewModel.couponPriceResponseLiveData.observe(this) {
+            if (it != null && it.success) {
+                val price = it.data?.price ?: 0
+                Log.d("CouponPrice", "₹$price")
+                Toast.makeText(this, "Rs $price", Toast.LENGTH_SHORT)
+                    .show()
+            }
+        }
+
+        checkCouponPriceViewModel.couponPriceErrorLiveData.observe(this) {
+            Toast.makeText(this, it, Toast.LENGTH_SHORT).show()
+        }
+
 
     }
 
@@ -138,7 +183,7 @@ class PaymentActivity : AppCompatActivity() {
         binding.llAllCoupons.setOnClickListener {
             var intent = Intent(this, CouponActivity::class.java)
             startActivity(intent)
-            binding.etCouponCode.text.clear()
+           // binding.etCouponCode.text.clear()
 
         }
 
@@ -186,18 +231,64 @@ class PaymentActivity : AppCompatActivity() {
             val coins = it.getStringExtra("COINS")
             val save = intent.getStringExtra("SAVE")
 
+
+            val original = originalPrice?.replace("₹", "")?.trim()?.toIntOrNull() ?: 0
+            val discounted = discountedPrice?.replace("₹", "")?.trim()?.toIntOrNull() ?: 0
+            val savedAmountValue = original - discounted
+            Log.d("savedAmountValue","$savedAmountValue")
+
             binding.etCouponCode?.setText(couponCode)
             binding.tvTotalAmount.text = "$originalPrice" // Set original price
             binding.tvFinalAmount.text = "$discountedPrice" // Use a different field for discounted price
             binding.tvSavePercent.text = save
             binding.tvCoinsText.text = coins+" Coins"
 
+            binding.applyCoupon.text="Applied"
+            if (savedAmountValue>0){
+                showCouponAppliedDialog(this, savedAmountValue, couponCode ?: "")
+            }
             Log.d("PaymentActivityCheck", "Coupon Code: $couponCode")
             Log.d("PaymentActivity", "Original Price: $originalPrice")
             Log.d("PaymentActivity", "Discounted Price: $discountedPrice")
             Log.d("PaymentActivity", "Coins: $coins")
         }
     }
+
+    fun showCouponAppliedDialog(
+        context: Context,
+        savedAmountValue: Int,
+        couponCode: String
+    ) {
+        val dialog = Dialog(context)
+        val view = LayoutInflater.from(context).inflate(R.layout.dialog_coupon, null)
+
+        val lottieView = view.findViewById<LottieAnimationView>(R.id.lottieConfetti)
+        lottieView.playAnimation()
+
+        val savedAmount = view.findViewById<TextView>(R.id.saveAmount)
+        val couponApplied = view.findViewById<TextView>(R.id.couponApplied)
+        savedAmount.text = "₹$savedAmountValue"
+        couponApplied.text = couponCode
+
+        val thankYouText = view.findViewById<TextView>(R.id.thankyou)
+        thankYouText.setOnClickListener { dialog.dismiss() }
+
+        val root = view.findViewById<RelativeLayout>(R.id.couponDialogRoot)
+        val dialogBox = view.findViewById<LinearLayout>(R.id.dialogContainer)
+
+        root.setOnClickListener { dialog.dismiss() }
+        dialogBox.setOnClickListener { /* prevent click-through */ }
+
+        dialog.setContentView(view)
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        dialog.window?.setLayout(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        )
+        dialog.setCancelable(true)
+        dialog.show()
+    }
+
 
     fun getPaymentGateway(){
 
@@ -243,29 +334,10 @@ class PaymentActivity : AppCompatActivity() {
                                 }
                             }
 
-                            "test"->{
+                            "test"-> {
+                                getCouponID()
+                                checkCouponPriceViewModel.checkCouponPrice(coinID, couponID)
 
-                                var check = "chekcing"
-                                callCheckCouponPrice=  apiService.checkCouponPrice(coinID,couponID)
-                                callCheckCouponPrice.enqueue(object : retrofit2.Callback<CouponPriceResponse?> {
-                                    override fun onResponse(
-                                        call: Call<CouponPriceResponse?>,
-                                        response: retrofit2.Response<CouponPriceResponse?>
-                                    ) {
-
-                                        if (response.isSuccessful) {
-                                            Log.d("CheckCouponPrice", "Response Body: ${response.body()}")
-                                        } else {
-                                            Log.d("CheckCouponPrice", "Error Body: ${response.errorBody()?.string()}")
-                                        }                                    }
-
-                                    override fun onFailure(
-                                        call: Call<CouponPriceResponse?>,
-                                        t: Throwable
-                                    ) {
-                                        Log.d("CheckCouponPrice","$t")
-                                    }
-                                })
                             }
 
 
@@ -608,6 +680,74 @@ class PaymentActivity : AppCompatActivity() {
                 })
             }
         })
+    }
+
+    fun applybutton(){
+        val couponCodeEditText = binding.etCouponCode
+        val applyButtonTextView = binding.applyCoupon
+
+        // ✅ 1. Set Observers only once
+        checkCouponCodeViewModel.couponCodeLiveData.observe(this) { response ->
+            if (response != null && response.success) {
+                val coupon = response.data.firstOrNull()
+                coupon?.let {
+                    Log.d("CouponDetails", "Offer: ${it.offer}, Discount Price: ₹${it.discount_price}")
+                    // Update UI here
+
+                    val original = it.original_price?.replace("₹", "")?.trim()?.toIntOrNull() ?: 0
+                    val discounted = it.discount_price?.replace("₹", "")?.trim()?.toIntOrNull() ?: 0
+                    val savedAmountValue = original - discounted
+                    showCouponAppliedDialog(this,savedAmountValue,it.coupon_code)
+
+                    binding.etCouponCode?.setText(it.coupon_code)
+                    binding.tvTotalAmount.text = "${it.original_price}" // Set original price
+                    binding.tvFinalAmount.text = "${it.discount_price}" // Use a different field for discounted price
+                    binding.tvSavePercent.text = "${it.save_price}"
+                    binding.tvCoinsText.text ="${it.coins} Coins"
+
+                    binding.applyCoupon.text ="Applied"
+
+                    BaseApplication.getInstance()?.getPrefs()?.apply {
+                        setString("last_coupon_id", it.id.toString())
+                    }
+                }
+            }else{
+                 Toast.makeText(this, "Enter valid coupon", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        checkCouponCodeViewModel.couponCodeErrorLiveData.observe(this) { error ->
+            Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
+        }
+
+        // ✅ 2. Set Click Listener
+        applyButtonTextView.setOnClickListener {
+            val couponCode = couponCodeEditText.text.toString().trim()
+            val applyCouponText = applyButtonTextView.text.toString().trim()
+
+            if (couponCode.isNotEmpty() && applyCouponText.equals("APPLY", ignoreCase = true)) {
+                checkCouponCodeViewModel.checkCouponCode(couponCode)
+            } else {
+               // Toast.makeText(this, "Enter valid coupon", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+
+
+
+        binding.etCouponCode.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                // As soon as any text is typed, change the button text
+                if (!s.isNullOrEmpty()) {
+                    binding.applyCoupon.text = "Apply"
+                }
+            }
+
+            override fun afterTextChanged(s: Editable?) {}
+        })
+
     }
 
 }

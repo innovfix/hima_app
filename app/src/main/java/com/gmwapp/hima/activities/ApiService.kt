@@ -38,12 +38,7 @@ interface ApiService {
         @Field("coin_id") coinId: String,
     ): Call<NewRazorpayLinkResponse>
 
-    @FormUrlEncoded
-    @POST("https://demo.himaapp.in/api/auth/check_price")
-    fun checkCouponPrice(
-        @Field("coins_id") coinsId: String,
-        @Field("coupons_id") couponsId: String
-    ): Call<CouponPriceResponse>
+
 
 
 

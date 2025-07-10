@@ -9,7 +9,9 @@ import com.gmwapp.hima.retrofit.responses.AvatarsListResponse
 import com.gmwapp.hima.retrofit.responses.BankUpdateResponse
 import com.gmwapp.hima.retrofit.responses.CallFemaleUserResponse
 import com.gmwapp.hima.retrofit.responses.CallsListResponse
+import com.gmwapp.hima.retrofit.responses.CheckCouponCodeResponse
 import com.gmwapp.hima.retrofit.responses.CoinsResponse
+import com.gmwapp.hima.retrofit.responses.CouponPriceResponse
 import com.gmwapp.hima.retrofit.responses.CouponsResponse
 import com.gmwapp.hima.retrofit.responses.DeleteUserResponse
 import com.gmwapp.hima.retrofit.responses.EarningsResponse
@@ -613,6 +615,33 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun checkCouponPrice(
+        coinsId: String,
+        couponsId: String,
+        callback: NetworkCallback<CouponPriceResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().checkCouponPrice(coinsId, couponsId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun checkCouponCode(
+        couponCode: String,
+        callback: NetworkCallback<CheckCouponCodeResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val call = getApiInterface().checkCouponCode(couponCode)
+            call.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+
+
 
 
     fun sendFcmNotification(
@@ -1030,6 +1059,19 @@ interface ApiInterface {
 
 
 
+    @FormUrlEncoded
+    @POST("check_price")
+    fun checkCouponPrice(
+        @Field("coins_id") coinsId: String,
+        @Field("coupons_id") couponsId: String
+    ): Call<CouponPriceResponse>
+
+
+    @FormUrlEncoded
+    @POST("check_coupon_code")
+    fun checkCouponCode(
+        @Field("coupon_code") couponCode: String
+    ): Call<CheckCouponCodeResponse>
 
 
 }

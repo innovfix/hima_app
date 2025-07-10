@@ -1,0 +1,89 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/couponDialogRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <com.airbnb.lottie.LottieAnimationView
+        android:id="@+id/lottieConfetti"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentEnd="true"
+        android:scaleType="centerCrop"
+        app:lottie_fileName="coupon_animation.json"
+        app:lottie_autoPlay="true"
+        app:lottie_speed="1"
+        android:visibility="visible" />
+
+
+    <LinearLayout
+        android:id="@+id/dialogContainer"
+        android:layout_width="300dp"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:orientation="vertical"
+        android:background="@drawable/d_button_bg_white"
+        android:paddingTop="40dp"
+        android:paddingBottom="24dp"
+        android:paddingHorizontal="24dp"
+        android:elevation="6dp"
+        android:gravity="center">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="SAVED"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="@color/pin_color"
+            android:layout_marginTop="12dp" />
+
+        <TextView
+            android:id="@+id/saveAmount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="32sp"
+            android:textStyle="bold"
+            android:textColor="#000000"
+            android:layout_marginTop="4dp" />
+
+        <TextView
+            android:id="@+id/couponApplied"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="16sp"
+            android:textColor="#666666"
+            android:layout_marginTop="2dp" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#DDD"
+            android:layout_marginVertical="12dp" />
+
+        <TextView
+            android:id="@+id/thankyou"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Thank You HIMA App"
+            android:textColor="@color/pin_color"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:gravity="center" />
+    </LinearLayout>
+
+    <ImageView
+        android:id="@+id/checkIcon"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:layout_above="@id/dialogContainer"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="-32dp"
+        android:src="@drawable/tick_circle_svg"
+        android:elevation="10dp" />
+</RelativeLayout>
