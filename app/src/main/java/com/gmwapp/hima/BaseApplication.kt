@@ -15,6 +15,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.airbnb.lottie.LottieCompositionFactory
 import com.facebook.FacebookSdk
 import com.facebook.appevents.AppEventsLogger
 import com.gmwapp.hima.constants.DConstants
@@ -140,6 +141,10 @@ class BaseApplication : Application(), Configuration.Provider {
             OneSignal.Debug.logLevel = LogLevel.VERBOSE
             FacebookSdk.setIsDebugEnabled(true)
             FacebookSdk.addLoggingBehavior(com.facebook.LoggingBehavior.APP_EVENTS)
+        }
+
+        LottieCompositionFactory.fromAsset(this, "coupon_animation.json").addListener {
+            // Cached once globally
         }
 
 

@@ -146,6 +146,7 @@
             </intent-filter>
 
 
+
         </activity>
         <activity android:name=".activities.WalletActivity"
             android:exported="true">
