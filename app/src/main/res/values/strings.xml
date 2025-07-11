@@ -48,6 +48,7 @@
     <string name="your_avatar">Your Avatar</string>
     <string name="edit_profile">Edit Profile</string>
     <string name="user_name">Username</string>
+    <string name="user_bio">Bio</string>
     <string name="user_name_hint">Username must be 4-10 characters.</string>
     <string name="select_your_interests">Select your interests</string>
     <string name="update">Update</string>

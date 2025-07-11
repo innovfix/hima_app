@@ -440,12 +440,13 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         userId: Int,
         avatarId: Int,
         name: String,
+        bio: String?,
         interests: String?,
         callback: NetworkCallback<UpdateProfileResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<UpdateProfileResponse> =
-                getApiInterface().updateProfile(userId, avatarId, name, interests)
+                getApiInterface().updateProfile(userId, avatarId, name, bio, interests)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -909,6 +910,7 @@ interface ApiInterface {
         @Field("user_id") userId: Int,
         @Field("avatar_id") avatarId: Int,
         @Field("name") name: String,
+        @Field("bio") bio: String?,
         @Field("interests") interests: String?
     ): Call<UpdateProfileResponse>
 

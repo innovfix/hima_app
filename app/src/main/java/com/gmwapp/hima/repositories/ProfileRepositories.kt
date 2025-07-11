@@ -68,10 +68,11 @@ class ProfileRepositories @Inject constructor(private val apiManager: ApiManager
         userId: Int,
         avatarId: Int,
         name: String,
+        bio: String?,
         interests: String?,
         callback: NetworkCallback<UpdateProfileResponse>
     ) {
-        apiManager.updateProfile(userId, avatarId, name, interests, callback)
+        apiManager.updateProfile(userId, avatarId, name,bio, interests, callback)
     }
 
     fun deleteUsers(
