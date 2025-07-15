@@ -65,6 +65,7 @@ import androidx.work.OneTimeWorkRequest
 import androidx.work.WorkManager
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
+import com.gmwapp.hima.activities.RatingActivity
 import com.gmwapp.hima.agora.FaceDetectVideoFrameObserver
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
@@ -920,6 +921,14 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             RtcEngine.destroy()
             agoraEngine = null
         }.start()
+
+        if (isRemoteUserJoined==true){
+            val intent = Intent(this@FemaleAudioCallingActivity, RatingActivity::class.java)
+            intent.putExtra(DConstants.RECEIVER_NAME, receiverName)
+            intent.putExtra(DConstants.RECEIVER_ID, receiverId)
+            startActivity(intent)
+            Log.d("Lifecycle", "onDestroy() called. Firestore listener removed.")
+        }
 
         Log.d("Lifecycle", "onDestroy() called. Firestore listener removed.")
     }

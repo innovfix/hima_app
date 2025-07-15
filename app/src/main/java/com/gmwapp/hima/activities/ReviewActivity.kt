@@ -211,5 +211,6 @@ class ReviewActivity : BaseActivity() {
             InterestsReview(interest, existingInterests?.contains(interest) == true)
         } as ArrayList<InterestsReview>
     }
+
 }
 

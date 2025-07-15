@@ -7,6 +7,7 @@ import com.gmwapp.hima.retrofit.responses.AddPointsResponse
 import com.gmwapp.hima.retrofit.responses.AppUpdateResponse
 import com.gmwapp.hima.retrofit.responses.AvatarsListResponse
 import com.gmwapp.hima.retrofit.responses.BankUpdateResponse
+import com.gmwapp.hima.retrofit.responses.BlockUserResponse
 import com.gmwapp.hima.retrofit.responses.CallFemaleUserResponse
 import com.gmwapp.hima.retrofit.responses.CallsListResponse
 import com.gmwapp.hima.retrofit.responses.CheckCouponCodeResponse
@@ -641,6 +642,21 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun blockUser(
+        userId: Int,
+        callUserId: Int,
+        blocked: Int,
+        callback: NetworkCallback<BlockUserResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val call = getApiInterface().blockUser(userId, callUserId, blocked)
+            call.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+
 
 
 
@@ -1074,6 +1090,14 @@ interface ApiInterface {
     fun checkCouponCode(
         @Field("coupon_code") couponCode: String
     ): Call<CheckCouponCodeResponse>
+
+    @FormUrlEncoded
+    @POST("blocked_user")
+    fun blockUser(
+        @Field("user_id") userId: Int,
+        @Field("call_user_id") callUserId: Int,
+        @Field("blocked") blocked: Int
+    ): Call<BlockUserResponse>
 
 
 }

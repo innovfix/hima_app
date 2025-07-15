@@ -6,12 +6,10 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
@@ -24,8 +22,8 @@ import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityRatingBinding
-import com.gmwapp.hima.databinding.ActivitySelectLanguageBinding
 import com.gmwapp.hima.utils.setOnSingleClickListener
+import com.gmwapp.hima.viewmodels.BlockUserViewModel
 import com.gmwapp.hima.viewmodels.RatingViewModel
 import com.google.android.flexbox.AlignItems
 import com.google.android.flexbox.FlexDirection
@@ -39,6 +37,7 @@ import dagger.hilt.android.AndroidEntryPoint
 class RatingActivity : BaseActivity() {
 
     val viewModel: RatingViewModel by viewModels()
+    val blockUserViewModel: BlockUserViewModel by viewModels()
 
 
     lateinit var binding: ActivityRatingBinding
@@ -46,6 +45,7 @@ class RatingActivity : BaseActivity() {
     private var selectedRating: Int = 0 // Add a variable to track selected rating
     private var selectedReviewPosition: Int = RecyclerView.NO_POSITION // Track the selected review position
     private var discription: String = ""
+    var isBlocked = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -69,6 +69,7 @@ class RatingActivity : BaseActivity() {
         }
 
         initUi()
+        showBlockToogle()
 
         // Add listener to review text input for validation
         binding.etUserName.addTextChangedListener {
@@ -107,6 +108,11 @@ class RatingActivity : BaseActivity() {
             val userid = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
             val call_userid = intent.getIntExtra(DConstants.RECEIVER_ID, 0)
 
+            var gender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
+
+            if (gender=="female"){
+                blockMale(userid,call_userid)
+            }
 
             val rating = if (selectedRating > 0) selectedRating else 0 // Default to 3 if no rating is selected
             val description = binding.etUserName.text.toString().takeIf { it.isNotEmpty() } ?: "No data provided" // Default description
@@ -116,7 +122,7 @@ class RatingActivity : BaseActivity() {
 
 
 
-            if (rating > 0) {
+            if (rating > 0) {500
                 // Proceed with rating submission
                 BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
                     if (call_userid != null) {
@@ -249,6 +255,40 @@ class RatingActivity : BaseActivity() {
 
         override fun getItemCount(): Int = reviews.size
     }
+
+    fun showBlockToogle(){
+        var gender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
+        if(gender=="female"){
+            binding.llBlockUser.visibility= View.VISIBLE
+        }
+    }
+
+    fun blockMale(userid: Int?, call_userid: Int) {
+        var blocked = 0
+        isBlocked = binding.cbBlockUser.isChecked
+        if (isBlocked){
+            blocked = 1
+        }else{
+            blocked = 0
+        }
+
+        userid?.let { blockUserViewModel.blockUser(it,call_userid,blocked) }
+
+        observeBlockuser()
+
+        Log.d("isBlocked","$isBlocked")
+    }
+
+    fun observeBlockuser(){
+        blockUserViewModel.blockUserLiveData.observe(this) {
+            Toast.makeText(this, it.message, Toast.LENGTH_SHORT).show()
+        }
+
+        blockUserViewModel.blockUserErrorLiveData.observe(this) {
+            Toast.makeText(this, it, Toast.LENGTH_SHORT).show()
+        }
+    }
+
 }
 
 
