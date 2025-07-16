@@ -9,7 +9,9 @@ import com.gmwapp.hima.retrofit.responses.AvatarsListResponse
 import com.gmwapp.hima.retrofit.responses.BankUpdateResponse
 import com.gmwapp.hima.retrofit.responses.CallFemaleUserResponse
 import com.gmwapp.hima.retrofit.responses.CallsListResponse
+import com.gmwapp.hima.retrofit.responses.CheckCouponCodeResponse
 import com.gmwapp.hima.retrofit.responses.CoinsResponse
+import com.gmwapp.hima.retrofit.responses.CouponPriceResponse
 import com.gmwapp.hima.retrofit.responses.CouponsResponse
 import com.gmwapp.hima.retrofit.responses.DeleteUserResponse
 import com.gmwapp.hima.retrofit.responses.EarningsResponse
@@ -438,12 +440,13 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         userId: Int,
         avatarId: Int,
         name: String,
+        bio: String?,
         interests: String?,
         callback: NetworkCallback<UpdateProfileResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<UpdateProfileResponse> =
-                getApiInterface().updateProfile(userId, avatarId, name, interests)
+                getApiInterface().updateProfile(userId, avatarId, name, bio, interests)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -612,6 +615,33 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
             callback.onNoNetwork()
         }
     }
+
+    fun checkCouponPrice(
+        coinsId: String,
+        couponsId: String,
+        callback: NetworkCallback<CouponPriceResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().checkCouponPrice(coinsId, couponsId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun checkCouponCode(
+        couponCode: String,
+        callback: NetworkCallback<CheckCouponCodeResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val call = getApiInterface().checkCouponCode(couponCode)
+            call.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+
 
 
 
@@ -880,6 +910,7 @@ interface ApiInterface {
         @Field("user_id") userId: Int,
         @Field("avatar_id") avatarId: Int,
         @Field("name") name: String,
+        @Field("bio") bio: String?,
         @Field("interests") interests: String?
     ): Call<UpdateProfileResponse>
 
@@ -1030,6 +1061,19 @@ interface ApiInterface {
 
 
 
+    @FormUrlEncoded
+    @POST("check_price")
+    fun checkCouponPrice(
+        @Field("coins_id") coinsId: String,
+        @Field("coupons_id") couponsId: String
+    ): Call<CouponPriceResponse>
+
+
+    @FormUrlEncoded
+    @POST("check_coupon_code")
+    fun checkCouponCode(
+        @Field("coupon_code") couponCode: String
+    ): Call<CheckCouponCodeResponse>
 
 
 }

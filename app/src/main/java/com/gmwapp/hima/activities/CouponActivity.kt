@@ -1,10 +1,12 @@
 package com.gmwapp.hima.activities
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.Gravity
 import android.view.View
+import android.view.WindowInsetsController
 import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.activity.enableEdgeToEdge
@@ -43,6 +45,17 @@ class CouponActivity : AppCompatActivity(), CouponAdapter.OnCouponClickListener 
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.setSystemBarsAppearance(
+                0,
+                WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+        }
+
+        window.statusBarColor = resources.getColor(R.color.pink, theme)
 
         initUI()
     }
@@ -56,6 +69,10 @@ class CouponActivity : AppCompatActivity(), CouponAdapter.OnCouponClickListener 
         Log.d("CoinIDSaved","$coinID")
 
 
+        BaseApplication.getInstance()?.getPrefs()?.apply {
+            setString("last_coupon_id", "")
+        }
+
         if (!coinID.isNullOrEmpty()) {
             couponViewModel.getCoupons(coinID)
         } else {
@@ -66,6 +83,12 @@ class CouponActivity : AppCompatActivity(), CouponAdapter.OnCouponClickListener 
             if (it != null && it.success && it.data != null) {
                 val moreCoupons = it.data.filter { coupon -> coupon.type == "more_coupons" }
                 val bestCoupons = it.data.filter { coupon -> coupon.type == "best_coupons" }
+
+                var coin = it.data[0].coins
+                var originalPrice = it.data[0].original_price
+
+                var text = "$coin coins: ₹$originalPrice"
+                binding.tvApplyCouponSubtitle.text = text
 
                 if (bestCoupons.isNotEmpty()) {
                     binding.tvBestCoupons.visibility = View.VISIBLE
@@ -129,10 +152,7 @@ class CouponActivity : AppCompatActivity(), CouponAdapter.OnCouponClickListener 
 
 
         binding.ivBack.setOnClickListener {
-            var intent = Intent(this, PaymentActivity::class.java)
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            startActivity(intent)
-            finish()
+            onBackPressed()
         }
 
 //        val dummyCoupons = listOf(
@@ -165,8 +185,14 @@ class CouponActivity : AppCompatActivity(), CouponAdapter.OnCouponClickListener 
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP) // ✅ Add flags before startActivity
 
         }
+
+        BaseApplication.getInstance()?.getPrefs()?.apply {
+            setString("last_coupon_id", coupon.id)
+        }
         startActivity(intent)
         finish()
 
     }
 }
+
+
