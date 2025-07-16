@@ -888,6 +888,7 @@ class WalletActivity : BaseActivity()  {
         return token
 
 
+        //Testing
     }
 
 
