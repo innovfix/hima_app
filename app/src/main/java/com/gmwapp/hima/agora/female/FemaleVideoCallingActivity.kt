@@ -45,6 +45,7 @@ import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
+import com.gmwapp.hima.activities.RatingActivity
 import com.gmwapp.hima.agora.FaceDetectVideoFrameObserver
 import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.constants.DConstants
@@ -848,8 +849,10 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             stopCountdown()
 
             updateCallEndDetails()
-            val intent = Intent(this@FemaleVideoCallingActivity, MainActivity::class.java)
+            val intent = Intent(this@FemaleVideoCallingActivity, RatingActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            intent.putExtra(DConstants.RECEIVER_NAME, receiverName)
+            intent.putExtra(DConstants.RECEIVER_ID, receiverId)
             startActivity(intent)
             finish()
         }
