@@ -18,6 +18,7 @@ data class UserData (
     @SerializedName("user_gender")
     val gender: String,
     val image: String,
+    val bio: String,
     val language: String,
     val interests: String?,
     val mobile: String,

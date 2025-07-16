@@ -55,6 +55,7 @@ class EditProfileActivity : BaseActivity() {
     private fun initUI() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         binding.etUserName.setText(userData?.name)
+        binding.etBio.setText(userData?.bio)
         val sharedPreferences = getSharedPreferences("UserPrefs", MODE_PRIVATE)
         val hasChangedName = sharedPreferences.getBoolean("hasChangedName", false)
 
@@ -62,12 +63,14 @@ class EditProfileActivity : BaseActivity() {
 
         if (gender == "male" || gender == "Male") {
             binding.tvGender.text = "Male"
+
         }
         else
         {
             binding.tvGender.text = "Female"
+
             if (hasChangedName) {
-                binding.etUserName.isEnabled = false
+                binding.etUserName.isEnabled = true
              //   Toast.makeText(this, "You can change your name only once.", Toast.LENGTH_SHORT).show()
             } else {
                 binding.etUserName.isEnabled = true
@@ -108,6 +111,17 @@ class EditProfileActivity : BaseActivity() {
             }
         })
 
+        binding.etBio.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {
+            }
+
+            override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
+                updateButton()
+            }
+
+            override fun afterTextChanged(s: Editable) {
+            }
+        })
         val staggeredGridLayoutManager = FlexboxLayoutManager(this).apply {
             flexWrap = FlexWrap.WRAP
             alignItems = AlignItems.FLEX_START
@@ -205,7 +219,7 @@ class EditProfileActivity : BaseActivity() {
                     binding.pbUpdateLoader.visibility = View.VISIBLE
                     binding.btnUpdate.text = ""
                     profileViewModel.updateProfile(
-                        it1.id, it2, binding.etUserName.text.toString(), selectedInterests
+                        it1.id, it2, binding.etUserName.text.toString(), selectedInterests,binding.etBio.text.toString()
                     )
                 }
             }
@@ -306,7 +320,7 @@ class EditProfileActivity : BaseActivity() {
         if(index < 0) return
         val sameInterests = interests?.containsAll(selectedInterests) == true && interests.size == selectedInterests.size
 
-        if (isValidUserName && (userData?.name != binding.etUserName.text.toString() || !sameInterests || profileViewModel.avatarsListLiveData.value?.data?.get(index)?.id != userData.avatar_id)) {
+        if (isValidUserName && (userData?.name != binding.etUserName.text.toString() ||userData?.bio != binding.etBio.text.toString()|| !sameInterests || profileViewModel.avatarsListLiveData.value?.data?.get(index)?.id != userData.avatar_id)) {
             binding.btnUpdate.isEnabled = true
 //            Toast.makeText(this@EditProfileActivity, "1".toString(), Toast.LENGTH_LONG).show()
             //   binding.btnUpdate.setBackgroundResource(R.drawable.d_button_bg_white)

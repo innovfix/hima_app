@@ -166,23 +166,30 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
     }
 
     fun updateProfile(
-        userId: Int, avatarId: Int, name: String, interests: ArrayList<String>?
+        userId: Int, avatarId: Int, name: String, interests: ArrayList<String>, bio: String?
     ) {
         viewModelScope.launch {
             profileRepositories.updateProfile(
                 userId,
                 avatarId,
                 name,
+                bio,
                 interests?.joinToString(separator = ",") { it },
                 object : NetworkCallback<UpdateProfileResponse> {
                     override fun onResponse(
                         call: Call<UpdateProfileResponse>, response: Response<UpdateProfileResponse>
                     ) {
                         updateProfileLiveData.postValue(response.body())
+                        Log.d("updateProfileLiveData","${response.body()}")
+                        Log.d("updateProfileLiveData","${call.request().url}")
+
                     }
 
                     override fun onFailure(call: Call<UpdateProfileResponse>, t: Throwable) {
                         updateProfileErrorLiveData.postValue(t.message)
+                        Log.d("updateProfileLiveData","${t.message}")
+
+
                     }
 
                     override fun onNoNetwork() {
