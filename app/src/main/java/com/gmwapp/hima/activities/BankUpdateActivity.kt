@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
@@ -16,12 +17,17 @@ import androidx.core.widget.NestedScrollView
 import androidx.lifecycle.Observer
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
+import com.gmwapp.hima.TokenGenerator
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityBankUpdateBinding
+import com.gmwapp.hima.retrofit.responses.PaySprintBankVerifyResponse
 import com.gmwapp.hima.retrofit.responses.UserData
 import com.gmwapp.hima.viewmodels.BankViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 
 
 @AndroidEntryPoint
@@ -31,6 +37,8 @@ class BankUpdateActivity : BaseActivity() {
     val profileViewModel: ProfileViewModel by viewModels()
 
     val viewModel: BankViewModel by viewModels()
+    val apiService = RetrofitClient.instance
+
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -111,14 +119,15 @@ class BankUpdateActivity : BaseActivity() {
             // Perform the update action
             BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let { it1 ->
 
-                viewModel.updatedBank(
-                    it1,
-                    binding.etHolderName.text.toString(),
-                    binding.etAccountNumber.text.toString(),
-                    binding.etIfsccode.text.toString(),
-                    binding.etBankName.text.toString(),
-                    binding.etBranchName.text.toString()
-                )
+                callPaysprintBankVerify(binding.etAccountNumber.text.toString(),binding.etIfsccode.text.toString())
+//                viewModel.updatedBank(
+//                    it1,
+//                    binding.etHolderName.text.toString(),
+//                    binding.etAccountNumber.text.toString(),
+//                    binding.etIfsccode.text.toString(),
+//                    binding.etBankName.text.toString(),
+//                    binding.etBranchName.text.toString()
+//                )
 
             }
 
@@ -218,4 +227,38 @@ class BankUpdateActivity : BaseActivity() {
     private fun showToast(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
+
+    fun callPaysprintBankVerify(accountNumber: String, ifscCode: String) {
+        val token = TokenGenerator.getToken()
+        val authorisedKey = "TVRJek5EVTJOelUwTnpKRFQxSlFNREF3TURFPQ==" // your authorised key
+        val refId = (100000..999999).random().toString()
+
+        val call = apiService.callPaysprintBankVerify(
+            token = token,
+            authorisedKey = authorisedKey,
+            refId = refId,
+            accountNumber = accountNumber,
+            ifscCode = ifscCode
+        )
+
+        call.enqueue(object : Callback<PaySprintBankVerifyResponse> {
+            override fun onResponse(call: Call<PaySprintBankVerifyResponse>, response: Response<PaySprintBankVerifyResponse>) {
+                if (response.isSuccessful && response.body() != null) {
+                    val result = response.body()
+                    Log.d("BankVerifyResponse", "$result")
+                    val name = result?.data?.c_name ?: "No name found"
+                   // Log.d("Verified Name", name)
+                    Toast.makeText(this@BankUpdateActivity, "Submitted Successfully", Toast.LENGTH_SHORT).show()
+
+                } else {
+                    Log.e("BankVerifyResponse", "API Error: ${response.errorBody()?.string()}")
+                }
+            }
+
+            override fun onFailure(call: Call<PaySprintBankVerifyResponse>, t: Throwable) {
+                Log.e("BankVerifyResponse", "Network Failure: ${t.message}")
+            }
+        })
+    }
+
 }

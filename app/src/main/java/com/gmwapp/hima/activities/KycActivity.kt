@@ -17,7 +17,9 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
+import com.gmwapp.hima.TokenGenerator
 import com.gmwapp.hima.databinding.ActivityKycBinding
+import com.gmwapp.hima.retrofit.responses.PaySprintPanVerifyResponse
 import com.gmwapp.hima.retrofit.responses.UserData
 import com.gmwapp.hima.verification.PanRepository
 import com.gmwapp.hima.verification.PanViewModel
@@ -27,6 +29,9 @@ import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.viewmodels.PanCardViewModel
 import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 
 @AndroidEntryPoint
 class KycActivity : AppCompatActivity() {
@@ -35,6 +40,8 @@ class KycActivity : AppCompatActivity() {
     private val panCardViewModel: PanCardViewModel by viewModels()
 
     private val loginViewModel: LoginViewModel by viewModels()
+    val apiService = RetrofitClient.instance
+
 
 
 
@@ -75,7 +82,8 @@ class KycActivity : AppCompatActivity() {
 
                 else -> {
                   //  panVerification(panNumber,panName)
-                   userData?.let { it1 -> panCardViewModel.updatePanCard(it1.id, panName, panNumber) }
+                  // userData?.let { it1 -> panCardViewModel.updatePanCard(it1.id, panName, panNumber) }
+                    callPaysprintPanVerify(panNumber)
                 }
             }
         }
@@ -154,5 +162,39 @@ class KycActivity : AppCompatActivity() {
         }
 
     }
+
+
+    fun callPaysprintPanVerify(panNumber: String) {
+        val token = TokenGenerator.getToken()
+        val authorisedKey = "TVRJek5EVTJOelUwTnpKRFQxSlFNREF3TURFPQ==" // your authorised key
+        val refId = (100000..999999).random().toString()
+
+
+        val call = apiService.callPaysprintPanVerify(
+            token = token,
+            authorisedKey = authorisedKey,
+            refId = refId,
+            panNumber = panNumber
+        )
+
+        call.enqueue(object : Callback<PaySprintPanVerifyResponse> {
+            override fun onResponse(call: Call<PaySprintPanVerifyResponse>, response: Response<PaySprintPanVerifyResponse>) {
+                if (response.isSuccessful && response.body() != null) {
+                    val result = response.body()
+
+                    Toast.makeText(this@KycActivity, "Submitted Successfully", Toast.LENGTH_SHORT).show()
+
+                    Log.d("PaysprintPanResponse", "$result")
+                } else {
+                    Log.e("PaysprintPanResponse", "API Failed: ${response.errorBody()?.string()}")
+                }
+            }
+
+            override fun onFailure(call: Call<PaySprintPanVerifyResponse>, t: Throwable) {
+                Log.e("PaysprintPanResponse", "Network Error: ${t.message}")
+            }
+        })
+    }
+
 
 }
