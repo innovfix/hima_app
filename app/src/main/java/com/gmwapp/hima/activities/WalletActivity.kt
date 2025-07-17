@@ -36,6 +36,7 @@ import com.gmwapp.hima.viewmodels.UpiPaymentViewModel
 import com.gmwapp.hima.viewmodels.UpiViewModel
 import com.gmwapp.hima.viewmodels.WalletViewModel
 import com.google.androidbrowserhelper.trusted.LauncherActivity
+import com.google.firebase.analytics.FirebaseAnalytics
 import com.onesignal.OneSignal
 import com.onesignal.notifications.INotificationClickEvent
 import com.onesignal.notifications.INotificationClickListener
@@ -129,6 +130,7 @@ class WalletActivity : BaseActivity()  {
         initUI()
         observeCoins()
         intializePhonpe()
+
     }
 
     override fun onResume() {
@@ -478,15 +480,27 @@ class WalletActivity : BaseActivity()  {
             val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
             val userId = userData?.id
             val pointsIdInt = pointsId.toIntOrNull()
+            val priceDouble = amount?.toDoubleOrNull() ?: 0.0
+
 
 
             val params = Bundle()
             params.putString(AppEventsConstants.EVENT_PARAM_CURRENCY, "INR")
-            params.putDouble(AppEventsConstants.EVENT_PARAM_VALUE_TO_SUM, amount.toDouble()) // expected amount
+            params.putDouble(AppEventsConstants.EVENT_PARAM_VALUE_TO_SUM, priceDouble) // expected amount
             params.putString("user_id", "$userId") // optional
             params.putString("coin_id", "$pointsId") // optional
 
-            AppEventsLogger.newLogger(this).logEvent(AppEventsConstants.EVENT_NAME_INITIATED_CHECKOUT, amount.toDouble(), params)
+            AppEventsLogger.newLogger(this).logEvent(AppEventsConstants.EVENT_NAME_INITIATED_CHECKOUT, priceDouble, params)
+
+            val firebaseBundle = Bundle().apply {
+                putString("user_id", "$userId")
+                putString("coin_id", "$pointsId")
+                putDouble("price", priceDouble)
+            }
+            BaseApplication.firebaseAnalytics.logEvent("initial_checkout", firebaseBundle)
+
+
+
 
             BaseApplication.getInstance()?.getPrefs()?.apply {
                 setString("last_coin_id", pointsId)
@@ -495,6 +509,7 @@ class WalletActivity : BaseActivity()  {
             }
 
 
+            paymentGateway = "null"
 
             if (userId != null && pointsId.isNotEmpty()) {
                 if (pointsIdInt != null) {

@@ -75,6 +75,7 @@ android {
 dependencies {
     implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.core.animation)
+    implementation(libs.firebase.analytics)
     val lifecycleVersion = "2.6.2"
     val glideVersion = "4.11.0"
 
