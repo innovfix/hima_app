@@ -889,6 +889,16 @@ class WalletActivity : BaseActivity()  {
             putString("coin_id", "$coinId")
         }
         AppEventsLogger.newLogger(this).logEvent(AppEventsConstants.EVENT_NAME_PURCHASED, coinAmount, params)
+
+        val purchaseBundle = Bundle().apply {
+            putString(FirebaseAnalytics.Param.CURRENCY, "INR")
+            putDouble(FirebaseAnalytics.Param.VALUE, coinAmount)
+            putString(FirebaseAnalytics.Param.ITEM_ID, coinId)
+            putString("user_id", userId.toString()) // optional: useful for debugging
+
+        }
+
+        BaseApplication.firebaseAnalytics.logEvent(FirebaseAnalytics.Event.PURCHASE, purchaseBundle)
     }
     fun generateJwtToken(): String {
 

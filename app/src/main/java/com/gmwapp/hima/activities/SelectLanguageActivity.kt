@@ -24,6 +24,7 @@ import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.widgets.SpacesItemDecoration
+import com.google.firebase.analytics.FirebaseAnalytics
 import dagger.hilt.android.AndroidEntryPoint
 
 
@@ -68,6 +69,13 @@ class SelectLanguageActivity : BaseActivity() {
                     val params = Bundle()
                     params.putString("user_id", "${it.data.id}") // optional
                     AppEventsLogger.newLogger(this).logEvent(AppEventsConstants.EVENT_NAME_COMPLETED_REGISTRATION, params)
+
+                    val bundle = Bundle().apply {
+                        putString("user_id", "${it.data.id}") // optional: useful for debugging
+                    }
+
+                    BaseApplication.firebaseAnalytics.logEvent(FirebaseAnalytics.Event.SIGN_UP, bundle)
+
 
                     intent.putExtra(DConstants.LANGUAGE, selectedLanguage)
                     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
