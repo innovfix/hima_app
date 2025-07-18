@@ -19,7 +19,8 @@ import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.TokenGenerator
 import com.gmwapp.hima.databinding.ActivityKycBinding
-import com.gmwapp.hima.retrofit.responses.PaySprintPanVerifyResponse
+import com.gmwapp.hima.retrofit.responses.PanDetailsRequest
+import com.gmwapp.hima.retrofit.responses.PaySprintPanDetailsResponse
 import com.gmwapp.hima.retrofit.responses.UserData
 import com.gmwapp.hima.verification.PanRepository
 import com.gmwapp.hima.verification.PanViewModel
@@ -83,7 +84,7 @@ class KycActivity : AppCompatActivity() {
                 else -> {
                   //  panVerification(panNumber,panName)
                   // userData?.let { it1 -> panCardViewModel.updatePanCard(it1.id, panName, panNumber) }
-                    callPaysprintPanVerify(panNumber)
+                    callPaysprintPanDetails(panNumber)
                 }
             }
         }
@@ -164,34 +165,32 @@ class KycActivity : AppCompatActivity() {
     }
 
 
-    fun callPaysprintPanVerify(panNumber: String) {
+    fun callPaysprintPanDetails(panNumber: String) {
         val token = TokenGenerator.getToken()
-        val authorisedKey = "TVRJek5EVTJOelUwTnpKRFQxSlFNREF3TURFPQ==" // your authorised key
-        val refId = (100000..999999).random().toString()
+        val authorisedKey = "TVRJek5EVTJOelUwTnpKRFQxSlFNREF3TURFPQ=="
+        val refId = System.currentTimeMillis().toString()
 
-
-        val call = apiService.callPaysprintPanVerify(
-            token = token,
-            authorisedKey = authorisedKey,
-            refId = refId,
-            panNumber = panNumber
+        val request = PanDetailsRequest(
+            refid = refId,
+            id_number = panNumber
         )
 
-        call.enqueue(object : Callback<PaySprintPanVerifyResponse> {
-            override fun onResponse(call: Call<PaySprintPanVerifyResponse>, response: Response<PaySprintPanVerifyResponse>) {
+        val call = apiService.callPaysprintPanDetails(token, authorisedKey, request)
+
+        call.enqueue(object : Callback<PaySprintPanDetailsResponse> {
+            override fun onResponse(call: Call<PaySprintPanDetailsResponse>, response: Response<PaySprintPanDetailsResponse>) {
                 if (response.isSuccessful && response.body() != null) {
                     val result = response.body()
-
-                    Toast.makeText(this@KycActivity, "Submitted Successfully", Toast.LENGTH_SHORT).show()
-
-                    Log.d("PaysprintPanResponse", "$result")
+                    val fullName = result?.data?.full_name ?: "N/A"
+                    Log.d("PAN_DETAILS", "Verified: $fullName")
+                    Toast.makeText(this@KycActivity, "Verified: $fullName", Toast.LENGTH_SHORT).show()
                 } else {
-                    Log.e("PaysprintPanResponse", "API Failed: ${response.errorBody()?.string()}")
+                    Log.e("PAN_DETAILS", "Error: ${response.errorBody()?.string()}")
                 }
             }
 
-            override fun onFailure(call: Call<PaySprintPanVerifyResponse>, t: Throwable) {
-                Log.e("PaysprintPanResponse", "Network Error: ${t.message}")
+            override fun onFailure(call: Call<PaySprintPanDetailsResponse>, t: Throwable) {
+                Log.e("PAN_DETAILS", "Failure: ${t.message}")
             }
         })
     }

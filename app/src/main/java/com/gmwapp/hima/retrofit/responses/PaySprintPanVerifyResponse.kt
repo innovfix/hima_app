@@ -1,6 +1,11 @@
 package com.gmwapp.hima.retrofit.responses
 
-data class PaySprintPanVerifyResponse(
+data class PanDetailsRequest(
+    val refid: String,
+    val id_number: String
+)
+
+data class PaySprintPanDetailsResponse(
     val statuscode: Int,
     val status: Boolean,
     val message: String,
@@ -8,6 +13,7 @@ data class PaySprintPanVerifyResponse(
     val data: PaySprintPanData?
 )
 
+// Reuse this from before
 data class PaySprintPanData(
     val client_id: String,
     val pan_number: String,
@@ -15,6 +21,13 @@ data class PaySprintPanData(
     val category: String
 )
 
+
+
+data class PennyDropRequest(
+    val refid: String,
+    val account_number: String,
+    val ifsc_code: String
+)
 
 data class PaySprintBankVerifyResponse(
     val statuscode: Int,
@@ -38,3 +51,4 @@ data class BankReqDetails(
     val txntype: String,
     val chantxnrefno: String
 )
+

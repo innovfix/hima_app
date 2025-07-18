@@ -21,6 +21,7 @@ import com.gmwapp.hima.TokenGenerator
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityBankUpdateBinding
 import com.gmwapp.hima.retrofit.responses.PaySprintBankVerifyResponse
+import com.gmwapp.hima.retrofit.responses.PennyDropRequest
 import com.gmwapp.hima.retrofit.responses.UserData
 import com.gmwapp.hima.viewmodels.BankViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
@@ -119,7 +120,7 @@ class BankUpdateActivity : BaseActivity() {
             // Perform the update action
             BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let { it1 ->
 
-                callPaysprintBankVerify(binding.etAccountNumber.text.toString(),binding.etIfsccode.text.toString())
+                callPennyDropVerification(binding.etAccountNumber.text.toString(),binding.etIfsccode.text.toString())
 //                viewModel.updatedBank(
 //                    it1,
 //                    binding.etHolderName.text.toString(),
@@ -228,35 +229,33 @@ class BankUpdateActivity : BaseActivity() {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
-    fun callPaysprintBankVerify(accountNumber: String, ifscCode: String) {
+    fun callPennyDropVerification(accountNumber: String, ifscCode: String) {
         val token = TokenGenerator.getToken()
-        val authorisedKey = "TVRJek5EVTJOelUwTnpKRFQxSlFNREF3TURFPQ==" // your authorised key
-        val refId = (100000..999999).random().toString()
+        val authorisedKey = "TVRJek5EVTJOelUwTnpKRFQxSlFNREF3TURFPQ=="
+        val refId = System.currentTimeMillis().toString()
 
-        val call = apiService.callPaysprintBankVerify(
-            token = token,
-            authorisedKey = authorisedKey,
-            refId = refId,
-            accountNumber = accountNumber,
-            ifscCode = ifscCode
+        val request = PennyDropRequest(
+            refid = refId,
+            account_number = accountNumber,
+            ifsc_code = ifscCode
         )
+
+        val call = apiService.callPaysprintPennyDrop(token, authorisedKey, "CORP00001", request)
 
         call.enqueue(object : Callback<PaySprintBankVerifyResponse> {
             override fun onResponse(call: Call<PaySprintBankVerifyResponse>, response: Response<PaySprintBankVerifyResponse>) {
                 if (response.isSuccessful && response.body() != null) {
                     val result = response.body()
-                    Log.d("BankVerifyResponse", "$result")
-                    val name = result?.data?.c_name ?: "No name found"
-                   // Log.d("Verified Name", name)
-                    Toast.makeText(this@BankUpdateActivity, "Submitted Successfully", Toast.LENGTH_SHORT).show()
-
+                    val name = result?.data?.c_name ?: "N/A"
+                    Log.d("PennyDrop", "Verified name: $name")
+                    Toast.makeText(this@BankUpdateActivity, "Verified: $name", Toast.LENGTH_SHORT).show()
                 } else {
-                    Log.e("BankVerifyResponse", "API Error: ${response.errorBody()?.string()}")
+                    Log.e("PennyDrop", "API Error: ${response.errorBody()?.string()}")
                 }
             }
 
             override fun onFailure(call: Call<PaySprintBankVerifyResponse>, t: Throwable) {
-                Log.e("BankVerifyResponse", "Network Failure: ${t.message}")
+                Log.e("PennyDrop", "Network Error: ${t.message}")
             }
         })
     }

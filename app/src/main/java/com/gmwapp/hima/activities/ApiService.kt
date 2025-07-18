@@ -1,8 +1,10 @@
 package com.gmwapp.hima.activities
 
 import com.gmwapp.hima.retrofit.responses.NewRazorpayLinkResponse
+import com.gmwapp.hima.retrofit.responses.PanDetailsRequest
 import com.gmwapp.hima.retrofit.responses.PaySprintBankVerifyResponse
-import com.gmwapp.hima.retrofit.responses.PaySprintPanVerifyResponse
+import com.gmwapp.hima.retrofit.responses.PaySprintPanDetailsResponse
+import com.gmwapp.hima.retrofit.responses.PennyDropRequest
 import com.gmwapp.hima.retrofit.responses.RazorPayApiResponse
 import retrofit2.Call
 import retrofit2.http.Body
@@ -40,23 +42,19 @@ interface ApiService {
         @Field("coin_id") coinId: String,
     ): Call<NewRazorpayLinkResponse>
 
-    @FormUrlEncoded
-    @POST("https://uat.paysprint.in/sprintverify-uat/api/v1/verification/pan_verify")
-    fun callPaysprintPanVerify(
+    @POST("https://uat.paysprint.in/sprintverify-uat/api/v1/verification/pandetails_verify")
+    fun callPaysprintPanDetails(
         @Header("Token") token: String,
         @Header("Authorisedkey") authorisedKey: String,
-        @Field("refid") refId: String,
-        @Field("pannumber") panNumber: String
-    ): Call<PaySprintPanVerifyResponse>
+        @Body request: PanDetailsRequest
+    ): Call<PaySprintPanDetailsResponse>
 
-    @FormUrlEncoded
-    @POST("https://uat.paysprint.in/sprintverify-uat/api/v1/verification/bank_verify_v2")
-    fun callPaysprintBankVerify(
+    @POST("https://uat.paysprint.in/sprintverify-uat/api/v1/verification/penny_drop_v2")
+    fun callPaysprintPennyDrop(
         @Header("Token") token: String,
         @Header("Authorisedkey") authorisedKey: String,
-        @Field("refid") refId: String,
-        @Field("account_number") accountNumber: String,
-        @Field("ifsc_code") ifscCode: String
+        @Header("User-Agent") userAgent: String = "CORP00001", // Your partner ID
+        @Body request: PennyDropRequest
     ): Call<PaySprintBankVerifyResponse>
 
 
