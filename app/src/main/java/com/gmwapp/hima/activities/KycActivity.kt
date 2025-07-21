@@ -182,6 +182,8 @@ class KycActivity : AppCompatActivity() {
                 if (response.isSuccessful && response.body() != null) {
                     val result = response.body()
                     val fullName = result?.data?.full_name ?: "N/A"
+                    Log.d("PAN_DETAILS_Response", "$result")
+
                     Log.d("PAN_DETAILS", "Verified: $fullName")
                     Toast.makeText(this@KycActivity, "Verified: $fullName", Toast.LENGTH_SHORT).show()
                 } else {
