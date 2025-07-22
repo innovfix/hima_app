@@ -167,6 +167,7 @@ class KycActivity : AppCompatActivity() {
 
     fun callPaysprintPanDetails(panNumber: String) {
         val token = TokenGenerator.getToken()
+        Log.d("tokenPaySprint","$token")
         val authorisedKey = "TVRJek5EVTJOelUwTnpKRFQxSlFNREF3TURFPQ=="
         val refId = System.currentTimeMillis().toString()
 
