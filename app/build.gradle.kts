@@ -121,7 +121,7 @@ dependencies {
     implementation ("com.google.android.flexbox:flexbox:3.0.0")
     implementation ("com.skyfishjy.ripplebackground:library:1.0.1")
     implementation ("androidx.fragment:fragment-ktx:1.6.1")
-    implementation ("com.pierfrancescosoffritti.androidyoutubeplayer:core:12.1.1")
+    implementation ("com.pierfrancescosoffritti.androidyoutubeplayer:core:12.1.2")
     implementation("com.google.firebase:firebase-crashlytics:18.4.1")
     implementation ("com.google.gms:google-services:4.3.14")
     implementation ("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")

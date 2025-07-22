@@ -15,6 +15,7 @@ import com.gmwapp.hima.databinding.ActivityYoutubeBinding
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.ExplanationVideoViewModel
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener
 import dagger.hilt.android.AndroidEntryPoint
@@ -64,6 +65,16 @@ class YoutubeActivity : BaseActivity() {
                             override fun onReady(youTubePlayer: YouTubePlayer) {
                                 youTubePlayer.loadVideo(videoId, 0f)
                             }
+
+                            override fun onError(
+                                youTubePlayer: YouTubePlayer,
+                                error: PlayerConstants.PlayerError
+                            ) {
+                                super.onError(youTubePlayer, error)
+                                Log.e("YouTubePlayerError", "Error occurred: $error")
+
+                            }
+
                         })
                     } else {
                         Log.e("VideoError", "Invalid YouTube URL: $videoUrl")
