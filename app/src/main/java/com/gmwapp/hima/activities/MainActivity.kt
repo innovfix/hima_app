@@ -1094,9 +1094,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         val prefs = BaseApplication.getInstance()?.getPrefs()
         val todayDate = java.time.LocalDate.now().toString()
         val lastLoggedDate = prefs?.getString("last_dau_logged_date")
+        val bundle = Bundle().apply {
+            putString("user_id", "${prefs?.getUserData()?.id}") // optional: useful for debugging
+        }
 
         if (lastLoggedDate != todayDate) {
-            FirebaseAnalytics.getInstance(this).logEvent("daily_active_user", null)
+            FirebaseAnalytics.getInstance(this).logEvent("daily_active_user", bundle)
             prefs?.setString("last_dau_logged_date", todayDate)
         }
     }

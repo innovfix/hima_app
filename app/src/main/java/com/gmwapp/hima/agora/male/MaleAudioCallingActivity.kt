@@ -67,6 +67,7 @@ import com.gmwapp.hima.viewmodels.GiftImageViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.viewmodels.UserAvatarViewModel
 import com.gmwapp.hima.workers.CallUpdateWorker
+import com.google.firebase.analytics.FirebaseAnalytics
 import dagger.hilt.android.AndroidEntryPoint
 import io.agora.rtc2.video.VideoCanvas
 import retrofit2.Call
@@ -671,6 +672,13 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             agoraEngine?.setAudioProfile(Constants.AUDIO_PROFILE_SPEECH_STANDARD, Constants.AUDIO_SCENARIO_DEFAULT)
 
 //            agoraEngine?.registerAudioFrameObserver(audioFrameObserver)
+
+            val bundle = Bundle().apply {
+                putString("user_id", "${maleUserId}")
+            }
+
+            FirebaseAnalytics.getInstance(this@MaleAudioCallingActivity).logEvent("call_started", bundle)
+
 
 
             agoraEngine?.enableAudioVolumeIndication(200, 3, true)
