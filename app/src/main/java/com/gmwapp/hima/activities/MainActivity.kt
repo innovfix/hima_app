@@ -1091,8 +1091,6 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         } else {
             Log.w("FB_Event", "Skipped PURCHASE event. Invalid coinAmount = $coinAmount")
         }
-Firebase_Events
-        AppEventsLogger.newLogger(this).logEvent(AppEventsConstants.EVENT_NAME_PURCHASED, coinAmount, params)
 
         val purchaseBundle = Bundle().apply {
             putString(FirebaseAnalytics.Param.CURRENCY, "INR")
@@ -1120,7 +1118,6 @@ Firebase_Events
             prefs?.setString("last_dau_logged_date", todayDate)
         }
 
- main_removed_Hdfc_Vosk
     }
 
 

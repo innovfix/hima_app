@@ -94,6 +94,8 @@
 
             <!-- Holder Name -->
             <TextView
+                android:id="@+id/tvHolderName"
+                android:visibility="gone"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="@dimen/_13sdp"
@@ -105,8 +107,10 @@
 
             <EditText
                 android:id="@+id/etHolderName"
+                android:visibility="gone"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:enabled="false"
                 android:layout_marginHorizontal="@dimen/_13sdp"
                 android:layout_marginBottom="@dimen/_5sdp"
                 android:background="@drawable/edit_text_trip"
@@ -174,6 +178,7 @@
 
             <!-- Bank Name -->
             <TextView
+                android:visibility="gone"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="@dimen/_13sdp"
@@ -185,6 +190,7 @@
 
             <EditText
                 android:id="@+id/etBankName"
+                android:visibility="gone"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="@dimen/_13sdp"
@@ -192,7 +198,7 @@
                 android:background="@drawable/edit_text_trip"
                 android:fontFamily="@font/poppins_medium"
                 android:hint="@string/bank_name"
-                android:text=""
+                android:text="Bank"
                 android:inputType="textPersonName"
                 android:padding="@dimen/_14sdp"
                 android:textCursorDrawable="@color/colorPrimaryDark"
@@ -201,6 +207,7 @@
             <!-- Branch Name -->
             <TextView
                 android:layout_width="match_parent"
+                android:visibility="gone"
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="@dimen/_13sdp"
                 android:layout_marginTop="@dimen/_13sdp"
@@ -213,13 +220,14 @@
                 android:id="@+id/etBranchName"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:visibility="gone"
                 android:layout_marginHorizontal="@dimen/_13sdp"
                 android:layout_marginBottom="@dimen/_5sdp"
                 android:background="@drawable/edit_text_trip"
                 android:fontFamily="@font/poppins_medium"
                 android:hint="@string/branch_name"
                 android:inputType="textPersonName"
-                android:text=""
+                android:text="Branch"
                 android:padding="@dimen/_14sdp"
                 android:textCursorDrawable="@color/colorPrimaryDark"
                 android:textSize="@dimen/_12sdp" />
@@ -234,7 +242,7 @@
                 android:enabled="false"
                 android:fontFamily="@font/poppins_medium"
                 android:padding="@dimen/_10sdp"
-                android:text="@string/update"
+                android:text="@string/verify"
                 android:textAllCaps="false"
                 android:textColor="@color/button_text_color2"
                 android:textSize="14sp"

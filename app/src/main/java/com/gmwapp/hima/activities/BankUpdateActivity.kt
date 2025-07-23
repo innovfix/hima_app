@@ -7,8 +7,10 @@ import android.text.TextWatcher
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -31,6 +33,9 @@ class BankUpdateActivity : BaseActivity() {
     val profileViewModel: ProfileViewModel by viewModels()
 
     val viewModel: BankViewModel by viewModels()
+
+    private var loadingDialog: AlertDialog? = null
+
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -67,6 +72,13 @@ class BankUpdateActivity : BaseActivity() {
 
 
 
+        val showHolderName = BaseApplication.getInstance()?.getPrefs()?.getString("user_bank_name")
+
+
+        if (showHolderName=="true"){
+            binding.etHolderName.visibility= View.VISIBLE
+            binding.tvHolderName.visibility= View.VISIBLE
+        }
 
 
         binding.ivBack.setOnClickListener {
@@ -120,6 +132,8 @@ class BankUpdateActivity : BaseActivity() {
                     binding.etBranchName.text.toString()
                 )
 
+                showLoading()
+
             }
 
 
@@ -127,14 +141,24 @@ class BankUpdateActivity : BaseActivity() {
 
         viewModel.bankResponseLiveData.observe(this, Observer {
             if (it != null && it.success) {
+                hideLoading()
                 showToast(it.message)
+
+                binding.tvHolderName.visibility= View.VISIBLE
+                binding.etHolderName.visibility= View.VISIBLE
                 BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
                     profileViewModel.getUsers(it)
+                }
+
+                BaseApplication.getInstance()?.getPrefs()?.apply {
+                    setString("user_bank_name", "true")
+
                 }
             }
         })
 
         viewModel.bankErrorLiveData.observe(this, Observer { errorMessage ->
+            hideLoading()
             errorMessage?.let {
                 showToast(it) // Show the error message as a Toast
             }
@@ -204,11 +228,8 @@ class BankUpdateActivity : BaseActivity() {
 
         // Check if all fields are non-empty
         isFieldsValid = isFieldsValid &&
-                accountHolderName.isNotEmpty() &&
                 accountNumber.isNotEmpty() &&
-                ifscCode.isNotEmpty() &&
-                bankName.isNotEmpty() &&
-                branchName.isNotEmpty()
+                ifscCode.isNotEmpty()
 
         // Enable or disable the update button
         binding.btnUpdate.isEnabled = isFieldsValid
@@ -218,4 +239,23 @@ class BankUpdateActivity : BaseActivity() {
     private fun showToast(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
+
+
+    private fun showLoading() {
+        if (loadingDialog == null) {
+            val progressBar = ProgressBar(this).apply {
+                isIndeterminate = true
+            }
+            loadingDialog = AlertDialog.Builder(this)
+                .setView(progressBar)
+                .setCancelable(false)
+                .create()
+        }
+        loadingDialog?.show()
+    }
+
+    private fun hideLoading() {
+        loadingDialog?.dismiss()
+    }
+
 }

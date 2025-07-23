@@ -56,6 +56,7 @@ class WithdrawActivity : BaseActivity() {
     var minWithdrawAmount :Int?= null
     private val accountViewModel: AccountViewModel by viewModels()
 
+    var isPanVerifiend = false
 
     var payment_method = ""
 
@@ -219,9 +220,13 @@ class WithdrawActivity : BaseActivity() {
 
 
         binding.cvAddBank.setOnSingleClickListener {
-            val intent = Intent(this, BankUpdateActivity::class.java)
-            startActivity(intent)
+            if (isPanVerifiend) {
+                val intent = Intent(this, BankUpdateActivity::class.java)
+                startActivity(intent)
+            }else{
+                Toast.makeText(this,"Please verify pan card first", Toast.LENGTH_SHORT).show()
 
+            }
         }
 
         binding.cvPanDetails.setOnSingleClickListener {
@@ -417,6 +422,7 @@ class WithdrawActivity : BaseActivity() {
                     binding.ivAddPan.setBackgroundResource(R.drawable.tick_circle_svg) // Replace with your valid drawable resource
                     // Rotate the drawable by a specified angle (e.g., 45 degrees)
                     binding.ivAddPan.rotation = 0f // This rotates the ImageView by 45 degrees
+                    isPanVerifiend = true
                 }
 
             }

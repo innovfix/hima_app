@@ -19,6 +19,7 @@ lifecycleProcess = "2.8.7"
 coreAnimation = "1.0.0"
 googleGmsGoogleServices = "4.4.3"
 firebaseAnalytics = "22.5.0"
+playServicesMeasurementApi = "23.0.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -45,6 +46,7 @@ androidx-work-runtime = { group = "androidx.work", name = "work-runtime", versio
 androidx-lifecycle-process = { group = "androidx.lifecycle", name = "lifecycle-process", version.ref = "lifecycleProcess" }
 androidx-core-animation = { group = "androidx.core", name = "core-animation", version.ref = "coreAnimation" }
 firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics", version.ref = "firebaseAnalytics" }
+play-services-measurement-api = { group = "com.google.android.gms", name = "play-services-measurement-api", version.ref = "playServicesMeasurementApi" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

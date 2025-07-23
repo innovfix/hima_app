@@ -4,10 +4,12 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -36,6 +38,8 @@ class KycActivity : AppCompatActivity() {
 
     private val loginViewModel: LoginViewModel by viewModels()
 
+
+    private var loadingDialog: AlertDialog? = null
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -76,6 +80,7 @@ class KycActivity : AppCompatActivity() {
                 else -> {
                   //  panVerification(panNumber,panName)
                    userData?.let { it1 -> panCardViewModel.updatePanCard(it1.id, panName, panNumber) }
+                    showLoading()
                 }
             }
         }
@@ -105,6 +110,8 @@ class KycActivity : AppCompatActivity() {
     fun panObserver(){
         panCardViewModel.panUpdateLiveData.observe(this) { response ->
             if (response != null && response.success) {
+
+                hideLoading()
                 val data = response.data
                 Toast.makeText(this, response.message, Toast.LENGTH_SHORT).show()
                 val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
@@ -112,6 +119,7 @@ class KycActivity : AppCompatActivity() {
                 userData?.let { loginViewModel.login(it.mobile) }
 
             } else {
+                hideLoading()
                 Snackbar.make(binding.root, response?.message ?: "Update failed", Snackbar.LENGTH_SHORT).show()
             }
         }
@@ -153,6 +161,23 @@ class KycActivity : AppCompatActivity() {
             }
         }
 
+    }
+
+    private fun showLoading() {
+        if (loadingDialog == null) {
+            val progressBar = ProgressBar(this).apply {
+                isIndeterminate = true
+            }
+            loadingDialog = AlertDialog.Builder(this)
+                .setView(progressBar)
+                .setCancelable(false)
+                .create()
+        }
+        loadingDialog?.show()
+    }
+
+    private fun hideLoading() {
+        loadingDialog?.dismiss()
     }
 
 }
