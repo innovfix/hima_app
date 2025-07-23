@@ -78,6 +78,7 @@ import com.google.mlkit.vision.face.FaceDetectorOptions
 //import androidx.camera.core.ExperimentalGetImage
 import com.gmwapp.hima.agora.FaceDetectVideoFrameObserver
 import com.gmwapp.hima.viewmodels.AccountViewModel
+import com.google.firebase.analytics.FirebaseAnalytics
 import io.agora.rtc2.IAudioFrameObserver
 import io.agora.rtc2.audio.AudioParams
 import org.json.JSONObject
@@ -683,6 +684,13 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
                 ActivityCompat.requestPermissions(this@MaleVideoCallingActivity, arrayOf(Manifest.permission.CAMERA), 22)
             }
+
+            val bundle = Bundle().apply {
+                putString("user_id", "${maleUserId}")
+            }
+
+            FirebaseAnalytics.getInstance(this@MaleVideoCallingActivity).logEvent("call_started", bundle)
+
 
             initVosk()
             agoraEngine?.setAudioProfile(Constants.AUDIO_PROFILE_SPEECH_STANDARD, Constants.AUDIO_SCENARIO_DEFAULT)

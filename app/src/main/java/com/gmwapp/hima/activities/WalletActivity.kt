@@ -36,6 +36,7 @@ import com.gmwapp.hima.viewmodels.UpiPaymentViewModel
 import com.gmwapp.hima.viewmodels.UpiViewModel
 import com.gmwapp.hima.viewmodels.WalletViewModel
 import com.google.androidbrowserhelper.trusted.LauncherActivity
+import com.google.firebase.analytics.FirebaseAnalytics
 import com.onesignal.OneSignal
 import com.onesignal.notifications.INotificationClickEvent
 import com.onesignal.notifications.INotificationClickListener
@@ -129,6 +130,7 @@ class WalletActivity : BaseActivity()  {
         initUI()
         observeCoins()
         intializePhonpe()
+
     }
 
     override fun onResume() {
@@ -478,6 +480,26 @@ class WalletActivity : BaseActivity()  {
             val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
             val userId = userData?.id
             val pointsIdInt = pointsId.toIntOrNull()
+            val priceDouble = amount?.toDoubleOrNull() ?: 0.0
+
+
+
+ Firebase_Events
+            val params = Bundle()
+            params.putString(AppEventsConstants.EVENT_PARAM_CURRENCY, "INR")
+            params.putDouble(AppEventsConstants.EVENT_PARAM_VALUE_TO_SUM, priceDouble) // expected amount
+            params.putString("user_id", "$userId") // optional
+            params.putString("coin_id", "$pointsId") // optional
+
+            AppEventsLogger.newLogger(this).logEvent(AppEventsConstants.EVENT_NAME_INITIATED_CHECKOUT, priceDouble, params)
+
+            val firebaseBundle = Bundle().apply {
+                putString("user_id", "$userId")
+                putString("coin_id", "$pointsId")
+                putDouble("price", priceDouble)
+            }
+            BaseApplication.firebaseAnalytics.logEvent("initial_checkout", firebaseBundle)
+
 
 
             val checkoutAmount = amount.toDoubleOrNull() ?: 0.0
@@ -498,6 +520,7 @@ class WalletActivity : BaseActivity()  {
                 Log.w("FB_Event", "Skipped INITIATED_CHECKOUT event. Invalid amount = $checkoutAmount")
             }
 
+ main_removed_Hdfc_Vosk
 
             BaseApplication.getInstance()?.getPrefs()?.apply {
                 setString("last_coin_id", pointsId)
@@ -506,6 +529,7 @@ class WalletActivity : BaseActivity()  {
             }
 
 
+            paymentGateway = "null"
 
             if (userId != null && pointsId.isNotEmpty()) {
                 if (pointsIdInt != null) {
@@ -890,6 +914,20 @@ class WalletActivity : BaseActivity()  {
         } else {
             Log.w("FB_Event", "Skipped PURCHASE event. Invalid coinAmount = $coinAmount")
         }
+ Firebase_Events
+        AppEventsLogger.newLogger(this).logEvent(AppEventsConstants.EVENT_NAME_PURCHASED, coinAmount, params)
+
+        val purchaseBundle = Bundle().apply {
+            putString(FirebaseAnalytics.Param.CURRENCY, "INR")
+            putDouble(FirebaseAnalytics.Param.VALUE, coinAmount)
+            putString(FirebaseAnalytics.Param.ITEM_ID, coinId)
+            putString("user_id", userId.toString()) // optional: useful for debugging
+
+        }
+
+        BaseApplication.firebaseAnalytics.logEvent(FirebaseAnalytics.Event.PURCHASE, purchaseBundle)
+
+ main_removed_Hdfc_Vosk
     }
     fun generateJwtToken(): String {
 

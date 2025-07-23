@@ -73,6 +73,7 @@ import com.google.android.play.core.install.model.AppUpdateType
 import com.google.android.play.core.install.model.InstallStatus
 import com.google.android.play.core.install.model.UpdateAvailability
 import com.google.androidbrowserhelper.trusted.LauncherActivity
+import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.messaging.FirebaseMessaging
 import com.onesignal.OneSignal
 import com.phonepe.intent.sdk.api.PhonePeInitException
@@ -181,6 +182,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
         AppEventsLogger.newLogger(this).logEvent("TestEventFromApp")
 
+        logDailyActiveUserIfNeeded()
 
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -526,6 +528,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         val userId = userData?.id
         var pointsId = "$id"
         val pointsIdInt = pointsId.toIntOrNull()
+        val priceDouble = amount?.toDoubleOrNull() ?: 0.0
+
         total_amount = "$amount"
 
         val checkoutAmount = amount.toDoubleOrNull() ?: 0.0
@@ -546,6 +550,14 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             Log.w("FB_Event", "Skipped INITIATED_CHECKOUT event. Invalid amount = $checkoutAmount")
         }
 
+
+
+        val firebaseBundle = Bundle().apply {
+            putString("user_id", "$userId")
+            putString("coin_id", "$pointsId")
+            putDouble("price", priceDouble)
+        }
+        BaseApplication.firebaseAnalytics.logEvent("initial_checkout", firebaseBundle)
 
         BaseApplication.getInstance()?.getPrefs()?.apply {
             setString("last_coin_id", pointsId)
@@ -1079,6 +1091,36 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         } else {
             Log.w("FB_Event", "Skipped PURCHASE event. Invalid coinAmount = $coinAmount")
         }
+Firebase_Events
+        AppEventsLogger.newLogger(this).logEvent(AppEventsConstants.EVENT_NAME_PURCHASED, coinAmount, params)
+
+        val purchaseBundle = Bundle().apply {
+            putString(FirebaseAnalytics.Param.CURRENCY, "INR")
+            putDouble(FirebaseAnalytics.Param.VALUE, coinAmount)
+            putString(FirebaseAnalytics.Param.ITEM_ID, coinId)
+            putString("user_id", userID) // optional: useful for debugging
+
+        }
+
+        BaseApplication.firebaseAnalytics.logEvent(FirebaseAnalytics.Event.PURCHASE, purchaseBundle)
+
+    }
+
+
+    fun logDailyActiveUserIfNeeded() {
+        val prefs = BaseApplication.getInstance()?.getPrefs()
+        val todayDate = java.time.LocalDate.now().toString()
+        val lastLoggedDate = prefs?.getString("last_dau_logged_date")
+        val bundle = Bundle().apply {
+            putString("user_id", "${prefs?.getUserData()?.id}") // optional: useful for debugging
+        }
+
+        if (lastLoggedDate != todayDate) {
+            FirebaseAnalytics.getInstance(this).logEvent("daily_active_user", bundle)
+            prefs?.setString("last_dau_logged_date", todayDate)
+        }
+
+ main_removed_Hdfc_Vosk
     }
 
 

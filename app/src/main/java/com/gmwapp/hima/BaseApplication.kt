@@ -21,6 +21,7 @@ import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.repositories.FcmNotificationRepository
 import com.gmwapp.hima.utils.DPreferences
 import com.google.firebase.FirebaseApp
+import com.google.firebase.analytics.FirebaseAnalytics
 import com.onesignal.OneSignal
 import com.onesignal.debug.LogLevel
 //import com.zegocloud.uikit.prebuilt.call.core.CallInvitationServiceImpl
@@ -119,8 +120,14 @@ class BaseApplication : Application(), Configuration.Provider {
 
 
 
+            lateinit var firebaseAnalytics: FirebaseAnalytics
+                private set
 
-    }
+
+
+
+
+        }
 
     override fun onCreate() {
         super.onCreate()
@@ -131,6 +138,9 @@ class BaseApplication : Application(), Configuration.Provider {
         if(BuildConfig.DEBUG) {
             OneSignal.Debug.logLevel = LogLevel.VERBOSE
         }
+
+        firebaseAnalytics = FirebaseAnalytics.getInstance(this)
+
 
         FacebookSdk.setApplicationId(getString(R.string.facebook_app_id))
         FacebookSdk.sdkInitialize(applicationContext)
