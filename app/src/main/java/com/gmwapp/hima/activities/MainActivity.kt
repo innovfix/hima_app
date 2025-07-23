@@ -532,13 +532,24 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
         total_amount = "$amount"
 
-        val params = Bundle()
-        params.putString(AppEventsConstants.EVENT_PARAM_CURRENCY, "INR")
-        params.putDouble(AppEventsConstants.EVENT_PARAM_VALUE_TO_SUM, amount.toDouble()) // expected amount
-        params.putString("user_id", "$userId") // optional
-        params.putString("coin_id", "$pointsId") // optional
+        val checkoutAmount = amount.toDoubleOrNull() ?: 0.0
+        if (checkoutAmount > 0.0) {
+            val checkoutParams = Bundle().apply {
+                putString(AppEventsConstants.EVENT_PARAM_CURRENCY, "INR")
+                putDouble(AppEventsConstants.EVENT_PARAM_VALUE_TO_SUM, checkoutAmount)
+                putString("user_id", "$userId")
+                putString("coin_id", "$pointsId")
+            }
 
-        AppEventsLogger.newLogger(this).logEvent(AppEventsConstants.EVENT_NAME_INITIATED_CHECKOUT, amount.toDouble(), params)
+            AppEventsLogger.newLogger(this).logEvent(
+                AppEventsConstants.EVENT_NAME_INITIATED_CHECKOUT,
+                checkoutAmount,
+                checkoutParams
+            )
+        } else {
+            Log.w("FB_Event", "Skipped INITIATED_CHECKOUT event. Invalid amount = $checkoutAmount")
+        }
+
 
 
         val firebaseBundle = Bundle().apply {
@@ -1069,12 +1080,18 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         val userId = userData?.id
         val coinId = prefs?.getString("last_coin_id")
         val coinAmount = prefs?.getString("last_coin_amount")?.toDoubleOrNull() ?: 0.0
-        val params = Bundle().apply {
-            putString(AppEventsConstants.EVENT_PARAM_CURRENCY, "INR")
-            putDouble(AppEventsConstants.EVENT_PARAM_VALUE_TO_SUM, coinAmount)
-            putString("user_id", "$userId")
-            putString("coin_id", "$coinId")
+        if (coinAmount > 0.0) {
+            val params = Bundle().apply {
+                putString(AppEventsConstants.EVENT_PARAM_CURRENCY, "INR")
+                putDouble(AppEventsConstants.EVENT_PARAM_VALUE_TO_SUM, coinAmount)
+                putString("user_id", "$userId")
+                putString("coin_id", "$coinId")
+            }
+            AppEventsLogger.newLogger(this).logEvent(AppEventsConstants.EVENT_NAME_PURCHASED, coinAmount, params)
+        } else {
+            Log.w("FB_Event", "Skipped PURCHASE event. Invalid coinAmount = $coinAmount")
         }
+Firebase_Events
         AppEventsLogger.newLogger(this).logEvent(AppEventsConstants.EVENT_NAME_PURCHASED, coinAmount, params)
 
         val purchaseBundle = Bundle().apply {
@@ -1102,6 +1119,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             FirebaseAnalytics.getInstance(this).logEvent("daily_active_user", bundle)
             prefs?.setString("last_dau_logged_date", todayDate)
         }
+
+ main_removed_Hdfc_Vosk
     }
 
 
