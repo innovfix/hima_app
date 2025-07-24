@@ -20,6 +20,7 @@ import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponse
 import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
 import com.gmwapp.hima.retrofit.responses.GiftImageResponse
+import com.gmwapp.hima.retrofit.responses.IndividualAppUpdateResponse
 import com.gmwapp.hima.retrofit.responses.LoginResponse
 import com.gmwapp.hima.retrofit.responses.OfferResponse
 import com.gmwapp.hima.retrofit.responses.PanCardResponse
@@ -77,6 +78,19 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<AppUpdateResponse> = getApiInterface().appUpdate(1)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun individualAppUpdate(
+        userId: Int,
+        currentVersion: String,
+        callback: NetworkCallback<IndividualAppUpdateResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<IndividualAppUpdateResponse> = getApiInterface().individualAppUpdate(userId, currentVersion)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -698,6 +712,14 @@ interface ApiInterface {
     @FormUrlEncoded
     @POST("appsettings_list")
     fun appUpdate(@Field("user_id") userId: Int):Call<AppUpdateResponse>
+
+    @FormUrlEncoded
+    @POST("individual_app_update")
+    fun individualAppUpdate(
+        @Field("user_id") userId: Int,
+        @Field("current_version") currentVersion: String
+    ): Call<IndividualAppUpdateResponse>
+
 
     @FormUrlEncoded
     @POST("avatar_list")

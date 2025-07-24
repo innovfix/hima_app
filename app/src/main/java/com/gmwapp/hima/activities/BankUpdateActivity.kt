@@ -72,13 +72,15 @@ class BankUpdateActivity : BaseActivity() {
 
 
 
-        val showHolderName = BaseApplication.getInstance()?.getPrefs()?.getString("user_bank_name")
 
-
-        if (showHolderName=="true"){
-            binding.etHolderName.visibility= View.VISIBLE
+        var userdata  =BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        if (!userdata?.holder_name.isNullOrEmpty()){
             binding.tvHolderName.visibility= View.VISIBLE
+            binding.etHolderName.visibility= View.VISIBLE
         }
+
+
+
 
 
         binding.ivBack.setOnClickListener {
@@ -128,8 +130,8 @@ class BankUpdateActivity : BaseActivity() {
                     binding.etHolderName.text.toString(),
                     binding.etAccountNumber.text.toString(),
                     binding.etIfsccode.text.toString(),
-                    binding.etBankName.text.toString(),
-                    binding.etBranchName.text.toString()
+                    "Bank",
+                    "Branch"
                 )
 
                 showLoading()
@@ -144,16 +146,16 @@ class BankUpdateActivity : BaseActivity() {
                 hideLoading()
                 showToast(it.message)
 
-                binding.tvHolderName.visibility= View.VISIBLE
-                binding.etHolderName.visibility= View.VISIBLE
+
                 BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
                     profileViewModel.getUsers(it)
                 }
 
-                BaseApplication.getInstance()?.getPrefs()?.apply {
-                    setString("user_bank_name", "true")
-
+                if (!it.data.holder_name.isNullOrEmpty()){
+                    binding.tvHolderName.visibility= View.VISIBLE
+                    binding.etHolderName.visibility= View.VISIBLE
                 }
+
             }
         })
 

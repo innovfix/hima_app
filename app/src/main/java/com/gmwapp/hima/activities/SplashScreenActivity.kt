@@ -73,6 +73,7 @@ class SplashScreenActivity : BaseActivity() {
         try {
             val pInfo = packageManager.getPackageInfo(packageName, 0)
             currentVersion = pInfo.versionCode.toString()
+            Log.d("CurrentVersion","$currentVersion")
         } catch (e: PackageManager.NameNotFoundException) {
             e.printStackTrace()
         }

@@ -109,6 +109,7 @@ class KycActivity : AppCompatActivity() {
 
     fun panObserver(){
         panCardViewModel.panUpdateLiveData.observe(this) { response ->
+            Log.d("panUpdateLiveData","$response")
             if (response != null && response.success) {
 
                 hideLoading()
@@ -125,6 +126,7 @@ class KycActivity : AppCompatActivity() {
         }
 
         panCardViewModel.panUpdateErrorLiveData.observe(this) { error ->
+            hideLoading()
             Snackbar.make(binding.root, error ?: "Something went wrong", Snackbar.LENGTH_SHORT).show()
         }
 

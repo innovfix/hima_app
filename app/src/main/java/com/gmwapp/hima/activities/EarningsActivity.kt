@@ -41,7 +41,7 @@ class EarningsActivity : BaseActivity() {
 
     private fun initUI() {
 
-        panVerification()
+       // panVerification()
         updateEarnings()
 
         binding.ivBack.setOnSingleClickListener {
@@ -83,7 +83,6 @@ class EarningsActivity : BaseActivity() {
                     binding.vDivider.visibility = View.VISIBLE
                     binding.ivBalance.visibility = View.VISIBLE
                     binding.tlBalanceHint.visibility = View.VISIBLE
-                    binding.cvPanDetails.visibility = View.VISIBLE
                 } else {
                     binding.btnWithdraw.visibility = View.VISIBLE
                     binding.vDivider.visibility = View.GONE
@@ -148,22 +147,22 @@ class EarningsActivity : BaseActivity() {
 
     }
 
-    fun panVerification(){
-        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-
-        userData?.let { loginViewModel.login(it.mobile) }
-        loginViewModel.loginResponseLiveData.observe(this, Observer {
-
-            if (it.success) {
-                if (!it.data?.pancard_name.isNullOrEmpty()&& !it.data?.pancard_number.isNullOrEmpty()){
-                    binding.ivAddPan.setBackgroundResource(R.drawable.tick_circle_svg) // Replace with your valid drawable resource
-                    // Rotate the drawable by a specified angle (e.g., 45 degrees)
-                    binding.ivAddPan.rotation = 0f // This rotates the ImageView by 45 degrees
-                }
-
-            }
-        })
-    }
+//    fun panVerification(){
+//        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+//
+//        userData?.let { loginViewModel.login(it.mobile) }
+//        loginViewModel.loginResponseLiveData.observe(this, Observer {
+//
+//            if (it.success) {
+//                if (!it.data?.pancard_name.isNullOrEmpty()&& !it.data?.pancard_number.isNullOrEmpty()){
+//                    binding.ivAddPan.setBackgroundResource(R.drawable.tick_circle_svg) // Replace with your valid drawable resource
+//                    // Rotate the drawable by a specified angle (e.g., 45 degrees)
+//                    binding.ivAddPan.rotation = 0f // This rotates the ImageView by 45 degrees
+//                }
+//
+//            }
+//        })
+//    }
 
     fun updateEarnings(){
         BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
@@ -180,7 +179,7 @@ class EarningsActivity : BaseActivity() {
     override fun onResume() {
         super.onResume()
         if (binding.cvPanDetails.visibility == View.VISIBLE)
-        panVerification()
+        //panVerification()
         updateEarnings()
     }
 }

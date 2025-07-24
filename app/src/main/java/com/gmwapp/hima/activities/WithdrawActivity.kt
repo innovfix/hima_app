@@ -175,7 +175,7 @@ class WithdrawActivity : BaseActivity() {
         }
 
 
-        if (userData?.bank.isNullOrEmpty()) {
+        if (userData?.holder_name.isNullOrEmpty()) {
             bankDetails = false
             binding.ivAddBank.setBackgroundResource(R.drawable.ic_add_upi) // Replace with your valid drawable resource
 
@@ -224,8 +224,7 @@ class WithdrawActivity : BaseActivity() {
                 val intent = Intent(this, BankUpdateActivity::class.java)
                 startActivity(intent)
             }else{
-                Toast.makeText(this,"Please verify pan card first", Toast.LENGTH_SHORT).show()
-
+                Toast.makeText(this,"Please complete kyc", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -415,6 +414,8 @@ class WithdrawActivity : BaseActivity() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
 
         userData?.let { loginViewModel.login(it.mobile) }
+        userData?.let { profileViewModel.getUsers(it.id) }
+
         loginViewModel.loginResponseLiveData.observe(this, Observer {
 
             if (it.success) {
@@ -423,9 +424,34 @@ class WithdrawActivity : BaseActivity() {
                     // Rotate the drawable by a specified angle (e.g., 45 degrees)
                     binding.ivAddPan.rotation = 0f // This rotates the ImageView by 45 degrees
                     isPanVerifiend = true
-                }
+                    binding.kycLL.visibility= View.GONE
+                }else{
+                    binding.kycLL.visibility= View.VISIBLE
 
+                }
             }
+
+            profileViewModel.getUserLiveData.observe(this, Observer {
+                BaseApplication.getInstance()?.getPrefs()?.setUserData(it?.data)
+
+                if (it?.data?.holder_name.isNullOrEmpty()) {
+                    bankDetails = false
+                    binding.ivAddBank.setBackgroundResource(R.drawable.ic_add_upi) // Replace with your valid drawable resource
+
+                    Log.d("HolderName","${it?.data?.holder_name}")
+                    // Rotate the drawable by a specified angle (e.g., 45 degrees)
+                    binding.ivAddBank.rotation = 0f // This rotates the ImageView by 45 degrees
+                }
+                else {
+                    bankDetails = true
+                    Log.d("HolderName","${it?.data?.holder_name}")
+
+                    binding.ivAddBank.setBackgroundResource(R.drawable.tick_circle_svg) // Replace with your valid drawable resource
+                    // Rotate the drawable by a specified angle (e.g., 45 degrees)
+                    binding.ivAddBank.rotation = 0f // This rotates the ImageView by 45 degrees
+
+                }
+            })
         })
     }
 
