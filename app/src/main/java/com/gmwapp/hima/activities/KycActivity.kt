@@ -119,6 +119,9 @@ class KycActivity : AppCompatActivity() {
 
                 userData?.let { loginViewModel.login(it.mobile) }
 
+                onBackPressed()
+                finish()
+
             } else {
                 hideLoading()
                 Snackbar.make(binding.root, response?.message ?: "Update failed", Snackbar.LENGTH_SHORT).show()
@@ -139,6 +142,8 @@ class KycActivity : AppCompatActivity() {
                     binding.etPanName.setText(pancardName)
                     binding.etPanNumber.setText(pancardNumber)
                 }
+
+
 
             }
         })

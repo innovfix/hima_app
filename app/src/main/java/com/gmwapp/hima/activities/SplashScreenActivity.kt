@@ -26,6 +26,7 @@ import com.gmwapp.hima.agora.female.FemaleCallAcceptActivity
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivitySplashScreenBinding
 import com.gmwapp.hima.retrofit.responses.UserData
+import com.gmwapp.hima.viewmodels.IndividualAppUpdateViewModel
 import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -41,6 +42,7 @@ import org.greenrobot.eventbus.EventBus
 class SplashScreenActivity : BaseActivity() {
     lateinit var binding: ActivitySplashScreenBinding
     val profileViewModel: ProfileViewModel by viewModels()
+    val individualAppUpdateViewModel: IndividualAppUpdateViewModel by viewModels()
     val viewModel: LoginViewModel by viewModels()
     var currentVersion = ""
 
@@ -62,7 +64,7 @@ class SplashScreenActivity : BaseActivity() {
         }
 
 
-        viewModel.appUpdate()
+       // viewModel.appUpdate()
 
         var intent: Intent? = null
         val prefs = BaseApplication.getInstance()?.getPrefs()
@@ -77,6 +79,16 @@ class SplashScreenActivity : BaseActivity() {
         } catch (e: PackageManager.NameNotFoundException) {
             e.printStackTrace()
         }
+      //  userData?.let { individualAppUpdateViewModel.checkUserAppVersion(it.id,currentVersion) }
+        val userId = userData?.id
+        if (userId != null) {
+            individualAppUpdateViewModel.checkUserAppVersion(userId, currentVersion)
+        }else{
+            GotoActivity(userData)
+        }
+
+
+        Log.d("AppUpdateData","user id ${userData?.id}, $currentVersion")
 
         val isIncomingCall = BaseApplication.getInstance()?.isIncomingCall() ?: false
         val senderId = BaseApplication.getInstance()?.getSenderIdForSplashActivity() ?: -1
@@ -145,33 +157,43 @@ class SplashScreenActivity : BaseActivity() {
 
 
 
-        viewModel.appUpdateResponseLiveData.observe(this, Observer {
-            if (it != null && it.success) {
+//        viewModel.appUpdateResponseLiveData.observe(this, Observer {
+//            if (it != null && it.success) {
+//
+//                val latestVersion = it.data[0].app_version.toString()
+//                val minimum_required_version = it.data[0].minimum_required_version.toString()
+//
+//                val link = it.data[0].link
+//                val description = it.data[0].description
+//
+//                GotoActivity(userData, latestVersion,minimum_required_version, link, description)
+//            }
+//        })
 
-                val latestVersion = it.data[0].app_version.toString()
-                val minimum_required_version = it.data[0].minimum_required_version.toString()
+        individualAppUpdateViewModel.individualUpdateLiveData.observe(this) { response ->
+            if (response != null && response.success) {
+                val data = response.data
+                val link = response.data.link
+                val description = response.data.description
+                if (data.current_version.toInt() < data.minimum_version.toInt() &&
+                    data.update_type == "mandatory") {
+                    // 🔒 Force user to update
+                    showUpdateDialog(link,description)
 
-                val link = it.data[0].link
-                val description = it.data[0].description
+                } else {
+                    GotoActivity(userData)
 
-                GotoActivity(userData, latestVersion,minimum_required_version, link, description)
+                }
             }
-        })
+        }
 
 
     }
 
     fun GotoActivity(
         userData: UserData?,
-        latestVersion: String,
-        minimum_required_version: String,
-        link: String,
-        description: String
     ) {
 
-
-
-        if (currentVersion.toInt() >= minimum_required_version.toInt()) {
 //            Toast.makeText(this, "1", Toast.LENGTH_SHORT).show()
             if (userData == null) {
 //                Toast.makeText(this, "2", Toast.LENGTH_SHORT).show()
@@ -202,9 +224,7 @@ class SplashScreenActivity : BaseActivity() {
                         finish()
                     }, 3000)
                 }
-            }
-        } else {
-            showUpdateDialog(link, description)
+
         }
 
     }

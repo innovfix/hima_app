@@ -17,6 +17,7 @@ import android.view.View
 import android.view.Window
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.activity.enableEdgeToEdge
@@ -54,6 +55,7 @@ import com.gmwapp.hima.retrofit.responses.RazorPayApiResponse
 import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.FcmTokenViewModel
+import com.gmwapp.hima.viewmodels.IndividualAppUpdateViewModel
 import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.viewmodels.OfferViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
@@ -108,6 +110,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     private val accountViewModel: AccountViewModel by viewModels()
     private val fcmTokenViewModel: FcmTokenViewModel by viewModels()
     private val upiPaymentViewModel: UpiPaymentViewModel by viewModels()
+    val individualAppUpdateViewModel: IndividualAppUpdateViewModel by viewModels()
+
     private var billingManager: BillingManager? = null
     private val WalletViewModel: WalletViewModel by viewModels()
     private val fetchedSkuList: MutableList<String> = mutableListOf()
@@ -180,6 +184,9 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             insets
         }
 
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+
+
         AppEventsLogger.newLogger(this).logEvent("TestEventFromApp")
 
         logDailyActiveUserIfNeeded()
@@ -205,17 +212,39 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 Log.e("Update", "Update flow failed! Result code: ${result.resultCode}")
             }
         }
-        appUpdateViewModel.appUpdate()
+       // appUpdateViewModel.appUpdate()
 
 
-        appUpdateViewModel.appUpdateResponseLiveData.observe(this, Observer {
-            if (it != null && it.success) {
+        userData?.let { individualAppUpdateViewModel.checkUserAppVersion(it.id,currentVersion) }
 
-                val latestVersion = it.data[0].app_version.toString()
-                checkForInAppUpdate(latestVersion)
+//        appUpdateViewModel.appUpdateResponseLiveData.observe(this, Observer {
+//            if (it != null && it.success) {
+//
+//                val latestVersion = it.data[0].app_version.toString()
+//                checkForInAppUpdate(latestVersion)
+//
+//            }
+//        })
 
+        individualAppUpdateViewModel.individualUpdateLiveData.observe(this) { response ->
+
+            if (response != null && response.success) {
+                val data = response.data
+                val link = response.data.link
+                val description = response.data.description
+
+
+                if (data.current_version.toInt()>= data.minimum_version.toInt()){
+                    Log.d("VerisonUpdate","You are to date")
+                }else if (data.current_version.toInt() < data.minimum_version.toInt() &&
+                    data.update_type == "mandatory") {
+                    Log.d("individualAppUpdateViewModel","Mandatory")
+                    showUpdateDialog(link, description)
+                } else {
+                    checkForInAppUpdate()
+                }
             }
-        })
+        }
 
 
 
@@ -224,7 +253,6 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
 
 
-        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         userID = userData?.id.toString()
 //        if (userID!=null){
 //            OneSignal.login(userID!!)
@@ -400,6 +428,29 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             }
 
 
+    }
+
+    private fun showUpdateDialog(link: String, description: String) {
+        val bottomSheetDialog = BottomSheetDialog(this)
+        val view = layoutInflater.inflate(R.layout.bottom_dialog_update, null)
+        bottomSheetDialog.setContentView(view)
+        bottomSheetDialog.setCancelable(false);
+
+        val btnUpdate = view.findViewById<View>(R.id.btnUpdate)
+        val dialogMessage = view.findViewById<TextView>(R.id.dialog_message)
+        dialogMessage.text = description
+        btnUpdate.setOnClickListener(View.OnClickListener {
+            val url = link;
+            val i = Intent(Intent.ACTION_VIEW)
+            i.data = Uri.parse(url)
+            startActivity(i)
+        })
+
+
+        // Customize your bottom dialog here
+        // For example, you can set text, buttons, etc.
+
+        bottomSheetDialog.show()
     }
 
 
@@ -794,9 +845,9 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     }
 
 
-    private fun checkForInAppUpdate(latestVersion:String){
+    private fun checkForInAppUpdate(){
 
-        if (latestVersion>currentVersion) {
+
 
             appUpdateManager = AppUpdateManagerFactory.create(applicationContext)
             // Before starting an update, register a listener for updates.
@@ -834,7 +885,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 Log.e("UpdateCheck", "Failed to check for update: ${exception.message}")
             }
 
-        }
+
 
     }
 

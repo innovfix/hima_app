@@ -28,7 +28,9 @@ data class AppUpdateData(
     val user_name: String,
     val current_version: String,
     val minimum_version: String,
-    val update_type: String
+    val update_type: String,
+    val link: String,
+    val description: String,
 )
 
 
