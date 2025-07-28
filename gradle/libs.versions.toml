@@ -18,7 +18,7 @@ workRuntime = "2.7.0"
 lifecycleProcess = "2.8.7"
 coreAnimation = "1.0.0"
 googleGmsGoogleServices = "4.4.3"
-firebaseAnalytics = "22.5.0"
+firebaseAnalytics = "23.0.0"
 playServicesMeasurementApi = "23.0.0"
 
 [libraries]
