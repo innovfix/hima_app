@@ -19,7 +19,7 @@
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
 
     <uses-feature
         android:glEsVersion="0x00020000"
@@ -117,8 +117,10 @@
 
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+
                 <data android:scheme="opensplash" />
             </intent-filter>
 
@@ -141,20 +143,35 @@
 
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+
                 <data android:scheme="openmain" />
             </intent-filter>
 
 
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="hima.onelink.me" />
+            </intent-filter>
+
+
+
+
         </activity>
-        <activity android:name=".activities.WalletActivity"
+        <activity
+            android:name=".activities.WalletActivity"
             android:exported="true">
 
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+
                 <data android:scheme="gmwapp" />
             </intent-filter>
         </activity>
@@ -208,7 +225,9 @@
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="@string/default_notification_channel_id" />
 
-        <meta-data android:name="com.truecaller.android.sdk.ClientId" android:value="@string/clientID"/>
+        <meta-data
+            android:name="com.truecaller.android.sdk.ClientId"
+            android:value="@string/clientID" />
 
         <activity
             android:name="com.google.androidbrowserhelper.trusted.LauncherActivity"
@@ -223,22 +242,15 @@
               This intent-filter allows the TWA to handle Intents to open
               YOUR_SITE_URL
             -->
-            <intent-filter>
+            <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
 
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
 
-                <!-- Edit android:host to handle links to the target URL -->
-                <data
-                    android:host="YOUR_SITE_URL"
-                    android:scheme="https" />
+                <data android:scheme="https" />
+                <data android:host="your_site_url" />
             </intent-filter>
-
-
-
-
-
 
 
         </activity>
@@ -272,8 +284,6 @@
                 <action android:name="ACTION_REJECT_CALL" />
             </intent-filter>
         </receiver>
-
-
 
 
     </application>
