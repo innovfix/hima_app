@@ -53,7 +53,7 @@ class KycActivity : AppCompatActivity() {
         }
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
 
-        userData?.let { loginViewModel.login(it.mobile) }
+        userData?.let { loginViewModel.login(it.mobile,"0","0") }
 
 
         panObserver()
@@ -109,7 +109,7 @@ class KycActivity : AppCompatActivity() {
                 Toast.makeText(this, response.message, Toast.LENGTH_SHORT).show()
                 val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
 
-                userData?.let { loginViewModel.login(it.mobile) }
+                userData?.let { loginViewModel.login(it.mobile,"0","0") }
 
             } else {
                 Snackbar.make(binding.root, response?.message ?: "Update failed", Snackbar.LENGTH_SHORT).show()

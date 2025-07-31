@@ -188,6 +188,10 @@ dependencies {
 
     implementation ("io.jsonwebtoken:jjwt:0.9.1")
 
+    //Truecaller
+    implementation ("com.truecaller.android.sdk:truecaller-sdk:3.0.0")
+
+
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

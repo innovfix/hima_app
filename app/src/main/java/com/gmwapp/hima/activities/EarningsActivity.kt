@@ -151,7 +151,7 @@ class EarningsActivity : BaseActivity() {
     fun panVerification(){
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
 
-        userData?.let { loginViewModel.login(it.mobile) }
+        userData?.let { loginViewModel.login(it.mobile,"0","0") }
         loginViewModel.loginResponseLiveData.observe(this, Observer {
 
             if (it.success) {

@@ -167,8 +167,8 @@ class ProfileFemaleFragment : BaseFragment() {
     fun panVerification(){
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
 
-        userData?.let { loginViewModel.login(it.mobile) }
-        loginViewModel.loginResponseLiveData.observe(this, Observer {
+        userData?.let { loginViewModel.login(it.mobile,"0","0") }
+        loginViewModel.loginResponseLiveData.observe(viewLifecycleOwner, Observer {
 
             if (it.success) {
                 if (!it.data?.pancard_name.isNullOrEmpty()&& !it.data?.pancard_number.isNullOrEmpty()){

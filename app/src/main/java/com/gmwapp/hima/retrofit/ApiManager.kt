@@ -62,10 +62,10 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
 
 
     fun login(
-        mobile: String, callback: NetworkCallback<LoginResponse>
+        mobile: String,  code: String,  code_verifier: String, callback: NetworkCallback<LoginResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<LoginResponse> = getApiInterface().login(mobile)
+            val apiCall: Call<LoginResponse> = getApiInterface().login(mobile,code, code_verifier)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -684,7 +684,12 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
 interface ApiInterface {
     @FormUrlEncoded
     @POST("login")
-    fun login(@Field("mobile") mobile: String): Call<LoginResponse>
+    fun login(
+        @Field("mobile") mobile: String,
+        @Field("code") code: String,
+        @Field("code_verifier") code_verifier: String
+
+    ): Call<LoginResponse>
 
     @FormUrlEncoded
     @POST("send_otp")

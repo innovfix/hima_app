@@ -29,9 +29,9 @@ class LoginViewModel @Inject constructor(private val loginRepositories: LoginRep
     val appUpdateResponseLiveData = MutableLiveData<AppUpdateResponse>()
     val appUpdateErrorLiveData = MutableLiveData<String>()
 
-    fun login(mobile: String) {
+    fun login(mobile: String,code: String,code_verifier: String) {
         viewModelScope.launch {
-            loginRepositories.login(mobile, object:NetworkCallback<LoginResponse> {
+            loginRepositories.login(mobile,code,code_verifier, object:NetworkCallback<LoginResponse> {
                 override fun onResponse(
                     call: Call<LoginResponse>,
                     response: Response<LoginResponse>

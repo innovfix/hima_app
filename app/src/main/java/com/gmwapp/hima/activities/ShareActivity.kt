@@ -70,7 +70,7 @@ class ShareActivity : AppCompatActivity() {
             binding.textView6.text = "How to get money ?"
             binding.tvGetFreeCoin.text = "Get Money"
             binding.tvShare.text = "Share & Get Money"
-            userData?.let { loginViewModel.login(it.mobile) }
+            userData?.let { loginViewModel.login(it.mobile,"0","0") }
             binding.coinH.setImageResource(R.drawable.ruppee_2)
             binding.ivCoin.setImageResource(R.drawable.ruppee_1)
             binding.ivCoin2.setImageResource(R.drawable.ruppee_1)
