@@ -4,7 +4,9 @@
     <string name="login_to_get_started">Login to get started</string>
     <string name="you_will_receive_an_otp_on_this_number">You will receive an OTP on this number.</string>
     <string name="send_otp">Send OTP</string>
-    <string name="terms_and_conditions_text"><![CDATA[I accept terms & conditions of HI ma. I also agree to receiving updates on WhatsApp/SMS.]]></string>
+    <string name="terms_and_conditions_text">
+    <![CDATA[I accept <b>terms & conditions</b>, and <b>community guidelines & moderation policy</b> of HI ma.]]>
+</string>
     <string name="please_enter_otp_sent_to">Please enter OTP sent to </string>
     <string name="enter_otp">Enter OTP</string>
     <string name="verify_otp">Verify OTP</string>
@@ -33,6 +35,7 @@
     <string name="refer_earn">Refer &amp; Earn</string>
     <string name="terms_and_condition">Terms &amp; Condition</string>
     <string name="refund_and_cancellation">Refund &amp; Cancellation</string>
+    <string name="CommunityGuidelines">Community Guidelines &amp; Moderation Policy</string>
     <string name="account_privacy">Account Privacy</string>
     <string name="logout">Logout</string>
     <string name="need_help">Need Help? Please contact </string>

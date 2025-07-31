@@ -16,6 +16,7 @@ import androidx.lifecycle.Observer
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.CommunityGuidelineActivity
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.AccountPrivacyActivity
 import com.gmwapp.hima.activities.EditProfileActivity
@@ -120,6 +121,12 @@ class ProfileFragment : BaseFragment() {
 
         binding.clRefund.setOnSingleClickListener {
             val intent = Intent(context, RefundWebViewActivity::class.java)
+
+            startActivity(intent)
+        }
+
+        binding.clGuideline.setOnSingleClickListener {
+            val intent = Intent(context, CommunityGuidelineActivity::class.java)
 
             startActivity(intent)
         }

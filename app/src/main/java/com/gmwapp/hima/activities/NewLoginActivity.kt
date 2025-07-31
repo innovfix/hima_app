@@ -13,6 +13,7 @@ import com.gmwapp.hima.adapters.OnboardingPagerAdapter
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import android.content.Intent
+import android.graphics.Color
 import android.graphics.Paint
 import android.net.Uri
 import android.os.CountDownTimer
@@ -30,11 +31,13 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.core.text.HtmlCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
 import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.CommunityGuidelineActivity
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityNewLoginBinding
@@ -225,31 +228,76 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
     }
 
     private fun setMessageWithClickableLink() {
-        val content = getString(R.string.terms_and_conditions_text, getString(R.string.app_name))
-        val clickableSpan = object : ClickableSpan() {
-            override fun onClick(textView: View) {
-                val intent = Intent(this@NewLoginActivity, WebviewActivity::class.java)
-                startActivity(intent)
-            }
+        val content = HtmlCompat.fromHtml(
+            getString(R.string.terms_and_conditions_text),
+            HtmlCompat.FROM_HTML_MODE_LEGACY
+        ).toString()
 
-            override fun updateDrawState(textPaint: TextPaint) {
-                super.updateDrawState(textPaint)
-                textPaint.color = getColor(R.color.colorPrimaryDark)
-                textPaint.isUnderlineText = false
-            }
-        }
-        val startIndex = content.indexOf("terms & conditions")
-        val endIndex = startIndex + "terms & conditions".length
         val spannableString = SpannableString(content)
-        spannableString.setSpan(
-            clickableSpan,
-            startIndex,
-            endIndex,
-            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-        )
+
+        addClickablePart(
+            spannableString,
+            "terms & conditions"
+        ) {
+            startActivity(Intent(this, WebviewActivity::class.java))
+        }
+
+        addClickablePart(
+            spannableString,
+            "community guidelines & moderation policy"
+        ) {
+            startActivity(Intent(this, CommunityGuidelineActivity::class.java))
+        }
+
         binding.tvTermsAndConditions.text = spannableString
         binding.tvTermsAndConditions.movementMethod = LinkMovementMethod.getInstance()
+        binding.tvTermsAndConditions.highlightColor = Color.TRANSPARENT
     }
+
+    private fun addClickablePart(spannable: SpannableString, phrase: String, onClick: () -> Unit) {
+        val start = spannable.indexOf(phrase)
+        if (start >= 0) {
+            val end = start + phrase.length
+            val clickableSpan = object : ClickableSpan() {
+                override fun onClick(widget: View) = onClick()
+
+                override fun updateDrawState(ds: TextPaint) {
+                    super.updateDrawState(ds)
+                    ds.color = getColor(R.color.colorPrimaryDark)
+                    ds.isUnderlineText = false
+                }
+            }
+            spannable.setSpan(clickableSpan, start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+    }
+
+
+//    private fun setMessageWithClickableLink() {
+//        val content = getString(R.string.terms_and_conditions_text, getString(R.string.app_name))
+//        val clickableSpan = object : ClickableSpan() {
+//            override fun onClick(textView: View) {
+//                val intent = Intent(this@NewLoginActivity, WebviewActivity::class.java)
+//                startActivity(intent)
+//            }
+//
+//            override fun updateDrawState(textPaint: TextPaint) {
+//                super.updateDrawState(textPaint)
+//                textPaint.color = getColor(R.color.colorPrimaryDark)
+//                textPaint.isUnderlineText = false
+//            }
+//        }
+//        val startIndex = content.indexOf("terms & conditions")
+//        val endIndex = startIndex + "terms & conditions".length
+//        val spannableString = SpannableString(content)
+//        spannableString.setSpan(
+//            clickableSpan,
+//            startIndex,
+//            endIndex,
+//            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+//        )
+//        binding.tvTermsAndConditions.text = spannableString
+//        binding.tvTermsAndConditions.movementMethod = LinkMovementMethod.getInstance()
+//    }
 
     private fun sendOTP(mobile: String, countryCode:Int) {
         this.mobile = mobile

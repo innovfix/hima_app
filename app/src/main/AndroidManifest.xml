@@ -42,6 +42,9 @@
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
         <activity
+            android:name=".CommunityGuidelineActivity"
+            android:exported="false" />
+        <activity
             android:name=".activities.TermConditionWebViewActivity"
             android:exported="false" />
         <activity
@@ -112,15 +115,14 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-
-
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+
                 <data android:scheme="opensplash" />
             </intent-filter>
-
         </activity>
         <activity android:name=".activities.VerifyOTPActivity" />
         <activity
@@ -137,23 +139,24 @@
                 <data android:scheme="https" />
                 <data android:host="himaapp.in" />
             </intent-filter>
-
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+
                 <data android:scheme="openmain" />
             </intent-filter>
-
-
         </activity>
-        <activity android:name=".activities.WalletActivity"
+        <activity
+            android:name=".activities.WalletActivity"
             android:exported="true">
-
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+
                 <data android:scheme="gmwapp" />
             </intent-filter>
         </activity>
@@ -231,13 +234,6 @@
                     android:host="YOUR_SITE_URL"
                     android:scheme="https" />
             </intent-filter>
-
-
-
-
-
-
-
         </activity>
 
         <service
@@ -269,10 +265,6 @@
                 <action android:name="ACTION_REJECT_CALL" />
             </intent-filter>
         </receiver>
-
-
-
-
     </application>
 
 </manifest>

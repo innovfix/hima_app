@@ -17,6 +17,7 @@ import com.bumptech.glide.load.resource.bitmap.RoundedCorners
 import com.bumptech.glide.load.resource.bitmap.TransformationUtils.circleCrop
 import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.CommunityGuidelineActivity
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.AccountPrivacyActivity
 import com.gmwapp.hima.activities.EarningsActivity
@@ -129,6 +130,12 @@ class ProfileFemaleFragment : BaseFragment() {
 
         binding.clRefund.setOnSingleClickListener {
             val intent = Intent(context, RefundWebViewActivity::class.java)
+
+            startActivity(intent)
+        }
+
+        binding.clGuideline.setOnSingleClickListener {
+            val intent = Intent(context, CommunityGuidelineActivity::class.java)
 
             startActivity(intent)
         }
