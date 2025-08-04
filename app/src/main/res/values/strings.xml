@@ -248,4 +248,7 @@
 
     <string name="blockwords_disclamair">We ended the call because abusive words were detected. Please speak respectfully to ensure a safe and friendly experience for everyone.</string>
     <string name="blockwords_disclamair2">Call Disconnected Due to Abusive Language</string>
+
+        <string name="clientID">8avjby8rduvi2o3kgk6eorcdq457spxayqyse-luibo</string>
+<!--    <string name="clientID">mrx9s3lgullvwpqilpta9ruvkcy_yryvht6vawcien0</string>-->
 </resources>

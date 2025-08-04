@@ -26,8 +26,8 @@ android {
         applicationId = "com.gmwapp.hima"
         minSdk = 26
         targetSdk = 35
-        versionCode = 28
-        versionName = "28.0"
+        versionCode = 30
+        versionName = "30"
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -187,6 +187,9 @@ dependencies {
 //    implementation ("com.alphacephei:vosk-android:0.3.47")
 
     implementation ("io.jsonwebtoken:jjwt:0.9.1")
+
+    //Truecaller
+    implementation ("com.truecaller.android.sdk:truecaller-sdk:3.0.0")
 
 
     testImplementation(libs.junit)
