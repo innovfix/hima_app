@@ -95,21 +95,21 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
     private val subtitles = listOf("No real pics, Only Avatar", "Find best friends", "Zero fake profiles")
 
 
-    private val requiredPermissions = arrayOf(
-        android.Manifest.permission.READ_PHONE_STATE,
-        android.Manifest.permission.READ_CALL_LOG,
-        android.Manifest.permission.ANSWER_PHONE_CALLS
-    )
-
-    private fun checkAndRequestPermissions() {
-        val missing = requiredPermissions.filter {
-            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-        }
-
-        if (missing.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, missing.toTypedArray(), 1001)
-        }
-    }
+//    private val requiredPermissions = arrayOf(
+//        android.Manifest.permission.READ_PHONE_STATE,
+//        android.Manifest.permission.READ_CALL_LOG,
+//        android.Manifest.permission.ANSWER_PHONE_CALLS
+//    )
+//
+//    private fun checkAndRequestPermissions() {
+//        val missing = requiredPermissions.filter {
+//            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+//        }
+//
+//        if (missing.isNotEmpty()) {
+//            ActivityCompat.requestPermissions(this, missing.toTypedArray(), 1001)
+//        }
+//    }
 
 
     // Define the callback that handles login result
@@ -726,19 +726,19 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
     }
 
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-
-        if (requestCode == 1001) {
-            if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                Toast.makeText(this, "Permissions granted", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(this, "Permissions denied. Verification may not work.", Toast.LENGTH_LONG).show()
-            }
-        }
-    }
+//    override fun onRequestPermissionsResult(
+//        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
+//    ) {
+//        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+//
+//        if (requestCode == 1001) {
+//            if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+//                Toast.makeText(this, "Permissions granted", Toast.LENGTH_SHORT).show()
+//            } else {
+//                Toast.makeText(this, "Permissions denied. Verification may not work.", Toast.LENGTH_LONG).show()
+//            }
+//        }
+//    }
 
 }
 

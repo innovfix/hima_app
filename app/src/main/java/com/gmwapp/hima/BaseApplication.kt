@@ -161,9 +161,9 @@ class BaseApplication : Application(), Configuration.Provider {
 
         // requestPermission will show the native Android notification permission prompt.
         // NOTE: It's recommended to use a OneSignal In-App Message to prompt instead.
-        CoroutineScope(Dispatchers.IO).launch {
-            OneSignal.Notifications.requestPermission(false)
-        }
+//        CoroutineScope(Dispatchers.IO).launch {
+//            OneSignal.Notifications.requestPermission(false)
+//        }
         var userId = getInstance()?.getPrefs()
             ?.getUserData()?.id.toString() // Set user_id
         Log.d("userIDCheck", "Logging in with userId: $userId")

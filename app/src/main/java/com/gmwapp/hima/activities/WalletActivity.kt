@@ -3,10 +3,12 @@ package com.gmwapp.hima.activities
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
 import android.util.Base64
 import android.util.Log
 import android.view.View
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -83,6 +85,7 @@ class WalletActivity : BaseActivity()  {
     private lateinit var name :String
     private val fetchedSkuList: MutableList<String> = mutableListOf()
 
+    var fromDeepLink = false
 
     val apiService = RetrofitClient.instance
 
@@ -127,9 +130,21 @@ class WalletActivity : BaseActivity()  {
             insets
         }
 
+        fromDeepLink = intent.getBooleanExtra("from_deeplink", false)
+
         initUI()
         observeCoins()
         intializePhonpe()
+
+        onBackPressedDispatcher.addCallback(this) {
+            if (fromDeepLink){
+            startActivity(Intent(this@WalletActivity, MainActivity::class.java))
+            finish()
+        }else{
+            finish()
+        }
+
+        }
 
     }
 
@@ -394,7 +409,12 @@ class WalletActivity : BaseActivity()  {
 
         val layoutManager = GridLayoutManager(this, 3)
         binding.ivBack.setOnSingleClickListener {
-            finish()
+            if (fromDeepLink){
+                startActivity(Intent(this@WalletActivity, MainActivity::class.java))
+                finish()
+            }else{
+                finish()
+            }
         }
 //        binding.rvPlans.addItemDecoration(SpacesItemDecoration(20))
         binding.rvPlans.setLayoutManager(layoutManager)
@@ -930,6 +950,7 @@ class WalletActivity : BaseActivity()  {
 
 
     }
+
 
 
 
