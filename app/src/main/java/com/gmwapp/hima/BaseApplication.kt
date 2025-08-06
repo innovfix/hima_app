@@ -35,6 +35,12 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 
+import com.appsflyer.AppsFlyerLib;
+import com.appsflyer.AppsFlyerConversionListener;
+
+import java.util.Map;
+
+
 @HiltAndroidApp
 class BaseApplication : Application(), Configuration.Provider {
     private var isReceiverDetailsAvailable: Boolean = false
@@ -142,6 +148,7 @@ class BaseApplication : Application(), Configuration.Provider {
 
         firebaseAnalytics = FirebaseAnalytics.getInstance(this)
 
+        appflyer()
 
         FacebookSdk.setApplicationId(getString(R.string.facebook_app_id))
         FacebookSdk.sdkInitialize(applicationContext)
@@ -169,9 +176,7 @@ class BaseApplication : Application(), Configuration.Provider {
             ?.getUserData()?.id.toString() // Set user_id
         Log.d("userIDCheck", "Logging in with userId: $userId")
 
-        ZohoSalesIQ.init(this, "2VOIpTcfcgE%2BUhLrpfL5Sdw0%2FON4sOEn3pE5EmwuYzOaU8BLhSO8qhPCANC9LnQa_in", "xHGPBNAi6lBPVQB2vh987S6JIsEJi2TiySCStaNGyaA0yKccjOKLb0DSeC9vfeZ3XUwTbvVRwZtx9nig%2FzwmR2tPURa1wqMQ7ShS5BnSf6nDpAt6FvbISA%3D%3D" );
-
-
+      //  initZoho()
 
 
 
@@ -419,5 +424,48 @@ class BaseApplication : Application(), Configuration.Provider {
             }
         }
         return false  // App is in background
+    }
+
+    fun appflyer() {
+        val conversionDataListener = object : AppsFlyerConversionListener {
+            override fun onConversionDataSuccess(conversionData: MutableMap<String, Any>?) {
+                conversionData?.let {
+                    for ((key, value) in it) {
+                        Log.d("AppsFlyer", "Conversion data: $key = $value")
+                    }
+                } ?: Log.d("AppsFlyer", "Conversion data is null")
+            }
+
+            override fun onConversionDataFail(errorMessage: String?) {
+                Log.e("AppsFlyer", "Conversion data failure: $errorMessage")
+            }
+
+            override fun onAppOpenAttribution(attributionData: MutableMap<String, String>?) {
+                attributionData?.let {
+                    for ((key, value) in it) {
+                        Log.d("AppsFlyer", "Attribution data: $key = $value")
+                    }
+                } ?: Log.d("AppsFlyer", "Attribution data is null")
+            }
+
+            override fun onAttributionFailure(errorMessage: String?) {
+                Log.e("AppsFlyer", "Attribution failure: $errorMessage")
+            }
+        }
+
+        AppsFlyerLib.getInstance().init("a3v6JFHivKze4bos9RQMf8", conversionDataListener, applicationContext)
+        AppsFlyerLib.getInstance().start(applicationContext)
+    }
+
+    fun initZoho(){
+        var userGender = getInstance()?.getPrefs()?.getUserData()?.gender
+
+        if (userGender=="female") {
+            ZohoSalesIQ.init(
+                this,
+                "2VOIpTcfcgE%2BUhLrpfL5Sdw0%2FON4sOEn3pE5EmwuYzOaU8BLhSO8qhPCANC9LnQa_in",
+                "xHGPBNAi6lBPVQB2vh987S6JIsEJi2TiySCStaNGyaA0yKccjOKLb0DSeC9vfeZ3XUwTbvVRwZtx9nig%2FzwmR2tPURa1wqMQ7ShS5BnSf6nDpAt6FvbISA%3D%3D"
+            );
+        }
     }
 }

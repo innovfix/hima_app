@@ -26,8 +26,8 @@ android {
         applicationId = "com.gmwapp.hima"
         minSdk = 26
         targetSdk = 35
-        versionCode = 36
-        versionName = "36"
+        versionCode = 1001
+        versionName = "1001"
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -193,6 +193,14 @@ dependencies {
 
     //Zoho chat
     implementation ("com.zoho.salesiq:mobilisten:8.2.2")
+
+    //Appflyer
+    implementation ("com.appsflyer:af-android-sdk:6.15.0")
+
+    //Install referer
+    implementation ("com.android.installreferrer:installreferrer:2.2")
+
+
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

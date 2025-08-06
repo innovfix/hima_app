@@ -44,6 +44,7 @@ import com.gmwapp.hima.retrofit.responses.UserValidationResponse
 import com.gmwapp.hima.retrofit.responses.VoiceUpdateResponse
 import com.gmwapp.hima.retrofit.responses.WhatsappLinkResponse
 import com.gmwapp.hima.retrofit.responses.WithdrawResponse
+import com.gmwapp.hima.retrofit.responses.ZohoMailResponse
 import com.gmwapp.hima.utils.Helper
 import okhttp3.MultipartBody
 import retrofit2.Call
@@ -627,6 +628,16 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun getZohoMailList(language: String, callback: NetworkCallback<ZohoMailResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val call = getApiInterface().getZohoMailList(language)
+            call.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+
 
 
     fun sendFcmNotification(
@@ -1054,6 +1065,12 @@ interface ApiInterface {
         @Field("coins_id") coinID: String?
     ): Call<CouponsResponse>
 
+
+    @FormUrlEncoded
+    @POST("zohomail_list")
+    fun getZohoMailList(
+        @Field("language") language: String
+    ): Call<ZohoMailResponse>
 
 
 

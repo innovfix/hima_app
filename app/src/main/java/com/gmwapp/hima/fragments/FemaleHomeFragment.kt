@@ -43,6 +43,7 @@ import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.gmwapp.hima.viewmodels.WhatsappLinkViewModel
+import com.gmwapp.hima.viewmodels.ZohoMailViewModel
 import com.gmwapp.hima.workers.CallUpdateWorker
 import com.onesignal.OneSignal
 import com.zoho.commons.LauncherModes
@@ -74,6 +75,7 @@ class FemaleHomeFragment : BaseFragment() {
     lateinit var binding: FragmentFemaleHomeBinding
     lateinit var language : String
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
+    private val zohoMailViewModel: ZohoMailViewModel by viewModels()
     private val whatsappLinkViewModel: WhatsappLinkViewModel by viewModels()
     private val accountViewModel: AccountViewModel by viewModels()
 
@@ -280,28 +282,42 @@ class FemaleHomeFragment : BaseFragment() {
         val userData = prefs?.getUserData()
         val userLanguage = userData?.language //
 
-
-        val props = LauncherProperties(LauncherModes.FLOATING)
-        props.setYFromBottom(180)
-
-        props.setDirection(LauncherProperties.Horizontal.RIGHT) // Add this line
-
-        ZohoSalesIQ.Visitor.setName("${userData?.name} - $userLanguage")
-
-        ZohoSalesIQ.Visitor.setContactNumber("${userData?.mobile}")
+//        ZohoSalesIQ.deInit {  }
+//        BaseApplication.getInstance()?.initZoho()
+//
+//        val props = LauncherProperties(LauncherModes.FLOATING)
+//        props.setYFromBottom(180)
+//
+//        props.setDirection(LauncherProperties.Horizontal.RIGHT) // Add this line
 
 
 
-
-        ZohoSalesIQ.Chat.setOperatorEmail("innovfix@gmail.com")
-
-        ZohoSalesIQ.setLauncherProperties(props)
-        ZohoSalesIQ.showLauncher(true)
+//        userLanguage?.let { zohoMailViewModel.fetchZohoMail(it) }
 
 
+        userLanguage?.let {
+            zohoMailViewModel.fetchZohoMail(it) { email ->
+                if (!email.isNullOrEmpty()) {
 
+                    // Initialize Zoho *after* email is ready
 
+                    BaseApplication.getInstance()?.initZoho()
 
+                    ZohoSalesIQ.Visitor.setName("${userData?.name} - $userLanguage")
+                    ZohoSalesIQ.Visitor.setContactNumber("${userData?.mobile}")
+                    ZohoSalesIQ.Chat.setOperatorEmail(email)
+
+                    val props = LauncherProperties(LauncherModes.FLOATING)
+                    props.setYFromBottom(180)
+                    props.setDirection(LauncherProperties.Horizontal.RIGHT)
+
+                    ZohoSalesIQ.setLauncherProperties(props)
+                    ZohoSalesIQ.showLauncher(true)
+                } else {
+                    Log.e("ZohoMailError", "Failed to fetch operator email")
+                }
+            }
+        }
 
 
 
@@ -502,7 +518,6 @@ class FemaleHomeFragment : BaseFragment() {
         val userData = prefs?.getUserData()
         femaleUsersViewModel.getReports(userData?.id!!)
         updateEarnings()
-        ZohoSalesIQ.showLauncher(true)
     }
 
 
