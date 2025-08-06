@@ -44,6 +44,7 @@
         android:elevation="0dp"
         app:backgroundTint="@color/green"
 
+        android:visibility="gone"
         app:borderWidth="2dp"
         app:fabSize="auto"
         app:layout_constraintEnd_toEndOf="@id/gl_right_margin"

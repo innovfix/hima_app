@@ -1,7 +1,6 @@
-package com.gmwapp.hima
+package com.gmwapp.hima.activities
 
 import android.content.Intent
-import android.content.res.Resources
 import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
@@ -11,30 +10,13 @@ import java.util.Locale
 import android.os.Handler
 import android.os.Looper
 
-import android.view.MotionEvent
-import android.view.View
-import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.IntentSenderRequest
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updateLayoutParams
-import com.bumptech.glide.Glide
-import com.bumptech.glide.request.RequestOptions
-import com.gmwapp.hima.activities.SplashScreenActivity
+import com.gmwapp.hima.R
 import com.gmwapp.hima.databinding.ActivityDemoBinding
-import com.gmwapp.hima.utils.setOnSingleClickListener
-import com.gmwapp.hima.viewmodels.ProfileViewModel
-import com.gmwapp.hima.viewmodels.UserAvatarViewModel
-import com.google.android.play.core.appupdate.AppUpdateManagerFactory
-import com.google.android.play.core.appupdate.AppUpdateOptions
-import com.google.android.play.core.install.model.AppUpdateType
-import com.google.android.play.core.install.model.UpdateAvailability
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint

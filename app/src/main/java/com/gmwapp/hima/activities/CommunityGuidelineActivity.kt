@@ -1,10 +1,11 @@
-package com.gmwapp.hima
+package com.gmwapp.hima.activities
 
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
+import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.databinding.ActivityCommunityGuidelineBinding
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import dagger.hilt.android.AndroidEntryPoint

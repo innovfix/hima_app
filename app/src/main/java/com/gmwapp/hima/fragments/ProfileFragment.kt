@@ -16,7 +16,7 @@ import androidx.lifecycle.Observer
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
-import com.gmwapp.hima.CommunityGuidelineActivity
+import com.gmwapp.hima.activities.CommunityGuidelineActivity
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.AccountPrivacyActivity
 import com.gmwapp.hima.activities.EditProfileActivity
@@ -25,7 +25,6 @@ import com.gmwapp.hima.activities.ShareActivity
 import com.gmwapp.hima.activities.TermConditionWebViewActivity
 import com.gmwapp.hima.activities.TransactionsActivity
 import com.gmwapp.hima.activities.WalletActivity
-import com.gmwapp.hima.activities.WebviewActivity
 import com.gmwapp.hima.databinding.FragmentProfileBinding
 import com.gmwapp.hima.dialogs.BottomSheetLogout
 import com.gmwapp.hima.utils.setOnSingleClickListener

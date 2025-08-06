@@ -45,6 +45,9 @@ import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.gmwapp.hima.viewmodels.WhatsappLinkViewModel
 import com.gmwapp.hima.workers.CallUpdateWorker
 import com.onesignal.OneSignal
+import com.zoho.commons.LauncherModes
+import com.zoho.commons.LauncherProperties
+import com.zoho.salesiqembed.ZohoSalesIQ
 //import com.tencent.mmkv.MMKV
 //import com.zegocloud.uikit.ZegoUIKit
 //import com.zegocloud.uikit.prebuilt.call.core.CallInvitationServiceImpl
@@ -273,9 +276,37 @@ class FemaleHomeFragment : BaseFragment() {
 
     private fun initUI() {
 
-        accountViewModel.getSettings()
         val prefs = BaseApplication.getInstance()?.getPrefs()
         val userData = prefs?.getUserData()
+        val userLanguage = userData?.language //
+
+
+        val props = LauncherProperties(LauncherModes.FLOATING)
+        props.setYFromBottom(180)
+
+        props.setDirection(LauncherProperties.Horizontal.RIGHT) // Add this line
+
+        ZohoSalesIQ.Visitor.setName("${userData?.name} - $userLanguage")
+
+        ZohoSalesIQ.Visitor.setContactNumber("${userData?.mobile}")
+
+
+
+
+        ZohoSalesIQ.Chat.setOperatorEmail("innovfix@gmail.com")
+
+        ZohoSalesIQ.setLauncherProperties(props)
+        ZohoSalesIQ.showLauncher(true)
+
+
+
+
+
+
+
+
+        accountViewModel.getSettings()
+
 
 
         language = userData?.language.toString()
@@ -471,6 +502,7 @@ class FemaleHomeFragment : BaseFragment() {
         val userData = prefs?.getUserData()
         femaleUsersViewModel.getReports(userData?.id!!)
         updateEarnings()
+        ZohoSalesIQ.showLauncher(true)
     }
 
 

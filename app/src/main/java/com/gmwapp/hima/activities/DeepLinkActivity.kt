@@ -1,4 +1,4 @@
-package com.gmwapp.hima
+package com.gmwapp.hima.activities
 
 import android.content.Intent
 import android.os.Bundle
@@ -7,9 +7,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.gmwapp.hima.activities.MainActivity
-import com.gmwapp.hima.activities.NewLoginActivity
-import com.gmwapp.hima.activities.WalletActivity
+import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.R
 
 class DeepLinkActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

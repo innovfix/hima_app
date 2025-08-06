@@ -81,6 +81,7 @@ import com.onesignal.OneSignal
 import com.phonepe.intent.sdk.api.PhonePeInitException
 import com.phonepe.intent.sdk.api.PhonePeKt
 import com.phonepe.intent.sdk.api.models.PhonePeEnvironment
+import com.zoho.salesiqembed.ZohoSalesIQ
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -186,6 +187,13 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, 0)
             insets
         }
+
+
+
+//        var gender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
+//        if (gender=="female"){
+//            ZohoSalesIQ.showLauncher(true)
+//        }
 
         CoroutineScope(Dispatchers.IO).launch {
             OneSignal.Notifications.requestPermission(false)

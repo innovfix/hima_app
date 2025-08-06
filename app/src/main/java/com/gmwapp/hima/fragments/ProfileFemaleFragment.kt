@@ -5,19 +5,17 @@ import android.content.Intent
 import android.graphics.Paint
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.activity.viewModels
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.resource.bitmap.RoundedCorners
-import com.bumptech.glide.load.resource.bitmap.TransformationUtils.circleCrop
 import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
-import com.gmwapp.hima.CommunityGuidelineActivity
+import com.gmwapp.hima.activities.CommunityGuidelineActivity
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.AccountPrivacyActivity
 import com.gmwapp.hima.activities.EarningsActivity
@@ -25,14 +23,12 @@ import com.gmwapp.hima.activities.EditProfileActivity
 import com.gmwapp.hima.activities.RefundWebViewActivity
 import com.gmwapp.hima.activities.ShareActivity
 import com.gmwapp.hima.activities.TermConditionWebViewActivity
-import com.gmwapp.hima.activities.TransactionsActivity
-import com.gmwapp.hima.activities.WalletActivity
-import com.gmwapp.hima.databinding.FragmentProfileBinding
 import com.gmwapp.hima.databinding.FragmentProfileFemaleBinding
 import com.gmwapp.hima.dialogs.BottomSheetLogout
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.LoginViewModel
+import com.gmwapp.hima.viewmodels.WhatsappLinkViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -40,8 +36,14 @@ class ProfileFemaleFragment : BaseFragment() {
     lateinit var binding: FragmentProfileFemaleBinding
     private val EDIT_PROFILE_REQUEST_CODE = 1
     private val accountViewModel: AccountViewModel by viewModels()
+    private val whatsappLinkViewModel: WhatsappLinkViewModel by viewModels()
+
     private val loginViewModel: LoginViewModel by viewModels()
     private var isPanVerified = false
+    var whataspplink : String = ""
+    lateinit var language : String
+
+
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -50,6 +52,7 @@ class ProfileFemaleFragment : BaseFragment() {
     ): View {
         binding = FragmentProfileFemaleBinding.inflate(layoutInflater)
         initUI()
+        whatsapp()
         panVerification()
         return binding.root
     }
@@ -86,8 +89,10 @@ class ProfileFemaleFragment : BaseFragment() {
     }
 
     private fun initUI(){
+
         updateValues()
         val prefs = BaseApplication.getInstance()?.getPrefs()
+
 
         binding.clEarnings.setOnSingleClickListener( {
             val intent = Intent(context, EarningsActivity::class.java)
@@ -140,6 +145,11 @@ class ProfileFemaleFragment : BaseFragment() {
             startActivity(intent)
         }
 
+        binding.clWhatsapp.setOnClickListener {
+            if (whataspplink.isNotEmpty() && whataspplink!=null){
+                openWhatsAppGroup(whataspplink)
+            }
+        }
 
 
         accountViewModel.getSettings()
@@ -186,6 +196,38 @@ class ProfileFemaleFragment : BaseFragment() {
         })
     }
 
+    fun whatsapp(){
+
+        val prefs = BaseApplication.getInstance()?.getPrefs()
+        val userData = prefs?.getUserData()
+
+
+        language = userData?.language.toString()
+        language?.let { whatsappLinkViewModel.fetchLink(it) }
+
+        whatsappLinkViewModel.whatsappResponseLiveData.observe(viewLifecycleOwner) { response ->
+            response?.let {
+                if (it.success && it.data.isNotEmpty()) {
+                    whataspplink = it.data[0].link
+
+                } else {
+                    Log.e("VideoError", "Please try again later")
+                }
+            }
+        }
+    }
+
+    private fun openWhatsAppGroup(groupLink: String) {
+        try {
+            val intent = Intent(Intent.ACTION_VIEW)
+            intent.data = Uri.parse(groupLink)
+            intent.setPackage("com.whatsapp") // Ensures only WhatsApp handles the intent
+            startActivity(intent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+//            Toast.makeText(this, "WhatsApp is not installed", Toast.LENGTH_SHORT).show()
+        }
+    }
     override fun onResume() {
         super.onResume()
             panVerification()

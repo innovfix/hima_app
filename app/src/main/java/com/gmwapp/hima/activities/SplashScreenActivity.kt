@@ -34,6 +34,7 @@ import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.google.android.play.core.appupdate.AppUpdateOptions
 import com.google.android.play.core.install.model.AppUpdateType
 import com.google.android.play.core.install.model.UpdateAvailability
+import com.zoho.salesiqembed.ZohoSalesIQ
 //import com.zego.ve.Log
 import dagger.hilt.android.AndroidEntryPoint
 import org.greenrobot.eventbus.EventBus
@@ -63,8 +64,10 @@ class SplashScreenActivity : BaseActivity() {
             return
         }
 
+        ZohoSalesIQ.showLauncher(false)
 
-       // viewModel.appUpdate()
+
+        // viewModel.appUpdate()
 
         var intent: Intent? = null
         val prefs = BaseApplication.getInstance()?.getPrefs()

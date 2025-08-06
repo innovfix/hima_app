@@ -4,22 +4,15 @@ import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.widget.ImageView
-import android.widget.RelativeLayout
-import androidx.appcompat.app.AppCompatActivity
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.viewpager2.widget.ViewPager2
 import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.OnboardingPagerAdapter
-import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Paint
-import android.net.Uri
 import android.os.CountDownTimer
 import android.text.Editable
-import android.text.InputType
 import android.text.SpannableString
 import android.text.Spanned
 import android.text.TextPaint
@@ -30,42 +23,32 @@ import android.text.style.ClickableSpan
 import android.util.Log
 import android.view.View
 import android.view.inputmethod.InputMethodManager
-import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.ActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.appcompat.app.AlertDialog
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import androidx.core.text.HtmlCompat
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
 import com.gmwapp.hima.BaseApplication
-import com.gmwapp.hima.CommunityGuidelineActivity
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityNewLoginBinding
 import com.gmwapp.hima.dialogs.BottomSheetCountry
 import com.gmwapp.hima.retrofit.responses.Country
 import com.gmwapp.hima.utils.DPreferences
-import com.gmwapp.hima.viewmodels.FcmTokenViewModel
 import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.viewmodels.ReferralCodeViewModel
 import com.google.android.material.snackbar.Snackbar
 import com.truecaller.android.sdk.common.TrueException
 import com.truecaller.android.sdk.common.VerificationCallback
 import com.truecaller.android.sdk.common.VerificationDataBundle
-import com.truecaller.android.sdk.common.models.TrueProfile
 import com.truecaller.android.sdk.oAuth.CodeVerifierUtil
 import com.truecaller.android.sdk.oAuth.TcOAuthCallback
 import com.truecaller.android.sdk.oAuth.TcOAuthData
 import com.truecaller.android.sdk.oAuth.TcOAuthError
 import com.truecaller.android.sdk.oAuth.TcSdk
 import com.truecaller.android.sdk.oAuth.TcSdkOptions
+import com.zoho.salesiqembed.ZohoSalesIQ
 //import com.zego.ve.Log
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
@@ -208,6 +191,8 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         binding = ActivityNewLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
         enableEdgeToEdge()
+
+        ZohoSalesIQ.showLauncher(false)
 
         setupOnboarding()
         initUI()

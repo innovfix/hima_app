@@ -40,20 +40,25 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="true"
+        tools:replace="android:dataExtractionRules,android:fullBackupContent"
         tools:targetApi="31">
-        <activity
-            android:name=".DeepLinkActivity"
-            android:exported="true" >
 
+        <activity
+            android:name=".activities.DeepLinkActivity"
+            android:exported="true">
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="hima.onelink.me" />
+
+                <data
+                    android:host="hima.onelink.me"
+                    android:scheme="https" />
             </intent-filter>
         </activity>
         <activity
-            android:name=".CommunityGuidelineActivity"
+            android:name=".activities.CommunityGuidelineActivity"
             android:exported="false" />
         <activity
             android:name=".activities.TermConditionWebViewActivity"
@@ -77,7 +82,7 @@
             android:theme="@style/Theme.AppCompat.Light.NoActionBar"
             tools:replace="android:theme" />
         <activity
-            android:name=".DemoActivity"
+            android:name=".activities.DemoActivity"
             android:exported="false" />
         <activity
             android:name=".agora.AgoraRandomCallActivity"

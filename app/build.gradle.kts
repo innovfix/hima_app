@@ -191,6 +191,8 @@ dependencies {
     //Truecaller
     implementation ("com.truecaller.android.sdk:truecaller-sdk:3.0.0")
 
+    //Zoho chat
+    implementation ("com.zoho.salesiq:mobilisten:8.2.2")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

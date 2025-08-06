@@ -24,6 +24,7 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.onesignal.OneSignal
 import com.onesignal.debug.LogLevel
+import com.zoho.salesiqembed.ZohoSalesIQ
 //import com.zegocloud.uikit.prebuilt.call.core.CallInvitationServiceImpl
 //import com.zegocloud.uikit.prebuilt.call.core.notification.RingtoneManager
 import dagger.hilt.android.HiltAndroidApp
@@ -167,6 +168,13 @@ class BaseApplication : Application(), Configuration.Provider {
         var userId = getInstance()?.getPrefs()
             ?.getUserData()?.id.toString() // Set user_id
         Log.d("userIDCheck", "Logging in with userId: $userId")
+
+        ZohoSalesIQ.init(this, "2VOIpTcfcgE%2BUhLrpfL5Sdw0%2FON4sOEn3pE5EmwuYzOaU8BLhSO8qhPCANC9LnQa_in", "xHGPBNAi6lBPVQB2vh987S6JIsEJi2TiySCStaNGyaA0yKccjOKLb0DSeC9vfeZ3XUwTbvVRwZtx9nig%2FzwmR2tPURa1wqMQ7ShS5BnSf6nDpAt6FvbISA%3D%3D" );
+
+
+
+
+
 
 
 //        if (!userId.isNullOrEmpty() && userId != "null") {

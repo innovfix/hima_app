@@ -14,10 +14,8 @@ import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.BaseApplication.Companion.getInstance
-import com.gmwapp.hima.DemoActivity
 import com.gmwapp.hima.agora.male.MaleCallConnectingActivity
 import com.gmwapp.hima.R
-import com.gmwapp.hima.activities.RandomUserActivity
 import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.adapters.FemaleUserAdapter
 import com.gmwapp.hima.agora.AgoraRandomCallActivity
