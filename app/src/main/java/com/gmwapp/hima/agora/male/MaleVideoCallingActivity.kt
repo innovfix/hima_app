@@ -39,6 +39,7 @@ import androidx.work.Data
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequest
 import androidx.work.WorkManager
+import com.appsflyer.AppsFlyerLib
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
@@ -691,6 +692,15 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
             FirebaseAnalytics.getInstance(this@MaleVideoCallingActivity).logEvent("call_started", bundle)
 
+            val eventValues = HashMap<String, Any>()
+            eventValues["user_id"] = maleUserId    // example duration
+            eventValues["call_type"] = "Video"             // example parameter
+
+            AppsFlyerLib.getInstance().logEvent(
+                this@MaleVideoCallingActivity,
+                "call_started",
+                eventValues
+            )
 
             initVosk()
             agoraEngine?.setAudioProfile(Constants.AUDIO_PROFILE_SPEECH_STANDARD, Constants.AUDIO_SCENARIO_DEFAULT)

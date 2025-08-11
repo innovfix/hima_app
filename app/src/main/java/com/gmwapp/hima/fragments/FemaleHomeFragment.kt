@@ -295,29 +295,29 @@ class FemaleHomeFragment : BaseFragment() {
 //        userLanguage?.let { zohoMailViewModel.fetchZohoMail(it) }
 
 
-        userLanguage?.let {
-            zohoMailViewModel.fetchZohoMail(it) { email ->
-                if (!email.isNullOrEmpty()) {
-
-                    // Initialize Zoho *after* email is ready
-
-                    BaseApplication.getInstance()?.initZoho()
-
-                    ZohoSalesIQ.Visitor.setName("${userData?.name} - $userLanguage")
-                    ZohoSalesIQ.Visitor.setContactNumber("${userData?.mobile}")
-                    ZohoSalesIQ.Chat.setOperatorEmail(email)
-
-                    val props = LauncherProperties(LauncherModes.FLOATING)
-                    props.setYFromBottom(180)
-                    props.setDirection(LauncherProperties.Horizontal.RIGHT)
-
-                    ZohoSalesIQ.setLauncherProperties(props)
-                    ZohoSalesIQ.showLauncher(true)
-                } else {
-                    Log.e("ZohoMailError", "Failed to fetch operator email")
-                }
-            }
-        }
+//        userLanguage?.let {
+//            zohoMailViewModel.fetchZohoMail(it) { email ->
+//                if (!email.isNullOrEmpty()) {
+//
+//                    // Initialize Zoho *after* email is ready
+//
+//                 //   BaseApplication.getInstance()?.initZoho()
+//
+//                    ZohoSalesIQ.Visitor.setName("${userData?.name} - $userLanguage")
+//                    ZohoSalesIQ.Visitor.setContactNumber("${userData?.mobile}")
+//                    ZohoSalesIQ.Chat.setOperatorEmail(email)
+//
+//                    val props = LauncherProperties(LauncherModes.FLOATING)
+//                    props.setYFromBottom(180)
+//                    props.setDirection(LauncherProperties.Horizontal.RIGHT)
+//
+//                    ZohoSalesIQ.setLauncherProperties(props)
+//                    ZohoSalesIQ.showLauncher(true)
+//                } else {
+//                    Log.e("ZohoMailError", "Failed to fetch operator email")
+//                }
+//            }
+//        }
 
 
 

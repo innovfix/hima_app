@@ -16,6 +16,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.GridLayoutManager
+import com.appsflyer.AppsFlyerLib
 import com.bumptech.glide.Glide
 import com.facebook.appevents.AppEventsConstants
 import com.facebook.appevents.AppEventsLogger
@@ -503,6 +504,16 @@ class WalletActivity : BaseActivity()  {
             val priceDouble = amount?.toDoubleOrNull() ?: 0.0
 
 
+            val checkoutEvent = HashMap<String, Any>()
+            checkoutEvent["af_price"] = priceDouble          // Cart total
+            checkoutEvent["af_currency"] = "INR"
+
+            AppsFlyerLib.getInstance().logEvent(
+                this,
+                "af_initiated_checkout",
+                checkoutEvent
+            )
+
 
 
             val firebaseBundle = Bundle().apply {
@@ -937,6 +948,16 @@ class WalletActivity : BaseActivity()  {
 
         BaseApplication.firebaseAnalytics.logEvent(FirebaseAnalytics.Event.PURCHASE, purchaseBundle)
 
+        val purchaseEvent = HashMap<String, Any>()
+        purchaseEvent["af_revenue"] = coinAmount       // Total amount (decimal preferred)
+        purchaseEvent["af_currency"] = "INR"        // 3-letter code, e.g. "INR", "USD"
+        purchaseEvent["af_coin_id"] = "$coinId"
+
+        AppsFlyerLib.getInstance().logEvent(
+            this,
+            "af_purchase",
+            purchaseEvent
+        )
 
     }
     fun generateJwtToken(): String {

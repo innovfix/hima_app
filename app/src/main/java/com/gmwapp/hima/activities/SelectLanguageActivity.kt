@@ -11,6 +11,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.GridLayoutManager
+import com.appsflyer.AppsFlyerLib
 import com.facebook.appevents.AppEventsConstants
 import com.facebook.appevents.AppEventsLogger
 import com.gmwapp.hima.BaseApplication
@@ -65,6 +66,18 @@ class SelectLanguageActivity : BaseActivity() {
                     intent.putExtra(
                         DConstants.AVATAR_ID, getIntent().getIntExtra(DConstants.AVATAR_ID, 0)
                     )
+
+
+                    val registrationEvent = HashMap<String, Any>()
+                    registrationEvent["user_id"] = "${it.data.id}"  // Optional custom parameter
+
+                    AppsFlyerLib.getInstance().logEvent(
+                        this,
+                        "af_complete_registration",
+                        registrationEvent
+                    )
+
+
 
                     val params = Bundle()
                     params.putString("user_id", "${it.data.id}") // optional

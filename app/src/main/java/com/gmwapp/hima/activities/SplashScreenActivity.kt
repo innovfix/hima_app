@@ -64,7 +64,7 @@ class SplashScreenActivity : BaseActivity() {
             return
         }
 
-        ZohoSalesIQ.showLauncher(false)
+       // ZohoSalesIQ.showLauncher(false)
 
 
         // viewModel.appUpdate()

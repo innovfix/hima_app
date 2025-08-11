@@ -192,7 +192,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         setContentView(binding.root)
         enableEdgeToEdge()
 
-        ZohoSalesIQ.showLauncher(false)
+        //ZohoSalesIQ.showLauncher(false)
 
         setupOnboarding()
         initUI()
@@ -423,6 +423,10 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         binding.tvTermsAndConditions.text = spannableString
         binding.tvTermsAndConditions.movementMethod = LinkMovementMethod.getInstance()
         binding.tvTermsAndConditions.highlightColor = Color.TRANSPARENT
+
+        binding.tvOtpTermsAndConditions.text = spannableString
+        binding.tvOtpTermsAndConditions.movementMethod = LinkMovementMethod.getInstance()
+        binding.tvOtpTermsAndConditions.highlightColor = Color.TRANSPARENT
     }
 
     private fun addClickablePart(spannable: SpannableString, phrase: String, onClick: () -> Unit) {

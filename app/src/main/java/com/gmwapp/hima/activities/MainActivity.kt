@@ -32,6 +32,7 @@ import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.appsflyer.AppsFlyerLib
 import com.bumptech.glide.Glide
 import com.facebook.appevents.AppEventsConstants
 import com.facebook.appevents.AppEventsLogger
@@ -617,6 +618,16 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         }
 
 
+        var af_price =  getDiscountedPriceFromTotal(total_amount)
+        val checkoutEvent = HashMap<String, Any>()
+        checkoutEvent["af_price"] = "$af_price"          // Cart total
+        checkoutEvent["af_currency"] = "INR"
+
+        AppsFlyerLib.getInstance().logEvent(
+            this,
+            "af_initiated_checkout",
+            checkoutEvent
+        )
 
         val firebaseBundle = Bundle().apply {
             putString("user_id", "$userId")
@@ -1168,6 +1179,18 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
         BaseApplication.firebaseAnalytics.logEvent(FirebaseAnalytics.Event.PURCHASE, purchaseBundle)
 
+        val purchaseEvent = HashMap<String, Any>()
+        purchaseEvent["af_revenue"] = coinAmount       // Total amount (decimal preferred)
+        purchaseEvent["af_currency"] = "INR"        // 3-letter code, e.g. "INR", "USD"
+        purchaseEvent["af_coin_id"] = "$coinId"
+
+        AppsFlyerLib.getInstance().logEvent(
+            this,
+            "af_purchase",
+            purchaseEvent
+        )
+
+
     }
 
 
@@ -1182,9 +1205,36 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         if (lastLoggedDate != todayDate) {
             FirebaseAnalytics.getInstance(this).logEvent("daily_active_user", bundle)
             prefs?.setString("last_dau_logged_date", todayDate)
+
+
+            if (prefs?.getUserData()?.gender=="male"){
+
+            val eventValues = HashMap<String, Any>()
+            eventValues["user_id"] = "${prefs?.getUserData()?.id}"
+            AppsFlyerLib.getInstance().logEvent(
+                this,
+                "daily_active_user",
+                eventValues
+            )
+
+        }
         }
 
     }
+
+    fun getDiscountedPriceFromTotal(totalAmountStr: String): Int {
+        val totalAmount = totalAmountStr.toInt()
+
+        for (price in 0..totalAmount) {
+            val extra = Math.round(price * 0.02).toInt()
+            if (price + extra == totalAmount) {
+                return price
+            }
+        }
+
+        throw IllegalArgumentException("Error")
+    }
+
 
 
 

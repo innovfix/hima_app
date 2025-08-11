@@ -1,5 +1,6 @@
 package com.gmwapp.hima.viewmodels
 
+import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -44,6 +45,7 @@ class UpiViewModel @Inject constructor(private val upiRepositories: UpiRepositor
                     response: Response<UpiUpdateResponse>
                 ) {
                     upiResponseLiveData.postValue(response.body())
+                    Log.d("upiResponseLiveData","${response.body()}")
                 }
 
                 override fun onFailure(call: Call<UpiUpdateResponse>, t: Throwable) {
