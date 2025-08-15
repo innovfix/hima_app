@@ -1,8 +1,12 @@
 package com.gmwapp.hima.activities
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
+import android.text.InputFilter
 import android.text.TextWatcher
 import android.view.View
 import android.view.ViewGroup
@@ -70,13 +74,30 @@ class BankUpdateActivity : BaseActivity() {
         binding.etBranchName.setText(branchName)
 
 
+//
+//       disableCopyPaste(binding.etAccountNumber)
+//        disableCopyPaste(binding.etReEnterAccountNumber)
 
+        val blockSuggestionPaste = InputFilter { source, _, _, _, _, _ ->
+            // If more than 1 character is being inserted at once, block it
+            if (source != null && source.length > 1) {
+                ""
+            } else {
+                null
+            }
+        }
+
+        binding.etAccountNumber.filters = arrayOf(blockSuggestionPaste)
+        binding.etReEnterAccountNumber.filters = arrayOf(blockSuggestionPaste)
 
 
         var userdata  =BaseApplication.getInstance()?.getPrefs()?.getUserData()
         if (!userdata?.holder_name.isNullOrEmpty()){
             binding.tvHolderName.visibility= View.VISIBLE
             binding.etHolderName.visibility= View.VISIBLE
+        }else{
+            binding.etReEnterAccountNumber.visibility = View.VISIBLE
+            binding.tvReEnterAccountNumber.visibility = View.VISIBLE
         }
 
 
@@ -86,6 +107,20 @@ class BankUpdateActivity : BaseActivity() {
         binding.ivBack.setOnClickListener {
             onBackPressed()
         }
+
+        val reEnterVisibilityWatcher = object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                if (binding.tvHolderName.visibility == View.VISIBLE) {
+                    binding.etReEnterAccountNumber.visibility = View.VISIBLE
+                    binding.tvReEnterAccountNumber.visibility = View.VISIBLE
+                }
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        }
+
+        binding.etAccountNumber.addTextChangedListener(reEnterVisibilityWatcher)
+        binding.etIfsccode.addTextChangedListener(reEnterVisibilityWatcher)
 
 
 
@@ -116,12 +151,24 @@ class BankUpdateActivity : BaseActivity() {
         binding.etIfsccode.addTextChangedListener(textWatcher)
         binding.etBankName.addTextChangedListener(textWatcher)
         binding.etBranchName.addTextChangedListener(textWatcher)
+        binding.etReEnterAccountNumber.addTextChangedListener(textWatcher)
 
         // Disable button initially
         binding.btnUpdate.isEnabled = false
 
         // Handle button click
         binding.btnUpdate.setOnClickListener {
+
+            val accNum = binding.etAccountNumber.text.toString().trim()
+            val reAccNum = binding.etReEnterAccountNumber.text.toString().trim()
+
+            // 1. Check account numbers match
+            if (binding.etReEnterAccountNumber.visibility == View.VISIBLE && accNum != reAccNum) {
+                binding.etReEnterAccountNumber.error = "Account numbers do not match"
+                return@setOnClickListener
+            }
+
+
             // Perform the update action
             BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let { it1 ->
 
@@ -161,6 +208,10 @@ class BankUpdateActivity : BaseActivity() {
 
         viewModel.bankErrorLiveData.observe(this, Observer { errorMessage ->
             hideLoading()
+            binding.etAccountNumber.text?.clear()
+            binding.etReEnterAccountNumber.text?.clear()
+            binding.etIfsccode.text.clear()
+            binding.etHolderName.text.clear()
             errorMessage?.let {
                 showToast(it) // Show the error message as a Toast
             }
@@ -186,6 +237,8 @@ class BankUpdateActivity : BaseActivity() {
         val ifscCode = binding.etIfsccode.text.toString().trim()
         val bankName = binding.etBankName.text.toString().trim()
         val branchName = binding.etBranchName.text.toString().trim()
+        val reEnterAccountNumber = binding.etReEnterAccountNumber.text.toString().trim()
+
 
         // Regex to detect special characters
         val specialCharRegex = "[^a-zA-Z0-9 ]".toRegex()
@@ -231,7 +284,9 @@ class BankUpdateActivity : BaseActivity() {
         // Check if all fields are non-empty
         isFieldsValid = isFieldsValid &&
                 accountNumber.isNotEmpty() &&
-                ifscCode.isNotEmpty()
+                ifscCode.isNotEmpty()&&
+                reEnterAccountNumber.isNotEmpty()
+
 
         // Enable or disable the update button
         binding.btnUpdate.isEnabled = isFieldsValid
@@ -258,6 +313,17 @@ class BankUpdateActivity : BaseActivity() {
 
     private fun hideLoading() {
         loadingDialog?.dismiss()
+    }
+
+    private fun disableCopyPaste(editText: EditText) {
+        editText.customInsertionActionModeCallback = object : android.view.ActionMode.Callback {
+            override fun onCreateActionMode(mode: android.view.ActionMode?, menu: android.view.Menu?): Boolean = false
+            override fun onPrepareActionMode(mode: android.view.ActionMode?, menu: android.view.Menu?): Boolean = false
+            override fun onActionItemClicked(mode: android.view.ActionMode?, item: android.view.MenuItem?): Boolean = false
+            override fun onDestroyActionMode(mode: android.view.ActionMode?) {}
+        }
+        editText.isLongClickable = false
+        editText.setTextIsSelectable(false)
     }
 
 }

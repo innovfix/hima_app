@@ -50,6 +50,7 @@ data class UserData (
     val pancard_name:String?,
     val pancard_number:String?,
     val disclaimer:String?,
+    val payment_type:String?,
 
 
 )

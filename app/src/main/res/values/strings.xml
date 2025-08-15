@@ -224,6 +224,7 @@
     <string name="bank_name">Bank Name</string>
     <string name="ifsc_code">IFSC Code</string>
     <string name="account_number">Account Number</string>
+    <string name="re_enter_account_number">Re-Enter Account Number</string>
     <string name="account_holder_name">Account Holder Name</string>
     <string name="pan_card_name">Enter your full name as on PAN card</string>
     <string name="pan_card_number">Please enter 10 digit PAN number</string>

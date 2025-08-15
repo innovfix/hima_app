@@ -26,8 +26,8 @@ android {
         applicationId = "com.gmwapp.hima"
         minSdk = 26
         targetSdk = 35
-        versionCode = 38
-        versionName = "38"
+        versionCode = 1014
+        versionName = "1014"
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -52,7 +52,8 @@ android {
         }
         create("production") {
             dimension = "hima"
-            buildConfigField( "String", "BASE_URL",  "\"https://himaapp.in/api/auth/\"")
+           buildConfigField( "String", "BASE_URL",  "\"https://himaapp.in/api/auth/\"")
+            //buildConfigField( "String", "BASE_URL",  "\"http://139.59.56.195/api/auth/\"")
         }
     }
     compileOptions {
@@ -200,6 +201,9 @@ dependencies {
     //Install referer
     implementation ("com.android.installreferrer:installreferrer:2.2")
 
+
+    //Cashfree
+    implementation ("com.cashfree.pg:api:2.2.8")
 
 
     testImplementation(libs.junit)

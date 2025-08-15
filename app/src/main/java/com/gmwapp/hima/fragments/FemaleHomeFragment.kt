@@ -59,6 +59,7 @@ import kotlinx.coroutines.Dispatchers
 //import im.zego.zegoexpress.constants.ZegoRoomStateChangedReason
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.apache.commons.collections4.functors.FalsePredicate
 import retrofit2.Call
 import retrofit2.Response
 import java.text.SimpleDateFormat
@@ -295,29 +296,38 @@ class FemaleHomeFragment : BaseFragment() {
 //        userLanguage?.let { zohoMailViewModel.fetchZohoMail(it) }
 
 
-//        userLanguage?.let {
-//            zohoMailViewModel.fetchZohoMail(it) { email ->
-//                if (!email.isNullOrEmpty()) {
-//
-//                    // Initialize Zoho *after* email is ready
-//
-//                 //   BaseApplication.getInstance()?.initZoho()
-//
-//                    ZohoSalesIQ.Visitor.setName("${userData?.name} - $userLanguage")
-//                    ZohoSalesIQ.Visitor.setContactNumber("${userData?.mobile}")
-//                    ZohoSalesIQ.Chat.setOperatorEmail(email)
-//
-//                    val props = LauncherProperties(LauncherModes.FLOATING)
-//                    props.setYFromBottom(180)
-//                    props.setDirection(LauncherProperties.Horizontal.RIGHT)
-//
-//                    ZohoSalesIQ.setLauncherProperties(props)
-//                    ZohoSalesIQ.showLauncher(true)
-//                } else {
-//                    Log.e("ZohoMailError", "Failed to fetch operator email")
-//                }
-//            }
-//        }
+        userLanguage?.let {
+            zohoMailViewModel.fetchZohoMail(it) { email,department ->
+                if (!email.isNullOrEmpty()) {
+
+                    // Initialize Zoho *after* email is ready
+
+                    BaseApplication.getInstance()?.initZoho()
+
+                    val langCode = userLanguage.take(3)
+                    ZohoSalesIQ.registerVisitor("${userData.id}_${userData.language}")
+
+                    ZohoSalesIQ.Visitor.setName("${userData?.name}($langCode)")
+                    ZohoSalesIQ.Visitor.setContactNumber("${userData?.mobile}")
+                    ZohoSalesIQ.Chat.setOperatorEmail(email)
+
+                    if (!department.isNullOrEmpty()) {
+                        ZohoSalesIQ.Chat.setDepartment(department)
+                    }
+
+                    Log.d("ZohoEmail", "$email, Department: $department")
+
+                    val props = LauncherProperties(LauncherModes.FLOATING)
+                    props.setYFromBottom(180)
+                    props.setDirection(LauncherProperties.Horizontal.RIGHT)
+
+                    ZohoSalesIQ.setLauncherProperties(props)
+                    ZohoSalesIQ.showLauncher(true)
+                } else {
+                    Log.e("ZohoMailError", "Failed to fetch operator email")
+                }
+            }
+        }
 
 
 

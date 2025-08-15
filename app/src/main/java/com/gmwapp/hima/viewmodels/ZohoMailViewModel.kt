@@ -21,25 +21,28 @@ class ZohoMailViewModel @Inject constructor(
     val zohoMailLiveData = MutableLiveData<List<ZohoMailItem>>()
     val zohoMailErrorLiveData = MutableLiveData<String>()
 
-    fun fetchZohoMail(language: String, onResult: (String?) -> Unit) {
+    fun fetchZohoMail(language: String, onResult: (String?, String?) -> Unit) {
         viewModelScope.launch {
             repository.getZohoMailList(language, object : NetworkCallback<ZohoMailResponse> {
                 override fun onResponse(
                     call: Call<ZohoMailResponse>,
                     response: Response<ZohoMailResponse>
                 ) {
-                    val email = response.body()?.data?.firstOrNull()?.mail
-                    onResult(email)
+                    val firstItem = response.body()?.data?.firstOrNull()
+                    val email = firstItem?.mail
+                    val department = firstItem?.department
+                    onResult(email, department)
                 }
 
                 override fun onFailure(call: Call<ZohoMailResponse>, t: Throwable) {
-                    onResult(null)
+                    onResult(null, null)
                 }
 
                 override fun onNoNetwork() {
-                    onResult(null)
+                    onResult(null, null)
                 }
             })
         }
     }
+
 }

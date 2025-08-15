@@ -18,6 +18,12 @@ import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.GridLayoutManager
 import com.appsflyer.AppsFlyerLib
 import com.bumptech.glide.Glide
+import com.cashfree.pg.api.CFPaymentGatewayService
+import com.cashfree.pg.base.exception.CFException
+import com.cashfree.pg.core.api.CFSession
+import com.cashfree.pg.core.api.callback.CFCheckoutResponseCallback
+import com.cashfree.pg.core.api.utils.CFErrorResponse
+import com.cashfree.pg.core.api.webcheckout.CFWebCheckoutPayment
 import com.facebook.appevents.AppEventsConstants
 import com.facebook.appevents.AppEventsLogger
 import com.gmwapp.hima.BaseApplication
@@ -34,6 +40,8 @@ import com.gmwapp.hima.retrofit.responses.RazorPayApiResponse
 import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.AccountViewModel
+import com.gmwapp.hima.viewmodels.CashfreeOrderViewModel
+import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.viewmodels.UpiPaymentViewModel
 import com.gmwapp.hima.viewmodels.UpiViewModel
@@ -65,16 +73,19 @@ import javax.crypto.spec.SecretKeySpec
 
 
 @AndroidEntryPoint
-class WalletActivity : BaseActivity()  {
+class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
     lateinit var binding: ActivityWalletBinding
     private val WalletViewModel: WalletViewModel by viewModels()
     private val accountViewModel: AccountViewModel by viewModels()
     private val upiPaymentViewModel: UpiPaymentViewModel by viewModels()
+    private val loginViewModel: LoginViewModel by viewModels()
+
     private lateinit var call: Call<ApiResponse>
     private lateinit var callRazor: Call<RazorPayApiResponse>
     private lateinit var callNewRazorPay: Call<NewRazorpayLinkResponse>
 
     val profileViewModel: ProfileViewModel by viewModels()
+    private val cashfreeOrderViewModel : CashfreeOrderViewModel by viewModels()
 
     private lateinit var selectedCoin : String
     private lateinit var selectedSavePercent : String
@@ -99,7 +110,11 @@ class WalletActivity : BaseActivity()  {
     var paymentGateway = ""
 
     private var lastOrderId: String = ""
+    private var cashfreeLastOrderId: String = ""
     private var isPhonePeInitialized = false
+
+    private val cfEnvironment = CFSession.Environment.PRODUCTION
+
 
     private val activityResultLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -133,6 +148,7 @@ class WalletActivity : BaseActivity()  {
 
         fromDeepLink = intent.getBooleanExtra("from_deeplink", false)
 
+        checkIndividualPaymentType()
         initUI()
         observeCoins()
         intializePhonpe()
@@ -147,6 +163,14 @@ class WalletActivity : BaseActivity()  {
 
         }
 
+        try {
+            CFPaymentGatewayService.getInstance().setCheckoutCallback(this)
+        } catch (e: CFException) {
+            e.printStackTrace()
+        }
+
+
+
     }
 
     override fun onResume() {
@@ -154,7 +178,13 @@ class WalletActivity : BaseActivity()  {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         userData?.id?.let { profileViewModel.getUsers(it) }
         BaseApplication.getInstance()?.getPrefs()?.getUserData()?.let { WalletViewModel.getCoins(it.id) }
+        checkIndividualPaymentType()
+        Log.d("cashfreeLastOrderId","$cashfreeLastOrderId")
+        if (cashfreeLastOrderId.isNotEmpty()){
+            checkCashfreeOderStatus(cashfreeLastOrderId)
+            cashfreeLastOrderId = "" // reset so it won't run again
 
+        }
     }
 
 
@@ -461,7 +491,7 @@ class WalletActivity : BaseActivity()  {
                         binding.btnAddCoins.visibility = View.VISIBLE
                         amount = coin.price.toString()
                         pointsId = coin.id.toString()
-                        paymentGateway = coin.pg.toString()
+                        //paymentGateway = coin.pg.toString()
 
                         selectedCoin = coin.coins.toString()
                         selectedSavePercent = coin.save.toString()
@@ -484,7 +514,7 @@ class WalletActivity : BaseActivity()  {
                     binding.btnAddCoins.visibility = View.VISIBLE
                     amount = firstCoin.price.toString()
                     pointsId = firstCoin.id.toString()
-                    paymentGateway = firstCoin.pg.toString()
+                   // paymentGateway = firstCoin.pg.toString()
 
                     selectedCoin = firstCoin.coins.toString()
                     selectedSavePercent = firstCoin.save.toString()
@@ -555,7 +585,6 @@ class WalletActivity : BaseActivity()  {
 
             if (userId != null && pointsId.isNotEmpty()) {
                 if (pointsIdInt != null) {
-
 
                     if (paymentGateway.isNotEmpty()) {
 
@@ -656,6 +685,12 @@ class WalletActivity : BaseActivity()  {
                         Toast.makeText(this@WalletActivity, "Failed: ${t.message}", Toast.LENGTH_SHORT).show()
                     }
                 })
+                            }
+
+                            "cashfree"->{
+
+
+                                fetchOrderOfCashfree(pointsId)
                             }
 
 
@@ -973,7 +1008,168 @@ class WalletActivity : BaseActivity()  {
     }
 
 
+    fun cashfreeCheckout(paymentSessionID:String,orderID:String){
 
+        try {
+            val cfSession = CFSession.CFSessionBuilder()
+                .setEnvironment(cfEnvironment)
+                .setPaymentSessionID(paymentSessionID)
+                .setOrderId(orderID)
+                .build()
+
+//            val cfTheme = CFWebCheckoutTheme.CFWebCheckoutThemeBuilder()
+//                .setNavigationBarBackgroundColor("#6A3FD3")
+//                .setNavigationBarTextColor("#FFFFFF")
+//                .build()
+
+            val cfWebCheckoutPayment = CFWebCheckoutPayment.CFWebCheckoutPaymentBuilder()
+                .setSession(cfSession)
+//                .setCFWebCheckoutUITheme(cfTheme)
+                .build()
+
+            CFPaymentGatewayService.getInstance()
+                .doPayment(this@WalletActivity, cfWebCheckoutPayment)
+
+        } catch (e: CFException) {
+            e.printStackTrace()
+        }
+    }
+
+
+    override fun onPaymentVerify(orderID: String?) {
+        Log.d("WebCheckout", "Payment verified for order: $orderID")
+    }
+
+    override fun onPaymentFailure(cfErrorResponse: CFErrorResponse?, orderID: String?) {
+        Log.e("WebCheckout", "Payment failed for $orderID: ${cfErrorResponse?.getMessage()}")
+    }
+
+    private fun fetchOrderOfCashfree(coinId: String) {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val user_id = userData?.id
+        val client = OkHttpClient()
+
+        val json = """{
+        "user_id": "$user_id",
+        "coins_id": "$coinId"
+    }"""
+        val mediaType = "application/json".toMediaTypeOrNull()
+        val body = RequestBody.create(mediaType, json)
+
+        val request = Request.Builder()
+            .url("https://himaapp.in/api/cashfree/create-order")
+            .post(body) // ✅ POST request like PhonePe example
+            .addHeader("Content-Type", "application/json")
+            .build()
+
+        client.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                runOnUiThread {
+                    Toast.makeText(this@WalletActivity, "Order creation failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                val resultStr = response.body?.string()
+                Log.d("CashfreeOrderResponse", "$resultStr")
+
+                try {
+                    val json = JSONObject(resultStr)
+                    val success = json.optBoolean("success", false)
+
+                    if (success) {
+                        val sessionId = json.getString("payment_session_id")
+                        val orderId = json.getString("order_id")
+
+                        cashfreeLastOrderId = orderId
+                        runOnUiThread {
+                            // Start the Cashfree payment flow
+                            cashfreeCheckout(sessionId, orderId)
+                        }
+                    } else {
+                        runOnUiThread {
+                            val errorMsg = json.optJSONObject("errors")?.toString() ?: "Order creation failed"
+                            Toast.makeText(this@WalletActivity, errorMsg, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        Toast.makeText(this@WalletActivity, "Invalid server response", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        })
+    }
+
+    fun checkCashfreeOderStatus(orderId: String) {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val user_id = userData?.id
+        val client = OkHttpClient()
+
+        val request = Request.Builder()
+            .url("https://himaapp.in/api/cashfree/check-order-status?order_id=$orderId")
+            .get() // ✅ This endpoint uses GET (based on your Postman test)
+            .addHeader("Content-Type", "application/json")
+            .build()
+
+        client.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                runOnUiThread {
+                    Toast.makeText(this@WalletActivity, "Status check failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                val resultStr = response.body?.string()
+                Log.d("CashfreeOrderStatus", "$resultStr")
+
+                try {
+                    val json = JSONObject(resultStr)
+
+                    // Check if payment was completed (you may need to adapt based on backend's status field)
+                    val paymentStatus = json.optString("order_status", "UNKNOWN")
+                    val coin_id = json.optString("coin_id", "")
+                    val order_id = json.optString("order_id", "")
+
+                    Log.d("cashfreePaymentStatus", "Status: $paymentStatus, Coin ID: $coin_id, Order ID: $order_id")
+
+                    if (paymentStatus.equals("PAID", ignoreCase = true)) {
+                        runOnUiThread {
+                            Toast.makeText(this@WalletActivity, "Payment Successful", Toast.LENGTH_LONG).show()
+                            user_id?.let { WalletViewModel.add_coins_cashfree(it, coin_id, 1, order_id, "Coins purchased") }
+                            observeAddCoins()
+                            updatePurchaseOnMeta()
+                        }
+                    } else {
+                        runOnUiThread {
+                            Toast.makeText(this@WalletActivity, "Payment Failed", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        Toast.makeText(this@WalletActivity, "Invalid response", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        })
+    }
+
+
+    fun checkIndividualPaymentType(){
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        userData?.let { loginViewModel.login(it.mobile,"0","0") }
+        loginViewModel.loginResponseLiveData.observe(this, Observer {
+
+            if (it.success) {
+                if (!it.data?.payment_type.isNullOrEmpty()){
+                   paymentGateway = it.data?.payment_type.toString()
+                }
+
+
+
+            }
+        })
+    }
 
 
 }

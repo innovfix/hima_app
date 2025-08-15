@@ -192,7 +192,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         setContentView(binding.root)
         enableEdgeToEdge()
 
-        //ZohoSalesIQ.showLauncher(false)
+        ZohoSalesIQ.showLauncher(false)
 
         setupOnboarding()
         initUI()

@@ -20,6 +20,8 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.firebase.messaging.FirebaseMessaging
 import com.onesignal.OneSignal
+import com.zoho.salesiqembed.ZohoSalesIQ
+
 //import com.tencent.mmkv.MMKV
 //import com.zegocloud.uikit.prebuilt.call.ZegoUIKitPrebuiltCallService
 
@@ -111,6 +113,9 @@ class BottomSheetLogout : BottomSheetDialogFragment() {
 
                     OneSignal.logout()
                     OneSignal.User.pushSubscription.optOut()
+
+                   // ZohoSalesIQ.unregisterVisitor(requireContext())
+
 
                     //ZegoUIKitPrebuiltCallService.unInit()
                     val prefs = BaseApplication.getInstance()?.getPrefs()

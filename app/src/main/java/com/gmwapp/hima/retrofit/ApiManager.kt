@@ -11,6 +11,7 @@ import com.gmwapp.hima.retrofit.responses.CallFemaleUserResponse
 import com.gmwapp.hima.retrofit.responses.CallsListResponse
 import com.gmwapp.hima.retrofit.responses.CoinsResponse
 import com.gmwapp.hima.retrofit.responses.CouponsResponse
+import com.gmwapp.hima.retrofit.responses.CreateCashfreeOrderResponse
 import com.gmwapp.hima.retrofit.responses.DeleteUserResponse
 import com.gmwapp.hima.retrofit.responses.EarningsResponse
 import com.gmwapp.hima.retrofit.responses.ExplanationVideoResponse
@@ -493,6 +494,23 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun add_coins_cashfree(
+        userId: Int,
+        coinsId: String,
+        status: Int,
+        orderId: String,
+        massage: String,
+        callback: NetworkCallback<AddCoinsResponse>
+    ) {
+
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<AddCoinsResponse> = getApiInterface().add_coins_cashfree(userId, coinsId, status, orderId, massage)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun addCoinsGpay(
         userId: Int,
         coinsId: String,
@@ -636,6 +654,21 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
             callback.onNoNetwork()
         }
     }
+
+    fun createCashfreeOrder(
+        userId: Int,
+        coinsId: Int,
+        callback: NetworkCallback<CreateCashfreeOrderResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<CreateCashfreeOrderResponse> =
+                getApiInterface().createCashfreeOrder(userId, coinsId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
 
 
 
@@ -935,6 +968,16 @@ interface ApiInterface {
         @Field("message") massage: String,
     ): Call<AddCoinsResponse>
 
+    @POST("add_coins_cashfree")
+    @FormUrlEncoded
+    fun add_coins_cashfree(
+        @Field("user_id") userId: Int,
+        @Field("coins_id") coinsId: String,
+        @Field("status") status: Int,
+        @Field("order_id") orderId: String,
+        @Field("message") massage: String,
+    ): Call<AddCoinsResponse>
+
     @POST("add_coins")
     @FormUrlEncoded
     fun addCoinsGpay(
@@ -1074,5 +1117,11 @@ interface ApiInterface {
 
 
 
+    @FormUrlEncoded
+    @POST("cashfree/create-order")
+    fun createCashfreeOrder(
+        @Field("user_id") userId: Int,
+        @Field("coins_id") coinsId: Int
+    ): Call<CreateCashfreeOrderResponse>
 
 }

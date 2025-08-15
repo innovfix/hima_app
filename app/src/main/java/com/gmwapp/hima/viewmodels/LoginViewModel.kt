@@ -38,6 +38,7 @@ class LoginViewModel @Inject constructor(private val loginRepositories: LoginRep
                 ) {
                     loginResponseLiveData.postValue(response.body());
 
+                    Log.d("ApiUrl","${call.request().url}.")
 
                     Log.d("VerifyOTP", "Request URL: ${response.body()}")
 
