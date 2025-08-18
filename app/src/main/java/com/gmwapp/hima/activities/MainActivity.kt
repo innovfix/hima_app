@@ -1052,7 +1052,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         Log.d("SelectedCoinID", " $coinId")
 
         val request = Request.Builder()
-            .url("https://himaapp.in/api/phonepe/live/create-order") // Should return { token, orderId }
+            .url("https://graymatterworks.com/api/phonepe/live/create-order") // Should return { token, orderId }
             .post(formBody)
             .build()
 
@@ -1117,7 +1117,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         val body = RequestBody.create(mediaType, json)
 
         val request = Request.Builder()
-            .url("https://himaapp.in/api/phonepe/live/check-status")
+            .url("https://graymatterworks.com/api/phonepe/live/check-status")
             .post(body) // ✅ Correct method
             .addHeader("Content-Type", "application/json")
             .build()
@@ -1317,7 +1317,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         val body = RequestBody.create(mediaType, json)
 
         val request = Request.Builder()
-            .url("https://himaapp.in/api/cashfree/create-order")
+            .url("https://graymatterworks.com/api/cashfree/create-order")
             .post(body) // ✅ POST request like PhonePe example
             .addHeader("Content-Type", "application/json")
             .build()
@@ -1367,7 +1367,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         val client = OkHttpClient()
 
         val request = Request.Builder()
-            .url("https://himaapp.in/api/cashfree/check-order-status?order_id=$orderId")
+            .url("https://graymatterworks.com/api/cashfree/check-order-status?order_id=$orderId")
             .get() // ✅ This endpoint uses GET (based on your Postman test)
             .addHeader("Content-Type", "application/json")
             .build()

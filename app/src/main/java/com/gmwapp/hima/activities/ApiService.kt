@@ -31,7 +31,7 @@ interface ApiService {
     ): Call<RazorPayApiResponse>
 
     @FormUrlEncoded
-    @POST("https://himaapp.in/api/create-upi-payment-link")
+    @POST("https://graymatterworks.com/api/create-upi-payment-link")
     fun callNewRazorPay(
         @Field("user_id") userId: Int,
         @Field("coin_id") coinId: String,

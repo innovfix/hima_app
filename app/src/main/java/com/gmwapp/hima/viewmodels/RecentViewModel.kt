@@ -34,6 +34,7 @@ class RecentViewModel @Inject constructor(private val profileRepositories: Profi
                     ) {
                         callsListLiveData.postValue(response.body())
                         Log.d("callsListLiveData","${response.body()}")
+                        Log.d("callsListLiveData","${call.request().url}")
                     }
 
                     override fun onFailure(call: Call<CallsListResponse>, t: Throwable) {

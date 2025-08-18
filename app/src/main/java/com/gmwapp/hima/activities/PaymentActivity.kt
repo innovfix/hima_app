@@ -395,7 +395,7 @@ class PaymentActivity : AppCompatActivity() {
         val body = RequestBody.create(mediaType, json)
 
         val request = Request.Builder()
-            .url("https://himaapp.in/api/phonepe/live/check-status")
+            .url("https://graymatterworks.com/api/phonepe/live/check-status")
             .post(body) // ✅ Correct method
             .addHeader("Content-Type", "application/json")
             .build()
@@ -473,7 +473,7 @@ class PaymentActivity : AppCompatActivity() {
         Log.d("SelectedCoinID", " $coinId")
 
         val request = Request.Builder()
-            .url("https://himaapp.in/api/phonepe/live/create-order") // Should return { token, orderId }
+            .url("https://graymatterworks.com/api/phonepe/live/create-order") // Should return { token, orderId }
             .post(formBody)
             .build()
 
