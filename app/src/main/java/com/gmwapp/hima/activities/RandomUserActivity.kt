@@ -97,6 +97,7 @@ class RandomUserActivity : BaseActivity(), OnButtonClickListener {
     private var isPermissionDenied: Boolean = false
 
 
+    // Old main zego code as backup
 
     private val dateFormat = SimpleDateFormat("HH:mm:ss").apply {
         timeZone = TimeZone.getTimeZone("Asia/Kolkata") // Set to IST time zone
