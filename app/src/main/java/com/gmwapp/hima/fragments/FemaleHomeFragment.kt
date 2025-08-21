@@ -2,7 +2,6 @@ package com.gmwapp.hima.fragments
 
 import android.Manifest
 import android.app.ActivityManager
-import android.app.NotificationManager.IMPORTANCE_NONE
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -17,34 +16,20 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.viewModels
-import androidx.browser.customtabs.CustomTabsClient.getPackageName
-import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
-import androidx.lifecycle.lifecycleScope
-import androidx.work.Constraints
-import androidx.work.Data
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequest
-import androidx.work.WorkManager
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.BaseApplication.Companion.getInstance
-import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.EarningsActivity
 import com.gmwapp.hima.activities.GrantPermissionsActivity
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentFemaleHomeBinding
-import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
-import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
-import com.gmwapp.hima.agora.services.CallingService
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.gmwapp.hima.viewmodels.WhatsappLinkViewModel
 import com.gmwapp.hima.viewmodels.ZohoMailViewModel
-import com.gmwapp.hima.workers.CallUpdateWorker
 import com.onesignal.OneSignal
 import com.zoho.commons.LauncherModes
 import com.zoho.commons.LauncherProperties
@@ -59,11 +44,7 @@ import kotlinx.coroutines.Dispatchers
 //import im.zego.zegoexpress.constants.ZegoRoomStateChangedReason
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import org.apache.commons.collections4.functors.FalsePredicate
-import retrofit2.Call
-import retrofit2.Response
 import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.TimeZone
 
 
@@ -297,12 +278,12 @@ class FemaleHomeFragment : BaseFragment() {
 
 
         userLanguage?.let {
-            zohoMailViewModel.fetchZohoMail(it) { email,department ->
+            zohoMailViewModel.fetchZohoMail(it) { email,department,appKey, accessKey ->
                 if (!email.isNullOrEmpty()) {
 
                     // Initialize Zoho *after* email is ready
 
-                    BaseApplication.getInstance()?.initZoho()
+                    BaseApplication.getInstance()?.initZoho(appKey,accessKey)
 
                     val langCode = userLanguage.take(3)
                     ZohoSalesIQ.registerVisitor("${userData.id}_${userData.language}")

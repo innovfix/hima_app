@@ -28,17 +28,11 @@ import com.zoho.salesiqembed.ZohoSalesIQ
 //import com.zegocloud.uikit.prebuilt.call.core.CallInvitationServiceImpl
 //import com.zegocloud.uikit.prebuilt.call.core.notification.RingtoneManager
 import dagger.hilt.android.HiltAndroidApp
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 
 import com.appsflyer.AppsFlyerLib;
 import com.appsflyer.AppsFlyerConversionListener;
-
-import java.util.Map;
 
 
 @HiltAndroidApp
@@ -457,14 +451,14 @@ class BaseApplication : Application(), Configuration.Provider {
         AppsFlyerLib.getInstance().start(applicationContext)
     }
 
-    fun initZoho(){
+    fun initZoho(appKey: String?, accessKey: String?) {
         var userGender = getInstance()?.getPrefs()?.getUserData()?.gender
 
         if (userGender=="female") {
             ZohoSalesIQ.init(
                 this,
-                "2VOIpTcfcgE%2BUhLrpfL5Sdw0%2FON4sOEn3pE5EmwuYzOaU8BLhSO8qhPCANC9LnQa_in",
-                "xHGPBNAi6lBPVQB2vh987S6JIsEJi2TiySCStaNGyaA0yKccjOKLb0DSeC9vfeZ3XUwTbvVRwZtx9nig%2FzwmR2tPURa1wqMQ7ShS5BnSf6nDpAt6FvbISA%3D%3D"
+                appKey,
+                accessKey
             );
         }
     }

@@ -11,6 +11,8 @@ data class ZohoMailItem(
     val language: String,
     val mail: String,
     val department: String,
+    val appkey: String,
+    val accesskey: String,
     val updated_at: String,
     val created_at: String
 )
