@@ -7,7 +7,14 @@ plugins {
     id("kotlin-parcelize")
     id("com.google.gms.google-services")
     id("com.google.firebase.crashlytics")
+//    id("hypersdk.plugin") version "2.0.6"
+
 }
+
+//hyperSdkPlugin {
+//    clientId = "hdfcmaster"
+//    sdkVersion = "2.1.20"
+//}
 
 
 
@@ -19,8 +26,8 @@ android {
         applicationId = "com.gmwapp.hima"
         minSdk = 26
         targetSdk = 35
-        versionCode = 22
-        versionName = "22.0"
+        versionCode = 39
+        versionName = "39"
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -45,7 +52,8 @@ android {
         }
         create("production") {
             dimension = "hima"
-            buildConfigField( "String", "BASE_URL",  "\"https://himaapp.in/api/auth/\"")
+           buildConfigField( "String", "BASE_URL",  "\"https://himaapp.in/api/auth/\"")
+            //buildConfigField( "String", "BASE_URL",  "\"http://139.59.56.195/api/auth/\"")
         }
     }
     compileOptions {
@@ -67,6 +75,8 @@ android {
 
 dependencies {
     implementation(libs.androidx.lifecycle.process)
+    implementation(libs.androidx.core.animation)
+    implementation(libs.firebase.analytics)
     val lifecycleVersion = "2.6.2"
     val glideVersion = "4.11.0"
 
@@ -113,7 +123,7 @@ dependencies {
     implementation ("com.google.android.flexbox:flexbox:3.0.0")
     implementation ("com.skyfishjy.ripplebackground:library:1.0.1")
     implementation ("androidx.fragment:fragment-ktx:1.6.1")
-    implementation ("com.pierfrancescosoffritti.androidyoutubeplayer:core:12.1.1")
+    implementation ("com.pierfrancescosoffritti.androidyoutubeplayer:core:12.1.2")
     implementation("com.google.firebase:firebase-crashlytics:18.4.1")
     implementation ("com.google.gms:google-services:4.3.14")
     implementation ("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
@@ -134,7 +144,8 @@ dependencies {
     implementation(libs.androidx.hilt.work)
     implementation(libs.androidx.work.runtime)
     implementation ("androidx.work:work-runtime-ktx:2.10.0")
-    implementation ("com.onesignal:OneSignal:[5.0.0, 5.99.99]")
+    //implementation ("com.onesignal:OneSignal:[5.0.0, 5.99.99]")
+    implementation("com.onesignal:OneSignal:5.1.34")
     implementation("com.google.androidbrowserhelper:androidbrowserhelper:2.5.0")
 
     implementation ("com.github.NorthernCaptain:TAndroidLame:1.1")
@@ -158,9 +169,9 @@ dependencies {
     //Phonepe
     implementation ("phonepe.intentsdk.android.release:IntentSDK:5.1.0")
 
-    implementation ("com.google.mlkit:face-detection:16.1.7")
+   // implementation ("com.google.mlkit:face-detection:16.1.7")
 
-
+    implementation ("com.google.android.gms:play-services-mlkit-face-detection:17.1.0") // Unbundled model
     val camerax_version = "1.2.2"
     implementation("androidx.camera:camera-core:${camerax_version}")
     implementation("androidx.camera:camera-camera2:${camerax_version}")
@@ -174,6 +185,26 @@ dependencies {
 
 
 
+//    implementation ("com.alphacephei:vosk-android:0.3.47")
+
+    implementation ("io.jsonwebtoken:jjwt:0.9.1")
+
+    //Truecaller
+    implementation ("com.truecaller.android.sdk:truecaller-sdk:3.0.0")
+
+    //Zoho chat
+    implementation ("com.zoho.salesiq:mobilisten:8.2.2")
+
+    //Appflyer
+    implementation ("com.appsflyer:af-android-sdk:6.15.0")
+
+    //Install referer
+    implementation ("com.android.installreferrer:installreferrer:2.2")
+
+
+    //Cashfree
+    implementation ("com.cashfree.pg:api:2.2.8")
+
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -183,3 +214,4 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 }
+

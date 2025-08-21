@@ -4,7 +4,9 @@
     <string name="login_to_get_started">Login to get started</string>
     <string name="you_will_receive_an_otp_on_this_number">You will receive an OTP on this number.</string>
     <string name="send_otp">Send OTP</string>
-    <string name="terms_and_conditions_text"><![CDATA[I accept terms & conditions of HI ma. I also agree to receiving updates on WhatsApp/SMS.]]></string>
+    <string name="terms_and_conditions_text">
+    <![CDATA[I accept <b>terms & conditions</b>, and <b>community guidelines & moderation policy</b> of HI ma.]]>
+</string>
     <string name="please_enter_otp_sent_to">Please enter OTP sent to </string>
     <string name="enter_otp">Enter OTP</string>
     <string name="verify_otp">Verify OTP</string>
@@ -16,7 +18,7 @@
     <string name="add_quantity_coins">Add %d Coins</string>
     <string name="view_more_plans">View more plans ></string>
     <string name="random">Random</string>
-    <string name="rupee_text">\u20B9%d</string>
+    <string name="rupee_text">\u20B9%s</string>
     <string name="rupee_symbol">\u20B9</string>
     <string name="home">Home</string>
     <string name="recent">Recent</string>
@@ -33,6 +35,8 @@
     <string name="refer_earn">Refer &amp; Earn</string>
     <string name="terms_and_condition">Terms &amp; Condition</string>
     <string name="refund_and_cancellation">Refund &amp; Cancellation</string>
+    <string name="CommunityGuidelines">Community Guidelines &amp; Moderation Policy</string>
+    <string name="JoinWhatsapp">Join WhatsApp Channel For More Updates</string>
     <string name="account_privacy">Account Privacy</string>
     <string name="logout">Logout</string>
     <string name="need_help">Need Help? Please contact </string>
@@ -165,6 +169,7 @@
         and start earning!</string>
     <string name="complete">Complete</string>
     <string name="withdraw">Withdraw</string>
+    <string name="understand">I Understand</string>
     <string name="audio">Audio</string>
     <string name="todays_activity">Today\'s Activity</string>
     <string name="approx_earnings">Approx earnings</string>
@@ -219,6 +224,7 @@
     <string name="bank_name">Bank Name</string>
     <string name="ifsc_code">IFSC Code</string>
     <string name="account_number">Account Number</string>
+    <string name="re_enter_account_number">Re-Enter Account Number</string>
     <string name="account_holder_name">Account Holder Name</string>
     <string name="pan_card_name">Enter your full name as on PAN card</string>
     <string name="pan_card_number">Please enter 10 digit PAN number</string>
@@ -232,4 +238,19 @@
 
     <string name="facebook_app_id">1310903060012417</string>
     <string name="facebook_client_token">ed13227b54f4f5cff5f4d326b1ddefce</string>
+
+
+    <string name="juspay_sdk_"> Juspay SDK Integration Demo </string>
+    <string name="home_screen"> Home Screen</string>
+    <string name="juspay_paym">Juspay Payments SDK should be initiated on this screen.</string>
+    <string name="checkout_sc">Checkout Screen</string>
+    <string name="call_proces">Call process on HyperServices instance on Checkout Button Click</string>
+    <string name="handle_jusp">Handle Juspay Payments SDK Response</string>
+
+
+    <string name="blockwords_disclamair">We ended the call because abusive words were detected. Please speak respectfully to ensure a safe and friendly experience for everyone.</string>
+    <string name="blockwords_disclamair2">Call Disconnected Due to Abusive Language</string>
+
+    <string name="clientID">8avjby8rduvi2o3kgk6eorcdq457spxayqyse-luibo</string>
+    <!--    <string name="clientID">mrx9s3lgullvwpqilpta9ruvkcy_yryvht6vawcien0</string>-->
 </resources>

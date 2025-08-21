@@ -168,6 +168,6 @@ class VerifyOTPActivity : BaseActivity() {
     private fun login(mobile: String) {
         Log.d("VerifyOTP", "Calling login function now")
 
-        loginViewModel.login(mobile)
+        loginViewModel.login(mobile,"0","0")
     }
 }

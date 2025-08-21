@@ -21,15 +21,18 @@ import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.repositories.FcmNotificationRepository
 import com.gmwapp.hima.utils.DPreferences
 import com.google.firebase.FirebaseApp
+import com.google.firebase.analytics.FirebaseAnalytics
 import com.onesignal.OneSignal
 import com.onesignal.debug.LogLevel
+import com.zoho.salesiqembed.ZohoSalesIQ
 //import com.zegocloud.uikit.prebuilt.call.core.CallInvitationServiceImpl
 //import com.zegocloud.uikit.prebuilt.call.core.notification.RingtoneManager
 import dagger.hilt.android.HiltAndroidApp
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+
+import com.appsflyer.AppsFlyerLib;
+import com.appsflyer.AppsFlyerConversionListener;
 
 
 @HiltAndroidApp
@@ -46,7 +49,9 @@ class BaseApplication : Application(), Configuration.Provider {
     private var mediaPlayer: MediaPlayer? = null
     private var endCallUpdatePending: Boolean? = null
    // val ONESIGNAL_APP_ID = "2c7d72ae-8f09-48ea-a3c8-68d9c913c592"
-    val ONESIGNAL_APP_ID = "5cd4154a-1ece-4c3b-b6af-e88bafee64cd"
+   val ONESIGNAL_APP_ID = "5cd4154a-1ece-4c3b-b6af-e88bafee64cd"
+
+    //val testingOneSingalAppId = "b5aee4f0-ef38-4116-a04d-ee279ee1f11f"
     private lateinit var sharedPreferences: SharedPreferences
 
     private var currentActivity: Activity? = null
@@ -116,8 +121,14 @@ class BaseApplication : Application(), Configuration.Provider {
 
 
 
+            lateinit var firebaseAnalytics: FirebaseAnalytics
+                private set
 
-    }
+
+
+
+
+        }
 
     override fun onCreate() {
         super.onCreate()
@@ -128,6 +139,10 @@ class BaseApplication : Application(), Configuration.Provider {
         if(BuildConfig.DEBUG) {
             OneSignal.Debug.logLevel = LogLevel.VERBOSE
         }
+
+        firebaseAnalytics = FirebaseAnalytics.getInstance(this)
+
+        appflyer()
 
         FacebookSdk.setApplicationId(getString(R.string.facebook_app_id))
         FacebookSdk.sdkInitialize(applicationContext)
@@ -148,20 +163,63 @@ class BaseApplication : Application(), Configuration.Provider {
 
         // requestPermission will show the native Android notification permission prompt.
         // NOTE: It's recommended to use a OneSignal In-App Message to prompt instead.
-        CoroutineScope(Dispatchers.IO).launch {
-            OneSignal.Notifications.requestPermission(false)
-        }
+//        CoroutineScope(Dispatchers.IO).launch {
+//            OneSignal.Notifications.requestPermission(false)
+//        }
         var userId = getInstance()?.getPrefs()
             ?.getUserData()?.id.toString() // Set user_id
         Log.d("userIDCheck", "Logging in with userId: $userId")
 
+      //  initZoho()
 
-        if (!userId.isNullOrEmpty()) {
-            Log.d("OneSignal", "Logging in with userId: $userId")
-            OneSignal.login(userId)
-        } else {
-            Log.e("OneSignal", "User ID is null or empty, cannot log in.")
-        }
+
+
+
+
+//        if (!userId.isNullOrEmpty() && userId != "null") {
+//            Log.d("OneSignalLogin", "Logging in with userId: $userId")
+//
+//            OneSignal.login(userId)
+//            val externalId = OneSignal.User.externalId
+//            Log.d("OneSignalExternalId", "externalId : $externalId")
+//
+//            OneSignal.User.pushSubscription.optIn()
+//        } else {
+//            Log.e("OneSignalLogin", "User ID is null or invalid.")
+//        }
+
+//        CoroutineScope(Dispatchers.Main).launch {
+//            delay(2000) // wait to ensure OneSignal is initialized fully
+//
+//            // 1. FULL RESET before login
+//            OneSignal.logout()
+//            OneSignal.User.pushSubscription.optOut()
+//
+//            // 2. Fetch user ID
+//            val userId = getInstance()?.getPrefs()?.getUserData()?.id.toString()
+//
+//            if (!userId.isNullOrEmpty() && userId != "null") {
+//                Log.d("OneSignalFix", "Attempting clean login with userId: $userId")
+//
+//                // 3. Force fresh login
+//                OneSignal.login(userId)
+//
+//                // 4. Re-subscribe and assign external ID
+//                OneSignal.User.pushSubscription.optIn()
+//
+//                // 5. Prompt notification permission (Android 13+)
+//                OneSignal.Notifications.requestPermission(true)
+//
+//                // 6. Debug logs to confirm status
+//                delay(1000)
+//                Log.d("OneSignalFix", "externalId: ${OneSignal.User.externalId}")
+//                Log.d("OneSignalFix", "pushToken: ${OneSignal.User.pushSubscription.token}")
+//                Log.d("OneSignalFix", "optedIn: ${OneSignal.User.pushSubscription.optedIn}")
+//            } else {
+//                Log.e("OneSignalFix", "Invalid user ID: $userId")
+//            }
+//        }
+
 
         registerActivityLifecycleCallbacks(lifecycleCallbacks)
 
@@ -360,5 +418,48 @@ class BaseApplication : Application(), Configuration.Provider {
             }
         }
         return false  // App is in background
+    }
+
+    fun appflyer() {
+        val conversionDataListener = object : AppsFlyerConversionListener {
+            override fun onConversionDataSuccess(conversionData: MutableMap<String, Any>?) {
+                conversionData?.let {
+                    for ((key, value) in it) {
+                        Log.d("AppsFlyer", "Conversion data: $key = $value")
+                    }
+                } ?: Log.d("AppsFlyer", "Conversion data is null")
+            }
+
+            override fun onConversionDataFail(errorMessage: String?) {
+                Log.e("AppsFlyer", "Conversion data failure: $errorMessage")
+            }
+
+            override fun onAppOpenAttribution(attributionData: MutableMap<String, String>?) {
+                attributionData?.let {
+                    for ((key, value) in it) {
+                        Log.d("AppsFlyer", "Attribution data: $key = $value")
+                    }
+                } ?: Log.d("AppsFlyer", "Attribution data is null")
+            }
+
+            override fun onAttributionFailure(errorMessage: String?) {
+                Log.e("AppsFlyer", "Attribution failure: $errorMessage")
+            }
+        }
+
+        AppsFlyerLib.getInstance().init("a3v6JFHivKze4bos9RQMf8", conversionDataListener, applicationContext)
+        AppsFlyerLib.getInstance().start(applicationContext)
+    }
+
+    fun initZoho(appKey: String?, accessKey: String?) {
+        var userGender = getInstance()?.getPrefs()?.getUserData()?.gender
+
+        if (userGender=="female") {
+            ZohoSalesIQ.init(
+                this,
+                appKey,
+                accessKey
+            );
+        }
     }
 }

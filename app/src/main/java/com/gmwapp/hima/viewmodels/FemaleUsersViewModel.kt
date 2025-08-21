@@ -149,14 +149,15 @@ class FemaleUsersViewModel @Inject constructor(private val femaleUsersRepositori
     }
 
    fun callFemaleUser(userId: Int, callUserId: Int,
-                      callType: String,) {
+                      callType: String,call_switch:Int) {
         viewModelScope.launch {
-            femaleUsersRepositories.callFemaleUser(userId,callUserId,callType, object:NetworkCallback<CallFemaleUserResponse> {
+            femaleUsersRepositories.callFemaleUser(userId,callUserId,callType,call_switch, object:NetworkCallback<CallFemaleUserResponse> {
                 override fun onResponse(
                     call: Call<CallFemaleUserResponse>,
                     response: Response<CallFemaleUserResponse>
                 ) {
                     callFemaleUserResponseLiveData.postValue(response.body());
+                    Log.d("callFemaleUserResponseLiveData","${response.body()}")
                 }
 
                 override fun onFailure(call: Call<CallFemaleUserResponse>, t: Throwable) {

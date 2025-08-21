@@ -2,21 +2,28 @@ package com.gmwapp.hima.activities
 
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.View
+import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import androidx.lifecycle.Observer
+import androidx.lifecycle.ViewModelProvider
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.databinding.ActivityKycBinding
 import com.gmwapp.hima.retrofit.responses.UserData
+import com.gmwapp.hima.verification.PanRepository
+import com.gmwapp.hima.verification.PanViewModel
+import com.gmwapp.hima.verification.PanViewModelFactory
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.viewmodels.PanCardViewModel
@@ -32,8 +39,9 @@ class KycActivity : AppCompatActivity() {
     private val loginViewModel: LoginViewModel by viewModels()
 
 
+    private var loadingDialog: AlertDialog? = null
 
-    @RequiresApi(Build.VERSION_CODES.R)
+
     override fun onCreate(savedInstanceState: Bundle?) {
 
         super.onCreate(savedInstanceState)
@@ -41,21 +49,22 @@ class KycActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        binding.main.setOnApplyWindowInsetsListener { view, insets ->
-            val systemBarsInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            view.updatePadding(top = systemBarsInsets.top, bottom = systemBarsInsets.bottom)
+        enableEdgeToEdge()
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
 
-        userData?.let { loginViewModel.login(it.mobile) }
+        userData?.let { loginViewModel.login(it.mobile,"0","0") }
 
 
         panObserver()
         setupPanValidation()
         binding.tvCurrentBalance.text = "₹" + userData?.balance.toString()
 
-        binding.btnWithdraw.setOnClickListener {
+        binding.btnSubmit.setOnClickListener {
             val panName = binding.etPanName.text.toString().trim()
             val panNumber = binding.etPanNumber.text.toString().trim()
 
@@ -69,7 +78,9 @@ class KycActivity : AppCompatActivity() {
                 }
 
                 else -> {
-                    userData?.let { it1 -> panCardViewModel.updatePanCard(it1.id, panName, panNumber) }
+                  //  panVerification(panNumber,panName)
+                   userData?.let { it1 -> panCardViewModel.updatePanCard(it1.id, panName, panNumber) }
+                    showLoading()
                 }
             }
         }
@@ -77,7 +88,7 @@ class KycActivity : AppCompatActivity() {
     }
 
     private fun setupPanValidation() {
-        val button = binding.btnWithdraw
+        val button = binding.btnSubmit
         val nameField = binding.etPanName
         val numberField = binding.etPanNumber
 
@@ -98,19 +109,27 @@ class KycActivity : AppCompatActivity() {
 
     fun panObserver(){
         panCardViewModel.panUpdateLiveData.observe(this) { response ->
+            Log.d("panUpdateLiveData","$response")
             if (response != null && response.success) {
+
+                hideLoading()
                 val data = response.data
                 Toast.makeText(this, response.message, Toast.LENGTH_SHORT).show()
                 val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
 
-                userData?.let { loginViewModel.login(it.mobile) }
+                userData?.let { loginViewModel.login(it.mobile,"0","0") }
+
+                onBackPressed()
+                finish()
 
             } else {
+                hideLoading()
                 Snackbar.make(binding.root, response?.message ?: "Update failed", Snackbar.LENGTH_SHORT).show()
             }
         }
 
         panCardViewModel.panUpdateErrorLiveData.observe(this) { error ->
+            hideLoading()
             Snackbar.make(binding.root, error ?: "Something went wrong", Snackbar.LENGTH_SHORT).show()
         }
 
@@ -124,9 +143,48 @@ class KycActivity : AppCompatActivity() {
                     binding.etPanNumber.setText(pancardNumber)
                 }
 
+
+
             }
         })
 
+    }
+
+    fun panVerification(panNumber:String,panName:String){
+
+        val repository = PanRepository()
+        val viewModelFactory = PanViewModelFactory(repository)
+        val viewModel = ViewModelProvider(this, viewModelFactory).get(PanViewModel::class.java)
+
+        viewModel.verifyPan(panNumber, panName)
+
+        viewModel.response.observe(this) { response ->
+            if (response.isSuccessful) {
+                val body = response.body()
+                println("PAN Verified: ${body?.pan}, Name: ${body?.name}")
+                Log.d("PanResponse","$body")
+            } else {
+                println("Error: ${response.code()}")
+            }
+        }
+
+    }
+
+    private fun showLoading() {
+        if (loadingDialog == null) {
+            val progressBar = ProgressBar(this).apply {
+                isIndeterminate = true
+            }
+            loadingDialog = AlertDialog.Builder(this)
+                .setView(progressBar)
+                .setCancelable(false)
+                .create()
+        }
+        loadingDialog?.show()
+    }
+
+    private fun hideLoading() {
+        loadingDialog?.dismiss()
     }
 
 }

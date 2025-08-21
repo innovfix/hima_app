@@ -17,6 +17,7 @@ import android.Manifest
 import android.app.Dialog
 import android.content.Intent
 import android.content.res.Resources
+import android.os.Build
 import android.os.CountDownTimer
 import android.os.Handler
 import android.os.Looper
@@ -38,6 +39,7 @@ import androidx.work.Data
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequest
 import androidx.work.WorkManager
+import com.appsflyer.AppsFlyerLib
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
@@ -68,14 +70,30 @@ import java.util.Date
 import java.util.TimeZone
 
 
-import androidx.camera.core.*
-import androidx.camera.lifecycle.ProcessCameraProvider
+//import androidx.camera.core.*
+//import androidx.camera.lifecycle.ProcessCameraProvider
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetector
 import com.google.mlkit.vision.face.FaceDetectorOptions
-import androidx.camera.core.ExperimentalGetImage
+//import androidx.camera.core.ExperimentalGetImage
 import com.gmwapp.hima.agora.FaceDetectVideoFrameObserver
+import com.gmwapp.hima.viewmodels.AccountViewModel
+import com.google.firebase.analytics.FirebaseAnalytics
+import io.agora.rtc2.IAudioFrameObserver
+import io.agora.rtc2.audio.AudioParams
+import org.json.JSONObject
+//import org.vosk.Model
+//import org.vosk.Recognizer
+import java.io.BufferedInputStream
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.io.InputStream
+import java.nio.ByteBuffer
+import java.util.concurrent.Executors
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
 
 
 @AndroidEntryPoint
@@ -139,11 +157,22 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
     var isAudioCallIdReceived: Boolean = false
 
-    private var cameraProvider: ProcessCameraProvider? = null
+//    private var cameraProvider: ProcessCameraProvider? = null
     private var faceDetector: FaceDetector? = null
-    private var analysisUseCase: ImageAnalysis? = null
-    private var camera: Camera? = null
+//    private var analysisUseCase: ImageAnalysis? = null
+//    private var camera: Camera? = null
     private var lastFaceMissingTime = 0L
+
+
+//    private lateinit var model: Model
+//    private lateinit var recognizer: Recognizer
+
+    private val executor = Executors.newSingleThreadExecutor()
+    private val accountViewModel: AccountViewModel by viewModels()
+
+    var blockWords: List<String> = emptyList()
+    var isBlockWordDetected : Boolean = false
+
 
 
 
@@ -186,20 +215,24 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
 
     private val PERMISSION_REQ_ID = 22
-    private val REQUESTED_PERMISSIONS = arrayOf<String>(
-        Manifest.permission.RECORD_AUDIO,
-        Manifest.permission.CAMERA
-    )
+    private val REQUESTED_PERMISSIONS = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        arrayOf(
+            Manifest.permission.RECORD_AUDIO,
+            Manifest.permission.CAMERA,
+            Manifest.permission.FOREGROUND_SERVICE_MICROPHONE
+        )
+    } else {
+        arrayOf(
+            Manifest.permission.RECORD_AUDIO,
+            Manifest.permission.CAMERA
+        )
+    }
+
 
     private fun checkSelfPermission(): Boolean {
-        return !(ContextCompat.checkSelfPermission(
-            this,
-            REQUESTED_PERMISSIONS[0]
-        ) != PackageManager.PERMISSION_GRANTED ||
-                ContextCompat.checkSelfPermission(
-                    this,
-                    REQUESTED_PERMISSIONS[1]
-                ) != PackageManager.PERMISSION_GRANTED)
+        return REQUESTED_PERMISSIONS.all {
+            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+        }
     }
 
     fun showMessage(message: String?) {
@@ -294,7 +327,212 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         observeCallSwitchRequest()
 
         handleCallSwitch()
+
+        getBlockWords()
     }
+
+    private fun getBlockWords(){
+        accountViewModel.getSettings()
+
+        accountViewModel.settingsLiveData.observe(this, Observer { response ->
+            if (response?.success == true) {
+                response.data?.let { settingsList ->
+                    if (settingsList.isNotEmpty()) {
+                        val settingsData = settingsList[0]
+                        blockWords = settingsData.blockWords
+                        Log.d("BlockWords", "$blockWords")
+                    }
+                }
+            }
+        })
+    }
+
+    private fun initVosk() {
+//        executor.execute {
+//            try {
+//                val modelPath = File(copyAssetToCache("vosk-model-small-en-us-0.15.zip"), "vosk-model-small-en-us-0.15").absolutePath
+//                model = Model(modelPath)
+//                recognizer = Recognizer(model, 16000.0f)
+//            } catch (e: IOException) {
+//                Log.e("Vosk", "Model load failed", e)
+//            }
+//        }
+    }
+
+    private fun copyAssetToCache(zipAssetName: String): String {
+        val targetDir = File(cacheDir, "vosk-model")
+        if (!targetDir.exists()) {
+            val inputStream = assets.open(zipAssetName)
+            unzip(inputStream, targetDir.absolutePath)
+        }
+        Log.d("Vosk", "Extracted model to: ${targetDir.absolutePath}, contents: ${targetDir.listFiles()?.joinToString { it.name }}")
+
+        return targetDir.absolutePath
+    }
+
+    fun unzip(zipInputStream: InputStream, targetLocation: String) {
+        val zis = ZipInputStream(BufferedInputStream(zipInputStream))
+        var ze: ZipEntry? = zis.nextEntry
+
+        while (ze != null) {
+            val file = File(targetLocation, ze.name)
+            if (ze.isDirectory) {
+                file.mkdirs()
+            } else {
+                file.parentFile?.mkdirs()
+                val fout = FileOutputStream(file)
+                val buffer = ByteArray(1024)
+                var count: Int
+                while (zis.read(buffer).also { count = it } != -1) {
+                    fout.write(buffer, 0, count)
+                }
+                fout.close()
+            }
+            zis.closeEntry()
+            ze = zis.nextEntry
+        }
+        zis.close()
+    }
+
+//    private val audioFrameObserver = object : IAudioFrameObserver {
+//
+//
+//        override fun onRecordAudioFrame(
+//            channelId: String?,
+//            type: Int,
+//            samplesPerChannel: Int,
+//            bytesPerSample: Int,
+//            channels: Int,
+//            samplesPerSec: Int,
+//            buffer: ByteBuffer?,
+//            renderTimeMs: Long,
+//            avsync_type: Int
+//        ): Boolean {
+//            if (buffer == null || !::recognizer.isInitialized) return true
+//
+//            val pcmData = ByteArray(buffer.remaining())
+//            Log.d("VOSK-FINAL", pcmData.size.toString())
+//
+//            buffer.get(pcmData)
+//
+//            executor.execute {
+//                try {
+//                    if (recognizer.acceptWaveForm(pcmData, pcmData.size)) {
+//                        val resultJson = recognizer.result  // JSON string like {"text" : "hello"}
+//                        val textOnly = JSONObject(resultJson).optString("text", "")
+//                        Log.d("VOSK-FINAL-Text", textOnly)  // logs just "hello"
+//
+//                        runOnUiThread {
+//                            val matchedWord = blockWords.firstOrNull { word ->
+//                                textOnly.contains(word, ignoreCase = true)
+//                            }
+//
+//                            matchedWord?.let {
+//                                isBlockWordDetected = true
+//
+//                                leaveChannel(binding.LeaveButton)
+////
+////                                Toast.makeText(
+////                                    this@MaleAudioCallingActivity,
+////                                    "Blocked word detected: \"$it\"",
+////                                    Toast.LENGTH_SHORT
+////                                ).show()
+//                            }
+//                        }
+//
+//
+//
+//                    } else {
+//                        Log.d("VOSK-PARTIAL", recognizer.partialResult)
+//                    }
+//                } catch (e: Exception) {
+//                    Log.e("VOSK-ERROR", "Error in recognition: ${e.message}")
+//                }
+//            }
+//
+//            return true
+//        }
+//
+//        override fun onPlaybackAudioFrame(
+//            channelId: String?,
+//            type: Int,
+//            samplesPerChannel: Int,
+//            bytesPerSample: Int,
+//            channels: Int,
+//            samplesPerSec: Int,
+//            buffer: ByteBuffer?,
+//            renderTimeMs: Long,
+//            avsync_type: Int
+//        ): Boolean {
+//            return true
+//        }
+//
+//        override fun onMixedAudioFrame(
+//            channelId: String?,
+//            type: Int,
+//            samplesPerChannel: Int,
+//            bytesPerSample: Int,
+//            channels: Int,
+//            samplesPerSec: Int,
+//            buffer: ByteBuffer?,
+//            renderTimeMs: Long,
+//            avsync_type: Int
+//        ): Boolean {
+//            return true
+//        }
+//
+//        override fun onEarMonitoringAudioFrame(
+//            type: Int,
+//            samplesPerChannel: Int,
+//            bytesPerSample: Int,
+//            channels: Int,
+//            samplesPerSec: Int,
+//            buffer: ByteBuffer?,
+//            renderTimeMs: Long,
+//            avsync_type: Int
+//        ): Boolean {
+//            return true
+//        }
+//
+//        override fun onPlaybackAudioFrameBeforeMixing(
+//            channelId: String?,
+//            uid: Int,
+//            type: Int,
+//            samplesPerChannel: Int,
+//            bytesPerSample: Int,
+//            channels: Int,
+//            samplesPerSec: Int,
+//            buffer: ByteBuffer?,
+//            renderTimeMs: Long,
+//            avsync_type: Int,
+//            rtpTimestamp: Int
+//        ): Boolean {
+//            return true
+//        }
+//
+//        override fun getObservedAudioFramePosition(): Int {
+//            return Constants.POSITION_RECORD       }
+//
+//        override fun getRecordAudioParams(): AudioParams {
+//            return AudioParams(
+//                16000, // sample rate (Hz)
+//                1,     // mono
+//                Constants.RAW_AUDIO_FRAME_OP_MODE_READ_ONLY,
+//                1024   // samples per call
+//            )        }
+//
+//        override fun getPlaybackAudioParams(): AudioParams {
+//            return AudioParams(16000, 1, Constants.RAW_AUDIO_FRAME_OP_MODE_READ_ONLY, 1024)
+//        }
+//
+//        override fun getMixedAudioParams(): AudioParams {
+//            return AudioParams(16000, 1, Constants.RAW_AUDIO_FRAME_OP_MODE_READ_ONLY, 1024)
+//        }
+//
+//        override fun getEarMonitoringAudioParams(): AudioParams {
+//            return AudioParams(16000, 1, Constants.RAW_AUDIO_FRAME_OP_MODE_READ_ONLY, 1024)
+//        }
+//    }
 
 
     private fun setMyAvatar(image: String, name: String) {
@@ -404,10 +642,17 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             }.start()
         }
 
-        if (isRemoteUserJoined==true){
+        if (isRemoteUserJoined==true&&isBlockWordDetected==false){
             val intent = Intent(this@MaleVideoCallingActivity, RatingActivity::class.java)
             intent.putExtra(DConstants.RECEIVER_NAME, receiverName)
             intent.putExtra(DConstants.RECEIVER_ID, receiverId)
+            startActivity(intent)
+            Log.d("Lifecycle", "onDestroy() called. Firestore listener removed.")
+        }
+
+        if (isRemoteUserJoined==true && isBlockWordDetected==true){
+            val intent = Intent(this@MaleVideoCallingActivity, MainActivity::class.java)
+            intent.putExtra("blockword", true)
             startActivity(intent)
             Log.d("Lifecycle", "onDestroy() called. Firestore listener removed.")
         }
@@ -440,6 +685,27 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
                 ActivityCompat.requestPermissions(this@MaleVideoCallingActivity, arrayOf(Manifest.permission.CAMERA), 22)
             }
+
+            val bundle = Bundle().apply {
+                putString("user_id", "${maleUserId}")
+            }
+
+            FirebaseAnalytics.getInstance(this@MaleVideoCallingActivity).logEvent("call_started", bundle)
+
+            val eventValues = HashMap<String, Any>()
+            eventValues["user_id"] = maleUserId    // example duration
+            eventValues["call_type"] = "Video"             // example parameter
+
+            AppsFlyerLib.getInstance().logEvent(
+                this@MaleVideoCallingActivity,
+                "call_started",
+                eventValues
+            )
+
+            initVosk()
+            agoraEngine?.setAudioProfile(Constants.AUDIO_PROFILE_SPEECH_STANDARD, Constants.AUDIO_SCENARIO_DEFAULT)
+
+//            agoraEngine?.registerAudioFrameObserver(audioFrameObserver)
         }
 
         override fun onJoinChannelSuccess(channel: String, uid: Int, elapsed: Int) {
@@ -464,6 +730,25 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             startActivity(intent)
             finish()
+        }
+
+        override fun onUserMuteVideo(uid: Int, muted: Boolean) {
+            super.onUserMuteVideo(uid, muted)
+
+
+                runOnUiThread {
+                    if (muted){
+                        binding.main.setBackgroundColor(android.graphics.Color.GRAY)
+                        binding.remoteVideoViewContainer.visibility= View.GONE
+
+
+                    }else{
+                        binding.main.setBackgroundResource(R.drawable.d_call_screen_background)
+                        binding.remoteVideoViewContainer.visibility= View.VISIBLE
+
+                    }
+                }
+
         }
     }
 
@@ -984,7 +1269,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         receiverId?.let { it1 ->
             userId?.let {
                 femaleUsersViewModel.callFemaleUser(
-                    it, it1, callType
+                    it, it1, callType,1
                 )
             }
             callIdObserver()
@@ -1461,12 +1746,18 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     fun disableVideo(){
         binding.blackscreen.visibility=View.VISIBLE
         agoraEngine?.muteAllRemoteAudioStreams(true)
+        agoraEngine?.muteLocalVideoStream(true)
+        agoraEngine?.muteLocalAudioStream(true)
         showNoFaceDetectedDialog()
     }
 
     fun enableVideo(){
-       binding.blackscreen.visibility=View.GONE
+        binding.blackscreen.visibility=View.GONE
         agoraEngine?.muteAllRemoteAudioStreams(false)
+        agoraEngine?.muteLocalVideoStream(false)
+        agoraEngine?.muteLocalAudioStream(false)
+
+
         dismissNoFaceDetectedDialog()
     }
 

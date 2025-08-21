@@ -79,6 +79,7 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
                         call: Call<RegisterResponse>, response: Response<RegisterResponse>
                     ) {
                         registerLiveData.postValue(response.body())
+                        Log.d("registerLiveData","${response.body()}")
                     }
 
                     override fun onFailure(call: Call<RegisterResponse>, t: Throwable) {

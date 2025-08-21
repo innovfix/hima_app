@@ -2,7 +2,6 @@ package com.gmwapp.hima.fragments
 
 import android.Manifest
 import android.app.ActivityManager
-import android.app.NotificationManager.IMPORTANCE_NONE
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -17,45 +16,35 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.viewModels
-import androidx.browser.customtabs.CustomTabsClient.getPackageName
-import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
-import androidx.lifecycle.lifecycleScope
-import androidx.work.Constraints
-import androidx.work.Data
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequest
-import androidx.work.WorkManager
 import com.gmwapp.hima.BaseApplication
-import com.gmwapp.hima.R
+import com.gmwapp.hima.BaseApplication.Companion.getInstance
 import com.gmwapp.hima.activities.EarningsActivity
 import com.gmwapp.hima.activities.GrantPermissionsActivity
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentFemaleHomeBinding
-import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
-import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
-import com.gmwapp.hima.agora.services.CallingService
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.gmwapp.hima.viewmodels.WhatsappLinkViewModel
-import com.gmwapp.hima.workers.CallUpdateWorker
+import com.gmwapp.hima.viewmodels.ZohoMailViewModel
 import com.onesignal.OneSignal
+import com.zoho.commons.LauncherModes
+import com.zoho.commons.LauncherProperties
+import com.zoho.salesiqembed.ZohoSalesIQ
 //import com.tencent.mmkv.MMKV
 //import com.zegocloud.uikit.ZegoUIKit
 //import com.zegocloud.uikit.prebuilt.call.core.CallInvitationServiceImpl
 //import com.zegocloud.uikit.prebuilt.call.core.notification.PrebuiltCallNotificationManager
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 //import im.zego.zegoexpress.constants.ZegoRoomStateChangedReason
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import retrofit2.Call
-import retrofit2.Response
 import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.TimeZone
 
 
@@ -68,6 +57,7 @@ class FemaleHomeFragment : BaseFragment() {
     lateinit var binding: FragmentFemaleHomeBinding
     lateinit var language : String
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
+    private val zohoMailViewModel: ZohoMailViewModel by viewModels()
     private val whatsappLinkViewModel: WhatsappLinkViewModel by viewModels()
     private val accountViewModel: AccountViewModel by viewModels()
 
@@ -270,9 +260,60 @@ class FemaleHomeFragment : BaseFragment() {
 
     private fun initUI() {
 
-        accountViewModel.getSettings()
         val prefs = BaseApplication.getInstance()?.getPrefs()
         val userData = prefs?.getUserData()
+        val userLanguage = userData?.language //
+
+//        ZohoSalesIQ.deInit {  }
+//        BaseApplication.getInstance()?.initZoho()
+//
+//        val props = LauncherProperties(LauncherModes.FLOATING)
+//        props.setYFromBottom(180)
+//
+//        props.setDirection(LauncherProperties.Horizontal.RIGHT) // Add this line
+
+
+
+//        userLanguage?.let { zohoMailViewModel.fetchZohoMail(it) }
+
+
+        userLanguage?.let {
+            zohoMailViewModel.fetchZohoMail(it) { email,department,appKey, accessKey ->
+                if (!email.isNullOrEmpty()) {
+
+                    // Initialize Zoho *after* email is ready
+
+                    BaseApplication.getInstance()?.initZoho(appKey,accessKey)
+
+                    val langCode = userLanguage.take(3)
+                    ZohoSalesIQ.registerVisitor("${userData.id}_${userData.language}")
+
+                    ZohoSalesIQ.Visitor.setName("${userData?.name}($langCode)")
+                    ZohoSalesIQ.Visitor.setContactNumber("${userData?.mobile}")
+                    ZohoSalesIQ.Chat.setOperatorEmail(email)
+
+                    if (!department.isNullOrEmpty()) {
+                        ZohoSalesIQ.Chat.setDepartment(department)
+                    }
+
+                    Log.d("ZohoEmail", "$email, Department: $department")
+
+                    val props = LauncherProperties(LauncherModes.FLOATING)
+                    props.setYFromBottom(180)
+                    props.setDirection(LauncherProperties.Horizontal.RIGHT)
+
+                    ZohoSalesIQ.setLauncherProperties(props)
+                    ZohoSalesIQ.showLauncher(true)
+                } else {
+                    Log.e("ZohoMailError", "Failed to fetch operator email")
+                }
+            }
+        }
+
+
+
+        accountViewModel.getSettings()
+
 
 
         language = userData?.language.toString()
@@ -281,18 +322,52 @@ class FemaleHomeFragment : BaseFragment() {
         val isTagSet = sharedPreferences.getBoolean("isOneSignalTagSet", false)
 
 
+        CoroutineScope(Dispatchers.Main).launch {
+            delay(2000) // wait to ensure OneSignal is initialized fully
 
-        OneSignal.User.addTag("gender", "female")
-        language?.let {
-            OneSignal.User.addTag("language", it)
-            Log.d("OneSignalTag", "Language tag added: $it")
+            // 1. FULL RESET before login
+            OneSignal.logout()
+            OneSignal.User.pushSubscription.optOut()
+
+            // 2. Fetch user ID
+            val userId = getInstance()?.getPrefs()?.getUserData()?.id.toString()
+
+            if (!userId.isNullOrEmpty() && userId != "null") {
+                Log.d("OneSignalFix", "Attempting clean login with userId: $userId")
+
+                // 3. Force fresh login
+                OneSignal.login(userId)
+
+                // 4. Re-subscribe and assign external ID
+                OneSignal.User.pushSubscription.optIn()
+
+                // 5. Prompt notification permission (Android 13+)
+                OneSignal.Notifications.requestPermission(true)
+
+                OneSignal.User.addTag("gender", "female")
+                language?.let {
+                    OneSignal.User.addTag("language", it)
+                    Log.d("OneSignalTag", "Language tag added: $it")
+                }
+
+                language?.let {
+                    OneSignal.User.addTag("gender_language", "female_$it")
+                    Log.d("OneSignalTag", "female_$it")
+
+                }
+
+                // 6. Debug logs to confirm status
+                delay(1000)
+                Log.d("OneSignalFix", "externalId: ${OneSignal.User.externalId}")
+                Log.d("OneSignalFix", "pushToken: ${OneSignal.User.pushSubscription.token}")
+                Log.d("OneSignalFix", "optedIn: ${OneSignal.User.pushSubscription.optedIn}")
+            } else {
+                Log.e("OneSignalFix", "Invalid user ID: $userId")
+            }
         }
 
-        language?.let {
-            OneSignal.User.addTag("gender_language", "female_$it")
-            Log.d("OneSignalTag", "female_$it")
 
-        }
+
 
 
         language?.let { whatsappLinkViewModel.fetchLink(it) }

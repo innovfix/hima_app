@@ -15,9 +15,11 @@ import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.core.animation.addListener
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
@@ -54,21 +56,22 @@ class WithdrawActivity : BaseActivity() {
     var minWithdrawAmount :Int?= null
     private val accountViewModel: AccountViewModel by viewModels()
 
+    var isPanVerifiend = false
 
     var payment_method = ""
 
 
 
-    @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityWithdrawBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        binding.main.setOnApplyWindowInsetsListener { view, insets ->
-            val systemBarsInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            view.updatePadding(top = systemBarsInsets.top, bottom = systemBarsInsets.bottom)
+        enableEdgeToEdge()
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
         initUI()
@@ -172,7 +175,7 @@ class WithdrawActivity : BaseActivity() {
         }
 
 
-        if (userData?.bank.isNullOrEmpty()) {
+        if (userData?.holder_name.isNullOrEmpty()) {
             bankDetails = false
             binding.ivAddBank.setBackgroundResource(R.drawable.ic_add_upi) // Replace with your valid drawable resource
 
@@ -217,9 +220,12 @@ class WithdrawActivity : BaseActivity() {
 
 
         binding.cvAddBank.setOnSingleClickListener {
-            val intent = Intent(this, BankUpdateActivity::class.java)
-            startActivity(intent)
-
+            if (isPanVerifiend) {
+                val intent = Intent(this, BankUpdateActivity::class.java)
+                startActivity(intent)
+            }else{
+                Toast.makeText(this,"Please complete kyc", Toast.LENGTH_SHORT).show()
+            }
         }
 
         binding.cvPanDetails.setOnSingleClickListener {
@@ -229,7 +235,7 @@ class WithdrawActivity : BaseActivity() {
         }
 
         binding.btnWithdraw.setOnClickListener {
-            val amount = binding.etAmount.text.toString().toInt()
+            val amount = binding.etAmount.text.toString().toDouble().toInt()
             val paymentMethod = payment_method
 
             val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
@@ -348,7 +354,7 @@ class WithdrawActivity : BaseActivity() {
         // Check if amount is empty or not a valid number
         if (amount.isEmpty() || !isValidAmount(amount)) {
             // Optionally, show a message or highlight the field
-            binding.etAmount.error = "Min withdrwal amount Rs.$minWithdrawAmount"
+         //   binding.etAmount.error = "Min withdrwal amount Rs.$minWithdrawAmount"
         }
 
 
@@ -407,7 +413,9 @@ class WithdrawActivity : BaseActivity() {
     fun panVerification(){
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
 
-        userData?.let { loginViewModel.login(it.mobile) }
+        userData?.let { loginViewModel.login(it.mobile,"0","0") }
+        userData?.let { profileViewModel.getUsers(it.id) }
+
         loginViewModel.loginResponseLiveData.observe(this, Observer {
 
             if (it.success) {
@@ -415,9 +423,35 @@ class WithdrawActivity : BaseActivity() {
                     binding.ivAddPan.setBackgroundResource(R.drawable.tick_circle_svg) // Replace with your valid drawable resource
                     // Rotate the drawable by a specified angle (e.g., 45 degrees)
                     binding.ivAddPan.rotation = 0f // This rotates the ImageView by 45 degrees
-                }
+                    isPanVerifiend = true
+                    binding.kycLL.visibility= View.GONE
+                }else{
+                    binding.kycLL.visibility= View.VISIBLE
 
+                }
             }
+
+            profileViewModel.getUserLiveData.observe(this, Observer {
+                BaseApplication.getInstance()?.getPrefs()?.setUserData(it?.data)
+
+                if (it?.data?.holder_name.isNullOrEmpty()) {
+                    bankDetails = false
+                    binding.ivAddBank.setBackgroundResource(R.drawable.ic_add_upi) // Replace with your valid drawable resource
+
+                    Log.d("HolderName","${it?.data?.holder_name}")
+                    // Rotate the drawable by a specified angle (e.g., 45 degrees)
+                    binding.ivAddBank.rotation = 0f // This rotates the ImageView by 45 degrees
+                }
+                else {
+                    bankDetails = true
+                    Log.d("HolderName","${it?.data?.holder_name}")
+
+                    binding.ivAddBank.setBackgroundResource(R.drawable.tick_circle_svg) // Replace with your valid drawable resource
+                    // Rotate the drawable by a specified angle (e.g., 45 degrees)
+                    binding.ivAddBank.rotation = 0f // This rotates the ImageView by 45 degrees
+
+                }
+            })
         })
     }
 

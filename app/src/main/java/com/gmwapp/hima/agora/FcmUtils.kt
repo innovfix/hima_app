@@ -11,6 +11,7 @@ object FcmUtils {
     private val _callDeclinedStatus = MutableLiveData<Boolean>()
     val callDeclinedStatus: LiveData<Boolean> get() = _callDeclinedStatus
 
+    var blockWordDetected = false
 
     var isUserAvailable = 1
 

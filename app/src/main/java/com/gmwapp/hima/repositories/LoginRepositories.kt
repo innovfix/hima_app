@@ -8,8 +8,8 @@ import com.gmwapp.hima.retrofit.responses.SendOTPResponse
 import javax.inject.Inject
 
 class LoginRepositories @Inject constructor(private val apiManager: ApiManager) {
-    fun login(mobile: String, callback: NetworkCallback<LoginResponse>) {
-        apiManager.login(mobile, callback)
+    fun login(mobile: String,code: String,code_verifier: String, callback: NetworkCallback<LoginResponse>) {
+        apiManager.login(mobile,code, code_verifier, callback)
     }
 
 

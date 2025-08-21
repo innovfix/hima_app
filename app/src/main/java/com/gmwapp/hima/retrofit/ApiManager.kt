@@ -11,6 +11,7 @@ import com.gmwapp.hima.retrofit.responses.CallFemaleUserResponse
 import com.gmwapp.hima.retrofit.responses.CallsListResponse
 import com.gmwapp.hima.retrofit.responses.CoinsResponse
 import com.gmwapp.hima.retrofit.responses.CouponsResponse
+import com.gmwapp.hima.retrofit.responses.CreateCashfreeOrderResponse
 import com.gmwapp.hima.retrofit.responses.DeleteUserResponse
 import com.gmwapp.hima.retrofit.responses.EarningsResponse
 import com.gmwapp.hima.retrofit.responses.ExplanationVideoResponse
@@ -20,6 +21,7 @@ import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponse
 import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
 import com.gmwapp.hima.retrofit.responses.GiftImageResponse
+import com.gmwapp.hima.retrofit.responses.IndividualAppUpdateResponse
 import com.gmwapp.hima.retrofit.responses.LoginResponse
 import com.gmwapp.hima.retrofit.responses.OfferResponse
 import com.gmwapp.hima.retrofit.responses.PanCardResponse
@@ -43,6 +45,7 @@ import com.gmwapp.hima.retrofit.responses.UserValidationResponse
 import com.gmwapp.hima.retrofit.responses.VoiceUpdateResponse
 import com.gmwapp.hima.retrofit.responses.WhatsappLinkResponse
 import com.gmwapp.hima.retrofit.responses.WithdrawResponse
+import com.gmwapp.hima.retrofit.responses.ZohoMailResponse
 import com.gmwapp.hima.utils.Helper
 import okhttp3.MultipartBody
 import retrofit2.Call
@@ -62,10 +65,10 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
 
 
     fun login(
-        mobile: String, callback: NetworkCallback<LoginResponse>
+        mobile: String,  code: String,  code_verifier: String, callback: NetworkCallback<LoginResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<LoginResponse> = getApiInterface().login(mobile)
+            val apiCall: Call<LoginResponse> = getApiInterface().login(mobile,code, code_verifier)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -77,6 +80,19 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<AppUpdateResponse> = getApiInterface().appUpdate(1)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun individualAppUpdate(
+        userId: Int,
+        currentVersion: String,
+        callback: NetworkCallback<IndividualAppUpdateResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<IndividualAppUpdateResponse> = getApiInterface().individualAppUpdate(userId, currentVersion)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -253,11 +269,12 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         userId: Int,
         callUserId: Int,
         callType: String,
+        call_switch: Int,
         callback: NetworkCallback<CallFemaleUserResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<CallFemaleUserResponse> =
-                getApiInterface().callFemaleUser(userId, callUserId, callType)
+                getApiInterface().callFemaleUser(userId, callUserId, callType,call_switch)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -477,6 +494,23 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun add_coins_cashfree(
+        userId: Int,
+        coinsId: String,
+        status: Int,
+        orderId: String,
+        massage: String,
+        callback: NetworkCallback<AddCoinsResponse>
+    ) {
+
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<AddCoinsResponse> = getApiInterface().add_coins_cashfree(userId, coinsId, status, orderId, massage)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun addCoinsGpay(
         userId: Int,
         coinsId: String,
@@ -602,15 +636,40 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     }
 
     fun getCoupons(
-        callback: NetworkCallback<CouponsResponse>
+        coinID: String?, callback: NetworkCallback<CouponsResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<CouponsResponse> = getApiInterface().getCoupons()
+            val apiCall: Call<CouponsResponse> = getApiInterface().getCoupons(coinID)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
         }
     }
+
+    fun getZohoMailList(language: String, callback: NetworkCallback<ZohoMailResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val call = getApiInterface().getZohoMailList(language)
+            call.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun createCashfreeOrder(
+        userId: Int,
+        coinsId: Int,
+        callback: NetworkCallback<CreateCashfreeOrderResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<CreateCashfreeOrderResponse> =
+                getApiInterface().createCashfreeOrder(userId, coinsId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+
 
 
 
@@ -683,8 +742,12 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
 interface ApiInterface {
     @FormUrlEncoded
     @POST("login")
-    fun login(@Field("mobile") mobile: String): Call<LoginResponse>
+    fun login(
+        @Field("mobile") mobile: String,
+        @Field("code") code: String,
+        @Field("code_verifier") code_verifier: String
 
+    ): Call<LoginResponse>
     @FormUrlEncoded
     @POST("send_otp")
     fun sendOTP(
@@ -697,6 +760,14 @@ interface ApiInterface {
     @FormUrlEncoded
     @POST("appsettings_list")
     fun appUpdate(@Field("user_id") userId: Int):Call<AppUpdateResponse>
+
+    @FormUrlEncoded
+    @POST("individual_app_update")
+    fun individualAppUpdate(
+        @Field("user_id") userId: Int,
+        @Field("current_version") currentVersion: String
+    ): Call<IndividualAppUpdateResponse>
+
 
     @FormUrlEncoded
     @POST("avatar_list")
@@ -792,7 +863,8 @@ interface ApiInterface {
     fun callFemaleUser(
         @Field("user_id") userId: Int,
         @Field("call_user_id") callUserId: Int,
-        @Field("call_type") callType: String
+        @Field("call_type") callType: String,
+        @Field("call_switch") call_switch: Int
     ): Call<CallFemaleUserResponse>
 
     @FormUrlEncoded
@@ -889,6 +961,16 @@ interface ApiInterface {
     @POST("add_coins_phonepe")
     @FormUrlEncoded
     fun addCoins(
+        @Field("user_id") userId: Int,
+        @Field("coins_id") coinsId: String,
+        @Field("status") status: Int,
+        @Field("order_id") orderId: String,
+        @Field("message") massage: String,
+    ): Call<AddCoinsResponse>
+
+    @POST("add_coins_cashfree")
+    @FormUrlEncoded
+    fun add_coins_cashfree(
         @Field("user_id") userId: Int,
         @Field("coins_id") coinsId: String,
         @Field("status") status: Int,
@@ -1020,10 +1102,26 @@ interface ApiInterface {
         @Field("pancard_number") panNumber: String
     ): Call<PanCardResponse>
 
+    @FormUrlEncoded
     @POST("coupons_list")
-    fun getCoupons(): Call<CouponsResponse>
+    fun getCoupons(
+        @Field("coins_id") coinID: String?
+    ): Call<CouponsResponse>
+
+
+    @FormUrlEncoded
+    @POST("zohomail_list")
+    fun getZohoMailList(
+        @Field("language") language: String
+    ): Call<ZohoMailResponse>
 
 
 
+    @FormUrlEncoded
+    @POST("cashfree/create-order")
+    fun createCashfreeOrder(
+        @Field("user_id") userId: Int,
+        @Field("coins_id") coinsId: Int
+    ): Call<CreateCashfreeOrderResponse>
 
 }

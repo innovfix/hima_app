@@ -2,16 +2,22 @@ package com.gmwapp.hima.activities
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Dialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
+import android.view.Window
+import android.view.WindowManager
+import android.widget.Button
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.activity.enableEdgeToEdge
@@ -26,7 +32,14 @@ import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.appsflyer.AppsFlyerLib
 import com.bumptech.glide.Glide
+import com.cashfree.pg.api.CFPaymentGatewayService
+import com.cashfree.pg.base.exception.CFException
+import com.cashfree.pg.core.api.CFSession
+import com.cashfree.pg.core.api.callback.CFCheckoutResponseCallback
+import com.cashfree.pg.core.api.utils.CFErrorResponse
+import com.cashfree.pg.core.api.webcheckout.CFWebCheckoutPayment
 import com.facebook.appevents.AppEventsConstants
 import com.facebook.appevents.AppEventsLogger
 import com.gmwapp.hima.BaseApplication
@@ -49,6 +62,7 @@ import com.gmwapp.hima.retrofit.responses.RazorPayApiResponse
 import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.FcmTokenViewModel
+import com.gmwapp.hima.viewmodels.IndividualAppUpdateViewModel
 import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.viewmodels.OfferViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
@@ -68,11 +82,17 @@ import com.google.android.play.core.install.model.AppUpdateType
 import com.google.android.play.core.install.model.InstallStatus
 import com.google.android.play.core.install.model.UpdateAvailability
 import com.google.androidbrowserhelper.trusted.LauncherActivity
+import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.messaging.FirebaseMessaging
+import com.onesignal.OneSignal
 import com.phonepe.intent.sdk.api.PhonePeInitException
 import com.phonepe.intent.sdk.api.PhonePeKt
 import com.phonepe.intent.sdk.api.models.PhonePeEnvironment
+import com.zoho.salesiqembed.ZohoSalesIQ
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import okhttp3.Callback
 import okhttp3.FormBody
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -88,7 +108,7 @@ import kotlin.math.round
 
 @AndroidEntryPoint
 class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelectedListener,
-    BottomSheetWelcomeBonus.OnAddCoinsListener {
+    BottomSheetWelcomeBonus.OnAddCoinsListener, CFCheckoutResponseCallback {
     lateinit var binding: ActivityMainBinding
     var isBackPressedAlready = false
     var userName: String? = null
@@ -98,12 +118,19 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     val appUpdateViewModel: LoginViewModel by viewModels()
     val offerViewModel: OfferViewModel by viewModels()
     private val profileViewModel: ProfileViewModel by viewModels()
+    private val loginViewModel: LoginViewModel by viewModels()
+
     private val accountViewModel: AccountViewModel by viewModels()
     private val fcmTokenViewModel: FcmTokenViewModel by viewModels()
     private val upiPaymentViewModel: UpiPaymentViewModel by viewModels()
+    val individualAppUpdateViewModel: IndividualAppUpdateViewModel by viewModels()
+
     private var billingManager: BillingManager? = null
     private val WalletViewModel: WalletViewModel by viewModels()
     private val fetchedSkuList: MutableList<String> = mutableListOf()
+
+
+    private var blockWordDialog: Dialog? = null
 
 
     private lateinit var call: Call<ApiResponse>
@@ -123,6 +150,10 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
     private lateinit var activityResultLauncher: ActivityResultLauncher<IntentSenderRequest>
     private lateinit var appUpdateManager: AppUpdateManager
+
+    private val cfEnvironment = CFSession.Environment.PRODUCTION
+
+    private var cashfreeLastOrderId: String = ""
 
 
 
@@ -170,8 +201,30 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             insets
         }
 
+        checkIndividualPaymentType()
+
+        try {
+            CFPaymentGatewayService.getInstance().setCheckoutCallback(this)
+        } catch (e: CFException) {
+            e.printStackTrace()
+        }
+
+
+//        var gender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
+//        if (gender=="female"){
+//            ZohoSalesIQ.showLauncher(true)
+//        }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            OneSignal.Notifications.requestPermission(false)
+        }
+
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+
+
         AppEventsLogger.newLogger(this).logEvent("TestEventFromApp")
 
+        logDailyActiveUserIfNeeded()
 
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -194,31 +247,70 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 Log.e("Update", "Update flow failed! Result code: ${result.resultCode}")
             }
         }
-        appUpdateViewModel.appUpdate()
+       // appUpdateViewModel.appUpdate()
 
 
-        appUpdateViewModel.appUpdateResponseLiveData.observe(this, Observer {
-            if (it != null && it.success) {
+        userData?.let { individualAppUpdateViewModel.checkUserAppVersion(it.id,currentVersion) }
 
-                val latestVersion = it.data[0].app_version.toString()
-                checkForInAppUpdate(latestVersion)
+//        appUpdateViewModel.appUpdateResponseLiveData.observe(this, Observer {
+//            if (it != null && it.success) {
+//
+//                val latestVersion = it.data[0].app_version.toString()
+//                checkForInAppUpdate(latestVersion)
+//
+//            }
+//        })
 
+        individualAppUpdateViewModel.individualUpdateLiveData.observe(this) { response ->
+
+            if (response != null && response.success) {
+                val data = response.data
+                val link = response.data.link
+                val description = response.data.description
+
+
+                if (data.current_version.toInt()>= data.minimum_version.toInt()){
+                    Log.d("VerisonUpdate","You are to date")
+                }else if (data.current_version.toInt() < data.minimum_version.toInt() &&
+                    data.update_type == "mandatory") {
+                    Log.d("individualAppUpdateViewModel","Mandatory")
+                    showUpdateDialog(link, description)
+                } else {
+                    checkForInAppUpdate()
+                }
             }
-        })
+        }
 
 
 
 
 
 
-        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+
+
         userID = userData?.id.toString()
+//        if (userID!=null){
+//            OneSignal.login(userID!!)
+//            Log.e("OneSignalLogin", "User ID is $userID - MainActivity")
+//
+//            val externalId = OneSignal.User.externalId
+//            Log.d("OneSignalExternalId", "externalId : $externalId")
+//
+//           OneSignal.User.pushSubscription.optIn()
+//        }
 
         billingManager = BillingManager(this)
         accountViewModel.getSettings()
         BaseApplication.getInstance()?.getPrefs()?.getUserData()?.let { WalletViewModel.getCoins(it.id) }
 
-        initUI()
+
+        showBlockWordsDetectedDialog()
+
+        Handler(Looper.getMainLooper()).post {
+            checkAndShowBlockwordDialog()
+        }
+
+            initUI()
         getSkuListID()
         addObservers()
         intializePhonpe()
@@ -247,6 +339,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 //        addRoomStateChangedListener()
 //        moveTaskToBack(true)
 //    }
+
+
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -336,15 +430,99 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 //        })
 //    }
 
+    private fun checkAndShowBlockwordDialog() {
+        val prefs = getSharedPreferences("APP_PREFS", MODE_PRIVATE)
+        val wasDetected = prefs.getBoolean("blockword_detected", false)
+
+        Log.d("blockword_detected","$wasDetected")
+        if (wasDetected) {
+            prefs.edit().putBoolean("blockword_detected", false).apply() // Reset
+
+            // Show the dialog
+            showBlockWordsDetectedDialogFemale()
+        }
+    }
+
+    private fun showBlockWordsDetectedDialogFemale(){
+
+
+            if (blockWordDialog?.isShowing == true) return  // Already showing
+
+            blockWordDialog = Dialog(this).apply {
+                requestWindowFeature(Window.FEATURE_NO_TITLE)
+                setContentView(R.layout.dialog_block_words_detected)
+                window?.setLayout(
+                    (resources.displayMetrics.widthPixels * 0.9).toInt(),
+                    WindowManager.LayoutParams.WRAP_CONTENT
+                )
+                window?.setBackgroundDrawableResource(android.R.color.transparent)
+                findViewById<Button>(R.id.btn_iUnderstand)?.setOnClickListener {
+                    dismiss()  // Dismiss the dialog
+                }
+                show()
+            }
+
+
+    }
+
+    private fun showUpdateDialog(link: String, description: String) {
+        val bottomSheetDialog = BottomSheetDialog(this)
+        val view = layoutInflater.inflate(R.layout.bottom_dialog_update, null)
+        bottomSheetDialog.setContentView(view)
+        bottomSheetDialog.setCancelable(false);
+
+        val btnUpdate = view.findViewById<View>(R.id.btnUpdate)
+        val dialogMessage = view.findViewById<TextView>(R.id.dialog_message)
+        dialogMessage.text = description
+        btnUpdate.setOnClickListener(View.OnClickListener {
+            val url = link;
+            val i = Intent(Intent.ACTION_VIEW)
+            i.data = Uri.parse(url)
+            startActivity(i)
+        })
+
+
+        // Customize your bottom dialog here
+        // For example, you can set text, buttons, etc.
+
+        bottomSheetDialog.show()
+    }
+
+
+    private fun showBlockWordsDetectedDialog(){
+        val isBlockWord = intent.getBooleanExtra("blockword",false)
+        if (isBlockWord){
+
+            if (blockWordDialog?.isShowing == true) return  // Already showing
+
+            blockWordDialog = Dialog(this).apply {
+                requestWindowFeature(Window.FEATURE_NO_TITLE)
+                setContentView(R.layout.dialog_block_words_detected)
+                window?.setLayout(
+                    (resources.displayMetrics.widthPixels * 0.9).toInt(),
+                    WindowManager.LayoutParams.WRAP_CONTENT
+                )
+                window?.setBackgroundDrawableResource(android.R.color.transparent)
+                findViewById<Button>(R.id.btn_iUnderstand)?.setOnClickListener {
+                    dismiss()  // Dismiss the dialog
+                }
+                show()
+            }
+
+        }
+    }
+
+
+
     private fun addObservers() {
         offerViewModel.offerResponseLiveData.observe(this) { response ->
-            if (response.success) {
+            if (response?.success == true && !response.data.isNullOrEmpty()) {
                 val coin = response.data[0].coins
                 val discountedPrice = response.data[0].price
                 val save = response.data[0].save
                 val coinId = response.data[0].id
                 val total_count = response.data[0].total_count
-                paymentGateway = response.data[0].pg
+              //  paymentGateway = response.data[0].pg
 
 
                 val originalPrice = calculateOriginalPrice(discountedPrice, save)
@@ -355,11 +533,23 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 Log.d("OrinalPrice","OriginalPrice $originalPrice")
                 Log.d("OrinalPrice","discountPrice $discountedPrice")
                 Log.d("OrinalPrice","savePercent $save")
-                if (BaseApplication.getInstance()?.getPrefs()
+                val isBlockWord = intent.getBooleanExtra("blockword", false)
+
+                if (!isBlockWord && BaseApplication.getInstance()?.getPrefs()
                         ?.getUserData()?.gender == DConstants.MALE
                 ) {
-                    val bottomSheet = BottomSheetWelcomeBonus(coin, originalPrice, discountedPrice,coinId,total_count)
-                    bottomSheet.show(supportFragmentManager, "BottomSheetWelcomeBonus")
+
+                    val existing = supportFragmentManager.findFragmentByTag("BottomSheetWelcomeBonus")
+                    if (existing == null) {
+                        val bottomSheet = BottomSheetWelcomeBonus.newInstance(
+                            coin,
+                            originalPrice,
+                            discountedPrice,
+                            coinId,
+                            total_count
+                        )
+                        bottomSheet.show(supportFragmentManager, "BottomSheetWelcomeBonus")
+                    }
                 }
             }
         }
@@ -424,7 +614,51 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         val userId = userData?.id
         var pointsId = "$id"
         val pointsIdInt = pointsId.toIntOrNull()
+        val priceDouble = amount?.toDoubleOrNull() ?: 0.0
+
         total_amount = "$amount"
+
+        val checkoutAmount = amount.toDoubleOrNull() ?: 0.0
+        if (checkoutAmount > 0.0) {
+            val checkoutParams = Bundle().apply {
+                putString(AppEventsConstants.EVENT_PARAM_CURRENCY, "INR")
+                putDouble(AppEventsConstants.EVENT_PARAM_VALUE_TO_SUM, checkoutAmount)
+                putString("user_id", "$userId")
+                putString("coin_id", "$pointsId")
+            }
+
+            AppEventsLogger.newLogger(this).logEvent(
+                AppEventsConstants.EVENT_NAME_INITIATED_CHECKOUT,
+                checkoutAmount,
+                checkoutParams
+            )
+        } else {
+            Log.w("FB_Event", "Skipped INITIATED_CHECKOUT event. Invalid amount = $checkoutAmount")
+        }
+
+
+        var af_price =  getDiscountedPriceFromTotal(total_amount)
+        val checkoutEvent = HashMap<String, Any>()
+        checkoutEvent["af_price"] = "$af_price"          // Cart total
+        checkoutEvent["af_currency"] = "INR"
+
+        AppsFlyerLib.getInstance().logEvent(
+            this,
+            "af_initiated_checkout",
+            checkoutEvent
+        )
+
+        val firebaseBundle = Bundle().apply {
+            putString("user_id", "$userId")
+            putString("coin_id", "$pointsId")
+            putDouble("price", priceDouble)
+        }
+        BaseApplication.firebaseAnalytics.logEvent("initial_checkout", firebaseBundle)
+
+        BaseApplication.getInstance()?.getPrefs()?.apply {
+            setString("last_coin_id", pointsId)
+            setString("last_coin_amount", amount.toString())
+        }
 
         if (userId != null && pointsId.isNotEmpty()) {
             if (pointsIdInt != null) {
@@ -460,6 +694,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                                 Observer { shouldNavigate ->
                                     Log.d("shouldNavigateFromMain","$shouldNavigate")
                                     if (shouldNavigate){
+                                        updatePurchaseOnMeta()
                                     val intent = Intent(this, MainActivity::class.java)
                                     intent.flags =
                                         Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -505,6 +740,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                                     Toast.makeText(this@MainActivity, "Failed: ${t.message}", Toast.LENGTH_SHORT).show()
                                 }
                             })
+                        }
+
+                        "cashfree"->{
+
+
+                            fetchOrderOfCashfree(pointsId)
                         }
 
 
@@ -655,9 +896,9 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     }
 
 
-    private fun checkForInAppUpdate(latestVersion:String){
+    private fun checkForInAppUpdate(){
 
-        if (latestVersion>currentVersion) {
+
 
             appUpdateManager = AppUpdateManagerFactory.create(applicationContext)
             // Before starting an update, register a listener for updates.
@@ -695,7 +936,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 Log.e("UpdateCheck", "Failed to check for update: ${exception.message}")
             }
 
-        }
+
 
     }
 
@@ -734,6 +975,10 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     override fun onResume() {
         super.onResume()
 
+        checkIndividualPaymentType()
+
+
+        checkAndShowBlockwordDialog()
         appUpdateManager
             .appUpdateInfo
             .addOnSuccessListener { appUpdateInfo ->
@@ -743,6 +988,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                     popupSnackbarForCompleteUpdate()
                 }
             }
+
+        if (cashfreeLastOrderId.isNotEmpty()){
+            checkCashfreeOderStatus(cashfreeLastOrderId)
+            cashfreeLastOrderId = "" // reset so it won't run again
+        }
     }
 
     fun getSkuListID() {
@@ -897,6 +1147,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                         Toast.makeText(this@MainActivity, "Payment Successful", Toast.LENGTH_LONG).show()
                         user_id?.let { WalletViewModel.addCoins(it, coin_id, 1, order_id, "Coins purchased") }
                         observeAddCoins()
+                        updatePurchaseOnMeta()
                     }
 
                 }else{
@@ -933,6 +1184,248 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     }
 
 
+    fun updatePurchaseOnMeta(){
+        val prefs = BaseApplication.getInstance()?.getPrefs()
+        val userData = prefs?.getUserData()
+        val userId = userData?.id
+        val coinId = prefs?.getString("last_coin_id")
+        val coinAmount = prefs?.getString("last_coin_amount")?.toDoubleOrNull() ?: 0.0
+        if (coinAmount > 0.0) {
+            val params = Bundle().apply {
+                putString(AppEventsConstants.EVENT_PARAM_CURRENCY, "INR")
+                putDouble(AppEventsConstants.EVENT_PARAM_VALUE_TO_SUM, coinAmount)
+                putString("user_id", "$userId")
+                putString("coin_id", "$coinId")
+            }
+            AppEventsLogger.newLogger(this).logEvent(AppEventsConstants.EVENT_NAME_PURCHASED, coinAmount, params)
+        } else {
+            Log.w("FB_Event", "Skipped PURCHASE event. Invalid coinAmount = $coinAmount")
+        }
+
+        val purchaseBundle = Bundle().apply {
+            putString(FirebaseAnalytics.Param.CURRENCY, "INR")
+            putDouble(FirebaseAnalytics.Param.VALUE, coinAmount)
+            putString(FirebaseAnalytics.Param.ITEM_ID, coinId)
+            putString("user_id", userID) // optional: useful for debugging
+
+        }
+
+        BaseApplication.firebaseAnalytics.logEvent(FirebaseAnalytics.Event.PURCHASE, purchaseBundle)
+
+        val purchaseEvent = HashMap<String, Any>()
+        purchaseEvent["af_revenue"] = coinAmount       // Total amount (decimal preferred)
+        purchaseEvent["af_currency"] = "INR"        // 3-letter code, e.g. "INR", "USD"
+        purchaseEvent["af_coin_id"] = "$coinId"
+
+        AppsFlyerLib.getInstance().logEvent(
+            this,
+            "af_purchase",
+            purchaseEvent
+        )
+
+
+    }
+
+
+    fun logDailyActiveUserIfNeeded() {
+        val prefs = BaseApplication.getInstance()?.getPrefs()
+        val todayDate = java.time.LocalDate.now().toString()
+        val lastLoggedDate = prefs?.getString("last_dau_logged_date")
+        val bundle = Bundle().apply {
+            putString("user_id", "${prefs?.getUserData()?.id}") // optional: useful for debugging
+        }
+
+        if (lastLoggedDate != todayDate) {
+            FirebaseAnalytics.getInstance(this).logEvent("daily_active_user", bundle)
+            prefs?.setString("last_dau_logged_date", todayDate)
+
+
+            if (prefs?.getUserData()?.gender=="male"){
+
+            val eventValues = HashMap<String, Any>()
+            eventValues["user_id"] = "${prefs?.getUserData()?.id}"
+            AppsFlyerLib.getInstance().logEvent(
+                this,
+                "daily_active_user",
+                eventValues
+            )
+
+        }
+        }
+
+    }
+
+    fun getDiscountedPriceFromTotal(totalAmountStr: String): Int {
+        val totalAmount = totalAmountStr.toInt()
+
+        for (price in 0..totalAmount) {
+            val extra = Math.round(price * 0.02).toInt()
+            if (price + extra == totalAmount) {
+                return price
+            }
+        }
+
+        throw IllegalArgumentException("Error")
+    }
+
+    fun cashfreeCheckout(paymentSessionID:String,orderID:String){
+
+        try {
+            val cfSession = CFSession.CFSessionBuilder()
+                .setEnvironment(cfEnvironment)
+                .setPaymentSessionID(paymentSessionID)
+                .setOrderId(orderID)
+                .build()
+
+//            val cfTheme = CFWebCheckoutTheme.CFWebCheckoutThemeBuilder()
+//                .setNavigationBarBackgroundColor("#6A3FD3")
+//                .setNavigationBarTextColor("#FFFFFF")
+//                .build()
+
+            val cfWebCheckoutPayment = CFWebCheckoutPayment.CFWebCheckoutPaymentBuilder()
+                .setSession(cfSession)
+//                .setCFWebCheckoutUITheme(cfTheme)
+                .build()
+
+            CFPaymentGatewayService.getInstance()
+                .doPayment(this@MainActivity, cfWebCheckoutPayment)
+
+        } catch (e: CFException) {
+            e.printStackTrace()
+        }
+    }
+
+
+    override fun onPaymentVerify(orderID: String?) {
+        Log.d("WebCheckout", "Payment verified for order: $orderID")
+    }
+
+    override fun onPaymentFailure(cfErrorResponse: CFErrorResponse?, orderID: String?) {
+        Log.e("WebCheckout", "Payment failed for $orderID: ${cfErrorResponse?.getMessage()}")
+    }
+
+    private fun fetchOrderOfCashfree(coinId: String) {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val user_id = userData?.id
+        val client = OkHttpClient()
+
+        val json = """{
+        "user_id": "$user_id",
+        "coins_id": "$coinId"
+    }"""
+        val mediaType = "application/json".toMediaTypeOrNull()
+        val body = RequestBody.create(mediaType, json)
+
+        val request = Request.Builder()
+            .url("https://himaapp.in/api/cashfree/create-order")
+            .post(body) // ✅ POST request like PhonePe example
+            .addHeader("Content-Type", "application/json")
+            .build()
+
+        client.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                runOnUiThread {
+                    Toast.makeText(this@MainActivity, "Order creation failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                val resultStr = response.body?.string()
+                Log.d("CashfreeOrderResponse", "$resultStr")
+
+                try {
+                    val json = JSONObject(resultStr)
+                    val success = json.optBoolean("success", false)
+
+                    if (success) {
+                        val sessionId = json.getString("payment_session_id")
+                        val orderId = json.getString("order_id")
+
+                        cashfreeLastOrderId = orderId
+                        runOnUiThread {
+                            // Start the Cashfree payment flow
+                            cashfreeCheckout(sessionId, orderId)
+                        }
+                    } else {
+                        runOnUiThread {
+                            val errorMsg = json.optJSONObject("errors")?.toString() ?: "Order creation failed"
+                            Toast.makeText(this@MainActivity, errorMsg, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        Toast.makeText(this@MainActivity, "Invalid server response", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        })
+    }
+
+    fun checkCashfreeOderStatus(orderId: String) {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val user_id = userData?.id
+        val client = OkHttpClient()
+
+        val request = Request.Builder()
+            .url("https://himaapp.in/api/cashfree/check-order-status?order_id=$orderId")
+            .get() // ✅ This endpoint uses GET (based on your Postman test)
+            .addHeader("Content-Type", "application/json")
+            .build()
+
+        client.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                runOnUiThread {
+                    Toast.makeText(this@MainActivity, "Status check failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                val resultStr = response.body?.string()
+                Log.d("CashfreeOrderStatus", "$resultStr")
+
+                try {
+                    val json = JSONObject(resultStr)
+
+                    // Check if payment was completed (you may need to adapt based on backend's status field)
+                    val paymentStatus = json.optString("order_status", "UNKNOWN")
+                    val coin_id = json.optString("coin_id", "")
+                    val order_id = json.optString("order_id", "")
+
+                    Log.d("cashfreePaymentStatus", "Status: $paymentStatus, Coin ID: $coin_id, Order ID: $order_id")
+
+                    if (paymentStatus.equals("PAID", ignoreCase = true)) {
+                        runOnUiThread {
+                            Toast.makeText(this@MainActivity, "Payment Successful", Toast.LENGTH_LONG).show()
+                            user_id?.let { WalletViewModel.add_coins_cashfree(it, coin_id, 1, order_id, "Coins purchased") }
+                            observeAddCoins()
+                            updatePurchaseOnMeta()
+                        }
+                    } else {
+                        runOnUiThread {
+                            Toast.makeText(this@MainActivity, "Payment Failed", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        Toast.makeText(this@MainActivity, "Invalid response", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        })
+    }
+
+    fun checkIndividualPaymentType(){
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        userData?.let { loginViewModel.login(it.mobile,"0","0") }
+        loginViewModel.loginResponseLiveData.observe(this, Observer {
+
+            if (it.success) {
+                if (!it.data?.payment_type.isNullOrEmpty()){
+                    paymentGateway = it.data?.payment_type.toString()
+                }
+            }
+        })
+    }
 
 
 }

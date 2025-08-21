@@ -52,10 +52,11 @@ class FemaleUsersRepositories @Inject constructor(private val apiManager: ApiMan
         userId: Int,
         callUserId: Int,
         callType: String,
+        call_switch: Int,
         callback: NetworkCallback<CallFemaleUserResponse>
     ) {
         apiManager.callFemaleUser(
-            userId, callUserId, callType, callback
+            userId, callUserId, callType,call_switch, callback
         )
     }
 

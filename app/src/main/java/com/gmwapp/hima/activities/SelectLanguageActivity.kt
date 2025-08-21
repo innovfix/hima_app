@@ -11,6 +11,9 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.GridLayoutManager
+import com.appsflyer.AppsFlyerLib
+import com.facebook.appevents.AppEventsConstants
+import com.facebook.appevents.AppEventsLogger
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.LanguageAdapter
@@ -22,6 +25,7 @@ import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.widgets.SpacesItemDecoration
+import com.google.firebase.analytics.FirebaseAnalytics
 import dagger.hilt.android.AndroidEntryPoint
 
 
@@ -62,6 +66,30 @@ class SelectLanguageActivity : BaseActivity() {
                     intent.putExtra(
                         DConstants.AVATAR_ID, getIntent().getIntExtra(DConstants.AVATAR_ID, 0)
                     )
+
+
+                    val registrationEvent = HashMap<String, Any>()
+                    registrationEvent["user_id"] = "${it.data.id}"  // Optional custom parameter
+
+                    AppsFlyerLib.getInstance().logEvent(
+                        this,
+                        "af_complete_registration",
+                        registrationEvent
+                    )
+
+
+
+                    val params = Bundle()
+                    params.putString("user_id", "${it.data.id}") // optional
+                    AppEventsLogger.newLogger(this).logEvent(AppEventsConstants.EVENT_NAME_COMPLETED_REGISTRATION, params)
+
+                    val bundle = Bundle().apply {
+                        putString("user_id", "${it.data.id}") // optional: useful for debugging
+                    }
+
+                    BaseApplication.firebaseAnalytics.logEvent(FirebaseAnalytics.Event.SIGN_UP, bundle)
+
+
                     intent.putExtra(DConstants.LANGUAGE, selectedLanguage)
                     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                     startActivity(intent)
@@ -101,6 +129,7 @@ class SelectLanguageActivity : BaseActivity() {
             val gender = intent.getStringExtra(DConstants.GENDER).toString()
             val savedReferCode = DPreferences(this).getReferralCode()
             Log.d("savedReferCode","$savedReferCode")
+            Log.d("MobileNumberUser","${intent.getStringExtra(DConstants.MOBILE_NUMBER).toString()}")
 
             if (gender == DConstants.MALE) {
                 profileViewModel.register(

@@ -15,12 +15,12 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.Coupon
 import com.gmwapp.hima.CouponAdapter
 import com.gmwapp.hima.R
 import com.gmwapp.hima.databinding.ActivityCouponBinding
 import com.gmwapp.hima.viewmodels.CouponViewModel
-import com.gmwapp.hima.viewmodels.ProfileViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -52,23 +52,37 @@ class CouponActivity : AppCompatActivity(), CouponAdapter.OnCouponClickListener 
         val rvMoreCoupons = findViewById<RecyclerView>(R.id.rv_moreCoupons)
         val rvBestCoupons = findViewById<RecyclerView>(R.id.rv_bestCoupons)
         val ivBack = findViewById<ImageView>(R.id.iv_back)
+        val coinID = BaseApplication.getInstance()?.getPrefs()?.getString("last_coin_id")
+        Log.d("CoinIDSaved","$coinID")
 
-        couponViewModel.getCoupons()
+
+        if (!coinID.isNullOrEmpty()) {
+            couponViewModel.getCoupons(coinID)
+        } else {
+            Log.e("CouponActivity", "CoinID is null or empty")
+        }
+
         couponViewModel.couponsLiveData.observe(this, Observer {
             if (it != null && it.success && it.data != null) {
                 val moreCoupons = it.data.filter { coupon -> coupon.type == "more_coupons" }
                 val bestCoupons = it.data.filter { coupon -> coupon.type == "best_coupons" }
 
-                if (bestCoupons.isEmpty()){
+                if (bestCoupons.isNotEmpty()) {
+                    binding.tvBestCoupons.visibility = View.VISIBLE
+                    binding.tvBestCoupons.text = bestCoupons[0].coupon_name
+                    Log.d("CouponName", "${bestCoupons[0].coupon_name}")
+                } else {
                     binding.tvBestCoupons.visibility = View.GONE
-                }else{
-                    binding.tvBestCoupons.setText( bestCoupons[0].coupon_name)
                 }
-                if (moreCoupons.isEmpty()){
+
+                if (moreCoupons.isNotEmpty()) {
+                    binding.tvMoreCoupons.visibility = View.VISIBLE
+                    binding.tvMoreCoupons.text = moreCoupons[0].coupon_name
+                    Log.d("CouponName", "${moreCoupons[0].coupon_name}")
+                } else {
                     binding.tvMoreCoupons.visibility = View.GONE
-                }else{
-                    binding.tvMoreCoupons.setText(  moreCoupons[0].coupon_name)
                 }
+
 
                 moreCouponsAdapter = CouponAdapter(moreCoupons.map { cd ->
                     Coupon(

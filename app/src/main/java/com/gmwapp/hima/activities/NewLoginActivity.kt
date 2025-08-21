@@ -4,17 +4,13 @@ import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.widget.ImageView
-import android.widget.RelativeLayout
-import androidx.appcompat.app.AppCompatActivity
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.viewpager2.widget.ViewPager2
 import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.OnboardingPagerAdapter
-import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import android.content.Intent
+import android.graphics.Color
 import android.graphics.Paint
-import android.net.Uri
 import android.os.CountDownTimer
 import android.text.Editable
 import android.text.SpannableString
@@ -30,8 +26,7 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
+import androidx.core.text.HtmlCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
 import com.gmwapp.hima.BaseApplication
@@ -41,14 +36,27 @@ import com.gmwapp.hima.databinding.ActivityNewLoginBinding
 import com.gmwapp.hima.dialogs.BottomSheetCountry
 import com.gmwapp.hima.retrofit.responses.Country
 import com.gmwapp.hima.utils.DPreferences
-import com.gmwapp.hima.viewmodels.FcmTokenViewModel
 import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.viewmodels.ReferralCodeViewModel
 import com.google.android.material.snackbar.Snackbar
+import com.truecaller.android.sdk.common.TrueException
+import com.truecaller.android.sdk.common.VerificationCallback
+import com.truecaller.android.sdk.common.VerificationDataBundle
+import com.truecaller.android.sdk.oAuth.CodeVerifierUtil
+import com.truecaller.android.sdk.oAuth.TcOAuthCallback
+import com.truecaller.android.sdk.oAuth.TcOAuthData
+import com.truecaller.android.sdk.oAuth.TcOAuthError
+import com.truecaller.android.sdk.oAuth.TcSdk
+import com.truecaller.android.sdk.oAuth.TcSdkOptions
+import com.zoho.salesiqembed.ZohoSalesIQ
 //import com.zego.ve.Log
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.math.BigInteger
+import java.security.SecureRandom
 import kotlin.random.Random
 
 @AndroidEntryPoint
@@ -60,6 +68,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
     private var otp: Int? = null
     private var mobile: String? = null
+    private var truecallerCodeVerifier: String? = "0"
     private var timer: CountDownTimer?=null
 
     // Colors, images, titles, subtitles for onboarding
@@ -68,11 +77,122 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
     private val titles = listOf("Earphones on!", "Voice call & Video call", "100% safe and secure")
     private val subtitles = listOf("No real pics, Only Avatar", "Find best friends", "Zero fake profiles")
 
+
+//    private val requiredPermissions = arrayOf(
+//        android.Manifest.permission.READ_PHONE_STATE,
+//        android.Manifest.permission.READ_CALL_LOG,
+//        android.Manifest.permission.ANSWER_PHONE_CALLS
+//    )
+//
+//    private fun checkAndRequestPermissions() {
+//        val missing = requiredPermissions.filter {
+//            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+//        }
+//
+//        if (missing.isNotEmpty()) {
+//            ActivityCompat.requestPermissions(this, missing.toTypedArray(), 1001)
+//        }
+//    }
+
+
+    // Define the callback that handles login result
+    private val tcOAuthCallback = object : TcOAuthCallback {
+        override fun onSuccess(tcOAuthData: TcOAuthData) {
+            // Handle successful login
+            val code = tcOAuthData.authorizationCode
+            val state = tcOAuthData.state
+            val scopes = tcOAuthData.scopesGranted
+            // Toast.makeText(this@NewLoginActivity, "Success! Code: $code", Toast.LENGTH_LONG).show()
+            Log.d("truecallerCodeVerifier","$code ")
+            Log.d("truecallerCodeVerifier","$truecallerCodeVerifier ")
+            truecallerCodeVerifier?.let { loginViewModel.login("0",code, it) }
+            initOtpUI("",0,0)
+
+            // You should send 'code' to your backend for token exchange
+        }
+
+        override fun onVerificationRequired(tcOAuthError: TcOAuthError?) {
+
+            showPhoneInputDialogForTruecallerFallback()
+        }
+
+
+        override fun onFailure(tcOAuthError: TcOAuthError) {
+            // Handle login failure
+            Toast.makeText(this@NewLoginActivity, "Error: ${tcOAuthError.errorMessage}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    val verificationCallback = object : VerificationCallback {
+        override fun onRequestSuccess(callbackType: Int, bundle: VerificationDataBundle?) {
+            when (callbackType) {
+
+//                VerificationCallback.TYPE_MISSED_CALL_INITIATED -> {
+//                    val ttl = bundle?.getString(VerificationDataBundle.KEY_TTL)
+//                    val nonce = bundle?.getString(VerificationDataBundle.KEY_REQUEST_NONCE)
+//                    Log.d("verificationCallback", "Missed call initiated: TTL=$ttl, Nonce=$nonce")
+//                }
+//
+//                VerificationCallback.TYPE_MISSED_CALL_RECEIVED -> {
+//                    Log.d("verificationCallback", "Missed call received, now verifying")
+//
+//                    val profile = TrueProfile.Builder("Rishabh", "Kumar").build()
+//                    TcSdk.getInstance().verifyMissedCall(profile, this) // 'this' = VerificationCallback
+//                }
+
+                VerificationCallback.TYPE_OTP_INITIATED -> {
+                    val ttl = bundle?.getString(VerificationDataBundle.KEY_TTL)
+                    val nonce = bundle?.getString(VerificationDataBundle.KEY_REQUEST_NONCE)
+                    Log.d("verificationCallback", "OTP initiated: TTL=$ttl, Nonce=$nonce")
+                }
+
+                VerificationCallback.TYPE_OTP_RECEIVED -> {
+                    val otp = bundle?.getString(VerificationDataBundle.KEY_OTP)
+                    Log.d("verificationCallback", "OTP auto-received: $otp")
+                    // Auto-fill to your EditText
+                    binding.pvOtp.setText(otp)
+                }
+
+                VerificationCallback.TYPE_VERIFICATION_COMPLETE -> {
+                    val token = bundle?.getString(VerificationDataBundle.KEY_ACCESS_TOKEN)
+                    Log.d("verificationCallback", "Verification complete, token: $token")
+
+                    // TODO: Send this access token to your server for validation
+                    Toast.makeText(this@NewLoginActivity, "Verified!", Toast.LENGTH_SHORT).show()
+                }
+
+                VerificationCallback.TYPE_PROFILE_VERIFIED_BEFORE -> {
+                    val token = bundle?.profile?.accessToken
+                    Log.d("verificationCallback", "Already verified before, token: $token")
+
+                    // TODO: Use token if needed
+                    Toast.makeText(this@NewLoginActivity, "Already Verified", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        override fun onRequestFailure(callbackType: Int, e: TrueException) {
+            Log.e("Truecaller", "Verification failed: ${e.exceptionMessage}")
+            Toast.makeText(this@NewLoginActivity, "Verification failed: ${e.exceptionMessage}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+
+
+
+
+
+
+
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityNewLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
         enableEdgeToEdge()
+
+        ZohoSalesIQ.showLauncher(false)
 
         setupOnboarding()
         initUI()
@@ -80,7 +200,60 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
         binding.loginSection.visibility  = View.VISIBLE
         binding.otpSection.visibility  = View.GONE
+
+        val tcSdkOptions = TcSdkOptions.Builder(this, tcOAuthCallback)
+            .sdkOptions(TcSdkOptions.OPTION_VERIFY_ALL_USERS)
+            .build()
+
+        lifecycleScope.launch {
+            withContext(Dispatchers.IO) {
+                TcSdk.init(tcSdkOptions)
+            }
+
+            withContext(Dispatchers.Main) {
+                if (TcSdk.getInstance().isOAuthFlowUsable) {
+                    // ⚠️ Set these before login
+                    val stateRequested = BigInteger(130, SecureRandom()).toString(32)
+                    val codeVerifier = CodeVerifierUtil.generateRandomCodeVerifier()
+                    val codeChallenge = CodeVerifierUtil.getCodeChallenge(codeVerifier)
+
+                    truecallerCodeVerifier = codeVerifier
+
+                    Log.d("authorizationCode","$codeVerifier")
+
+                    TcSdk.getInstance().setOAuthState(stateRequested)
+                    codeChallenge?.let { TcSdk.getInstance().setCodeChallenge(it) }
+                    TcSdk.getInstance().setOAuthScopes(arrayOf("openid", "phone",))
+
+                    TcSdk.getInstance().getAuthorizationCode(this@NewLoginActivity)
+                } else {
+                    Toast.makeText(this@NewLoginActivity, "Truecaller not usable", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+
+
+
+
     }
+
+
+
+    private fun showPhoneInputDialogForTruecallerFallback() {
+
+    }
+
+
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == TcSdk.SHARE_PROFILE_REQUEST_CODE) {
+            TcSdk.getInstance().onActivityResultObtained(this, requestCode, resultCode, data)
+        }
+    }
+
+
 
     private fun setupOnboarding() {
         // Set up onboarding ViewPager and TabLayout
@@ -225,31 +398,81 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
     }
 
     private fun setMessageWithClickableLink() {
-        val content = getString(R.string.terms_and_conditions_text, getString(R.string.app_name))
-        val clickableSpan = object : ClickableSpan() {
-            override fun onClick(textView: View) {
-                val intent = Intent(this@NewLoginActivity, WebviewActivity::class.java)
-                startActivity(intent)
-            }
+        val content = HtmlCompat.fromHtml(
+            getString(R.string.terms_and_conditions_text),
+            HtmlCompat.FROM_HTML_MODE_LEGACY
+        ).toString()
 
-            override fun updateDrawState(textPaint: TextPaint) {
-                super.updateDrawState(textPaint)
-                textPaint.color = getColor(R.color.colorPrimaryDark)
-                textPaint.isUnderlineText = false
-            }
-        }
-        val startIndex = content.indexOf("terms & conditions")
-        val endIndex = startIndex + "terms & conditions".length
         val spannableString = SpannableString(content)
-        spannableString.setSpan(
-            clickableSpan,
-            startIndex,
-            endIndex,
-            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-        )
+
+        addClickablePart(
+            spannableString,
+            "terms & conditions"
+        ) {
+            startActivity(Intent(this, WebviewActivity::class.java))
+        }
+
+
+        addClickablePart(
+            spannableString,
+            "community guidelines & moderation policy"
+        ) {
+            startActivity(Intent(this, CommunityGuidelineActivity::class.java))
+        }
+
         binding.tvTermsAndConditions.text = spannableString
         binding.tvTermsAndConditions.movementMethod = LinkMovementMethod.getInstance()
+        binding.tvTermsAndConditions.highlightColor = Color.TRANSPARENT
+
+        binding.tvOtpTermsAndConditions.text = spannableString
+        binding.tvOtpTermsAndConditions.movementMethod = LinkMovementMethod.getInstance()
+        binding.tvOtpTermsAndConditions.highlightColor = Color.TRANSPARENT
     }
+
+    private fun addClickablePart(spannable: SpannableString, phrase: String, onClick: () -> Unit) {
+        val start = spannable.indexOf(phrase)
+        if (start >= 0) {
+            val end = start + phrase.length
+            val clickableSpan = object : ClickableSpan() {
+                override fun onClick(widget: View) = onClick()
+
+                override fun updateDrawState(ds: TextPaint) {
+                    super.updateDrawState(ds)
+                    ds.color = getColor(R.color.colorPrimaryDark)
+                    ds.isUnderlineText = false
+                }
+            }
+            spannable.setSpan(clickableSpan, start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+    }
+
+
+//    private fun setMessageWithClickableLink() {
+//        val content = getString(R.string.terms_and_conditions_text, getString(R.string.app_name))
+//        val clickableSpan = object : ClickableSpan() {
+//            override fun onClick(textView: View) {
+//                val intent = Intent(this@NewLoginActivity, WebviewActivity::class.java)
+//                startActivity(intent)
+//            }
+//
+//            override fun updateDrawState(textPaint: TextPaint) {
+//                super.updateDrawState(textPaint)
+//                textPaint.color = getColor(R.color.colorPrimaryDark)
+//                textPaint.isUnderlineText = false
+//            }
+//        }
+//        val startIndex = content.indexOf("terms & conditions")
+//        val endIndex = startIndex + "terms & conditions".length
+//        val spannableString = SpannableString(content)
+//        spannableString.setSpan(
+//            clickableSpan,
+//            startIndex,
+//            endIndex,
+//            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+//        )
+//        binding.tvTermsAndConditions.text = spannableString
+//        binding.tvTermsAndConditions.movementMethod = LinkMovementMethod.getInstance()
+//    }
 
     private fun sendOTP(mobile: String, countryCode:Int) {
         this.mobile = mobile
@@ -329,7 +552,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                     finish()
                 } else {
                     val intent = Intent(this, SelectGenderActivity::class.java)
-                    intent.putExtra(DConstants.MOBILE_NUMBER, mobile)
+                    intent.putExtra(DConstants.MOBILE_NUMBER, it.usernumber)
                     startActivity(intent)
                 }
             }
@@ -405,7 +628,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         if (mobile.isNotEmpty()){
             Log.d("VerifyOTP", "Not Empty")
 
-            loginViewModel.login(mobile)
+            loginViewModel.login(mobile,"0","0")
 
         }
     }
@@ -490,6 +713,21 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         }
 
     }
+
+
+//    override fun onRequestPermissionsResult(
+//        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
+//    ) {
+//        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+//
+//        if (requestCode == 1001) {
+//            if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+//                Toast.makeText(this, "Permissions granted", Toast.LENGTH_SHORT).show()
+//            } else {
+//                Toast.makeText(this, "Permissions denied. Verification may not work.", Toast.LENGTH_LONG).show()
+//            }
+//        }
+//    }
 
 }
 

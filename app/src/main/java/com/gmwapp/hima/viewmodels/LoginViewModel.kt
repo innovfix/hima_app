@@ -29,14 +29,16 @@ class LoginViewModel @Inject constructor(private val loginRepositories: LoginRep
     val appUpdateResponseLiveData = MutableLiveData<AppUpdateResponse>()
     val appUpdateErrorLiveData = MutableLiveData<String>()
 
-    fun login(mobile: String) {
+    fun login(mobile: String,code: String,code_verifier: String) {
         viewModelScope.launch {
-            loginRepositories.login(mobile, object:NetworkCallback<LoginResponse> {
+            loginRepositories.login(mobile,code,code_verifier, object:NetworkCallback<LoginResponse> {
                 override fun onResponse(
                     call: Call<LoginResponse>,
                     response: Response<LoginResponse>
                 ) {
                     loginResponseLiveData.postValue(response.body());
+
+                    Log.d("ApiUrl","${call.request().url}.")
 
                     Log.d("VerifyOTP", "Request URL: ${response.body()}")
 
@@ -44,7 +46,7 @@ class LoginViewModel @Inject constructor(private val loginRepositories: LoginRep
 
                 override fun onFailure(call: Call<LoginResponse>, t: Throwable) {
                     loginErrorLiveData.postValue(DConstants.LOGIN_ERROR);
-                    Log.d("VerifyOTPError", "Request URL: ${t.message}")
+                    Log.d("VerifyOTPError", " ${t}")
 
                 }
 

@@ -158,7 +158,7 @@
 
 
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/btn_withdraw"
+        android:id="@+id/btn_submit"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginBottom="24dp"

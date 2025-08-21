@@ -100,16 +100,68 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/btn_menu"/>
 
+<!--    <com.airbnb.lottie.LottieAnimationView-->
+<!--        android:id="@+id/female_wave"-->
+<!--        android:layout_width="@dimen/_150sdp"-->
+<!--        android:layout_height="@dimen/_150sdp"-->
+<!--        android:layout_marginTop="-12dp"-->
+<!--        android:alpha="0"-->
+<!--        android:scaleType="centerCrop"-->
+<!--        app:lottie_fileName="wave.json"-->
+<!--        app:lottie_autoPlay="false"-->
+<!--        app:lottie_loop="true"-->
+<!--        app:layout_constraintEnd_toStartOf="@id/iv_male_user"-->
+<!--        app:layout_constraintStart_toStartOf="parent"-->
+<!--        app:layout_constraintTop_toBottomOf="@id/btn_menu" />-->
+
+    <com.airbnb.lottie.LottieAnimationView
+        android:id="@+id/female_wave"
+        android:layout_width="@dimen/_150sdp"
+        android:layout_height="@dimen/_150sdp"
+        android:layout_marginTop="-12dp"
+        android:alpha="0"
+        android:scaleType="centerCrop"
+        app:lottie_fileName="wave.json"
+        app:lottie_autoPlay="false"
+        app:lottie_loop="true"
+
+        app:layout_constraintTop_toBottomOf="@id/btn_menu"
+        app:layout_constraintStart_toStartOf="@id/iv_female_user"
+        app:layout_constraintEnd_toEndOf="@id/iv_female_user" />
+
+
+
     <!-- Male User Image -->
     <ImageView
         android:id="@+id/iv_male_user"
         android:layout_width="100dp"
         android:layout_height="100dp"
 
+
         android:layout_marginTop="30dp"
         app:layout_constraintStart_toEndOf="@id/iv_female_user"
         app:layout_constraintEnd_toEndOf="@id/layout_buttons"
         app:layout_constraintTop_toBottomOf="@id/btn_menu"/>
+
+    <com.airbnb.lottie.LottieAnimationView
+        android:id="@+id/male_wave"
+        android:layout_width="@dimen/_150sdp"
+        android:layout_height="@dimen/_150sdp"
+        android:layout_marginTop="-12dp"
+        android:alpha="0"
+        android:scaleType="centerCrop"
+        app:lottie_fileName="wave.json"
+        app:lottie_autoPlay="false"
+        app:lottie_loop="true"
+
+        app:layout_constraintTop_toBottomOf="@id/btn_menu"
+        app:layout_constraintStart_toStartOf="@id/iv_male_user"
+        app:layout_constraintEnd_toEndOf="@id/iv_male_user"
+        />
+
+
+
+
 
     <!-- Female User Name -->
     <TextView
@@ -124,6 +176,20 @@
         app:layout_constraintEnd_toEndOf="@id/iv_female_user"
         android:layout_marginTop="8dp"/>
 
+    <ImageView
+        android:id="@+id/femaleMute"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+
+        android:visibility="gone"
+        android:src="@drawable/mute_img"
+        android:textSize="16sp"
+        android:textColor="@android:color/white"
+        app:layout_constraintTop_toBottomOf="@id/tv_female_name"
+        app:layout_constraintStart_toStartOf="@id/iv_female_user"
+        app:layout_constraintEnd_toEndOf="@id/iv_female_user"
+        android:layout_marginTop="8dp"/>
+
     <!-- Male User Name -->
     <TextView
         android:id="@+id/tv_male_name"
@@ -133,6 +199,20 @@
         android:textSize="16sp"
         android:textColor="@android:color/white"
         app:layout_constraintTop_toBottomOf="@id/iv_male_user"
+        app:layout_constraintStart_toStartOf="@id/iv_male_user"
+        app:layout_constraintEnd_toEndOf="@id/iv_male_user"
+        android:layout_marginTop="8dp"/>
+
+    <ImageView
+        android:id="@+id/maleMute"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+
+        android:visibility="gone"
+        android:src="@drawable/mute_img"
+        android:textSize="16sp"
+        android:textColor="@android:color/white"
+        app:layout_constraintTop_toBottomOf="@id/tv_male_name"
         app:layout_constraintStart_toStartOf="@id/iv_male_user"
         app:layout_constraintEnd_toEndOf="@id/iv_male_user"
         android:layout_marginTop="8dp"/>

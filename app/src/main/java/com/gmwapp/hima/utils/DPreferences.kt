@@ -220,6 +220,15 @@ class DPreferences(context: Context) {
     }
 
 
+    fun setString(key: String, value: String) {
+        mPrefsWrite.putString(key, value).apply()
+    }
+
+    fun getString(key: String): String? {
+        return mPrefsRead.getString(key, null)
+    }
+
+
 
 
 

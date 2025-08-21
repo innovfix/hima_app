@@ -13,7 +13,7 @@ data class CallsListResponseData(
     val image: String,
     val started_time: String,
     val duration: String,
-    val income: Int,
+    val income: String,
     val audio_status: Int,
     val video_status: Int,
 )

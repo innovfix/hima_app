@@ -7,6 +7,7 @@ data class LoginResponse(
     val registered: Boolean,
     val message: String,
     val token: String?,
+    val usernumber: String?,
     val data: UserData?,
 )
 
@@ -49,6 +50,7 @@ data class UserData (
     val pancard_name:String?,
     val pancard_number:String?,
     val disclaimer:String?,
+    val payment_type:String?,
 
 
 )

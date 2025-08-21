@@ -20,6 +20,8 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.firebase.messaging.FirebaseMessaging
 import com.onesignal.OneSignal
+import com.zoho.salesiqembed.ZohoSalesIQ
+
 //import com.tencent.mmkv.MMKV
 //import com.zegocloud.uikit.prebuilt.call.ZegoUIKitPrebuiltCallService
 
@@ -86,8 +88,11 @@ class BottomSheetLogout : BottomSheetDialogFragment() {
                     OneSignal.User.removeTag("gender_language") // Clears the tag on logout
                     OneSignal.User.removeTag("gender") // Clears the tag on logout
                     OneSignal.User.removeTag("language") // Clears the tag on logout
+                    OneSignal.User.removeTag("user_id") // Clears the tag on logout
 
-                   // ZegoUIKitPrebuiltCallService.unInit()
+                    OneSignal.logout()
+                    OneSignal.User.pushSubscription.optOut()
+                    // ZegoUIKitPrebuiltCallService.unInit()
                     val prefs = BaseApplication.getInstance()?.getPrefs()
                     prefs?.clearUserData()
                     val intent = Intent(context, NewLoginActivity::class.java)
@@ -99,11 +104,18 @@ class BottomSheetLogout : BottomSheetDialogFragment() {
                     Log.e("FCMToken", "Failed to save token")
 
 
+
 //                    MMKV.defaultMMKV().remove("user_id");
 //                    MMKV.defaultMMKV().remove("user_name");
                     OneSignal.User.removeTag("gender_language") // Clears the tag on logout
                     OneSignal.User.removeTag("gender") // Clears the tag on logout
                     OneSignal.User.removeTag("language") // Clears the tag on logout
+
+                    OneSignal.logout()
+                    OneSignal.User.pushSubscription.optOut()
+
+                   // ZohoSalesIQ.unregisterVisitor(requireContext())
+
 
                     //ZegoUIKitPrebuiltCallService.unInit()
                     val prefs = BaseApplication.getInstance()?.getPrefs()
