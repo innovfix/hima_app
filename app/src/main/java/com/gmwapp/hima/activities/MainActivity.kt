@@ -28,6 +28,7 @@ import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -47,6 +48,7 @@ import com.gmwapp.hima.BillingManager.BillingManager
 import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.CoinAdapter
 import com.gmwapp.hima.adapters.GiftAdapter
+import com.gmwapp.hima.agora.ZohoHelper
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityMainBinding
@@ -68,6 +70,7 @@ import com.gmwapp.hima.viewmodels.OfferViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.viewmodels.UpiPaymentViewModel
 import com.gmwapp.hima.viewmodels.WalletViewModel
+import com.gmwapp.hima.viewmodels.ZohoMailViewModel
 import com.google.android.material.bottomnavigation.BottomNavigationItemView
 import com.google.android.material.bottomnavigation.BottomNavigationMenuView
 import com.google.android.material.bottomnavigation.BottomNavigationView
@@ -119,6 +122,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     val offerViewModel: OfferViewModel by viewModels()
     private val profileViewModel: ProfileViewModel by viewModels()
     private val loginViewModel: LoginViewModel by viewModels()
+    private val zohoMailViewModel: ZohoMailViewModel by viewModels()
 
     private val accountViewModel: AccountViewModel by viewModels()
     private val fcmTokenViewModel: FcmTokenViewModel by viewModels()
@@ -977,7 +981,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
         checkIndividualPaymentType()
 
-
+        val prefs = BaseApplication.getInstance()?.getPrefs()
+        val userData = prefs?.getUserData()
+        if (userData?.gender=="female") {
+            ZohoHelper.initZohoWithUser(userData, zohoMailViewModel)
+        }
         checkAndShowBlockwordDialog()
         appUpdateManager
             .appUpdateInfo

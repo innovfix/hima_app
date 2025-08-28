@@ -292,6 +292,7 @@ class FemaleHomeFragment : BaseFragment() {
                     ZohoSalesIQ.Visitor.setContactNumber("${userData?.mobile}")
                     ZohoSalesIQ.Chat.setOperatorEmail(email)
 
+
                     if (!department.isNullOrEmpty()) {
                         ZohoSalesIQ.Chat.setDepartment(department)
                     }
