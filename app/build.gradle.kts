@@ -26,8 +26,8 @@ android {
         applicationId = "com.gmwapp.hima"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1016
-        versionName = "1016"
+        versionCode = 1019
+        versionName = "1019"
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -172,7 +172,7 @@ dependencies {
    // implementation ("com.google.mlkit:face-detection:16.1.7")
 
     implementation ("com.google.android.gms:play-services-mlkit-face-detection:17.1.0") // Unbundled model
-    val camerax_version = "1.2.2"
+    val camerax_version = "1.4.2"
     implementation("androidx.camera:camera-core:${camerax_version}")
     implementation("androidx.camera:camera-camera2:${camerax_version}")
     implementation("androidx.camera:camera-lifecycle:${camerax_version}")
