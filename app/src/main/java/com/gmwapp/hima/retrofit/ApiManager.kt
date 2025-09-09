@@ -6,6 +6,7 @@ import com.gmwapp.hima.retrofit.responses.AddCoinsResponse
 import com.gmwapp.hima.retrofit.responses.AddPointsResponse
 import com.gmwapp.hima.retrofit.responses.AppUpdateResponse
 import com.gmwapp.hima.retrofit.responses.AvatarsListResponse
+import com.gmwapp.hima.retrofit.responses.BadgeResponse
 import com.gmwapp.hima.retrofit.responses.BankUpdateResponse
 import com.gmwapp.hima.retrofit.responses.CallFemaleUserResponse
 import com.gmwapp.hima.retrofit.responses.CallsListResponse
@@ -580,6 +581,16 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun getBadgesInformation(callback: NetworkCallback<BadgeResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<BadgeResponse> = getApiInterface().getBadgesInformation()
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+
     fun createUpiPayment(
         userId: Int,
         clientTxnId: String,
@@ -1030,6 +1041,12 @@ interface ApiInterface {
 
     @POST("settings_list")
     fun getSettings(): Call<SettingsResponse>
+
+
+    @POST("badges_information_list")
+    fun getBadgesInformation(): Call<BadgeResponse>
+
+
 
     @FormUrlEncoded
     @POST("explaination_video_list")

@@ -15,11 +15,15 @@ class CallingService : Service() {
     companion object {
         const val callingChannelId = "callingChannelId"
         private const val channelName = "callingName"
+        @Volatile var isRunning: Boolean = false
+
     }
 
     override fun onCreate() {
-        notificationService()
         super.onCreate()
+        isRunning = true                      // ✅ mark running
+        notificationService()
+
     }
 
     /**
@@ -49,7 +53,7 @@ class CallingService : Service() {
      * Main process for the service - find the background location and print it with Toast Message
      * */
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     /**
@@ -57,5 +61,11 @@ class CallingService : Service() {
      * */
     override fun onBind(intent: Intent?): IBinder? {
         return null
+    }
+
+    override fun onDestroy() {
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        isRunning = false                     // ✅ clear flag
+        super.onDestroy()
     }
 }

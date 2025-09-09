@@ -6,14 +6,18 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TableRow
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
@@ -21,12 +25,15 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.BaseApplication.Companion.getInstance
+import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.EarningsActivity
 import com.gmwapp.hima.activities.GrantPermissionsActivity
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentFemaleHomeBinding
+import com.gmwapp.hima.retrofit.responses.BadgeData
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.AccountViewModel
+import com.gmwapp.hima.viewmodels.BadgeViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.gmwapp.hima.viewmodels.WhatsappLinkViewModel
 import com.gmwapp.hima.viewmodels.ZohoMailViewModel
@@ -55,6 +62,9 @@ class FemaleHomeFragment : BaseFragment() {
     private val CALL_PERMISSIONS_REQUEST_CODE = 1
     private val NOTIFICATIONS_ENABLED_REQUEST_CODE = 3
     lateinit var binding: FragmentFemaleHomeBinding
+
+    private val badgeViewModel: BadgeViewModel by viewModels()
+
     lateinit var language : String
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
     private val zohoMailViewModel: ZohoMailViewModel by viewModels()
@@ -73,14 +83,19 @@ class FemaleHomeFragment : BaseFragment() {
         if (isGranted) {
             initializeCall()
         } else {
-            try {
-                askNotificationPermission()
-            } catch (e: Exception) {
-                val intent = Intent(context, GrantPermissionsActivity::class.java)
-                startActivity(intent)
+            Toast.makeText(
+                requireContext(),
+                "Notification permission denied. Enable it in Settings.",
+                Toast.LENGTH_LONG
+            ).show()
+
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.fromParts("package", requireContext().packageName, null)
             }
+            startActivity(intent)
         }
     }
+
     private var startTime: String = ""
     private var endTime: String = ""
 
@@ -157,33 +172,25 @@ class FemaleHomeFragment : BaseFragment() {
     }
 
     private fun askNotificationPermission() {
-        // This is only necessary for API level >= 33 (TIRAMISU)
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                if (ContextCompat.checkSelfPermission(
-                        requireActivity(), Manifest.permission.POST_NOTIFICATIONS
-                    ) == PackageManager.PERMISSION_GRANTED
-                ) {
-                    askNotificationsEnabled();
-                } else if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
-                    val intent = Intent(context, GrantPermissionsActivity::class.java)
-                    startActivity(intent)
-                } else {
-                    try {
-                        requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    } catch (e: Exception) {
-                        val intent = Intent(context, GrantPermissionsActivity::class.java)
-                        startActivity(intent)
-                    }
-                }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    requireActivity(), Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+            ) {
+                askNotificationsEnabled()
+            } else if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
+                // Show rationale (but don't loop back)
+                val intent = Intent(context, GrantPermissionsActivity::class.java)
+                startActivity(intent)
             } else {
-               askNotificationsEnabled();
+                // Only initial request
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
-        } catch (e: Exception) {
-            val intent = Intent(context, GrantPermissionsActivity::class.java)
-            startActivity(intent)
+        } else {
+            askNotificationsEnabled()
         }
     }
+
 
     private fun checkOverlayPermission() {
 
@@ -263,6 +270,8 @@ class FemaleHomeFragment : BaseFragment() {
         val prefs = BaseApplication.getInstance()?.getPrefs()
         val userData = prefs?.getUserData()
         val userLanguage = userData?.language //
+
+        fetchBadgeList()
 
 //        ZohoSalesIQ.deInit {  }
 //        BaseApplication.getInstance()?.initZoho()
@@ -539,6 +548,9 @@ class FemaleHomeFragment : BaseFragment() {
             else -> "https://whatsapp.com/channel/0029Vazps3mFsn0p4KSOYF0f"
         }
 
+
+
+
     }
 //
 //    private fun addRoomStateChangedListener() {
@@ -633,4 +645,49 @@ class FemaleHomeFragment : BaseFragment() {
 //        }
 //    }
 
+    fun fetchBadgeList(){
+        badgeViewModel.getBadgesInformation()
+        badgeViewModel.badgeLiveData.observe(viewLifecycleOwner) { response ->
+            if (response != null && response.success) {
+                response.data?.let { badgeList ->
+                    addRowsToTable(badgeList)
+                    binding.tvTip.text = response.tips
+                }
+            }
+        }
+    }
+
+
+    private fun addRowsToTable(badgeList: List<BadgeData>) {
+        // Remove old rows except header
+        binding.tblAvg.removeViews(1, binding.tblAvg.childCount - 1)
+
+        for (badge in badgeList) {
+            val row = TableRow(requireContext()).apply {
+                gravity = Gravity.CENTER
+            }
+
+            val badgeTv = createCell(badge.badge)
+            val avgTimeTv = createCell(badge.average_time)
+            val audioTv = createCell("₹${badge.audio}")
+            val videoTv = createCell("₹${badge.video}")
+
+            row.addView(badgeTv)
+            row.addView(avgTimeTv)
+            row.addView(audioTv)
+            row.addView(videoTv)
+
+            binding.tblAvg.addView(row)
+        }
+    }
+
+    private fun createCell(text: String): TextView {
+        return TextView(requireContext()).apply {
+            this.text = text
+            setTextColor(ContextCompat.getColor(requireContext() , R.color.grey_medium))
+            setTypeface(typeface, Typeface.BOLD)
+            textSize = 15f
+            setPadding(0, 8, 8, 8)
+        }
+    }
 }

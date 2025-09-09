@@ -39,7 +39,9 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.core.view.updateLayoutParams
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.Observer
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.work.Constraints
 import androidx.work.Data
 import androidx.work.NetworkType
@@ -207,7 +209,6 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         arrayOf(
             Manifest.permission.RECORD_AUDIO,
             Manifest.permission.CAMERA,
-            Manifest.permission.FOREGROUND_SERVICE_MICROPHONE
         )
     } else {
         arrayOf(
@@ -632,8 +633,33 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     }
 
     fun startCallingService() {
-        val intent = Intent(this, CallingService::class.java)
-        startService(intent)
+
+        Log.d("startCallingService","Service Function call")
+        if (CallingService.isRunning) return
+
+        Log.d("startCallingService","Service not returned")
+
+        val visible = lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+
+
+        val micGranted = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.RECORD_AUDIO
+        ) == PackageManager.PERMISSION_GRANTED
+
+        Log.d("startCallingService","$visible,  $micGranted")
+
+
+        if (visible && micGranted) {
+            // ✅ Only start microphone FGS from a visible Activity with mic permission granted
+            ContextCompat.startForegroundService(this, Intent(this, CallingService::class.java))
+            Log.d("startCallingService","Service class called")
+
+        } else {
+
+            // Do NOT start here (would crash on Android 14/15)
+            // - If permission missing: request it, then call startCallingService() again.
+            // - If not visible: bring Activity to foreground (e.g., from notification action), then start.
+        }
     }
 
     fun stopCallingService() {
@@ -1117,6 +1143,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         super.onResume()
         Log.d("resumedtag", "resumed")
         newRemainingTime()
+        startCallingService()
     }
 
     private fun onAddcoinClicked() {

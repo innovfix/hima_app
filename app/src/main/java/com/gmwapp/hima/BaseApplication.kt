@@ -11,10 +11,15 @@ import android.content.SharedPreferences
 import android.content.pm.ActivityInfo
 import android.media.AudioAttributes
 import android.net.Uri
+import android.os.Build
 
 import android.util.Log
+import android.view.WindowManager
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.android.installreferrer.api.InstallReferrerClient
+import com.android.installreferrer.api.InstallReferrerStateListener
+import com.android.installreferrer.api.ReferrerDetails
 import com.facebook.FacebookSdk
 import com.facebook.appevents.AppEventsLogger
 import com.gmwapp.hima.constants.DConstants
@@ -67,7 +72,12 @@ class BaseApplication : Application(), Configuration.Provider {
     private val lifecycleCallbacks: ActivityLifecycleCallbacks =
         object : ActivityLifecycleCallbacks {
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
-                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                if (isFullscreenActivity(activity)) {
+                    // Skip for Android 8.0 (Oreo) or use check if activity is fullscreen
+                    if (Build.VERSION.SDK_INT != Build.VERSION_CODES.O) {
+                        activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    }
+                }
                 ZohoSalesIQ.showLauncher(false)
             }
 
@@ -142,6 +152,7 @@ class BaseApplication : Application(), Configuration.Provider {
         firebaseAnalytics = FirebaseAnalytics.getInstance(this)
 
         appflyer()
+        getInstallReferrer()
 
         FacebookSdk.setApplicationId(getString(R.string.facebook_app_id))
         FacebookSdk.sdkInitialize(applicationContext)
@@ -245,8 +256,8 @@ class BaseApplication : Application(), Configuration.Provider {
             setAudioAttributes(audioAttributes)
             setDataSource(applicationContext, uri)
             isLooping = true
-            prepare()
-            start()
+            setOnPreparedListener { start() }
+            prepareAsync() // ✅ async, safe
         }
     }
 
@@ -269,9 +280,19 @@ class BaseApplication : Application(), Configuration.Provider {
     }
 
 
+//    fun isRingtonePlaying(): Boolean {
+//        return mediaPlayer?.isPlaying ?: false
+//    }
+
     fun isRingtonePlaying(): Boolean {
-        return mediaPlayer?.isPlaying ?: false
+        val player = mediaPlayer ?: return false
+        return try {
+            player.isPlaying
+        } catch (e: IllegalStateException) {
+            false
+        }
     }
+
 
 
     fun stopRingtone() {
@@ -460,5 +481,33 @@ class BaseApplication : Application(), Configuration.Provider {
                 accessKey
             );
         }
+    }
+
+    private fun isFullscreenActivity(activity: Activity): Boolean {
+        val attrs = activity.window.attributes
+        return (attrs.flags and WindowManager.LayoutParams.FLAG_FULLSCREEN) != 0
+    }
+
+    fun getInstallReferrer() {
+        val referrerClient = InstallReferrerClient.newBuilder(this).build()
+        referrerClient.startConnection(object : InstallReferrerStateListener {
+            override fun onInstallReferrerSetupFinished(responseCode: Int) {
+                when (responseCode) {
+                    InstallReferrerClient.InstallReferrerResponse.OK -> {
+                        val response: ReferrerDetails = referrerClient.installReferrer
+                        val referrerUrl = response.installReferrer
+                        Log.d("Referrer", "User installed from: $referrerUrl")
+                    }
+                    InstallReferrerClient.InstallReferrerResponse.FEATURE_NOT_SUPPORTED ->
+                        Log.e("Referrer", "API not supported")
+                    InstallReferrerClient.InstallReferrerResponse.SERVICE_UNAVAILABLE ->
+                        Log.e("Referrer", "Service unavailable")
+                }
+            }
+
+            override fun onInstallReferrerServiceDisconnected() {
+                // Retry later if needed
+            }
+        })
     }
 }
