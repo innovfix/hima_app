@@ -16,4 +16,5 @@ data class CallsListResponseData(
     val income: String,
     val audio_status: Int,
     val video_status: Int,
+    val blocked:Int,
 )

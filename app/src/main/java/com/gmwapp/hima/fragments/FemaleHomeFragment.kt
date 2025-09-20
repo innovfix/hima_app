@@ -271,7 +271,9 @@ class FemaleHomeFragment : BaseFragment() {
         val userData = prefs?.getUserData()
         val userLanguage = userData?.language //
 
-        fetchBadgeList()
+//        if (userData != null) {
+//            fetchBadgeList(userData.id)
+//        }
 
 //        ZohoSalesIQ.deInit {  }
 //        BaseApplication.getInstance()?.initZoho()
@@ -645,13 +647,18 @@ class FemaleHomeFragment : BaseFragment() {
 //        }
 //    }
 
-    fun fetchBadgeList(){
-        badgeViewModel.getBadgesInformation()
+    fun fetchBadgeList(id: Int) {
+        badgeViewModel.getBadgesInformation(id)
         badgeViewModel.badgeLiveData.observe(viewLifecycleOwner) { response ->
             if (response != null && response.success) {
-                response.data?.let { badgeList ->
+                response.badges?.let { badgeList ->
                     addRowsToTable(badgeList)
                     binding.tvTip.text = response.tips
+                    binding.tvMyavgTime.text = "${response.average_duration} mins"
+                    binding.tvMybadge.text = "${response.matched_badge?.badge}"
+                    binding.tvAudioRate.text = "Audio: ₹${response.matched_badge?.audio}/mins"
+                    binding.tvVideoRate.text = "Video: ₹${response.matched_badge?.video}/mins"
+
                 }
             }
         }

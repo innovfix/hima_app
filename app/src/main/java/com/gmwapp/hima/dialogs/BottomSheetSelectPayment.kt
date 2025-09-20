@@ -56,7 +56,7 @@ class BottomSheetSelectPayment : BottomSheetDialogFragment() {
 
                 if(upi == "1"){
                     binding.upiOption.visibility = View.VISIBLE
-                    binding.tvUpiInfo.visibility = View.VISIBLE
+                    binding.tvUpiInfo.visibility = View.GONE
 
                 }
                 else {

@@ -9,7 +9,7 @@ data class EarningsResponse(
 data class EarningsResponseData(
     val id: Int,
     val user_id: Int,
-    val amount: Int,
+    val amount: Double,
     val status: Int,
     val datetime: String,
     val reason: String,

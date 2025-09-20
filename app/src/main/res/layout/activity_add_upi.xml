@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    android:background="@color/white"
+    >
+
+    <!-- Guidelines to match your spacing system -->
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/gl_left_margin"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.04" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/gl_right_margin"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.96" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/gl_top_margin"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.027" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/gl_bottom_margin"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.92" />
+
+    <!-- Header -->
+    <ImageView
+        android:id="@+id/iv_back"
+        android:layout_width="15dp"
+        android:layout_height="15dp"
+        android:layout_marginStart="4dp"
+        android:layout_marginTop="8dp"
+        android:rotation="180"
+        android:src="@drawable/right_arrow"
+        app:layout_constraintStart_toStartOf="@id/gl_left_margin"
+        app:layout_constraintTop_toTopOf="@id/gl_top_margin"
+        app:layout_constraintWidth_default="percent"
+        app:layout_constraintWidth_percent="0.05"
+        app:layout_constraintHeight_default="percent"
+        app:layout_constraintHeight_percent="0.02"
+        app:tint="@color/pink" />
+
+    <TextView
+        android:id="@+id/tv_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:text="Add UPI ID"
+        android:textColor="@color/pink"
+        android:textSize="20sp"
+        android:fontFamily="@font/poppins_regular"
+        app:layout_constraintStart_toEndOf="@id/iv_back"
+        app:layout_constraintTop_toTopOf="@id/iv_back"
+        app:layout_constraintBottom_toBottomOf="@id/iv_back"
+        app:layout_constraintEnd_toStartOf="@id/gl_right_margin" />
+
+    <!-- Card: Add UPI + Verify -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cv_add_upi"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/_15sdp"
+        android:layout_marginHorizontal="16dp"
+        app:cardBackgroundColor="@color/grey_extra_light"
+        app:cardCornerRadius="10dp"
+        app:cardElevation="2dp"
+        app:layout_constraintStart_toStartOf="@id/gl_left_margin"
+        app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
+        app:layout_constraintTop_toBottomOf="@id/tv_title">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="@dimen/_8sdp">
+
+            <!-- Row: icon + labels -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingVertical="@dimen/_4sdp">
+
+                <ImageView
+                    android:id="@+id/iv_upi"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_margin="8dp"
+                    android:contentDescription="@string/upi_id"
+                    android:src="@drawable/ic_upi"
+                    app:tint="@color/pink" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_gravity="center_vertical">
+
+                    <TextView
+                        android:id="@+id/tv_upi_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/upi_id"
+                        android:textSize="14sp"
+                        android:textColor="@color/black_light"
+                        android:fontFamily="@font/poppins_semibold" />
+
+                    <TextView
+                        android:id="@+id/tv_upi_sub"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/for_instant_money_credit"
+                        android:textSize="11sp"
+                        android:textColor="@color/text_light_grey"
+                        android:fontFamily="@font/poppins_medium" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Input -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/til_upi"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/_8sdp"
+                app:boxBackgroundMode="outline"
+                app:boxStrokeColor="@color/pink"
+                app:boxCornerRadiusTopStart="10dp"
+                app:boxCornerRadiusTopEnd="10dp"
+                app:hintTextColor="@color/pink"
+                app:boxCornerRadiusBottomStart="10dp"
+                app:boxCornerRadiusBottomEnd="10dp"
+                app:endIconMode="clear_text"
+                app:hintEnabled="true">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_upi_id"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="@string/enter_your_upi_id"
+                    android:inputType="textEmailAddress"
+                    android:imeOptions="actionDone"
+                    android:fontFamily="@font/poppins_medium"
+                    android:textColor="@color/black"
+                    android:textColorHint="@color/text_light_grey"
+                    tools:text="name@oksbi" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Helper -->
+            <TextView
+                android:id="@+id/tv_helper"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/_4sdp"
+                android:textSize="11sp"
+                android:visibility="gone"
+                android:textColor="@color/text_light_grey"
+                android:fontFamily="@font/poppins_medium"
+                tools:text="Examples: name@oksbi, mobile@okicici, userid@okaxis" />
+
+            <!-- Verify button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_verify"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/_44sdp"
+                android:layout_marginTop="@dimen/_10sdp"
+                android:backgroundTint="@color/button_background_tint2"
+                android:text="@string/verify"
+                android:textAllCaps="false"
+                android:textColor="@color/button_text_color2"
+                android:textSize="14sp"
+                android:fontFamily="@font/poppins_medium"
+                app:cornerRadius="@dimen/_18sdp" />
+
+            <!-- Progress -->
+            <LinearLayout
+                android:id="@+id/ll_progress"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/_50sdp"
+                android:gravity="center"
+                android:visibility="gone"
+                android:layout_marginTop="@dimen/_6sdp">
+
+                <ProgressBar
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:indeterminate="true" />
+            </LinearLayout>
+
+            <!-- Status row (success / error) -->
+            <LinearLayout
+                android:id="@+id/ll_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:visibility="gone"
+                android:layout_marginTop="@dimen/_6sdp">
+
+                <ImageView
+                    android:id="@+id/iv_status"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:src="@drawable/tick_circle_svg"
+                    app:tint="@color/pink"
+                     />
+
+                <TextView
+                    android:id="@+id/tv_status"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:textSize="12sp"
+                    android:textColor="@color/black_light"
+                    android:fontFamily="@font/poppins_medium"
+                    tools:text="UPI verified successfully" />
+            </LinearLayout>
+
+
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Bottom action (e.g., Save & Continue) if you want to proceed after verify -->
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -46,6 +46,7 @@ import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
+import com.gmwapp.hima.activities.RatingActivity
 import com.gmwapp.hima.agora.FaceDetectVideoFrameObserver
 import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.constants.DConstants
@@ -665,6 +666,14 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                 agoraEngine = null
             }.start()
         }
+        if (isRemoteUserJoined==true){
+            val intent = Intent(this@FemaleVideoCallingActivity, RatingActivity::class.java)
+            intent.putExtra(DConstants.RECEIVER_NAME, receiverName)
+            intent.putExtra(DConstants.RECEIVER_ID, receiverId)
+            startActivity(intent)
+            Log.d("Lifecycle", "onDestroy() called. Firestore listener removed.")
+            }
+
     }
 
     private val mRtcEventHandler: IRtcEngineEventHandler = object : IRtcEngineEventHandler() {

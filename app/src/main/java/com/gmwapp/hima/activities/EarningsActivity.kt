@@ -4,6 +4,7 @@ import android.content.Intent
 import android.graphics.Paint
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import androidx.activity.viewModels
 import androidx.lifecycle.Observer
@@ -48,6 +49,16 @@ class EarningsActivity : BaseActivity() {
             finish()
         }
 
+        profileViewModel.getUserLiveData.observe(this, Observer {
+            val prefs = BaseApplication.getInstance()?.getPrefs()
+            prefs?.setUserData(it?.data)
+
+            val balance = it?.data?.balance ?: 0.0
+            binding.tvCurrentBalance.text = "₹$balance"
+
+            Log.d("OnresumeEarning", balance.toString())
+        })
+
 
         binding.btnWithdraw.setOnSingleClickListener {
 
@@ -89,7 +100,7 @@ class EarningsActivity : BaseActivity() {
                     binding.ivBalance.visibility = View.GONE
                     binding.tlBalanceHint.visibility = View.GONE
                 }
-                binding.tvCurrentBalance.text = "₹" +balance.toString()
+              //  binding.tvCurrentBalance.text = "₹" +balance.toString()
             }
         accountViewModel.settingsLiveData.observe(this, Observer {
             if (it!=null && it.success) {
@@ -169,17 +180,25 @@ class EarningsActivity : BaseActivity() {
             profileViewModel.getUsers(it)
         }
 
-        profileViewModel.getUserLiveData.observe(this, Observer {
-            val prefs = BaseApplication.getInstance()?.getPrefs()
-            prefs?.setUserData(it?.data)
-
-        })
+//        profileViewModel.getUserLiveData.observe(this, Observer {
+//            val prefs = BaseApplication.getInstance()?.getPrefs()
+//            prefs?.setUserData(it?.data)
+//
+//            binding.tvCurrentBalance.text = "₹" +it.data?.balance.toString()
+//
+//            Log.d("OnresumeEarning","${it.data?.balance.toString()}")
+//
+//
+//        })
     }
 
     override fun onResume() {
         super.onResume()
-        if (binding.cvPanDetails.visibility == View.VISIBLE)
-        //panVerification()
+        Log.d("OnresumeEarning","Done")
+
         updateEarnings()
+        if (binding.cvPanDetails.visibility == View.VISIBLE) {
+            //panVerification()
+        }
     }
 }

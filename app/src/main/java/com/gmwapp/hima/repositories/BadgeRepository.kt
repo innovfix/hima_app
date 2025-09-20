@@ -6,7 +6,7 @@ import com.gmwapp.hima.retrofit.responses.BadgeResponse
 import javax.inject.Inject
 
 class BadgeRepository @Inject constructor(private val apiManager: ApiManager) {
-    fun getBadgesInformation(callback: NetworkCallback<BadgeResponse>) {
-        apiManager.getBadgesInformation(callback)
+    fun getBadgesInformation(id: Int,callback: NetworkCallback<BadgeResponse>) {
+        apiManager.getBadgesInformation(id,callback)
     }
 }

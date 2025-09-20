@@ -19,9 +19,9 @@ class BadgeViewModel @Inject constructor(private val badgeRepository: BadgeRepos
 
     val badgeLiveData = MutableLiveData<BadgeResponse>()
 
-    fun getBadgesInformation() {
+    fun getBadgesInformation(id: Int) {
         viewModelScope.launch {
-            badgeRepository.getBadgesInformation(object: NetworkCallback<BadgeResponse> {
+            badgeRepository.getBadgesInformation(id, object: NetworkCallback<BadgeResponse> {
                 override fun onResponse(
                     call: Call<BadgeResponse>,
                     response: Response<BadgeResponse>

@@ -8,6 +8,7 @@ import com.gmwapp.hima.retrofit.responses.AppUpdateResponse
 import com.gmwapp.hima.retrofit.responses.AvatarsListResponse
 import com.gmwapp.hima.retrofit.responses.BadgeResponse
 import com.gmwapp.hima.retrofit.responses.BankUpdateResponse
+import com.gmwapp.hima.retrofit.responses.BlockUserResponse
 import com.gmwapp.hima.retrofit.responses.CallFemaleUserResponse
 import com.gmwapp.hima.retrofit.responses.CallsListResponse
 import com.gmwapp.hima.retrofit.responses.CoinsResponse
@@ -35,12 +36,14 @@ import com.gmwapp.hima.retrofit.responses.SendGiftResponse
 import com.gmwapp.hima.retrofit.responses.SendOTPResponse
 import com.gmwapp.hima.retrofit.responses.SettingsResponse
 import com.gmwapp.hima.retrofit.responses.SpeechTextResponse
+import com.gmwapp.hima.retrofit.responses.TransactionChargesResponse
 import com.gmwapp.hima.retrofit.responses.TransactionsResponse
 import com.gmwapp.hima.retrofit.responses.UpdateCallStatusResponse
 import com.gmwapp.hima.retrofit.responses.UpdateConnectedCallResponse
 import com.gmwapp.hima.retrofit.responses.UpdateProfileResponse
 import com.gmwapp.hima.retrofit.responses.UpiPaymentResponse
 import com.gmwapp.hima.retrofit.responses.UpiUpdateResponse
+import com.gmwapp.hima.retrofit.responses.UpiWithdrawResponse
 import com.gmwapp.hima.retrofit.responses.UserAvatarResponse
 import com.gmwapp.hima.retrofit.responses.UserValidationResponse
 import com.gmwapp.hima.retrofit.responses.VoiceUpdateResponse
@@ -387,6 +390,32 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun addUpiWithdrawal(
+        userId: Int,
+        amount: Int,
+        paymentMethod: String,
+        callback: NetworkCallback<UpiWithdrawResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<UpiWithdrawResponse> =
+                getApiInterface().addUpiWithdrawal(userId, amount, paymentMethod)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getTransactionCharges(callback: NetworkCallback<TransactionChargesResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<TransactionChargesResponse> =
+                getApiInterface().getTransactionCharges()
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+
 
     fun getOffer(
         userId: Int,
@@ -581,10 +610,24 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
-    fun getBadgesInformation(callback: NetworkCallback<BadgeResponse>) {
+    fun getBadgesInformation(id: Int,callback: NetworkCallback<BadgeResponse>) {
         if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<BadgeResponse> = getApiInterface().getBadgesInformation()
+            val apiCall: Call<BadgeResponse> = getApiInterface().getBadgesInformation(id)
             apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun blockUser(
+        userId: Int,
+        callUserId: Int,
+        blocked: Int,
+        callback: NetworkCallback<BlockUserResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val call = getApiInterface().blockUser(userId, callUserId, blocked)
+            call.enqueue(callback)
         } else {
             callback.onNoNetwork()
         }
@@ -999,6 +1042,18 @@ interface ApiInterface {
         @Field("message") massage: String,
     ): Call<AddCoinsResponse>
 
+    @FormUrlEncoded
+    @POST("upi_withdrawals")
+    fun addUpiWithdrawal(
+        @Field("user_id") userId: Int,
+        @Field("amount") amount: Int,
+        @Field("type") paymentMethod: String
+    ): Call<UpiWithdrawResponse>
+
+    @POST("transaction_charges_list")
+    fun getTransactionCharges(): Call<TransactionChargesResponse>
+
+
     @POST("try_coins")
     @FormUrlEncoded
     fun tryCoins(
@@ -1042,10 +1097,21 @@ interface ApiInterface {
     @POST("settings_list")
     fun getSettings(): Call<SettingsResponse>
 
-
+    @FormUrlEncoded
     @POST("badges_information_list")
-    fun getBadgesInformation(): Call<BadgeResponse>
+    fun getBadgesInformation(
+        @Field("user_id") id: Int
+    ): Call<BadgeResponse>
 
+
+
+    @FormUrlEncoded
+    @POST("blocked_user")
+    fun blockUser(
+        @Field("user_id") userId: Int,
+        @Field("call_user_id") callUserId: Int,
+        @Field("blocked") blocked: Int
+    ): Call<BlockUserResponse>
 
 
     @FormUrlEncoded

@@ -130,6 +130,18 @@ class RecentCallsAdapter(
 
         }
 
+        if (call.blocked==1){
+            holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.white))
+            holder.binding.ivVideoCircle.setColorFilter(ContextCompat.getColor(activity, R.color.text_light_grey))
+            holder.binding.ivVideo.isEnabled = false
+            holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.white))
+            holder.binding.ivAudioCircle.setColorFilter(ContextCompat.getColor(activity, R.color.text_light_grey))
+            holder.binding.ivAudio.isEnabled = false
+            holder.binding.ivAudioCircle.isEnabled = false
+            holder.binding.ivVideoCircle.isEnabled = false
+
+        }
+
     }
 
 

@@ -42,7 +42,9 @@
         android:usesCleartextTraffic="true"
         tools:replace="android:dataExtractionRules,android:fullBackupContent"
         tools:targetApi="31">
-
+        <activity
+            android:name=".AddUpiActivity"
+            android:exported="false" />
         <activity
             android:name=".activities.DeepLinkActivity"
             android:exported="true">
