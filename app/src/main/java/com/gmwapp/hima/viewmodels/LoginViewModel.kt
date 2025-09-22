@@ -95,6 +95,8 @@ class LoginViewModel @Inject constructor(private val loginRepositories: LoginRep
 
                 override fun onFailure(call: Call<SendOTPResponse>, t: Throwable) {
                     sendOTPErrorLiveData.postValue(DConstants.LOGIN_ERROR);
+                    Log.d("OTPError", " ${t}")
+
                 }
 
                 override fun onNoNetwork() {

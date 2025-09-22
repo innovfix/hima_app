@@ -39,6 +39,7 @@ import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.viewmodels.ReferralCodeViewModel
 import com.google.android.material.snackbar.Snackbar
+import com.onesignal.OneSignal
 import com.truecaller.android.sdk.common.TrueException
 import com.truecaller.android.sdk.common.VerificationCallback
 import com.truecaller.android.sdk.common.VerificationDataBundle
@@ -51,6 +52,7 @@ import com.truecaller.android.sdk.oAuth.TcSdkOptions
 import com.zoho.salesiqembed.ZohoSalesIQ
 //import com.zego.ve.Log
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -197,6 +199,10 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         setupOnboarding()
         initUI()
         observeReferralCodeResponse()
+
+        CoroutineScope(Dispatchers.IO).launch {
+            OneSignal.Notifications.requestPermission(true)
+        }
 
         binding.loginSection.visibility  = View.VISIBLE
         binding.otpSection.visibility  = View.GONE

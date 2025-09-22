@@ -8,6 +8,7 @@ import android.util.Log
 import androidx.activity.viewModels
 import androidx.lifecycle.Observer
 import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.BaseApplication.Companion.getInstance
 import com.gmwapp.hima.BuildConfig
 import com.gmwapp.hima.R
 import com.gmwapp.hima.constants.DConstants
@@ -16,7 +17,12 @@ import com.gmwapp.hima.retrofit.responses.UserData
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
+import com.onesignal.OneSignal
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 
 @AndroidEntryPoint
@@ -65,6 +71,7 @@ class AlmostDoneActivity : BaseActivity() {
 
     override fun onResume() {
         super.onResume()
+        subscribeToOneSignal()
         var intent: Intent? = null
         val prefs = BaseApplication.getInstance()?.getPrefs()
         var userData: UserData?
@@ -90,5 +97,55 @@ class AlmostDoneActivity : BaseActivity() {
                 finish()
             }
         });
+    }
+
+    fun subscribeToOneSignal(){
+        CoroutineScope(Dispatchers.Main).launch {
+            delay(2000) // wait to ensure OneSignal is initialized fully
+
+            // 1. FULL RESET before login
+            OneSignal.logout()
+            OneSignal.User.pushSubscription.optOut()
+
+            // 2. Fetch user ID
+            val userId = getInstance()?.getPrefs()?.getUserData()?.id.toString()
+           var  language = getInstance()?.getPrefs()?.getUserData()?.language.toString()
+
+
+            if (!userId.isNullOrEmpty() && userId != "null") {
+                Log.d("OneSignalFix", "Attempting clean login with userId: $userId")
+
+                // 3. Force fresh login
+                OneSignal.login(userId)
+
+                // 4. Re-subscribe and assign external ID
+                OneSignal.User.pushSubscription.optIn()
+
+                // 5. Prompt notification permission (Android 13+)
+                OneSignal.Notifications.requestPermission(true)
+
+                OneSignal.User.addTag("gender", "female")
+                language?.let {
+                    OneSignal.User.addTag("language", it)
+                    Log.d("OneSignalTag", "Language tag added: $it")
+                }
+
+                language?.let {
+                    OneSignal.User.addTag("gender_language", "female_$it")
+                    Log.d("OneSignalTag", "female_$it")
+
+                }
+
+                // 6. Debug logs to confirm status
+                delay(1000)
+                Log.d("OneSignalFix", "externalId: ${OneSignal.User.externalId}")
+                Log.d("OneSignalFix", "pushToken: ${OneSignal.User.pushSubscription.token}")
+                Log.d("OneSignalFix", "optedIn: ${OneSignal.User.pushSubscription.optedIn}")
+            } else {
+                Log.e("OneSignalFix", "Invalid user ID: $userId")
+            }
+        }
+
+
     }
 }

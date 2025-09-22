@@ -38,6 +38,8 @@ import javax.inject.Inject
 
 import com.appsflyer.AppsFlyerLib;
 import com.appsflyer.AppsFlyerConversionListener;
+import com.onesignal.notifications.INotificationClickEvent
+import com.onesignal.notifications.INotificationClickListener
 
 
 @HiltAndroidApp
@@ -182,6 +184,13 @@ class BaseApplication : Application(), Configuration.Provider {
 
       //  initZoho()
 
+
+//       OneSignal.Notifications.addClickListener(object : INotificationClickListener {
+//           override fun onClick(event: INotificationClickEvent) {
+//               var body  = event.notification.body
+//               Log.d("NotificationBody","$body")
+//           }
+//       })
 
 
 
