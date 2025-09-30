@@ -38,6 +38,7 @@ import javax.inject.Inject
 
 import com.appsflyer.AppsFlyerLib;
 import com.appsflyer.AppsFlyerConversionListener;
+import com.gmwapp.hima.activities.MainActivity
 import com.onesignal.notifications.INotificationClickEvent
 import com.onesignal.notifications.INotificationClickListener
 
@@ -185,12 +186,31 @@ class BaseApplication : Application(), Configuration.Provider {
       //  initZoho()
 
 
-//       OneSignal.Notifications.addClickListener(object : INotificationClickListener {
-//           override fun onClick(event: INotificationClickEvent) {
-//               var body  = event.notification.body
-//               Log.d("NotificationBody","$body")
-//           }
-//       })
+       OneSignal.Notifications.addClickListener(object : INotificationClickListener {
+           override fun onClick(event: INotificationClickEvent) {
+               // Parsed additionalData
+               val data = event.notification.additionalData
+               if (data != null) {
+                   val user_id = data.optInt("user_id")
+                   val prefs = getSharedPreferences("my_app_prefs", Context.MODE_PRIVATE)
+                   prefs.edit().putString("notification_user_id", user_id.toString()).apply()
+                   Log.d("NotificationDataOneSingal", "$data")
+               } else {
+                   // Raw fallback
+                   Log.d("NotificationDataOneSingal", event.notification.rawPayload)
+               }
+
+
+               if (data != null) {
+                   val intent = Intent(applicationContext, MainActivity::class.java).apply {
+                       flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                       putExtra("fromApplication", true)
+
+                   }
+                   startActivity(intent)
+               }
+           }
+       })
 
 
 
@@ -252,21 +272,31 @@ class BaseApplication : Application(), Configuration.Provider {
 
 
     fun playIncomingCallSound() {
+        // Stop any previous ringtone first
         stopRingtone()
 
-        val audioAttributes = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE) // makes it respect silent mode
-            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-            .build()
+        try {
+            val audioAttributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build()
 
-        val uri = Uri.parse("android.resource://${packageName}/${R.raw.rhythm}")
-        mediaPlayer = MediaPlayer()
-        mediaPlayer?.apply {
-            setAudioAttributes(audioAttributes)
-            setDataSource(applicationContext, uri)
-            isLooping = true
-            setOnPreparedListener { start() }
-            prepareAsync() // ✅ async, safe
+            val ringtoneUri = android.provider.Settings.System.DEFAULT_RINGTONE_URI
+            mediaPlayer = MediaPlayer().apply {
+                setAudioAttributes(audioAttributes)
+                setDataSource(applicationContext, ringtoneUri)
+                isLooping = true
+                setOnPreparedListener { start() } // start only after prepared
+                setOnCompletionListener { stopRingtone() } // safety
+                setOnErrorListener { _, _, _ ->
+                    stopRingtone()
+                    true
+                }
+                prepareAsync() // async is safe
+            }
+        } catch (e: Exception) {
+            Log.e("MediaPlayer", "Error playing ringtone: ${e.message}")
+            stopRingtone()
         }
     }
 
@@ -305,14 +335,20 @@ class BaseApplication : Application(), Configuration.Provider {
 
 
     fun stopRingtone() {
-        mediaPlayer?.let {
-            if (it.isPlaying) {
-                it.stop()
+        try {
+            mediaPlayer?.let { player ->
+                if (player.isPlaying) {
+                    player.stop()
+                }
+                player.reset()
+                player.release()
             }
-            it.release()  // Release resources
+        } catch (e: Exception) {
+            Log.e("MediaPlayer", "Error stopping ringtone: ${e.message}")
+        } finally {
+            mediaPlayer = null
+            Log.d("MediaPlayer", "Ringtone stopped and released safely.")
         }
-        mediaPlayer = null  // Ensure it's set to null after stopping
-        Log.d("MediaPlayer", "Ringtone stopped and released.")
     }
 
 

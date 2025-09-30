@@ -17,4 +17,5 @@ data class FemaleUsersResponseData(
     val video_status: Int,
     val describe_yourself: String,
     val created_at: String,
+    val verified_datetime: String?,
 )

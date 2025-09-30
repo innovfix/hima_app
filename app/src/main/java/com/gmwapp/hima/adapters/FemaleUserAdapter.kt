@@ -57,14 +57,22 @@ class FemaleUserAdapter(
         Log.d("created_at","${femaleUser.created_at}")
 
 
-       var userRegisterDate = getDayDifferenceLabel(femaleUser.created_at)
-        Log.d("userRegisterDate","$userRegisterDate")
-        if (userRegisterDate<3){
-            holder.binding.newUser.visibility= View.VISIBLE
-        }else{
-            holder.binding.newUser.visibility= View.GONE
-
+        val userRegisterDate = if (!femaleUser.verified_datetime.isNullOrBlank()) {
+            getDayDifferenceLabel(femaleUser.verified_datetime)
+        } else {
+            null
         }
+
+        if (userRegisterDate != null) {
+            if (userRegisterDate < 3) {
+                holder.binding.newUser.visibility = View.VISIBLE
+            } else {
+                holder.binding.newUser.visibility = View.GONE
+            }
+        } else {
+            holder.binding.newUser.visibility = View.GONE
+        }
+
 
 
 
@@ -147,6 +155,7 @@ class FemaleUserAdapter(
     fun getDayDifferenceLabel(createdAt: String): Long {
         val format = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
+        Log.d("Created_Date","$createdAt")
         // Extract date part only (cut off time)
         val createdDateOnly = createdAt.substring(0, 10)
         val createdDate: Date = format.parse(createdDateOnly) ?: return 3
@@ -160,7 +169,7 @@ class FemaleUserAdapter(
         val diffDays = TimeUnit.MILLISECONDS.toDays(diffMillis)
 
         Log.d("created_at_label", "Date: $createdDateOnly, Diff: $diffDays ")
-        return diffDays
+        return if (diffDays >= 0) diffDays else 10
 
     }
 

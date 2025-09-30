@@ -130,15 +130,20 @@ class RecentCallsAdapter(
 
         }
 
-        if (call.blocked==1){
+        if (call.blocked==2){
             holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.white))
             holder.binding.ivVideoCircle.setColorFilter(ContextCompat.getColor(activity, R.color.text_light_grey))
             holder.binding.ivVideo.isEnabled = false
             holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.white))
             holder.binding.ivAudioCircle.setColorFilter(ContextCompat.getColor(activity, R.color.text_light_grey))
             holder.binding.ivAudio.isEnabled = false
-            holder.binding.ivAudioCircle.isEnabled = false
-            holder.binding.ivVideoCircle.isEnabled = false
+            holder.binding.ivAudioCircle.setOnSingleClickListener{
+                Log.d("ivAudioCircle","ivAudioCircle")
+            }
+
+            holder.binding.ivVideoCircle.setOnSingleClickListener{
+                Log.d("ivAudioCircle","ivAudioCircle")
+            }
 
         }
 

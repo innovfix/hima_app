@@ -45,9 +45,8 @@ class HomeFragment : BaseFragment() {
     ): View {
         binding = FragmentHomeBinding.inflate(layoutInflater)
 
-
-
         initUI()
+        observeLiveUserStatus()
         setupSwipeToRefresh()
         return binding.root
     }
@@ -390,6 +389,8 @@ class HomeFragment : BaseFragment() {
             userData?.let { loadFemaleUsers(it.id) }
         }
 
+        checkFemaleStatus()
+
     }
 
     fun observeCoins() {
@@ -405,6 +406,70 @@ class HomeFragment : BaseFragment() {
             }
         })
     }
+
+
+    fun checkFemaleStatus(){
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+
+        val prefs = requireContext().getSharedPreferences("my_app_prefs", Context.MODE_PRIVATE)
+        val femaleuserId = prefs.getString("notification_user_id", null)
+        Log.d("notification_user_id","$femaleuserId")
+        if (femaleuserId != null) {
+            userData?.id?.let { profileViewModel.getUsersStatus(femaleuserId) }
+
+        }else{
+            return
+        }
+
+    }
+
+    fun observeLiveUserStatus(){ profileViewModel.getUserLiveStatus.observe(viewLifecycleOwner, Observer { response ->
+
+        val prefs = requireContext().getSharedPreferences("my_app_prefs", Context.MODE_PRIVATE)
+        val femaleUserId = prefs.getString("notification_user_id", null)
+        Log.d("femaleUserId_Notification","$femaleUserId")
+        if (femaleUserId != null) {
+
+        response?.data?.let { userData ->
+
+            prefs.edit().remove("notification_user_id").apply()
+
+
+            var audioStatus = userData.audio_status
+            var videoStatus = userData.video_status
+
+            val context = requireContext()
+            val intent = Intent(context, MaleCallConnectingActivity::class.java)
+
+            when {
+                audioStatus == 1 -> {
+                    intent.putExtra(DConstants.CALL_TYPE, "audio")
+                }
+                videoStatus == 1 -> {
+                    intent.putExtra(DConstants.CALL_TYPE, "video")
+                }
+                else -> {
+                    Log.d("HomeFragment", "No call available for this user")
+                    intent.putExtra(DConstants.CALL_TYPE, "audio")
+                }
+            }
+
+
+
+            intent.putExtra(DConstants.RECEIVER_ID, response.data.id)
+            intent.putExtra(DConstants.RECEIVER_NAME, response.data.name)
+            intent.putExtra(DConstants.CALL_ID, 0)
+            intent.putExtra(DConstants.IMAGE, response.data.image)
+            intent.putExtra(DConstants.IS_RECEIVER_DETAILS_AVAILABLE, true)
+            intent.putExtra(
+                DConstants.TEXT,
+                getString(R.string.wait_user_hint, response.data.name)
+            )
+            FcmUtils.isUserAvailable=1
+            startActivity(intent)
+
+        } ?: Log.e("HomeFragment", "RegisterResponse is null")
+    }})}
 
 
 }

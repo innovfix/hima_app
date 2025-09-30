@@ -150,6 +150,7 @@ class EarningsActivity : BaseActivity() {
                         this, LinearLayoutManager.VERTICAL, false
                     )
                 )
+                Log.d("earningsViewModel","${it.data}")
 
                 var earningsAdapter = EarningsAdapter(this, it.data)
                 binding.rvEarnings.setAdapter(earningsAdapter)
@@ -195,6 +196,10 @@ class EarningsActivity : BaseActivity() {
     override fun onResume() {
         super.onResume()
         Log.d("OnresumeEarning","Done")
+
+        val prefs = BaseApplication.getInstance()?.getPrefs()
+        prefs?.getUserData()?.let {
+            earningsViewModel.getEarnings(it.id)}
 
         updateEarnings()
         if (binding.cvPanDetails.visibility == View.VISIBLE) {

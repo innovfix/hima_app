@@ -159,6 +159,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
     private var cashfreeLastOrderId: String = ""
 
+    var fromApplication = false
+
 
 
     private val requestPermissionsLauncher = registerForActivityResult(
@@ -204,6 +206,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, 0)
             insets
         }
+
+        fromApplication = intent.getBooleanExtra("fromApplication", false)
 
         checkIndividualPaymentType()
 
@@ -539,7 +543,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 Log.d("OrinalPrice","savePercent $save")
                 val isBlockWord = intent.getBooleanExtra("blockword", false)
 
-                if (!isBlockWord && BaseApplication.getInstance()?.getPrefs()
+                if (!isBlockWord && !fromApplication && BaseApplication.getInstance()?.getPrefs()
                         ?.getUserData()?.gender == DConstants.MALE
                 ) {
 

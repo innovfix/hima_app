@@ -30,6 +30,7 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
 
     val registerLiveData = MutableLiveData<RegisterResponse>()
     val getUserLiveData = MutableLiveData<RegisterResponse>()
+    val getUserLiveStatus = MutableLiveData<RegisterResponse>()
     val registerErrorLiveData = MutableLiveData<String>()
     val updateProfileLiveData = MutableLiveData<UpdateProfileResponse>()
     val updateProfileErrorLiveData = MutableLiveData<String>()
@@ -105,6 +106,32 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
                     ) {
                         getUserLiveData.postValue(response.body())
                         Log.d("getUserLiveData","${response.body()}")
+                    }
+
+                    override fun onFailure(call: Call<RegisterResponse>, t: Throwable) {
+                        Log.d("getUserLiveData","${t.message}")
+
+                    }
+
+                    override fun onNoNetwork() {
+                    }
+                })
+        }
+    }
+
+
+    fun getUsersStatus(
+        userId: String
+    ) {
+        viewModelScope.launch {
+            profileRepositories.getUserStatus(
+                userId,
+                object : NetworkCallback<RegisterResponse> {
+                    override fun onResponse(
+                        call: Call<RegisterResponse>, response: Response<RegisterResponse>
+                    ) {
+                        getUserLiveStatus.postValue(response.body())
+                        Log.d("getUserLiveStatus","${response.body()}")
                     }
 
                     override fun onFailure(call: Call<RegisterResponse>, t: Throwable) {

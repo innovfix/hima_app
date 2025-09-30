@@ -26,8 +26,8 @@ android {
         applicationId = "com.gmwapp.hima"
         minSdk = 26
         targetSdk = 35
-        versionCode = 40
-        versionName = "40"
+        versionCode = 41
+        versionName = "41"
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -48,7 +48,7 @@ android {
         create("development") {
             dimension = "hima"
           applicationIdSuffix = ".dev"
-            buildConfigField( "String", "BASE_URL",  "\"https://demo.himaapp.in/api/auth/\"")
+            buildConfigField( "String", "BASE_URL",  "\"https://test.himaapp.in/api/auth/\"")
         }
         create("production") {
             dimension = "hima"
@@ -204,6 +204,9 @@ dependencies {
 
     //Cashfree
     implementation ("com.cashfree.pg:api:2.2.8")
+
+    implementation ("com.google.android.gms:play-services-auth-api-phone:18.2.0")
+
 
 
     testImplementation(libs.junit)

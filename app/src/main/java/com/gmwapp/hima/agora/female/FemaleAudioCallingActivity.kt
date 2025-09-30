@@ -1795,9 +1795,9 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
     fun disableVideo(){
         binding.blackscreen.visibility=View.VISIBLE
-        agoraEngine?.muteAllRemoteAudioStreams(true)
-        agoraEngine?.muteLocalVideoStream(true)
-        agoraEngine?.muteLocalAudioStream(true)
+//        agoraEngine?.muteAllRemoteAudioStreams(true)
+//        agoraEngine?.muteLocalVideoStream(true)
+//        agoraEngine?.muteLocalAudioStream(true)
         showNoFaceDetectedDialog()
     }
 

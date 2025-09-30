@@ -42,6 +42,13 @@ class ProfileRepositories @Inject constructor(private val apiManager: ApiManager
         apiManager.getUser(userId, callback)
     }
 
+    fun getUserStatus(
+        userId: String,
+        callback: NetworkCallback<RegisterResponse>
+    ) {
+        apiManager.getUserStatus(userId, callback)
+    }
+
     fun getUserSync(
         userId: Int
     ): Response<RegisterResponse> {

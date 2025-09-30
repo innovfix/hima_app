@@ -298,6 +298,12 @@ class WithdrawActivity : BaseActivity() {
         }
 
         binding.btnWithdraw.setOnClickListener {
+
+            if (!isNetworkAvailable(this)) {
+                Toast.makeText(this, "No Internet connection. Please try again.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener  //
+            }
+
             val amount = binding.etAmount.text.toString().toDouble().toInt()
             val paymentMethod = payment_method
 
@@ -339,11 +345,15 @@ class WithdrawActivity : BaseActivity() {
 
         upiWithdrawViewModel.upiWithdrawResponseLiveData.observe(this, Observer {
             if (it != null) {
-                Log.d("paymentMethod","UpiResposne")
+                Log.d("paymentMethod","UpiResposne $it")
 
                 Toast.makeText(this, it.message, Toast.LENGTH_SHORT).show()
                 val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
                 userData?.let { profileViewModel.getUsers(it.id) }
+                if (it.success==true){
+                    finish()
+                }
+
             }
             else {
                 Toast.makeText(this, "Please try again", Toast.LENGTH_SHORT).show()
@@ -754,6 +764,16 @@ class WithdrawActivity : BaseActivity() {
             if (bold) setTypeface(typeface, android.graphics.Typeface.BOLD)
         }
     }
+
+    private fun isNetworkAvailable(context: Context): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return false
+        val activeNetwork = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return activeNetwork.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) ||
+                activeNetwork.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR) ||
+                activeNetwork.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)
+    }
+
 
 
 

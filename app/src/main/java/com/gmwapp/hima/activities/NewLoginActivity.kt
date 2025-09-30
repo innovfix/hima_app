@@ -1,5 +1,6 @@
 package com.gmwapp.hima.activities
 
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -9,6 +10,8 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.OnboardingPagerAdapter
 import com.google.android.material.tabs.TabLayoutMediator
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Paint
 import android.os.CountDownTimer
@@ -20,6 +23,7 @@ import android.text.TextUtils
 import android.text.TextWatcher
 import android.text.method.LinkMovementMethod
 import android.text.style.ClickableSpan
+import android.util.Base64
 import android.util.Log
 import android.view.View
 import android.view.inputmethod.InputMethodManager
@@ -29,6 +33,7 @@ import androidx.activity.viewModels
 import androidx.core.text.HtmlCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
+import com.gmwapp.hima.AppSignatureHashHelper
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
@@ -38,6 +43,7 @@ import com.gmwapp.hima.retrofit.responses.Country
 import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.viewmodels.ReferralCodeViewModel
+import com.google.android.gms.auth.api.phone.SmsRetriever
 import com.google.android.material.snackbar.Snackbar
 import com.onesignal.OneSignal
 import com.truecaller.android.sdk.common.TrueException
@@ -60,6 +66,13 @@ import kotlinx.coroutines.withContext
 import java.math.BigInteger
 import java.security.SecureRandom
 import kotlin.random.Random
+
+
+import com.google.android.gms.common.api.CommonStatusCodes
+import com.google.android.gms.common.api.Status
+import java.security.MessageDigest
+import java.security.NoSuchAlgorithmException
+import java.util.Arrays
 
 @AndroidEntryPoint
 class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
@@ -181,6 +194,103 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
 
 
+    private val smsBroadcastReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (SmsRetriever.SMS_RETRIEVED_ACTION == intent?.action) {
+                val extras = intent.extras
+                val status = extras?.get(SmsRetriever.EXTRA_STATUS) as Status
+                when (status.statusCode) {
+                    CommonStatusCodes.SUCCESS -> {
+                        val message = extras.get(SmsRetriever.EXTRA_SMS_MESSAGE) as String
+                        Log.d("OTP", "Message received: $message")
+
+                        // Extract 6-digit OTP
+                        val otpRegex = Regex("\\d{6}")
+                        val getOtp = otpRegex.find(message)?.value
+                        getOtp?.let {
+                          //  binding.pvOtp.setText(it)
+                            Log.d("OtpExtract","$it")
+                        }
+                    }
+                    CommonStatusCodes.TIMEOUT -> {
+                        Log.e("OTP", "SMS Retriever timed out (5 minutes)")
+                    }
+                }
+            }
+        }
+    }
+
+    private fun startSmsRetriever() {
+        val client = SmsRetriever.getClient(this)
+        val task = client.startSmsRetriever()
+        task.addOnSuccessListener { Log.d("OTP", "SMS Retriever started") }
+        task.addOnFailureListener { Log.e("OTP", "Error starting SMS retriever", it) }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val filter = IntentFilter(SmsRetriever.SMS_RETRIEVED_ACTION)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(smsBroadcastReceiver, filter, Context.RECEIVER_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(smsBroadcastReceiver, filter)
+        }
+        startSmsRetriever()
+    }
+
+
+    override fun onStop() {
+        super.onStop()
+        unregisterReceiver(smsBroadcastReceiver)
+    }
+
+//    @Suppress("DEPRECATION")
+//    private fun getAppSignatures(): List<String> {
+//        val appCodes: MutableList<String> = ArrayList()
+//        try {
+//            val packageName = packageName
+//            val packageManager = packageManager
+//            val packageInfo = packageManager.getPackageInfo(
+//                packageName,
+//                PackageManager.GET_SIGNING_CERTIFICATES // safe on 28+, ignored on lower
+//            )
+//
+//            val signatures = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+//                packageInfo.signingInfo?.apkContentsSigners
+//            } else {
+//                packageInfo.signatures
+//            }
+//
+//            if (signatures != null) {
+//                for (signature in signatures) {
+//                    val hash = hash(packageName, signature.toCharsString())
+//                    if (hash != null) {
+//                        appCodes.add(hash)
+//                        Log.d("AppHash", "Hash: $hash")
+//                    }
+//                }
+//            }
+//        } catch (e: Exception) {
+//            Log.e("AppHash", "Error getting signatures", e)
+//        }
+//        return appCodes
+//    }
+//
+//    private fun hash(packageName: String, signature: String): String? {
+//        val appInfo = "$packageName $signature"
+//        return try {
+//            val messageDigest = MessageDigest.getInstance("SHA-256")
+//            messageDigest.update(appInfo.toByteArray(Charsets.UTF_8))
+//            val hashSignature = messageDigest.digest()
+//            val truncated = Arrays.copyOfRange(hashSignature, 0, 9) // first 9 bytes
+//            Base64.encodeToString(truncated, Base64.NO_PADDING or Base64.NO_WRAP).substring(0, 11)
+//        } catch (e: NoSuchAlgorithmException) {
+//            Log.e("AppHash", "NoSuchAlgorithm", e)
+//            null
+//        }
+//    }
+
 
 
 
@@ -194,6 +304,14 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         setContentView(binding.root)
         enableEdgeToEdge()
 
+        val helper = AppSignatureHashHelper(this)
+        val hashList = helper.appSignatures
+
+        for (hash in hashList) {
+            Log.d("AppHash", "Your app hash: $hash")
+        }
+
+
         ZohoSalesIQ.showLauncher(false)
 
         setupOnboarding()
@@ -203,6 +321,10 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         CoroutineScope(Dispatchers.IO).launch {
             OneSignal.Notifications.requestPermission(true)
         }
+
+        val prefs = getSharedPreferences("my_app_prefs", Context.MODE_PRIVATE)
+
+        prefs.edit().remove("notification_user_id").apply()
 
         binding.loginSection.visibility  = View.VISIBLE
         binding.otpSection.visibility  = View.GONE

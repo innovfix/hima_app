@@ -166,6 +166,17 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun getUserStatus(
+        userId: String, callback: NetworkCallback<RegisterResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<RegisterResponse> = getApiInterface().getUserStatus(userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun getUserSync(
         userId: Int
     ): Response<RegisterResponse> {
@@ -850,6 +861,12 @@ interface ApiInterface {
     @POST("userdetails")
     fun getUser(
         @Field("user_id") user_id: Int,
+    ): Call<RegisterResponse>
+
+    @FormUrlEncoded
+    @POST("female_status_list")
+    fun getUserStatus(
+        @Field("user_id") user_id: String,
     ): Call<RegisterResponse>
 
     @FormUrlEncoded
