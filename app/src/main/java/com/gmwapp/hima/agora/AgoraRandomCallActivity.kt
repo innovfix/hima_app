@@ -129,62 +129,27 @@ class AgoraRandomCallActivity : AppCompatActivity() {
 
 
         Glide.with(this)
-            .asGif()
-            .load(R.drawable.double_arrow_gif) // Replace with your GIF file
+            .load(R.drawable.double_arrow_svg)
             .into(binding.ivDoubleArrow)
 
         startImageSequence()
-        startAnimations()
+        startSimpleAnimations()
+        
+        // Cancel button click
+        binding.tvCancel.setOnClickListener {
+            onBackPressedDispatcher.onBackPressed()
+        }
     }
     
-    private fun startAnimations() {
-        // Fade in animation for title
-        val fadeIn = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.fade_in)
-        binding.tvTitle.startAnimation(fadeIn)
+    private fun startSimpleAnimations() {
+        // Simple fade in for title
+        binding.tvTitle.alpha = 0f
+        binding.tvTitle.animate()
+            .alpha(1f)
+            .setDuration(300)
+            .start()
         
-        // Bounce in animation for avatars
-        val bounceIn = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.bounce_in)
-        binding.ivLogo.startAnimation(bounceIn)
-        
-        handler.postDelayed({
-            binding.ivCallerProfile.startAnimation(bounceIn)
-        }, 300)
-        
-        // Pulse animation for bottom avatar ring
-        try {
-            val pulseRing = findViewById<android.view.View>(R.id.pulse_ring)
-            val pulseAnim = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.pulse_animation)
-            pulseRing?.startAnimation(pulseAnim)
-        } catch (e: Exception) {
-            Log.e("Animation", "Pulse ring not found: ${e.message}")
-        }
-        
-        // Wave animations for top avatar rings
-        try {
-            val waveAnim1 = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.wave_animation)
-            val waveAnim2 = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.wave_animation)
-            val waveAnim3 = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.wave_animation)
-            
-            findViewById<android.view.View>(R.id.wave_ring_1)?.let {
-                it.startAnimation(waveAnim1)
-            }
-            
-            handler.postDelayed({
-                findViewById<android.view.View>(R.id.wave_ring_2)?.startAnimation(waveAnim2)
-            }, 300)
-            
-            handler.postDelayed({
-                findViewById<android.view.View>(R.id.wave_ring_3)?.startAnimation(waveAnim3)
-            }, 600)
-        } catch (e: Exception) {
-            Log.e("Animation", "Wave rings not found: ${e.message}")
-        }
-        
-        // Rotate animation for double arrow
-        val rotateAnim = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.rotate_animation)
-        binding.ivDoubleArrow.startAnimation(rotateAnim)
-        
-        // Animated connecting dots
+        // Subtle connecting dots animation
         startConnectingDotsAnimation()
     }
     
@@ -216,7 +181,7 @@ class AgoraRandomCallActivity : AppCompatActivity() {
                     }
                     step++
                     if (isRunning) {
-                        handler.postDelayed(this, 400)
+                        handler.postDelayed(this, 500)
                     }
                 }
             }

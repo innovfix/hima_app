@@ -243,7 +243,6 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Hidden Text Views for FAB labels -->
     <TextView
         android:id="@+id/tv_audio1"
         android:layout_width="wrap_content"

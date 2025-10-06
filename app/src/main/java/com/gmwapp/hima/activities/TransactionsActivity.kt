@@ -4,8 +4,10 @@ import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.os.Build
 import android.os.Bundle
 import android.view.View
+import android.view.WindowInsetsController
 import androidx.activity.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -31,15 +33,23 @@ class TransactionsActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityTransactionsBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        
+        // Set status bar color to pink theme
+        window.statusBarColor = resources.getColor(R.color.pink)
+        
+        // Make status bar icons light (white) to show on pink background
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.setSystemBarsAppearance(0, WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = window.decorView.systemUiVisibility and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+        }
+        
         initUI()
     }
 
     private fun initUI() {
-        binding.ivBack.setOnSingleClickListener { finish() }
-
-        binding.btnAddCoins.setOnSingleClickListener {
-            startActivity(Intent(this, WalletActivity::class.java))
-        }
+        binding.cvBack.setOnSingleClickListener { finish() }
 
         // Initialize RecyclerView and Adapter
         transactionAdapter = TransactionAdapter(this, mutableListOf())
@@ -50,7 +60,8 @@ class TransactionsActivity : BaseActivity() {
         if (isInternetAvailable(this)) {
             loadTransactions()
         } else {
-            binding.tvNointernet.visibility = View.VISIBLE
+            binding.llNoInternet.visibility = View.VISIBLE
+            binding.rvTransactions.visibility = View.GONE
         }
 
         // Scroll Listener for Pagination
@@ -71,9 +82,11 @@ class TransactionsActivity : BaseActivity() {
             isLoading = false
             if (response != null && response.success && response.data != null && response.data.isNotEmpty()) {
                 transactionAdapter.addTransactions(response.data)
-                binding.tvNoRecordFound.visibility = View.GONE
+                binding.llNoRecords.visibility = View.GONE
+                binding.rvTransactions.visibility = View.VISIBLE
             } else if (transactionAdapter.itemCount == 0) {
-                binding.tvNoRecordFound.visibility = View.VISIBLE
+                binding.llNoRecords.visibility = View.VISIBLE
+                binding.rvTransactions.visibility = View.GONE
             }
         }
     }

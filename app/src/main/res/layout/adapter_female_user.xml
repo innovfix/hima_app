@@ -148,13 +148,13 @@
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cv_audio"
             android:layout_width="0dp"
-            android:layout_height="50dp"
+            android:layout_height="46dp"
             android:layout_marginTop="14dp"
             android:layout_marginEnd="5dp"
             android:clickable="true"
             android:focusable="true"
             app:cardBackgroundColor="@color/inactive_call"
-            app:cardCornerRadius="25dp"
+            app:cardCornerRadius="23dp"
             app:cardElevation="0dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@+id/gl_horizontal_center"
@@ -168,21 +168,21 @@
                 android:layout_height="match_parent"
                 android:gravity="center"
                 android:orientation="horizontal"
-                android:paddingHorizontal="10dp">
+                android:paddingHorizontal="8dp">
 
                 <ImageView
                     android:id="@+id/iv_audio"
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
-                    android:layout_marginEnd="6dp"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_marginEnd="4dp"
                     android:src="@drawable/audio"
                     app:tint="@color/white" />
 
                 <ImageView
                     android:id="@+id/iv_audio_coin"
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:layout_marginEnd="3dp"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:layout_marginEnd="2dp"
                     android:src="@drawable/coin_d" />
 
                 <TextView
@@ -192,7 +192,8 @@
                     android:fontFamily="@font/poppins_semibold"
                     android:text="10/min"
                     android:textColor="@color/white"
-                    android:textSize="12sp" />
+                    android:textSize="11sp"
+                    android:includeFontPadding="false" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -200,13 +201,13 @@
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cv_video"
             android:layout_width="0dp"
-            android:layout_height="50dp"
+            android:layout_height="46dp"
             android:layout_marginStart="5dp"
             android:layout_marginTop="14dp"
             android:clickable="true"
             android:focusable="true"
             app:cardBackgroundColor="@color/inactive_call"
-            app:cardCornerRadius="25dp"
+            app:cardCornerRadius="23dp"
             app:cardElevation="0dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
@@ -220,21 +221,21 @@
                 android:layout_height="match_parent"
                 android:gravity="center"
                 android:orientation="horizontal"
-                android:paddingHorizontal="10dp">
+                android:paddingHorizontal="8dp">
 
                 <ImageView
                     android:id="@+id/iv_video"
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
-                    android:layout_marginEnd="6dp"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_marginEnd="4dp"
                     android:src="@drawable/video"
                     app:tint="@color/white" />
 
                 <ImageView
                     android:id="@+id/iv_video_coin"
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:layout_marginEnd="3dp"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:layout_marginEnd="2dp"
                     android:src="@drawable/coin_d" />
 
                 <TextView
@@ -244,7 +245,8 @@
                     android:fontFamily="@font/poppins_semibold"
                     android:text="60/min"
                     android:textColor="@color/white"
-                    android:textSize="12sp" />
+                    android:textSize="11sp"
+                    android:includeFontPadding="false" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 

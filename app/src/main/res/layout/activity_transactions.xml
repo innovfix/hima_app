@@ -5,137 +5,181 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#FAFAFA"
+    android:fitsSystemWindows="true"
     tools:context=".activities.LoginActivity">
 
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_left_margin"
-        android:layout_width="wrap_content"
+    <!-- Professional Header Section with White Background -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/header_layout"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        app:layout_constraintGuide_percent="0.04" />
+        android:background="@android:color/white"
+        android:elevation="3dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_right_margin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        app:layout_constraintGuide_percent="0.96" />
+        <!-- Back Button Card with Subtle Shadow -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cv_back"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="1dp"
+            app:cardBackgroundColor="#F8F9FA"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
 
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_top_margin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        app:layout_constraintGuide_percent="0.027" />
+            <ImageView
+                android:id="@+id/iv_back"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:contentDescription="@string/edit"
+                android:src="@drawable/right_arrow"
+                android:rotation="180"
+                app:tint="#374151" />
 
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_bottom_margin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        app:layout_constraintGuide_percent="0.92" />
+        </androidx.cardview.widget.CardView>
 
-    <ImageView
-        android:id="@+id/iv_back"
-        android:layout_width="18dp"
-        android:layout_height="18dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginStart="4dp"
-        android:contentDescription="@string/edit"
-        android:src="@drawable/right_arrow"
-        android:rotation="180"
-        app:layout_constraintHeight_default="percent"
-        app:layout_constraintHeight_percent="0.02"
-        app:layout_constraintStart_toStartOf="@id/gl_left_margin"
-        app:layout_constraintTop_toTopOf="@id/gl_top_margin"
-        app:layout_constraintWidth_default="percent"
-        app:layout_constraintWidth_percent="0.05"
-        app:tint="@color/pink"
-        tools:ignore="MissingConstraints" />
+        <!-- Title and Subtitle Container -->
+        <LinearLayout
+            android:id="@+id/ll_title_container"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginStart="16dp"
+            app:layout_constraintStart_toEndOf="@+id/cv_back"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
 
-    <TextView
-        android:id="@+id/tv_transactions"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:text="@string/transactions"
-        android:textColor="@color/pink"
-        android:fontFamily="@font/poppins_medium"
-        android:textSize="20sp"
-        app:layout_constraintBottom_toBottomOf="@+id/iv_back"
-        app:layout_constraintStart_toEndOf="@+id/iv_back"
-        app:layout_constraintTop_toTopOf="@+id/iv_back" />
+            <TextView
+                android:id="@+id/tv_transactions"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/transactions"
+                android:textColor="#111827"
+                android:fontFamily="@font/poppins_semibold"
+                android:textSize="20sp"
+                android:letterSpacing="-0.01" />
 
+            <TextView
+                android:id="@+id/tv_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="View your transaction history"
+                android:textColor="#6B7280"
+                android:fontFamily="@font/poppins_regular"
+                android:textSize="12sp"
+                android:layout_marginTop="0dp" />
 
+        </LinearLayout>
 
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_transactions_top_margin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        app:layout_constraintGuide_percent="0.08" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
+    <!-- RecyclerView for transactions -->
     <androidx.recyclerview.widget.RecyclerView
-        android:layout_marginTop="@dimen/_20sdp"
         android:id="@+id/rv_transactions"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="0dp"
-        app:layout_constraintStart_toStartOf="@+id/gl_left_margin"
-        app:layout_constraintEnd_toEndOf="@+id/gl_right_margin"
-        app:layout_constraintTop_toBottomOf="@+id/gl_transactions_top_margin"
-        app:layout_constraintBottom_toTopOf="@+id/btn_add_coins"/>
+        android:paddingTop="8dp"
+        android:paddingBottom="16dp"
+        android:clipToPadding="false"
+        android:overScrollMode="never"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/header_layout"
+        app:layout_constraintBottom_toBottomOf="parent"/>
 
-
-
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btn_add_coins"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        app:layout_constraintHeight_default="percent"
-        app:layout_constraintHeight_percent="0.08"
-        android:layout_marginBottom="24dp"
-        android:textAllCaps="false"
-        app:layout_constraintStart_toStartOf="@id/gl_left_margin"
-        app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
-        android:fontFamily="@font/poppins_medium"
-        app:layout_constraintTop_toTopOf="@+id/gl_bottom_margin"
-        android:text="@string/add_coins"
-        android:textSize="14sp"
-        app:cornerRadius="@dimen/_18sdp"
-        android:textColor="@color/white"
-        app:layout_constraintBottom_toBottomOf="parent"
-        android:backgroundTint="@color/pink"/>
-
-
-    <TextView
-        android:id="@+id/tv_Nointernet"
+    <!-- No Internet Message -->
+    <LinearLayout
+        android:id="@+id/ll_no_internet"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="No Internet"
-        android:fontFamily="@font/poppins_regular"
-        android:textSize="@dimen/_18sdp"
-        android:textColor="@color/pink"
+        android:orientation="vertical"
+        android:gravity="center"
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        />
+        app:layout_constraintTop_toBottomOf="@+id/header_layout">
 
-    <TextView
-        android:id="@+id/tvNoRecordFound"
+        <ImageView
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:src="@drawable/transactions"
+            android:alpha="0.25"
+            app:tint="#6B7280"
+            android:contentDescription="@string/edit" />
+
+        <TextView
+            android:id="@+id/tv_Nointernet"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="No Internet Connection"
+            android:fontFamily="@font/poppins_medium"
+            android:textSize="15sp"
+            android:textColor="#374151" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Please check your connection"
+            android:fontFamily="@font/poppins_regular"
+            android:textSize="13sp"
+            android:textColor="#6B7280" />
+
+    </LinearLayout>
+
+    <!-- No Records Found Message -->
+    <LinearLayout
+        android:id="@+id/ll_no_records"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:text="No records found"
+        android:orientation="vertical"
+        android:gravity="center"
         android:visibility="gone"
-        android:textColor="@android:color/black"
-        android:textSize="18sp"
-        android:fontFamily="@font/poppins_bold"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="@+id/rv_transactions"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/header_layout">
 
+        <ImageView
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:src="@drawable/transactions"
+            android:alpha="0.25"
+            app:tint="#6B7280"
+            android:contentDescription="@string/edit" />
+
+        <TextView
+            android:id="@+id/tvNoRecordFound"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="No Transactions Yet"
+            android:fontFamily="@font/poppins_medium"
+            android:textSize="15sp"
+            android:textColor="#374151" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Your transaction history will appear here"
+            android:fontFamily="@font/poppins_regular"
+            android:textSize="13sp"
+            android:textColor="#6B7280" />
+
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

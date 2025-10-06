@@ -1,6 +1,9 @@
 package com.gmwapp.hima.activities
 
 import android.content.ActivityNotFoundException
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -62,6 +65,17 @@ class ShareActivity : AppCompatActivity() {
 
         binding.ivBack.setOnSingleClickListener {
             finish()
+        }
+
+        // Copy invite code functionality
+        binding.ivCopy.setOnSingleClickListener {
+            val inviteCode = binding.tvInvitecode.text.toString()
+            if (inviteCode.isNotEmpty()) {
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                val clip = ClipData.newPlainText("Invite Code", inviteCode)
+                clipboard.setPrimaryClip(clip)
+                Toast.makeText(this, "Invite code copied!", Toast.LENGTH_SHORT).show()
+            }
         }
 
         if (userData?.gender=="female"){

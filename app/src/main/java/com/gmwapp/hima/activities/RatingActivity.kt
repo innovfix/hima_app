@@ -80,8 +80,9 @@ class RatingActivity : BaseActivity() {
 
     private fun initUi() {
 
-
-        binding.ivClose.setOnClickListener { finish()}
+        // Close button click listeners
+        binding.ivClose.setOnClickListener { finish() }
+        binding.cvClose.setOnClickListener { finish() }
 
 
         // Set title text with dynamic receiver name
