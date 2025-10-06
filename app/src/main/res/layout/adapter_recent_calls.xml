@@ -1,187 +1,240 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
-    android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginLeft="@dimen/_10sdp"
-    android:layout_marginRight="@dimen/_10sdp"
-    android:layout_marginBottom="@dimen/_10sdp"
-    tools:context=".activities.LoginActivity">
-
-    <LinearLayout
-        android:id="@+id/ll_date"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:visibility="gone"
-        android:layout_marginBottom="@dimen/_10sdp"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
-
-        <!-- Left Divider -->
-        <View
-            android:id="@+id/v_divider1"
-            android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="1"
-            android:layout_marginTop="2dp"
-            android:layout_marginBottom="2dp"
-            android:background="@color/divider" />
-
-        <!-- TextView (Date) in the center -->
-        <TextView
-            android:id="@+id/callDate"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Date"
-            android:layout_marginLeft="16dp"
-            android:layout_marginRight="16dp" />
-
-        <!-- Right Divider -->
-        <View
-            android:id="@+id/v_divider2"
-            android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="1"
-            android:layout_marginTop="2dp"
-            android:layout_marginBottom="2dp"
-            android:background="@color/divider" />
-
-    </LinearLayout>
-
-
-    <View
-        android:id="@+id/v_divider"
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:visibility="gone"
-        android:layout_gravity="center_vertical"
-        android:layout_marginStart="2dp"
-        android:layout_marginEnd="2dp"
-        android:layout_marginTop="@dimen/_5sdp"
-        android:layout_marginBottom="17dp"
-        android:background="@color/divider"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tv_time"
-        app:layout_goneMarginTop="8dp" />
-
-
+    android:layout_marginHorizontal="10dp"
+    android:layout_marginVertical="6dp"
+    app:cardBackgroundColor="@color/white"
+    app:cardCornerRadius="20dp"
+    app:cardElevation="2dp"
+    app:strokeColor="@color/divider"
+    app:strokeWidth="0dp">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:padding="18dp">
 
-        <ImageView
-            android:id="@+id/iv_image"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginTop="@dimen/_6sdp"
-            android:scaleType="fitCenter"
-            android:src="@drawable/coin"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:ignore="ContentDescription" />
-
+        <!-- Date Section (Hidden) -->
         <TextView
-            android:id="@+id/tv_name"
+            android:id="@+id/callDate"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginLeft="@dimen/_4sdp"
-            android:text="xxx"
-            android:textColor="@color/black_light"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            app:layout_constraintStart_toEndOf="@id/iv_image"
+            android:layout_height="0dp"
+            android:fontFamily="@font/poppins_medium"
+            android:text="Date"
+            android:textColor="@color/grey_medium"
+            android:textSize="11sp"
+            android:visibility="gone"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <TextView
-            android:id="@+id/tv_time"
+        <LinearLayout
+            android:id="@+id/ll_date"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Profile Image with Gradient Border -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/profile_container"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:background="@drawable/profile_gradient_border"
+            android:elevation="1dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_profile"
+                android:layout_width="58dp"
+                android:layout_height="58dp"
+                app:cardCornerRadius="29dp"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="@color/white"
+                app:strokeWidth="0dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <de.hdodenhof.circleimageview.CircleImageView
+                    android:id="@+id/iv_image"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_margin="2dp"
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/coin"
+                    app:civ_border_width="0dp"
+                    tools:ignore="ContentDescription" />
+            </com.google.android.material.card.MaterialCardView>
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <!-- User Info Section -->
+        <LinearLayout
+            android:id="@+id/ll_user_info"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:orientation="vertical"
+            app:layout_constraintBottom_toBottomOf="@id/profile_container"
+            app:layout_constraintEnd_toStartOf="@+id/buttons_container"
+            app:layout_constraintHorizontal_bias="0"
+            app:layout_constraintStart_toEndOf="@id/profile_container"
+            app:layout_constraintTop_toTopOf="@id/profile_container">
+
+            <TextView
+                android:id="@+id/tv_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="@font/poppins_bold"
+                android:maxLines="1"
+                android:text="Username"
+                android:textColor="@color/black_light"
+                android:textSize="17sp"
+                android:letterSpacing="-0.01" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:orientation="vertical">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:cardBackgroundColor="@color/grey_extra_light"
+                    app:cardCornerRadius="6dp"
+                    app:cardElevation="0dp"
+                    app:strokeWidth="0dp">
+
+                    <TextView
+                        android:id="@+id/tv_time"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/poppins_medium"
+                        android:maxLines="1"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="3dp"
+                        android:text="Today 08:16 PM"
+                        android:textColor="@color/grey_medium"
+                        android:textSize="10sp" />
+                </com.google.android.material.card.MaterialCardView>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="5dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="13dp"
+                        android:layout_height="13dp"
+                        android:src="@drawable/ic_clock"
+                        android:contentDescription="Duration"
+                        android:layout_gravity="center_vertical"
+                        app:tint="@color/colorAccent" />
+
+                    <TextView
+                        android:id="@+id/tv_duration"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:fontFamily="@font/poppins_semibold"
+                        android:maxLines="1"
+                        android:text="15 min"
+                        android:textColor="@color/colorAccent"
+                        android:textSize="11sp" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Call Buttons Container -->
+        <LinearLayout
+            android:id="@+id/buttons_container"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="@dimen/_4sdp"
-            android:layout_marginTop="2dp"
-            android:text="xxx"
-            android:textColor="#979797"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            app:layout_constraintStart_toEndOf="@id/iv_image"
-            app:layout_constraintTop_toBottomOf="@id/tv_name" />
+            android:gravity="center"
+            android:orientation="horizontal"
+            app:layout_constraintBottom_toBottomOf="@id/profile_container"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/profile_container">
 
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/iv_audio_circle"
+                android:layout_width="46dp"
+                android:layout_height="46dp"
+                android:layout_marginEnd="10dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardBackgroundColor="@color/grey_extra_light"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="1dp"
+                app:rippleColor="@color/colorAccent">
+
+                <ImageView
+                    android:id="@+id/iv_audio"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_phone_modern"
+                    app:tint="@color/grey_medium" />
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/iv_video_circle"
+                android:layout_width="46dp"
+                android:layout_height="46dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardBackgroundColor="@color/grey_extra_light"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="1dp"
+                app:rippleColor="@color/colorAccent">
+
+                <ImageView
+                    android:id="@+id/iv_video"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_video_modern"
+                    app:tint="@color/grey_medium" />
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+
+        <!-- Hidden Amount TextView -->
         <TextView
             android:id="@+id/tv_amount"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="4dp"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
             android:text="xxx"
             android:textColor="@color/black_light"
             android:textSize="20sp"
             android:textStyle="bold"
             android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="@id/iv_image"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@id/iv_image" />
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
-        <ImageView
-            android:id="@+id/iv_audio_circle"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginEnd="16dp"
-            android:src="@drawable/ic_permissions_circle"
-            app:layout_constraintBottom_toBottomOf="@id/iv_image"
-            app:layout_constraintEnd_toStartOf="@+id/iv_video_circle"
-            app:layout_constraintTop_toTopOf="@id/iv_image" />
-
-        <ImageView
-            android:id="@+id/iv_audio"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:src="@drawable/audio"
-            app:layout_constraintBottom_toBottomOf="@id/iv_audio_circle"
-            app:layout_constraintEnd_toEndOf="@+id/iv_audio_circle"
-            app:layout_constraintStart_toStartOf="@+id/iv_audio_circle"
-            app:layout_constraintTop_toTopOf="@id/iv_audio_circle" />
-
-        <ImageView
-            android:id="@+id/iv_video_circle"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginEnd="16dp"
-            android:src="@drawable/ic_permissions_circle"
-            app:layout_constraintBottom_toBottomOf="@id/iv_image"
+        <!-- Hidden Divider -->
+        <View
+            android:id="@+id/v_divider"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@id/iv_image" />
-
-        <ImageView
-            android:id="@+id/iv_video"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:src="@drawable/video"
-            app:layout_constraintBottom_toBottomOf="@id/iv_video_circle"
-            app:layout_constraintEnd_toEndOf="@+id/iv_video_circle"
-            app:layout_constraintStart_toStartOf="@+id/iv_video_circle"
-            app:layout_constraintTop_toTopOf="@id/iv_video_circle" />
-
-<!--        <View-->
-<!--            android:id="@+id/v_divider"-->
-<!--            android:layout_width="match_parent"-->
-<!--            android:layout_height="1dp"-->
-<!--            android:layout_gravity="center_vertical"-->
-<!--            android:layout_marginStart="2dp"-->
-<!--            android:layout_marginTop="17dp"-->
-<!--            android:layout_marginEnd="2dp"-->
-<!--            android:layout_marginBottom="17dp"-->
-<!--            android:background="@color/divider"-->
-<!--            app:layout_constraintStart_toStartOf="parent"-->
-<!--            app:layout_constraintTop_toBottomOf="@+id/tv_time"-->
-<!--            app:layout_goneMarginTop="8dp" />-->
-
-
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-
-
-
-
-</LinearLayout>
+</com.google.android.material.card.MaterialCardView>

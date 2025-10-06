@@ -1,172 +1,201 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/grey_extra_light">
 
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_left_margin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        app:layout_constraintGuide_percent="0.04" />
-
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_right_margin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        app:layout_constraintGuide_percent="0.96" />
-
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_top_margin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        app:layout_constraintGuide_percent="0.027" />
-
-    <ImageView
-        android:id="@+id/iv_logo"
-        android:layout_width="@dimen/_28sdp"
-        android:layout_height="@dimen/_28sdp"
-        android:layout_marginStart="24dp"
-        android:layout_marginTop="16dp"
-        android:contentDescription="@string/edit"
-        android:scaleType="fitXY"
-        android:src="@drawable/logo"
-        app:layout_constraintHeight_default="percent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintWidth_default="percent"
-        app:tint="@color/white"
-        tools:ignore="MissingConstraints" />
-
-    <TextView
-        android:id="@+id/tv_logo"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginLeft="8dp"
-        android:text="@string/app_name"
-        android:textColor="@color/white"
-        android:textSize="22sp"
-        android:fontFamily="@font/poppins_bold"
-        app:layout_constraintBottom_toBottomOf="@+id/iv_logo"
-        app:layout_constraintStart_toEndOf="@+id/iv_logo"
-        app:layout_constraintTop_toTopOf="@+id/iv_logo" />
-
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/cl_coins"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="12dp"
-        android:paddingEnd="@dimen/_10sdp"
-        android:paddingStart="@dimen/_5sdp"
-        android:paddingVertical="@dimen/_3sdp"
-        android:background="@drawable/d_button_bg"
-        android:backgroundTint="#FEA6BD"
-        app:layout_constraintBottom_toBottomOf="@+id/iv_logo"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/iv_logo"
-        >
-        <ImageView
-            android:id="@+id/iv_coin"
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:scaleType="fitXY"
-            android:src="@drawable/coin_d"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            />
-
-        <TextView
-            android:layout_marginTop="@dimen/_2sdp"
-            android:id="@+id/tv_coins"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/poppins_semibold"
-            android:gravity=""
-            android:text="0"
-            android:textColor="@color/white"
-            android:textSize="16sp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toEndOf="@+id/iv_coin"
-            app:layout_constraintTop_toTopOf="parent"
-            />
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
-
-
-    <LinearLayout
-        android:id="@+id/ll_cyber_disclamair"
+    <!-- Professional Header with AppBar -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/app_bar_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:paddingTop="10dp"
-        android:layout_marginHorizontal="@dimen/_15sdp"
-        android:background="@drawable/d_cyberpolice_background"
-        app:layout_constraintTop_toBottomOf="@id/tv_logo"
-        app:layout_constraintBottom_toTopOf="@id/swipeRefreshLayout"
-        app:layout_constraintStart_toStartOf="@id/gl_left_margin"
-        app:layout_constraintEnd_toEndOf="@id/gl_right_margin">
+        android:background="@color/white"
+        android:elevation="2dp"
+        app:elevation="2dp">
 
-        <LinearLayout
-            android:layout_width="0dp"
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:layout_marginEnd="8dp">
+            android:paddingHorizontal="20dp"
+            android:paddingTop="14dp"
+            android:paddingBottom="14dp">
 
-            <TextView
+            <!-- Logo and App Name Section -->
+            <LinearLayout
+                android:id="@+id/ll_logo_section"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Speak Respectfully"
-                android:layout_marginLeft="@dimen/_10sdp"
-                android:textColor="@color/black"
-                android:fontFamily="@font/poppins_semibold"
-                android:textSize="@dimen/_12sdp" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
 
-            <TextView
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
+                    app:cardBackgroundColor="@color/colorAccent"
+                    app:cardCornerRadius="10dp"
+                    app:cardElevation="0dp">
+
+                    <ImageView
+                        android:id="@+id/iv_logo"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:contentDescription="@string/edit"
+                        android:src="@drawable/logo"
+                        app:tint="@color/white" />
+                </com.google.android.material.card.MaterialCardView>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tv_logo"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/poppins_bold"
+                        android:letterSpacing="-0.01"
+                        android:text="@string/app_name"
+                        android:textColor="@color/black_light"
+                        android:textSize="19sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="-2dp"
+                        android:fontFamily="@font/poppins_regular"
+                        android:text="Connect &amp; Chat"
+                        android:textColor="@color/grey_medium"
+                        android:textSize="10sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Wallet Balance Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cl_coins"
                 android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardBackgroundColor="@color/colorAccent"
+                app:cardCornerRadius="19dp"
+                app:cardElevation="0dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:rippleColor="@color/white"
+                app:strokeWidth="0dp">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="4dp"
+                    android:paddingEnd="14dp">
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="30dp"
+                        android:layout_height="30dp"
+                        app:cardBackgroundColor="@color/white"
+                        app:cardCornerRadius="15dp"
+                        app:cardElevation="0dp">
+
+                        <ImageView
+                            android:id="@+id/iv_coin"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:layout_gravity="center"
+                            android:src="@drawable/coin_d" />
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <TextView
+                        android:id="@+id/tv_coins"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:fontFamily="@font/poppins_bold"
+                        android:text="0"
+                        android:textColor="@color/white"
+                        android:textSize="15sp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <!-- Safety Banner - Hidden -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/ll_cyber_disclamair"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            app:cardBackgroundColor="@color/white"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="1dp"
+            app:strokeColor="#FFE5E5"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Using abusive language may violate cyber laws and lead to legal action"
-                android:textColor="@color/black"
-                android:layout_marginLeft="@dimen/_10sdp"
-                android:fontFamily="@font/poppins_semibold"
-                android:textSize="@dimen/_8sdp" />
-        </LinearLayout>
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="12dp">
 
-        <ImageView
-            android:layout_width="@dimen/_43sdp"
-            android:layout_height="@dimen/_53sdp"
-            android:src="@drawable/cyber_police" />
-    </LinearLayout>
+                <ImageView
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginEnd="12dp"
+                    android:src="@drawable/cyber_police" />
 
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
 
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/poppins_semibold"
+                        android:text="Speak Respectfully"
+                        android:textColor="@color/black_light"
+                        android:textSize="13sp" />
 
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:fontFamily="@font/poppins_regular"
+                        android:text="Abusive language may lead to legal action"
+                        android:textColor="@color/grey_medium"
+                        android:textSize="11sp" />
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+    </com.google.android.material.appbar.AppBarLayout>
 
-
-
+    <!-- Profiles List -->
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/swipeRefreshLayout"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        android:layout_marginTop="80dp"
-        app:layout_constraintTop_toBottomOf="@+id/iv_logo"
-        >
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rv_profiles"
-        android:layout_width="match_parent"
-        android:paddingBottom="80dp"
-        android:clipToPadding="false"
-        android:layout_height="0dp"
-        />
-
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_profiles"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingHorizontal="12dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="100dp" />
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
     <!-- Background Dim Effect -->
@@ -177,178 +206,186 @@
         android:background="#80000000"
         android:visibility="gone" />
 
-    <TextView
+    <!-- No Internet Message -->
+    <com.google.android.material.card.MaterialCardView
         android:id="@+id/tv_Nointernet"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="No Internet"
-        android:fontFamily="@font/poppins_regular"
-        android:textSize="@dimen/_18sdp"
-        android:textColor="@color/white"
+        android:layout_gravity="center"
         android:visibility="gone"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        />
+        app:cardBackgroundColor="@color/white"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="8dp">
 
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="32dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_semibold"
+                android:text="No Internet"
+                android:textColor="@color/colorAccent"
+                android:textSize="18sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:fontFamily="@font/poppins_regular"
+                android:text="Check your connection"
+                android:textColor="@color/grey_medium"
+                android:textSize="13sp" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Hidden Text Views for FAB labels -->
     <TextView
         android:id="@+id/tv_audio1"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="72dp"
+        android:layout_marginBottom="204dp"
+        android:fontFamily="@font/poppins_semibold"
         android:text="@string/audio"
         android:textColor="@color/white"
-        android:fontFamily="@font/poppins_semibold"
+        android:textSize="14sp"
         android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="@+id/iv_coin_audio"
-        app:layout_constraintEnd_toStartOf="@+id/iv_coin_audio"
-        app:layout_constraintTop_toTopOf="@+id/iv_coin_audio"
         android:shadowColor="@color/purple"
         android:shadowDx="1"
         android:shadowDy="1"
-        android:shadowRadius="2"
-        />
+        android:shadowRadius="2" />
 
     <ImageView
         android:id="@+id/iv_coin_audio"
         android:layout_width="22dp"
         android:layout_height="22dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="92dp"
+        android:layout_marginBottom="184dp"
         android:background="@drawable/coin_d"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="@+id/tv_audio2"
-        app:layout_constraintEnd_toStartOf="@+id/tv_audio2"
-        app:layout_constraintTop_toTopOf="@+id/tv_audio2"
-        />
+        android:visibility="gone" />
 
     <TextView
         android:id="@+id/tv_audio2"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="72dp"
+        android:layout_marginBottom="184dp"
+        android:fontFamily="@font/poppins_semibold"
         android:text="@string/audio_mins_txt"
         android:textColor="@color/white"
-        android:fontFamily="@font/poppins_semibold"
+        android:textSize="14sp"
         android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="@+id/fab_audio"
-        app:layout_constraintEnd_toStartOf="@+id/fab_audio"
-        app:layout_constraintTop_toTopOf="@+id/fab_audio"
         android:shadowColor="@color/purple"
         android:shadowDx="1"
         android:shadowDy="1"
-        android:shadowRadius="2"
-
-        />
-
-<!--    <com.zegocloud.uikit.prebuilt.call.invite.widget.ZegoSendCallInvitationButton-->
-<!--        android:visibility="gone"-->
-<!--        android:layout_marginTop="10dp"-->
-<!--        android:id="@+id/voiceCallButton"-->
-<!--        android:layout_width="100dp"-->
-<!--        app:layout_constraintStart_toStartOf="parent"-->
-<!--        app:layout_constraintEnd_toEndOf="parent"-->
-<!--        app:layout_constraintTop_toTopOf="parent"-->
-<!--        android:layout_height="100dp"/>-->
-
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fab_audio"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp"
-        android:backgroundTint="@color/white"
-        android:contentDescription="@string/audio_text"
-        app:borderWidth="2dp"
-        app:backgroundTint="@color/purple"
-        app:fabSize="normal"
-        app:iconTint="@color/white"
-        app:layout_constraintBottom_toTopOf="@+id/fab_video"
-        app:layout_constraintEnd_toEndOf="@+id/fab_video"
-        app:srcCompat="@drawable/audio"
-        app:tint="@color/purple" />
+        android:shadowRadius="2" />
 
     <TextView
         android:id="@+id/tv_video1"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp"
-        android:text="@string/video"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="72dp"
+        android:layout_marginBottom="128dp"
         android:fontFamily="@font/poppins_semibold"
+        android:text="@string/video"
         android:textColor="@color/white"
+        android:textSize="14sp"
         android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="@+id/iv_coin_video"
-        app:layout_constraintEnd_toStartOf="@+id/iv_coin_video"
-        app:layout_constraintTop_toTopOf="@+id/iv_coin_video"
         android:shadowColor="@color/green"
         android:shadowDx="1"
         android:shadowDy="1"
-        android:shadowRadius="2"
-        />
+        android:shadowRadius="2" />
 
     <ImageView
         android:id="@+id/iv_coin_video"
         android:layout_width="22dp"
         android:layout_height="22dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="92dp"
+        android:layout_marginBottom="108dp"
         android:background="@drawable/coin_d"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="@+id/tv_video2"
-        app:layout_constraintEnd_toStartOf="@+id/tv_video2"
-        app:layout_constraintTop_toTopOf="@+id/tv_video2"
-        />
+        android:visibility="gone" />
 
     <TextView
         android:id="@+id/tv_video2"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp"
-        android:text="60 / min"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="72dp"
+        android:layout_marginBottom="108dp"
         android:fontFamily="@font/poppins_semibold"
+        android:text="60 / min"
         android:textColor="@color/white"
+        android:textSize="14sp"
         android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="@+id/fab_video"
-        app:layout_constraintEnd_toStartOf="@+id/fab_video"
-        app:layout_constraintTop_toTopOf="@+id/fab_video"
         android:shadowColor="@color/green"
         android:shadowDx="1"
         android:shadowDy="1"
-        android:shadowRadius="2"
-        />
+        android:shadowRadius="2" />
+
+    <!-- Floating Action Buttons -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_audio"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="184dp"
+        android:contentDescription="@string/audio_text"
+        app:backgroundTint="@color/purple"
+        app:borderWidth="0dp"
+        app:elevation="6dp"
+        app:fabSize="normal"
+        app:maxImageSize="28dp"
+        app:srcCompat="@drawable/audio"
+        app:tint="@color/white" />
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab_video"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp"
-        android:backgroundTint="@color/white"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="108dp"
         android:contentDescription="@string/video"
-        android:elevation="0dp"
-        app:borderWidth="2dp"
         app:backgroundTint="@color/green"
+        app:borderWidth="0dp"
+        app:elevation="6dp"
         app:fabSize="normal"
-        app:layout_constraintBottom_toTopOf="@+id/fab_random"
-        app:layout_constraintEnd_toEndOf="@+id/fab_random"
+        app:maxImageSize="28dp"
         app:srcCompat="@drawable/video"
-        app:tint="@color/green" />
+        app:tint="@color/white" />
 
     <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
         android:id="@+id/fab_random"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
         android:layout_margin="24dp"
-        android:backgroundTint="@color/blue"
         android:contentDescription="@string/random"
+        android:fontFamily="@font/poppins_semibold"
         android:text="@string/random"
-        android:fontFamily="@font/poppins_medium"
         android:textAllCaps="false"
-        app:borderWidth="@dimen/_1sdp"
-        app:backgroundTint="@color/blue"
         android:textColor="@color/white"
+        android:textSize="15sp"
+        app:backgroundTint="@color/blue"
+        app:borderWidth="0dp"
+        app:elevation="6dp"
         app:icon="@drawable/random"
         app:iconGravity="textStart"
+        app:iconPadding="8dp"
+        app:iconSize="24dp"
         app:iconTint="@color/white"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
         app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlayExtended" />
 
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
 
-
-</androidx.constraintlayout.widget.ConstraintLayout>

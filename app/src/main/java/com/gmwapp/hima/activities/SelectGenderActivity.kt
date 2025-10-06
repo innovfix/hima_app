@@ -1,6 +1,7 @@
 package com.gmwapp.hima.activities
 
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.View
 import androidx.activity.enableEdgeToEdge
@@ -38,13 +39,14 @@ class SelectGenderActivity : BaseActivity() {
     }
 
     private fun initUI() {
-        binding.cvGender.setBackgroundResource(R.drawable.d_button_bg_gender_outline)
         val snapHelper = PagerSnapHelper()
         snapHelper.attachToRecyclerView(binding.rvAvatars)
         setCenterLayoutManager(binding.rvAvatars)
+        
         binding.ivBack.setOnSingleClickListener {
             finish()
         }
+        
         binding.btnContinue.setOnSingleClickListener {
             var intent:Intent? = null
             if (selectedGender == DConstants.MALE) {
@@ -65,26 +67,21 @@ class SelectGenderActivity : BaseActivity() {
             startActivity(intent)
 
         }
-        binding.btnMale.setOnSingleClickListener {
+        
+        // Male Card Click
+        binding.cvMale.setOnSingleClickListener {
             selectedGender = DConstants.MALE
             profileViewModel.getAvatarsList(selectedGender)
-            binding.btnMale.setBackgroundResource(R.drawable.d_button_bg_gender_selected)
-            binding.btnFemale.setBackgroundColor(getColor(android.R.color.transparent))
-            binding.btnMale.setTextColor(getColor(R.color.colorPrimaryDark))
-            binding.btnFemale.setTextColor(getColor(R.color.white))
-            binding.btnMale.isEnabled = false
-            binding.btnFemale.isEnabled = true
+            updateGenderSelection(true)
         }
-        binding.btnFemale.setOnSingleClickListener {
+        
+        // Female Card Click
+        binding.cvFemale.setOnSingleClickListener {
             selectedGender = DConstants.FEMALE
             profileViewModel.getAvatarsList(selectedGender)
-            binding.btnMale.setBackgroundColor(getColor(android.R.color.transparent))
-            binding.btnFemale.setBackgroundResource(R.drawable.d_button_bg_gender_selected)
-            binding.btnMale.setTextColor(getColor(R.color.white))
-            binding.btnFemale.setTextColor(getColor(R.color.colorPrimaryDark))
-            binding.btnMale.isEnabled = true
-            binding.btnFemale.isEnabled = false
+            updateGenderSelection(false)
         }
+        
         profileViewModel.getAvatarsList("male")
         profileViewModel.avatarsListLiveData.observe(this, Observer {
             if (it?.data != null) {
@@ -95,7 +92,52 @@ class SelectGenderActivity : BaseActivity() {
                 binding.rvAvatars.smoothScrollToPosition(0)
             }
         })
-
+        
+        // Set initial male selection
+        updateGenderSelection(true)
+    }
+    
+    private fun updateGenderSelection(isMale: Boolean) {
+        val accentColor = ColorStateList.valueOf(getColor(R.color.colorAccent))
+        val dividerColor = ColorStateList.valueOf(getColor(R.color.divider))
+        val greyColor = getColor(R.color.grey_medium)
+        val accentTextColor = getColor(R.color.colorAccent)
+        val whiteColor = getColor(R.color.white)
+        val greyLightColor = getColor(R.color.grey_extra_light)
+        
+        if (isMale) {
+            // Male selected
+            binding.cvMale.setStrokeColor(accentColor)
+            binding.cvMale.strokeWidth = 6
+            binding.cvMale.setCardBackgroundColor(whiteColor)
+            binding.btnMale.setTextColor(accentTextColor)
+            binding.iconMale.setBackgroundResource(R.drawable.circle_bg_accent)
+            binding.iconMale.setTextColor(whiteColor)
+            
+            // Female unselected
+            binding.cvFemale.setStrokeColor(dividerColor)
+            binding.cvFemale.strokeWidth = 3
+            binding.cvFemale.setCardBackgroundColor(whiteColor)
+            binding.btnFemale.setTextColor(greyColor)
+            binding.iconFemale.setBackgroundResource(R.drawable.circle_bg_grey)
+            binding.iconFemale.setTextColor(greyColor)
+        } else {
+            // Female selected
+            binding.cvFemale.setStrokeColor(accentColor)
+            binding.cvFemale.strokeWidth = 6
+            binding.cvFemale.setCardBackgroundColor(whiteColor)
+            binding.btnFemale.setTextColor(accentTextColor)
+            binding.iconFemale.setBackgroundResource(R.drawable.circle_bg_accent)
+            binding.iconFemale.setTextColor(whiteColor)
+            
+            // Male unselected
+            binding.cvMale.setStrokeColor(dividerColor)
+            binding.cvMale.strokeWidth = 3
+            binding.cvMale.setCardBackgroundColor(whiteColor)
+            binding.btnMale.setTextColor(greyColor)
+            binding.iconMale.setBackgroundResource(R.drawable.circle_bg_grey)
+            binding.iconMale.setTextColor(greyColor)
+        }
     }
 
 }

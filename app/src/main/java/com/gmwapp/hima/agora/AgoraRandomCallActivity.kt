@@ -111,7 +111,7 @@ class AgoraRandomCallActivity : AppCompatActivity() {
         progressBar = findViewById(R.id.progressBar)
         startProgressLoop()
         if (callType=="audio"){
-            binding.tvTitle.setText("Audio Sessioon")
+            binding.tvTitle.setText("Audio Session")
 
         }else{
             binding.tvTitle.setText("Video Session")
@@ -134,6 +134,96 @@ class AgoraRandomCallActivity : AppCompatActivity() {
             .into(binding.ivDoubleArrow)
 
         startImageSequence()
+        startAnimations()
+    }
+    
+    private fun startAnimations() {
+        // Fade in animation for title
+        val fadeIn = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.fade_in)
+        binding.tvTitle.startAnimation(fadeIn)
+        
+        // Bounce in animation for avatars
+        val bounceIn = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.bounce_in)
+        binding.ivLogo.startAnimation(bounceIn)
+        
+        handler.postDelayed({
+            binding.ivCallerProfile.startAnimation(bounceIn)
+        }, 300)
+        
+        // Pulse animation for bottom avatar ring
+        try {
+            val pulseRing = findViewById<android.view.View>(R.id.pulse_ring)
+            val pulseAnim = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.pulse_animation)
+            pulseRing?.startAnimation(pulseAnim)
+        } catch (e: Exception) {
+            Log.e("Animation", "Pulse ring not found: ${e.message}")
+        }
+        
+        // Wave animations for top avatar rings
+        try {
+            val waveAnim1 = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.wave_animation)
+            val waveAnim2 = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.wave_animation)
+            val waveAnim3 = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.wave_animation)
+            
+            findViewById<android.view.View>(R.id.wave_ring_1)?.let {
+                it.startAnimation(waveAnim1)
+            }
+            
+            handler.postDelayed({
+                findViewById<android.view.View>(R.id.wave_ring_2)?.startAnimation(waveAnim2)
+            }, 300)
+            
+            handler.postDelayed({
+                findViewById<android.view.View>(R.id.wave_ring_3)?.startAnimation(waveAnim3)
+            }, 600)
+        } catch (e: Exception) {
+            Log.e("Animation", "Wave rings not found: ${e.message}")
+        }
+        
+        // Rotate animation for double arrow
+        val rotateAnim = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.rotate_animation)
+        binding.ivDoubleArrow.startAnimation(rotateAnim)
+        
+        // Animated connecting dots
+        startConnectingDotsAnimation()
+    }
+    
+    private fun startConnectingDotsAnimation() {
+        try {
+            val dot1 = findViewById<android.view.View>(R.id.dot1)
+            val dot2 = findViewById<android.view.View>(R.id.dot2)
+            val dot3 = findViewById<android.view.View>(R.id.dot3)
+            
+            val animateDots = object : Runnable {
+                var step = 0
+                override fun run() {
+                    when (step % 3) {
+                        0 -> {
+                            dot1?.alpha = 1.0f
+                            dot2?.alpha = 0.5f
+                            dot3?.alpha = 0.3f
+                        }
+                        1 -> {
+                            dot1?.alpha = 0.3f
+                            dot2?.alpha = 1.0f
+                            dot3?.alpha = 0.5f
+                        }
+                        2 -> {
+                            dot1?.alpha = 0.5f
+                            dot2?.alpha = 0.3f
+                            dot3?.alpha = 1.0f
+                        }
+                    }
+                    step++
+                    if (isRunning) {
+                        handler.postDelayed(this, 400)
+                    }
+                }
+            }
+            handler.post(animateDots)
+        } catch (e: Exception) {
+            Log.e("Animation", "Connecting dots not found: ${e.message}")
+        }
     }
 
     private fun startProgressLoop() {

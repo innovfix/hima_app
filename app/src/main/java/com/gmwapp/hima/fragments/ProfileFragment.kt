@@ -86,8 +86,17 @@ class ProfileFragment : BaseFragment() {
             val intent = Intent(context, WalletActivity::class.java)
             startActivity(intent)
         }
-
-        binding.ivEditProfile.setOnSingleClickListener {
+        
+        binding.avatarContainer.setOnSingleClickListener {
+            if (isInternetAvailable()) {
+                val intent = Intent(context, EditProfileActivity::class.java)
+                startActivityForResult(intent, EDIT_PROFILE_REQUEST_CODE)
+            } else {
+                Toast.makeText(context, "No internet connection", Toast.LENGTH_SHORT).show()
+            }
+        }
+        
+        binding.editIconBadge.setOnSingleClickListener {
             if (isInternetAvailable()) {
                 val intent = Intent(context, EditProfileActivity::class.java)
                 startActivityForResult(intent, EDIT_PROFILE_REQUEST_CODE)

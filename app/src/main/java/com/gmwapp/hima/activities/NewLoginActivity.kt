@@ -314,7 +314,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
         ZohoSalesIQ.showLauncher(false)
 
-        setupOnboarding()
+        // setupOnboarding() // Disabled for clean UI
         initUI()
         observeReferralCodeResponse()
 

@@ -4,111 +4,349 @@
     android:id="@+id/main"
     android:background="@drawable/bg_gradiend"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:animateLayoutChanges="true">
 
+    <!-- Status Bar Padding -->
+    <View
+        android:id="@+id/status_bar_padding"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toTopOf="parent" />
 
+    <!-- Title with Fade In Animation -->
     <TextView
         android:id="@+id/tv_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:fontFamily="@font/poppins_medium"
+        android:fontFamily="@font/poppins_bold"
         android:text="Audio Session"
         android:textColor="@color/white"
-        android:textSize="22sp"
-        android:layout_marginTop="@dimen/_8sdp"
+        android:textSize="24sp"
+        android:letterSpacing="0.05"
+        android:elevation="4dp"
+        android:layout_marginTop="20dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
-
-    <ImageView
-        android:id="@+id/iv_logo"
-        android:layout_width="140dp"
-        android:layout_height="140dp"
-        android:src="@drawable/logo"
-        android:layout_marginTop="@dimen/_20sdp"
-        app:layout_constraintEnd_toEndOf="parent"
+    <!-- Connection Status Card -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/connection_status_card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="32dp"
+        android:layout_marginTop="12dp"
+        app:cardBackgroundColor="#30FFFFFF"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="6dp"
+        app:strokeColor="#40FFFFFF"
+        app:strokeWidth="1dp"
+        app:layout_constraintTop_toBottomOf="@id/tv_title"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tv_title" />
+        app:layout_constraintEnd_toEndOf="parent">
 
-    <!--    <com.gmwapp.hima.widgets.SendCallInvitationButton-->
-    <!--        android:visibility="gone"-->
-    <!--        android:layout_marginTop="10dp"-->
-    <!--        android:id="@+id/voiceCallButton"-->
-    <!--        android:layout_width="100dp"-->
-    <!--        app:layout_constraintStart_toStartOf="parent"-->
-    <!--        app:layout_constraintEnd_toEndOf="parent"-->
-    <!--        app:layout_constraintTop_toTopOf="parent"-->
-    <!--        android:layout_height="100dp"/>-->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp"
+            android:gravity="center">
 
+            <TextView
+                android:id="@+id/tv_connection_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Connecting..."
+                android:fontFamily="@font/poppins_semibold"
+                android:textColor="@color/white"
+                android:textSize="15sp"
+                android:letterSpacing="0.02" />
 
-    <ImageView
-        android:id="@+id/iv_caller_profile"
-        android:layout_width="140dp"
-        android:layout_height="140dp"
-        android:src="@drawable/logo"
-        app:layout_constraintBottom_toTopOf="@+id/tv_you"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+            <!-- Animated Connecting Dots -->
+            <LinearLayout
+                android:id="@+id/ll_connecting_dots"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="8dp"
+                android:gravity="center">
 
-    <ImageView
-        android:id="@+id/iv_double_arrow"
-        android:layout_width="@dimen/_130sdp"
-        android:layout_height="@dimen/_130sdp"
-        android:src="@drawable/double_arrow_svg"
-        app:layout_constraintBottom_toTopOf="@+id/iv_caller_profile"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/iv_logo" />
+                <View
+                    android:id="@+id/dot1"
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/connecting_dot"
+                    android:alpha="1.0" />
 
-    <TextView
-        android:layout_marginBottom="@dimen/_10sdp"
-        android:id="@+id/tv_you"
+                <View
+                    android:id="@+id/dot2"
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/connecting_dot"
+                    android:alpha="0.5" />
+
+                <View
+                    android:id="@+id/dot3"
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:background="@drawable/connecting_dot"
+                    android:alpha="0.3" />
+            </LinearLayout>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Top User Avatar Container with Wave Animation -->
+    <FrameLayout
+        android:id="@+id/fl_top_avatar_container"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:fontFamily="@font/poppins_semibold"
-        android:text="You"
-        android:textAlignment="center"
-        android:textColor="@color/white"
-        android:textSize="16sp"
-        app:layout_constraintBottom_toTopOf="@+id/tl_wait_title"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        android:layout_marginTop="24dp"
+        app:layout_constraintTop_toBottomOf="@id/connection_status_card"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
-    <TextView
-        android:id="@+id/tl_wait_title"
+        <!-- Wave Ring 3 (Outermost) -->
+        <View
+            android:id="@+id/wave_ring_3"
+            android:layout_width="180dp"
+            android:layout_height="180dp"
+            android:layout_gravity="center"
+            android:background="@drawable/wave_ring"
+            android:alpha="0.3" />
+
+        <!-- Wave Ring 2 -->
+        <View
+            android:id="@+id/wave_ring_2"
+            android:layout_width="160dp"
+            android:layout_height="160dp"
+            android:layout_gravity="center"
+            android:background="@drawable/wave_ring"
+            android:alpha="0.5" />
+
+        <!-- Wave Ring 1 (Closest) -->
+        <View
+            android:id="@+id/wave_ring_1"
+            android:layout_width="140dp"
+            android:layout_height="140dp"
+            android:layout_gravity="center"
+            android:background="@drawable/avatar_ring_glow"
+            android:alpha="0.7" />
+
+        <!-- Avatar with Shadow -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:layout_gravity="center"
+            app:cardCornerRadius="60dp"
+            app:cardElevation="8dp">
+
+            <ImageView
+                android:id="@+id/iv_logo"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:src="@drawable/logo" />
+        </com.google.android.material.card.MaterialCardView>
+    </FrameLayout>
+
+    <!-- Connection Animation Center -->
+    <FrameLayout
+        android:id="@+id/fl_connection_animation"
+        android:layout_width="wrap_content"
+        android:layout_height="0dp"
+        android:layout_marginVertical="16dp"
+        app:layout_constraintTop_toBottomOf="@id/fl_top_avatar_container"
+        app:layout_constraintBottom_toTopOf="@id/fl_bottom_avatar_container"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Connection Lines Background -->
+        <View
+            android:id="@+id/connection_line_bg"
+            android:layout_width="2dp"
+            android:layout_height="match_parent"
+            android:layout_gravity="center"
+            android:background="#40FFFFFF" />
+
+        <!-- Animated Double Arrow Icon -->
+        <ImageView
+            android:id="@+id/iv_double_arrow"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:layout_gravity="center"
+            android:src="@drawable/double_arrow_svg"
+            android:alpha="0.9" />
+
+        <!-- Circular Progress Indicator -->
+        <ProgressBar
+            android:id="@+id/circular_progress"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:layout_gravity="center"
+            android:indeterminate="true"
+            android:indeterminateTint="@color/white"
+            android:alpha="0.6" />
+    </FrameLayout>
+
+    <!-- Bottom User Avatar Container -->
+    <FrameLayout
+        android:id="@+id/fl_bottom_avatar_container"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:fontFamily="@font/poppins_medium"
-        android:text="Connecting with your\nperfect friend"
-        android:textAlignment="center"
-        android:textColor="@color/white"
-        android:textSize="14sp"
-        app:layout_constraintBottom_toTopOf="@+id/progressBar"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        android:layout_marginBottom="16dp"
+        app:layout_constraintBottom_toTopOf="@id/ll_info_container"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
+        <!-- Pulse Ring for Bottom Avatar -->
+        <View
+            android:id="@+id/pulse_ring"
+            android:layout_width="140dp"
+            android:layout_height="140dp"
+            android:layout_gravity="center"
+            android:background="@drawable/avatar_ring_glow"
+            android:alpha="0.6" />
 
+        <!-- Bottom Avatar with Shadow -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:layout_gravity="center"
+            app:cardCornerRadius="60dp"
+            app:cardElevation="8dp">
 
+            <ImageView
+                android:id="@+id/iv_caller_profile"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:src="@drawable/logo" />
+        </com.google.android.material.card.MaterialCardView>
 
-    <ProgressBar
-        android:id="@+id/progressBar"
-        style="@style/Widget.AppCompat.ProgressBar.Horizontal"
-        android:layout_width="150dp"
-        android:layout_height="20dp"
-        android:layout_centerHorizontal="true"
-        android:background="@drawable/progress_bar_background"
-        android:indeterminate="false"
-        android:max="100"
-        android:padding="5dp"
-        android:progress="10"
-        android:progressDrawable="@drawable/curved_progress_bar"
+        <!-- You Badge -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center_horizontal"
+            android:layout_marginBottom="-6dp"
+            app:cardBackgroundColor="@color/colorAccent"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="6dp">
+
+            <TextView
+                android:id="@+id/tv_you"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_semibold"
+                android:text="You"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="5dp"
+                android:letterSpacing="0.05" />
+        </com.google.android.material.card.MaterialCardView>
+    </FrameLayout>
+
+    <!-- Info Container -->
+    <LinearLayout
+        android:id="@+id/ll_info_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:layout_marginBottom="16dp"
+        android:layout_marginHorizontal="32dp"
+        app:layout_constraintBottom_toTopOf="@id/progress_container"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Connection Message -->
+        <TextView
+            android:id="@+id/tl_wait_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/poppins_medium"
+            android:text="Finding your perfect match..."
+            android:textAlignment="center"
+            android:textColor="@color/white"
+            android:textSize="15sp"
+            android:letterSpacing="0.01"
+            android:lineSpacingExtra="2dp" />
+
+        <!-- User Name (Initially Hidden) -->
+        <TextView
+            android:id="@+id/tv_caller_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:fontFamily="@font/poppins_bold"
+            android:textColor="@color/white"
+            android:textSize="20sp"
+            android:visibility="gone"
+            android:letterSpacing="0.03" />
+    </LinearLayout>
+
+    <!-- Progress Container -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/progress_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="32dp"
+        android:layout_marginBottom="24dp"
+        app:cardBackgroundColor="#30FFFFFF"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="6dp"
+        app:strokeColor="#40FFFFFF"
+        app:strokeWidth="1dp"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:gravity="center">
 
+            <!-- Progress Text -->
+            <TextView
+                android:id="@+id/tv_progress_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Searching..."
+                android:fontFamily="@font/poppins_medium"
+                android:textColor="@color/white"
+                android:textSize="13sp"
+                android:layout_marginBottom="10dp"
+                android:alpha="0.9" />
 
+            <!-- Modern Progress Bar -->
+            <ProgressBar
+                android:id="@+id/progressBar"
+                style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+                android:layout_width="match_parent"
+                android:layout_height="5dp"
+                android:background="@drawable/progress_bar_background"
+                android:indeterminate="false"
+                android:max="100"
+                android:progress="10"
+                android:progressDrawable="@drawable/curved_progress_bar" />
 
+            <!-- Timer Text -->
+            <TextView
+                android:id="@+id/tv_timer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:fontFamily="@font/poppins_regular"
+                android:textColor="#CCFFFFFF"
+                android:textSize="11sp"
+                android:text="00:00" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

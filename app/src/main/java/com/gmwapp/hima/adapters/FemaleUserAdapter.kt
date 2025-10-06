@@ -79,8 +79,11 @@ class FemaleUserAdapter(
         val  audioStatus = femaleUser.audio_status
         val  videoStatus = femaleUser.video_status
 
+        // Configure Audio Call Button
         if (audioStatus == 1) {
             holder.binding.cvAudio.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.purple))
+            holder.binding.cvAudio.isClickable = true
+            holder.binding.cvAudio.alpha = 1.0f
             holder.binding.cvAudio.setOnSingleClickListener {
                 val position = holder.adapterPosition
                 if (position != RecyclerView.NO_POSITION) {
@@ -88,27 +91,24 @@ class FemaleUserAdapter(
                     onAudioListener.onItemSelected(clickedUser)
                 }
             }
-
-
+        } else {
+            holder.binding.cvAudio.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.inactive_call))
+            holder.binding.cvAudio.isClickable = false
+            holder.binding.cvAudio.alpha = 0.6f
         }
+
+        // Configure Video Call Button
         if (videoStatus == 1) {
             holder.binding.cvVideo.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.green))
+            holder.binding.cvVideo.isClickable = true
+            holder.binding.cvVideo.alpha = 1.0f
             holder.binding.cvVideo.setOnSingleClickListener{
                 onVideoListener.onItemSelected(femaleUser)
             }
-        }
-
-        if (audioStatus == 0 && videoStatus == 0) {
-            holder.binding.cvAudio.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.inactive_call))
+        } else {
             holder.binding.cvVideo.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.inactive_call))
-        }
-
-        if (audioStatus == 0) {
-            holder.binding.cvAudio.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.inactive_call))
-        }
-
-        if (videoStatus == 0) {
-            holder.binding.cvVideo.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.inactive_call))
+            holder.binding.cvVideo.isClickable = false
+            holder.binding.cvVideo.alpha = 0.6f
         }
 
 

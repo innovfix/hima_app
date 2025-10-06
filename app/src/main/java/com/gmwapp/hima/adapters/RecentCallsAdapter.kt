@@ -62,11 +62,12 @@ class RecentCallsAdapter(
         holder.binding.ivVideo.visibility = View.GONE
         holder.binding.tvAmount.visibility = View.GONE
 
-        holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.white))
-        holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.white))
-
-        holder.binding.ivAudioCircle.clearColorFilter()
-        holder.binding.ivVideoCircle.clearColorFilter()
+        // Reset button colors
+        holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
+        holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
+        
+        holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
+        holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
 
         holder.binding.ivAudio.isEnabled = false
         holder.binding.ivVideo.isEnabled = false
@@ -83,26 +84,30 @@ class RecentCallsAdapter(
             holder.binding.tvAmount.visibility = View.GONE
 
             if (call.audio_status == 0) {
-                holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.white))
-                holder.binding.ivAudioCircle.setColorFilter(ContextCompat.getColor(activity, R.color.text_light_grey))
+                holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
+                holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
                 holder.binding.ivAudio.isEnabled = false
+                holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
             }else{
                 holder.binding.ivAudioCircle.setOnSingleClickListener{
                     onAudioListener.onItemSelected(call)
                 }
+                holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.colorAccent))
                 holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.white))
                 holder.binding.ivAudio.isEnabled = true
-
+                holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
             }
             if (call.video_status == 0) {
-                holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.white))
-                holder.binding.ivVideoCircle.setColorFilter(ContextCompat.getColor(activity, R.color.text_light_grey))
+                holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
+                holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
                 holder.binding.ivVideo.isEnabled = false
-
+                holder.binding.ivVideo.setImageResource(R.drawable.ic_video_modern)
             }else{
                 holder.binding.ivVideoCircle.setOnSingleClickListener{ onVideoListener.onItemSelected(call) }
+                holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.green))
                 holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.white))
                 holder.binding.ivVideo.isEnabled = true
+                holder.binding.ivVideo.setImageResource(R.drawable.ic_video_modern)
             }
         } else {
             holder.binding.ivAudioCircle.visibility = View.GONE
@@ -112,7 +117,14 @@ class RecentCallsAdapter(
             holder.binding.tvAmount.visibility = View.VISIBLE
             holder.binding.tvAmount.text = activity.getString(R.string.rupee_text, call.income)
         }
-        holder.binding.tvTime.text = call.started_time + " \u2022" + call.duration
+        holder.binding.tvTime.text = call.started_time
+        // Add "min" only if not already present
+        val durationText = if (call.duration.contains("min", ignoreCase = true)) {
+            call.duration
+        } else {
+            "${call.duration} min"
+        }
+        holder.binding.tvDuration.text = durationText
 
         Log.d("RecentCallUserName","${call.name}")
 
@@ -131,12 +143,16 @@ class RecentCallsAdapter(
         }
 
         if (call.blocked==2){
-            holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.white))
-            holder.binding.ivVideoCircle.setColorFilter(ContextCompat.getColor(activity, R.color.text_light_grey))
+            holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
+            holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
             holder.binding.ivVideo.isEnabled = false
-            holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.white))
-            holder.binding.ivAudioCircle.setColorFilter(ContextCompat.getColor(activity, R.color.text_light_grey))
+            holder.binding.ivVideo.setImageResource(R.drawable.ic_video_modern)
+            
+            holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
+            holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
             holder.binding.ivAudio.isEnabled = false
+            holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
+            
             holder.binding.ivAudioCircle.setOnSingleClickListener{
                 Log.d("ivAudioCircle","ivAudioCircle")
             }

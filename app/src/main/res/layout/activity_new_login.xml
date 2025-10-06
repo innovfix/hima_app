@@ -7,31 +7,24 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
-    android:background="@color/blue">
+    android:background="@color/colorPrimaryDark">
 
-    <!-- ViewPager2 for Onboarding -->
-
+    <!-- Hidden ViewPager2 for Onboarding (for compatibility) -->
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/viewPagerOnboarding"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="0dp"
+        android:visibility="gone"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/ll_login_section"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintStart_toStartOf="parent" />
 
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/tabLayout"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        app:tabIndicatorHeight="0dp"
-        android:layout_gravity="center"
-        app:tabGravity="center"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/ll_login_section"
-        tools:ignore="MissingConstraints"
-        android:layout_marginBottom="@dimen/_10sdp"
-        android:background="@android:color/transparent" />
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/guideline"
@@ -39,14 +32,56 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal" />
 
+    <!-- Logo and Welcome Section -->
+    <LinearLayout
+        android:id="@+id/ll_logo_section"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:paddingHorizontal="24dp"
+        android:paddingTop="40dp"
+        android:paddingBottom="24dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/ll_login_section"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageView
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:src="@drawable/logo"
+            android:layout_marginBottom="20dp"
+            android:contentDescription="@string/app_name" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Welcome to Hima"
+            android:textSize="26sp"
+            android:textColor="@color/white"
+            android:fontFamily="@font/poppins_bold"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Login to continue"
+            android:textSize="15sp"
+            android:textColor="@color/pink_extra_light"
+            android:fontFamily="@font/poppins_regular" />
+
+    </LinearLayout>
+
     <LinearLayout
         android:id="@+id/ll_login_section"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:background="@drawable/rounded_top_background"
-        android:paddingTop="16dp"
-        android:paddingBottom="5dp"
+        android:background="@color/white"
+        android:paddingTop="24dp"
+        android:paddingBottom="24dp"
+        android:paddingHorizontal="20dp"
         android:visibility="visible"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -59,52 +94,43 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:visibility="gone">
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="14sp"
-            android:layout_marginTop="10dp"
-            app:layout_constraintStart_toStartOf="@id/gl_left_margin"
-            app:layout_constraintTop_toBottomOf="@+id/cv_login"
-            android:textColor="@color/black_light"
-            android:fontFamily="@font/poppins_bold"
-            android:text="@string/mobile_number"
-            android:layout_marginHorizontal="16dp"/>
+            android:textSize="15sp"
+            android:layout_marginBottom="6dp"
+            android:textColor="@color/colorAccent"
+            android:fontFamily="@font/poppins_semibold"
+            android:text="@string/mobile_number"/>
 
         <androidx.cardview.widget.CardView
             android:id="@+id/cv_login"
             android:layout_width="match_parent"
-            android:layout_height="@dimen/_35sdp"
-            app:layout_constraintHeight_default="percent"
-            app:layout_constraintHeight_percent="0.07"
-            android:layout_marginTop="5dp"
-            app:cardElevation="2dp"
-            app:cardCornerRadius="10dp"
+            android:layout_height="52dp"
+            android:layout_marginBottom="8dp"
+            app:cardElevation="0dp"
+            app:cardCornerRadius="8dp"
             app:cardBackgroundColor="@color/grey_extra_light"
-            app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
-            app:layout_constraintStart_toStartOf="@id/gl_left_margin"
-            app:layout_constraintTop_toBottomOf="@+id/tl_title"
-            android:layout_marginHorizontal="16dp">
+            app:strokeColor="@color/divider"
+            app:strokeWidth="1dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="14dp">
 
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:id="@+id/cl_country"
                     android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:layout_marginStart="15dp">
+                    android:layout_height="match_parent">
 
                     <ImageView
                         android:id="@+id/iv_flag"
-                        android:layout_width="0dp"
-                        android:layout_height="0dp"
-                        app:layout_constraintWidth_default="percent"
-                        app:layout_constraintWidth_percent="0.45"
-                        app:layout_constraintHeight_default="percent"
-                        app:layout_constraintHeight_percent="0.28"
+                        android:layout_width="24dp"
+                        android:layout_height="16dp"
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintTop_toTopOf="parent"
                         app:layout_constraintBottom_toBottomOf="parent"
@@ -113,401 +139,319 @@
 
                     <ImageView
                         android:id="@+id/iv_down_arrow"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
                         app:layout_constraintStart_toEndOf="@+id/iv_flag"
-                        android:scaleType="fitXY"
+                        android:layout_marginStart="4dp"
                         app:layout_constraintTop_toTopOf="parent"
                         app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintEnd_toEndOf="parent"
                         android:src="@drawable/ic_down_arrow"
-                        app:tint="#fff7ff"
+                        app:tint="@color/colorPrimaryDark"
                         tools:ignore="ContentDescription" />
                 </androidx.constraintlayout.widget.ConstraintLayout>
-
-                <View
-                    android:layout_width="1dp"
-                    android:layout_height="wrap_content"
-                    android:background="@color/cardview_divider"
-                    android:layout_gravity="center_vertical"
-                    android:layout_marginStart="2dp"
-                    android:layout_marginEnd="2dp"
-                    android:layout_marginTop="17dp"
-                    android:layout_marginBottom="17dp"/>
 
                 <TextView
                     android:id="@+id/tv_country_code"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="center_vertical"
-                    android:layout_marginStart="@dimen/_10sdp"
-                    android:textColor="@color/pink"
+                    android:layout_marginStart="8dp"
+                    android:textColor="@color/colorAccent"
+                    android:textSize="15sp"
                     android:text="+91"
                     android:fontFamily="@font/poppins_semibold" />
 
                 <EditText
                     android:id="@+id/et_mobile_number"
-                    style="@style/EditTextStyle"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="8dp"
                     android:autofillHints="phone"
+                    android:background="@android:color/transparent"
                     android:textCursorDrawable="@drawable/color_cursor"
                     android:textColor="@color/black_light"
+                    android:textSize="15sp"
                     android:imeOptions="actionDone"
-                    android:inputType="numberDecimal"
+                    android:inputType="phone"
                     android:maxLength="10"
-                    android:fontFamily="@font/poppins_semibold" />
+                    android:fontFamily="@font/poppins_medium" />
             </LinearLayout>
         </androidx.cardview.widget.CardView>
+        <!-- Hidden referral code elements for compatibility -->
+        <CheckBox
+            android:id="@+id/referCode_checkbox"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone" />
+
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cv_referCode"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+                <EditText
+                    android:id="@+id/et_referCode"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/applyReferral"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
         <TextView
             android:id="@+id/tv_otp_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textSize="12sp"
-            app:layout_constraintStart_toStartOf="@id/gl_left_margin"
-            app:layout_constraintTop_toBottomOf="@+id/cv_login"
-            android:textColor="@color/text_light_grey"
+            android:layout_marginBottom="16dp"
+            android:textColor="@color/grey_medium"
             android:fontFamily="@font/poppins_regular"
-            android:text="@string/you_will_receive_an_otp_on_this_number"
-            android:layout_marginHorizontal="16dp"
-            android:layout_marginTop="4dp"/>
+            android:text="@string/you_will_receive_an_otp_on_this_number"/>
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <CheckBox
-                    android:id="@+id/referCode_checkbox"
-                    android:layout_width="wrap_content"
-                    android:layout_height="25dp"
-                    android:buttonTint="@color/pink"
-                    android:checked="false"
-                    android:focusable="false"
-                    android:gravity="center" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/pink_bold"
-                    android:text="I have a refer code"/>
-
-            </LinearLayout>
-
-            <androidx.cardview.widget.CardView
-                android:id="@+id/cv_referCode"
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/_35sdp"
-                app:layout_constraintHeight_default="percent"
-                app:layout_constraintHeight_percent="0.07"
-                android:layout_marginTop="5dp"
-                app:cardElevation="2dp"
-                android:visibility="gone"
-                app:cardCornerRadius="10dp"
-                app:cardBackgroundColor="@color/grey_extra_light"
-                app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
-                app:layout_constraintStart_toStartOf="@id/gl_left_margin"
-                app:layout_constraintTop_toBottomOf="@+id/tl_title"
-                android:layout_marginHorizontal="16dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:paddingHorizontal="8dp">
-
-                    <EditText
-                        android:id="@+id/et_referCode"
-                        style="@style/EditTextReferCode"
-                        android:layout_width="0dp"
-                        android:layout_height="match_parent"
-                        android:layout_weight="1"
-                        android:textCursorDrawable="@drawable/color_cursor"
-                        android:textColor="@color/black_light"
-                        android:imeOptions="actionDone"
-                        android:inputType="textCapCharacters"
-                        android:hint="Ex: PRAB1289"
-                        android:maxLength="10"
-                        android:fontFamily="@font/poppins_semibold" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/applyReferral"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:backgroundTint="@color/green"
-                        android:textColor="@color/white"
-                        android:text="Apply" />
-                </LinearLayout>
-            </androidx.cardview.widget.CardView>
-
-
-
-
-            <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="12sp"
-            android:layout_marginTop="@dimen/_8sdp"
-            app:layout_constraintStart_toStartOf="@id/gl_left_margin"
-            app:layout_constraintTop_toBottomOf="@+id/cv_login"
-            android:textColor="@color/green"
-            android:fontFamily="@font/poppins_medium"
-            android:text="@string/we_don_t_share_your_number_with_anyone"
-            android:layout_marginHorizontal="16dp"/>
-
+        <!-- Send OTP Button -->
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="center">
+            android:layout_marginBottom="12dp">
 
-        <!-- Login Button -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_send_otp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="5dp"
-            android:textAllCaps="false"
-            android:enabled="false"
-            android:padding="@dimen/_10sdp"
-            android:fontFamily="@font/poppins_medium"
-            android:text="@string/send_otp"
-            android:textSize="14sp"
-            app:cornerRadius="@dimen/_18sdp"
-            android:textColor="@color/white"
-            android:backgroundTint="@color/new_button_background_tint"
-            android:layout_marginHorizontal="16dp"
-            android:layout_marginTop="5dp"/>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_send_otp"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:textAllCaps="false"
+                android:enabled="false"
+                android:fontFamily="@font/poppins_semibold"
+                android:text="@string/send_otp"
+                android:textSize="15sp"
+                app:cornerRadius="8dp"
+                android:textColor="@color/white"
+                app:backgroundTint="@color/colorAccent"/>
 
-        <ProgressBar
-            android:id="@+id/pb_send_otp_loader"
-            android:layout_width="0dp"
-            android:layout_height="20dp"
-            app:layout_constraintWidth_default="percent"
-            app:layout_constraintWidth_percent="0.05"
-            android:elevation="8dp"
-            android:indeterminate="true"
-            android:visibility="visible"
-            android:indeterminateTint="#321a56"
-            android:indeterminateTintMode="src_in"
-            android:layout_centerInParent="true"/>
-
+            <ProgressBar
+                android:id="@+id/pb_send_otp_loader"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:elevation="8dp"
+                android:indeterminate="true"
+                android:visibility="gone"
+                android:indeterminateTint="@color/white"
+                android:layout_centerInParent="true"/>
         </RelativeLayout>
 
+        <!-- Terms and Conditions -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="16dp"
             android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:gravity="start"
+            android:layout_marginTop="4dp">
 
-        <CheckBox
-            android:id="@+id/cb_terms_and_conditions"
-            android:layout_width="wrap_content"
-            android:layout_height="?android:attr/listPreferredItemHeight"
-            android:layout_marginStart="8dp"
-            android:buttonTint="@color/pink"
-            android:checked="true"
-            android:focusable="false"
-            android:gravity="center" />
+            <CheckBox
+                android:id="@+id/cb_terms_and_conditions"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:buttonTint="@color/colorAccent"
+                android:checked="true"
+                android:focusable="false"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:padding="0dp" />
 
             <TextView
                 android:id="@+id/tv_terms_and_conditions"
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
+                android:layout_weight="1"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_gravity="center_vertical"
                 android:fontFamily="@font/poppins_regular"
                 android:text="@string/terms_and_conditions_text"
-                android:textColor="@color/text_light_grey"
-                android:textSize="12sp"
-                android:gravity="center_vertical"
-                app:layout_constraintStart_toEndOf="@id/cb_terms_and_conditions" />
-
+                android:textColor="@color/grey_medium"
+                android:textSize="11sp" />
         </LinearLayout>
 
         </LinearLayout>
 
-        <!-- Otp Section -->
+        <!-- OTP Section -->
         <LinearLayout
             android:id="@+id/otp_section"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:visibility="visible"
-            >
+            android:visibility="visible">
+
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textSize="12sp"
-                android:layout_marginTop="5dp"
-                app:layout_constraintStart_toStartOf="@id/gl_left_margin"
-                app:layout_constraintTop_toBottomOf="@+id/cv_login"
-                android:textColor="@color/black_light"
-                android:fontFamily="@font/poppins_medium"
-                android:text="@string/otp_send_this_number"
-                android:layout_marginHorizontal="16dp"/>
+                android:textSize="13sp"
+                android:layout_marginBottom="4dp"
+                android:textColor="@color/grey_medium"
+                android:fontFamily="@font/poppins_regular"
+                android:text="OTP sent to"/>
 
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:gravity="center_vertical">
 
                 <TextView
                     android:id="@+id/tv_otp_mobile_number"
                     android:layout_width="0dp"
                     android:layout_weight="1"
                     android:layout_height="wrap_content"
-                    android:textSize="14sp"
-                    android:layout_marginTop="10dp"
-                    app:layout_constraintStart_toStartOf="@id/gl_left_margin"
-                    app:layout_constraintTop_toBottomOf="@+id/cv_login"
+                    android:textSize="16sp"
                     android:textColor="@color/black_light"
-                    android:fontFamily="@font/poppins_bold"
-                    android:text="7010565083"
-                    android:layout_marginStart="16dp"/>
+                    android:fontFamily="@font/poppins_semibold"
+                    android:text="7010565083"/>
 
                 <TextView
                     android:id="@+id/iv_edit"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textSize="14sp"
-                    android:layout_marginTop="10dp"
-                    app:layout_constraintStart_toStartOf="@id/gl_left_margin"
-                    app:layout_constraintTop_toBottomOf="@+id/cv_login"
-                    android:textColor="@color/pink"
-                    android:fontFamily="@font/poppins_bold"
-                    android:text="@string/change_no"
-                    android:layout_marginEnd="16dp"/>
+                    android:textColor="@color/colorAccent"
+                    android:fontFamily="@font/poppins_semibold"
+                    android:text="Change"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:paddingVertical="4dp"
+                    android:paddingHorizontal="8dp"/>
             </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:textSize="13sp"
+                android:layout_marginBottom="10dp"
+                android:textColor="@color/grey_medium"
+                android:fontFamily="@font/poppins_medium"
+                android:text="Enter 6-digit OTP"/>
 
             <com.chaos.view.PinView
                 android:id="@+id/pv_otp"
-                app:itemCount="6"
-                app:itemWidth="45dp"
-                app:itemHeight="45dp"
-                app:itemSpacing="15dp"
-                android:gravity="center"
-                android:layout_marginTop="14dp"
+                style="@style/PinWidget.PinView"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:itemBackground="@color/grey_extra_light"
-                android:textColor="@color/colorPrimaryDark"
                 android:layout_gravity="center"
-                android:inputType="number"
+                android:layout_marginBottom="18dp"
                 android:cursorVisible="true"
+                android:inputType="number"
+                android:itemBackground="@color/grey_extra_light"
+                android:textColor="@color/colorAccent"
+                android:textSize="18sp"
                 app:hideLineWhenFilled="true"
-                app:itemRadius="13dp"
-                app:lineColor="@color/white"
-                app:lineWidth="0dp"
-                style="@style/PinWidget.PinView"
-                android:layout_marginHorizontal="16dp"
-                app:layout_constraintStart_toStartOf="@+id/gl_left_margin"
-                app:layout_constraintEnd_toEndOf="@+id/gl_right_margin"
-                app:layout_constraintTop_toBottomOf="@+id/tv_enter_otp" />
+                app:itemCount="6"
+                app:itemHeight="50dp"
+                app:itemRadius="8dp"
+                app:itemSpacing="8dp"
+                app:itemWidth="48dp"
+                app:lineColor="@color/colorAccent"
+                app:lineWidth="2dp" />
 
-            <LinearLayout
+            <!-- Verify OTP Button -->
+            <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:layout_marginBottom="12dp">
 
-                <!-- Resend otp Button -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_resend_otp"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="5dp"
-                    android:layout_weight="1"
-                    android:layout_marginHorizontal="16dp"
-                    android:layout_marginTop="5dp"
-                    android:textAllCaps="false"
-                    android:text="@string/send_otp"
-                    android:textSize="14sp"
-                    android:textColor="@color/pink"
-                    android:fontFamily="@font/poppins_medium"
-                    android:padding="@dimen/_10sdp"
-                    app:cornerRadius="@dimen/_18sdp"
-                    app:strokeColor="@color/pink"
-                    app:strokeWidth="2dp"
-                    app:backgroundTint="@android:color/white"
-                    android:enabled="false" />
-
-                <!-- Resend otp Button -->
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_verify_otp"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="5dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
                     android:textAllCaps="false"
                     android:enabled="false"
-                    android:padding="@dimen/_10sdp"
-                    android:fontFamily="@font/poppins_medium"
-                    android:text="@string/verify_otp"
-                    android:textSize="14sp"
-                    app:cornerRadius="@dimen/_18sdp"
+                    android:fontFamily="@font/poppins_semibold"
+                    android:text="Verify OTP"
+                    android:textSize="15sp"
+                    app:cornerRadius="8dp"
                     android:textColor="@color/white"
-                    android:backgroundTint="@color/new_button_background_tint"
-                    android:layout_marginHorizontal="16dp"
-                    android:layout_marginTop="5dp"/>
-            </LinearLayout>
+                    app:backgroundTint="@color/colorAccent"/>
 
+                <ProgressBar
+                    android:id="@+id/pb_verify_otp_loader"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:elevation="8dp"
+                    android:indeterminate="true"
+                    android:visibility="gone"
+                    android:indeterminateTint="@color/white"
+                    android:layout_centerInParent="true"/>
+            </RelativeLayout>
+
+            <!-- Resend OTP Section -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginHorizontal="16dp"
                 android:orientation="horizontal"
-                android:gravity="center_vertical">
+                android:gravity="center"
+                android:layout_marginBottom="8dp">
 
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Didn't receive OTP? "
+                    android:textSize="13sp"
+                    android:textColor="@color/grey_medium"
+                    android:fontFamily="@font/poppins_regular"/>
+
+                <RelativeLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_resend_otp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textAllCaps="false"
+                        android:text="Resend"
+                        android:textSize="13sp"
+                        android:textColor="@color/colorAccent"
+                        android:fontFamily="@font/poppins_semibold"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:minWidth="0dp"
+                        android:minHeight="0dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:paddingVertical="4dp"
+                        android:paddingHorizontal="8dp"
+                        app:backgroundTint="@android:color/transparent"
+                        android:elevation="0dp"
+                        android:stateListAnimator="@null"
+                        android:enabled="false" />
+
+                    <ProgressBar
+                        android:id="@+id/pb_loader"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_centerInParent="true"
+                        android:indeterminate="true"
+                        android:visibility="gone"
+                        android:indeterminateTint="@color/colorAccent"/>
+                </RelativeLayout>
+            </LinearLayout>
+
+            <!-- Hidden duplicate terms for compatibility -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:visibility="gone">
                 <CheckBox
                     android:id="@+id/cb_otp_terms_and_conditions"
                     android:layout_width="wrap_content"
-                    android:layout_height="?android:attr/listPreferredItemHeight"
-                    android:layout_marginStart="8dp"
-                    android:buttonTint="@color/pink"
-                    android:checked="true"
-                    android:focusable="false"
-                    android:gravity="center" />
-
+                    android:layout_height="wrap_content" />
                 <TextView
                     android:id="@+id/tv_otp_terms_and_conditions"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="@font/poppins_regular"
-                    android:text="@string/terms_and_conditions_text"
-                    android:textColor="@color/text_light_grey"
-                    android:textSize="12sp"
-                    android:gravity="center_vertical"
-                    app:layout_constraintStart_toEndOf="@id/cb_terms_and_conditions" />
-
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
             </LinearLayout>
-
-            <ProgressBar
-                android:id="@+id/pb_loader"
-                android:layout_width="0dp"
-                android:layout_height="20dp"
-                app:layout_constraintWidth_default="percent"
-                app:layout_constraintWidth_percent="0.05"
-                android:elevation="8dp"
-                android:indeterminate="true"
-                android:visibility="gone"
-                android:indeterminateTint="#321a56"
-                android:indeterminateTintMode="src_in"
-                app:layout_constraintTop_toTopOf="@+id/btn_resend_otp"
-                app:layout_constraintBottom_toBottomOf="@+id/btn_resend_otp"
-                app:layout_constraintStart_toStartOf="@+id/btn_resend_otp"
-                app:layout_constraintEnd_toEndOf="@+id/btn_resend_otp"/>
-            <ProgressBar
-                android:id="@+id/pb_verify_otp_loader"
-                android:layout_width="0dp"
-                android:layout_height="20dp"
-                app:layout_constraintWidth_default="percent"
-                app:layout_constraintWidth_percent="0.05"
-                android:elevation="8dp"
-                android:indeterminate="true"
-                android:visibility="gone"
-                android:indeterminateTint="#321a56"
-                android:indeterminateTintMode="src_in"
-                app:layout_constraintTop_toTopOf="@+id/btn_verify_otp"
-                app:layout_constraintBottom_toBottomOf="@+id/btn_verify_otp"
-                app:layout_constraintStart_toStartOf="@+id/btn_verify_otp"
-                app:layout_constraintEnd_toEndOf="@+id/btn_verify_otp"/>
         </LinearLayout>
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -5,8 +5,6 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.resource.bitmap.RoundedCorners
-import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.databinding.AdapterAvatarBinding
 import com.gmwapp.hima.retrofit.responses.AvatarsListData
 
@@ -29,9 +27,10 @@ class AvatarsListAdapter(
         val holder: ItemHolder = holderParent as ItemHolder
         val avatarsListData: AvatarsListData? = avatarsListData[position]
 
-        Glide.with(activity).load(avatarsListData?.image)
-            .apply(RequestOptions.bitmapTransform(RoundedCorners(14))).into(holder.binding.ivAvatar)
-
+        Glide.with(activity)
+            .load(avatarsListData?.image)
+            .centerCrop()
+            .into(holder.binding.ivAvatar)
     }
 
     override fun getItemCount(): Int {

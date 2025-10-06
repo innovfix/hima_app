@@ -85,8 +85,8 @@
     <string name="continue_text">Continue</string>
     <string name="personalise_yourself_hint">Pick your gender and avatar to make your profile unique</string>
     <string name="gender_change_warning">Gender can\'t be changed later</string>
-    <string name="language_you_speak">Language you speak</string>
-    <string name="language_hint">Find friends who speak your language. Please select one.</string>
+    <string name="language_you_speak">Choose your language</string>
+    <string name="language_hint">Select your preferred language to connect with others</string>
     <string name="hindi">Hindi</string>
     <string name="telugu">Telugu</string>
     <string name="malayalam">Malayalam</string>
