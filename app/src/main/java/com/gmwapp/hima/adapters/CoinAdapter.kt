@@ -50,13 +50,13 @@ class CoinAdapter(
 
         // Update the UI based on selection
         if (coin.isSelected == true) {
-            holder.binding.cvCoin.strokeWidth = 4
-            holder.binding.cvCoin.strokeColor = activity.resources.getColor(R.color.yellow_dark)
-            holder.binding.llPrice.setBackgroundColor(activity.resources.getColor(R.color.yellow_dark))
+            holder.binding.cvCoin.strokeWidth = 3
+            holder.binding.cvCoin.strokeColor = activity.resources.getColor(R.color.pink)
+            holder.binding.cvCoin.cardElevation = 6f
         } else {
             holder.binding.cvCoin.strokeWidth = 0
-            holder.binding.cvCoin.strokeColor = activity.resources.getColor(R.color.white)
-            holder.binding.llPrice.setBackgroundColor(activity.resources.getColor(R.color.pink_extra_light))
+            holder.binding.cvCoin.strokeColor = activity.resources.getColor(android.R.color.transparent)
+            holder.binding.cvCoin.cardElevation = 2f
         }
 
         // Handle item click

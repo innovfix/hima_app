@@ -7,12 +7,14 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
+import com.google.android.material.card.MaterialCardView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.widget.addTextChangedListener
@@ -211,18 +213,22 @@ class RatingActivity : BaseActivity() {
 
         inner class ReviewViewHolder(view: View) : RecyclerView.ViewHolder(view) {
             val reviewTextView: TextView = view.findViewById(R.id.tv_interest)
-            val main: ConstraintLayout = view.findViewById(R.id.main)
+            val main: MaterialCardView = view.findViewById(R.id.main)
+            val interestIcon: ImageView = view.findViewById(R.id.iv_interest)
 
             fun bind(position: Int) {
                 reviewTextView.text = reviews[position]
+                
+                // Hide the icon as we're only showing text
+                interestIcon.visibility = View.GONE
 
                 // Change background and text color based on selection
                 if (position == selectedPosition) {
                     main.setBackgroundResource(R.drawable.d_button_bg_interest_selected)
                     reviewTextView.setTextColor(ContextCompat.getColor(context, R.color.black))
                 } else {
-                    main.setBackgroundResource(R.drawable.d_button_bg_interest_disabled)
-                    reviewTextView.setTextColor(ContextCompat.getColor(context, R.color.white))
+                    main.setBackgroundResource(R.drawable.d_button_bg_interest)
+                    reviewTextView.setTextColor(ContextCompat.getColor(context, R.color.interest_text_color))
                 }
 
                 // Handle click event

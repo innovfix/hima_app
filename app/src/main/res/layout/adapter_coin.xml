@@ -1,142 +1,81 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout
-    android:layout_marginVertical="@dimen/_4sdp"
+    android:layout_marginVertical="@dimen/_6sdp"
+    android:layout_marginHorizontal="@dimen/_5sdp"
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-  >
-
-
-
-
-
-
+    android:layout_height="wrap_content">
 
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/cv_coin"
-        android:layout_marginTop="@dimen/_7sdp"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:cardCornerRadius="@dimen/_10sdp"
-        android:elevation="0dp"
-        app:cardElevation="0dp"
-        app:cardUseCompatPadding="true"
-        >
+        android:layout_marginTop="@dimen/_10sdp"
+        app:cardCornerRadius="16dp"
+        android:elevation="2dp"
+        app:cardElevation="2dp"
+        app:strokeWidth="0dp"
+        app:cardUseCompatPadding="false">
 
         <RelativeLayout
             android:id="@+id/main"
-            android:layout_width="@dimen/_130sdp"
-            android:layout_height="@dimen/_130sdp"
-            android:background="@drawable/d_button_bg_coin"
-            android:backgroundTint="@color/white"
-            android:gravity="center_horizontal"
-            android:layout_gravity="center"
-            android:orientation="vertical"
-            tools:context=".activities.LoginActivity">
+            android:layout_width="@dimen/_104sdp"
+            android:layout_height="@dimen/_122sdp"
+            android:background="@drawable/bg_card_clean"
+            android:orientation="vertical">
 
-
+            <!-- Content Section -->
             <LinearLayout
-                android:layout_marginTop="@dimen/_14sdp"
+                android:id="@+id/ll_coin_section"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/_12sdp"
                 android:gravity="center"
-                android:orientation="vertical">
+                android:orientation="vertical"
+                android:paddingHorizontal="@dimen/_8sdp">
 
-
+                <!-- Coin Icon -->
                 <ImageView
                     android:id="@+id/iv_coins"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
                     android:scaleType="fitXY"
                     android:src="@drawable/coin_svg"
                     tools:ignore="ContentDescription" />
 
+                <!-- Coin Amount -->
                 <TextView
                     android:id="@+id/tv_coins"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/_6sdp"
                     android:text="xxx"
-                    android:textColor="@color/black"
-                    android:textSize="20dp"
-                    android:textStyle="bold" />
+                    android:textColor="#2D3436"
+                    android:textSize="20sp"
+                    android:fontFamily="@font/poppins_bold" />
 
+                <!-- Coins Label -->
                 <TextView
                     android:id="@+id/tv_coinstxt"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/_2sdp"
+                    android:layout_marginTop="@dimen/_1sdp"
                     android:text="@string/coins"
-                    android:textColor="@color/black"
-                    android:textSize="12sp" />
+                    android:textColor="#95A5A6"
+                    android:fontFamily="@font/poppins_medium"
+                    android:textSize="10sp" />
 
             </LinearLayout>
 
-
-
-
-
-<!--            <LinearLayout-->
-<!--                android:layout_alignParentBottom="true"-->
-<!--                android:id="@+id/ll_price"-->
-<!--                android:layout_width="match_parent"-->
-<!--                android:layout_height="wrap_content"-->
-
-<!--                android:background="@color/pink_extra_light"-->
-<!--                android:gravity="center"-->
-<!--                android:orientation="horizontal"-->
-<!--                android:paddingVertical="@dimen/_6sdp">-->
-
-<!--                <TextView-->
-<!--                    android:id="@+id/original_price"-->
-<!--                    android:layout_width="wrap_content"-->
-<!--                    android:layout_height="wrap_content"-->
-<!--                    android:fontFamily="@font/poppins_bold"-->
-<!--                    android:gravity="center"-->
-<!--                    android:visibility="gone"-->
-<!--                    android:text="xxx"-->
-<!--                    android:layout_marginTop="@dimen/_4sdp"-->
-<!--                    android:layout_marginRight="@dimen/_3sdp"-->
-<!--                    android:textColor="@color/pink"-->
-<!--                    android:textSize="10sp" />-->
-
-<!--                <TextView-->
-<!--                    android:id="@+id/tv_price"-->
-<!--                    android:layout_width="wrap_content"-->
-<!--                    android:layout_height="wrap_content"-->
-<!--                    android:fontFamily="@font/poppins_bold"-->
-<!--                    android:gravity="center"-->
-<!--                    android:layout_marginTop="@dimen/_4sdp"-->
-<!--                    android:text="xxx"-->
-<!--                    android:textColor="@color/pink"-->
-<!--                    android:textSize="17sp" />-->
-<!--            </LinearLayout>-->
-
-<!--            <TextView-->
-<!--                android:layout_centerHorizontal="true"-->
-<!--                android:id="@+id/tv_discount_price"-->
-<!--                android:layout_width="wrap_content"-->
-<!--                android:layout_height="wrap_content"-->
-<!--                android:background="@drawable/bg_save"-->
-<!--                android:gravity="center"-->
-<!--                android:text="xxx"-->
-<!--                android:layout_marginBottom="@dimen/_22sdp"-->
-<!--                android:paddingHorizontal="@dimen/_14sdp"-->
-<!--                android:paddingVertical="@dimen/_2sdp"-->
-<!--                android:textColor="@color/white"-->
-<!--                android:textSize="10sp"-->
-<!--                android:layout_alignParentBottom="true"-->
-<!--                android:layout_marginTop="@dimen/_2sdp" />-->
-
-
-
+            <!-- Price Section -->
             <LinearLayout
                 android:layout_alignParentBottom="true"
                 android:id="@+id/ll_price"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@color/pink_extra_light"
+                android:background="@drawable/bg_gradient_teal"
                 android:gravity="center"
                 android:orientation="vertical"
                 android:paddingVertical="@dimen/_6sdp">
@@ -148,49 +87,46 @@
                     android:fontFamily="@font/poppins_bold"
                     android:gravity="center"
                     android:text="xxx"
-                    android:textColor="@color/pink"
+                    android:textColor="@color/white"
                     android:textSize="12sp" />
             </LinearLayout>
 
+            <!-- Save Badge -->
             <TextView
                 android:layout_centerHorizontal="true"
                 android:id="@+id/tv_discount_price"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:background="@drawable/bg_save"
+                android:background="@drawable/bg_gradient_orange"
+                android:elevation="2dp"
+                android:fontFamily="@font/poppins_bold"
                 android:gravity="center"
                 android:text="xxx"
-                android:layout_marginBottom="@dimen/_22sdp"
-                android:paddingHorizontal="@dimen/_14sdp"
-                android:paddingVertical="@dimen/_2sdp"
+                android:layout_marginBottom="@dimen/_20sdp"
+                android:paddingHorizontal="@dimen/_8sdp"
+                android:paddingVertical="@dimen/_3sdp"
                 android:textColor="@color/white"
-                android:textSize="10sp"
-                android:layout_alignParentBottom="true"
-                android:layout_marginTop="@dimen/_12sdp" />
+                android:textSize="8sp"
+                android:layout_alignParentBottom="true" />
 
         </RelativeLayout>
 
     </com.google.android.material.card.MaterialCardView>
 
-
+    <!-- Popular Badge -->
     <TextView
         android:layout_centerHorizontal="true"
         android:id="@+id/tv_popular"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:background="@drawable/bg_save"
-        android:backgroundTint="@color/yellow_dark"
+        android:background="@drawable/bg_gradient_blue_light"
+        android:elevation="3dp"
         android:gravity="center"
-        android:text="Popular"
-        android:drawableStart="@drawable/star_svg"
-        android:layout_marginBottom="@dimen/_22sdp"
-        android:paddingHorizontal="@dimen/_14sdp"
-        android:paddingVertical="@dimen/_2sdp"
-        android:textColor="@color/black"
-        android:drawablePadding="@dimen/_6sdp"
-        android:fontFamily="@font/poppins_semibold"
-        android:textSize="11sp"
-        />
-
+        android:text="★ Popular"
+        android:fontFamily="@font/poppins_bold"
+        android:paddingHorizontal="@dimen/_10sdp"
+        android:paddingVertical="@dimen/_3sdp"
+        android:textColor="@color/white"
+        android:textSize="9sp" />
 
 </RelativeLayout>

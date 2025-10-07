@@ -1,5 +1,9 @@
 package com.gmwapp.hima.activities
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -11,6 +15,9 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.View
+import android.view.animation.AccelerateDecelerateInterpolator
+import android.view.animation.AnimationUtils
+import android.view.animation.DecelerateInterpolator
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -20,6 +27,7 @@ import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.lifecycle.Observer
+import com.bumptech.glide.Glide
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.agora.female.FemaleCallAcceptActivity
@@ -46,6 +54,10 @@ class SplashScreenActivity : BaseActivity() {
     val individualAppUpdateViewModel: IndividualAppUpdateViewModel by viewModels()
     val viewModel: LoginViewModel by viewModels()
     var currentVersion = ""
+    
+    // Track splash screen start time for minimum display duration
+    private var splashStartTime: Long = 0
+    private val SPLASH_DISPLAY_DURATION = 3000L // 3 seconds
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -54,7 +66,151 @@ class SplashScreenActivity : BaseActivity() {
         setContentView(binding.root)
         enableEdgeToEdge()
 
+        // Record start time
+        splashStartTime = System.currentTimeMillis()
+
+        startSplashAnimations()
         initUI()
+    }
+
+    private fun startSplashAnimations() {
+        // Ensure logo is visible using Glide for better image loading
+        try {
+            Glide.with(this)
+                .load(R.drawable.logo)
+                .into(binding.imageViewLogo)
+            binding.imageViewLogo.visibility = View.VISIBLE
+        } catch (e: Exception) {
+            Log.e("SplashScreen", "Error loading logo: ${e.message}")
+            // Fallback to direct resource loading
+            try {
+                binding.imageViewLogo.setImageResource(R.drawable.logo)
+            } catch (ex: Exception) {
+                Log.e("SplashScreen", "Fallback also failed: ${ex.message}")
+            }
+        }
+
+        // Animate logo container with scale and fade
+        val logoScaleX = ObjectAnimator.ofFloat(binding.logoContainer, "scaleX", 0f, 1f)
+        val logoScaleY = ObjectAnimator.ofFloat(binding.logoContainer, "scaleY", 0f, 1f)
+        val logoAlpha = ObjectAnimator.ofFloat(binding.logoContainer, "alpha", 0f, 1f)
+        
+        val logoAnimSet = AnimatorSet().apply {
+            playTogether(logoScaleX, logoScaleY, logoAlpha)
+            duration = 800
+            interpolator = DecelerateInterpolator()
+        }
+
+        // Animate pulse ring
+        val pulseAnimation = AnimationUtils.loadAnimation(this, R.anim.splash_pulse_animation)
+        binding.pulseRing.startAnimation(pulseAnimation)
+
+        // Animate app name text
+        val appNameAlpha = ObjectAnimator.ofFloat(binding.appNameText, "alpha", 0f, 1f)
+        val appNameTranslateY = ObjectAnimator.ofFloat(binding.appNameText, "translationY", 30f, 0f)
+        
+        val appNameAnimSet = AnimatorSet().apply {
+            playTogether(appNameAlpha, appNameTranslateY)
+            duration = 1000
+            startDelay = 300
+            interpolator = DecelerateInterpolator()
+        }
+
+        // Animate tagline text
+        val taglineAlpha = ObjectAnimator.ofFloat(binding.taglineText, "alpha", 0f, 1f)
+        val taglineTranslateY = ObjectAnimator.ofFloat(binding.taglineText, "translationY", 30f, 0f)
+        
+        val taglineAnimSet = AnimatorSet().apply {
+            playTogether(taglineAlpha, taglineTranslateY)
+            duration = 1000
+            startDelay = 500
+            interpolator = DecelerateInterpolator()
+        }
+
+        // Animate loading container
+        val loadingAlpha = ObjectAnimator.ofFloat(binding.loadingContainer, "alpha", 0f, 1f)
+        val loadingTranslateY = ObjectAnimator.ofFloat(binding.loadingContainer, "translationY", 50f, 0f)
+        
+        val loadingAnimSet = AnimatorSet().apply {
+            playTogether(loadingAlpha, loadingTranslateY)
+            duration = 1000
+            startDelay = 600
+            interpolator = DecelerateInterpolator()
+        }
+
+        // Animate background circles
+        animateBackgroundCircles()
+
+        // Animate loading dots
+        animateLoadingDots()
+
+        // Start all animations
+        logoAnimSet.start()
+        appNameAnimSet.start()
+        taglineAnimSet.start()
+        loadingAnimSet.start()
+    }
+
+    private fun animateBackgroundCircles() {
+        // Circle 1 - Slow rotation and scale
+        val circle1Rotate = ObjectAnimator.ofFloat(binding.circle1, "rotation", 0f, 360f).apply {
+            duration = 20000
+            repeatCount = ObjectAnimator.INFINITE
+            interpolator = AccelerateDecelerateInterpolator()
+        }
+        
+        val circle1ScaleX = ObjectAnimator.ofFloat(binding.circle1, "scaleX", 1f, 1.2f, 1f).apply {
+            duration = 4000
+            repeatCount = ObjectAnimator.INFINITE
+            repeatMode = ObjectAnimator.REVERSE
+        }
+        
+        val circle1ScaleY = ObjectAnimator.ofFloat(binding.circle1, "scaleY", 1f, 1.2f, 1f).apply {
+            duration = 4000
+            repeatCount = ObjectAnimator.INFINITE
+            repeatMode = ObjectAnimator.REVERSE
+        }
+
+        // Circle 2 - Slow rotation opposite direction
+        val circle2Rotate = ObjectAnimator.ofFloat(binding.circle2, "rotation", 360f, 0f).apply {
+            duration = 15000
+            repeatCount = ObjectAnimator.INFINITE
+            interpolator = AccelerateDecelerateInterpolator()
+        }
+        
+        val circle2ScaleX = ObjectAnimator.ofFloat(binding.circle2, "scaleX", 1f, 1.3f, 1f).apply {
+            duration = 5000
+            repeatCount = ObjectAnimator.INFINITE
+            repeatMode = ObjectAnimator.REVERSE
+        }
+        
+        val circle2ScaleY = ObjectAnimator.ofFloat(binding.circle2, "scaleY", 1f, 1.3f, 1f).apply {
+            duration = 5000
+            repeatCount = ObjectAnimator.INFINITE
+            repeatMode = ObjectAnimator.REVERSE
+        }
+
+        circle1Rotate.start()
+        circle1ScaleX.start()
+        circle1ScaleY.start()
+        circle2Rotate.start()
+        circle2ScaleX.start()
+        circle2ScaleY.start()
+    }
+
+    private fun animateLoadingDots() {
+        // Create bouncing animation for each dot with different delays
+        val dots = listOf(binding.loadingDot1, binding.loadingDot2, binding.loadingDot3)
+        
+        dots.forEachIndexed { index, dot ->
+            val bounceAnimation = ObjectAnimator.ofFloat(dot, "translationY", 0f, -20f, 0f).apply {
+                duration = 600
+                repeatCount = ObjectAnimator.INFINITE
+                startDelay = (index * 150).toLong()
+                interpolator = AccelerateDecelerateInterpolator()
+            }
+            bounceAnimation.start()
+        }
     }
 
     private fun initUI() {
@@ -154,8 +310,7 @@ class SplashScreenActivity : BaseActivity() {
                     }
                 }
             }
-            startActivity(intent)
-            finish()
+            navigateWithMinimumDelay(intent)
         })
 
 
@@ -193,6 +348,28 @@ class SplashScreenActivity : BaseActivity() {
 
     }
 
+    /**
+     * Ensures splash screen is displayed for at least 3 seconds before navigating
+     */
+    private fun navigateWithMinimumDelay(intent: Intent?) {
+        intent?.let {
+            val elapsedTime = System.currentTimeMillis() - splashStartTime
+            val remainingTime = SPLASH_DISPLAY_DURATION - elapsedTime
+            
+            if (remainingTime > 0) {
+                // Wait for remaining time to reach minimum display duration
+                Handler(Looper.getMainLooper()).postDelayed({
+                    startActivity(it)
+                    finish()
+                }, remainingTime)
+            } else {
+                // Minimum time already elapsed, navigate immediately
+                startActivity(it)
+                finish()
+            }
+        }
+    }
+
     fun GotoActivity(
         userData: UserData?,
     ) {
@@ -203,29 +380,20 @@ class SplashScreenActivity : BaseActivity() {
 
 //                intent = Intent(this@SplashScreenActivity, NewLoginActivity::class.java)
                 val intent = Intent(this@SplashScreenActivity, NewLoginActivity::class.java)
-                startActivity(intent)
-                finish()
+                navigateWithMinimumDelay(intent)
 
             } else {
                 if (userData?.gender == DConstants.MALE) {
 //                    Toast.makeText(this, "3", Toast.LENGTH_SHORT).show()
                   //  intent = Intent(this@SplashScreenActivity, MainActivity::class.java)
                     val intent = Intent(this@SplashScreenActivity, MainActivity::class.java)
-                    startActivity(intent)
-                    finish()
+                    navigateWithMinimumDelay(intent)
                 } else {
 //                    Toast.makeText(this, "4", Toast.LENGTH_SHORT).show()
                     BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
                         profileViewModel.getUsers(it)
                     }
 
-                }
-
-                intent?.let {
-                    Handler().postDelayed({
-                        startActivity(it)
-                        finish()
-                    }, 3000)
                 }
 
         }

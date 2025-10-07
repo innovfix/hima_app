@@ -139,12 +139,10 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         super.onCreate(savedInstanceState)
         binding = ActivityWalletBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        enableEdgeToEdge()
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
+        
+        // Set status bar colors
+        window.statusBarColor = resources.getColor(R.color.white, null)
+        window.navigationBarColor = resources.getColor(android.R.color.white, null)
 
         fromDeepLink = intent.getBooleanExtra("from_deeplink", false)
 

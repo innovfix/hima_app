@@ -7,7 +7,34 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
-    android:background="@color/colorPrimaryDark">
+    android:background="@drawable/splash_gradient_background">
+
+    <!-- Animated background circles (same as splash) -->
+    <View
+        android:id="@+id/circle1"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
+        android:alpha="0.1"
+        android:background="@drawable/splash_circle"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.1"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.2" />
+
+    <View
+        android:id="@+id/circle2"
+        android:layout_width="150dp"
+        android:layout_height="150dp"
+        android:alpha="0.15"
+        android:background="@drawable/splash_circle"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.9"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.15" />
 
     <!-- Hidden ViewPager2 for Onboarding (for compatibility) -->
     <androidx.viewpager2.widget.ViewPager2
@@ -32,7 +59,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal" />
 
-    <!-- Logo and Welcome Section -->
+    <!-- Logo and Welcome Section with animated design -->
     <LinearLayout
         android:id="@+id/ll_logo_section"
         android:layout_width="match_parent"
@@ -47,20 +74,45 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <ImageView
-            android:layout_width="100dp"
-            android:layout_height="100dp"
-            android:src="@drawable/logo"
-            android:layout_marginBottom="20dp"
-            android:contentDescription="@string/app_name" />
+        <!-- Logo in circular container (same as splash) -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/logoContainer"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:layout_gravity="center"
+            android:elevation="12dp"
+            app:cardBackgroundColor="@color/colorPrimary"
+            app:cardCornerRadius="60dp"
+            app:cardElevation="12dp"
+            android:layout_marginBottom="24dp">
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="28dp">
+
+                <ImageView
+                    android:id="@+id/imageViewLogo"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_gravity="center"
+                    android:scaleType="fitCenter"
+                    android:adjustViewBounds="true"
+                    android:src="@drawable/logo"
+                    android:contentDescription="@string/app_name" />
+
+            </FrameLayout>
+
+        </androidx.cardview.widget.CardView>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Welcome to Hima"
-            android:textSize="26sp"
+            android:textSize="28sp"
             android:textColor="@color/white"
             android:fontFamily="@font/poppins_bold"
+            android:letterSpacing="0.05"
             android:layout_marginBottom="4dp" />
 
         <TextView
@@ -68,19 +120,21 @@
             android:layout_height="wrap_content"
             android:text="Login to continue"
             android:textSize="15sp"
-            android:textColor="@color/pink_extra_light"
-            android:fontFamily="@font/poppins_regular" />
+            android:textColor="#E0FFFFFF"
+            android:fontFamily="@font/poppins_regular"
+            android:letterSpacing="0.02" />
 
     </LinearLayout>
 
+    <!-- Login Form Section with rounded top corners -->
     <LinearLayout
         android:id="@+id/ll_login_section"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:background="@color/white"
-        android:paddingTop="24dp"
-        android:paddingBottom="24dp"
+        android:background="@drawable/login_form_background"
+        android:paddingTop="28dp"
+        android:paddingBottom="32dp"
         android:paddingHorizontal="20dp"
         android:visibility="visible"
         app:layout_constraintBottom_toBottomOf="parent"

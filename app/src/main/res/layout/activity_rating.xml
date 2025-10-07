@@ -23,56 +23,65 @@
         android:orientation="vertical"
         app:layout_constraintGuide_percent="0.92" />
 
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_top_margin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        app:layout_constraintGuide_percent="0.10" />
-
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_bottom_margin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        app:layout_constraintGuide_percent="0.92" />
-
     <!-- Close Button -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/cv_close"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_margin="16dp"
-        app:cardCornerRadius="20dp"
-        app:cardElevation="3dp"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_margin="12dp"
+        app:cardCornerRadius="18dp"
+        app:cardElevation="2dp"
         app:cardBackgroundColor="@color/white"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
         <ImageView
             android:id="@+id/iv_close"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
             android:layout_gravity="center"
             android:src="@drawable/baseline_close_24"
             android:tint="#555555"
             app:tint="#555555" />
     </com.google.android.material.card.MaterialCardView>
+    
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            app:layout_constraintTop_toBottomOf="@id/cv_close"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:paddingBottom="12dp">
+            
+            <androidx.constraintlayout.widget.Guideline
+                android:id="@+id/gl_left_margin_inner"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                app:layout_constraintGuide_percent="0.08" />
+
+            <androidx.constraintlayout.widget.Guideline
+                android:id="@+id/gl_right_margin_inner"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                app:layout_constraintGuide_percent="0.92" />
 
     <!-- Main Title -->
     <TextView
         android:id="@+id/tv_title"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
+        android:layout_marginTop="8dp"
         android:fontFamily="@font/poppins_bold"
         android:text="@string/how_was_your_call_with_shyam"
         android:textColor="#1A1A1A"
-        android:textSize="24sp"
-        android:lineSpacingExtra="4dp"
-        app:layout_constraintEnd_toEndOf="@+id/gl_right_margin"
-        app:layout_constraintStart_toStartOf="@id/gl_left_margin"
-        app:layout_constraintTop_toBottomOf="@+id/gl_top_margin"
+        android:textSize="20sp"
+        android:lineSpacingExtra="0dp"
+        app:layout_constraintEnd_toEndOf="@+id/gl_right_margin_inner"
+        app:layout_constraintStart_toStartOf="@id/gl_left_margin_inner"
+        app:layout_constraintTop_toTopOf="parent"
         android:gravity="center" />
 
     <!-- Subtitle Description -->
@@ -80,13 +89,13 @@
         android:id="@+id/tv_subtitle"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="4dp"
         android:fontFamily="@font/poppins_regular"
         android:text="Your feedback helps us improve"
         android:textColor="#757575"
-        android:textSize="14sp"
-        app:layout_constraintEnd_toEndOf="@+id/gl_right_margin"
-        app:layout_constraintStart_toStartOf="@id/gl_left_margin"
+        android:textSize="12sp"
+        app:layout_constraintEnd_toEndOf="@+id/gl_right_margin_inner"
+        app:layout_constraintStart_toStartOf="@id/gl_left_margin_inner"
         app:layout_constraintTop_toBottomOf="@id/tv_title"
         android:gravity="center" />
 
@@ -95,22 +104,22 @@
         android:id="@+id/cv_rating_section"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
+        android:layout_marginTop="12dp"
         app:cardCornerRadius="16dp"
-        app:cardElevation="3dp"
+        app:cardElevation="2dp"
         app:strokeWidth="0dp"
         app:cardBackgroundColor="@color/white"
         app:layout_constraintTop_toBottomOf="@id/tv_subtitle"
-        app:layout_constraintStart_toStartOf="@id/gl_left_margin"
-        app:layout_constraintEnd_toEndOf="@id/gl_right_margin">
+        app:layout_constraintStart_toStartOf="@id/gl_left_margin_inner"
+        app:layout_constraintEnd_toEndOf="@id/gl_right_margin_inner">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingHorizontal="16dp"
-            android:paddingTop="20dp"
-            android:paddingBottom="20dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp"
             android:gravity="center">
 
             <!-- Rating Label -->
@@ -121,8 +130,8 @@
                 android:fontFamily="@font/poppins_semibold"
                 android:text="Rate your experience"
                 android:textColor="#1A1A1A"
-                android:textSize="16sp"
-                android:layout_marginBottom="12dp" />
+                android:textSize="14sp"
+                android:layout_marginBottom="8dp" />
 
             <!-- Star Rating RecyclerView -->
             <androidx.recyclerview.widget.RecyclerView
@@ -142,21 +151,21 @@
         android:id="@+id/cv_tags_section"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="8dp"
         app:cardCornerRadius="16dp"
-        app:cardElevation="3dp"
+        app:cardElevation="2dp"
         app:strokeWidth="0dp"
         app:cardBackgroundColor="@color/white"
         app:layout_constraintTop_toBottomOf="@id/cv_rating_section"
-        app:layout_constraintStart_toStartOf="@id/gl_left_margin"
-        app:layout_constraintEnd_toEndOf="@id/gl_right_margin">
+        app:layout_constraintStart_toStartOf="@id/gl_left_margin_inner"
+        app:layout_constraintEnd_toEndOf="@id/gl_right_margin_inner">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp"
-            android:minHeight="60dp">
+            android:padding="12dp"
+            android:minHeight="50dp">
 
             <!-- Review Tags Label -->
             <TextView
@@ -166,8 +175,8 @@
                 android:fontFamily="@font/poppins_medium"
                 android:text="What did you like? (Optional)"
                 android:textColor="#1A1A1A"
-                android:textSize="14sp"
-                android:layout_marginBottom="8dp" />
+                android:textSize="13sp"
+                android:layout_marginBottom="6dp" />
 
             <!-- Review Tags RecyclerView -->
             <androidx.recyclerview.widget.RecyclerView
@@ -187,19 +196,19 @@
         android:id="@+id/cv_description"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="8dp"
         app:cardCornerRadius="16dp"
-        app:cardElevation="3dp"
+        app:cardElevation="2dp"
         app:strokeWidth="0dp"
         app:cardBackgroundColor="@color/white"
         app:layout_constraintTop_toBottomOf="@+id/cv_tags_section"
-        app:layout_constraintStart_toStartOf="@id/gl_left_margin"
-        app:layout_constraintEnd_toEndOf="@id/gl_right_margin">
+        app:layout_constraintStart_toStartOf="@id/gl_left_margin_inner"
+        app:layout_constraintEnd_toEndOf="@id/gl_right_margin_inner">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:padding="16dp">
+            android:padding="12dp">
 
             <!-- Comment Section Label -->
             <TextView
@@ -209,7 +218,7 @@
                 android:fontFamily="@font/poppins_medium"
                 android:text="Additional Comments (Optional)"
                 android:textColor="#1A1A1A"
-                android:textSize="14sp"
+                android:textSize="13sp"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
@@ -219,7 +228,7 @@
                 style="@style/EditTextStyle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="6dp"
                 android:background="@null"
                 android:ellipsize="end"
                 android:fontFamily="@font/poppins_regular"
@@ -227,12 +236,12 @@
                 android:textColorHint="#AAAAAA"
                 android:imeOptions="actionDone"
                 android:inputType="textMultiLine"
-                android:minLines="3"
+                android:minLines="2"
                 android:maxLength="100"
-                android:maxLines="4"
+                android:maxLines="3"
                 android:scrollHorizontally="false"
                 android:textColor="#1A1A1A"
-                android:textSize="14sp"
+                android:textSize="13sp"
                 android:textCursorDrawable="@drawable/color_cursor"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
@@ -248,10 +257,10 @@
                 android:id="@+id/tv_char_count"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
+                android:layout_marginTop="4dp"
                 android:text="@string/_0100"
                 android:fontFamily="@font/poppins_regular"
-                android:textSize="11sp"
+                android:textSize="10sp"
                 android:textColor="#999999"
                 android:includeFontPadding="false"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -269,11 +278,11 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:visibility="gone"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="8dp"
         android:gravity="center_vertical"
         app:layout_constraintTop_toBottomOf="@id/cv_description"
-        app:layout_constraintStart_toStartOf="@id/gl_left_margin"
-        app:layout_constraintEnd_toEndOf="@id/gl_right_margin">
+        app:layout_constraintStart_toStartOf="@id/gl_left_margin_inner"
+        app:layout_constraintEnd_toEndOf="@id/gl_right_margin_inner">
 
         <CheckBox
             android:id="@+id/cb_block_user"
@@ -288,7 +297,7 @@
             android:text="Block this user"
             android:textColor="#333333"
             android:fontFamily="@font/poppins_regular"
-            android:textSize="14sp"
+            android:textSize="12sp"
             android:layout_gravity="center_vertical"
             android:layout_marginStart="4dp" />
     </LinearLayout>
@@ -297,23 +306,24 @@
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_submit"
         android:layout_width="0dp"
-        android:layout_height="52dp"
-        android:layout_marginTop="20dp"
-        android:layout_marginBottom="20dp"
+        android:layout_height="48dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="8dp"
         android:backgroundTint="@color/colorAccent"
         android:fontFamily="@font/poppins_semibold"
         android:text="@string/submit"
         android:enabled="true"
         android:textAllCaps="false"
         android:textColor="@color/white"
-        android:textSize="16sp"
-        app:cornerRadius="26dp"
-        app:elevation="4dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
-        app:layout_constraintStart_toStartOf="@id/gl_left_margin"
+        android:textSize="15sp"
+        app:cornerRadius="24dp"
+        app:elevation="3dp"
+        app:layout_constraintEnd_toEndOf="@id/gl_right_margin_inner"
+        app:layout_constraintStart_toStartOf="@id/gl_left_margin_inner"
         app:layout_constraintTop_toBottomOf="@id/cv_description"
-        app:layout_constraintVertical_bias="1.0" />
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

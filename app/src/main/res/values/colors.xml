@@ -93,4 +93,29 @@
     <color name="surface_white">#FAFBFC</color>
     <color name="border_light">#E8EAED</color>
 
+    <!-- Premium Creator Card Colors -->
+    <color name="creator_card_bg">#FFFFFF</color>
+    <color name="creator_card_surface">#F9FAFB</color>
+    <color name="creator_name_text">#1F2937</color>
+    <color name="creator_description_text">#6B7280</color>
+    <color name="creator_tag_bg">#F3F4F6</color>
+    <color name="creator_tag_text">#4B5563</color>
+    <color name="creator_language_bg">#F3F4F6</color>
+    <color name="creator_language_text">#6B7280</color>
+    
+    <!-- Premium Button Gradients -->
+    <color name="audio_gradient_start">#9C1DF9</color>
+    <color name="audio_gradient_center">#B947FF</color>
+    <color name="audio_gradient_end">#D671FF</color>
+    <color name="video_gradient_start">#00B87C</color>
+    <color name="video_gradient_center">#00D68F</color>
+    <color name="video_gradient_end">#00F5A0</color>
+    
+    <!-- Professional Accent Colors -->
+    <color name="premium_purple">#9C1DF9</color>
+    <color name="premium_green">#00D68F</color>
+    <color name="premium_orange">#FF6B35</color>
+    <color name="premium_blue">#4F46E5</color>
+    <color name="premium_pink">#EC4899</color>
+
 </resources>

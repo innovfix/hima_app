@@ -4,6 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:clipToPadding="false"
     android:background="@color/grey_extra_light">
 
     <!-- Professional Header with AppBar -->
@@ -13,6 +14,7 @@
         android:layout_height="wrap_content"
         android:background="@color/white"
         android:elevation="2dp"
+        android:fitsSystemWindows="true"
         app:elevation="2dp">
 
         <androidx.constraintlayout.widget.ConstraintLayout
@@ -71,7 +73,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="-2dp"
                         android:fontFamily="@font/poppins_regular"
-                        android:text="Connect &amp; Chat"
+                        android:text="Where Feelings Connect"
                         android:textColor="@color/grey_medium"
                         android:textSize="10sp" />
                 </LinearLayout>
@@ -195,7 +197,7 @@
             android:clipToPadding="false"
             android:paddingHorizontal="12dp"
             android:paddingTop="8dp"
-            android:paddingBottom="100dp" />
+            android:paddingBottom="72dp" />
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
     <!-- Background Dim Effect -->

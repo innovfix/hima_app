@@ -188,9 +188,65 @@ class MaleCallConnectingActivity : AppCompatActivity() {
             .into(binding.ivLogo)
 
         Glide.with(this)
-            .asGif()
-            .load(R.drawable.double_arrow_gif) // Replace with your GIF file
+            .load(R.drawable.double_arrow_svg)
             .into(binding.ivDoubleArrow)
+            
+        startSimpleAnimations()
+        
+        // Cancel button click
+        binding.tvCancel.setOnClickListener {
+            onBackPressedDispatcher.onBackPressed()
+        }
+    }
+    
+    private fun startSimpleAnimations() {
+        // Simple fade in for title
+        binding.tvTitle.alpha = 0f
+        binding.tvTitle.animate()
+            .alpha(1f)
+            .setDuration(300)
+            .start()
+        
+        // Subtle connecting dots animation
+        startConnectingDotsAnimation()
+    }
+    
+    private fun startConnectingDotsAnimation() {
+        try {
+            val dot1 = findViewById<android.view.View>(R.id.dot1)
+            val dot2 = findViewById<android.view.View>(R.id.dot2)
+            val dot3 = findViewById<android.view.View>(R.id.dot3)
+            
+            val animateDots = object : Runnable {
+                var step = 0
+                override fun run() {
+                    when (step % 3) {
+                        0 -> {
+                            dot1?.alpha = 1.0f
+                            dot2?.alpha = 0.5f
+                            dot3?.alpha = 0.3f
+                        }
+                        1 -> {
+                            dot1?.alpha = 0.3f
+                            dot2?.alpha = 1.0f
+                            dot3?.alpha = 0.5f
+                        }
+                        2 -> {
+                            dot1?.alpha = 0.5f
+                            dot2?.alpha = 0.3f
+                            dot3?.alpha = 1.0f
+                        }
+                    }
+                    step++
+                    if (isRunning) {
+                        handler.postDelayed(this, 500)
+                    }
+                }
+            }
+            handler.post(animateDots)
+        } catch (e: Exception) {
+            Log.e("Animation", "Connecting dots not found: ${e.message}")
+        }
     }
 
 

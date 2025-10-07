@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Shadow Layer 1 -->
+    <item
+        android:left="0dp"
+        android:right="0dp"
+        android:top="2dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#08000000" />
+            <corners android:radius="20dp" />
+        </shape>
+    </item>
+    
+    <!-- Shadow Layer 2 -->
+    <item
+        android:left="0dp"
+        android:right="0dp"
+        android:top="1dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#05000000" />
+            <corners android:radius="20dp" />
+        </shape>
+    </item>
+    
+    <!-- Main Card -->
+    <item
+        android:bottom="3dp"
+        android:left="0dp"
+        android:right="0dp"
+        android:top="0dp">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/white" />
+            <corners android:radius="20dp" />
+        </shape>
+    </item>
+</layer-list>
+
