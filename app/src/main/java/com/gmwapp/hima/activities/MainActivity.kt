@@ -48,6 +48,7 @@ import com.gmwapp.hima.BillingManager.BillingManager
 import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.CoinAdapter
 import com.gmwapp.hima.adapters.GiftAdapter
+import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.agora.ZohoHelper
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
@@ -363,6 +364,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
 
     private fun initUI() {
+
+        FcmUtils.greyScreenLiveData.postValue("NoData")
 
         upiPaymentViewModel.upiPaymentLiveData.observe(this, Observer { response ->
             if (response != null && response.status) {

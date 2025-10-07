@@ -23,6 +23,8 @@ class FaceDetectVideoFrameObserver(private val context: Context) : IVideoFrameOb
 
     @Volatile
     private var isProcessing = false
+    private var isFaceCurrentlyVisible = false
+
 
     override fun onCaptureVideoFrame(sourceType: Int, videoFrame: VideoFrame?): Boolean {
         if (isProcessing) {
@@ -81,6 +83,8 @@ class FaceDetectVideoFrameObserver(private val context: Context) : IVideoFrameOb
                     Log.d("FaceDetection", "Show your face")
                     count++
                     if (count==8){
+                        isFaceCurrentlyVisible = false
+
                         (context as? MaleVideoCallingActivity)?.disableVideo()
                         (context as? MaleAudioCallingActivity)?.disableVideo()
 
@@ -91,12 +95,15 @@ class FaceDetectVideoFrameObserver(private val context: Context) : IVideoFrameOb
                 } else {
                     Log.d("FaceDetection", "Face Detected")
                     count= 0
+                    if (!isFaceCurrentlyVisible) {
+                        isFaceCurrentlyVisible = true
                     (context as? MaleVideoCallingActivity)?.enableVideo()
                     (context as? MaleAudioCallingActivity)?.enableVideo()
 
                     (context as? FemaleVideoCallingActivity)?.enableVideo()
                     (context as? FemaleAudioCallingActivity)?.enableVideo()
 
+                }
                 }
                 isProcessing = false
             }

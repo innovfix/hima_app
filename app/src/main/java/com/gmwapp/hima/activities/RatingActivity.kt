@@ -21,6 +21,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
+import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityRatingBinding
 import com.gmwapp.hima.utils.setOnSingleClickListener
@@ -79,6 +80,8 @@ class RatingActivity : BaseActivity() {
     }
 
     private fun initUi() {
+
+        FcmUtils.greyScreenLiveData.postValue("NoData")
 
 
         binding.ivClose.setOnClickListener { finish()}

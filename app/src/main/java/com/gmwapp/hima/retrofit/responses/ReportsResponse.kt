@@ -9,5 +9,7 @@ data class ReportsResponse(
 data class ReportData(
     val user_name: String,
     val today_calls: Int,
-    val today_earnings: String
+    val today_earnings: String,
+    val first_call: Int,
+
 )

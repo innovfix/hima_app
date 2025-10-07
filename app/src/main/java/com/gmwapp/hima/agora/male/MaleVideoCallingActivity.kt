@@ -280,6 +280,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             maleUserId = userData.id
         }
 
+        showGreyScreen()
+
         channelName = intent.getStringExtra("CHANNEL_NAME") ?: ""
         receiverId = intent.getIntExtra("RECEIVER_ID", -1)
         callId = intent.getIntExtra("CALL_ID", 0)
@@ -1778,6 +1780,19 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 //        agoraEngine?.muteAllRemoteAudioStreams(true)
 //        agoraEngine?.muteLocalVideoStream(true)
 //        agoraEngine?.muteLocalAudioStream(true)
+
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val senderId = userData?.id
+        if (senderId != null) {
+            fcmNotificationViewModel.sendNotification(
+                senderId = senderId,
+                receiverId = receiverId,
+                callType = "calltype",
+                channelName = channelName,
+                message = "greyScreenEnable"
+            )
+        }
+
         showNoFaceDetectedDialog()
     }
 
@@ -1787,6 +1802,17 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         agoraEngine?.muteLocalVideoStream(false)
         agoraEngine?.muteLocalAudioStream(false)
 
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val senderId = userData?.id
+        if (senderId != null) {
+            fcmNotificationViewModel.sendNotification(
+                senderId = senderId,
+                receiverId = receiverId,
+                callType = "calltype",
+                channelName = channelName,
+                message = "greyScreenDisable"
+            )
+        }
 
         dismissNoFaceDetectedDialog()
     }
@@ -1813,6 +1839,22 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     }
 
 
+    fun showGreyScreen(){
+
+        FcmUtils.greyScreenLiveData.observe(this) { msg ->
+            if (msg=="greyScreenEnable"){
+
+                binding.main.setBackgroundColor(android.graphics.Color.GRAY)
+                binding.remoteVideoViewContainer.visibility= View.GONE
+
+
+            }
+            if (msg=="greyScreenDisable"){
+                binding.main.setBackgroundResource(R.drawable.d_call_screen_background)
+                binding.remoteVideoViewContainer.visibility= View.VISIBLE
+            }
+        }
+    }
 
 
 

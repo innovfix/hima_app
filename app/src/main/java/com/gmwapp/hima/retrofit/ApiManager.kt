@@ -21,6 +21,7 @@ import com.gmwapp.hima.retrofit.responses.FcmNotificationResponse
 import com.gmwapp.hima.retrofit.responses.FcmTokenResponse
 import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponse
+import com.gmwapp.hima.retrofit.responses.FirstCallUpdateResponse
 import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
 import com.gmwapp.hima.retrofit.responses.GiftImageResponse
 import com.gmwapp.hima.retrofit.responses.IndividualAppUpdateResponse
@@ -735,6 +736,21 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     }
 
 
+    fun updateFirstCallStatus(
+        userId: Int,
+        callStatus: Int,
+        callback: NetworkCallback<FirstCallUpdateResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val call = getApiInterface().updateFirstCallStatus(userId, callStatus)
+            call.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+
+
 
 
 
@@ -1223,5 +1239,13 @@ interface ApiInterface {
         @Field("user_id") userId: Int,
         @Field("coins_id") coinsId: Int
     ): Call<CreateCashfreeOrderResponse>
+
+    @FormUrlEncoded
+    @POST("first_call_update")
+    fun updateFirstCallStatus(
+        @Field("user_id") userId: Int,
+        @Field("call_status") callStatus: Int
+    ): Call<FirstCallUpdateResponse>
+
 
 }

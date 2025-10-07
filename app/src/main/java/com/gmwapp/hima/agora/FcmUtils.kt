@@ -64,6 +64,8 @@ object FcmUtils {
     }
 
 
+    val greyScreenLiveData = MutableLiveData<String>()
 
 
-    }
+
+}
