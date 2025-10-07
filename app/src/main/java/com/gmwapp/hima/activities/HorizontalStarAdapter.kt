@@ -30,9 +30,19 @@ class HorizontalStarAdapter(
             if (stars[position]) R.drawable.ic_star_filled else R.drawable.ic_star_empty
         )
 
-        // Apply fade-in animation to the star image view
-        val fadeInAnimation = android.view.animation.AnimationUtils.loadAnimation(context, R.anim.fade_in)
-        holder.starImageView.startAnimation(fadeInAnimation)
+        // Set tint for filled stars
+        if (stars[position]) {
+            holder.starImageView.setColorFilter(
+                android.graphics.Color.parseColor("#FFD700"), // Gold color
+                android.graphics.PorterDuff.Mode.SRC_IN
+            )
+        } else {
+            holder.starImageView.clearColorFilter()
+        }
+
+        // Apply scale animation to the star image view
+        val scaleAnimation = android.view.animation.AnimationUtils.loadAnimation(context, R.anim.fade_in)
+        holder.starImageView.startAnimation(scaleAnimation)
 
         holder.starImageView.setOnClickListener {
             for (i in 0..position) stars[i] = true

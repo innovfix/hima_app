@@ -6,237 +6,336 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
-    android:background="@color/white"
-    >
+    android:background="@color/grey_extra_light">
 
-    <!-- Guidelines to match your spacing system -->
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_left_margin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        app:layout_constraintGuide_percent="0.04" />
-
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_right_margin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        app:layout_constraintGuide_percent="0.96" />
-
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_top_margin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        app:layout_constraintGuide_percent="0.027" />
-
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_bottom_margin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        app:layout_constraintGuide_percent="0.92" />
-
-    <!-- Header -->
-    <ImageView
-        android:id="@+id/iv_back"
-        android:layout_width="15dp"
-        android:layout_height="15dp"
-        android:layout_marginStart="4dp"
-        android:layout_marginTop="8dp"
-        android:rotation="180"
-        android:src="@drawable/right_arrow"
-        app:layout_constraintStart_toStartOf="@id/gl_left_margin"
-        app:layout_constraintTop_toTopOf="@id/gl_top_margin"
-        app:layout_constraintWidth_default="percent"
-        app:layout_constraintWidth_percent="0.05"
-        app:layout_constraintHeight_default="percent"
-        app:layout_constraintHeight_percent="0.02"
-        app:tint="@color/pink" />
-
-    <TextView
-        android:id="@+id/tv_title"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="12dp"
-        android:text="Add UPI ID"
-        android:textColor="@color/pink"
-        android:textSize="20sp"
-        android:fontFamily="@font/poppins_regular"
-        app:layout_constraintStart_toEndOf="@id/iv_back"
-        app:layout_constraintTop_toTopOf="@id/iv_back"
-        app:layout_constraintBottom_toBottomOf="@id/iv_back"
-        app:layout_constraintEnd_toStartOf="@id/gl_right_margin" />
-
-    <!-- Card: Add UPI + Verify -->
+    <!-- Top App Bar with Gradient Background -->
     <androidx.cardview.widget.CardView
-        android:id="@+id/cv_add_upi"
-        android:layout_width="0dp"
+        android:id="@+id/cv_header"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/_15sdp"
-        android:layout_marginHorizontal="16dp"
-        app:cardBackgroundColor="@color/grey_extra_light"
-        app:cardCornerRadius="10dp"
-        app:cardElevation="2dp"
-        app:layout_constraintStart_toStartOf="@id/gl_left_margin"
-        app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
-        app:layout_constraintTop_toBottomOf="@id/tv_title">
+        app:cardElevation="8dp"
+        app:cardCornerRadius="0dp"
+        android:backgroundTint="@color/white"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="48dp"
+            android:paddingBottom="20dp"
+            android:paddingHorizontal="20dp"
+            android:background="@drawable/gradient_pink">
+
+            <!-- Back Button -->
+            <ImageView
+                android:id="@+id/iv_back"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:padding="6dp"
+                android:background="@drawable/circle_white_bg"
+                android:contentDescription="@string/edit"
+                android:rotation="180"
+                android:src="@drawable/right_arrow"
+                app:tint="@color/pink"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
+            <!-- Title -->
+            <TextView
+                android:id="@+id/tv_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="Add UPI ID"
+                android:textColor="@color/white"
+                android:textSize="22sp"
+                android:fontFamily="@font/poppins_semibold"
+                app:layout_constraintStart_toEndOf="@id/iv_back"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </androidx.cardview.widget.CardView>
+
+    <!-- Main Content ScrollView -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        app:layout_constraintTop_toBottomOf="@id/cv_header"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="@dimen/_8sdp">
+            android:padding="20dp"
+            android:paddingTop="24dp">
 
-            <!-- Row: icon + labels -->
-            <LinearLayout
+            <!-- UPI Info Card -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/cv_add_upi"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:paddingVertical="@dimen/_4sdp">
-
-                <ImageView
-                    android:id="@+id/iv_upi"
-                    android:layout_width="30dp"
-                    android:layout_height="30dp"
-                    android:layout_margin="8dp"
-                    android:contentDescription="@string/upi_id"
-                    android:src="@drawable/ic_upi"
-                    app:tint="@color/pink" />
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp"
+                app:cardBackgroundColor="@color/white">
 
                 <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:layout_gravity="center_vertical">
-
-                    <TextView
-                        android:id="@+id/tv_upi_label"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/upi_id"
-                        android:textSize="14sp"
-                        android:textColor="@color/black_light"
-                        android:fontFamily="@font/poppins_semibold" />
-
-                    <TextView
-                        android:id="@+id/tv_upi_sub"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/for_instant_money_credit"
-                        android:textSize="11sp"
-                        android:textColor="@color/text_light_grey"
-                        android:fontFamily="@font/poppins_medium" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <!-- Input -->
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/til_upi"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/_8sdp"
-                app:boxBackgroundMode="outline"
-                app:boxStrokeColor="@color/pink"
-                app:boxCornerRadiusTopStart="10dp"
-                app:boxCornerRadiusTopEnd="10dp"
-                app:hintTextColor="@color/pink"
-                app:boxCornerRadiusBottomStart="10dp"
-                app:boxCornerRadiusBottomEnd="10dp"
-                app:endIconMode="clear_text"
-                app:hintEnabled="true">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/et_upi_id"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="@string/enter_your_upi_id"
-                    android:inputType="textEmailAddress"
-                    android:imeOptions="actionDone"
-                    android:fontFamily="@font/poppins_medium"
-                    android:textColor="@color/black"
-                    android:textColorHint="@color/text_light_grey"
-                    tools:text="name@oksbi" />
-            </com.google.android.material.textfield.TextInputLayout>
+                    android:orientation="vertical"
+                    android:padding="20dp">
 
-            <!-- Helper -->
-            <TextView
-                android:id="@+id/tv_helper"
+                    <!-- UPI Header Section -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingBottom="4dp">
+
+                        <!-- Icon with Circular Background -->
+                        <androidx.cardview.widget.CardView
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            app:cardCornerRadius="24dp"
+                            app:cardElevation="0dp"
+                            app:cardBackgroundColor="@color/pink_extra_light">
+
+                            <ImageView
+                                android:id="@+id/iv_upi"
+                                android:layout_width="26dp"
+                                android:layout_height="26dp"
+                                android:layout_gravity="center"
+                                android:contentDescription="@string/upi_id"
+                                android:src="@drawable/ic_upi"
+                                app:tint="@color/pink" />
+
+                        </androidx.cardview.widget.CardView>
+
+                        <!-- Labels -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="16dp"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tv_upi_label"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/upi_id"
+                                android:textSize="16sp"
+                                android:textColor="@color/black_light"
+                                android:fontFamily="@font/poppins_semibold" />
+
+                            <TextView
+                                android:id="@+id/tv_upi_sub"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="@string/for_instant_money_credit"
+                                android:textSize="12sp"
+                                android:textColor="@color/text_light_grey"
+                                android:fontFamily="@font/poppins_regular" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- Divider -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="@color/grey_extra_light"
+                        android:layout_marginVertical="16dp" />
+
+                    <!-- Input Label -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Enter UPI ID"
+                        android:textColor="@color/grey_medium"
+                        android:textSize="13sp"
+                        android:fontFamily="@font/poppins_medium"
+                        android:letterSpacing="0.02"
+                        android:layout_marginBottom="8dp" />
+
+                    <!-- Input Field with Custom Background -->
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="@color/grey_extra_light">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/til_upi"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            app:boxBackgroundMode="filled"
+                            app:boxBackgroundColor="@color/grey_extra_light"
+                            app:boxStrokeWidth="0dp"
+                            app:boxStrokeWidthFocused="2dp"
+                            app:boxStrokeColor="@color/pink"
+                            app:hintEnabled="false"
+                            app:endIconMode="clear_text"
+                            app:endIconTint="@color/grey_medium">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/et_upi_id"
+                                android:layout_width="match_parent"
+                                android:layout_height="56dp"
+                                android:hint="@string/enter_your_upi_id"
+                                android:inputType="textEmailAddress"
+                                android:imeOptions="actionDone"
+                                android:fontFamily="@font/poppins_medium"
+                                android:textColor="@color/black"
+                                android:textColorHint="@color/text_light_grey"
+                                android:textSize="15sp"
+                                android:background="@android:color/transparent"
+                                android:paddingStart="16dp"
+                                android:paddingEnd="16dp"
+                                tools:text="name@oksbi" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                    </androidx.cardview.widget.CardView>
+
+                    <!-- Helper Text -->
+                    <TextView
+                        android:id="@+id/tv_helper"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="Example: yourname@bank"
+                        android:textSize="11sp"
+                        android:textColor="@color/text_light_grey"
+                        android:fontFamily="@font/poppins_regular" />
+
+                    <!-- Verify Button with Gradient -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_verify"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:layout_marginTop="20dp"
+                        android:text="@string/verify"
+                        android:textAllCaps="false"
+                        android:textColor="@color/white"
+                        android:textSize="16sp"
+                        android:fontFamily="@font/poppins_semibold"
+                        android:letterSpacing="0.02"
+                        android:elevation="4dp"
+                        app:backgroundTint="@null"
+                        android:background="@drawable/gradient_pink"
+                        app:cornerRadius="28dp" />
+
+                    <!-- Progress -->
+                    <LinearLayout
+                        android:id="@+id/ll_progress"
+                        android:layout_width="match_parent"
+                        android:layout_height="60dp"
+                        android:gravity="center"
+                        android:visibility="gone"
+                        android:layout_marginTop="12dp">
+
+                        <ProgressBar
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:indeterminate="true"
+                            android:indeterminateTint="@color/pink" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
+                            android:text="Verifying..."
+                            android:textColor="@color/grey_medium"
+                            android:textSize="14sp"
+                            android:fontFamily="@font/poppins_medium" />
+                    </LinearLayout>
+
+                    <!-- Status row (success / error) -->
+                    <LinearLayout
+                        android:id="@+id/ll_status"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:visibility="gone"
+                        android:layout_marginTop="12dp"
+                        android:padding="12dp"
+                        android:background="@drawable/gradient_light_pink">
+
+                        <ImageView
+                            android:id="@+id/iv_status"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/tick_circle_svg"
+                            android:contentDescription="@string/edit"
+                            app:tint="@color/pink" />
+
+                        <TextView
+                            android:id="@+id/tv_status"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="10dp"
+                            android:textSize="13sp"
+                            android:textColor="@color/black_light"
+                            android:fontFamily="@font/poppins_medium"
+                            tools:text="UPI verified successfully" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- Info Card -->
+            <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/_4sdp"
-                android:textSize="11sp"
-                android:visibility="gone"
-                android:textColor="@color/text_light_grey"
-                android:fontFamily="@font/poppins_medium"
-                tools:text="Examples: name@oksbi, mobile@okicici, userid@okaxis" />
+                android:layout_marginTop="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="@color/white">
 
-            <!-- Verify button -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_verify"
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/_44sdp"
-                android:layout_marginTop="@dimen/_10sdp"
-                android:backgroundTint="@color/button_background_tint2"
-                android:text="@string/verify"
-                android:textAllCaps="false"
-                android:textColor="@color/button_text_color2"
-                android:textSize="14sp"
-                android:fontFamily="@font/poppins_medium"
-                app:cornerRadius="@dimen/_18sdp" />
-
-            <!-- Progress -->
-            <LinearLayout
-                android:id="@+id/ll_progress"
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/_50sdp"
-                android:gravity="center"
-                android:visibility="gone"
-                android:layout_marginTop="@dimen/_6sdp">
-
-                <ProgressBar
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:indeterminate="true" />
-            </LinearLayout>
+                    android:orientation="horizontal"
+                    android:padding="16dp"
+                    android:gravity="center_vertical">
 
-            <!-- Status row (success / error) -->
-            <LinearLayout
-                android:id="@+id/ll_status"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:visibility="gone"
-                android:layout_marginTop="@dimen/_6sdp">
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_info"
+                        android:contentDescription="@string/edit"
+                        app:tint="@color/pink" />
 
-                <ImageView
-                    android:id="@+id/iv_status"
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
-                    android:src="@drawable/tick_circle_svg"
-                    app:tint="@color/pink"
-                     />
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="12dp"
+                        android:text="Your UPI ID will be used for instant withdrawals"
+                        android:textSize="12sp"
+                        android:textColor="@color/grey_medium"
+                        android:fontFamily="@font/poppins_regular" />
 
-                <TextView
-                    android:id="@+id/tv_status"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    android:textSize="12sp"
-                    android:textColor="@color/black_light"
-                    android:fontFamily="@font/poppins_medium"
-                    tools:text="UPI verified successfully" />
-            </LinearLayout>
+                </LinearLayout>
 
+            </androidx.cardview.widget.CardView>
 
         </LinearLayout>
-    </androidx.cardview.widget.CardView>
 
-    <!-- Bottom action (e.g., Save & Continue) if you want to proceed after verify -->
+    </ScrollView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

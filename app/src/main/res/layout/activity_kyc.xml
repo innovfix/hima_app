@@ -1,180 +1,273 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
-    android:fitsSystemWindows="true"
     android:layout_height="match_parent"
-    android:background="@color/white"
+    android:fitsSystemWindows="true"
+    android:background="@color/kyc_background"
+    android:fillViewport="true"
     tools:context=".activities.KycActivity">
 
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_left_margin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        app:layout_constraintGuide_percent="0.04" />
-
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_right_margin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        app:layout_constraintGuide_percent="0.96" />
-
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_top_margin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        app:layout_constraintGuide_percent="0.027" />
-
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_bottom_margin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        app:layout_constraintGuide_percent="0.92" />
-
-    <ImageView
-        android:id="@+id/iv_back"
-        android:layout_width="15dp"
-        android:layout_height="15dp"
-        android:layout_marginStart="4dp"
-        android:layout_marginTop="8dp"
-        android:contentDescription="@string/edit"
-        android:rotation="180"
-        android:src="@drawable/right_arrow"
-        app:layout_constraintHeight_default="percent"
-        app:layout_constraintHeight_percent="0.02"
-        app:layout_constraintStart_toStartOf="@id/gl_left_margin"
-        app:layout_constraintTop_toTopOf="@id/gl_top_margin"
-        app:layout_constraintWidth_default="percent"
-        app:layout_constraintWidth_percent="0.05"
-        app:tint="@color/pink"
-        tools:ignore="MissingConstraints" />
-
-    <TextView
-        android:id="@+id/tv_withdraw"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:text="@string/complete_Kyc"
-        android:textColor="@color/pink"
-        android:textSize="20sp"
-        android:fontFamily="@font/poppins_regular"
-        app:layout_constraintBottom_toBottomOf="@+id/iv_back"
-        app:layout_constraintStart_toEndOf="@+id/iv_back"
-        app:layout_constraintTop_toTopOf="@+id/iv_back" />
-
-    <TextView
-        android:id="@+id/tv_current_balance"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:fontFamily="@font/poppins_semibold"
-        android:text="@string/_0_00"
-        android:visibility="gone"
-        android:textColor="@color/pink"
-        android:textSize="16dp"
-        app:layout_constraintBottom_toBottomOf="@+id/tv_withdraw"
-        app:layout_constraintEnd_toStartOf="@+id/gl_right_margin"
-        app:layout_constraintTop_toTopOf="@+id/tv_withdraw"
-        app:layout_constraintVertical_bias="1.0" />
-
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_withdraw_top_margin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        app:layout_constraintGuide_percent="0.11080711" />
-
-    <LinearLayout
-        android:id="@+id/llbankdetails"
-        android:layout_width="match_parent"
-        app:layout_constraintTop_toTopOf="@id/tv_withdraw"
-        android:layout_height="wrap_content"
-        android:layout_margin="@dimen/_10sdp"
-        android:orientation="vertical">
-
-
-    <!-- Holder Name -->
-    <TextView
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="@dimen/_13sdp"
-        android:layout_marginTop="@dimen/_23sdp"
-        android:fontFamily="@font/poppins_semibold"
-        android:text="@string/pan_card_name"
-        android:textColor="@color/black_light"
-        android:textSize="@dimen/_12sdp" />
+        android:paddingBottom="32dp">
 
-    <EditText
-        android:id="@+id/etPanName"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="@dimen/_13sdp"
-        android:layout_marginBottom="@dimen/_5sdp"
-        android:background="@drawable/edit_text_trip"
-        android:fontFamily="@font/poppins_medium"
-        android:hint="Name"
-        android:text=""
-        android:inputType="textPersonName"
-        android:padding="@dimen/_14sdp"
-        android:textCursorDrawable="@color/colorPrimaryDark"
-        android:textSize="@dimen/_12sdp" />
+        <!-- Guidelines -->
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/gl_left_margin"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintGuide_begin="24dp" />
 
-    <!-- Account Number -->
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="@dimen/_13sdp"
-        android:layout_marginTop="@dimen/_13sdp"
-        android:fontFamily="@font/poppins_semibold"
-        android:text="@string/pan_card_number"
-        android:textColor="@color/black_light"
-        android:textSize="@dimen/_12sdp" />
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/gl_right_margin"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintGuide_end="24dp" />
 
-    <EditText
-        android:id="@+id/etPanNumber"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="@dimen/_13sdp"
-        android:layout_marginBottom="@dimen/_5sdp"
-        android:background="@drawable/edit_text_trip"
-        android:fontFamily="@font/poppins_medium"
-        android:hint="Pan"
-        android:text=""
-        android:inputType="textCapCharacters"
-        android:maxLength="10"
-        android:padding="@dimen/_14sdp"
-        android:textCursorDrawable="@color/colorPrimaryDark"
-        android:textSize="@dimen/_12sdp"
+        <!-- Top App Bar -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cv_top_bar"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            app:cardBackgroundColor="@color/kyc_card_bg"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="2dp"
+            app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
+            app:layout_constraintStart_toStartOf="@id/gl_left_margin"
+            app:layout_constraintTop_toTopOf="parent">
 
-        />
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="20dp">
 
-    </LinearLayout>
+                <ImageView
+                    android:id="@+id/iv_back"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/edit"
+                    android:padding="6dp"
+                    android:rotation="180"
+                    android:src="@drawable/right_arrow"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:tint="@color/kyc_icon_color" />
 
+                <TextView
+                    android:id="@+id/tv_withdraw"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:fontFamily="@font/poppins_semibold"
+                    android:text="@string/complete_Kyc"
+                    android:textColor="@color/kyc_text_primary"
+                    android:textSize="20sp"
+                    app:layout_constraintBottom_toBottomOf="@id/iv_back"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/iv_back"
+                    app:layout_constraintTop_toTopOf="@id/iv_back" />
 
+            </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btn_submit"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginBottom="24dp"
-        android:enabled="false"
-        android:backgroundTint="@color/button_background_tint2"
-        android:fontFamily="@font/poppins_medium"
-        android:text="@string/submit"
-        android:textAllCaps="false"
-        android:textColor="@color/button_text_color2"
-        android:textSize="14sp"
-        app:cornerRadius="@dimen/_18sdp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
-        app:layout_constraintHeight_default="percent"
-        app:layout_constraintHeight_percent="0.08"
-        app:layout_constraintStart_toStartOf="@id/gl_left_margin"
-        app:layout_constraintTop_toTopOf="@+id/gl_bottom_margin" />
+        </com.google.android.material.card.MaterialCardView>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+        <!-- KYC Information Card -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cv_kyc_info"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            app:cardBackgroundColor="@color/kyc_card_bg"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="2dp"
+            app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
+            app:layout_constraintStart_toStartOf="@id/gl_left_margin"
+            app:layout_constraintTop_toBottomOf="@id/cv_top_bar">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="24dp">
+
+                <!-- Form Title -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/poppins_semibold"
+                    android:text="PAN Card Details"
+                    android:textColor="@color/kyc_text_primary"
+                    android:textSize="18sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:fontFamily="@font/poppins_regular"
+                    android:text="Please provide your PAN card information for verification"
+                    android:textColor="@color/kyc_text_secondary"
+                    android:textSize="13sp" />
+
+                <!-- Divider -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="20dp"
+                    android:layout_marginBottom="24dp"
+                    android:background="@color/kyc_border" />
+
+                <!-- Full Name Section -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/poppins_medium"
+                    android:text="@string/pan_card_name"
+                    android:textColor="@color/kyc_text_primary"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:fontFamily="@font/poppins_regular"
+                    android:text="Enter name exactly as it appears on your PAN card"
+                    android:textColor="@color/kyc_text_hint"
+                    android:textSize="12sp" />
+
+                <EditText
+                    android:id="@+id/etPanName"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/bg_kyc_input_selector"
+                    android:fontFamily="@font/poppins_medium"
+                    android:hint="Enter your full name"
+                    android:inputType="textPersonName"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:textColor="@color/kyc_text_primary"
+                    android:textColorHint="@color/kyc_text_hint"
+                    android:textSize="15sp" />
+
+                <!-- PAN Number Section -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:fontFamily="@font/poppins_medium"
+                    android:text="@string/pan_card_number"
+                    android:textColor="@color/kyc_text_primary"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:fontFamily="@font/poppins_regular"
+                    android:text="10 digit alphanumeric PAN number"
+                    android:textColor="@color/kyc_text_hint"
+                    android:textSize="12sp" />
+
+                <EditText
+                    android:id="@+id/etPanNumber"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/bg_kyc_input_selector"
+                    android:fontFamily="@font/poppins_medium"
+                    android:hint="ABCDE1234F"
+                    android:inputType="textCapCharacters"
+                    android:maxLength="10"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:textColor="@color/kyc_text_primary"
+                    android:textColorHint="@color/kyc_text_hint"
+                    android:textSize="15sp" />
+
+                <!-- Info Note -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:background="@drawable/bg_kyc_info_note"
+                    android:orientation="horizontal"
+                    android:padding="12dp">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_gravity="center_vertical"
+                        android:src="@drawable/ic_info"
+                        app:tint="@color/kyc_primary" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_vertical"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="1"
+                        android:fontFamily="@font/poppins_regular"
+                        android:text="Your information is secure and will be used for verification purposes only"
+                        android:textColor="@color/kyc_text_secondary"
+                        android:textSize="12sp" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Submit Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_submit"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_marginTop="24dp"
+            android:backgroundTint="@color/kyc_button_bg_color"
+            android:enabled="false"
+            android:fontFamily="@font/poppins_semibold"
+            android:text="@string/submit"
+            android:textAllCaps="false"
+            android:textColor="@color/kyc_button_text_color"
+            android:textSize="16sp"
+            app:cornerRadius="12dp"
+            app:elevation="2dp"
+            app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
+            app:layout_constraintStart_toStartOf="@id/gl_left_margin"
+            app:layout_constraintTop_toBottomOf="@id/cv_kyc_info" />
+
+        <!-- Hidden Balance TextView -->
+        <TextView
+            android:id="@+id/tv_current_balance"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/poppins_semibold"
+            android:text="@string/_0_00"
+            android:textColor="@color/pink"
+            android:textSize="16sp"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <LinearLayout
+            android:id="@+id/llbankdetails"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            app:layout_constraintTop_toTopOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</ScrollView>

@@ -69,8 +69,6 @@ class DeleteAccountActivity : BaseActivity(), OnButtonClickListener {
     }
 
     private fun initUI() {
-        binding.cvDeleteAccount.setBackgroundResource(R.drawable.warning_background)
-        binding.cvDescription.setBackgroundResource(R.drawable.d_button_bg_user_name)
         binding.ivBack.setOnSingleClickListener {
             finish()
         }
@@ -144,9 +142,14 @@ class DeleteAccountActivity : BaseActivity(), OnButtonClickListener {
         binding.rvReasons.addItemDecoration(itemDecoration)
         binding.rvReasons.setLayoutManager(staggeredGridLayoutManager)
 
-        binding.etDescription.setOnTouchListener { v, _ ->
-            binding.cvDescription.setBackgroundResource(R.drawable.card_view_border_country_selected)
-            false
+        binding.etDescription.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                binding.cvDescription.strokeColor = ContextCompat.getColor(this, R.color.colorPrimaryDark)
+                binding.cvDescription.strokeWidth = 4
+            } else {
+                binding.cvDescription.strokeColor = ContextCompat.getColor(this, android.R.color.darker_gray)
+                binding.cvDescription.strokeWidth = 2
+            }
         }
         binding.etDescription.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {
@@ -219,16 +222,19 @@ class DeleteAccountActivity : BaseActivity(), OnButtonClickListener {
     }
 
     private fun changeWarningHints(visibility: Int) {
-        binding.tvHint3.visibility = visibility
-        binding.ivHint3.visibility = visibility
-        binding.tvHint4.visibility = visibility
-        binding.ivHint4.visibility = visibility
-        binding.tvHint5.visibility = visibility
-        binding.ivHint5.visibility = visibility
-        binding.tvHint6.visibility = visibility
-        binding.ivHint6.visibility = visibility
-        binding.tvHint7.visibility = visibility
-        binding.ivHint7.visibility = visibility
+        // Get parent LinearLayouts for each warning item
+        val hint3Parent = binding.tvHint3.parent as? View
+        val hint4Parent = binding.tvHint4.parent as? View
+        val hint5Parent = binding.tvHint5.parent as? View
+        val hint6Parent = binding.tvHint6.parent as? View
+        val hint7Parent = binding.tvHint7.parent as? View
+        
+        hint3Parent?.visibility = visibility
+        hint4Parent?.visibility = visibility
+        hint5Parent?.visibility = visibility
+        hint6Parent?.visibility = visibility
+        hint7Parent?.visibility = visibility
+        
         if (visibility == View.VISIBLE) {
             binding.tvViewMore.text = getString(R.string.view_less)
             binding.ivViewMore.rotation = 180F

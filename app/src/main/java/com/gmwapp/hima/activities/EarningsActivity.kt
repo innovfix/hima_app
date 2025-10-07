@@ -91,14 +91,10 @@ class EarningsActivity : BaseActivity() {
                 val balance = it.balance
                 if (settingsData?.minimum_withdrawals != null && balance != null && balance < settingsData.minimum_withdrawals) {
                     binding.btnWithdraw.visibility = View.GONE
-                    binding.vDivider.visibility = View.VISIBLE
-                    binding.ivBalance.visibility = View.VISIBLE
-                    binding.tlBalanceHint.visibility = View.VISIBLE
+                    binding.llBalanceHintContainer.visibility = View.VISIBLE
                 } else {
                     binding.btnWithdraw.visibility = View.VISIBLE
-                    binding.vDivider.visibility = View.GONE
-                    binding.ivBalance.visibility = View.GONE
-                    binding.tlBalanceHint.visibility = View.GONE
+                    binding.llBalanceHintContainer.visibility = View.GONE
                 }
               //  binding.tvCurrentBalance.text = "₹" +balance.toString()
             }

@@ -54,6 +54,10 @@ class BottomSheetLogout : BottomSheetDialogFragment() {
 
         }
 
+        binding.btnCancel.setOnSingleClickListener {
+            dismiss()
+        }
+
 
     }
 

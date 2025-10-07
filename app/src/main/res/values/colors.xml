@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="colorPrimary">#ff1383</color>
     <color name="colorAccent">#ff1383</color>
     <color name="colorPrimaryDark">#ff0d4a</color>
     <color name="colorPrimaryLight">#FFA5CF</color>
@@ -7,7 +8,8 @@
     <color name="user_name_hint_text">#a5a6aa</color>
     <color name="black_background">#161a1d</color>
     <color name="blue_background">#1a0042</color>
-    <color name="interest_text_color">#1F2937</color>
+    <color name="interest_text_color">#334155</color>
+    <color name="interest_selected_text_color">#7C3AED</color>
     <color name="transaction_text_color">#f4f5f7</color>
     <color name="interest_disabled_text_color">#9CA3AF</color>
     <color name="yellow">#f5e77e</color>
@@ -55,5 +57,40 @@
     <color name="Punjabi">#019A66</color>
     <color name="Tamil">#FF1381</color>
 
+    <!-- Professional Theme Colors -->
+    <color name="professional_dark_bg">#0F172A</color>
+    <color name="professional_secondary_bg">#1E293B</color>
+    <color name="professional_accent">#6366F1</color>
+    <color name="professional_accent_light">#818CF8</color>
+    <color name="professional_text_primary">#F8FAFC</color>
+    <color name="professional_text_secondary">#94A3B8</color>
+    <color name="professional_card_bg">#1E293B</color>
+
+    <!-- KYC Professional Colors -->
+    <color name="kyc_primary">#2563EB</color>
+    <color name="kyc_primary_dark">#1E40AF</color>
+    <color name="kyc_background">#F8FAFC</color>
+    <color name="kyc_card_bg">#FFFFFF</color>
+    <color name="kyc_text_primary">#1E293B</color>
+    <color name="kyc_text_secondary">#64748B</color>
+    <color name="kyc_text_hint">#94A3B8</color>
+    <color name="kyc_border">#E2E8F0</color>
+    <color name="kyc_border_focused">#2563EB</color>
+    <color name="kyc_button_bg">#2563EB</color>
+    <color name="kyc_button_text">#FFFFFF</color>
+    <color name="kyc_button_disabled">#CBD5E1</color>
+    <color name="kyc_button_text_disabled">#94A3B8</color>
+    <color name="kyc_icon_color">#475569</color>
+    <color name="kyc_success">#10B981</color>
+    <color name="kyc_error">#EF4444</color>
+
+    <!-- Enhanced Professional Colors for Withdraw Screen -->
+    <color name="card_shadow">#1A000000</color>
+    <color name="gradient_pink_start">#FF1381</color>
+    <color name="gradient_pink_center">#FF3A9B</color>
+    <color name="gradient_pink_end">#FF5FB5</color>
+    <color name="light_pink_bg">#FFF5F9</color>
+    <color name="surface_white">#FAFBFC</color>
+    <color name="border_light">#E8EAED</color>
 
 </resources>

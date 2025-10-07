@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="24dp"
+    app:cardCornerRadius="24dp"
+    app:cardElevation="8dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/dialog_professional_background"
+        android:padding="20dp">
+
+        <!-- Icon -->
+        <FrameLayout
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_gravity="center_horizontal"
+            android:background="@drawable/dialog_icon_background"
+            android:layout_marginBottom="12dp">
+
+            <ImageView
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_dialog_video"
+                android:contentDescription="Video Icon"/>
+
+        </FrameLayout>
+
+        <!-- Title -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Switch to Video Session?"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#1A1A1A"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:layout_marginBottom="6dp"/>
+
+        <!-- Message -->
+        <TextView
+            android:id="@+id/tv_dialog_message"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Would you like to switch to video call?"
+            android:textSize="13sp"
+            android:textColor="#666666"
+            android:gravity="center"
+            android:layout_marginBottom="20dp"
+            android:lineSpacingExtra="2dp"/>
+
+        <!-- Buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingTop="4dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_dialog_no"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:text="NOT NOW"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="#666666"
+                android:background="@drawable/dialog_button_no"
+                android:paddingStart="18dp"
+                android:paddingEnd="18dp"
+                android:minWidth="95dp"
+                android:layout_marginEnd="10dp"
+                app:cornerRadius="10dp"
+                android:stateListAnimator="@null"
+                android:elevation="0dp"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_dialog_yes"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:text="YES, SWITCH"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFF"
+                android:background="@drawable/dialog_button_yes"
+                android:paddingStart="18dp"
+                android:paddingEnd="18dp"
+                android:minWidth="95dp"
+                app:cornerRadius="10dp"
+                android:stateListAnimator="@null"
+                android:elevation="0dp"/>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</androidx.cardview.widget.CardView>

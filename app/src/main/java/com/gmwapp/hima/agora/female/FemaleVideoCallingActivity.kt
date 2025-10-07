@@ -258,7 +258,6 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
-        window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
 
@@ -301,6 +300,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         }
 
         observeRemainingTimeUpdated()
+        onAddcoinClicked()
         binding.btnMuteUnmute.setOnClickListener {
             toggleMute()
         }
@@ -1087,6 +1087,15 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         startCallingService()
     }
 
+    private fun onAddcoinClicked() {
+        binding.timerContainer.setOnSingleClickListener {
+            // Timer container is now clickable and visible
+            // You can add navigation to wallet activity if needed
+            // val intent = Intent(this@FemaleVideoCallingActivity, WalletActivity::class.java)
+            // startActivity(intent)
+        }
+    }
+
     private fun toggleMute() {
         isMuted = !isMuted
         agoraEngine?.muteLocalAudioStream(isMuted)  // Mute or unmute audio
@@ -1104,9 +1113,32 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     private fun endcallBtn() {
         binding.btnEndCall.setOnSingleClickListener {
-            leaveChannel(binding.LeaveButton)
-
+            showEndCallConfirmationDialog()
         }
+    }
+    
+    private fun showEndCallConfirmationDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_end_call_confirmation, null)
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+        
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        
+        val btnCancel = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_cancel_end_call)
+        val btnConfirm = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_confirm_end_call)
+        
+        btnCancel.setOnClickListener {
+            dialog.dismiss()
+        }
+        
+        btnConfirm.setOnClickListener {
+            dialog.dismiss()
+            leaveChannel(binding.LeaveButton)
+        }
+        
+        dialog.show()
     }
 
     private fun onMenuClicked() {

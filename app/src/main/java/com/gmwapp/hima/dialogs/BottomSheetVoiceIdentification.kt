@@ -65,6 +65,7 @@ class BottomSheetVoiceIdentification : BottomSheetDialogFragment() {
             if (event.action == MotionEvent.ACTION_DOWN) {
                 binding.tlSpeechTextHintTimer.text = "00:00"
                 binding.tlSpeechTextHintTimer.visibility = View.VISIBLE
+                binding.tlSpeechTextHint.visibility = View.VISIBLE
                 var secs=0;
                 timer = object : CountDownTimer(60 * 60000, 1000) {
                     override fun onTick(millisUntilFinished: Long) {
@@ -81,7 +82,7 @@ class BottomSheetVoiceIdentification : BottomSheetDialogFragment() {
 
                 binding.content.startRippleAnimation()
                 binding.tlSpeechTextHint.text = getString(R.string.release_to_stop)
-                binding.ivMicroPhoneCircle.setImageDrawable(resources.getDrawable(R.drawable.ic_microphone_circle_selected))
+                binding.ivMicroPhoneCircle.setBackgroundResource(R.drawable.voice_mic_background_active)
                 val mConstrainLayout = binding.content
                 val lp = mConstrainLayout.layoutParams as ConstraintLayout.LayoutParams
                 lp.matchConstraintPercentHeight = 0.35.toFloat()
@@ -93,7 +94,7 @@ class BottomSheetVoiceIdentification : BottomSheetDialogFragment() {
                 binding.tlSpeechTextHintTimer.visibility = View.GONE
                 binding.tlSpeechTextHint.text = getString(R.string.tap_and_hold_to_speak)
                 binding.content.stopRippleAnimation()
-                binding.ivMicroPhoneCircle.setImageDrawable(resources.getDrawable(R.drawable.ic_microphone_circle))
+                binding.ivMicroPhoneCircle.setBackgroundResource(R.drawable.voice_mic_background)
 
                 try {
                     mRecorder?.stop()
@@ -123,14 +124,20 @@ class BottomSheetVoiceIdentification : BottomSheetDialogFragment() {
                         binding.clRecordAgain.visibility = View.VISIBLE
                         binding.btnSubmit.visibility = View.VISIBLE
                         binding.tlSpeechTextHint.visibility = View.GONE
+                        binding.tlSpeechTextHintTimer.visibility = View.GONE
                         binding.clMicrophone.visibility = View.GONE
+                        binding.content.visibility = View.GONE
+                        binding.cardSentence.visibility = View.GONE
                     }else if (durationInSeconds > 3){
                         binding.tvPlayToListen.visibility = View.VISIBLE
                         binding.clPlayer.visibility = View.VISIBLE
                         binding.clRecordAgain.visibility = View.VISIBLE
                         binding.btnSubmit.visibility = View.VISIBLE
                         binding.tlSpeechTextHint.visibility = View.GONE
+                        binding.tlSpeechTextHintTimer.visibility = View.GONE
                         binding.clMicrophone.visibility = View.GONE
+                        binding.content.visibility = View.GONE
+                        binding.cardSentence.visibility = View.GONE
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -162,7 +169,10 @@ class BottomSheetVoiceIdentification : BottomSheetDialogFragment() {
             binding.clRecordAgain.visibility = View.GONE
             binding.btnSubmit.visibility = View.GONE
             binding.tlSpeechTextHint.visibility = View.VISIBLE
+            binding.tlSpeechTextHintTimer.visibility = View.GONE
             binding.clMicrophone.visibility = View.VISIBLE
+            binding.content.visibility = View.VISIBLE
+            binding.cardSentence.visibility = View.VISIBLE
         })
         binding.btnSubmit.setOnSingleClickListener({
             onItemSelectionListener?.onItemSelected(audiofile.toString())
@@ -222,7 +232,7 @@ class BottomSheetVoiceIdentification : BottomSheetDialogFragment() {
         binding.tlSpeechTextHintTimer.visibility = View.GONE
         binding.tlSpeechTextHint.text = getString(R.string.tap_and_hold_to_speak)
         binding.content.stopRippleAnimation()
-        binding.ivMicroPhoneCircle.setImageDrawable(resources.getDrawable(R.drawable.ic_microphone_circle))
+        binding.ivMicroPhoneCircle.setBackgroundResource(R.drawable.voice_mic_background)
 
         if (isCancelled) {
             mRecorder?.stop()

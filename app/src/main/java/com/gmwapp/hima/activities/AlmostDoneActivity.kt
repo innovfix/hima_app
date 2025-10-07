@@ -35,8 +35,13 @@ class AlmostDoneActivity : BaseActivity() {
         binding = ActivityAlmostDoneBinding.inflate(layoutInflater)
         val prefs = BaseApplication.getInstance()?.getPrefs()
         val supportMail = prefs?.getSettingsData()?.support_mail
-        binding.tvSupportMail.text =
-            supportMail
+        
+        // Set initial email if available
+        if (!supportMail.isNullOrEmpty()) {
+            binding.tvSupportMail.text = supportMail
+            binding.tvSupportMail.paintFlags = binding.tvSupportMail.paintFlags or Paint.UNDERLINE_TEXT_FLAG
+        }
+        
         accountViewModel.getSettings()
         accountViewModel.settingsLiveData.observe(this, Observer {
             if (it!=null && it.success) {
@@ -44,24 +49,25 @@ class AlmostDoneActivity : BaseActivity() {
                     if (it.data.size > 0) {
                         prefs?.setSettingsData(it.data.get(0))
                         val supportMail = prefs?.getSettingsData()?.support_mail
-                        binding.tvSupportMail.text =
-                            supportMail
-                        val userData = prefs?.getUserData()
-                        val subject = getString(R.string.delete_account_mail_subject, userData?.mobile,  userData?.language)
+                        
+                        if (!supportMail.isNullOrEmpty()) {
+                            binding.tvSupportMail.text = supportMail
+                            binding.tvSupportMail.paintFlags =
+                                binding.tvSupportMail.paintFlags or Paint.UNDERLINE_TEXT_FLAG
+                            
+                            val userData = prefs?.getUserData()
+                            val subject = getString(R.string.delete_account_mail_subject, userData?.mobile,  userData?.language)
 
-                        val body = getString(R.string.mail_body, userData?.mobile,android.os.Build.MODEL,userData?.language,
-                            BuildConfig.VERSION_CODE
-                        )
-                        binding.tvSupportMail.setOnSingleClickListener {
-                            val intent = Intent(Intent.ACTION_VIEW)
-
-                            val data = Uri.parse(("mailto:$supportMail?subject=$subject").toString() + "&body=$body")
-                            intent.setData(data)
-
-                            startActivity(intent)
+                            val body = getString(R.string.mail_body, userData?.mobile,android.os.Build.MODEL,userData?.language,
+                                BuildConfig.VERSION_CODE
+                            )
+                            binding.tvSupportMail.setOnSingleClickListener {
+                                val intent = Intent(Intent.ACTION_VIEW)
+                                val data = Uri.parse(("mailto:$supportMail?subject=$subject").toString() + "&body=$body")
+                                intent.setData(data)
+                                startActivity(intent)
+                            }
                         }
-                        binding.tvSupportMail.paintFlags =
-                            binding.tvSupportMail.paintFlags or Paint.UNDERLINE_TEXT_FLAG
                     }
                 }
             }

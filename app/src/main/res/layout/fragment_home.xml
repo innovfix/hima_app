@@ -248,88 +248,90 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
-        android:layout_marginEnd="72dp"
+        android:layout_marginEnd="90dp"
         android:layout_marginBottom="204dp"
         android:fontFamily="@font/poppins_semibold"
         android:text="@string/audio"
         android:textColor="@color/white"
-        android:textSize="14sp"
+        android:textSize="15sp"
         android:visibility="gone"
-        android:shadowColor="@color/purple"
-        android:shadowDx="1"
-        android:shadowDy="1"
-        android:shadowRadius="2" />
+        android:shadowColor="@color/black_light"
+        android:shadowDx="2"
+        android:shadowDy="2"
+        android:shadowRadius="4" />
 
     <ImageView
         android:id="@+id/iv_coin_audio"
-        android:layout_width="22dp"
-        android:layout_height="22dp"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
         android:layout_gravity="bottom|end"
-        android:layout_marginEnd="92dp"
-        android:layout_marginBottom="184dp"
+        android:layout_marginEnd="110dp"
+        android:layout_marginBottom="182dp"
         android:background="@drawable/coin_d"
-        android:visibility="gone" />
+        android:visibility="gone" 
+        tools:ignore="ContentDescription" />
 
     <TextView
         android:id="@+id/tv_audio2"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
-        android:layout_marginEnd="72dp"
-        android:layout_marginBottom="184dp"
+        android:layout_marginEnd="90dp"
+        android:layout_marginBottom="182dp"
         android:fontFamily="@font/poppins_semibold"
         android:text="@string/audio_mins_txt"
         android:textColor="@color/white"
-        android:textSize="14sp"
+        android:textSize="15sp"
         android:visibility="gone"
-        android:shadowColor="@color/purple"
-        android:shadowDx="1"
-        android:shadowDy="1"
-        android:shadowRadius="2" />
+        android:shadowColor="@color/black_light"
+        android:shadowDx="2"
+        android:shadowDy="2"
+        android:shadowRadius="4" />
 
     <TextView
         android:id="@+id/tv_video1"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
-        android:layout_marginEnd="72dp"
+        android:layout_marginEnd="90dp"
         android:layout_marginBottom="128dp"
         android:fontFamily="@font/poppins_semibold"
         android:text="@string/video"
         android:textColor="@color/white"
-        android:textSize="14sp"
+        android:textSize="15sp"
         android:visibility="gone"
-        android:shadowColor="@color/green"
-        android:shadowDx="1"
-        android:shadowDy="1"
-        android:shadowRadius="2" />
+        android:shadowColor="@color/black_light"
+        android:shadowDx="2"
+        android:shadowDy="2"
+        android:shadowRadius="4" />
 
     <ImageView
         android:id="@+id/iv_coin_video"
-        android:layout_width="22dp"
-        android:layout_height="22dp"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
         android:layout_gravity="bottom|end"
-        android:layout_marginEnd="92dp"
-        android:layout_marginBottom="108dp"
+        android:layout_marginEnd="110dp"
+        android:layout_marginBottom="106dp"
         android:background="@drawable/coin_d"
-        android:visibility="gone" />
+        android:visibility="gone" 
+        tools:ignore="ContentDescription" />
 
     <TextView
         android:id="@+id/tv_video2"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
-        android:layout_marginEnd="72dp"
-        android:layout_marginBottom="108dp"
+        android:layout_marginEnd="90dp"
+        android:layout_marginBottom="106dp"
         android:fontFamily="@font/poppins_semibold"
         android:text="60 / min"
         android:textColor="@color/white"
-        android:textSize="14sp"
+        android:textSize="15sp"
         android:visibility="gone"
-        android:shadowColor="@color/green"
-        android:shadowDx="1"
-        android:shadowDy="1"
-        android:shadowRadius="2" />
+        android:shadowColor="@color/black_light"
+        android:shadowDx="2"
+        android:shadowDy="2"
+        android:shadowRadius="4" />
 
     <!-- Floating Action Buttons -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton

@@ -66,19 +66,19 @@ class FemaleAboutActivity : BaseActivity() {
                    // binding.cvEnterYourAge.setBackgroundResource(R.drawable.card_view_border_error)
                     binding.tvEnterYourAgeHint.text =
                         getString(R.string.you_must_be_at_least_18_years_old)
-                    binding.tvEnterYourAgeHint.setTextColor(getColor(android.R.color.white))
+                    binding.tvEnterYourAgeHint.setTextColor(getColor(R.color.Red))
                 } else if (s.toString().isNotEmpty() && s.toString().toInt() > 99) {
                     isValidAge = false
                   //  binding.cvEnterYourAge.setBackgroundResource(R.drawable.card_view_border_error)
                     binding.tvEnterYourAgeHint.text =
                         getString(R.string.you_must_be_below_100_years_old)
-                    binding.tvEnterYourAgeHint.setTextColor(getColor(android.R.color.white))
+                    binding.tvEnterYourAgeHint.setTextColor(getColor(R.color.Red))
                 } else{
                     isValidAge = true
                    // binding.cvEnterYourAge.setBackgroundResource(R.drawable.d_button_bg_user_name)
                     binding.tvEnterYourAgeHint.text =
                         getString(R.string.enter_your_age_hint)
-                    binding.tvEnterYourAgeHint.setTextColor(getColor(R.color.white))
+                    binding.tvEnterYourAgeHint.setTextColor(getColor(R.color.interest_disabled_text_color))
                 }
                 updateButton()
             }

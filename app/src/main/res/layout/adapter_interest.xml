@@ -1,15 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:layout_marginEnd="6dp"
-    android:layout_marginBottom="8dp"
-    app:cardBackgroundColor="#FFFFFF"
-    app:cardCornerRadius="18dp"
+    android:layout_marginEnd="10dp"
+    android:layout_marginBottom="10dp"
+    app:cardBackgroundColor="#F8FAFC"
+    app:cardCornerRadius="24dp"
     app:cardElevation="0dp"
+    app:strokeColor="#CBD5E1"
+    app:strokeWidth="1.5dp"
     tools:context=".activities.LoginActivity">
 
     <LinearLayout
@@ -17,29 +19,29 @@
         android:layout_height="wrap_content"
         android:gravity="center"
         android:orientation="horizontal"
-        android:paddingStart="14dp"
-        android:paddingTop="8dp"
-        android:paddingEnd="14dp"
-        android:paddingBottom="8dp">
+        android:paddingStart="16dp"
+        android:paddingTop="12dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="12dp">
+
+        <ImageView
+            android:id="@+id/iv_interest"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:scaleType="centerCrop"
+            tools:ignore="ContentDescription"
+            tools:src="@drawable/politics" />
 
         <TextView
             android:id="@+id/tv_interest"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
             android:fontFamily="@font/poppins_medium"
             android:text="Politics"
             android:textColor="@color/interest_text_color"
-            android:textSize="12sp" />
-
-        <ImageView
-            android:id="@+id/iv_interest"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:layout_marginStart="5dp"
-            android:scaleType="centerCrop"
-            tools:ignore="ContentDescription"
-            tools:src="@drawable/politics" />
+            android:textSize="14sp" />
 
     </LinearLayout>
 
-</androidx.cardview.widget.CardView>
+</com.google.android.material.card.MaterialCardView>

@@ -4,12 +4,14 @@ xmlns:app="http://schemas.android.com/apk/res-auto"
 xmlns:tools="http://schemas.android.com/tools"
 android:layout_width="match_parent"
 android:layout_height="match_parent"
-android:fillViewport="true">
+android:fillViewport="true"
+android:background="@color/white">
 
 <!-- Put your ConstraintLayout inside -->
 <androidx.constraintlayout.widget.ConstraintLayout
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:background="@color/white">
 
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/gl_left_margin"
@@ -61,94 +63,127 @@ android:fillViewport="true">
         app:tint="@color/green"
      />
 
-    <ImageView
-        android:id="@+id/iv_logo"
-        android:layout_width="@dimen/_28sdp"
-        android:layout_height="@dimen/_28sdp"
-        android:layout_marginStart="24dp"
-        android:layout_marginTop="16dp"
-        android:contentDescription="@string/edit"
-        android:scaleType="fitXY"
-        android:src="@drawable/logo"
-        app:layout_constraintHeight_default="percent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintWidth_default="percent"
-        app:tint="@color/white"
-        tools:ignore="MissingConstraints" />
-
-    <TextView
-        android:id="@+id/tv_logo"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginLeft="8dp"
-        android:fontFamily="monospace"
-        android:text="@string/app_name"
-        android:textColor="@color/white"
-        android:textSize="22sp"
-        android:textStyle="bold"
-        app:layout_constraintBottom_toBottomOf="@+id/iv_logo"
-        app:layout_constraintStart_toEndOf="@+id/iv_logo"
-        app:layout_constraintTop_toTopOf="@+id/iv_logo" />
-
+    <!-- Header Section with gradient or solid color background -->
     <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/cl_coins"
+        android:id="@+id/cl_header"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="12dp"
-        android:background="@drawable/d_button_bg"
-        android:backgroundTint="#FEA6BD"
-        android:paddingVertical="@dimen/_3sdp"
-        android:paddingStart="@dimen/_5sdp"
-        android:paddingEnd="@dimen/_10sdp"
-        app:layout_constraintBottom_toBottomOf="@+id/iv_logo"
+        android:background="@color/grey_extra_light"
+        android:paddingVertical="20dp"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/iv_logo">
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
         <ImageView
-            android:id="@+id/iv_coin"
-            android:layout_width="22dp"
-            android:layout_height="22dp"
+            android:id="@+id/iv_logo"
+            android:layout_width="@dimen/_28sdp"
+            android:layout_height="@dimen/_28sdp"
+            android:layout_marginStart="24dp"
+            android:contentDescription="@string/edit"
             android:scaleType="fitXY"
-            android:src="@drawable/coin_d"
-            android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="parent"
+            android:src="@drawable/logo"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:tint="@color/colorPrimary"
+            tools:ignore="MissingConstraints" />
 
         <TextView
-            android:id="@+id/tv_coins"
-            android:layout_width="0dp"
+            android:id="@+id/tv_logo"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/_2sdp"
+            android:layout_marginLeft="8dp"
             android:fontFamily="@font/poppins_semibold"
-            android:gravity=""
-            android:text="0"
-            android:textColor="@color/white"
-            android:textSize="16sp"
+            android:text="@string/app_name"
+            android:textColor="@color/colorPrimary"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="@+id/iv_logo"
+            app:layout_constraintStart_toEndOf="@+id/iv_logo"
+            app:layout_constraintTop_toTopOf="@+id/iv_logo" />
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/cl_coins"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="20dp"
+            android:background="@drawable/d_button_bg"
+            android:backgroundTint="@color/colorPrimary"
+            android:paddingVertical="8dp"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toEndOf="@+id/iv_coin"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <ImageView
+                android:id="@+id/iv_coin"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:scaleType="fitXY"
+                android:src="@drawable/coin_d"
+                android:visibility="gone"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/tv_coins"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_semibold"
+                android:text="0"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toEndOf="@+id/iv_coin"
+                app:layout_constraintTop_toTopOf="parent" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <androidx.cardview.widget.CardView
         android:id="@+id/cv_call"
         style="@style/CardViewStyle.Spacing"
         android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginTop="40dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:elevation="4dp"
         app:cardBackgroundColor="@color/white"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="2dp"
         app:layout_constraintEnd_toEndOf="@+id/gl_right_margin"
-        app:layout_constraintHeight_default="percent"
-        app:layout_constraintHeight_percent="0.09"
         app:layout_constraintStart_toStartOf="@id/gl_left_margin"
-        app:layout_constraintTop_toBottomOf="@+id/iv_logo">
+        app:layout_constraintTop_toBottomOf="@+id/cl_header">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_margin="6dp"
-            android:orientation="horizontal">
+            android:paddingHorizontal="20dp"
+            android:paddingVertical="20dp">
+
+            <!-- Title -->
+            <TextView
+                android:id="@+id/tv_availability_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Availability Status"
+                android:fontFamily="@font/poppins_semibold"
+                android:textColor="@color/black"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <!-- Divider -->
+            <View
+                android:id="@+id/v_divider_top"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="12dp"
+                android:background="@color/grey_extra_light"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/tv_availability_title" />
 
             <androidx.constraintlayout.widget.Guideline
                 android:id="@+id/gl_center_margin"
@@ -160,21 +195,33 @@ android:fillViewport="true">
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toStartOf="@+id/gl_center_margin"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent">
+                app:layout_constraintTop_toBottomOf="@id/v_divider_top">
+
+                <ImageView
+                    android:id="@+id/iv_audio_icon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_phone_modern"
+                    app:tint="@color/colorAccent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
 
                 <TextView
                     android:id="@+id/tv_audio"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
+                    android:fontFamily="@font/poppins_medium"
                     android:text="@string/audio"
                     android:textColor="@color/black"
-                    android:textSize="18sp"
+                    android:textSize="16sp"
                     app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/iv_audio_icon"
                     app:layout_constraintTop_toTopOf="parent" />
 
                 <androidx.appcompat.widget.SwitchCompat
@@ -182,7 +229,7 @@ android:fillViewport="true">
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_centerInParent="true"
-                    android:layout_margin="10dp"
+                    android:layout_marginStart="8dp"
                     android:thumb="@drawable/thumb_selector"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintEnd_toEndOf="parent"
@@ -194,21 +241,33 @@ android:fillViewport="true">
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toEndOf="@+id/gl_center_margin"
-                app:layout_constraintTop_toTopOf="parent">
+                app:layout_constraintTop_toBottomOf="@id/v_divider_top">
+
+                <ImageView
+                    android:id="@+id/iv_video_icon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_video_modern"
+                    app:tint="@color/green"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
 
                 <TextView
                     android:id="@+id/tv_video"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
+                    android:fontFamily="@font/poppins_medium"
                     android:text="@string/video"
                     android:textColor="@color/black"
-                    android:textSize="18sp"
+                    android:textSize="16sp"
                     app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/iv_video_icon"
                     app:layout_constraintTop_toTopOf="parent" />
 
                 <androidx.appcompat.widget.SwitchCompat
@@ -216,7 +275,7 @@ android:fillViewport="true">
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_centerInParent="true"
-                    android:layout_margin="10dp"
+                    android:layout_marginStart="8dp"
                     android:thumb="@drawable/thumb_selector"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintEnd_toEndOf="parent"
@@ -229,14 +288,20 @@ android:fillViewport="true">
 
     <TextView
         android:id="@+id/tv_disclaimer"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_margin="14dp"
-        android:paddingHorizontal="8dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginHorizontal="20dp"
+        android:padding="12dp"
+        android:background="@drawable/d_button_bg"
+        android:backgroundTint="#FFF3E0"
         android:text=""
-        android:textColor="@color/white"
-        android:textSize="16sp"
-        app:layout_constraintBottom_toTopOf="@id/cv_today_activity"
+        android:textColor="@color/grey_medium"
+        android:fontFamily="@font/poppins_regular"
+        android:textSize="13sp"
+        android:lineSpacingExtra="2dp"
+        app:layout_constraintStart_toStartOf="@id/gl_left_margin"
+        app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
         app:layout_constraintTop_toBottomOf="@id/cv_call" />
 
     <androidx.cardview.widget.CardView
@@ -244,88 +309,170 @@ android:fillViewport="true">
         style="@style/CardViewStyle.Spacing"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="15dp"
+        android:layout_marginTop="16dp"
+        android:elevation="4dp"
         app:cardBackgroundColor="@color/white"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="2dp"
         app:layout_constraintEnd_toEndOf="@+id/gl_right_margin"
         app:layout_constraintStart_toStartOf="@+id/gl_left_margin"
         app:layout_constraintTop_toBottomOf="@+id/tv_disclaimer">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_marginLeft="12dp"
-            android:layout_marginTop="16dp"
-            android:layout_marginRight="12dp"
-            android:layout_marginBottom="16dp"
-            android:orientation="horizontal">
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="20dp"
+            android:paddingVertical="20dp">
 
+            <!-- Title -->
             <TextView
                 android:id="@+id/tv_today_activity"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/todays_activity"
+                android:fontFamily="@font/poppins_semibold"
                 android:textColor="@color/black"
-                android:textSize="20sp"
+                android:textSize="18sp"
                 android:textStyle="bold"
-                android:typeface="monospace"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
+            <!-- Description text -->
             <TextView
-                android:id="@+id/tv_approx_earnings_title"
+                android:id="@+id/tv_activity_desc"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="@string/approx_earnings"
-                android:textColor="@color/black"
-                android:textSize="14sp"
+                android:layout_marginTop="4dp"
+                android:text="Your performance summary for today"
+                android:fontFamily="@font/poppins_regular"
+                android:textColor="@color/grey_medium"
+                android:textSize="12sp"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/tv_today_activity" />
 
-            <TextView
-                android:id="@+id/tv_approx_earnings"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/rupee_text"
-                android:textColor="@color/black"
-                android:textSize="14sp"
-                app:layout_constraintBottom_toBottomOf="@+id/tv_approx_earnings_title"
+            <!-- Divider -->
+            <View
+                android:id="@+id/v_divider_activity"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="16dp"
+                android:background="@color/grey_extra_light"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="@+id/tv_approx_earnings_title" />
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/tv_activity_desc" />
 
+            <!-- Earnings Row with Icon -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/cl_earnings_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:padding="12dp"
+                android:background="@drawable/d_button_bg"
+                android:backgroundTint="#F3F4F6"
+                app:layout_constraintTop_toBottomOf="@id/v_divider_activity">
+
+                <ImageView
+                    android:id="@+id/iv_earnings_icon"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:padding="8dp"
+                    android:background="@drawable/d_button_bg"
+                    android:backgroundTint="#E8F5E9"
+                    android:src="@drawable/coin_d"
+                    app:tint="@color/green"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_approx_earnings_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:text="@string/approx_earnings"
+                    android:fontFamily="@font/poppins_medium"
+                    android:textColor="@color/grey_medium"
+                    android:textSize="14sp"
+                    app:layout_constraintStart_toEndOf="@id/iv_earnings_icon"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_approx_earnings"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="₹0"
+                    android:fontFamily="@font/poppins_semibold"
+                    android:textColor="@color/green"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <!-- Divider -->
             <View
                 android:id="@+id/v_divider"
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:layout_marginStart="2dp"
-                android:layout_marginTop="8dp"
-                android:layout_marginEnd="2dp"
-                android:background="@color/transaction_divider"
+                android:layout_marginTop="16dp"
+                android:background="@color/grey_extra_light"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/tv_approx_earnings_title" />
+                app:layout_constraintTop_toBottomOf="@+id/cl_earnings_row" />
 
-            <TextView
-                android:id="@+id/tv_total_calls_title"
-                android:layout_width="wrap_content"
+            <!-- Total Calls Row with Icon -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/cl_calls_row"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="@string/total_calls"
-                android:textColor="@color/black"
-                android:textSize="14sp"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/v_divider" />
+                android:layout_marginTop="16dp"
+                android:padding="12dp"
+                android:background="@drawable/d_button_bg"
+                android:backgroundTint="#F3F4F6"
+                app:layout_constraintTop_toBottomOf="@id/v_divider">
 
-            <TextView
-                android:id="@+id/tv_total_calls"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="@color/black"
-                android:textSize="14sp"
-                app:layout_constraintBottom_toBottomOf="@+id/tv_total_calls_title"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="@+id/tv_total_calls_title" />
+                <ImageView
+                    android:id="@+id/iv_calls_icon"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:padding="8dp"
+                    android:background="@drawable/d_button_bg"
+                    android:backgroundTint="#FFF3E0"
+                    android:src="@drawable/ic_phone_modern"
+                    app:tint="@color/colorAccent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
 
+                <TextView
+                    android:id="@+id/tv_total_calls_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:text="@string/total_calls"
+                    android:fontFamily="@font/poppins_medium"
+                    android:textColor="@color/grey_medium"
+                    android:textSize="14sp"
+                    app:layout_constraintStart_toEndOf="@id/iv_calls_icon"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
+
+                <TextView
+                    android:id="@+id/tv_total_calls"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:fontFamily="@font/poppins_semibold"
+                    android:textColor="@color/colorAccent"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
 
         </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.cardview.widget.CardView>

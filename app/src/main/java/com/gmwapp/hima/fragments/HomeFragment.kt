@@ -1,14 +1,18 @@
 package com.gmwapp.hima.fragments
 
+import android.animation.ObjectAnimator
 import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.AnimationUtils
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -302,23 +306,30 @@ class HomeFragment : BaseFragment() {
         binding.fabRandom.extend()
         binding.fabAudio.hide()
         binding.fabVideo.hide()
+        
+        // Animations removed as per user request
+        
         binding.fabRandom.setOnSingleClickListener {
             if (!isAllFabVisible) {
                 showDimBackground()
                 binding.fabAudio.show()
                 binding.fabVideo.show()
-                binding.tvAudio1.visibility = View.VISIBLE
-                binding.tvAudio2.visibility = View.VISIBLE
-                binding.tvVideo1.visibility = View.VISIBLE
-                binding.tvVideo2.visibility = View.VISIBLE
-                binding.ivCoinAudio.visibility = View.VISIBLE
-                binding.ivCoinVideo.visibility = View.VISIBLE
+                // Don't show text labels or coin icons
+                // binding.tvAudio1.visibility = View.VISIBLE
+                // binding.tvAudio2.visibility = View.VISIBLE
+                // binding.tvVideo1.visibility = View.VISIBLE
+                // binding.tvVideo2.visibility = View.VISIBLE
+                // binding.ivCoinAudio.visibility = View.VISIBLE
+                // binding.ivCoinVideo.visibility = View.VISIBLE
 
                 // Change the bg color to white when expanded
                 binding.fabRandom.backgroundTintList = resources.getColorStateList(R.color.white)
 
                 // Change the icon tint to black
                 binding.fabRandom.setIconTintResource(R.color.black)
+                
+                // Change text color to black
+                binding.fabRandom.setTextColor(resources.getColor(R.color.black, null))
 
                 // Change the icon to close when expanded
                 binding.fabRandom.setIconResource(R.drawable.ic_close)
@@ -342,11 +353,14 @@ class HomeFragment : BaseFragment() {
 
                 // Reset the icon tint to white
                 binding.fabRandom.setIconTintResource(R.color.white)
+                
+                // Reset text color to white
+                binding.fabRandom.setTextColor(resources.getColor(R.color.white, null))
 
                 // Change the icon to random when collapsed
                 binding.fabRandom.setIconResource(R.drawable.random)
                 binding.fabRandom.extend()
-
+                
                 isAllFabVisible = false
             }
         }
