@@ -35,6 +35,7 @@ import android.view.Window
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.ImageView
+import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
@@ -258,8 +259,6 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         }
 
 
-
-        window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
 
         Glide.with(this)
             .load(R.drawable.gift_png)
@@ -1172,9 +1171,151 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     private fun endcallBtn() {
       binding.btnEndCall.setOnSingleClickListener {
-          leaveChannel(binding.LeaveButton)
-
+          showEndCallConfirmationDialog()
       }
+    }
+    
+    private fun showEndCallConfirmationDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_end_call_confirmation, null)
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+        
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        
+        val btnCancel = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_cancel_end_call)
+        val btnConfirm = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_confirm_end_call)
+        
+        btnCancel.setOnClickListener {
+            dialog.dismiss()
+        }
+        
+        btnConfirm.setOnClickListener {
+            dialog.dismiss()
+            leaveChannel(binding.LeaveButton)
+        }
+        
+        dialog.show()
+    }
+    
+    private fun showSwitchVideoDialog(totalSeconds: Int) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_switch_video, null)
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+        
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        
+        val btnNo = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_dialog_no)
+        val btnYes = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_dialog_yes)
+        
+        btnNo.setOnClickListener {
+            dialog.dismiss()
+        }
+        
+        btnYes.setOnClickListener {
+            dialog.dismiss()
+            // Show toast message
+            if (totalSeconds > 360) {
+                if (switchCallID == 0) {
+                    Toast.makeText(this, "Try Again", Toast.LENGTH_SHORT).show()
+                } else {
+                    sendSwitchCallRequestNotification(
+                        maleUserId,
+                        receiverId,
+                        "video",
+                        "switchToVideo $switchCallID"
+                    )
+                    Toast.makeText(
+                        this,
+                        "Video session request sent",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } else {
+                Toast.makeText(
+                    this,
+                    "You don't have enough coins",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+        
+        dialog.show()
+    }
+    
+    private fun showIncomingSwitchVideoRequest(userid: Int?, requesterName: String): AlertDialog {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_switch_video, null)
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+        
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        
+        val tvMessage = dialogView.findViewById<TextView>(R.id.tv_dialog_message)
+        tvMessage.text = "$requesterName requested for video session"
+        
+        val btnNo = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_dialog_no)
+        val btnYes = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_dialog_yes)
+        
+        btnNo.text = "Decline"
+        btnYes.text = "Accept"
+        
+        btnNo.setOnClickListener {
+            userid?.let {
+                sendCallAcceptNotification(
+                    it,
+                    receiverId,
+                    "video",
+                    "SwitchDeclined"
+                )
+            }
+            dialog.dismiss()
+            FcmUtils.clearCallSwitch()
+        }
+        
+        btnYes.setOnClickListener {
+            val remainingTime = binding.tvRemainingTime?.text.toString()
+            val timeParts = remainingTime.split(":").map { it.toInt() }
+            
+            if (timeParts.size == 3) {
+                val hours = timeParts[0]
+                val minutes = timeParts[1]
+                val seconds = timeParts[2]
+                val totalSeconds = (hours * 3600) + (minutes * 60) + seconds
+                
+                if (totalSeconds > 360) {
+                    if (userid != null && switchCallID != 0) {
+                        Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
+                        sendCallAcceptNotification(
+                            userid,
+                            receiverId,
+                            "video",
+                            "VideoAccepted"
+                        )
+                        FcmUtils.clearCallSwitch()
+                        stopCountdown()
+                        isSwitchingToVideo = false
+                        enableVideoCall()
+                    }
+                } else {
+                    Toast.makeText(
+                        this,
+                        "$requesterName don't have enough coins",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    FcmUtils.clearCallSwitch()
+                }
+            }
+            dialog.dismiss()
+        }
+        
+        dialog.setOnDismissListener { switchDialog = null }
+        dialog.show()
+        return dialog
     }
 
     private fun handleCallSwitch() {
@@ -1221,45 +1362,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                     val totalSeconds = (hours * 3600) + (minutes * 60) + seconds
 
 
-                    AlertDialog.Builder(this)
-                        .setTitle("Want to Switch to Video Session?")
-                        .setPositiveButton("Yes") { _, _ ->
-                            // Show toast message
-                            if (totalSeconds > 360) {
-                                if (switchCallID == 0) {
-                                    Toast.makeText(this, "Try Again", Toast.LENGTH_SHORT).show()
-
-                                } else {
-                                    sendSwitchCallRequestNotification(
-                                        maleUserId,
-                                        receiverId,
-                                        "video",
-                                        "switchToVideo $switchCallID"
-                                    )
-                                    Toast.makeText(
-                                        this,
-                                        "Video session request sent",
-                                        Toast.LENGTH_SHORT
-                                    )
-                                        .show()
-                                }
-
-                            } else {
-                                Toast.makeText(
-                                    this,
-                                    "You don’t have enough coins",
-                                    Toast.LENGTH_SHORT
-                                )
-                                    .show()
-
-                            }
-
-
-                        }
-                        .setNegativeButton("No") { dialog, _ ->
-                            dialog.dismiss()
-                        }
-                        .show()
+                    showSwitchVideoDialog(totalSeconds)
                 }
 
 
@@ -1503,75 +1606,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                     switchCallID = newCallId
                     switchDialog?.dismiss()
 
-                    switchDialog = AlertDialog.Builder(this)
-                        .setTitle("Switch to Video Session ?")
-                        .setMessage("$receiverName requested for video session")
-                        .setPositiveButton("Confirm") { _, _ ->
-
-
-                            val remainingTime =
-                                binding.tvRemainingTime?.text.toString() // Get the current countdown time
-                            val timeParts = remainingTime.split(":").map { it.toInt() }
-
-
-                            if (timeParts.size == 3) {  // Ensure we have HH:MM:SS format
-                                val hours = timeParts[0]
-                                val minutes = timeParts[1]
-                                val seconds = timeParts[2]
-
-                                val totalSeconds = (hours * 3600) + (minutes * 60) + seconds
-
-
-                                if (totalSeconds > 360) {
-                                    if (userid != null && switchCallID != 0) {
-                                        Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
-
-                                        sendCallAcceptNotification(
-                                            userid,
-                                            receiverId,
-                                            "video",
-                                            "VideoAccepted"
-                                        )
-                                        FcmUtils.clearCallSwitch()
-                                        Log.d("NewCallID", "$newCallId")
-                                        stopCountdown()
-                                        isSwitchingToVideo = false
-                                        enableVideoCall()
-                                    }
-                                } else {
-                                    Toast.makeText(
-                                        this,
-                                        "$receiverName don't have enough coins",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                    FcmUtils.clearCallSwitch()
-
-                                }
-
-
-                            }
-
-
-                        }
-                        .setNegativeButton("Decline") { dialog, _ ->
-                            // Dismiss dialog if No is clicked
-
-                            userid?.let {
-                                sendCallAcceptNotification(
-                                    it,
-                                    receiverId,
-                                    "video",
-                                    "SwitchDeclined"
-                                )
-                            }
-                            dialog.dismiss()
-                            FcmUtils.clearCallSwitch()
-
-
-                        }
-                        .setOnDismissListener { switchDialog = null }  // Reset when dismissed
-
-                        .show()
+                    switchDialog = showIncomingSwitchVideoRequest(userid, receiverName)
 
                 }}
 

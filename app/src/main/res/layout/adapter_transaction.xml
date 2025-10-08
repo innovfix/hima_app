@@ -1,98 +1,125 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="@dimen/_10sdp"
-    tools:context=".activities.LoginActivity">
+    android:layout_marginStart="16dp"
+    android:layout_marginEnd="16dp"
+    android:layout_marginTop="6dp"
+    android:layout_marginBottom="6dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="2dp"
+    app:strokeWidth="0dp"
+    android:backgroundTint="@android:color/white">
 
-
-    <ImageView
-        android:id="@+id/iv_Tick"
-        android:layout_width="22dp"
-        android:layout_height="22dp"
-        android:src="@drawable/tick_svg"
-        app:layout_constraintStart_toStartOf="parent"
-        android:layout_marginTop="@dimen/_6sdp"
-        app:layout_constraintTop_toTopOf="parent"
-        tools:ignore="ContentDescription" />
-
-    <TextView
-        android:layout_marginLeft="@dimen/_4sdp"
-        android:id="@+id/tv_transaction_title"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="xxx"
-        android:textSize="@dimen/_12sdp"
-        android:fontFamily="@font/poppins_semibold"
-        app:layout_constraintStart_toEndOf="@+id/iv_Tick"
-        app:layout_constraintTop_toTopOf="parent"
-        android:textColor="@color/black_light"/>
-
-    <TextView
-        android:id="@+id/tv_transaction_date"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:fontFamily="@font/poppins_medium"
-        android:text="xxx"
-        android:textColor="#979797"
-        android:textSize="12sp"
-        app:layout_constraintEnd_toStartOf="@+id/iv_transaction"
-        app:layout_constraintStart_toStartOf="@+id/tv_transaction_title"
-        app:layout_constraintTop_toBottomOf="@+id/tv_transaction_title" />
-    <TextView
-        android:visibility="gone"
-        android:id="@+id/tv_transaction_hint"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="xxx"
-        android:textSize="10sp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/iv_transaction"
-        app:layout_constraintTop_toBottomOf="@+id/tv_transaction_date"
-        android:textColor="#97989c"/>
-
-    <View
-        android:id="@+id/v_divider"
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@color/divider"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_goneMarginTop="8dp"
-        app:layout_constraintTop_toBottomOf="@+id/tv_transaction_hint"
-        android:layout_gravity="center_vertical"
-        android:layout_marginStart="2dp"
-        android:layout_marginEnd="2dp"
-        android:layout_marginTop="17dp"
-        android:layout_marginBottom="17dp"/>
-
-    <TextView
-        android:id="@+id/tv_coins"
-        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="XXX"
-        android:gravity="center"
-        android:textSize="18sp"
-        android:paddingLeft="3dp"
-        android:paddingTop="5dp"
-        android:layout_marginRight="4dp"
-        android:fontFamily="@font/poppins_medium"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tv_transaction_title"
-        app:layout_constraintBottom_toBottomOf="@+id/tv_transaction_hint"
-        android:textColor="@color/transaction_text_color"/>
+        android:padding="14dp">
 
-    <ImageView
-        android:id="@+id/iv_transaction"
-        android:layout_width="26dp"
-        android:layout_height="26dp"
-        android:src="@drawable/coin_d"
-        app:layout_constraintEnd_toStartOf="@+id/tv_coins"
-        app:layout_constraintTop_toBottomOf="@+id/tv_transaction_title"
-        app:layout_constraintBottom_toBottomOf="@+id/tv_transaction_hint"
-        tools:ignore="ContentDescription" />
+        <!-- Transaction Icon Background -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cv_icon_background"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            app:cardCornerRadius="22dp"
+            app:cardElevation="0dp"
+            app:cardBackgroundColor="#F8F9FA"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
 
+            <ImageView
+                android:id="@+id/iv_transaction_icon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_wallet_add"
+                android:contentDescription="@string/edit" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- Transaction Title -->
+        <TextView
+            android:id="@+id/tv_transaction_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="8dp"
+            android:text="Audio session with Akhila076"
+            android:textSize="14sp"
+            android:fontFamily="@font/poppins_semibold"
+            android:textColor="#1F2937"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintStart_toEndOf="@+id/cv_icon_background"
+            app:layout_constraintEnd_toStartOf="@+id/iv_coin"
+            app:layout_constraintTop_toTopOf="@+id/cv_icon_background"
+            app:layout_constraintHorizontal_bias="0" />
+
+        <!-- Transaction Date/Time and Duration -->
+        <TextView
+            android:id="@+id/tv_transaction_date"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="Oct 07 · 22 sec"
+            android:textSize="12sp"
+            android:fontFamily="@font/poppins_regular"
+            android:textColor="#6B7280"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintStart_toStartOf="@+id/tv_transaction_title"
+            app:layout_constraintEnd_toStartOf="@+id/iv_coin"
+            app:layout_constraintTop_toBottomOf="@+id/tv_transaction_title"
+            app:layout_constraintBottom_toBottomOf="@+id/cv_icon_background" />
+
+        <!-- Transaction Hint (Session ID) - Hidden by default -->
+        <TextView
+            android:id="@+id/tv_transaction_hint"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:text="Session ID: 12345"
+            android:textSize="10sp"
+            android:fontFamily="@font/poppins_regular"
+            android:textColor="#9CA3AF"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintStart_toStartOf="@+id/tv_transaction_date"
+            app:layout_constraintEnd_toStartOf="@+id/iv_coin"
+            app:layout_constraintTop_toBottomOf="@+id/tv_transaction_date" />
+
+        <!-- Coin Icon -->
+        <ImageView
+            android:id="@+id/iv_coin"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:src="@drawable/coin_d"
+            android:layout_marginEnd="4dp"
+            app:layout_constraintEnd_toStartOf="@+id/tv_coins"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            android:contentDescription="@string/edit" />
+
+        <!-- Coins Amount -->
+        <TextView
+            android:id="@+id/tv_coins"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="-10"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:fontFamily="@font/poppins_bold"
+            android:textColor="#EF4444"
+            android:minWidth="50dp"
+            android:gravity="end"
+            android:maxLines="1"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</com.google.android.material.card.MaterialCardView>

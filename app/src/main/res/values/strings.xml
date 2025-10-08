@@ -85,8 +85,8 @@
     <string name="continue_text">Continue</string>
     <string name="personalise_yourself_hint">Pick your gender and avatar to make your profile unique</string>
     <string name="gender_change_warning">Gender can\'t be changed later</string>
-    <string name="language_you_speak">Language you speak</string>
-    <string name="language_hint">Find friends who speak your language. Please select one.</string>
+    <string name="language_you_speak">Choose your language</string>
+    <string name="language_hint">Select your preferred language to connect with others</string>
     <string name="hindi">Hindi</string>
     <string name="telugu">Telugu</string>
     <string name="malayalam">Malayalam</string>
@@ -152,7 +152,13 @@
     <string name="submit">Submit</string>
     <string name="release_to_stop">Release to stop</string>
     <string name="almost_done">Almost done...</string>
+    <string name="almost_done_subtitle">Your profile is under review</string>
+    <string name="what_happens_next">What happens next?</string>
     <string name="almost_done_hint">Our team will reach out to you within 24hrs via phone call. This is to explain about safety procedures on the platform.</string>
+    <string name="verification_call_info">You will receive a verification call from our team</string>
+    <string name="safety_procedures_info">We will explain safety procedures and platform guidelines</string>
+    <string name="response_time_info">Expect our call within 24 hours</string>
+    <string name="processing_application">Processing your application...</string>
     <string name="for_any_queries">"For any queries please contact "</string>
     <string name="earnings">Earnings</string>
     <string name="current_balance">Current balance</string>

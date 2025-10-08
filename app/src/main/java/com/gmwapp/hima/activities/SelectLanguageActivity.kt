@@ -48,8 +48,8 @@ class SelectLanguageActivity : BaseActivity() {
     }
 
     private fun initUI() {
-        val layoutManager = GridLayoutManager(this, 2)
-        binding.rvLanguages.addItemDecoration(SpacesItemDecoration(20))
+        val layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
+        binding.rvLanguages.layoutManager = layoutManager
         binding.ivBack.setOnSingleClickListener {
             finish()
         }
@@ -152,7 +152,6 @@ class SelectLanguageActivity : BaseActivity() {
                 )
             }
         }
-        binding.rvLanguages.setLayoutManager(layoutManager)
         val interestsListAdapter = LanguageAdapter(this, arrayListOf(
             Language(getString(R.string.hindi), R.drawable.hindi, false),
             Language(getString(R.string.telugu), R.drawable.telugu, false),

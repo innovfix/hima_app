@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Glassmorphism Style Bottom Navigation Background -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- Blur Background Effect (simulated with gradient) -->
+    <item 
+        android:top="-8dp" 
+        android:left="-8dp" 
+        android:right="-8dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#20FF1381" />
+            <corners
+                android:topLeftRadius="36dp"
+                android:topRightRadius="36dp" />
+        </shape>
+    </item>
+    
+    <!-- Frosted Glass Effect -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#E6FFFFFF" /> <!-- 90% opacity white -->
+            
+            <corners
+                android:topLeftRadius="32dp"
+                android:topRightRadius="32dp" />
+        </shape>
+    </item>
+    
+    <!-- Glass Shine Effect -->
+    <item 
+        android:top="0dp"
+        android:height="24dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="90"
+                android:startColor="#40FFFFFF"
+                android:centerColor="#10FFFFFF"
+                android:endColor="#00FFFFFF"
+                android:type="linear" />
+            
+            <corners
+                android:topLeftRadius="32dp"
+                android:topRightRadius="32dp" />
+        </shape>
+    </item>
+    
+    <!-- Border -->
+    <item>
+        <shape android:shape="rectangle">
+            <stroke
+                android:width="1dp"
+                android:color="#80FFFFFF" />
+            
+            <corners
+                android:topLeftRadius="32dp"
+                android:topRightRadius="32dp" />
+        </shape>
+    </item>
+    
+</layer-list>
+

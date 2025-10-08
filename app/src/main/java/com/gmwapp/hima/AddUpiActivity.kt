@@ -62,6 +62,7 @@ class AddUpiActivity : AppCompatActivity() {
         llProgress.visibility = View.GONE
         llStatus.visibility = View.GONE
         btnVerify.isEnabled = false
+        btnVerify.alpha = 0.5f
     }
 
     private fun setupListeners() {
@@ -73,7 +74,16 @@ class AddUpiActivity : AppCompatActivity() {
 
         etUpiId.addTextChangedListener(SimpleTextWatcher {
             val upi = etUpiId.text?.toString()?.trim().orEmpty()
-            btnVerify.isEnabled = isValidUpiId(upi)
+            val isValid = isValidUpiId(upi)
+            btnVerify.isEnabled = isValid
+            // Update button appearance for enabled/disabled state
+            if (isValid) {
+                btnVerify.alpha = 1.0f
+                btnVerify.setBackgroundResource(R.drawable.gradient_pink)
+            } else {
+                btnVerify.alpha = 0.5f
+                btnVerify.setBackgroundResource(R.drawable.gradient_pink)
+            }
             if (llStatus.visibility == View.VISIBLE) llStatus.visibility = View.GONE
         })
 
@@ -93,6 +103,7 @@ class AddUpiActivity : AppCompatActivity() {
             }
 
             btnVerify.isEnabled = false
+            btnVerify.alpha = 0.5f
             llProgress.visibility = View.VISIBLE
             upiViewModel.updatedUpi(userId, upiId)
         }
@@ -121,6 +132,7 @@ class AddUpiActivity : AppCompatActivity() {
             } else {
                 showStatus(success = false, message = response?.message ?: "Invalid UPI ID")
                 btnVerify.isEnabled = true
+                btnVerify.alpha = 1.0f
             }
         }
 

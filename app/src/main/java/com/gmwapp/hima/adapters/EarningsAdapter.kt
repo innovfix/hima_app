@@ -35,15 +35,21 @@ class EarningsAdapter(
         when (earning.status) {
             0 -> {
                 holder.binding.tvStatus.text = activity.getString(R.string.pending)
-                holder.binding.tvStatus.setTextColor(activity.getColor(R.color.colorAccent))
+                holder.binding.tvStatus.setTextColor(activity.getColor(R.color.yellow_dark))
+                holder.binding.tvStatus.setBackgroundResource(R.drawable.status_badge_pending)
+                holder.binding.vStatusIndicator.setBackgroundResource(R.drawable.status_indicator_pending)
             }
             1 -> {
                 holder.binding.tvStatus.text = activity.getString(R.string.paid)
-                holder.binding.tvStatus.setTextColor(activity.getColor(android.R.color.holo_green_dark))
+                holder.binding.tvStatus.setTextColor(activity.getColor(R.color.green))
+                holder.binding.tvStatus.setBackgroundResource(R.drawable.status_badge_success)
+                holder.binding.vStatusIndicator.setBackgroundResource(R.drawable.status_indicator_success)
             }
             else -> {
                 holder.binding.tvStatus.text = activity.getString(R.string.cancelled)
-                holder.binding.tvStatus.setTextColor(activity.getColor(android.R.color.holo_red_dark))
+                holder.binding.tvStatus.setTextColor(activity.getColor(R.color.Red))
+                holder.binding.tvStatus.setBackgroundResource(R.drawable.status_badge_error)
+                holder.binding.vStatusIndicator.setBackgroundResource(R.drawable.status_indicator_error)
                 if (earning.reason.isNotEmpty() && earning.reason!=null){
                     holder.binding.tvReason.visibility = View.VISIBLE
                     holder.binding.tvReason.text = "Reason : ${earning.reason}"

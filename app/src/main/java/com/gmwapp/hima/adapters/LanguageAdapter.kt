@@ -1,7 +1,9 @@
 package com.gmwapp.hima.adapters
 
 import android.app.Activity
+import android.content.res.ColorStateList
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.gmwapp.hima.R
@@ -17,6 +19,25 @@ class LanguageAdapter(
     val onItemSelectionListener: OnItemSelectionListener<Language>
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
+    // Map native scripts for each language
+    private val nativeScripts = mapOf(
+        "Hindi" to "हिं",
+        "Telugu" to "తె",
+        "Malayalam" to "മ",
+        "Kannada" to "ಕ",
+        "Punjabi" to "ਪੰ",
+        "Tamil" to "த"
+    )
+
+    private val nativeNames = mapOf(
+        "Hindi" to "हिंदी",
+        "Telugu" to "తెలుగు",
+        "Malayalam" to "മലയാളം",
+        "Kannada" to "ಕನ್ನಡ",
+        "Punjabi" to "ਪੰਜਾਬੀ",
+        "Tamil" to "தமிழ்"
+    )
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val itemHolder = ItemHolder(
             AdapterLanguageBinding.inflate(
@@ -30,36 +51,28 @@ class LanguageAdapter(
         val holder: ItemHolder = holderParent as ItemHolder
         val language: Language = languages[position]
 
-
-
-        //  holder.binding.tvLanguage.text different color based on position
-        if (position  == 0) {
-            holder.binding.tvLanguage.setTextColor(activity.resources.getColor(R.color.Hindi))
-        }
-        else if (position  == 1) {
-            holder.binding.tvLanguage.setTextColor(activity.resources.getColor(R.color.Telungu))
-        }
-        else if (position  == 2) {
-            holder.binding.tvLanguage.setTextColor(activity.resources.getColor(R.color.Malayalam))
-        }
-        else if (position  == 3) {
-            holder.binding.tvLanguage.setTextColor(activity.resources.getColor(R.color.Kanadam))
-        }
-        else if (position  == 4) {
-            holder.binding.tvLanguage.setTextColor(activity.resources.getColor(R.color.Punjabi))
-        }
-        else if (position  == 5) {
-            holder.binding.tvLanguage.setTextColor(activity.resources.getColor(R.color.Tamil))
-        }
-
-
+        // Set language name
         holder.binding.tvLanguage.text = language.name
-        holder.binding.ivLanguage.setImageResource(language.image)
+        
+        // Set native script and name
+        holder.binding.ivLanguage.text = nativeScripts[language.name] ?: language.name.substring(0, 1)
+        holder.binding.tvLanguageSubtitle.text = nativeNames[language.name] ?: language.name
+
+        // Update selection state
         if (language.isSelected == true) {
-            holder.binding.main.setBackgroundResource(R.drawable.d_button_bg_language_selected)
+            // Selected state
+            holder.binding.main.setStrokeColor(ColorStateList.valueOf(activity.getColor(R.color.colorAccent)))
+            holder.binding.main.strokeWidth = 6
+            holder.binding.main.setCardBackgroundColor(activity.getColor(R.color.white))
+            holder.binding.ivCheck.visibility = View.VISIBLE
         } else {
-            holder.binding.main.setBackgroundResource(R.drawable.d_button_bg_language)
+            // Unselected state
+            holder.binding.main.setStrokeColor(ColorStateList.valueOf(activity.getColor(R.color.divider)))
+            holder.binding.main.strokeWidth = 3
+            holder.binding.main.setCardBackgroundColor(activity.getColor(R.color.white))
+            holder.binding.ivCheck.visibility = View.GONE
         }
+
         holder.binding.main.setOnSingleClickListener {
             onItemSelectionListener.onItemSelected(language)
             languages.onEach { it.isSelected = false }

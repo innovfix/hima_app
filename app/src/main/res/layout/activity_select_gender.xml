@@ -1,215 +1,258 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/bg_gradiend"
+    android:background="@color/grey_extra_light"
     tools:context=".activities.LoginActivity">
 
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_left_margin"
-        android:layout_width="wrap_content"
+    <!-- Gradient Header Section -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        app:layout_constraintGuide_percent="0.03" />
-
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_right_margin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        app:layout_constraintGuide_percent="0.96" />
-
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_top_margin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        app:layout_constraintGuide_percent="0.19" />
-
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_back_top_margin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        app:layout_constraintGuide_percent="0.02" />
-
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_gender_margin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        app:layout_constraintGuide_percent="0.275" />
-
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/gl_bottom_margin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        app:layout_constraintGuide_percent="0.92" />
-
-    <ImageView
-        android:id="@+id/iv_back"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        app:layout_constraintWidth_default="percent"
-        app:layout_constraintWidth_percent="0.05"
-        app:layout_constraintHeight_default="percent"
-        app:layout_constraintHeight_percent="0.02"
-        android:contentDescription="@string/account_privacy"
-        android:rotation="180"
-        android:layout_marginTop="10dp"
-        android:src="@drawable/right_arrow"
-        app:layout_constraintStart_toStartOf="@id/gl_left_margin"
-        app:layout_constraintTop_toTopOf="@+id/gl_back_top_margin"
-        app:tint="#feffff"
-        tools:ignore="MissingConstraints" />
-
-    <TextView
-        android:id="@+id/tv_personalise"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/personalise_yourself"
-        android:textColor="#fffefb"
-        android:textSize="26sp"
-        app:layout_constraintBottom_toBottomOf="@+id/iv_back"
-        app:layout_constraintStart_toEndOf="@+id/gl_left_margin"
-        app:layout_constraintTop_toTopOf="@+id/gl_top_margin" />
-
-
-    <TextView
-        android:id="@+id/tv_pick_your_gender"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="@string/personalise_yourself_hint"
-        android:textColor="@color/white"
-        android:layout_marginTop="10dp"
-        android:textSize="16sp"
-        app:layout_constraintTop_toBottomOf="@+id/tv_personalise"
-        app:layout_constraintStart_toEndOf="@+id/gl_left_margin"
-        app:layout_constraintEnd_toEndOf="@id/gl_right_margin" />
-
-    <androidx.cardview.widget.CardView
-        android:id="@+id/cv_gender"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginTop="8dp"
-        android:background="@drawable/d_button_bg_gender_outline"
-        app:cardCornerRadius="10dp"
-        app:cardElevation="2dp"
-        app:layout_constraintWidth_default="percent"
-        app:layout_constraintWidth_percent="0.65"
-        app:layout_constraintHeight_default="percent"
-        app:layout_constraintHeight_percent="0.062"
-        app:layout_constraintStart_toEndOf="@+id/gl_left_margin"
-        app:layout_constraintEnd_toEndOf="@+id/gl_right_margin"
-        app:layout_constraintTop_toBottomOf="@+id/gl_gender_margin">
+        android:background="@drawable/bg_gradiend"
+        android:elevation="0dp"
+        app:elevation="0dp">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="horizontal">
+            android:layout_height="wrap_content"
+            android:paddingBottom="24dp">
 
-            <androidx.constraintlayout.widget.Guideline
-                android:id="@+id/gl_gender_left_margin"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                app:layout_constraintGuide_percent="0.015" />
-            <androidx.constraintlayout.widget.Guideline
-                android:id="@+id/gl_gender_right_margin"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                app:layout_constraintGuide_percent="0.985" />
-
-            <com.gmwapp.hima.widgets.DButton
-                android:id="@+id/btn_male"
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:textAllCaps="false"
-                app:layout_constraintHeight_default="percent"
-                app:layout_constraintHeight_percent="0.85"
-                app:layout_constraintWidth_default="percent"
-                app:layout_constraintWidth_percent="0.5"
-                android:enabled="false"
-                app:layout_constraintStart_toStartOf="@id/gl_gender_left_margin"
+            <!-- Back Button -->
+            <ImageView
+                android:id="@+id/iv_back"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_margin="16dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/account_privacy"
+                android:padding="8dp"
+                android:rotation="180"
+                android:src="@drawable/right_arrow"
+                app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent"
-                android:background="@drawable/d_button_bg_gender_selected"
-                android:text="@string/male"
-                android:textSize="14sp"
-                android:fontFamily="@font/poppins_medium"
-                android:textColor="@color/colorPrimaryDark"/>
+                app:tint="@color/white" />
 
-            <com.gmwapp.hima.widgets.DButton
-                android:id="@+id/btn_female"
+            <!-- Title Section -->
+            <LinearLayout
                 android:layout_width="0dp"
-                android:layout_height="0dp"
-                app:layout_constraintHeight_default="percent"
-                app:layout_constraintHeight_percent="0.85"
-                app:layout_constraintWidth_default="percent"
-                app:layout_constraintWidth_percent="0.5"
-                android:textAllCaps="false"
-                android:background="@android:color/transparent"
-                app:layout_constraintEnd_toEndOf="@id/gl_gender_right_margin"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent"
-                android:text="@string/female"
-                android:textSize="14sp"
-                android:fontFamily="@font/poppins_medium"
-                android:textColor="@color/white"/>
+                android:layout_height="wrap_content"
+                android:layout_marginTop="40dp"
+                android:layout_marginStart="24dp"
+                android:layout_marginEnd="24dp"
+                android:layout_marginBottom="16dp"
+                android:orientation="vertical"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/iv_back">
 
+                <TextView
+                    android:id="@+id/tv_personalise"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="6dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:text="Set up your profile"
+                    android:textColor="@color/white"
+                    android:textSize="26sp" />
+
+                <TextView
+                    android:id="@+id/tv_pick_your_gender"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/poppins_regular"
+                    android:text="Choose your gender and avatar to get started"
+                    android:textColor="@color/pink_extra_light"
+                    android:textSize="14sp" />
+            </LinearLayout>
         </androidx.constraintlayout.widget.ConstraintLayout>
-    </androidx.cardview.widget.CardView>
+    </com.google.android.material.appbar.AppBarLayout>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rv_avatars"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHeight_default="percent"
-        app:layout_constraintHeight_percent="0.31"
-        android:layout_marginTop="40dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/cv_gender" />
+    <!-- Main Content -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingHorizontal="20dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="80dp"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-    <TextView
-        android:id="@+id/tv_gender_hint"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/gender_change_warning"
-        android:textColor="@color/white"
-        android:fontFamily="@font/poppins_regular"
-        android:textSize="12sp"
-        android:layout_marginBottom="12dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@+id/btn_continue" />
+            <!-- Gender Selection Label -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:fontFamily="@font/poppins_semibold"
+                android:text="I am a"
+                android:textColor="@color/colorAccent"
+                android:textSize="15sp" />
 
+            <!-- Gender Cards -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="20dp"
+                android:orientation="horizontal"
+                android:weightSum="2">
 
+                <!-- Male Card -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cv_male"
+                    android:layout_width="0dp"
+                    android:layout_height="120dp"
+                    android:layout_marginEnd="8dp"
+                    android:layout_weight="1"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground"
+                    app:cardBackgroundColor="@color/white"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="2dp"
+                    app:strokeColor="@color/colorAccent"
+                    app:strokeWidth="2dp">
 
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="16dp">
 
+                        <TextView
+                            android:id="@+id/icon_male"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:layout_marginBottom="8dp"
+                            android:background="@drawable/circle_bg_accent"
+                            android:gravity="center"
+                            android:text="♂"
+                            android:textColor="@color/white"
+                            android:textSize="28sp" />
+
+                        <TextView
+                            android:id="@+id/btn_male"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/poppins_semibold"
+                            android:text="@string/male"
+                            android:textColor="@color/colorAccent"
+                            android:textSize="15sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Female Card -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cv_female"
+                    android:layout_width="0dp"
+                    android:layout_height="120dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground"
+                    app:cardBackgroundColor="@color/white"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="2dp"
+                    app:strokeColor="@color/divider"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:id="@+id/icon_female"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:layout_marginBottom="8dp"
+                            android:background="@drawable/circle_bg_grey"
+                            android:gravity="center"
+                            android:text="♀"
+                            android:textColor="@color/grey_medium"
+                            android:textSize="28sp" />
+
+                        <TextView
+                            android:id="@+id/btn_female"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/poppins_semibold"
+                            android:text="@string/female"
+                            android:textColor="@color/grey_medium"
+                            android:textSize="15sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+            <!-- Avatar Selection Label -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:fontFamily="@font/poppins_semibold"
+                android:text="Pick your avatar"
+                android:textColor="@color/colorAccent"
+                android:textSize="15sp" />
+
+            <!-- Avatar RecyclerView -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_avatars"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:clipToPadding="false" />
+
+            <!-- Warning Text -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:background="@drawable/info_bg"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:padding="10dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:text="ℹ"
+                    android:textColor="@color/colorAccent"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:id="@+id/tv_gender_hint"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/poppins_regular"
+                    android:text="@string/gender_change_warning"
+                    android:textColor="@color/colorAccent"
+                    android:textSize="11sp" />
+            </LinearLayout>
+    </LinearLayout>
+
+    <!-- Floating Continue Button -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_continue"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        app:layout_constraintHeight_default="percent"
-        app:layout_constraintHeight_percent="0.08"
-        android:layout_marginBottom="24dp"
-        android:textAllCaps="false"
-        app:layout_constraintTop_toTopOf="@+id/gl_bottom_margin"
-        app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
-        android:fontFamily="@font/poppins_medium"
+        android:layout_width="match_parent"
+        android:layout_height="54dp"
+        android:layout_gravity="bottom"
+        android:layout_margin="20dp"
+        android:fontFamily="@font/poppins_semibold"
         android:text="@string/continue_text"
-        android:textSize="14sp"
-        app:cornerRadius="@dimen/_18sdp"
-        android:textColor="@color/button_text_color"
-        app:layout_constraintBottom_toBottomOf="parent"
-        android:backgroundTint="@color/button_background_tint"
-        app:layout_constraintStart_toStartOf="@id/gl_left_margin"
-        />
+        android:textAllCaps="false"
+        android:textColor="@color/white"
+        android:textSize="15sp"
+        app:backgroundTint="@color/colorAccent"
+        app:cornerRadius="12dp"
+        app:elevation="6dp" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

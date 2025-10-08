@@ -11,7 +11,6 @@ import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.resource.bitmap.RoundedCorners
 import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.R
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
@@ -47,15 +46,13 @@ class FemaleUserAdapter(
     override fun onBindViewHolder(holderParent: RecyclerView.ViewHolder, position: Int) {
         val holder: ItemHolder = holderParent as ItemHolder
         val femaleUser: FemaleUsersResponseData = femaleUsers[position]
+        
+        // Load profile image
         Glide.with(activity)
             .load(femaleUser.image)
-            .apply(RequestOptions.bitmapTransform(RoundedCorners(28)))
             .into(holder.binding.ivProfile)
 
-        Log.d("FemaleName", "${femaleUser.name} audio ${femaleUser.audio_status   } video ${femaleUser.video_status}")
-
-        Log.d("created_at","${femaleUser.created_at}")
-
+        Log.d("FemaleName", "${femaleUser.name} audio ${femaleUser.audio_status} video ${femaleUser.video_status}")
 
         val userRegisterDate = if (!femaleUser.verified_datetime.isNullOrBlank()) {
             getDayDifferenceLabel(femaleUser.verified_datetime)
@@ -73,14 +70,17 @@ class FemaleUserAdapter(
             holder.binding.newUser.visibility = View.GONE
         }
 
+        val audioStatus = femaleUser.audio_status
+        val videoStatus = femaleUser.video_status
 
-
-
-        val  audioStatus = femaleUser.audio_status
-        val  videoStatus = femaleUser.video_status
-
+        // Configure Audio Call Button with Gradient
+        val audioButton = holder.binding.cvAudio.getChildAt(0) as? android.widget.LinearLayout
         if (audioStatus == 1) {
-            holder.binding.cvAudio.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.purple))
+            audioButton?.setBackgroundResource(R.drawable.button_audio_gradient)
+            holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.white))
+            holder.binding.tvIvAudio.setTextColor(ContextCompat.getColor(activity, R.color.white))
+            holder.binding.cvAudio.isClickable = true
+            holder.binding.cvAudio.alpha = 1.0f
             holder.binding.cvAudio.setOnSingleClickListener {
                 val position = holder.adapterPosition
                 if (position != RecyclerView.NO_POSITION) {
@@ -88,29 +88,32 @@ class FemaleUserAdapter(
                     onAudioListener.onItemSelected(clickedUser)
                 }
             }
-
-
+        } else {
+            audioButton?.setBackgroundResource(R.drawable.button_inactive_premium)
+            holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
+            holder.binding.tvIvAudio.setTextColor(ContextCompat.getColor(activity, R.color.grey_medium))
+            holder.binding.cvAudio.isClickable = false
+            holder.binding.cvAudio.alpha = 0.7f
         }
+
+        // Configure Video Call Button with Gradient
+        val videoButton = holder.binding.cvVideo.getChildAt(0) as? android.widget.LinearLayout
         if (videoStatus == 1) {
-            holder.binding.cvVideo.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.green))
-            holder.binding.cvVideo.setOnSingleClickListener{
+            videoButton?.setBackgroundResource(R.drawable.button_video_gradient)
+            holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.white))
+            holder.binding.tvVideo.setTextColor(ContextCompat.getColor(activity, R.color.white))
+            holder.binding.cvVideo.isClickable = true
+            holder.binding.cvVideo.alpha = 1.0f
+            holder.binding.cvVideo.setOnSingleClickListener {
                 onVideoListener.onItemSelected(femaleUser)
             }
+        } else {
+            videoButton?.setBackgroundResource(R.drawable.button_inactive_premium)
+            holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
+            holder.binding.tvVideo.setTextColor(ContextCompat.getColor(activity, R.color.grey_medium))
+            holder.binding.cvVideo.isClickable = false
+            holder.binding.cvVideo.alpha = 0.7f
         }
-
-        if (audioStatus == 0 && videoStatus == 0) {
-            holder.binding.cvAudio.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.inactive_call))
-            holder.binding.cvVideo.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.inactive_call))
-        }
-
-        if (audioStatus == 0) {
-            holder.binding.cvAudio.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.inactive_call))
-        }
-
-        if (videoStatus == 0) {
-            holder.binding.cvVideo.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.inactive_call))
-        }
-
 
         holder.binding.tvName.text = femaleUser.name
         holder.binding.tvLanguage.text = femaleUser.language
@@ -124,19 +127,13 @@ class FemaleUserAdapter(
             justifyContent = JustifyContent.FLEX_START
         }
 
-        val itemDecoration = FlexboxItemDecoration(activity).apply {
-            setDrawable(ContextCompat.getDrawable(activity, R.drawable.bg_divider))
-            setOrientation(FlexboxItemDecoration.VERTICAL)
-        }
-     //   holder.binding.rvInterests.addItemDecoration(itemDecoration)
         holder.binding.rvInterests.layoutManager = staggeredGridLayoutManager
 
-
+        // Show only first interest
         val interests = arrayListOf<Interests>()
-        interestsAsString.forEach {
-            interests.add(Helper.getInterestObject(activity, it))
+        if (interestsAsString.isNotEmpty() && interestsAsString[0].isNotBlank()) {
+            interests.add(Helper.getInterestObject(activity, interestsAsString[0]))
         }
-
 
         val interestsListAdapter = InterestsFemaleListAdapter(activity, interests, false, object : OnItemSelectionListener<Interests> {
             override fun onItemSelected(interest: Interests) {
@@ -156,21 +153,17 @@ class FemaleUserAdapter(
         val format = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
         Log.d("Created_Date","$createdAt")
-        // Extract date part only (cut off time)
         val createdDateOnly = createdAt.substring(0, 10)
         val createdDate: Date = format.parse(createdDateOnly) ?: return 3
 
-        // Get today's date (yyyy-MM-dd)
         val todayDateOnly = format.format(Date())
         val todayDate: Date = format.parse(todayDateOnly) ?: return 3
 
-        // Difference in milliseconds
         val diffMillis = todayDate.time - createdDate.time
         val diffDays = TimeUnit.MILLISECONDS.toDays(diffMillis)
 
         Log.d("created_at_label", "Date: $createdDateOnly, Diff: $diffDays ")
         return if (diffDays >= 0) diffDays else 10
-
     }
 
     internal class ItemHolder(val binding: AdapterFemaleUserBinding) : RecyclerView.ViewHolder(binding.root)

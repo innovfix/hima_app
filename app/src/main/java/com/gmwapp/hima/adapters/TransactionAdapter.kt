@@ -31,41 +31,73 @@ class TransactionAdapter(
         val holder: ItemHolder = holderParent as ItemHolder
         val transaction: TransactionsResponseData = transactions[position]
 
+        // Set coins amount and color based on transaction type
         if(transaction.payment_type == "Credit"){
-            holder.binding.tvCoins.text = "+"+transaction.coins
-            holder.binding.tvCoins.setTextColor(activity.getColor(android.R.color.holo_green_dark))
+            holder.binding.tvCoins.text = "+${transaction.coins}"
+            holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#10B981"))
         } else{
-            holder.binding.tvCoins.text = "-"+transaction.coins
-            holder.binding.tvCoins.setTextColor(activity.getColor(android.R.color.holo_red_dark))
-        }
-        var callType = transaction.call_type.orEmpty().replaceFirstChar { it.uppercase() }
-        var call_user_name = transaction.call_user_name
-        if (transaction.type=="add_coins"){
-            holder.binding.tvTransactionTitle.text = "Wallet Recharge"
-            holder.binding.tvTransactionDate.text = "${transaction.date}"
-
-        }else if(transaction.type=="coins_deduction"){
-            holder.binding.tvTransactionTitle.text = "$callType session with $call_user_name"
-            holder.binding.tvTransactionDate.text = "${transaction.date} · ${transaction.duration}"
-
-        }else if (transaction.type=="refer_bonus"){
-            holder.binding.tvCoins.text = "+"+transaction.coins
-            holder.binding.tvCoins.setTextColor(activity.getColor(android.R.color.holo_green_dark))
-            holder.binding.tvTransactionTitle.text = "Referral Earning"
-            holder.binding.tvTransactionDate.text = "${transaction.date}"
+            holder.binding.tvCoins.text = "-${transaction.coins}"
+            holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#EF4444"))
         }
 
-        else if (transaction.type=="send_gift"){
-            holder.binding.tvCoins.text = ""+transaction.coins
-            holder.binding.tvCoins.setTextColor(activity.getColor(android.R.color.holo_red_dark))
-            holder.binding.tvTransactionTitle.text = "Gift sent"
-            holder.binding.tvTransactionDate.text = "${transaction.date}"
+        val callType = transaction.call_type.orEmpty().replaceFirstChar { it.uppercase() }
+        val callUserName = transaction.call_user_name
+
+        // Set transaction details based on type
+        when (transaction.type) {
+            "add_coins" -> {
+                holder.binding.tvTransactionTitle.text = "Wallet Recharge"
+                holder.binding.tvTransactionDate.text = transaction.date
+                holder.binding.ivTransactionIcon.setImageResource(R.drawable.ic_wallet_add)
+                holder.binding.cvIconBackground.setCardBackgroundColor(android.graphics.Color.parseColor("#E8F5E9"))
+            }
+            "coins_deduction" -> {
+                holder.binding.tvTransactionTitle.text = "$callType session with $callUserName"
+                holder.binding.tvTransactionDate.text = "${transaction.date} · ${transaction.duration}"
+                
+                // Set icon based on call type
+                when (callType.lowercase()) {
+                    "video" -> {
+                        holder.binding.ivTransactionIcon.setImageResource(R.drawable.ic_video_expense)
+                        holder.binding.cvIconBackground.setCardBackgroundColor(android.graphics.Color.parseColor("#FFEBEE"))
+                    }
+                    "audio" -> {
+                        holder.binding.ivTransactionIcon.setImageResource(R.drawable.ic_audio_expense)
+                        holder.binding.cvIconBackground.setCardBackgroundColor(android.graphics.Color.parseColor("#FFEBEE"))
+                    }
+                    else -> {
+                        holder.binding.ivTransactionIcon.setImageResource(R.drawable.ic_call_expense)
+                        holder.binding.cvIconBackground.setCardBackgroundColor(android.graphics.Color.parseColor("#FFEBEE"))
+                    }
+                }
+            }
+            "refer_bonus" -> {
+                holder.binding.tvCoins.text = "+${transaction.coins}"
+                holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#10B981"))
+                holder.binding.tvTransactionTitle.text = "Referral Earning"
+                holder.binding.tvTransactionDate.text = transaction.date
+                holder.binding.ivTransactionIcon.setImageResource(R.drawable.ic_referral_bonus)
+                holder.binding.cvIconBackground.setCardBackgroundColor(android.graphics.Color.parseColor("#E8F5E9"))
+            }
+            "send_gift" -> {
+                holder.binding.tvCoins.text = "-${transaction.coins}"
+                holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#EF4444"))
+                holder.binding.tvTransactionTitle.text = "Gift Sent"
+                holder.binding.tvTransactionDate.text = transaction.date
+                holder.binding.ivTransactionIcon.setImageResource(R.drawable.ic_gift_sent)
+                holder.binding.cvIconBackground.setCardBackgroundColor(android.graphics.Color.parseColor("#FFF3E0"))
+            }
+            else -> {
+                holder.binding.tvTransactionTitle.text = "Transaction"
+                holder.binding.tvTransactionDate.text = transaction.date
+                holder.binding.ivTransactionIcon.setImageResource(R.drawable.coin_d)
+                holder.binding.cvIconBackground.setCardBackgroundColor(android.graphics.Color.parseColor("#F3F4F6"))
+            }
         }
 
-        //  holder.binding.tvTransactionDate.text = formatTime(transaction.datetime)
-        Log.d("transaction_datetime","$transaction.datetime")
+        // Log for debugging
+        Log.d("transaction_datetime","${transaction.datetime}")
         holder.binding.tvTransactionHint.text = activity.getString(R.string.session_id)+transaction.id
-
     }
 
 

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Professional gradient background: Dark elegant gradient -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="135"
+                android:startColor="#1A1A2E"
+                android:centerColor="#16213E"
+                android:endColor="#0F3460"
+                android:type="linear"/>
+        </shape>
+    </item>
+</layer-list>

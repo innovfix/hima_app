@@ -4,72 +4,105 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_height="wrap_content"
     android:background="@drawable/logout_background"
-    android:padding="16dp"
+    android:paddingStart="24dp"
+    android:paddingEnd="24dp"
+    android:paddingTop="16dp"
+    android:paddingBottom="24dp"
     tools:context=".activities.LoginActivity">
 
+    <!-- Handle/Drag Indicator -->
     <View
         android:id="@+id/v_divider"
         android:layout_width="40dp"
         android:layout_height="4dp"
-        android:layout_gravity="center_vertical"
+        android:layout_marginTop="8dp"
         android:background="@drawable/d_button_bg"
-        android:backgroundTint="#75767a"
-        app:layout_constraintTop_toTopOf="parent"
+        android:backgroundTint="#D1D5DB"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintTop_toTopOf="parent" />
 
+    <!-- Logout Icon -->
     <ImageView
         android:id="@+id/iv_logout"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginTop="30dp"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:layout_marginTop="32dp"
         android:contentDescription="@string/logout"
         android:src="@drawable/warning"
-        app:layout_constraintWidth_default="percent"
-        app:layout_constraintWidth_percent="0.25"
-        app:layout_constraintHeight_default="percent"
-        app:layout_constraintHeight_percent="0.25"
-        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/v_divider"
-        app:tint="@color/black"
-        tools:ignore="MissingConstraints" />
+        app:tint="#EF4444" />
 
+    <!-- Title -->
     <TextView
         android:id="@+id/tl_title"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="@string/logout_text"
-        android:textColor="@color/black"
+        android:layout_marginTop="20dp"
+        android:fontFamily="@font/poppins_semibold"
         android:gravity="center"
-        android:layout_marginTop="25dp"
-        android:textSize="23sp"
-         android:fontFamily="@font/poppins_semibold"
+        android:text="@string/logout_text"
+        android:textColor="#1F2937"
+        android:textSize="20sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/iv_logout" />
 
+    <!-- Description Text -->
+    <TextView
+        android:id="@+id/tv_description"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:fontFamily="@font/poppins_regular"
+        android:gravity="center"
+        android:text="You will be logged out of your account"
+        android:textColor="#6B7280"
+        android:textSize="14sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tl_title" />
+
+    <!-- Logout Button -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_logout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="6dp"
-        android:layout_marginStart="2dp"
-        android:layout_marginEnd="2dp"
-        android:layout_marginTop="30dp"
-        android:textAllCaps="false"
-        android:textSize="16sp"
-        android:fontFamily="@font/poppins_medium"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tl_title"
-        android:padding="@dimen/_10sdp"
-        app:cornerRadius="@dimen/_18sdp"
-        android:text="@string/logout"
-        android:textColor="@color/white"
+        android:layout_width="0dp"
+        android:layout_height="56dp"
+        android:layout_marginTop="32dp"
         android:backgroundTint="@color/pink"
-        />
+        android:fontFamily="@font/poppins_semibold"
+        android:text="@string/logout"
+        android:textAllCaps="false"
+        android:textColor="@color/white"
+        android:textSize="16sp"
+        app:cornerRadius="12dp"
+        app:elevation="0dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tv_description" />
+
+    <!-- Cancel Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_cancel"
+        android:layout_width="0dp"
+        android:layout_height="56dp"
+        android:layout_marginTop="12dp"
+        android:backgroundTint="@color/white"
+        android:fontFamily="@font/poppins_medium"
+        android:text="Cancel"
+        android:textAllCaps="false"
+        android:textColor="#6B7280"
+        android:textSize="16sp"
+        app:cornerRadius="12dp"
+        app:elevation="0dp"
+        app:strokeColor="#E5E7EB"
+        app:strokeWidth="1dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/btn_logout" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

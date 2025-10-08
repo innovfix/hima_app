@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Alternative: Dark Mode Bottom Navigation Background -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- Shadow Layer for Dark Mode -->
+    <item 
+        android:top="-8dp" 
+        android:left="-8dp" 
+        android:right="-8dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#30000000" />
+            <corners
+                android:topLeftRadius="36dp"
+                android:topRightRadius="36dp" />
+        </shape>
+    </item>
+    
+    <!-- Main Dark Background with Gradient -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="135"
+                android:startColor="#1E1E1E"
+                android:centerColor="#252525"
+                android:endColor="#2A2A2A"
+                android:type="linear" />
+            
+            <corners
+                android:topLeftRadius="32dp"
+                android:topRightRadius="32dp" />
+            
+            <stroke
+                android:width="1dp"
+                android:color="#3A3A3A" />
+        </shape>
+    </item>
+    
+</layer-list>
+

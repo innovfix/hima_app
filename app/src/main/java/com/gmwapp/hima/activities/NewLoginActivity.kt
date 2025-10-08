@@ -1,11 +1,14 @@
 package com.gmwapp.hima.activities
 
+import android.animation.ObjectAnimator
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.ImageView
 import androidx.viewpager2.widget.ViewPager2
+import com.bumptech.glide.Glide
 import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.OnboardingPagerAdapter
 import com.google.android.material.tabs.TabLayoutMediator
@@ -312,6 +315,9 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         setContentView(binding.root)
         enableEdgeToEdge()
 
+        // Add animated background (same as splash screen)
+        startBackgroundAnimations()
+
         val helper = AppSignatureHashHelper(this)
         val hashList = helper.appSignatures
 
@@ -322,7 +328,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
         ZohoSalesIQ.showLauncher(false)
 
-        setupOnboarding()
+        // setupOnboarding() // Disabled for clean UI
         initUI()
         observeReferralCodeResponse()
 
@@ -848,6 +854,63 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
         }
 
+    }
+
+    private fun startBackgroundAnimations() {
+        // Load logo using Glide
+        try {
+            Glide.with(this)
+                .load(R.drawable.logo)
+                .into(binding.imageViewLogo)
+        } catch (e: Exception) {
+            Log.e("LoginAnimation", "Error loading logo: ${e.message}")
+        }
+
+        // Animate background circles (same as splash screen)
+        // Circle 1 - Slow rotation and scale
+        val circle1Rotate = ObjectAnimator.ofFloat(binding.circle1, "rotation", 0f, 360f).apply {
+            duration = 20000
+            repeatCount = ObjectAnimator.INFINITE
+            interpolator = AccelerateDecelerateInterpolator()
+        }
+        
+        val circle1ScaleX = ObjectAnimator.ofFloat(binding.circle1, "scaleX", 1f, 1.2f, 1f).apply {
+            duration = 4000
+            repeatCount = ObjectAnimator.INFINITE
+            repeatMode = ObjectAnimator.REVERSE
+        }
+        
+        val circle1ScaleY = ObjectAnimator.ofFloat(binding.circle1, "scaleY", 1f, 1.2f, 1f).apply {
+            duration = 4000
+            repeatCount = ObjectAnimator.INFINITE
+            repeatMode = ObjectAnimator.REVERSE
+        }
+
+        // Circle 2 - Slow rotation opposite direction
+        val circle2Rotate = ObjectAnimator.ofFloat(binding.circle2, "rotation", 360f, 0f).apply {
+            duration = 15000
+            repeatCount = ObjectAnimator.INFINITE
+            interpolator = AccelerateDecelerateInterpolator()
+        }
+        
+        val circle2ScaleX = ObjectAnimator.ofFloat(binding.circle2, "scaleX", 1f, 1.3f, 1f).apply {
+            duration = 5000
+            repeatCount = ObjectAnimator.INFINITE
+            repeatMode = ObjectAnimator.REVERSE
+        }
+        
+        val circle2ScaleY = ObjectAnimator.ofFloat(binding.circle2, "scaleY", 1f, 1.3f, 1f).apply {
+            duration = 5000
+            repeatCount = ObjectAnimator.INFINITE
+            repeatMode = ObjectAnimator.REVERSE
+        }
+
+        circle1Rotate.start()
+        circle1ScaleX.start()
+        circle1ScaleY.start()
+        circle2Rotate.start()
+        circle2ScaleX.start()
+        circle2ScaleY.start()
     }
 
 

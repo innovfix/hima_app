@@ -5,36 +5,40 @@
     android:id="@+id/main"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:background="@drawable/bg_list_interest"
-    android:paddingStart="12dp"
-    android:paddingEnd="12dp"
+    android:background="@drawable/category_tag_background"
+    android:paddingStart="10dp"
+    android:paddingEnd="10dp"
     android:paddingTop="4dp"
     android:paddingBottom="4dp"
-    android:layout_marginBottom="4dp"
-    android:layout_marginEnd="8dp"
+    android:layout_marginBottom="6dp"
+    android:layout_marginEnd="6dp"
+    android:elevation="2dp"
     tools:context=".activities.LoginActivity">
+
+    <ImageView
+        android:id="@+id/iv_interest"
+        android:layout_width="11dp"
+        android:layout_height="11dp"
+        android:scaleType="fitCenter"
+        android:layout_marginEnd="5dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:tint="@color/colorAccent"
+        tools:ignore="ContentDescription" />
 
     <TextView
         android:id="@+id/tv_interest"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="xxx"
-        android:textSize="14sp"
-        android:fontFamily="@font/poppins_regular"
-        app:layout_constraintStart_toStartOf="parent"
+        android:text="Travel"
+        android:textSize="11sp"
+        android:fontFamily="@font/poppins_semibold"
+        android:includeFontPadding="false"
+        android:letterSpacing="0.01"
+        app:layout_constraintStart_toEndOf="@+id/iv_interest"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
-        android:textColor="@color/white"/>
-    <ImageView
-        android:id="@+id/iv_interest"
-        android:layout_width="16dp"
-        android:layout_height="16dp"
-        android:scaleType="fitCenter"
-        android:layout_marginStart="2dp"
-        app:layout_constraintStart_toEndOf="@+id/tv_interest"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        tools:ignore="ContentDescription" />
-
+        android:textColor="@color/creator_tag_text"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

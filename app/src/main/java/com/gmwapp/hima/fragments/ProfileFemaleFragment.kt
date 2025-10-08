@@ -98,10 +98,25 @@ class ProfileFemaleFragment : BaseFragment() {
             val intent = Intent(context, EarningsActivity::class.java)
             startActivity(intent)
         })
+        
+        // Edit profile via edit icon badge
         binding.ivEditProfile.setOnSingleClickListener( {
             val intent = Intent(context, EditProfileActivity::class.java)
             startActivityForResult(intent, EDIT_PROFILE_REQUEST_CODE)
         })
+        
+        // Edit profile via avatar container (new design)
+        binding.avatarContainer.setOnSingleClickListener {
+            val intent = Intent(context, EditProfileActivity::class.java)
+            startActivityForResult(intent, EDIT_PROFILE_REQUEST_CODE)
+        }
+        
+        // Edit profile via edit icon badge (new design)
+        binding.editIconBadge.setOnSingleClickListener {
+            val intent = Intent(context, EditProfileActivity::class.java)
+            startActivityForResult(intent, EDIT_PROFILE_REQUEST_CODE)
+        }
+        
         binding.clAccountPrivacy.setOnSingleClickListener( {
             val intent = Intent(context, AccountPrivacyActivity::class.java)
             startActivity(intent)

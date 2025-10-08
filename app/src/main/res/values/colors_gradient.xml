@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Gradient colors for the Random button -->
+    <color name="gradient_start">#FF6B35</color>
+    <color name="gradient_center">#F7931E</color>
+    <color name="gradient_end">#FFCC00</color>
+    
+    <!-- Alternative gradient options -->
+    <!-- gradient_pink_* colors are defined in colors.xml -->
+    
+    <color name="gradient_purple_start">#7B1FA2</color>
+    <color name="gradient_purple_center">#9C27B0</color>
+    <color name="gradient_purple_end">#BA68C8</color>
+    
+    <!-- Pulse outline color -->
+    <color name="pulse_pink">#FF1493</color>
+    <color name="pulse_orange">#FF6B35</color>
+</resources>

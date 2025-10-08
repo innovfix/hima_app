@@ -4,67 +4,114 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
-    android:layout_height="550dp"
-    android:background="@drawable/bg_gradiend"
-    android:maxHeight="550dp"
+    android:layout_height="wrap_content"
+    android:background="@drawable/professional_dialog_professional_background"
+    android:maxHeight="650dp"
     android:minHeight="550dp"
-    android:padding="16dp"
+    android:paddingStart="20dp"
+    android:paddingTop="24dp"
+    android:paddingEnd="20dp"
+    android:paddingBottom="24dp"
     tools:context=".activities.LoginActivity">
 
-    <TextView
-        android:id="@+id/tv_speech_text"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:gravity="center"
-        android:textColor="@color/white"
-        android:textSize="16sp"
-        android:textStyle="bold"
+    <!-- Handle Bar -->
+    <View
+        android:id="@+id/handle_bar"
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:background="@drawable/professional_timer_bg"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <!-- Sentence Card -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/card_sentence"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        app:cardBackgroundColor="#F5F3FF"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="0dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/handle_bar"
+        app:strokeColor="#E9D5FF"
+        app:strokeWidth="2dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_semibold"
+                android:text="Please say this sentence"
+                android:textColor="#6B21A8"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/tv_speech_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:fontFamily="@font/poppins_bold"
+                android:gravity="center"
+                android:lineSpacingExtra="6dp"
+                android:textColor="#3B0764"
+                android:textSize="24sp" />
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Timer Display -->
     <TextView
         android:id="@+id/tl_speech_text_hint_timer"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        android:textColor="@color/user_name_hint_text"
-        android:textSize="12sp"
-        android:textStyle="bold"
-        app:layout_constraintBottom_toTopOf="@+id/tl_speech_text_hint"
+        android:layout_marginTop="20dp"
+        android:fontFamily="@font/poppins_bold"
+        android:textColor="#6366F1"
+        android:textSize="20sp"
+        android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/card_sentence"
+        tools:text="00:00" />
+
+    <!-- Instructions Text -->
     <TextView
         android:id="@+id/tl_speech_text_hint"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:fontFamily="@font/poppins_medium"
         android:text="@string/tap_and_hold_to_speak"
-        android:layout_marginBottom="8dp"
-        android:textColor="@color/white"
-        android:textSize="12sp"
-        android:textStyle="bold"
-        app:layout_constraintBottom_toTopOf="@+id/content"
+        android:textColor="#475569"
+        android:textSize="15sp"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tl_speech_text_hint_timer" />
 
+    <!-- Microphone Button with Ripple -->
     <com.skyfishjy.library.RippleBackground
         android:id="@+id/content"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        app:layout_constraintBottom_toTopOf="@+id/btn_submit"
+        android:layout_width="140dp"
+        android:layout_height="140dp"
+        android:layout_marginTop="32dp"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHeight_default="percent"
-        app:layout_constraintHeight_percent="0.17"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tv_speech_text"
-        app:layout_constraintWidth_default="percent"
-        app:layout_constraintWidth_percent="0.23"
-        app:rb_color="@color/white"
+        app:layout_constraintTop_toBottomOf="@+id/tl_speech_text_hint"
+        app:rb_color="#6366F1"
         app:rb_duration="1500"
-        app:rb_radius="15dp"
-        app:rb_rippleAmount="3"
-        app:rb_scale="6">
+        app:rb_radius="20dp"
+        app:rb_rippleAmount="4"
+        app:rb_scale="3.5">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
@@ -72,158 +119,176 @@
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/cl_microphone"
-                android:layout_width="80dp"
-                android:layout_height="80dp"
+                android:layout_width="120dp"
+                android:layout_height="120dp"
                 android:contentDescription="@string/voice_identification_hint"
-                android:src="@drawable/ic_microphone_inside_circle"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent">
 
-                <ImageView
+                <!-- Background Circle -->
+                <View
                     android:id="@+id/iv_micro_phone_circle"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:src="@drawable/ic_microphone_circle"
+                    android:background="@drawable/voice_mic_background"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
 
+                <!-- Microphone Icon -->
                 <ImageView
                     android:id="@+id/iv_micro_phone"
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
                     android:src="@drawable/microphone"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintHeight_default="percent"
-                    app:layout_constraintHeight_percent="0.5"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent"
-                    app:layout_constraintWidth_default="percent"
-                    app:layout_constraintWidth_percent="0.5" />
+                    app:tint="@color/white" />
+
             </androidx.constraintlayout.widget.ConstraintLayout>
+
         </androidx.constraintlayout.widget.ConstraintLayout>
+
     </com.skyfishjy.library.RippleBackground>
 
+    <!-- Play to Listen Label -->
     <TextView
         android:id="@+id/tv_play_to_listen"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
+        android:layout_marginTop="32dp"
+        android:fontFamily="@font/poppins_semibold"
         android:text="@string/play_to_listen"
-        android:textColor="@color/white"
-        android:textSize="12sp"
-        android:textStyle="bold"
+        android:textColor="#0F172A"
+        android:textSize="16sp"
         android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@+id/cl_player"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/cl_player"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:background="@drawable/d_button_player_bg"
-        android:paddingStart="4dp"
-        android:paddingEnd="4dp"
-        android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@+id/btn_submit"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHeight_default="percent"
-        app:layout_constraintHeight_percent="0.1"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tv_speech_text">
+        app:layout_constraintTop_toBottomOf="@+id/content" />
 
-        <ImageView
-            android:id="@+id/iv_play"
-            android:layout_width="25dp"
-            android:layout_height="25dp"
-            android:layout_marginStart="16dp"
-            android:layout_marginEnd="16dp"
-            android:src="@drawable/play"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:tint="@color/pink" />
+    <!-- Audio Player Card -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cl_player"
+        android:layout_width="0dp"
+        android:layout_height="70dp"
+        android:layout_marginTop="12dp"
+        android:visibility="gone"
+        app:cardBackgroundColor="@color/white"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="2dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tv_play_to_listen"
+        app:strokeColor="#E5E7EB"
+        app:strokeWidth="1dp">
 
-        <ProgressBar
-            android:id="@+id/pb_progress"
-            style="@android:style/Widget.ProgressBar.Horizontal"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:layout_marginStart="16dp"
-            android:layout_marginEnd="16dp"
-            android:progressDrawable="@drawable/progress"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHeight_default="percent"
-            app:layout_constraintHeight_percent="0.41"
-            app:layout_constraintStart_toEndOf="@+id/iv_play"
-            app:layout_constraintTop_toTopOf="parent" />
-    </androidx.constraintlayout.widget.ConstraintLayout>
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="16dp">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+            <!-- Play Button -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_play"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                app:cardBackgroundColor="#EEF2FF"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="0dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:strokeWidth="0dp">
+
+                <ImageView
+                    android:id="@+id/iv_play"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/play"
+                    app:tint="#6366F1" />
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Progress Bar -->
+            <ProgressBar
+                android:id="@+id/pb_progress"
+                style="@android:style/Widget.ProgressBar.Horizontal"
+                android:layout_width="0dp"
+                android:layout_height="6dp"
+                android:layout_marginStart="16dp"
+                android:progressDrawable="@drawable/progress"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@+id/card_play"
+                app:layout_constraintTop_toTopOf="parent" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Record Again Button -->
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/cl_record_again"
         android:layout_width="0dp"
-        android:layout_height="0dp"
+        android:layout_height="56dp"
         android:layout_marginTop="16dp"
-        android:background="@drawable/d_button__record_again_bg"
-        android:drawableStart="@drawable/again"
-        android:padding="3dp"
+        android:backgroundTint="#F3F4F6"
+        android:fontFamily="@font/poppins_semibold"
+        android:text="@string/record_again"
         android:textAllCaps="false"
+        android:textColor="#374151"
+        android:textSize="15sp"
         android:visibility="gone"
+        app:cornerRadius="12dp"
+        app:icon="@drawable/again"
+        app:iconGravity="textStart"
+        app:iconPadding="8dp"
+        app:iconSize="20dp"
+        app:iconTint="#374151"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHeight_default="percent"
-        app:layout_constraintHeight_percent="0.07"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/cl_player"
-        app:layout_constraintWidth_default="percent"
-        app:layout_constraintWidth_percent="0.45">
+        app:strokeColor="#D1D5DB"
+        app:strokeWidth="1dp" />
 
-        <ImageView
-            android:layout_width="14dp"
-            android:layout_height="14dp"
-            android:src="@drawable/again"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@+id/btn_record_again"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:tint="@color/white" />
+    <!-- Hidden TextView for backward compatibility -->
+    <TextView
+        android:id="@+id/btn_record_again"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
-        <TextView
-            android:id="@+id/btn_record_again"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/record_again"
-            android:textColor="@color/white"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
+    <!-- Submit Button -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_submit"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        android:backgroundTint="@color/button_background_tint"
+        android:layout_height="60dp"
+        android:layout_marginTop="16dp"
+        android:backgroundTint="#6366F1"
+        android:elevation="3dp"
+        android:fontFamily="@font/poppins_semibold"
+        android:letterSpacing="0.02"
         android:text="@string/submit"
         android:textAllCaps="false"
-        android:textColor="@color/button_text_color"
-        android:textSize="14sp"
-        android:paddingVertical="@dimen/_10sdp"
-        android:fontFamily="@font/poppins_medium"
+        android:textColor="@color/white"
+        android:textSize="17sp"
         android:visibility="gone"
-        app:cornerRadius="@dimen/_18sdp"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:cornerRadius="14dp"
+        app:icon="@drawable/right_arrow"
+        app:iconGravity="end"
+        app:iconPadding="8dp"
+        app:iconSize="20dp"
+        app:iconTint="@color/white"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHeight_default="percent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/cl_record_again" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

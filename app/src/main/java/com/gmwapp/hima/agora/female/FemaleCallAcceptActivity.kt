@@ -10,6 +10,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.util.Log
+import android.view.animation.AnimationUtils
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -76,16 +77,15 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
             setTurnScreenOn(true)
         }
 
+        // Start pulse animations for the avatar rings
+        startPulseAnimations()
+
         if (callType=="audio"){
-            binding.calltype.setText("Incoming Voice Session")
-
-            binding.accpet.setImageResource(R.drawable.audio_accept_gif)
-
+            binding.calltype.setText("Incoming Voice Call")
+            binding.callTypeIcon.setImageResource(R.drawable.ic_mic)
         }else{
-            binding.accpet.setImageResource(R.drawable.accept_videocall_gif)
-
-            binding.calltype.setText("Incoming Video Session")
-
+            binding.calltype.setText("Incoming Video Call")
+            binding.callTypeIcon.setImageResource(R.drawable.ic_videocam)
         }
 
 
@@ -104,27 +104,6 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
             Handler(Looper.getMainLooper()).postDelayed({
                 notificationManager?.cancel(1)
             }, 1000)
-
-            Glide.with(this)
-                .asGif()
-                .load(R.drawable.endcall_gif) // Replace with your GIF file
-                .into(binding.reject)
-
-            if (callType=="audio"){
-                binding.calltype.setText("Incoming Voice Session")
-
-                Glide.with(this)
-                    .asGif()
-                    .load(R.drawable.audio_accept_gif) // Replace with your GIF file
-                    .into(binding.accpet)
-            }else{
-                Glide.with(this)
-                    .asGif()
-                    .load(R.drawable.accept_videocall_gif) // Replace with your GIF file
-                    .into(binding.accpet)
-                binding.calltype.setText("Incoming Video Session")
-
-            }
         }
 
 
@@ -277,5 +256,34 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
         }
     }
 
+    private fun startPulseAnimations() {
+        try {
+            // Load pulse animation
+            val pulseAnimation = AnimationUtils.loadAnimation(this, R.anim.pulse_animation)
+            
+            // Start animation on outer ring with delay
+            Handler(Looper.getMainLooper()).postDelayed({
+                binding.pulseRingOuter.startAnimation(pulseAnimation)
+            }, 0)
+            
+            // Start animation on middle ring with delay for staggered effect
+            Handler(Looper.getMainLooper()).postDelayed({
+                binding.pulseRingMiddle.startAnimation(pulseAnimation)
+            }, 500)
+        } catch (e: Exception) {
+            Log.e("PulseAnimation", "Error starting pulse animations: ${e.message}")
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Stop animations
+        try {
+            binding.pulseRingOuter.clearAnimation()
+            binding.pulseRingMiddle.clearAnimation()
+        } catch (e: Exception) {
+            Log.e("PulseAnimation", "Error clearing animations: ${e.message}")
+        }
+    }
 
 }

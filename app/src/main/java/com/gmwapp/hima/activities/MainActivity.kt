@@ -14,6 +14,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
+import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
 import android.widget.Button
@@ -201,11 +202,30 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        enableEdgeToEdge()
+        
+        // Set status bar color to pink
+        window.statusBarColor = ContextCompat.getColor(this, R.color.pink)
+        window.navigationBarColor = ContextCompat.getColor(this, android.R.color.white)
+        
+        // CRITICAL: Ensure bottom navigation is always visible
+        binding.bottomNavigationView.elevation = 50f
+        binding.bottomNavigationView.translationZ = 50f
+        binding.bottomNavigationView.bringToFront()
+        (binding.root as ViewGroup).invalidate()
+        
+        // Apply insets - no padding needed, fragments handle their own
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, 0)
+            v.setPadding(0, 0, 0, 0)
             insets
+        }
+        
+        // Double-check visibility after layout
+        binding.bottomNavigationView.post {
+            binding.bottomNavigationView.visibility = View.VISIBLE
+            binding.bottomNavigationView.bringToFront()
+            // Ensure status bar stays pink
+            window.statusBarColor = ContextCompat.getColor(this, R.color.pink)
         }
 
         fromApplication = intent.getBooleanExtra("fromApplication", false)
@@ -424,6 +444,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
         userID?.toIntOrNull()?.let { offerViewModel.getOffer(it) }
         binding.bottomNavigationView.setOnNavigationItemSelectedListener(this)
+        
+        // Ensure bottom navigation is visible on top
+        binding.bottomNavigationView.bringToFront()
+        binding.bottomNavigationView.invalidate()
+        
         removeShiftMode()
     }
 
@@ -566,40 +591,101 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         }
         binding.bottomNavigationView.setOnNavigationItemSelectedListener(this)
         binding.bottomNavigationView.selectedItemId = R.id.home
+        
+        // Ensure bottom navigation is always visible on top
+        binding.bottomNavigationView.bringToFront()
+        binding.bottomNavigationView.invalidate()
+        
         removeShiftMode()
     }
 
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
+        // Add vibration feedback for better UX
+        val vibrator = getSystemService(VIBRATOR_SERVICE) as android.os.Vibrator
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator.vibrate(android.os.VibrationEffect.createOneShot(30, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+        } else {
+            vibrator.vibrate(30)
+        }
+        
+        // Animate the selected bottom navigation item
+        animateBottomNavItem(item)
+        
+        // Smooth fragment transition with animations
+        val transaction = supportFragmentManager.beginTransaction()
+        transaction.setCustomAnimations(
+            android.R.anim.fade_in,
+            android.R.anim.fade_out
+        )
+        
         when (item.itemId) {
             R.id.home -> {
+                // Set status bar to pink
+                window.statusBarColor = ContextCompat.getColor(this, R.color.pink)
+                
                 val homeFragment = if (BaseApplication.getInstance()?.getPrefs()
                         ?.getUserData()?.gender == DConstants.FEMALE
                 ) FemaleHomeFragment() else HomeFragment()
-                supportFragmentManager.beginTransaction().replace(R.id.flFragment, homeFragment)
-                    .commit()
+                transaction.replace(R.id.flFragment, homeFragment).commit()
                 return true
             }
 
             R.id.recent -> {
-                supportFragmentManager.beginTransaction().replace(R.id.flFragment, RecentFragment())
-                    .commit()
+                // Set status bar to pink
+                window.statusBarColor = ContextCompat.getColor(this, R.color.pink)
+                
+                transaction.replace(R.id.flFragment, RecentFragment()).commit()
                 return true
             }
 
             R.id.profile -> {
+                // Set status bar to pink
+                window.statusBarColor = ContextCompat.getColor(this, R.color.pink)
+                
                 if (BaseApplication.getInstance()?.getPrefs()
                         ?.getUserData()?.gender == DConstants.MALE
                 ) {
-                    supportFragmentManager.beginTransaction()
-                        .replace(R.id.flFragment, ProfileFragment()).commit()
+                    transaction.replace(R.id.flFragment, ProfileFragment()).commit()
                 } else {
-                    supportFragmentManager.beginTransaction()
-                        .replace(R.id.flFragment, ProfileFemaleFragment()).commit()
+                    transaction.replace(R.id.flFragment, ProfileFemaleFragment()).commit()
                 }
                 return true
             }
         }
         return false
+    }
+    
+    private fun animateBottomNavItem(selectedItem: MenuItem) {
+        // Get the bottom navigation view
+        val bottomNav = binding.bottomNavigationView
+        
+        // Animate all items
+        for (i in 0 until bottomNav.menu.size()) {
+            val menuItem = bottomNav.menu.getItem(i)
+            val view = bottomNav.findViewById<View>(menuItem.itemId)
+            
+            if (view != null) {
+                if (menuItem.itemId == selectedItem.itemId) {
+                    // Selected item - bounce animation
+                    val animation = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.bottom_nav_bounce)
+                    view.startAnimation(animation)
+                } else {
+                    // Unselected items - subtle scale down
+                    view.animate()
+                        .scaleX(0.9f)
+                        .scaleY(0.9f)
+                        .setDuration(150)
+                        .withEndAction {
+                            view.animate()
+                                .scaleX(1.0f)
+                                .scaleY(1.0f)
+                                .setDuration(150)
+                                .start()
+                        }
+                        .start()
+                }
+            }
+        }
     }
 
     @SuppressLint("RestrictedApi")
