@@ -398,6 +398,21 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
 
 
+            if (message == "greyScreenEnable") {
+
+                Log.d("greyScreenLog","$message")
+                FcmUtils.UpdateCallSwitch(message, senderId)
+                FcmUtils.greyScreenLiveData.postValue(message)
+
+            }
+
+            if (message == "greyScreenDisable") {
+
+                Log.d("greyScreenLog","$message")
+                FcmUtils.UpdateCallSwitch(message, senderId)
+                FcmUtils.greyScreenLiveData.postValue(message)
+
+            }
 
 
         }

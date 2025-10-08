@@ -211,8 +211,16 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                         val otpRegex = Regex("\\d{6}")
                         val getOtp = otpRegex.find(message)?.value
                         getOtp?.let {
-                          //  binding.pvOtp.setText(it)
+                            binding.pvOtp.setText(it)
                             Log.d("OtpExtract","$it")
+                            if (it.toIntOrNull() == otp) { // your default OTP
+                                binding.pbVerifyOtpLoader.visibility = View.VISIBLE
+                                binding.btnVerifyOtp.text = ""
+                                login(mobile ?: "")
+                            }else{
+                                Log.d("OtpExtract","null")
+
+                            }
                         }
                     }
                     CommonStatusCodes.TIMEOUT -> {

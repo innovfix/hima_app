@@ -35,8 +35,10 @@ import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.BadgeViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
+import com.gmwapp.hima.viewmodels.FirstCallUpdateViewModel
 import com.gmwapp.hima.viewmodels.WhatsappLinkViewModel
 import com.gmwapp.hima.viewmodels.ZohoMailViewModel
+import com.google.firebase.analytics.FirebaseAnalytics
 import com.onesignal.OneSignal
 import com.zoho.commons.LauncherModes
 import com.zoho.commons.LauncherProperties
@@ -70,6 +72,7 @@ class FemaleHomeFragment : BaseFragment() {
     private val zohoMailViewModel: ZohoMailViewModel by viewModels()
     private val whatsappLinkViewModel: WhatsappLinkViewModel by viewModels()
     private val accountViewModel: AccountViewModel by viewModels()
+    private val firstCallUpdateViewModel: FirstCallUpdateViewModel by viewModels()
 
     private lateinit var sharedPreferences: SharedPreferences
     private var isPermissionDenied: Boolean = false
@@ -459,9 +462,27 @@ class FemaleHomeFragment : BaseFragment() {
             if (it.success) {
 
                 Log.d("reportResponseLiveData", "$it")
+                Log.d("first_call", "${it.data[0].first_call}")
+
 
                 binding.tvApproxEarnings.text = it.data[0].today_earnings.toString()
                 binding.tvTotalCalls.text = it.data[0].today_calls.toString()
+
+
+                var firstCall = it.data[0].first_call
+                if (firstCall==1){
+                   var femaleuserid= BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
+
+                    val bundle = Bundle().apply {
+                        putString("user_id", "$femaleuserid") // optional: useful for debugging
+                        putString("first_call_status", "Received")
+                    }
+                    BaseApplication.firebaseAnalytics.logEvent("first_call", bundle)
+
+                    if (femaleuserid != null) {
+                        firstCallUpdateViewModel.updateFirstCallStatus(femaleuserid, 2)
+                    }
+                }
 
             } else {
                 //  Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show()

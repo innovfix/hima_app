@@ -36,6 +36,7 @@ import android.os.Bundle
 import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.InterestsListAdapter
 import com.gmwapp.hima.adapters.InterestsReviewListAdapter
+import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityReviewBinding
@@ -71,6 +72,9 @@ class ReviewActivity : BaseActivity() {
     }
 
     private fun initUI() {
+
+        FcmUtils.greyScreenLiveData.postValue("NoData")
+
         // Close button functionality
         binding.ivClose.setOnClickListener { finish() }
 
