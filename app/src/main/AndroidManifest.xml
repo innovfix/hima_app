@@ -115,7 +115,8 @@
             android:exported="false" />
         <activity
             android:name=".activities.ChatActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".agora.male.MaleCallConnectingActivity"
             android:exported="true" />

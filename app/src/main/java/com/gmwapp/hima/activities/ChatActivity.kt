@@ -1,20 +1,29 @@
 package com.gmwapp.hima.activities
 
 import android.os.Bundle
+import android.util.Log
 import android.view.WindowManager
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.bumptech.glide.request.RequestOptions
+import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.ChatAdapter
 import com.gmwapp.hima.models.ChatMessage
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
 import de.hdodenhof.circleimageview.CircleImageView
 import java.text.SimpleDateFormat
 import java.util.*
@@ -31,55 +40,23 @@ class ChatActivity : AppCompatActivity() {
     
     private lateinit var chatAdapter: ChatAdapter
     private val messages = mutableListOf<ChatMessage>()
+    
+    // Firestore instance
+    private val db by lazy { Firebase.firestore }
+    
+    // User IDs and thread ID
+    private var myUserId: String = ""
+    private var peerUserId: String = ""
+    private var threadId: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_chat)
-        // Ensure the window resizes when the keyboard appears so input and messages stay visible
-        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
-        
-        // Apply window insets for edge-to-edge
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            val imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime())
-
-            // Apply top inset to root so header doesn't collide with status bar
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, 0)
-
-            // Combine nav bar + IME bottom inset so input container sits above both
-            val bottomInset = systemBars.bottom + imeInsets.bottom
-
-            val inputContainer = findViewById<LinearLayout>(R.id.message_input_container)
-            val rv = findViewById<RecyclerView>(R.id.rv_messages)
-
-            inputContainer?.setPadding(
-                inputContainer.paddingLeft,
-                inputContainer.paddingTop,
-                inputContainer.paddingRight,
-                bottomInset
-            )
-
-            rv?.setPadding(
-                rv.paddingLeft,
-                rv.paddingTop,
-                rv.paddingRight,
-                rv.paddingBottom + bottomInset
-            )
-
-            // If keyboard (IME) is visible, ensure the latest message is visible
-            if (imeInsets.bottom > 0) {
-                rv?.post {
-                    val count = rv.adapter?.itemCount ?: 0
-                    if (count > 0) rv.scrollToPosition(count - 1)
-                }
-            }
-
-            insets
-        }
         
         initializeViews()
         setupRecyclerView()
-        loadSampleMessages()
+        setupUserIds()
+        setupFirestoreListener()
         setupClickListeners()
     }
 
@@ -92,12 +69,20 @@ class ChatActivity : AppCompatActivity() {
         tvUserName = findViewById(R.id.tv_user_name)
         tvUserStatus = findViewById(R.id.tv_user_status)
         
-        // Set user data from intent or use defaults
-        val userName = intent.getStringExtra("user_name") ?: "Sarah Johnson"
-        val userStatus = intent.getStringExtra("user_status") ?: "Online"
+        // Set user data from intent
+        val userName = intent.getStringExtra("USER_NAME") ?: "User"
+        val userImage = intent.getStringExtra("USER_IMAGE")
         
         tvUserName.text = userName
-        tvUserStatus.text = userStatus
+        tvUserStatus.text = "Online"
+        
+        // Load user image
+        if (!userImage.isNullOrEmpty()) {
+            Glide.with(this)
+                .load(userImage)
+                .apply(RequestOptions.circleCropTransform())
+                .into(ivUser)
+        }
     }
 
     private fun setupRecyclerView() {
@@ -121,23 +106,92 @@ class ChatActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadSampleMessages() {
-        // Add sample conversation to demonstrate the design
-        val sampleMessages = listOf(
-            ChatMessage("1", "Hey! How are you doing?", "10:30 AM", false),
-            ChatMessage("2", "I'm doing great! Thanks for asking 😊", "10:31 AM", true),
-            ChatMessage("3", "That's wonderful to hear!", "10:31 AM", false),
-            ChatMessage("4", "Are you free for a call later?", "10:32 AM", false),
-            ChatMessage("5", "Yes, absolutely! What time works for you?", "10:32 AM", true),
-            ChatMessage("6", "How about 3 PM?", "10:33 AM", false),
-            ChatMessage("7", "Perfect! I'll be ready at 3 PM. Looking forward to it! 🎉", "10:33 AM", true)
-        )
+    private fun setupUserIds() {
+        // Get logged-in user ID
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        myUserId = userData?.id?.toString() ?: ""
         
-        messages.addAll(sampleMessages)
-        chatAdapter.notifyDataSetChanged()
+        // Get peer user ID from intent
+        peerUserId = intent.getIntExtra("USER_ID", -1).toString()
         
-        // Scroll to bottom
-        rvMessages.scrollToPosition(messages.size - 1)
+        // Generate unique thread ID (sorted to ensure same ID regardless of who initiates)
+        threadId = listOf(myUserId, peerUserId).sorted().joinToString("_")
+        
+        Log.d("ChatActivity", "MyUserId: $myUserId, PeerUserId: $peerUserId, ThreadId: $threadId")
+        
+        if (myUserId.isEmpty() || peerUserId == "-1") {
+            Toast.makeText(this, "Error: Invalid user data", Toast.LENGTH_SHORT).show()
+            finish()
+        }
+    }
+    
+    private fun setupFirestoreListener() {
+        Log.d("ChatActivity", "Setting up Firestore listener for threadId: $threadId")
+        
+        db.collection("chats")
+            .document(threadId)
+            .collection("messages")
+            .orderBy("timestamp", Query.Direction.ASCENDING)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e("ChatActivity", "❌ Listen failed: ${error.message}", error)
+                    
+                    // Show error to user
+                    val errorMsg = when {
+                        error.message?.contains("index") == true -> {
+                            "Creating index... Please wait 1-2 minutes and restart app"
+                        }
+                        else -> "Error loading messages: ${error.message}"
+                    }
+                    Toast.makeText(this, errorMsg, Toast.LENGTH_LONG).show()
+                    return@addSnapshotListener
+                }
+                
+                Log.d("ChatActivity", "Snapshot received - isEmpty: ${snapshot?.isEmpty}, docs: ${snapshot?.documents?.size}")
+                
+                if (snapshot != null) {
+                    messages.clear()
+                    
+                    if (snapshot.isEmpty) {
+                        Log.d("ChatActivity", "No messages in thread yet")
+                        chatAdapter.notifyDataSetChanged()
+                        return@addSnapshotListener
+                    }
+                    
+                    for (doc in snapshot.documents) {
+                        val fromId = doc.getString("from") ?: ""
+                        val text = doc.getString("text") ?: ""
+                        val timestamp = doc.getTimestamp("timestamp")
+                        
+                        Log.d("ChatActivity", "Message: from=$fromId, text=$text, timestamp=$timestamp")
+                        
+                        val timeString = if (timestamp != null) {
+                            SimpleDateFormat("hh:mm a", Locale.getDefault()).format(timestamp.toDate())
+                        } else {
+                            SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
+                        }
+                        
+                        val message = ChatMessage(
+                            id = doc.id,
+                            message = text,
+                            timestamp = timeString,
+                            isSentByMe = fromId == myUserId
+                        )
+                        
+                        messages.add(message)
+                    }
+                    
+                    Log.d("ChatActivity", "✅ Loaded ${messages.size} messages, notifying adapter")
+                    chatAdapter.notifyDataSetChanged()
+                    
+                    // Scroll to bottom
+                    if (messages.isNotEmpty()) {
+                        rvMessages.scrollToPosition(messages.size - 1)
+                    }
+                } else {
+                    Log.e("ChatActivity", "Snapshot is null")
+                }
+            }
     }
 
     private fun setupClickListeners() {
@@ -153,48 +207,62 @@ class ChatActivity : AppCompatActivity() {
     private fun sendMessage() {
         val messageText = etMessage.text.toString().trim()
         if (messageText.isNotEmpty()) {
-            val currentTime = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
-            val newMessage = ChatMessage(
-                id = UUID.randomUUID().toString(),
-                message = messageText,
-                timestamp = currentTime,
-                isSentByMe = true
-            )
-            
-            chatAdapter.addMessage(newMessage)
             etMessage.setText("")
             
-            // Scroll to bottom
-            rvMessages.scrollToPosition(messages.size - 1)
+            // Validate user IDs before sending
+            if (myUserId.isEmpty() || peerUserId.isEmpty() || peerUserId == "-1") {
+                Log.e("ChatActivity", "Invalid user IDs - myUserId: $myUserId, peerUserId: $peerUserId")
+                Toast.makeText(this, "Error: Invalid user data", Toast.LENGTH_SHORT).show()
+                return
+            }
             
-            // Simulate a reply after 2 seconds (for demo purposes)
-            rvMessages.postDelayed({
-                simulateReply()
-            }, 2000)
+            // Create message data for Firestore
+            val messageData = hashMapOf(
+                "from" to myUserId,
+                "to" to peerUserId,
+                "text" to messageText,
+                "timestamp" to FieldValue.serverTimestamp()
+            )
+            
+            Log.d("ChatActivity", "Attempting to send message to threadId: $threadId")
+            Log.d("ChatActivity", "Message data: $messageData")
+            
+            // Send to Firestore
+            db.collection("chats")
+                .document(threadId)
+                .collection("messages")
+                .add(messageData)
+                .addOnSuccessListener { documentReference ->
+                    Log.d("ChatActivity", "✅ Message sent successfully: ${documentReference.id}")
+                    Toast.makeText(this, "Message sent", Toast.LENGTH_SHORT).show()
+                    // Scroll to bottom
+                    rvMessages.postDelayed({
+                        if (messages.isNotEmpty()) {
+                            rvMessages.scrollToPosition(messages.size - 1)
+                        }
+                    }, 100)
+                }
+                .addOnFailureListener { e ->
+                    Log.e("ChatActivity", "❌ Error sending message", e)
+                    Log.e("ChatActivity", "Error type: ${e.javaClass.simpleName}")
+                    Log.e("ChatActivity", "Error message: ${e.message}")
+                    Log.e("ChatActivity", "Error cause: ${e.cause}")
+                    
+                    // Show detailed error to user
+                    val errorMsg = when {
+                        e.message?.contains("PERMISSION_DENIED") == true -> 
+                            "Permission denied. Enable Firestore in Firebase Console"
+                        e.message?.contains("NOT_FOUND") == true -> 
+                            "Firestore not enabled. Check Firebase Console"
+                        e.message?.contains("UNAVAILABLE") == true -> 
+                            "No internet connection"
+                        else -> "Failed: ${e.message}"
+                    }
+                    Toast.makeText(this, errorMsg, Toast.LENGTH_LONG).show()
+                }
         }
     }
 
-    private fun simulateReply() {
-        val replies = listOf(
-            "That sounds great!",
-            "I agree with you!",
-            "Tell me more about that.",
-            "Interesting! 🤔",
-            "Absolutely!",
-            "I understand what you mean."
-        )
-        
-        val currentTime = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
-        val reply = ChatMessage(
-            id = UUID.randomUUID().toString(),
-            message = replies.random(),
-            timestamp = currentTime,
-            isSentByMe = false
-        )
-        
-        chatAdapter.addMessage(reply)
-        rvMessages.scrollToPosition(messages.size - 1)
-    }
 }
 
 

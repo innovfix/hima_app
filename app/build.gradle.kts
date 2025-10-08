@@ -77,6 +77,12 @@ dependencies {
     implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.core.animation)
     implementation(libs.firebase.analytics)
+    
+    // Firebase BOM and Firestore for chat
+    implementation(platform("com.google.firebase:firebase-bom:33.5.1"))
+    implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation("com.google.firebase:firebase-messaging-ktx")
+    
     val lifecycleVersion = "2.6.2"
     val glideVersion = "4.11.0"
 
