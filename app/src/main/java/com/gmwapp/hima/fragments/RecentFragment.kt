@@ -115,7 +115,16 @@ class RecentFragment : BaseFragment() {
     }
 
     private fun startMaleCallConnectingActivity(data: CallsListResponseData, callType: String) {
-        val intent = Intent(requireContext(), MaleCallConnectingActivity::class.java).apply {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        
+        // Check if user is female/creator - use FemaleCallConnectingActivity
+        val activityClass = if (userData?.gender == DConstants.FEMALE) {
+            com.gmwapp.hima.agora.female.FemaleCallConnectingActivity::class.java
+        } else {
+            MaleCallConnectingActivity::class.java
+        }
+        
+        val intent = Intent(requireContext(), activityClass).apply {
             putExtra(DConstants.CALL_TYPE, callType)
             putExtra(DConstants.RECEIVER_ID, data.id)
             putExtra(DConstants.RECEIVER_NAME, data.name)

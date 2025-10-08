@@ -77,6 +77,7 @@ class RecentCallsAdapter(
         holder.binding.tvName.text = call.name
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         if (userData?.gender == DConstants.MALE) {
+            // Male users calling female users
             holder.binding.ivAudioCircle.visibility = View.VISIBLE
             holder.binding.ivVideoCircle.visibility = View.VISIBLE
             holder.binding.ivAudio.visibility = View.VISIBLE
@@ -109,13 +110,47 @@ class RecentCallsAdapter(
                 holder.binding.ivVideo.isEnabled = true
                 holder.binding.ivVideo.setImageResource(R.drawable.ic_video_modern)
             }
+            // Chat button always enabled
+            holder.binding.ivChatCircle.setOnSingleClickListener {
+                val intent = android.content.Intent(activity, com.gmwapp.hima.activities.ChatActivity::class.java)
+                intent.putExtra("USER_ID", call.id)
+                intent.putExtra("USER_NAME", call.name)
+                intent.putExtra("USER_IMAGE", call.image)
+                activity.startActivity(intent)
+            }
         } else {
-            holder.binding.ivAudioCircle.visibility = View.GONE
-            holder.binding.ivVideoCircle.visibility = View.GONE
-            holder.binding.ivAudio.visibility = View.GONE
-            holder.binding.ivVideo.visibility = View.GONE
-            holder.binding.tvAmount.visibility = View.VISIBLE
+            // Female/Creator users - show BOTH call buttons AND earnings
+            holder.binding.ivAudioCircle.visibility = View.VISIBLE
+            holder.binding.ivVideoCircle.visibility = View.VISIBLE
+            holder.binding.ivAudio.visibility = View.VISIBLE
+            holder.binding.ivVideo.visibility = View.VISIBLE
+            holder.binding.tvAmount.visibility = View.VISIBLE // Show earnings
             holder.binding.tvAmount.text = activity.getString(R.string.rupee_text, call.income)
+            
+            // Audio call button - always enabled for creators to call male users
+            holder.binding.ivAudioCircle.setOnSingleClickListener{
+                onAudioListener.onItemSelected(call)
+            }
+            holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.colorAccent))
+            holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.white))
+            holder.binding.ivAudio.isEnabled = true
+            holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
+            
+            // Video call button - always enabled for creators to call male users
+            holder.binding.ivVideoCircle.setOnSingleClickListener{ onVideoListener.onItemSelected(call) }
+            holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.green))
+            holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.white))
+            holder.binding.ivVideo.isEnabled = true
+            holder.binding.ivVideo.setImageResource(R.drawable.ic_video_modern)
+
+            // Chat button (design only)
+            holder.binding.ivChatCircle.setOnSingleClickListener {
+                val intent = android.content.Intent(activity, com.gmwapp.hima.activities.ChatActivity::class.java)
+                intent.putExtra("USER_ID", call.id)
+                intent.putExtra("USER_NAME", call.name)
+                intent.putExtra("USER_IMAGE", call.image)
+                activity.startActivity(intent)
+            }
         }
         holder.binding.tvTime.text = call.started_time
         // Add "min" only if not already present

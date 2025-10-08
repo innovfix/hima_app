@@ -3,8 +3,6 @@ package com.gmwapp.hima
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
@@ -23,7 +21,7 @@ class CouponAdapter(private val coupons: List<Coupon>,
         val tvOriginalPrice: TextView = view.findViewById(R.id.tvOriginalPrice)
         val tvDiscountedPrice: TextView = view.findViewById(R.id.tvDiscountedPrice)
         val coins: TextView = view.findViewById(R.id.tvCoins)
-        val btnApply: Button = view.findViewById(R.id.btnApplyCoupon)
+        val btnApply: View = view.findViewById(R.id.btnApplyCoupon)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CouponViewHolder {
@@ -42,9 +40,9 @@ class CouponAdapter(private val coupons: List<Coupon>,
         holder.tvDiscountedPrice.text = coupon.discountedPrice
         holder.coins.text = coupon.coins
 
+        // Add strikethrough to original price
         holder.tvOriginalPrice.paintFlags =
             holder.tvOriginalPrice.paintFlags or android.graphics.Paint.STRIKE_THRU_TEXT_FLAG
-        holder.tvOriginalPrice.setTypeface(holder.tvOriginalPrice.typeface, android.graphics.Typeface.BOLD)
 
         holder.btnApply.setOnClickListener {
             listener.onCouponClick(coupon)

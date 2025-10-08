@@ -116,7 +116,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="18dp"
-            android:layout_marginEnd="16dp"
+            android:layout_marginEnd="8dp"
             android:orientation="vertical"
             app:layout_constraintBottom_toBottomOf="@id/profile_container"
             app:layout_constraintEnd_toStartOf="@+id/buttons_container"
@@ -160,76 +160,113 @@
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
 
-        <!-- Call Buttons Container -->
+        <!-- Right Side Container - Buttons and Amount -->
         <LinearLayout
             android:id="@+id/buttons_container"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:orientation="horizontal"
+            android:orientation="vertical"
             app:layout_constraintBottom_toBottomOf="@id/profile_container"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="@id/profile_container">
 
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/iv_audio_circle"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:layout_marginEnd="10dp"
-                android:clickable="true"
-                android:focusable="true"
-                app:cardBackgroundColor="@color/grey_extra_light"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="2dp"
-                app:rippleColor="@color/colorAccent">
+            <!-- Top Row: Audio and Video buttons aligned -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:orientation="horizontal">
 
-                <ImageView
-                    android:id="@+id/iv_audio"
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:layout_gravity="center"
-                    android:src="@drawable/ic_phone_modern"
-                    app:tint="@color/grey_medium" />
-            </com.google.android.material.card.MaterialCardView>
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/iv_audio_circle"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginEnd="10dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    app:cardBackgroundColor="@color/grey_extra_light"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="2dp"
+                    app:rippleColor="@color/colorAccent">
 
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/iv_video_circle"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:clickable="true"
-                android:focusable="true"
-                app:cardBackgroundColor="@color/grey_extra_light"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="2dp"
-                app:rippleColor="@color/colorAccent">
+                    <ImageView
+                        android:id="@+id/iv_audio"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_phone_modern"
+                        app:tint="@color/grey_medium" />
+                </com.google.android.material.card.MaterialCardView>
 
-                <ImageView
-                    android:id="@+id/iv_video"
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:layout_gravity="center"
-                    android:src="@drawable/ic_video_modern"
-                    app:tint="@color/grey_medium" />
-            </com.google.android.material.card.MaterialCardView>
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/iv_video_circle"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    app:cardBackgroundColor="@color/grey_extra_light"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="2dp"
+                    app:rippleColor="@color/colorAccent">
+
+                    <ImageView
+                        android:id="@+id/iv_video"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_video_modern"
+                        app:tint="@color/grey_medium" />
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+            <!-- Bottom Row: Amount and Chat aligned -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <!-- Amount TextView for Creator Side (Below Audio) -->
+                <TextView
+                    android:id="@+id/tv_amount"
+                    android:layout_width="40dp"
+                    android:layout_height="18dp"
+                    android:layout_marginEnd="10dp"
+                    android:text="₹0"
+                    android:gravity="center"
+                    android:textColor="@color/green"
+                    android:textSize="9sp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:textStyle="bold"
+                    android:visibility="gone"
+                    android:paddingHorizontal="4dp"
+                    android:paddingVertical="1dp"
+                    android:background="@drawable/rounded_green_light_bg" />
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/iv_chat_circle"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_marginStart="4dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    app:cardBackgroundColor="@color/grey_extra_light"
+                    app:cardCornerRadius="10dp"
+                    app:cardElevation="2dp"
+                    app:rippleColor="@color/colorAccent">
+
+                    <ImageView
+                        android:id="@+id/iv_chat"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_chat_bubble"
+                        app:tint="@color/grey_medium" />
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
         </LinearLayout>
-
-        <!-- Amount TextView for Creator Side -->
-        <TextView
-            android:id="@+id/tv_amount"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="₹0"
-            android:textColor="@color/green"
-            android:textSize="18sp"
-            android:fontFamily="@font/poppins_bold"
-            android:textStyle="bold"
-            android:visibility="gone"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="6dp"
-            android:background="@drawable/rounded_green_light_bg"
-            app:layout_constraintBottom_toBottomOf="@id/profile_container"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@id/profile_container" />
 
         <!-- Hidden Divider -->
         <View

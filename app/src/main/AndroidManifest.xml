@@ -111,6 +111,12 @@
             android:name=".agora.female.FemaleCallAcceptActivity"
             android:exported="false" />
         <activity
+            android:name=".agora.female.FemaleCallConnectingActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.ChatActivity"
+            android:exported="false" />
+        <activity
             android:name=".agora.male.MaleCallConnectingActivity"
             android:exported="true" />
         <activity

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+    
+    <!-- Gift Box Base -->
+    <path
+        android:fillColor="#FFD018"
+        android:pathData="M30,50 L90,50 L90,100 Q90,105 85,105 L35,105 Q30,105 30,100 Z"/>
+    
+    <!-- Gift Box Lid -->
+    <path
+        android:fillColor="#FFA500"
+        android:pathData="M25,40 L95,40 Q98,40 98,43 L98,50 L22,50 L22,43 Q22,40 25,40 Z"/>
+    
+    <!-- Ribbon Vertical -->
+    <path
+        android:fillColor="#FF1383"
+        android:pathData="M55,40 L65,40 L65,105 L55,105 Z"/>
+    
+    <!-- Ribbon Horizontal -->
+    <path
+        android:fillColor="#FF1383"
+        android:pathData="M22,45 L98,45 L98,55 L22,55 Z"/>
+    
+    <!-- Bow -->
+    <path
+        android:fillColor="#FF5FA5"
+        android:pathData="M50,30 Q45,25 40,30 Q35,35 40,38 Q45,40 50,38 Z"/>
+    <path
+        android:fillColor="#FF5FA5"
+        android:pathData="M70,30 Q75,25 80,30 Q85,35 80,38 Q75,40 70,38 Z"/>
+    <path
+        android:fillColor="#FF1383"
+        android:pathData="M55,25 Q60,20 65,25 L60,35 Z"/>
+    
+    <!-- Sparkles -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M20,30 L22,32 L20,34 L18,32 Z"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M100,60 L102,62 L100,64 L98,62 Z"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M25,70 L27,72 L25,74 L23,72 Z"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M95,35 L97,37 L95,39 L93,37 Z"/>
+</vector>
+

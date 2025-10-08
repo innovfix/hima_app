@@ -103,6 +103,19 @@
     <color name="creator_language_bg">#F3F4F6</color>
     <color name="creator_language_text">#6B7280</color>
     
+    <!-- Chat Interface Colors -->
+    <color name="chat_background">#FAFBFC</color>
+    <color name="chat_bubble_sent">#FF1383</color>
+    <color name="chat_bubble_received">#F3F4F6</color>
+    <color name="chat_text_sent">#FFFFFF</color>
+    <color name="chat_text_received">#1F2937</color>
+    <color name="chat_time_sent">#FFFFFF</color>
+    <color name="chat_time_received">#9CA3AF</color>
+    <color name="chat_input_bg">#F9FAFB</color>
+    <color name="chat_input_border">#E5E7EB</color>
+    <color name="chat_status_online">#10B981</color>
+    <color name="chat_status_offline">#9CA3AF</color>
+    
     <!-- Premium Button Gradients -->
     <color name="audio_gradient_start">#9C1DF9</color>
     <color name="audio_gradient_center">#B947FF</color>
