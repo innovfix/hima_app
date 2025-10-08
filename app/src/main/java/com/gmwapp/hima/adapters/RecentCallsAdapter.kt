@@ -186,6 +186,88 @@ class RecentCallsAdapter(
         notifyDataSetChanged()
     }
 
+    fun sortByRecent() {
+        // Sort by date and started_time (most recent first)
+        callList.sortWith(compareByDescending<CallsListResponseData> { 
+            parseDateString(it.date)
+        }.thenByDescending { 
+            parseTimeString(it.started_time)
+        })
+        notifyDataSetChanged()
+    }
+
+    fun sortByTalkTime() {
+        // Sort by duration (longest first)
+        callList.sortByDescending { parseDuration(it.duration) }
+        notifyDataSetChanged()
+    }
+
+    fun sortByName() {
+        // Sort by name alphabetically (A-Z)
+        callList.sortBy { it.name.lowercase() }
+        notifyDataSetChanged()
+    }
+
+    private fun parseDateString(dateStr: String): Long {
+        return try {
+            if (dateStr.isNullOrEmpty()) return 0L
+            
+            // Try different date formats
+            val formats = listOf(
+                SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()),
+                SimpleDateFormat("dd-MM-yyyy", java.util.Locale.getDefault()),
+                SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()),
+                SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
+            )
+            
+            for (format in formats) {
+                try {
+                    return format.parse(dateStr)?.time ?: 0L
+                } catch (e: Exception) {
+                    continue
+                }
+            }
+            0L
+        } catch (e: Exception) {
+            0L
+        }
+    }
+
+    private fun parseTimeString(timeStr: String): Long {
+        return try {
+            if (timeStr.isNullOrEmpty()) return 0L
+            
+            // Try different time formats
+            val formats = listOf(
+                SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()),
+                SimpleDateFormat("hh:mm a", java.util.Locale.getDefault()),
+                SimpleDateFormat("HH:mm", java.util.Locale.getDefault()),
+                SimpleDateFormat("hh:mm:ss a", java.util.Locale.getDefault())
+            )
+            
+            for (format in formats) {
+                try {
+                    return format.parse(timeStr)?.time ?: 0L
+                } catch (e: Exception) {
+                    continue
+                }
+            }
+            0L
+        } catch (e: Exception) {
+            0L
+        }
+    }
+
+    private fun parseDuration(durationStr: String): Int {
+        return try {
+            // Extract numbers from duration string
+            // Handles formats like "5 min", "5min", "5", etc.
+            val numericValue = durationStr.replace("[^0-9]".toRegex(), "")
+            if (numericValue.isEmpty()) 0 else numericValue.toInt()
+        } catch (e: Exception) {
+            0
+        }
+    }
 
     internal class ItemHolder(val binding: AdapterRecentCallsBinding) :
         RecyclerView.ViewHolder(binding.root)

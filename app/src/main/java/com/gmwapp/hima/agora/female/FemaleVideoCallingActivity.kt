@@ -766,8 +766,24 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
 
                     }else{
-                        binding.main.setBackgroundResource(R.drawable.d_call_screen_background)
+                        // Remove background completely to show video
+                        binding.main.setBackgroundColor(android.graphics.Color.TRANSPARENT)
                         binding.remoteVideoViewContainer.visibility= View.VISIBLE
+                        
+                        // Re-setup remote video to ensure it's properly rendered when switching from audio to video
+                        binding.remoteVideoViewContainer.removeAllViews()
+                        remoteSurfaceView = SurfaceView(this@FemaleVideoCallingActivity)
+                        remoteSurfaceView!!.setZOrderMediaOverlay(false)
+                        remoteSurfaceView!!.visibility = View.VISIBLE
+                        binding.remoteVideoViewContainer.addView(remoteSurfaceView)
+                        agoraEngine?.setupRemoteVideo(
+                            VideoCanvas(
+                                remoteSurfaceView,
+                                VideoCanvas.RENDER_MODE_FIT,
+                                uid
+                            )
+                        )
+                        binding.remoteVideoViewContainer.bringToFront()
 
                     }
                 }
@@ -1561,25 +1577,45 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
 
         runOnUiThread {
+            // Clear any existing views first
+            binding.localVideoViewContainer.removeAllViews()
+            binding.remoteVideoViewContainer.removeAllViews()
+            
+            // Remove background to show video
+            binding.main.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            
             // Enable video module
             agoraEngine?.enableVideo()
+            
+            // Enable local video and start camera
+            agoraEngine?.enableLocalVideo(true)
+            agoraEngine?.muteLocalVideoStream(false)
 
             // Set up the local video view
-            val localContainer = binding.localVideoViewContainer
             val localView = SurfaceView(this)
             localView.setZOrderMediaOverlay(true)
-            localContainer.addView(localView)
+            localView.visibility = View.VISIBLE
+            binding.localVideoViewContainer.addView(localView)
 
             // Attach local video feed
-            agoraEngine?.setupLocalVideo(VideoCanvas(localView, VideoCanvas.RENDER_MODE_HIDDEN, 0))
+            agoraEngine?.setupLocalVideo(VideoCanvas(localView, VideoCanvas.RENDER_MODE_FIT, 0))
+            
+            // Start local video preview
+            agoraEngine?.startPreview()
 
             // Make video UI visible
             binding.localVideoViewContainer.visibility = View.VISIBLE
             binding.localCardView.visibility = View.VISIBLE
             binding.remoteVideoViewContainer.visibility = View.VISIBLE
+            
+            // Bring video containers to front
+            binding.localVideoViewContainer.bringToFront()
+            binding.remoteVideoViewContainer.bringToFront()
+            binding.localCardView.bringToFront()
+            
+            Log.d("enableVideoCall", "Local video setup complete from video activity")
 
-            // Notify remote user to switch to video (if required)
-
+            // Setup remote video view - will be properly rendered when remote stream is available
             remoteSurfaceView = SurfaceView(this)
             remoteSurfaceView!!.setZOrderMediaOverlay(false)
             binding.remoteVideoViewContainer.addView(remoteSurfaceView)
@@ -1591,6 +1627,28 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
                 )
             )
+            
+            Log.d("enableVideoCall", "Video enabled from video call activity for videoUid: $videoUid")
+            
+            // Retry remote video setup after a delay to ensure remote stream is ready
+            Handler(Looper.getMainLooper()).postDelayed({
+                Log.d("enableVideoCall", "Retrying remote video setup after delay")
+                binding.remoteVideoViewContainer.removeAllViews()
+                remoteSurfaceView = SurfaceView(this)
+                remoteSurfaceView!!.setZOrderMediaOverlay(false)
+                remoteSurfaceView!!.visibility = View.VISIBLE
+                binding.remoteVideoViewContainer.addView(remoteSurfaceView)
+                agoraEngine?.setupRemoteVideo(
+                    VideoCanvas(
+                        remoteSurfaceView,
+                        VideoCanvas.RENDER_MODE_FIT,
+                        videoUid
+                    )
+                )
+                binding.remoteVideoViewContainer.visibility = View.VISIBLE
+                binding.remoteVideoViewContainer.bringToFront()
+                Log.d("enableVideoCall", "Remote video setup retry completed")
+            }, 1500)
             remoteSurfaceView!!.visibility = View.VISIBLE
 
             startTime =

@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.appcompat.widget.PopupMenu
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -38,6 +39,7 @@ class RecentFragment : BaseFragment() {
         binding = FragmentRecentBinding.inflate(inflater, container, false)
         initUI()
         observeViewModel()
+        setupSortOptions()
         return binding.root
     }
 
@@ -125,6 +127,20 @@ class RecentFragment : BaseFragment() {
         FcmUtils.isUserAvailable=1
         startActivity(intent)
     }
+
+    private fun setupSortOptions() {
+        binding.cardSort.setOnClickListener { showSortMenu() }
+    }
+
+    private fun showSortMenu() {
+        val popup = PopupMenu(requireContext(), binding.cardSort)
+        popup.menuInflater.inflate(R.menu.menu_recent_sort, popup.menu)
+        // UI-only: no actions yet, just dismiss on selection
+        popup.setOnMenuItemClickListener { true }
+        popup.show()
+    }
+
+    // UI-only; sorting will be implemented later when API is ready
 
     override fun onResume() {
         super.onResume()

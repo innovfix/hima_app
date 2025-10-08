@@ -47,10 +47,7 @@ class FemaleUserAdapter(
         val holder: ItemHolder = holderParent as ItemHolder
         val femaleUser: FemaleUsersResponseData = femaleUsers[position]
         
-        // Load profile image
-        Glide.with(activity)
-            .load(femaleUser.image)
-            .into(holder.binding.ivProfile)
+        Glide.with(activity).load(femaleUser.image).into(holder.binding.ivProfile)
 
         Log.d("FemaleName", "${femaleUser.name} audio ${femaleUser.audio_status} video ${femaleUser.video_status}")
 
