@@ -20,14 +20,17 @@
     android:keepScreenOn="true"
     android:background="@drawable/professional_call_background">
 
-    <!-- Hidden Video Containers (for compatibility) -->
+    <!-- Video Containers -->
     <androidx.cardview.widget.CardView
         android:id="@+id/localCardView"
-        android:layout_width="1dp"
-        android:layout_height="1dp"
+        android:layout_width="@dimen/_120sdp"
+        android:layout_height="190dp"
         android:visibility="gone"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent">
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        android:layout_marginRight="@dimen/_6sdp"
+        android:layout_marginTop="@dimen/_6sdp"
+        app:cardElevation="5dp">
 
         <FrameLayout
             android:id="@+id/local_video_view_container"
@@ -35,13 +38,14 @@
             android:layout_height="match_parent"
             android:background="@android:color/black"/>
     </androidx.cardview.widget.CardView>
-
+    
     <FrameLayout
         android:id="@+id/remote_video_view_container"
-        android:layout_width="1dp"
-        android:layout_height="1dp"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:visibility="gone"
-        android:background="@android:color/black" />
+        android:layout_centerHorizontal="true"
+        android:background="@android:color/darker_gray" />
 
     <!-- Top Bar Container -->
     <LinearLayout
@@ -89,6 +93,7 @@
                 android:src="@drawable/ic_timer_professional"
                 android:layout_marginEnd="6dp"
                 android:contentDescription="Timer"
+                app:tint="#1A237E"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent"/>
@@ -466,7 +471,7 @@
 
     </LinearLayout>
 
-    <!-- Gift Icon (optional, for special features) -->
+    <!-- Gift Icon (hidden on female side) -->
     <ImageView
         android:id="@+id/iv_gift"
         android:layout_width="@dimen/_55sdp"

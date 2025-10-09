@@ -155,18 +155,38 @@ class CouponActivity : AppCompatActivity(), CouponAdapter.OnCouponClickListener 
     }
 
     override fun onCouponClick(coupon: Coupon) {
-        val intent = Intent(this, PaymentActivity::class.java).apply {
-            putExtra("COUPON_CODE", coupon.couponCode)
-            putExtra("ORIGINAL_PRICE", coupon.originalPrice)
-            putExtra("DISCOUNTED_PRICE", coupon.discountedPrice)
-            putExtra("COINS", coupon.coins)
-            putExtra("SAVE", "${coupon.saveAmount}") // Assuming saveAmount represents coins
-
-            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP) // ✅ Add flags before startActivity
-
+        // Calculate savings amount
+        val originalPrice = coupon.originalPrice.replace("₹", "").trim()
+        val discountedPrice = coupon.discountedPrice.replace("₹", "").trim()
+        val savingsAmount = try {
+            val original = originalPrice.toDouble()
+            val discounted = discountedPrice.toDouble()
+            (original - discounted).toInt().toString()
+        } catch (e: Exception) {
+            coupon.saveAmount
         }
-        startActivity(intent)
-        finish()
 
+        // Show success dialog
+        val successDialog = com.gmwapp.hima.dialogs.CouponSuccessDialog(
+            context = this,
+            couponCode = coupon.couponCode,
+            savingsAmount = savingsAmount,
+            originalAmount = originalPrice,
+            finalAmount = discountedPrice,
+            onContinueClick = {
+                // Navigate to Payment Activity after dialog
+                val intent = Intent(this, PaymentActivity::class.java).apply {
+                    putExtra("COUPON_CODE", coupon.couponCode)
+                    putExtra("ORIGINAL_PRICE", coupon.originalPrice)
+                    putExtra("DISCOUNTED_PRICE", coupon.discountedPrice)
+                    putExtra("COINS", coupon.coins)
+                    putExtra("SAVE", savingsAmount)
+                    addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                }
+                startActivity(intent)
+                finish()
+            }
+        )
+        successDialog.show()
     }
 }

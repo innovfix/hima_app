@@ -85,12 +85,7 @@ class LoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             }
         }
 
-        binding.clCountry.setOnSingleClickListener {
-            val bottomSheet = BottomSheetCountry()
-            bottomSheet.show(
-                supportFragmentManager, "BottomSheetCountry"
-            )
-        }
+        // Country selection removed - India flag is now fixed
         binding.etMobileNumber.setOnTouchListener { v, _ ->
             binding.cvLogin.setBackgroundResource(R.drawable.card_view_border_active)
             false

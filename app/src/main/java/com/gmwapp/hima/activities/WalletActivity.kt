@@ -579,8 +579,15 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
             }
 
 
+            // Navigate to PaymentActivity to show coupon options
+            val intent = Intent(this@WalletActivity, PaymentActivity::class.java).apply {
+                putExtra("AMOUNT", amount)
+                putExtra("COIN_SELECTED", selectedCoin)
+                putExtra("SAVE_PERCENT", selectedSavePercent)
+            }
+            startActivity(intent)
 
-
+            /* OLD CODE - Direct payment (commented out to enable coupon screen)
             if (userId != null && pointsId.isNotEmpty()) {
                 if (pointsIdInt != null) {
 
@@ -731,14 +738,8 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
             } else {
                 Toast.makeText(this, "Invalid input data", Toast.LENGTH_SHORT).show()
             }
+            */  // END of OLD CODE - Direct payment
 
-//            val intent = Intent(this@WalletActivity, PaymentActivity::class.java).apply {
-//                putExtra("AMOUNT", amount)
-//                putExtra("COIN_SELECTED", selectedCoin )
-//                putExtra("SAVE_PERCENT", selectedSavePercent)
-//
-//            }
-//            startActivity(intent)
         })
 
 

@@ -179,7 +179,9 @@
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:id="@+id/cl_country"
                     android:layout_width="wrap_content"
-                    android:layout_height="match_parent">
+                    android:layout_height="match_parent"
+                    android:clickable="false"
+                    android:focusable="false">
 
                     <ImageView
                         android:id="@+id/iv_flag"
@@ -201,6 +203,7 @@
                         app:layout_constraintBottom_toBottomOf="parent"
                         android:src="@drawable/ic_down_arrow"
                         app:tint="@color/colorPrimaryDark"
+                        android:visibility="gone"
                         tools:ignore="ContentDescription" />
                 </androidx.constraintlayout.widget.ConstraintLayout>
 

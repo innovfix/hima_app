@@ -1416,8 +1416,10 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             startTime =
                 dateFormat.format(Date()) // Set call end time only if startTime is not empty
 
+            // Hide video switch button and its container during video call
             binding.btnVideoCall.setImageResource(R.drawable.audiocall_img)
             binding.btnVideoCall.visibility= View.GONE
+            binding.layoutButtons.visibility= View.GONE
 
             femaleUsersViewModel.femaleCallAttend(receiverId,
                 switchCallID,
@@ -1728,8 +1730,10 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             // Reset video surfaces
             remoteSurfaceView = null
 
-            // **Update button to reflect audio call**
+            // **Update button to reflect audio call and show it again**
             binding.btnVideoCall.setImageResource(R.drawable.videocall_img)
+            binding.btnVideoCall.visibility= View.VISIBLE
+            binding.layoutButtons.visibility= View.VISIBLE
 
             startTime =
                 dateFormat.format(Date()) // Set call end time only if startTime is not empty
