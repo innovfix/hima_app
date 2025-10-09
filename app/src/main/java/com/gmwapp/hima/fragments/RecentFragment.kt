@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.appcompat.widget.PopupMenu
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -38,6 +39,7 @@ class RecentFragment : BaseFragment() {
         binding = FragmentRecentBinding.inflate(inflater, container, false)
         initUI()
         observeViewModel()
+        setupSortOptions()
         return binding.root
     }
 
@@ -113,7 +115,16 @@ class RecentFragment : BaseFragment() {
     }
 
     private fun startMaleCallConnectingActivity(data: CallsListResponseData, callType: String) {
-        val intent = Intent(requireContext(), MaleCallConnectingActivity::class.java).apply {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        
+        // Check if user is female/creator - use FemaleCallConnectingActivity
+        val activityClass = if (userData?.gender == DConstants.FEMALE) {
+            com.gmwapp.hima.agora.female.FemaleCallConnectingActivity::class.java
+        } else {
+            MaleCallConnectingActivity::class.java
+        }
+        
+        val intent = Intent(requireContext(), activityClass).apply {
             putExtra(DConstants.CALL_TYPE, callType)
             putExtra(DConstants.RECEIVER_ID, data.id)
             putExtra(DConstants.RECEIVER_NAME, data.name)
@@ -125,6 +136,20 @@ class RecentFragment : BaseFragment() {
         FcmUtils.isUserAvailable=1
         startActivity(intent)
     }
+
+    private fun setupSortOptions() {
+        binding.cardSort.setOnClickListener { showSortMenu() }
+    }
+
+    private fun showSortMenu() {
+        val popup = PopupMenu(requireContext(), binding.cardSort)
+        popup.menuInflater.inflate(R.menu.menu_recent_sort, popup.menu)
+        // UI-only: no actions yet, just dismiss on selection
+        popup.setOnMenuItemClickListener { true }
+        popup.show()
+    }
+
+    // UI-only; sorting will be implemented later when API is ready
 
     override fun onResume() {
         super.onResume()

@@ -532,16 +532,15 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
 
     private fun giftIconClicked(){
-        binding.ivGift.setOnClickListener{
-           // showGiftBottomSheet()
+        // Gift button click listener (works for both the card and the icon)
+        binding.giftButtonCard.setOnClickListener {
             if(isVideoCallGoing==true){
                 val bottomSheet = GiftBottomSheetFragment("video",receiverId)
-             //   bottomSheet.show(supportFragmentManager, "BottomSheetSelectPayment")
+                bottomSheet.show(supportFragmentManager, "BottomSheetGift")
             }else{
                 val bottomSheet = GiftBottomSheetFragment("audio",receiverId)
-                bottomSheet.show(supportFragmentManager, "BottomSheetSelectPayment")
+                bottomSheet.show(supportFragmentManager, "BottomSheetGift")
             }
-
         }
     }
 

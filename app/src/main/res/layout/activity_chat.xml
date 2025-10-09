@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    android:background="#FAFBFC">
+
+    <!-- Top App Bar with Elevation -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/top_bar_card"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        app:cardElevation="2dp"
+        app:cardCornerRadius="0dp"
+        app:cardBackgroundColor="@color/white"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:id="@+id/top_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="10dp"
+            android:background="@color/white">
+
+            <ImageView
+                android:id="@+id/iv_back"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_baseline_arrow_back_ios_24"
+                android:contentDescription="Back"
+                android:padding="4dp"
+                android:tint="#1F2937" />
+
+            <de.hdodenhof.circleimageview.CircleImageView
+                android:id="@+id/iv_user"
+                android:layout_width="42dp"
+                android:layout_height="42dp"
+                android:layout_marginStart="12dp"
+                android:src="@drawable/logo"
+                app:civ_border_width="2dp"
+                app:civ_border_color="#FFE5F1" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="12dp">
+
+                <TextView
+                    android:id="@+id/tv_user_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Username"
+                    android:textSize="17sp"
+                    android:textColor="#1F2937"
+                    android:fontFamily="@font/poppins_semibold"
+                    android:letterSpacing="-0.01" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="1dp">
+
+                    <View
+                        android:layout_width="6dp"
+                        android:layout_height="6dp"
+                        android:background="@drawable/splash_circle"
+                        android:backgroundTint="#10B981" />
+
+                    <TextView
+                        android:id="@+id/tv_user_status"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:text="Online"
+                        android:textSize="12sp"
+                        android:textColor="#10B981"
+                        android:fontFamily="@font/poppins_medium" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/iv_more"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/baseline_more_vert_24"
+                android:contentDescription="More"
+                android:padding="4dp"
+                android:tint="#6B7280" />
+
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Messages List -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_messages"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:clipToPadding="false"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp"
+        app:layout_constraintTop_toBottomOf="@id/top_bar_card"
+        app:layout_constraintBottom_toTopOf="@id/message_input_container"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Date Divider Example (Optional) -->
+    <TextView
+        android:id="@+id/tv_date_divider"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Today"
+        android:textSize="12sp"
+        android:textColor="#9CA3AF"
+        android:fontFamily="@font/poppins_medium"
+        android:background="@drawable/chat_input_background"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="4dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/top_bar_card"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Message Input Container -->
+    <LinearLayout
+        android:id="@+id/message_input_container"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp"
+        android:background="@color/white"
+        android:elevation="4dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Message Input Field -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/chat_input_background"
+            android:paddingStart="16dp"
+            android:paddingEnd="4dp"
+            android:paddingVertical="4dp">
+
+            <EditText
+                android:id="@+id/et_message"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@android:color/transparent"
+                android:hint="Type a message..."
+                android:textSize="15sp"
+                android:textColor="#1F2937"
+                android:textColorHint="#9CA3AF"
+                android:fontFamily="@font/poppins_regular"
+                android:paddingVertical="10dp"
+                android:inputType="textCapSentences|textMultiLine"
+                android:maxLines="4"
+                android:scrollbars="vertical" />
+
+        </LinearLayout>
+
+        <!-- Send Button -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/btn_send"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:src="@drawable/ic_send"
+            app:fabCustomSize="48dp"
+            app:maxImageSize="22dp"
+            app:tint="@color/white"
+            app:backgroundTint="@color/colorAccent"
+            app:elevation="2dp"
+            app:pressedTranslationZ="4dp"
+            app:borderWidth="0dp"
+            android:contentDescription="Send message" />
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+
+

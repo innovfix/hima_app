@@ -198,8 +198,15 @@ class EditProfileActivity : BaseActivity() {
         })
         binding.btnUpdate.setOnClickListener(View.OnClickListener {
             val layoutManager = binding.rvAvatars.layoutManager as CenterLayoutManager
-            val avatarId =
-                profileViewModel.avatarsListLiveData.value?.data?.get(layoutManager.findFirstCompletelyVisibleItemPosition())?.id
+            val visiblePosition = layoutManager.findFirstCompletelyVisibleItemPosition()
+            
+            // Get the selected avatar ID, or use the current one if not changed
+            val avatarId = if (visiblePosition >= 0) {
+                profileViewModel.avatarsListLiveData.value?.data?.get(visiblePosition)?.id
+            } else {
+                userData?.avatar_id
+            }
+            
             userData?.let { it1 ->
                 avatarId?.let { it2 ->
                     binding.pbUpdateLoader.visibility = View.VISIBLE
@@ -302,11 +309,24 @@ class EditProfileActivity : BaseActivity() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val interests = userData?.interests?.split(",")
         val layoutManager = binding.rvAvatars.layoutManager as CenterLayoutManager
-        val index = layoutManager.findLastCompletelyVisibleItemPosition()
-        if(index < 0) return
+        val index = layoutManager.findFirstCompletelyVisibleItemPosition()
+        
         val sameInterests = interests?.containsAll(selectedInterests) == true && interests.size == selectedInterests.size
+        
+        // Check if username has changed
+        val usernameChanged = userData?.name != binding.etUserName.text.toString()
+        
+        // Check if interests have changed
+        val interestsChanged = !sameInterests
+        
+        // Check if avatar has changed (only if index is valid)
+        val avatarChanged = if (index >= 0) {
+            profileViewModel.avatarsListLiveData.value?.data?.get(index)?.id != userData?.avatar_id
+        } else {
+            false
+        }
 
-        if (isValidUserName && (userData?.name != binding.etUserName.text.toString() || !sameInterests || profileViewModel.avatarsListLiveData.value?.data?.get(index)?.id != userData.avatar_id)) {
+        if (isValidUserName && (usernameChanged || interestsChanged || avatarChanged)) {
             binding.btnUpdate.isEnabled = true
 //            Toast.makeText(this@EditProfileActivity, "1".toString(), Toast.LENGTH_LONG).show()
             //   binding.btnUpdate.setBackgroundResource(R.drawable.d_button_bg_white)
