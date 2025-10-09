@@ -155,7 +155,6 @@ class BaseApplication : Application(), Configuration.Provider {
         firebaseAnalytics = FirebaseAnalytics.getInstance(this)
 
         appflyer()
-        getInstallReferrer()
 
         FacebookSdk.setApplicationId(getString(R.string.facebook_app_id))
         FacebookSdk.sdkInitialize(applicationContext)

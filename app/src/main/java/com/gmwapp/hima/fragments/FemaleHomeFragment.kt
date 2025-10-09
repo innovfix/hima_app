@@ -533,6 +533,11 @@ class FemaleHomeFragment : BaseFragment() {
             val prefs = BaseApplication.getInstance()?.getPrefs()
             prefs?.setUserData(it?.data)
             binding.tvCoins.text = "₹" + it?.data?.balance.toString()
+
+            if (it?.data != null) {
+                binding.sAudio.isChecked = it.data.audio_status == 1
+                binding.sVideo.isChecked = it.data.video_status == 1
+            }
         })
     }
 
@@ -540,6 +545,12 @@ class FemaleHomeFragment : BaseFragment() {
         super.onResume()
         val prefs = BaseApplication.getInstance()?.getPrefs()
         val userData = prefs?.getUserData()
+
+        if (userData != null) {
+            binding.sAudio.isChecked = userData.audio_status == 1
+            binding.sVideo.isChecked = userData.video_status == 1
+        }
+
         femaleUsersViewModel.getReports(userData?.id!!)
         updateEarnings()
     }
