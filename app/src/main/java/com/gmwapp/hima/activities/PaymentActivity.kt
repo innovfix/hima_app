@@ -14,6 +14,12 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Observer
 import com.bumptech.glide.Glide
+import com.cashfree.pg.api.CFPaymentGatewayService
+import com.cashfree.pg.base.exception.CFException
+import com.cashfree.pg.core.api.CFSession
+import com.cashfree.pg.core.api.callback.CFCheckoutResponseCallback
+import com.cashfree.pg.core.api.utils.CFErrorResponse
+import com.cashfree.pg.core.api.webcheckout.CFWebCheckoutPayment
 import com.facebook.appevents.AppEventsConstants
 import com.facebook.appevents.AppEventsLogger
 import com.gmwapp.hima.BaseApplication
@@ -44,7 +50,7 @@ import org.json.JSONObject
 import retrofit2.Call
 import java.io.IOException
 @AndroidEntryPoint
-class PaymentActivity : AppCompatActivity() {
+class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
     lateinit var binding: ActivityPaymentBinding
     private val WalletViewModel: WalletViewModel by viewModels()
     var paymentGateway = ""
@@ -60,6 +66,8 @@ class PaymentActivity : AppCompatActivity() {
 
     private var lastOrderId: String = ""
     private var isPhonePeInitialized = false
+    private var cashfreeLastOrderId: String = ""
+    private val cfEnvironment = CFSession.Environment.PRODUCTION
 
     private val activityResultLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -353,6 +361,10 @@ class PaymentActivity : AppCompatActivity() {
                             }
 
 
+                            "cashfree" -> {
+                                fetchOrderOfCashfree(coinID)
+                            }
+
                             "upigateway" -> {
 
                                 var amount = binding.tvFinalAmount.text.toString().trim()
@@ -599,6 +611,152 @@ class PaymentActivity : AppCompatActivity() {
 //                    binding.tvCoins.text = it.data?.coins.toString()
 
                 })
+            }
+        })
+    }
+
+    // ===================== Cashfree Payment Methods =====================
+
+    override fun onPaymentVerify(orderID: String?) {
+        Log.d("WebCheckout", "Payment verified for order: $orderID")
+        orderID?.let {
+            checkCashfreeOderStatus(it)
+        }
+    }
+
+    override fun onPaymentFailure(cfErrorResponse: CFErrorResponse?, orderID: String?) {
+        Log.e("WebCheckout", "Payment failed for $orderID: ${cfErrorResponse?.getMessage()}")
+        runOnUiThread {
+            Toast.makeText(this, "Payment Failed: ${cfErrorResponse?.getMessage()}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    fun cashfreeCheckout(paymentSessionID: String, orderID: String) {
+        try {
+            val cfSession = CFSession.CFSessionBuilder()
+                .setEnvironment(cfEnvironment)
+                .setPaymentSessionID(paymentSessionID)
+                .setOrderId(orderID)
+                .build()
+
+            val cfWebCheckoutPayment = CFWebCheckoutPayment.CFWebCheckoutPaymentBuilder()
+                .setSession(cfSession)
+                .build()
+
+            CFPaymentGatewayService.getInstance()
+                .doPayment(this@PaymentActivity, cfWebCheckoutPayment)
+
+        } catch (e: CFException) {
+            e.printStackTrace()
+            Toast.makeText(this, "Cashfree checkout failed: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun fetchOrderOfCashfree(coinId: String) {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val user_id = userData?.id
+        val client = OkHttpClient()
+
+        val json = """{
+        "user_id": "$user_id",
+        "coins_id": "$coinId"
+    }"""
+        val mediaType = "application/json".toMediaTypeOrNull()
+        val body = RequestBody.create(mediaType, json)
+
+        val request = Request.Builder()
+            .url("https://himaapp.in/api/cashfree/create-order")
+            .post(body)
+            .addHeader("Content-Type", "application/json")
+            .build()
+
+        client.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                runOnUiThread {
+                    Toast.makeText(this@PaymentActivity, "Order creation failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                val resultStr = response.body?.string()
+                Log.d("CashfreeOrderResponse", "$resultStr")
+
+                try {
+                    val json = JSONObject(resultStr)
+                    val success = json.optBoolean("success", false)
+
+                    if (success) {
+                        val sessionId = json.getString("payment_session_id")
+                        val orderId = json.getString("order_id")
+
+                        cashfreeLastOrderId = orderId
+                        runOnUiThread {
+                            // Start the Cashfree payment flow
+                            cashfreeCheckout(sessionId, orderId)
+                        }
+                    } else {
+                        runOnUiThread {
+                            val errorMsg = json.optJSONObject("errors")?.toString() ?: "Order creation failed"
+                            Toast.makeText(this@PaymentActivity, errorMsg, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        Toast.makeText(this@PaymentActivity, "Invalid server response", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        })
+    }
+
+    fun checkCashfreeOderStatus(orderId: String) {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val user_id = userData?.id
+        val client = OkHttpClient()
+
+        val request = Request.Builder()
+            .url("https://himaapp.in/api/cashfree/check-order-status?order_id=$orderId")
+            .get()
+            .addHeader("Content-Type", "application/json")
+            .build()
+
+        client.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                runOnUiThread {
+                    Toast.makeText(this@PaymentActivity, "Status check failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                val resultStr = response.body?.string()
+                Log.d("CashfreeOrderStatus", "$resultStr")
+
+                try {
+                    val json = JSONObject(resultStr)
+
+                    val paymentStatus = json.optString("order_status", "UNKNOWN")
+                    val coin_id = json.optString("coin_id", "")
+                    val order_id = json.optString("order_id", "")
+
+                    Log.d("cashfreePaymentStatus", "Status: $paymentStatus, Coin ID: $coin_id, Order ID: $order_id")
+
+                    if (paymentStatus.equals("PAID", ignoreCase = true)) {
+                        runOnUiThread {
+                            Toast.makeText(this@PaymentActivity, "Payment Successful", Toast.LENGTH_LONG).show()
+                            user_id?.let { WalletViewModel.add_coins_cashfree(it, coin_id, 1, order_id, "Coins purchased") }
+                            observeAddCoins()
+                            updatePurchaseOnMeta()
+                        }
+                    } else {
+                        runOnUiThread {
+                            Toast.makeText(this@PaymentActivity, "Payment Failed", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        Toast.makeText(this@PaymentActivity, "Invalid response", Toast.LENGTH_SHORT).show()
+                    }
+                }
             }
         })
     }
