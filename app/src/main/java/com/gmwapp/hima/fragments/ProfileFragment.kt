@@ -167,4 +167,5 @@ class ProfileFragment : BaseFragment() {
         val activeNetwork = connectivityManager.activeNetworkInfo
         return activeNetwork != null && activeNetwork.isConnected
     }
+    //update
 }
