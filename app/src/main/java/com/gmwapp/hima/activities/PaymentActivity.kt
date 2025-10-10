@@ -112,11 +112,13 @@ class PaymentActivity : AppCompatActivity() {
         val discountedPrice = intent.getStringExtra("DISCOUNTED_PRICE")
         val save = intent.getStringExtra("SAVE")
         val coins = intent.getStringExtra("COINS")
+        val offer = intent.getStringExtra("OFFER")  // Get offer text from coupon
 
         Log.d("couponcode","$couponCode")
         Log.d("couponcode","$originalPrice")
         Log.d("couponcode","$discountedPrice")
         Log.d("couponcode","$save")
+        Log.d("couponcode","Offer: $offer")
 
         binding.tvCoinsText.text = coinSelected + " Coins"
         binding.tvTotalAmount.text = "₹$amount"
@@ -154,7 +156,8 @@ class PaymentActivity : AppCompatActivity() {
             binding.etCouponCode.setText(couponCode)
             binding.tvTotalAmount.text = "$originalPrice" // Set original price
             binding.tvFinalAmount.text = "$originalPrice" // Use a different field for discounted price
-            binding.tvSavePercent.text = save
+            // Show offer text with "Save" prefix (e.g., "Save 40%")
+            binding.tvSavePercent.text = formatOfferText(offer, save)
             binding.tvCoinsText.text = coins
         }
     }
@@ -181,17 +184,45 @@ class PaymentActivity : AppCompatActivity() {
             val discountedPrice = it.getStringExtra("DISCOUNTED_PRICE")
             val coins = it.getStringExtra("COINS")
             val save = intent.getStringExtra("SAVE")
+            val offer = intent.getStringExtra("OFFER")  // Get offer text from coupon
 
             binding.etCouponCode?.setText(couponCode)
             binding.tvTotalAmount.text = "$originalPrice" // Set original price
             binding.tvFinalAmount.text = "$discountedPrice" // Use a different field for discounted price
-            binding.tvSavePercent.text = save
+            // Show offer text with "Save" prefix (e.g., "Save 40%")
+            binding.tvSavePercent.text = formatOfferText(offer, save)
             binding.tvCoinsText.text = coins+" Coins"
 
             Log.d("PaymentActivityCheck", "Coupon Code: $couponCode")
             Log.d("PaymentActivity", "Original Price: $originalPrice")
             Log.d("PaymentActivity", "Discounted Price: $discountedPrice")
+            Log.d("PaymentActivity", "Offer: $offer")
             Log.d("PaymentActivity", "Coins: $coins")
+        }
+    }
+
+    /**
+     * Format offer text to always include "Save" prefix
+     * Examples:
+     * - "40%" → "Save 40%"
+     * - "Save 40%" → "Save 40%"
+     * - "50% Off" → "Save 50% Off"
+     * - null → "Save ₹250"
+     */
+    private fun formatOfferText(offer: String?, save: String?): String {
+        return when {
+            offer.isNullOrBlank() -> {
+                // No offer text, use calculated save amount
+                "Save ₹$save"
+            }
+            offer.startsWith("Save", ignoreCase = true) -> {
+                // Already has "Save" prefix
+                offer
+            }
+            else -> {
+                // Add "Save" prefix
+                "Save $offer"
+            }
         }
     }
 

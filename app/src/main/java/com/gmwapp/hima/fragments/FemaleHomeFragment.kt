@@ -31,6 +31,7 @@ import com.gmwapp.hima.activities.GrantPermissionsActivity
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentFemaleHomeBinding
 import com.gmwapp.hima.retrofit.responses.BadgeData
+import com.gmwapp.hima.retrofit.responses.UserData
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.BadgeViewModel
@@ -447,6 +448,10 @@ class FemaleHomeFragment : BaseFragment() {
         })
 
         if (userData != null) {
+            // Disable listeners before initial setup to avoid triggering API calls
+            binding.sAudio.setOnCheckedChangeListener(null)
+            binding.sVideo.setOnCheckedChangeListener(null)
+            
             binding.sAudio.isChecked = userData.audio_status == 1
             binding.sVideo.isChecked = userData.video_status == 1
         }
@@ -459,7 +464,7 @@ class FemaleHomeFragment : BaseFragment() {
 
 
         femaleUsersViewModel.reportResponseLiveData.observe(viewLifecycleOwner, Observer {
-            if (it.success) {
+            if (it != null && it.success) {
 
                 Log.d("reportResponseLiveData", "$it")
                 Log.d("first_call", "${it.data[0].first_call}")
@@ -493,35 +498,50 @@ class FemaleHomeFragment : BaseFragment() {
             if (it != null && it.success) {
                 prefs.setUserData(it.data)
             } else {
-                Toast.makeText(context, it?.message, Toast.LENGTH_SHORT).show()
+              //  Toast.makeText(context, it?.message, Toast.LENGTH_SHORT).show()
+                // Temporarily disable listeners before reverting switch state
+                binding.sAudio.setOnCheckedChangeListener(null)
+                binding.sVideo.setOnCheckedChangeListener(null)
                 binding.sAudio.isChecked = prefs.getUserData()?.audio_status == 1
                 binding.sVideo.isChecked = prefs.getUserData()?.video_status == 1
+                // Re-enable listeners
+                setupSwitchListeners(userData)
             }
         })
         femaleUsersViewModel.updateCallStatusErrorLiveData.observe(viewLifecycleOwner, Observer {
-            showErrorMessage(it)
+            if (it != null) {
+                showErrorMessage(it)
+            }
+            // Temporarily disable listeners before reverting switch state
+            binding.sAudio.setOnCheckedChangeListener(null)
+            binding.sVideo.setOnCheckedChangeListener(null)
             binding.sAudio.isChecked = prefs.getUserData()?.audio_status == 1
             binding.sVideo.isChecked = prefs.getUserData()?.video_status == 1
+            // Re-enable listeners
+            setupSwitchListeners(userData)
         })
-        binding.sAudio.setOnCheckedChangeListener({ buttonView, isChecked ->
-            userData.id.let {
-                femaleUsersViewModel.updateCallStatus(
-                    it, DConstants.AUDIO, if (isChecked) 1 else 0
-                )
-            }
-            if (isChecked) {
+        
+        // Set up switch listeners once at the end of initUI
+        setupSwitchListeners(userData)
+    }
 
-            }
-        })
-        binding.sVideo.setOnCheckedChangeListener({ buttonView, isChecked ->
-            userData.id.let {
-                femaleUsersViewModel.updateCallStatus(
-                    it, DConstants.VIDEO, if (isChecked) 1 else 0
-                )
-            }
-        })
-
-
+    private fun setupSwitchListeners(userData: UserData?) {
+        if (userData != null) {
+            binding.sAudio.setOnCheckedChangeListener({ buttonView, isChecked ->
+                userData.id.let { userId ->
+                    femaleUsersViewModel.updateCallStatus(
+                        userId, DConstants.AUDIO, if (isChecked) 1 else 0
+                    )
+                }
+            })
+            binding.sVideo.setOnCheckedChangeListener({ buttonView, isChecked ->
+                userData.id.let { userId ->
+                    femaleUsersViewModel.updateCallStatus(
+                        userId, DConstants.VIDEO, if (isChecked) 1 else 0
+                    )
+                }
+            })
+        }
     }
 
     fun updateEarnings(){
@@ -535,8 +555,17 @@ class FemaleHomeFragment : BaseFragment() {
             binding.tvCoins.text = "₹" + it?.data?.balance.toString()
 
             if (it?.data != null) {
+                // Temporarily remove listeners to avoid triggering API calls when updating UI
+                binding.sAudio.setOnCheckedChangeListener(null)
+                binding.sVideo.setOnCheckedChangeListener(null)
+                
+                // Update switch states from fresh API data
                 binding.sAudio.isChecked = it.data.audio_status == 1
                 binding.sVideo.isChecked = it.data.video_status == 1
+                
+                // Re-attach listeners after UI update
+                val userData = prefs?.getUserData()
+                setupSwitchListeners(userData)
             }
         })
     }
@@ -546,13 +575,18 @@ class FemaleHomeFragment : BaseFragment() {
         val prefs = BaseApplication.getInstance()?.getPrefs()
         val userData = prefs?.getUserData()
 
-        if (userData != null) {
-            binding.sAudio.isChecked = userData.audio_status == 1
-            binding.sVideo.isChecked = userData.video_status == 1
+        // Don't set switches here - let updateEarnings() fetch fresh data and set them
+        // This prevents race condition between cached data and API data
+
+        if (userData != null && userData.id != null) {
+            femaleUsersViewModel.getReports(userData.id)
+            updateEarnings()
+        } else {
+            Log.e("FemaleHomeFragment", "UserData is null, skipping getReports()")
         }
 
-        femaleUsersViewModel.getReports(userData?.id!!)
-        updateEarnings()
+//        femaleUsersViewModel.getReports(userData?.id!!)
+//        updateEarnings()
     }
 
 

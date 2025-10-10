@@ -957,7 +957,10 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             val token = task.result
             Log.d("FCM", "Device token: $token")
 
-            userId?.let { fcmTokenViewModel.sendToken(it, token) }
+            userId?.let { 
+                // Send token to backend
+                fcmTokenViewModel.sendToken(it, token)
+            }
             observeTokenResponse()
         }
     }

@@ -14,7 +14,7 @@
         android:layout_height="wrap_content"
         android:background="@color/white"
         android:elevation="2dp"
-        android:paddingTop="24dp"
+        android:paddingTop="10dp"
         app:elevation="2dp">
 
         <LinearLayout
@@ -25,39 +25,85 @@
             android:paddingTop="20dp"
             android:paddingBottom="16dp">
 
+            <!-- Title Row -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical">
 
-                <LinearLayout
+                <TextView
+                    android:id="@+id/tv_recent_calls"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:orientation="vertical">
+                    android:fontFamily="@font/poppins_bold"
+                    android:letterSpacing="-0.02"
+                    android:text="@string/recent_calls"
+                    android:textColor="@color/black_light"
+                    android:textSize="22sp" />
 
-                    <TextView
-                        android:id="@+id/tv_recent_calls"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:fontFamily="@font/poppins_bold"
-                        android:letterSpacing="-0.02"
-                        android:text="@string/recent_calls"
-                        android:textColor="@color/black_light"
-                        android:textSize="22sp" />
+                <!-- Chat Icon Button (Top Right) -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_chat"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    app:cardCornerRadius="14dp"
+                    app:cardElevation="2dp"
+                    app:strokeWidth="0dp"
+                    app:cardBackgroundColor="@color/colorAccent"
+                    app:rippleColor="@color/white">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:fontFamily="@font/poppins_regular"
-                        android:text="Track your call activities"
-                        android:textColor="@color/grey_medium"
-                        android:textSize="13sp" />
-                </LinearLayout>
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent">
 
-                <!-- Sort Button -->
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:layout_gravity="center"
+                            android:src="@drawable/ic_chat_bubble"
+                            app:tint="@color/white" />
+
+                        <!-- Unread Badge -->
+                        <TextView
+                            android:id="@+id/tv_unread_badge"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:layout_gravity="top|end"
+                            android:layout_marginTop="2dp"
+                            android:layout_marginEnd="2dp"
+                            android:background="@drawable/circle_bg_red"
+                            android:fontFamily="@font/poppins_bold"
+                            android:gravity="center"
+                            android:text="3"
+                            android:textColor="@color/white"
+                            android:textSize="10sp"
+                            android:visibility="gone" />
+                    </FrameLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+            <!-- Subtitle and Filter Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/poppins_regular"
+                    android:text="Track your call activities"
+                    android:textColor="@color/grey_medium"
+                    android:textSize="13sp" />
+
+                <!-- Sort Button (Aligned with subtitle) -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/card_sort"
                     android:layout_width="wrap_content"

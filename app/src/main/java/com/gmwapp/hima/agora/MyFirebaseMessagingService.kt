@@ -166,6 +166,67 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
                     }
 
+                    // ========== MALE INCOMING CALL HANDLING ==========
+                    // Added for males to receive calls from females
+                    if (gender == "male") {
+                        // Import male activities
+                        val MaleCallAcceptActivity = com.gmwapp.hima.agora.male.MaleCallAcceptActivity::class.java
+                        val MaleAudioCallingActivity = com.gmwapp.hima.agora.male.MaleAudioCallingActivity::class.java
+                        val MaleVideoCallingActivity = com.gmwapp.hima.agora.male.MaleVideoCallingActivity::class.java
+
+                        if (currentActivity?.javaClass == MaleCallAcceptActivity ||
+                            currentActivity?.javaClass == MaleAudioCallingActivity ||
+                            currentActivity?.javaClass == MaleVideoCallingActivity) {
+
+                            Log.d("FCM", "Male user is already in a call. Ignoring incoming call notification.")
+
+                            val receiverId = senderId
+                            sendAutoRejectNotification(userData?.id, receiverId, callType, channelName)
+                            return
+                        }
+
+                        BaseApplication.getInstance()?.saveSenderId(senderId)
+                        BaseApplication.getInstance()?.playIncomingCallSound()
+                        showIncomingCallNotificationMale(callType, senderId, channelName, callId.toIntOrNull() ?: 0, receiverName, receiverImg)
+
+                        callType?.let {
+                            BaseApplication.getInstance()?.setIncomingCall(senderId,
+                                it, channelName, callId.toIntOrNull() ?: 0)
+                        }
+
+                        val intent = Intent(this, MaleCallAcceptActivity).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            putExtra("CALL_TYPE", callType)
+                            putExtra("SENDER_ID", senderId)
+                            putExtra("CHANNEL_NAME", channelName)
+                            putExtra("Caller_NAME", receiverName)
+                            putExtra("Caller_Image", receiverImg)
+                            putExtra("CALL_ID", callId.toIntOrNull() ?: 0)
+                        }
+
+                        Log.d("MaleCallAccept_CallType","$callType")
+                        if (!Settings.canDrawOverlays(this)) {
+                            startActivity(intent)
+                        }else{
+                            if (isAppInBackground(applicationContext)) {
+                                Log.d("FCMService_Male", "App is in background (Minimized)")
+                                // Handle background notification logic
+                            } else {
+                                Log.d("FCMService_Male", "App is in foreground (Visible)")
+                                startActivity(intent)
+                            }
+                        }
+
+                        if (currentActivity !is MainActivity &&
+                            currentActivity !is EarningsActivity &&
+                            currentActivity !is BankUpdateActivity) {
+                            // App is NOT in these activities → Show notification
+                            // Already shown above
+                        } else {
+                            Log.d("currentActivity_Male", "User is in $currentActivity, skipping notification")
+                        }
+                    }
+                    // ========== END MALE INCOMING CALL HANDLING ==========
 
 
 
@@ -188,6 +249,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
             if (message == "accepted" || message == "rejected" && gender=="male") {
                 FcmUtils.updateCallStatus(message, channelName)
+            }
+
+            // Handle call status updates for females (receiving acceptance/rejection from males)
+            if ((message == "accepted" || message == "rejected") && gender == "female") {
+                Log.d("FCM_Female", "Received call status: $message from male user: $senderId")
+                FcmUtils.updateCallStatus(message, senderId.toString())
             }
 
             if (message == "userBusy" && gender == "male") {
@@ -268,6 +335,54 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 }
 
             }
+
+            // ========== MALE HANDLER FOR CALL DECLINED ==========
+            // Added for males to receive call cancellation from females
+            if (message == "callDeclined" && gender == "male") {
+                Log.d("FCM_Male", "Female caller cancelled. Closing incoming call screen.")
+
+                val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+                val isScreenLocked = keyguardManager.isKeyguardLocked
+                var previousSenderId = BaseApplication.getInstance()?.getSenderId()
+                
+                if (senderId == previousSenderId) {
+                    BaseApplication.getInstance()?.clearIncomingCall()
+                    BaseApplication.getInstance()?.stopRingtone()
+                    cancelIncomingCallNotification()
+
+                    if (isScreenLocked) {
+                        // If the screen is locked, forcefully close the app
+                        Log.d("isScreenLocked_Male", "$isScreenLocked")
+                        val mainIntent = Intent(this, MainActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        }
+                        startActivity(mainIntent)
+                        currentActivity?.moveTaskToBack(true) // Move app to background
+                        currentActivity?.finishAffinity()
+                    } else {
+                        val currentActivity = BaseApplication.getInstance()?.getCurrentActivity()
+
+                        if (isAppInBackground(applicationContext)) {
+                            Log.d("FCMService_Male", "App is in background (Minimized)")
+                            val mainIntent = Intent(this, MainActivity::class.java).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            }
+                            startActivity(mainIntent)
+                            currentActivity?.moveTaskToBack(true) // Move app to background
+                            currentActivity?.finishAffinity()
+                        } else {
+                            Log.d("FCMService_Male", "App is in foreground (Visible)")
+                            if (currentActivity !is MainActivity) {
+                                val mainIntent = Intent(this, MainActivity::class.java).apply {
+                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                                }
+                                startActivity(mainIntent)
+                            }
+                        }
+                    }
+                }
+            }
+            // ========== END MALE HANDLER FOR CALL DECLINED ==========
 
             if (message == "remainingTimeUpdated" && gender == "female") {
 
@@ -575,6 +690,123 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         }
     }
 
+    // ========== MALE INCOMING CALL NOTIFICATION ==========
+    // Added for males to receive call notifications from females
+    private fun showIncomingCallNotificationMale(
+        callType: String?,
+        senderId: Int,
+        channelName: String,
+        callId: Int,
+        receiverName: String,
+        receiverImg: String
+    ) {
+        createNotificationChannel() // Ensure the notification channel exists
+
+        // Check if we have permission to post notifications
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+
+            if (ActivityCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                Log.e("Notification_Male", "Permission for notifications not granted!")
+                return  // Exit if permission is not granted
+            }
+        }
+
+        val intent = Intent(this, com.gmwapp.hima.agora.male.MaleCallAcceptActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("CALL_TYPE", callType)
+            putExtra("SENDER_ID", senderId)
+            putExtra("CHANNEL_NAME", channelName)
+            putExtra("CALL_ID", callId)
+            putExtra("Caller_NAME", receiverName)
+            putExtra("Caller_Image", receiverImg)
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            this, 1, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val acceptIntent = Intent(this, CallActionReceiver::class.java).apply {
+            action = "ACTION_ACCEPT_CALL_MALE"
+            putExtra("CALL_TYPE", callType)
+            putExtra("SENDER_ID", senderId)
+            putExtra("CHANNEL_NAME", channelName)
+            putExtra("CALL_ID", callId)
+        }
+        val acceptPendingIntent = PendingIntent.getBroadcast(
+            this, 4, acceptIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val rejectIntent = Intent(this, CallActionReceiver::class.java).apply {
+            action = "ACTION_REJECT_CALL_MALE"
+            putExtra("CALL_TYPE", callType)
+            putExtra("SENDER_ID", senderId)
+            putExtra("CHANNEL_NAME", channelName)
+            putExtra("CALL_ID", callId)
+        }
+        val rejectPendingIntent = PendingIntent.getBroadcast(
+            this, 5, rejectIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        try {
+            val remoteViews = RemoteViews(packageName, R.layout.notification_layout)
+            remoteViews.setTextViewText(R.id.caller_name, "$receiverName")
+            remoteViews.setTextViewText(R.id.call_type, "Incoming ${callType?.capitalize()} Session")
+
+            // Detect Dark Mode
+            val isDarkMode = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+            val textColor = if (isDarkMode) ContextCompat.getColor(this, R.color.white)
+            else ContextCompat.getColor(this, R.color.black)
+
+            // Set text color dynamically
+            remoteViews.setTextColor(R.id.caller_name, textColor)
+            remoteViews.setTextColor(R.id.call_type, textColor)
+
+            remoteViews.setOnClickPendingIntent(R.id.btn_accept, pendingIntent)
+            remoteViews.setOnClickPendingIntent(R.id.btn_decline, pendingIntent)
+
+            val builder = NotificationCompat.Builder(this, "calls")
+                .setSmallIcon(R.drawable.notification_icon)
+                .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+                .setCustomContentView(remoteViews)
+                .setCustomBigContentView(remoteViews)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setCategory(NotificationCompat.CATEGORY_CALL)
+                .setCustomContentView(remoteViews)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setFullScreenIntent(pendingIntent, true)
+                .setAutoCancel(true)
+
+            Glide.with(this)
+                .asBitmap()
+                .load(receiverImg)
+                .apply(RequestOptions.circleCropTransform())
+                .into(object : CustomTarget<Bitmap>() {
+                    override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                        remoteViews.setImageViewBitmap(R.id.profile_image, resource)
+                        val manager = NotificationManagerCompat.from(applicationContext)
+                        manager.notify(1, builder.build()) // Update notification with image
+                    }
+
+                    override fun onLoadCleared(placeholder: Drawable?) {
+                        // Handle if needed
+                    }
+                })
+
+            val manager = NotificationManagerCompat.from(this)
+            manager.notify(1, builder.build())
+            Log.d("NotificationDebug_Male", "Notification sent for male user")
+
+        } catch (e: SecurityException) {
+            Log.e("NotificationError_Male", "SecurityException: ${e.message}")
+        } catch (e: Exception){
+            Log.e("NotificationError_Male", "General Exception: ${e.message}")
+        }
+    }
+    // ========== END MALE INCOMING CALL NOTIFICATION ==========
+
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -596,11 +828,5 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager?.cancel(1) // 1 is the notification ID used in showIncomingCallNotification()
     }
-
-
-
-
-
-
 
 }

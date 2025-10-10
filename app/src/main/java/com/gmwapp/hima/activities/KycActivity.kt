@@ -135,7 +135,7 @@ class KycActivity : AppCompatActivity() {
 
         loginViewModel.loginResponseLiveData.observe(this, Observer {
 
-            if (it.success) {
+            if (it != null && it.success) {
                 if (!it.data?.pancard_name.isNullOrEmpty()&& !it.data?.pancard_number.isNullOrEmpty()){
                     val pancardName = it.data?.pancard_name
                     val pancardNumber = it.data?.pancard_number

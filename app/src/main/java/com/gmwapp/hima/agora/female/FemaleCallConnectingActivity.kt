@@ -41,12 +41,13 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
     var receiverName : String? = null
     var userId: Int? = null
     private var callId = 0
+    private var channelName: String = ""  // Store channel name to ensure consistency
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
     private lateinit var progressBar: ProgressBar
     private val handler = Handler(Looper.getMainLooper())
     private var progressStatus = 0
     private var isRunning = true  // Keeps the loop running
-    private val designOnly = true  // Toggle: true = UI only (no API/FCM), false = full flow
+    private val designOnly = false  // Toggle: true = UI only (no API/FCM), false = full flow
 
     private var elapsedTime = 0  // Tracks elapsed seconds
     private val timeoutHandler = Handler(Looper.getMainLooper())
@@ -305,8 +306,8 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
         var userId = userData?.id
         receiverId?.let { receiverId ->
             userId?.let { userId ->
-                // For female calling male, parameters might be reversed or use different API
-                femaleUsersViewModel.callFemaleUser(receiverId, userId, callType!!, 0)
+                // For female calling male, use callMaleUser API
+                femaleUsersViewModel.callMaleUser(userId, receiverId, callType!!, 0)
             }
             callIdObserver()
         }
@@ -314,24 +315,50 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
 
     private fun callIdObserver() {
         if (designOnly) return // UI-only: skip observers
-        femaleUsersViewModel.callFemaleUserResponseLiveData.observe(this, Observer {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val myAvatar = userData?.image
+        val myname = userData?.name
+        
+        femaleUsersViewModel.callMaleUserResponseLiveData.observe(this, Observer {
             if (it != null && it.success) {
                 callId = it.data?.call_id ?: 0
-                Log.d("CallID", "$callId")
+                channelName = "channel_$callId"  // Set channel name based on call ID
+                Log.d("CallID", "CallID: $callId, ChannelName: $channelName")
                 if (callId != 0) {
-                    sendCallNotification(userId!!, receiverId, callType!!, "calling")
+                    sendCallNotification(userId!!, receiverId, callType!!, "incoming call $callId $myAvatar $myname")
+                    observeNotificationResponse()
                 }
             }
         })
     }
 
+    fun observeNotificationResponse() {
+        fcmNotificationViewModel.notificationResponseLiveData.observe(this) { response ->
+            response?.let {
+                if (it.success) {
+                    Log.d("FCMNotification", "Notification sent successfully to male user!")
+                } else {
+                    Log.e("FCMNotification", "Failed to send notification: ${it.message}")
+                }
+            }
+        }
+        
+        fcmNotificationViewModel.notificationErrorLiveData.observe(this) { error ->
+            error?.let {
+                Log.e("FCMNotification", "Notification error: $it")
+                Toast.makeText(this, "Failed to connect: $it", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     fun sendCallNotification(senderId: Int, receiverId: Int, callType: String, message: String) {
         if (designOnly) return // UI-only: skip FCM
+        Log.d("FemaleCallConnect", "Sending notification with channelName: $channelName")
         fcmNotificationViewModel.sendNotification(
             senderId = senderId,
             receiverId = receiverId,
             callType = callType,
-            channelName = "channelname",
+            channelName = channelName,  // Use stored channel name instead of hardcoded
             message = message
         )
     }
@@ -348,6 +375,8 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                     isRunning = false
                     FcmUtils.clearCallStatus()
                     
+                    Log.d("FemaleCallConnect", "Male accepted! Joining channel: $channelName")
+                    
                     // Navigate to the appropriate calling activity
                     val intent = if (callType == "audio") {
                         Intent(this@FemaleCallConnectingActivity, FemaleAudioCallingActivity::class.java)
@@ -355,13 +384,13 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                         Intent(this@FemaleCallConnectingActivity, FemaleVideoCallingActivity::class.java)
                     }
                     
-                    intent.putExtra("CHANNEL_NAME", "channel_$callId")
+                    intent.putExtra("CHANNEL_NAME", channelName)  // Use stored channel name
                     intent.putExtra("RECEIVER_ID", this.receiverId)
                     intent.putExtra("CALL_ID", callId)
                     
                     startActivity(intent)
                     finish()
-                } else if (status == "declined" && receiverIdFromStatus == this.receiverId) {
+                } else if ((status == "declined" || status == "rejected") && receiverIdFromStatus == this.receiverId) {
                     cancelTimeoutTracking()
                     isRunning = false
                     FcmUtils.clearCallStatus()

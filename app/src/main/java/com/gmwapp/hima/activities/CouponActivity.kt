@@ -69,7 +69,7 @@ class CouponActivity : AppCompatActivity(), CouponAdapter.OnCouponClickListener 
 
                 if (bestCoupons.isNotEmpty()) {
                     binding.tvBestCoupons.visibility = View.VISIBLE
-                    binding.tvBestCoupons.text = bestCoupons[0].coupon_name
+                    binding.tvBestCoupons.text = bestCoupons[0].coupon_name ?: "Best Coupons"
                     Log.d("CouponName", "${bestCoupons[0].coupon_name}")
                 } else {
                     binding.tvBestCoupons.visibility = View.GONE
@@ -77,7 +77,7 @@ class CouponActivity : AppCompatActivity(), CouponAdapter.OnCouponClickListener 
 
                 if (moreCoupons.isNotEmpty()) {
                     binding.tvMoreCoupons.visibility = View.VISIBLE
-                    binding.tvMoreCoupons.text = moreCoupons[0].coupon_name
+                    binding.tvMoreCoupons.text = moreCoupons[0].coupon_name ?: "More Coupons"
                     Log.d("CouponName", "${moreCoupons[0].coupon_name}")
                 } else {
                     binding.tvMoreCoupons.visibility = View.GONE
@@ -87,26 +87,26 @@ class CouponActivity : AppCompatActivity(), CouponAdapter.OnCouponClickListener 
                 moreCouponsAdapter = CouponAdapter(moreCoupons.map { cd ->
                     Coupon(
                         cd.id.toString(),
-                        cd.offer,
-                        cd.coupon_code,
-                        cd.save_price,
-                        cd.valid,
-                        "₹${cd.original_price}",
-                        "₹${cd.discount_price}",
-                        cd.coins.toString()
+                        cd.offer ?: "",
+                        cd.coupon_code ?: "",
+                        cd.save_price ?: "Save ₹0",
+                        cd.valid ?: "Limited time",
+                        "₹${cd.original_price ?: 0}",
+                        formatDiscountPrice(cd.discount_price ?: "0"),
+                        (cd.coins ?: 0).toString()
                     )
                 }, this)
 
                 bestCouponsAdapter = CouponAdapter(bestCoupons.map { cd ->
                     Coupon(
                         cd.id.toString(),
-                        cd.offer,
-                        cd.coupon_code,
-                        cd.save_price,
-                        cd.valid,
-                        "₹${cd.original_price}",
-                        "₹${cd.discount_price}",
-                        cd.coins.toString()
+                        cd.offer ?: "",
+                        cd.coupon_code ?: "",
+                        cd.save_price ?: "Save ₹0",
+                        cd.valid ?: "Limited time",
+                        "₹${cd.original_price ?: 0}",
+                        formatDiscountPrice(cd.discount_price ?: "0"),
+                        (cd.coins ?: 0).toString()
                     )
                 }, this)
 
@@ -154,19 +154,68 @@ class CouponActivity : AppCompatActivity(), CouponAdapter.OnCouponClickListener 
 //        binding.rvMoreCoupons.adapter = moreCouponsAdapter
     }
 
-    override fun onCouponClick(coupon: Coupon) {
-        // Calculate savings amount
-        val originalPrice = coupon.originalPrice.replace("₹", "").trim()
-        val discountedPrice = coupon.discountedPrice.replace("₹", "").trim()
-        val savingsAmount = try {
-            val original = originalPrice.toDouble()
-            val discounted = discountedPrice.toDouble()
-            (original - discounted).toInt().toString()
+    private fun formatDiscountPrice(price: String): String {
+        return try {
+            // Handle empty or null-like strings
+            if (price.isBlank() || price.equals("null", ignoreCase = true)) {
+                return "₹0"
+            }
+            
+            // Remove any existing currency symbols, whitespace, and commas
+            val cleanPrice = price.replace("₹", "")
+                .replace("$", "")
+                .replace(",", "")
+                .trim()
+            
+            // Validate that it's a valid number
+            val numericValue = cleanPrice.toDoubleOrNull()
+            if (numericValue != null) {
+                // Format as integer if it's a whole number, otherwise keep decimals
+                if (numericValue % 1.0 == 0.0) {
+                    "₹${numericValue.toInt()}"
+                } else {
+                    "₹${"%.2f".format(numericValue)}"
+                }
+            } else {
+                // If not a valid number, return as is with ₹ prefix
+                "₹$cleanPrice"
+            }
         } catch (e: Exception) {
-            coupon.saveAmount
+            Log.e("CouponActivity", "Error formatting discount price: ${e.message}")
+            "₹$price"  // Return original with ₹ prefix as fallback
+        }
+    }
+
+    override fun onCouponClick(coupon: Coupon) {
+        // Use exact string values from API without conversion
+        val originalPrice = coupon.originalPrice.replace("₹", "").replace(",", "").trim()
+        val discountedPrice = coupon.discountedPrice.replace("₹", "").replace(",", "").trim()
+        
+        // Calculate savings amount - preserve decimals if present
+        val savingsAmount = try {
+            val original = originalPrice.toDoubleOrNull() ?: 0.0
+            val discounted = discountedPrice.toDoubleOrNull() ?: 0.0
+            val savings = original - discounted
+            
+            if (savings > 0) {
+                // Format to remove unnecessary decimal places
+                if (savings % 1.0 == 0.0) {
+                    // Whole number - show as integer
+                    savings.toInt().toString()
+                } else {
+                    // Has decimals - preserve them
+                    String.format("%.2f", savings)
+                }
+            } else {
+                // Use the save_price from API if calculation fails
+                coupon.saveAmount.replace("₹", "").replace("Save ", "").trim()
+            }
+        } catch (e: Exception) {
+            Log.e("CouponActivity", "Error calculating savings: ${e.message}")
+            coupon.saveAmount.replace("₹", "").replace("Save ", "").trim()
         }
 
-        // Show success dialog
+        // Show success dialog with exact values
         val successDialog = com.gmwapp.hima.dialogs.CouponSuccessDialog(
             context = this,
             couponCode = coupon.couponCode,
@@ -181,6 +230,7 @@ class CouponActivity : AppCompatActivity(), CouponAdapter.OnCouponClickListener 
                     putExtra("DISCOUNTED_PRICE", coupon.discountedPrice)
                     putExtra("COINS", coupon.coins)
                     putExtra("SAVE", savingsAmount)
+                    putExtra("OFFER", coupon.offer)  // Pass the offer text (e.g., "50% Off")
                     addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 }
                 startActivity(intent)

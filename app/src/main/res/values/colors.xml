@@ -43,6 +43,7 @@
     <color name="grey_medium">#75767a</color>
     <color name="grey">#545454</color>
     <color name="grey_extra_light">#F5F6F8</color>
+    <color name="light_grey">#E8EAED</color>
     <color name="text_light_grey">#979797</color>
     <color name="purple_400">#6E4EEF</color>
     <color name="brown">#A34148</color>

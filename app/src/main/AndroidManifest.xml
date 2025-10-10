@@ -118,7 +118,13 @@
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
         <activity
+            android:name=".activities.ChatListActivity"
+            android:exported="false" />
+        <activity
             android:name=".agora.male.MaleCallConnectingActivity"
+            android:exported="true" />
+        <activity
+            android:name=".agora.male.MaleCallAcceptActivity"
             android:exported="true" />
         <activity
             android:name=".YoutubeRechargeActivity"

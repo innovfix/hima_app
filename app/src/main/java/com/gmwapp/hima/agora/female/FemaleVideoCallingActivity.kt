@@ -762,29 +762,14 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                 runOnUiThread {
                     if (muted){
                         binding.main.setBackgroundColor(android.graphics.Color.GRAY)
-                        binding.remoteVideoViewContainer.visibility= View.GONE
-
-
+                        remoteSurfaceView?.visibility = View.GONE
+                        binding.remoteVideoViewContainer.visibility = View.GONE
                     }else{
                         // Remove background completely to show video
                         binding.main.setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                        binding.remoteVideoViewContainer.visibility= View.VISIBLE
-                        
-                        // Re-setup remote video to ensure it's properly rendered when switching from audio to video
-                        binding.remoteVideoViewContainer.removeAllViews()
-                        remoteSurfaceView = SurfaceView(this@FemaleVideoCallingActivity)
-                        remoteSurfaceView!!.setZOrderMediaOverlay(false)
-                        remoteSurfaceView!!.visibility = View.VISIBLE
-                        binding.remoteVideoViewContainer.addView(remoteSurfaceView)
-                        agoraEngine?.setupRemoteVideo(
-                            VideoCanvas(
-                                remoteSurfaceView,
-                                VideoCanvas.RENDER_MODE_FIT,
-                                uid
-                            )
-                        )
+                        remoteSurfaceView?.visibility = View.VISIBLE
+                        binding.remoteVideoViewContainer.visibility = View.VISIBLE
                         binding.remoteVideoViewContainer.bringToFront()
-
                     }
                 }
             }
@@ -798,7 +783,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         agoraEngine!!.setupRemoteVideo(
             VideoCanvas(
                 remoteSurfaceView,
-                VideoCanvas.RENDER_MODE_HIDDEN,
+                VideoCanvas.RENDER_MODE_FIT,
                 uid
             )
         )
@@ -813,7 +798,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         agoraEngine!!.setupLocalVideo(
             VideoCanvas(
                 localSurfaceView,
-                VideoCanvas.RENDER_MODE_HIDDEN,
+                VideoCanvas.RENDER_MODE_FIT,
                 0
             )
         )
@@ -1618,38 +1603,19 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             // Setup remote video view - will be properly rendered when remote stream is available
             remoteSurfaceView = SurfaceView(this)
             remoteSurfaceView!!.setZOrderMediaOverlay(false)
+            remoteSurfaceView!!.visibility = View.VISIBLE
             binding.remoteVideoViewContainer.addView(remoteSurfaceView)
             agoraEngine!!.setupRemoteVideo(
                 VideoCanvas(
                     remoteSurfaceView,
-                    VideoCanvas.RENDER_MODE_HIDDEN,
+                    VideoCanvas.RENDER_MODE_FIT,
                     videoUid
-
                 )
             )
+            binding.remoteVideoViewContainer.visibility = View.VISIBLE
+            binding.remoteVideoViewContainer.bringToFront()
             
             Log.d("enableVideoCall", "Video enabled from video call activity for videoUid: $videoUid")
-            
-            // Retry remote video setup after a delay to ensure remote stream is ready
-            Handler(Looper.getMainLooper()).postDelayed({
-                Log.d("enableVideoCall", "Retrying remote video setup after delay")
-                binding.remoteVideoViewContainer.removeAllViews()
-                remoteSurfaceView = SurfaceView(this)
-                remoteSurfaceView!!.setZOrderMediaOverlay(false)
-                remoteSurfaceView!!.visibility = View.VISIBLE
-                binding.remoteVideoViewContainer.addView(remoteSurfaceView)
-                agoraEngine?.setupRemoteVideo(
-                    VideoCanvas(
-                        remoteSurfaceView,
-                        VideoCanvas.RENDER_MODE_FIT,
-                        videoUid
-                    )
-                )
-                binding.remoteVideoViewContainer.visibility = View.VISIBLE
-                binding.remoteVideoViewContainer.bringToFront()
-                Log.d("enableVideoCall", "Remote video setup retry completed")
-            }, 1500)
-            remoteSurfaceView!!.visibility = View.VISIBLE
 
             startTime =
                 dateFormat.format(Date()) // Set call end time only if startTime is not empty
@@ -1871,15 +1837,14 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
         FcmUtils.greyScreenLiveData.observe(this) { msg ->
             if (msg=="greyScreenEnable"){
-
                 binding.main.setBackgroundColor(android.graphics.Color.GRAY)
-                binding.remoteVideoViewContainer.visibility= View.GONE
-
-
+                remoteSurfaceView?.visibility = View.GONE
+                binding.remoteVideoViewContainer.visibility = View.GONE
             }
             if (msg=="greyScreenDisable"){
-                binding.main.setBackgroundResource(R.drawable.d_call_screen_background)
-                binding.remoteVideoViewContainer.visibility= View.VISIBLE
+                binding.main.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                remoteSurfaceView?.visibility = View.VISIBLE
+                binding.remoteVideoViewContainer.visibility = View.VISIBLE
             }
         }
     }

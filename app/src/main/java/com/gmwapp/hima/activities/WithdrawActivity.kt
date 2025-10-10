@@ -396,11 +396,11 @@ class WithdrawActivity : BaseActivity() {
 
         profileViewModel.getUserLiveData.observe(this, Observer {
 
-            it.data?.let { it1 ->
+            it?.data?.let { it1 ->
                 BaseApplication.getInstance()?.getPrefs()?.setUserData(it1)
             }
 
-            binding.tvCurrentBalance.text = "₹" + it.data?.balance.toString()
+            binding.tvCurrentBalance.text = "₹" + it?.data?.balance.toString()
 
 
             Log.d("UserUpiID","${it.data?.upi_id}")

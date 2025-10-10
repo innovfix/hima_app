@@ -154,11 +154,12 @@ class RecentCallsAdapter(
         }
         holder.binding.tvTime.text = call.started_time
         // Add "min" only if not already present
-        val durationText = if (call.duration.contains("min", ignoreCase = true)) {
-            call.duration
-        } else {
-            "${call.duration} min"
-        }
+//        val durationText = if (call.duration.contains("min", ignoreCase = true)) {
+//            call.duration
+//        } else {
+//            "${call.duration} min"
+//        }
+        val durationText =    call.duration
         holder.binding.tvDuration.text = durationText
 
         Log.d("RecentCallUserName","${call.name}")

@@ -10,6 +10,7 @@ import com.gmwapp.hima.repositories.FemaleUsersRepositories
 import com.gmwapp.hima.repositories.TransactionsRepositories
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.CallFemaleUserResponse
+import com.gmwapp.hima.retrofit.responses.CallMaleUserResponse
 import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponse
 import com.gmwapp.hima.retrofit.responses.RandomUsersResponse
@@ -42,6 +43,8 @@ class FemaleUsersViewModel @Inject constructor(private val femaleUsersRepositori
     val callFemaleUserResponseLiveData = MutableLiveData<CallFemaleUserResponse>()
     val callFemaleUserErrorLiveData = MutableLiveData<String>()
 
+    val callMaleUserResponseLiveData = MutableLiveData<CallMaleUserResponse>()
+    val callMaleUserErrorLiveData = MutableLiveData<String>()
 
     val reportResponseLiveData = MutableLiveData<ReportsResponse>()
     val reportsErrorLiveData = MutableLiveData<String>()
@@ -166,6 +169,29 @@ class FemaleUsersViewModel @Inject constructor(private val femaleUsersRepositori
 
                 override fun onNoNetwork() {
                     callFemaleUserErrorLiveData.postValue(DConstants.NO_NETWORK);
+                }
+            })
+        }
+    }
+
+    fun callMaleUser(userId: Int, callUserId: Int,
+                     callType: String, call_switch: Int) {
+        viewModelScope.launch {
+            femaleUsersRepositories.callMaleUser(userId, callUserId, callType, call_switch, object:NetworkCallback<CallMaleUserResponse> {
+                override fun onResponse(
+                    call: Call<CallMaleUserResponse>,
+                    response: Response<CallMaleUserResponse>
+                ) {
+                    callMaleUserResponseLiveData.postValue(response.body());
+                    Log.d("callMaleUserResponseLiveData","${response.body()}")
+                }
+
+                override fun onFailure(call: Call<CallMaleUserResponse>, t: Throwable) {
+                    callMaleUserErrorLiveData.postValue(DConstants.LOGIN_ERROR);
+                }
+
+                override fun onNoNetwork() {
+                    callMaleUserErrorLiveData.postValue(DConstants.NO_NETWORK);
                 }
             })
         }

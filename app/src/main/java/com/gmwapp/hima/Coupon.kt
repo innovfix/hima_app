@@ -7,7 +7,6 @@ data class Coupon(
     val saveAmount: String,
     val validity: String,
     val originalPrice: String,
-
     val discountedPrice: String,
-    val coins: String,
+    val coins: String
 )

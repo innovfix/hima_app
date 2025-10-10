@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="8dp"
+    android:layout_marginVertical="4dp"
+    android:clickable="true"
+    android:focusable="true"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="1dp"
+    app:cardBackgroundColor="@color/white"
+    app:rippleColor="@color/grey_light">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp">
+
+        <!-- User Image with Online Indicator -->
+        <FrameLayout
+            android:id="@+id/fl_image_container"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <de.hdodenhof.circleimageview.CircleImageView
+                android:id="@+id/iv_user_image"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:src="@drawable/small_profile"
+                app:civ_border_width="2dp"
+                app:civ_border_color="@color/grey_extra_light"
+                tools:src="@drawable/small_profile" />
+
+            <!-- Online Indicator -->
+            <View
+                android:id="@+id/v_online_indicator"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_gravity="bottom|end"
+                android:layout_marginEnd="2dp"
+                android:layout_marginBottom="2dp"
+                android:background="@drawable/circle_bg_green"
+                android:visibility="gone" />
+        </FrameLayout>
+
+        <!-- User Name -->
+        <TextView
+            android:id="@+id/tv_user_name"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="8dp"
+            android:fontFamily="@font/poppins_semibold"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text="User Name"
+            android:textColor="@color/black_light"
+            android:textSize="16sp"
+            app:layout_constraintEnd_toStartOf="@id/tv_time"
+            app:layout_constraintStart_toEndOf="@id/fl_image_container"
+            app:layout_constraintTop_toTopOf="@id/fl_image_container"
+            tools:text="Sarah Johnson" />
+
+        <!-- Last Message -->
+        <TextView
+            android:id="@+id/tv_last_message"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginEnd="8dp"
+            android:fontFamily="@font/poppins_regular"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:text="Last message preview..."
+            android:textColor="@color/grey_medium"
+            android:textSize="13sp"
+            app:layout_constraintBottom_toBottomOf="@id/fl_image_container"
+            app:layout_constraintEnd_toStartOf="@id/tv_unread_count"
+            app:layout_constraintStart_toEndOf="@id/fl_image_container"
+            app:layout_constraintTop_toBottomOf="@id/tv_user_name"
+            tools:text="Hey! How are you doing today?" />
+
+        <!-- Time -->
+        <TextView
+            android:id="@+id/tv_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/poppins_regular"
+            android:text="2m"
+            android:textColor="@color/grey_medium"
+            android:textSize="11sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/tv_user_name"
+            tools:text="10:30 AM" />
+
+        <!-- Unread Count Badge -->
+        <TextView
+            android:id="@+id/tv_unread_count"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/circle_bg_red"
+            android:fontFamily="@font/poppins_bold"
+            android:gravity="center"
+            android:text="3"
+            android:textColor="@color/white"
+            android:textSize="11sp"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@id/tv_last_message"
+            app:layout_constraintEnd_toEndOf="parent"
+            tools:text="5"
+            tools:visibility="visible" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</com.google.android.material.card.MaterialCardView>
+

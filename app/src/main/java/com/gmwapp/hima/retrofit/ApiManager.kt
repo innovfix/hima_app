@@ -10,6 +10,7 @@ import com.gmwapp.hima.retrofit.responses.BadgeResponse
 import com.gmwapp.hima.retrofit.responses.BankUpdateResponse
 import com.gmwapp.hima.retrofit.responses.BlockUserResponse
 import com.gmwapp.hima.retrofit.responses.CallFemaleUserResponse
+import com.gmwapp.hima.retrofit.responses.CallMaleUserResponse
 import com.gmwapp.hima.retrofit.responses.CallsListResponse
 import com.gmwapp.hima.retrofit.responses.CoinsResponse
 import com.gmwapp.hima.retrofit.responses.CouponsResponse
@@ -129,10 +130,10 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     }
 
     fun getCallsList(
-        userId: Int, gender: String,limit: Int, currentOffset: Int, callback: NetworkCallback<CallsListResponse>
+        userId: Int, gender: String, limit: Int, currentOffset: Int, type: String, callback: NetworkCallback<CallsListResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<CallsListResponse> = getApiInterface().getCallsList(userId, gender,currentOffset,limit)
+            val apiCall: Call<CallsListResponse> = getApiInterface().getCallsList(userId, gender, currentOffset, limit, type)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -291,6 +292,22 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<CallFemaleUserResponse> =
                 getApiInterface().callFemaleUser(userId, callUserId, callType,call_switch)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun callMaleUser(
+        userId: Int,
+        callUserId: Int,
+        callType: String,
+        call_switch: Int,
+        callback: NetworkCallback<CallMaleUserResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<CallMaleUserResponse> =
+                getApiInterface().callMaleUser(userId, callUserId, callType, call_switch)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -861,6 +878,7 @@ interface ApiInterface {
         @Field("gender") gender: String,
         @Field("offset") offset: Int,
         @Field("limit") limit: Int,
+        @Field("type") type: String
     ): Call<CallsListResponse>
 
     @FormUrlEncoded
@@ -953,6 +971,15 @@ interface ApiInterface {
         @Field("call_type") callType: String,
         @Field("call_switch") call_switch: Int
     ): Call<CallFemaleUserResponse>
+
+    @FormUrlEncoded
+    @POST("call_male_user")
+    fun callMaleUser(
+        @Field("user_id") userId: Int,
+        @Field("call_user_id") callUserId: Int,
+        @Field("call_type") callType: String,
+        @Field("call_switch") call_switch: Int
+    ): Call<CallMaleUserResponse>
 
     @FormUrlEncoded
     @POST("update_connected_call")

@@ -139,7 +139,7 @@ class EarningsActivity : BaseActivity() {
             }
         })
         earningsViewModel.earningsResponseLiveData.observe(this, Observer {
-            if (it.data != null) {
+            if (it != null && it.data != null) {
                 binding.cvPanDetails.visibility=View.GONE
                 binding.rvEarnings.setLayoutManager(
                     LinearLayoutManager(

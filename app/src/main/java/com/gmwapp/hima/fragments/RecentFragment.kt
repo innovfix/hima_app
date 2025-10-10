@@ -21,6 +21,8 @@ import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentRecentBinding
 import com.gmwapp.hima.retrofit.responses.CallsListResponseData
 import com.gmwapp.hima.viewmodels.RecentViewModel
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -32,6 +34,7 @@ class RecentFragment : BaseFragment() {
     private var isLoading = false
     private var offset = 0
     private val limit = 10
+    private var currentSortType = "recent"  // Default: recent
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -50,15 +53,15 @@ class RecentFragment : BaseFragment() {
             return
         }
 
-        // Initial call
-        recentViewModel.getCallsList(userData.id, userData.gender, limit, offset)
+        // Setup chat icon click listener
+        setupChatIconClickListener()
+        
+        // Load unread message count
+        loadUnreadMessageCount()
 
         // Swipe to refresh
         binding.swipeRefreshLayout.setOnRefreshListener {
-            offset = 0
-            isLoading = true
-            recentCallsAdapter.clearData()
-            recentViewModel.getCallsList(userData.id, userData.gender, limit, offset)
+            loadCallsList(currentSortType, resetData = true)
         }
 
         // Set up RecyclerView
@@ -79,6 +82,9 @@ class RecentFragment : BaseFragment() {
         )
         binding.rvCalls.adapter = recentCallsAdapter
 
+        // Initial call with default type (after adapter is initialized)
+        loadCallsList(currentSortType, resetData = true)
+
         // Pagination
         binding.rvCalls.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
@@ -91,11 +97,25 @@ class RecentFragment : BaseFragment() {
                     isLoading = true
                     offset += limit
                     userData.let {
-                        recentViewModel.getCallsList(it.id, it.gender, limit, offset)
+                        recentViewModel.getCallsList(it.id, it.gender, limit, offset, currentSortType)
                     }
                 }
             }
         })
+    }
+
+    private fun loadCallsList(sortType: String, resetData: Boolean) {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
+        
+        if (resetData) {
+            offset = 0
+            isLoading = true
+            if (::recentCallsAdapter.isInitialized) {
+                recentCallsAdapter.clearData()
+            }
+        }
+        
+        recentViewModel.getCallsList(userData.id, userData.gender, limit, offset, sortType)
     }
 
     private fun observeViewModel() {
@@ -144,22 +164,133 @@ class RecentFragment : BaseFragment() {
     private fun showSortMenu() {
         val popup = PopupMenu(requireContext(), binding.cardSort)
         popup.menuInflater.inflate(R.menu.menu_recent_sort, popup.menu)
-        // UI-only: no actions yet, just dismiss on selection
-        popup.setOnMenuItemClickListener { true }
+        
+        popup.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.action_sort_recent -> {
+                    currentSortType = "recent"
+                    binding.tvSortLabel.text = "Recent"
+                    loadCallsList(currentSortType, resetData = true)
+                    true
+                }
+                R.id.action_sort_talk_time -> {
+                    currentSortType = "talk_time"
+                    binding.tvSortLabel.text = "Talk Time"
+                    loadCallsList(currentSortType, resetData = true)
+                    true
+                }
+                R.id.action_sort_name -> {
+                    currentSortType = "a_z"
+                    binding.tvSortLabel.text = "A-Z"
+                    loadCallsList(currentSortType, resetData = true)
+                    true
+                }
+                else -> false
+            }
+        }
         popup.show()
     }
 
-    // UI-only; sorting will be implemented later when API is ready
+    private fun setupChatIconClickListener() {
+        binding.cardChat.setOnClickListener {
+            // Open ChatListActivity
+            val intent = Intent(requireContext(), com.gmwapp.hima.activities.ChatListActivity::class.java)
+            startActivity(intent)
+        }
+    }
+
+    // Track unread counts per thread for real-time updates
+    private val unreadCountsMap = mutableMapOf<String, Int>()
+
+    private fun loadUnreadMessageCount() {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
+        val myUserId = userData.id.toString()
+
+        if (myUserId.isEmpty()) return
+
+        // Listen to Firestore for unread message count
+        Firebase.firestore.collection("chats")
+            .addSnapshotListener { documents, error ->
+                if (error != null || documents == null) {
+                    updateUnreadBadge(0)
+                    return@addSnapshotListener
+                }
+
+                if (documents.isEmpty) {
+                    updateUnreadBadge(0)
+                    return@addSnapshotListener
+                }
+
+                // Clear and re-track all threads
+                unreadCountsMap.clear()
+
+                documents.forEach { document ->
+                    val threadId = document.id
+                    val userIds = threadId.split("_")
+
+                    if (userIds.contains(myUserId)) {
+                        val otherUserId = userIds.firstOrNull { it != myUserId} ?: ""
+
+                        // Check if other user is blocked
+                        Firebase.firestore.collection("blocked_users")
+                            .document(myUserId)
+                            .collection("users")
+                            .document(otherUserId)
+                            .get()
+                            .addOnSuccessListener { blockDoc ->
+                                val blockTimestamp = blockDoc.getTimestamp("blockedAt")
+                                
+                                // Real-time listener for each thread's unread messages
+                                Firebase.firestore.collection("chats")
+                                    .document(threadId)
+                                    .collection("messages")
+                                    .whereEqualTo("from", otherUserId)
+                                    .whereEqualTo("isRead", false)
+                                    .addSnapshotListener { messages, messageError ->
+                                        if (messageError != null || messages == null) {
+                                            unreadCountsMap[threadId] = 0
+                                        } else {
+                                            // Filter out messages sent after block timestamp
+                                            val unreadCount = if (blockTimestamp != null) {
+                                                messages.documents.count { msg ->
+                                                    val msgTimestamp = msg.getTimestamp("timestamp")
+                                                    msgTimestamp == null || msgTimestamp.seconds < blockTimestamp.seconds
+                                                }
+                                            } else {
+                                                messages.size()
+                                            }
+                                            unreadCountsMap[threadId] = unreadCount
+                                        }
+                                        
+                                        // Sum all unread counts
+                                        val totalUnread = unreadCountsMap.values.sum()
+                                        updateUnreadBadge(totalUnread)
+                                    }
+                            }
+                    }
+                }
+            }
+    }
+
+    private fun updateUnreadBadge(count: Int) {
+        if (!::binding.isInitialized) return
+        
+        if (count > 0) {
+            binding.tvUnreadBadge.visibility = View.VISIBLE
+            binding.tvUnreadBadge.text = if (count > 99) "99+" else count.toString()
+        } else {
+            binding.tvUnreadBadge.visibility = View.GONE
+        }
+    }
 
     override fun onResume() {
         super.onResume()
 
         if (FcmUtils.isUserAvailable==0){
-            val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-            offset = 0
-            isLoading = true
-            recentCallsAdapter.clearData()
-            userData?.let { recentViewModel.getCallsList(it.id, userData.gender, limit, offset) }        }
-
+            loadCallsList(currentSortType, resetData = true)
+        }
+        
+        // Refresh unread count when returning to this screen
+        loadUnreadMessageCount()
     }
 }

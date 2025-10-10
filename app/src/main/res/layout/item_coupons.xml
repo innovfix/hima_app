@@ -55,6 +55,7 @@
                     android:layout_height="wrap_content"
                     android:text="Offers"
                     android:textColor="#FFFFFF"
+                    android:visibility="gone"
                     android:textSize="10sp"
                     android:layout_marginTop="-2dp"
                     android:includeFontPadding="false"
@@ -120,6 +121,7 @@
                 android:layout_marginTop="4dp"
                 android:textColor="#95A5A6"
                 android:textSize="9sp"
+                android:visibility="gone"
                 android:fontFamily="@font/poppins_regular"
                 android:maxLines="2"
                 android:ellipsize="end"/>
