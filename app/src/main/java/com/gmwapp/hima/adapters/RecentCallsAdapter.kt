@@ -1,6 +1,7 @@
 package com.gmwapp.hima.adapters
 
 import android.app.Activity
+import android.content.Intent
 import android.graphics.Paint
 import android.util.Log
 import android.view.LayoutInflater
@@ -13,6 +14,7 @@ import com.bumptech.glide.load.resource.bitmap.RoundedCorners
 import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
+import com.gmwapp.hima.activities.UserProfileDetailActivity
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.AdapterCoinBinding
@@ -197,6 +199,22 @@ class RecentCallsAdapter(
                 Log.d("ivAudioCircle","ivAudioCircle")
             }
 
+        }
+        
+        // Add click listener on profile container to open profile detail
+        holder.binding.profileContainer.setOnSingleClickListener {
+            val intent = Intent(activity, UserProfileDetailActivity::class.java).apply {
+                putExtra(DConstants.USER_ID, call.id)
+                putExtra("USER_NAME", call.name)
+                putExtra("USER_IMAGE", call.image)
+                putExtra("USER_LANGUAGE", "") // Not available in CallsListResponseData
+                putExtra("USER_INTERESTS", "") // Not available in CallsListResponseData
+                putExtra("USER_ABOUT", "") // Not available in CallsListResponseData
+                putExtra("USER_AGE", 0) // Not available in CallsListResponseData
+                putExtra("AUDIO_STATUS", call.audio_status)
+                putExtra("VIDEO_STATUS", call.video_status)
+            }
+            activity.startActivity(intent)
         }
 
     }

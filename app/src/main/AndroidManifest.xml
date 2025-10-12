@@ -121,6 +121,12 @@
             android:name=".activities.ChatListActivity"
             android:exported="false" />
         <activity
+            android:name=".activities.UserProfileDetailActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.FriendsListActivity"
+            android:exported="false" />
+        <activity
             android:name=".agora.male.MaleCallConnectingActivity"
             android:exported="true" />
         <activity

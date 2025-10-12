@@ -1,0 +1,348 @@
+Test Case ID,Module,Feature,Test Case Title,Test Steps,Expected Result,Priority,Test Data,Device Type
+TC_001,Splash Screen,App Launch,Verify splash screen displays correctly,"1. Install the app
+2. Launch the app for the first time","1. Splash screen should appear with app logo
+2. App name 'Hima' should be visible
+3. Splash screen should display for appropriate duration (2-3 seconds)
+4. Should redirect to login/onboarding screen",High,Fresh Install,Android
+TC_002,Splash Screen,App Launch,Verify splash screen with existing user,"1. Launch app with logged in user
+2. Observe splash screen","1. Splash screen should appear
+2. Should redirect to home screen automatically
+3. No login screen should appear",High,Logged in user,Android
+TC_003,Splash Screen,Permissions,Verify app checks for required permissions,"1. Launch app on fresh install
+2. Complete splash screen","1. App should check for notification permission
+2. App should check for camera permission
+3. App should check for microphone permission
+4. App should redirect to permissions screen if not granted",High,Fresh Install,Android
+TC_004,Splash Screen,Network,Verify splash screen with no internet,"1. Turn off internet connection
+2. Launch the app
+3. Observe behavior","1. Splash screen should display
+2. Should show 'No Internet' message
+3. Should prompt user to check connection",Medium,No Internet,Android
+TC_005,Login,Phone Number Entry,Verify phone number input field validation,"1. Open login screen
+2. Try to enter phone number
+3. Verify input field accepts only numbers","1. Input field should accept only numeric values
+2. Should show country code selector (default +91)
+3. Should allow maximum 10 digits
+4. Should not accept special characters or letters",High,Valid: 9876543210 | Invalid: abc123,Android
+TC_006,Login,Phone Number Entry,Verify login with valid phone number,"1. Open login screen
+2. Enter valid 10-digit phone number
+3. Tap on 'Send OTP' or 'Continue' button","1. Phone number should be accepted
+2. OTP should be sent to the entered number
+3. Should navigate to OTP verification screen
+4. Should show success message",High,9876543210,Android
+TC_007,Login,Phone Number Entry,Verify login with invalid phone number,"1. Open login screen
+2. Enter invalid phone number (less than 10 digits)
+3. Tap on 'Send OTP' button","1. Should show error message 'Invalid phone number'
+2. Should not proceed to OTP screen
+3. Send OTP button should remain disabled or show error",High,123456,Android
+TC_008,Login,Phone Number Entry,Verify login with empty phone number,"1. Open login screen
+2. Leave phone number field empty
+3. Tap on 'Send OTP' button","1. Should show error message 'Please enter phone number'
+2. Should not proceed to OTP screen
+3. Field should be highlighted as required",Medium,Empty field,Android
+TC_009,Login,Country Code,Verify country code selector,"1. Open login screen
+2. Tap on country code selector
+3. Select different country","1. Country code dropdown should open
+2. Should show list of countries with flags and codes
+3. Selected country code should be displayed
+4. Phone number length validation should adjust accordingly",Medium,India (+91) | US (+1),Android
+TC_010,Login,Network,Verify login without internet connection,"1. Turn off internet
+2. Enter valid phone number
+3. Tap 'Send OTP'","1. Should show 'No Internet' error message
+2. Should not proceed to OTP screen
+3. Should prompt user to check connection",High,9876543210 + No Internet,Android
+TC_011,Login,UI Elements,Verify login screen UI elements,"1. Open login screen
+2. Observe all UI elements","1. App logo should be visible
+2. App name should be displayed
+3. Phone number input field should be visible
+4. Country code selector should be present
+5. Send OTP/Continue button should be visible
+6. Terms and conditions text should be present",Low,N/A,Android
+TC_012,Login,Button State,Verify Send OTP button enabled/disabled state,"1. Open login screen
+2. Observe Send OTP button
+3. Enter phone number gradually","1. Button should be disabled when no input
+2. Button should be disabled with invalid input (less than 10 digits)
+3. Button should be enabled with valid 10-digit number",Medium,Progressive: 9/98/987.../9876543210,Android
+TC_013,OTP Verification,OTP Entry,Verify OTP screen displays correctly,"1. Enter valid phone number on login
+2. Tap Send OTP
+3. Navigate to OTP screen","1. OTP screen should open
+2. Should show 'Enter OTP' title
+3. Should display phone number used
+4. Should show 6 OTP input boxes
+5. Should show 'Resend OTP' option
+6. Should show timer for resend (60 seconds)",High,Valid Phone: 9876543210,Android
+TC_014,OTP Verification,OTP Entry,Verify OTP input field accepts only numbers,"1. Navigate to OTP screen
+2. Try entering characters in OTP fields","1. Should accept only numeric values (0-9)
+2. Should not accept alphabets or special characters
+3. Each box should accept only 1 digit
+4. Should auto-focus to next box after entering digit",High,Valid OTP: 123456 | Invalid: abc123,Android
+TC_015,OTP Verification,OTP Verification,Verify login with correct OTP,"1. Enter valid phone number
+2. Receive OTP
+3. Enter correct 6-digit OTP
+4. Tap Verify/Submit","1. OTP should be verified successfully
+2. Should show success message
+3. Should navigate to profile setup or home screen
+4. User should be logged in",High,Correct OTP: 123456,Android
+TC_016,OTP Verification,OTP Verification,Verify login with incorrect OTP,"1. Enter valid phone number
+2. Receive OTP
+3. Enter incorrect 6-digit OTP
+4. Tap Verify","1. Should show error message 'Invalid OTP'
+2. Should allow user to retry
+3. OTP fields should be cleared or highlighted
+4. Should not navigate to next screen",High,Incorrect OTP: 999999,Android
+TC_017,OTP Verification,OTP Verification,Verify OTP with empty fields,"1. Navigate to OTP screen
+2. Leave OTP fields empty
+3. Tap Verify button","1. Should show error message 'Please enter OTP'
+2. Should not proceed to next screen
+3. Fields should be highlighted as required",Medium,Empty OTP fields,Android
+TC_018,OTP Verification,Resend OTP,Verify Resend OTP functionality,"1. Navigate to OTP screen
+2. Wait for 60 seconds timer
+3. Tap on 'Resend OTP' button","1. Timer should countdown from 60 seconds
+2. Resend button should be disabled during countdown
+3. After timer expires resend button should be enabled
+4. On tap new OTP should be sent
+5. Should show success message 'OTP sent successfully'
+6. Timer should restart",High,Wait 60 seconds,Android
+TC_019,OTP Verification,Resend OTP,Verify Resend OTP before timer expires,"1. Navigate to OTP screen
+2. Try tapping Resend OTP before 60 seconds","1. Resend button should be disabled
+2. Should show timer countdown
+3. Should not send new OTP",Medium,Tap before 60 sec,Android
+TC_020,OTP Verification,Auto-Read OTP,Verify OTP auto-read functionality (if implemented),"1. Enter phone number on test device
+2. Wait for OTP SMS
+3. Observe OTP fields","1. If auto-read is implemented OTP should auto-fill
+2. Should automatically verify after auto-fill
+3. Should navigate to next screen without manual entry",Low,SMS permission granted,Android
+TC_021,OTP Verification,Back Navigation,Verify back button from OTP screen,"1. Navigate to OTP screen
+2. Press back button or tap back arrow","1. Should navigate back to login screen
+2. Phone number should be retained in login screen
+3. Should not log in user",Medium,N/A,Android
+TC_022,OTP Verification,Network,Verify OTP verification without internet,"1. Enter phone number and receive OTP
+2. Turn off internet
+3. Enter correct OTP and tap Verify","1. Should show 'No Internet' error
+2. Should not verify OTP
+3. Should prompt to check connection
+4. OTP should remain in fields",High,Valid OTP + No Internet,Android
+TC_023,OTP Verification,OTP Expiry,Verify OTP expiry handling,"1. Enter phone number and receive OTP
+2. Wait for OTP to expire (usually 5-10 minutes)
+3. Enter the expired OTP","1. Should show error 'OTP expired'
+2. Should prompt to resend OTP
+3. Should not allow login with expired OTP",Medium,Wait for OTP expiry,Android
+TC_024,Gender Selection,Gender Selection,Verify gender selection screen appears for new user,"1. Complete OTP verification as new user
+2. Observe next screen","1. Gender selection screen should appear
+2. Should show 'Select Your Gender' title
+3. Should show Male and Female options with icons
+4. Should show Continue button",High,New user login,Android
+TC_025,Gender Selection,Gender Selection,Verify Male gender selection,"1. Navigate to gender selection screen
+2. Tap on 'Male' option
+3. Tap Continue button","1. Male option should be highlighted/selected
+2. Female option should remain unselected
+3. Continue button should be enabled
+4. Should navigate to next screen (language or profile setup)
+5. User should be registered as Male",High,Select Male,Android
+TC_026,Gender Selection,Gender Selection,Verify gender selection without selecting any option,"1. Navigate to gender selection screen
+2. Do not select any option
+3. Tap Continue button","1. Should show error 'Please select gender'
+2. Should not proceed to next screen
+3. Both options should remain unselected",Medium,No selection,Android
+TC_027,Gender Selection,UI Elements,Verify gender selection UI elements,"1. Navigate to gender selection screen
+2. Observe all UI elements","1. App logo/name should be visible
+2. Title 'Select Your Gender' should be displayed
+3. Male icon/button should be clearly visible
+4. Female icon/button should be clearly visible
+5. Continue button should be present
+6. Terms and conditions (if any) should be visible",Low,N/A,Android
+TC_028,Gender Selection,Navigation,Verify back navigation from gender selection,"1. Navigate to gender selection screen
+2. Press back button","1. Should navigate back to previous screen or show exit confirmation
+2. Gender selection should not be saved
+3. User should remain logged out or in incomplete state",Low,N/A,Android
+TC_029,Profile Setup,Profile Screen,Verify profile setup screen for male user,"1. Login as male user
+2. Complete gender selection
+3. Navigate to profile setup/edit profile","1. Profile setup screen should open
+2. Should show fields: Name Avatar/Photo selection Age Interest/Bio
+3. Should show Save/Continue button
+4. All mandatory fields should be marked",High,Male user,Android
+TC_030,Profile Setup,Name Entry,Verify name field validation,"1. Open profile setup screen
+2. Enter name in name field
+3. Try various inputs","1. Should accept alphabets and spaces
+2. Should not accept only numbers
+3. Should have character limit (typically 2-50 chars)
+4. Should show error for empty name
+5. Should not accept special characters only",High,Valid: Rahul Kumar | Invalid: @#$%,Android
+TC_031,Profile Setup,Name Entry,Verify name field with valid input,"1. Open profile setup screen
+2. Enter valid name (alphabets only)
+3. Tap Save","1. Name should be accepted
+2. Should not show any error
+3. Profile should be saved/updated",High,Rahul Kumar,Android
+TC_032,Profile Setup,Name Entry,Verify name field with empty input,"1. Open profile setup screen
+2. Leave name field empty
+3. Tap Save/Continue","1. Should show error 'Please enter your name'
+2. Should not proceed/save profile
+3. Field should be highlighted",High,Empty field,Android
+TC_033,Profile Setup,Avatar Selection,Verify avatar/profile photo selection,"1. Open profile setup screen
+2. Tap on avatar/photo selection
+3. Observe options","1. Should show options: Camera Gallery
+2. Should show default avatar options (if available)
+3. Tapping Camera should open camera
+4. Tapping Gallery should open photo gallery",High,N/A,Android
+TC_034,Profile Setup,Avatar Selection,Verify uploading photo from gallery,"1. Open profile setup screen
+2. Tap on avatar selection
+3. Select Gallery
+4. Choose a photo
+5. Confirm selection","1. Gallery should open
+2. Selected photo should be displayed in avatar preview
+3. Photo should be cropped/resized appropriately
+4. Should show success message after upload",High,Valid image file,Android
+TC_035,Profile Setup,Avatar Selection,Verify taking photo from camera,"1. Open profile setup screen
+2. Tap on avatar selection
+3. Select Camera
+4. Take a photo
+5. Confirm","1. Camera permission should be requested (if not granted)
+2. Camera should open
+3. Captured photo should be displayed in preview
+4. Should show success message after setting",High,Camera permission granted,Android
+TC_036,Profile Setup,Age Entry,Verify age field validation,"1. Open profile setup screen
+2. Enter age in age field
+3. Try various inputs","1. Should accept only numeric values
+2. Should have minimum age limit (18)
+3. Should have maximum age limit (typically 100)
+4. Should show error for invalid age",High,Valid: 25 | Invalid: 15 or 150,Android
+TC_037,Profile Setup,Age Entry,Verify age with valid input,"1. Open profile setup screen
+2. Enter valid age (18-100)
+3. Tap Save","1. Age should be accepted
+2. Should not show error
+3. Profile should be saved",High,25,Android
+TC_038,Profile Setup,Age Entry,Verify age below minimum limit,"1. Open profile setup screen
+2. Enter age less than 18
+3. Tap Save","1. Should show error 'Minimum age is 18'
+2. Should not save profile
+3. Field should be highlighted",High,15,Android
+TC_039,Profile Setup,Bio/Interest,Verify bio or interest field,"1. Open profile setup screen
+2. Check for bio/interest field
+3. Enter text","1. Bio/interest field should accept text input
+2. Should have character limit (typically 500 chars)
+3. Should be optional field
+4. Should allow multiple lines",Medium,I like music and travel,Android
+TC_040,Profile Setup,Language Selection,Verify language selection (if part of profile),"1. Navigate to language selection screen
+2. View available languages","1. Should show list of supported languages
+2. Should show language names clearly
+3. Should allow selection of preferred language
+4. Selected language should be highlighted",Medium,English | Hindi,Android
+TC_041,Profile Setup,Save Profile,Verify saving complete profile,"1. Fill all mandatory fields (Name Age Avatar)
+2. Tap Save/Continue button","1. Should validate all fields
+2. Should show success message 'Profile saved successfully'
+3. Should navigate to home screen
+4. Profile data should be visible in profile section",High,Complete valid profile,Android
+TC_042,Profile Setup,Save Profile,Verify saving incomplete profile,"1. Fill only name field
+2. Leave other mandatory fields empty
+3. Tap Save","1. Should show error for missing mandatory fields
+2. Should highlight empty required fields
+3. Should not save profile or proceed",High,Only name filled,Android
+TC_043,Profile,View Profile,Verify viewing own profile as male user,"1. Login as male user
+2. Navigate to Profile tab/section
+3. View profile","1. Profile screen should display
+2. Should show user's name
+3. Should show avatar/photo
+4. Should show age
+5. Should show bio/interests
+6. Should show wallet balance/coins
+7. Should show Edit Profile option",High,Logged in male user,Android
+TC_044,Profile,Edit Profile,Verify accessing edit profile screen,"1. Login as male user
+2. Navigate to Profile section
+3. Tap on Edit Profile button","1. Edit profile screen should open
+2. Should show all profile fields pre-filled with current data
+3. Should allow editing of fields
+4. Should show Save/Update button",High,Existing profile,Android
+TC_045,Profile,Edit Profile,Verify updating profile name,"1. Navigate to Edit Profile
+2. Change name
+3. Tap Update/Save","1. Name should be updated
+2. Should show success message
+3. Updated name should reflect in profile view",High,Old: Rahul | New: Rahul Kumar,Android
+TC_046,Profile,Edit Profile,Verify updating profile photo,"1. Navigate to Edit Profile
+2. Tap on profile photo
+3. Select new photo
+4. Save changes","1. Should allow selecting new photo from gallery/camera
+2. New photo should be displayed in preview
+3. On save should show success message
+4. New photo should reflect in profile",High,New image file,Android
+TC_047,Profile,Edit Profile,Verify updating age,"1. Navigate to Edit Profile
+2. Change age
+3. Tap Update/Save","1. Age should be validated (18-100)
+2. Valid age should be updated
+3. Should show success message
+4. Updated age should reflect in profile",High,Old: 25 | New: 26,Android
+TC_048,Profile,Edit Profile,Verify updating bio/interests,"1. Navigate to Edit Profile
+2. Modify bio/interests
+3. Save changes","1. Bio should accept text input
+2. Should respect character limit
+3. Should save successfully
+4. Updated bio should reflect in profile",Medium,Updated bio text,Android
+TC_049,Profile,Profile Settings,Verify accessing account settings,"1. Login as male user
+2. Navigate to Profile section
+3. Tap on Settings icon/option","1. Settings screen should open
+2. Should show options like: Account Privacy Language Notifications Terms & Conditions",Medium,Logged in user,Android
+TC_050,Profile,Account Privacy,Verify accessing privacy settings,"1. Navigate to Profile Settings
+2. Tap on Account & Privacy","1. Privacy settings screen should open
+2. Should show privacy options
+3. Should show block list (if any)
+4. Should show delete account option",Medium,N/A,Android
+TC_051,Profile,Wallet,Verify viewing wallet/coins balance in profile,"1. Login as male user
+2. Navigate to Profile section
+3. Check wallet/coins display","1. Current wallet balance should be visible
+2. Should show coin icon with balance
+3. Should be clickable to view wallet details
+4. Should show '0' for new user",High,Any balance,Android
+TC_052,Profile,Transactions,Verify viewing transaction history,"1. Navigate to Profile section
+2. Tap on Transactions or Wallet
+3. View transaction history","1. Should show list of transactions
+2. Should show transaction details: Date Amount Type (Credit/Debit) Status
+3. Should show 'No transactions' for new user",Medium,User with transactions,Android
+TC_053,Profile,Logout,Verify logout functionality,"1. Navigate to Profile Settings
+2. Tap on Logout option
+3. Confirm logout","1. Should show logout confirmation dialog
+2. On confirm should log out user
+3. Should navigate to login screen
+4. User data should be cleared from session
+5. Should not be able to access app without login",High,Logged in user,Android
+TC_054,Profile,Delete Account,Verify delete account option presence,"1. Navigate to Profile Settings
+2. Tap on Account Privacy or Settings
+3. Look for Delete Account option","1. Delete Account option should be visible
+2. Should be clearly distinguishable (red color/warning icon)
+3. On tap should show warning message",Low,N/A,Android
+TC_055,Profile,Recent Calls,Verify viewing recent calls list,"1. Navigate to Recent tab/section
+2. View call history","1. Should show list of recent calls
+2. Should show caller details with photo
+3. Should show call type (audio/video)
+4. Should show call duration
+5. Should show date/time
+6. Should show 'No recent calls' for new user",Medium,User with call history,Android
+TC_056,Profile,Language Change,Verify changing app language,"1. Navigate to Profile Settings
+2. Tap on Language option
+3. Select different language
+4. Confirm selection","1. Language selection screen should open
+2. Should show available languages
+3. On selection should change app language
+4. All UI elements should reflect in selected language
+5. Should save preference",Medium,English to Hindi,Android
+TC_057,Profile,Notifications,Verify notification settings,"1. Navigate to Profile Settings
+2. Tap on Notifications
+3. View notification options","1. Notification settings screen should open
+2. Should show toggle options for different notifications
+3. Should allow enabling/disabling notifications
+4. Changes should be saved",Low,N/A,Android
+TC_058,Profile,UI Consistency,Verify profile UI elements consistency,"1. Navigate to Profile section
+2. Observe all UI elements","1. Profile photo should be circular/rounded
+2. Text should be readable and properly aligned
+3. Icons should be clear and intuitive
+4. Color scheme should match app theme
+5. Spacing and padding should be consistent",Low,N/A,Android
+TC_059,Profile,Network Error,Verify profile loading with no internet,"1. Turn off internet
+2. Navigate to Profile section","1. Should show cached profile data if available
+2. If no cache should show 'No Internet' error
+3. Edit/Save operations should fail with error message
+4. Should prompt to check connection",Medium,No internet,Android
+TC_060,Gender Selection,Skip Option,Verify if gender selection can be skipped,"1. Navigate to gender selection screen
+2. Look for skip option or back button
+3. Try to skip","1. If skip is allowed should navigate to next screen with gender unset
+2. If skip not allowed should show error or keep user on screen
+3. App should handle unset gender gracefully",Low,N/A,Android
+

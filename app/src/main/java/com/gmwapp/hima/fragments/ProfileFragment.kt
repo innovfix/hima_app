@@ -20,6 +20,7 @@ import com.gmwapp.hima.activities.CommunityGuidelineActivity
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.AccountPrivacyActivity
 import com.gmwapp.hima.activities.EditProfileActivity
+import com.gmwapp.hima.activities.FriendsListActivity
 import com.gmwapp.hima.activities.RefundWebViewActivity
 import com.gmwapp.hima.activities.ShareActivity
 import com.gmwapp.hima.activities.TermConditionWebViewActivity
@@ -118,6 +119,11 @@ class ProfileFragment : BaseFragment() {
 
         binding.clReferEarn.setOnSingleClickListener {
             val intent = Intent(context, ShareActivity::class.java)
+            startActivity(intent)
+        }
+
+        binding.clMyFriends.setOnSingleClickListener {
+            val intent = Intent(context, FriendsListActivity::class.java)
             startActivity(intent)
         }
 
