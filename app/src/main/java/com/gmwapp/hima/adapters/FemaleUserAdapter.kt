@@ -1,6 +1,7 @@
 package com.gmwapp.hima.adapters
 
 import android.app.Activity
+import android.content.Intent
 import android.util.Log
 import java.text.SimpleDateFormat
 import java.util.*
@@ -13,7 +14,9 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.R
+import com.gmwapp.hima.activities.UserProfileDetailActivity
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
+import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.AdapterFemaleUserBinding
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponse
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponseData
@@ -140,6 +143,22 @@ class FemaleUserAdapter(
 
         holder.binding.rvInterests.adapter = interestsListAdapter
         holder.binding.tvSummary.text = femaleUser.describe_yourself
+        
+        // Add click listener on the card to open profile detail
+        holder.binding.cardProfile.setOnSingleClickListener {
+            val intent = Intent(activity, UserProfileDetailActivity::class.java).apply {
+                putExtra(DConstants.USER_ID, femaleUser.id)
+                putExtra("USER_NAME", femaleUser.name)
+                putExtra("USER_IMAGE", femaleUser.image)
+                putExtra("USER_LANGUAGE", femaleUser.language)
+                putExtra("USER_INTERESTS", femaleUser.interests)
+                putExtra("USER_ABOUT", femaleUser.describe_yourself)
+                putExtra("USER_AGE", 0) // Age not available in FemaleUsersResponseData
+                putExtra("AUDIO_STATUS", femaleUser.audio_status)
+                putExtra("VIDEO_STATUS", femaleUser.video_status)
+            }
+            activity.startActivity(intent)
+        }
     }
 
     override fun getItemCount(): Int {
