@@ -19,8 +19,47 @@ data class FriendRequestData(
 data class FriendListResponse(
     val success: Boolean,
     val message: String,
-    val data: ArrayList<FriendData>?
+    val count: Int,
+    val data: List<FriendListData>?
 )
+
+data class FriendListData(
+    val request_id: Int,
+    val status: Int,
+    val friends_since: String,
+    val friend_data: FriendUserData
+)
+
+data class FriendUserData(
+    val id: Int,
+    val name: String,
+    val mobile: String,
+    val age: Int,
+    val gender: String,
+    val avatar_id: Int,
+    val image: String,
+    val language: String,
+    val interests: String,
+    val describe_yourself: String,
+    val voice: String,
+    val status: Int,
+    val balance: Int,
+    val online_status: String
+)
+
+fun FriendListData.toFriendData(): FriendData {
+    return FriendData(
+        id = this.request_id,
+        friend_id = this.friend_data.id,
+        name = this.friend_data.name,
+        image = this.friend_data.image,
+        language = this.friend_data.language,
+        audio_status = 0,
+        video_status = 0,
+        is_online = this.friend_data.online_status.isNotEmpty(),
+        last_seen = this.friends_since
+    )
+}
 
 data class FriendData(
     val id: Int,

@@ -314,7 +314,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         showGreyScreen()
 
         onBackPressedBtn()
-        onMenuClicked()
+//        onMenuClicked()
 
         userAvatarViewModel.getUserAvatar(receiverId)
         avatarObservers()
@@ -783,11 +783,12 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         agoraEngine!!.setupRemoteVideo(
             VideoCanvas(
                 remoteSurfaceView,
-                VideoCanvas.RENDER_MODE_FIT,
+                VideoCanvas.RENDER_MODE_HIDDEN,
                 uid
             )
         )
         remoteSurfaceView!!.visibility = View.VISIBLE
+        binding.remoteVideoViewContainer.visibility = View.VISIBLE
     }
 
     private fun setupLocalVideo() {
@@ -798,12 +799,13 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         agoraEngine!!.setupLocalVideo(
             VideoCanvas(
                 localSurfaceView,
-                VideoCanvas.RENDER_MODE_FIT,
+                VideoCanvas.RENDER_MODE_HIDDEN,
                 0
             )
         )
-
-
+        
+        binding.localVideoViewContainer.visibility = View.VISIBLE
+        binding.localCardView.visibility = View.VISIBLE
 
     }
     private val dateFormat = SimpleDateFormat("HH:mm:ss").apply {
@@ -1583,7 +1585,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             binding.localVideoViewContainer.addView(localView)
 
             // Attach local video feed
-            agoraEngine?.setupLocalVideo(VideoCanvas(localView, VideoCanvas.RENDER_MODE_FIT, 0))
+            agoraEngine?.setupLocalVideo(VideoCanvas(localView, VideoCanvas.RENDER_MODE_HIDDEN, 0))
             
             // Start local video preview
             agoraEngine?.startPreview()
@@ -1608,7 +1610,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             agoraEngine!!.setupRemoteVideo(
                 VideoCanvas(
                     remoteSurfaceView,
-                    VideoCanvas.RENDER_MODE_FIT,
+                    VideoCanvas.RENDER_MODE_HIDDEN,
                     videoUid
                 )
             )

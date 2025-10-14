@@ -2,26 +2,50 @@ package com.gmwapp.hima.fragments
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.Observer
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
+import kotlinx.coroutines.launch
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.activities.ChatActivity
 import com.gmwapp.hima.activities.UserProfileDetailActivity
 import com.gmwapp.hima.adapters.FriendsAdapter
+import com.gmwapp.hima.adapters.ChatListAdapter
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentFriendsTabBinding
+import com.gmwapp.hima.models.ChatConversation
 import com.gmwapp.hima.retrofit.responses.FriendData
+import com.gmwapp.hima.retrofit.responses.toFriendData
+import com.gmwapp.hima.retrofit.responses.ReceivedFriendRequestsResponse
+import com.gmwapp.hima.viewmodels.FriendRequestViewModel
+import com.google.firebase.Timestamp
+import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class FriendsTabFragment : Fragment() {
 
     private lateinit var binding: FragmentFriendsTabBinding
     private lateinit var adapter: FriendsAdapter
+    private lateinit var chatAdapter: ChatListAdapter
     private var friendsList = ArrayList<FriendData>()
+    private var chatConversations = ArrayList<ChatConversation>()
     private var tabType: Int = TYPE_FRIENDS
+    private val friendRequestViewModel: FriendRequestViewModel by viewModels()
+    private var requestIdMap = mutableMapOf<Int, Int>() // Maps friend_id to request_id
+    private val db by lazy { Firebase.firestore }
+    private val conversationsMap = mutableMapOf<String, ChatConversation>()
 
     companion object {
         const val TYPE_CHAT = 0
@@ -55,12 +79,210 @@ class FriendsTabFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        
+        Log.d("FriendsTab", "🎬 onViewCreated - tabType: $tabType")
+        
         setupRecyclerView()
         setupSwipeRefresh()
-        loadMockData()
+        setupObservers()
+        
+        // Initially show RecyclerView (even if empty)
+        binding.rvFriends.visibility = View.VISIBLE
+        binding.emptyState.visibility = View.GONE
+        
+        // For chat tab, load data immediately
+        if (tabType == TYPE_CHAT) {
+            Log.d("FriendsTab", "💬 Chat tab - loading conversations immediately")
+            loadChatConversations()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Log.d("FriendsTab", "▶️ onResume - tabType: $tabType")
+        // Call API/Load data when entering this tab
+        if (tabType != TYPE_CHAT) {
+            loadData()
+        }
+    }
+
+    override fun setUserVisibleHint(isVisibleToUser: Boolean) {
+        super.setUserVisibleHint(isVisibleToUser)
+        Log.d("FriendsTab", "👁️ setUserVisibleHint: $isVisibleToUser, isResumed: $isResumed, tabType: $tabType")
+        // Call API/Load data when tab becomes visible
+        if (isVisibleToUser && isResumed) {
+            if (tabType == TYPE_CHAT) {
+                Log.d("FriendsTab", "💬 Chat tab visible - loading conversations")
+                loadChatConversations()
+            } else {
+                loadData()
+            }
+        }
+    }
+
+    private fun setupObservers() {
+        // Observe friends list
+        friendRequestViewModel.friendsListLiveData.observe(viewLifecycleOwner, Observer { response ->
+            binding.swipeRefresh.isRefreshing = false
+            
+            if (response == null) return@Observer
+            
+            friendsList.clear()
+            requestIdMap.clear()
+            
+            if (response.success && response.data != null) {
+                response.data.forEach { friendData ->
+                    friendsList.add(friendData.toFriendData())
+                    requestIdMap[friendData.friend_data.id] = friendData.request_id
+                }
+            }
+            
+            if (::adapter.isInitialized) {
+                adapter.notifyDataSetChanged()
+            }
+            updateEmptyState()
+        })
+        
+        // Observe my friend requests
+        friendRequestViewModel.myFriendRequestsLiveData.observe(viewLifecycleOwner, Observer { response ->
+            binding.swipeRefresh.isRefreshing = false
+            
+            if (response == null) return@Observer
+            
+            friendsList.clear()
+            requestIdMap.clear()
+            
+            if (response.success && response.data != null) {
+                response.data.forEach { requestData ->
+                    friendsList.add(requestData.toFriendData())
+                    requestIdMap[requestData.receiver_data.id] = requestData.request_id
+                }
+            }
+            
+            if (::adapter.isInitialized) {
+                adapter.notifyDataSetChanged()
+            }
+            updateEmptyState()
+        })
+
+        // Observe received friend requests
+        friendRequestViewModel.receivedFriendRequestsLiveData.observe(viewLifecycleOwner, Observer { response ->
+            binding.swipeRefresh.isRefreshing = false
+            
+            if (response == null) return@Observer
+            
+            friendsList.clear()
+            requestIdMap.clear()
+            
+            if (response.success && response.data != null) {
+                response.data.forEach { requestData ->
+                    friendsList.add(requestData.toFriendData())
+                    requestIdMap[requestData.sender_data.id] = requestData.request_id
+                }
+            }
+            
+            if (::adapter.isInitialized) {
+                adapter.notifyDataSetChanged()
+            }
+            updateEmptyState()
+        })
+
+        // Observe accept/reject response
+        friendRequestViewModel.sendFriendRequestLiveData.observe(viewLifecycleOwner, Observer { response ->
+            if (response != null && response.success) {
+                Toast.makeText(context, response.message, Toast.LENGTH_SHORT).show()
+                
+                // Clear the LiveData to prevent re-triggering with old data
+                friendRequestViewModel.sendFriendRequestLiveData.value = null
+                
+                // Clear the UI list immediately so old data doesn't show
+                friendsList.clear()
+                requestIdMap.clear()
+                if (::adapter.isInitialized) {
+                    adapter.notifyDataSetChanged()
+                }
+                
+                // Show loading state
+                binding.swipeRefresh.isRefreshing = true
+                
+                // Give backend time to process, then reload fresh data
+                binding.root.postDelayed({
+                    loadData()
+                }, 500)
+            }
+        })
+
+        // Observe errors
+        friendRequestViewModel.friendRequestErrorLiveData.observe(viewLifecycleOwner, Observer { error ->
+            binding.swipeRefresh.isRefreshing = false
+            Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+        })
+    }
+
+    private fun loadData() {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
+        
+        Log.d("FriendsTab", "🔄 loadData called for tabType: $tabType")
+        binding.swipeRefresh.isRefreshing = true
+        
+        when (tabType) {
+            TYPE_CHAT -> {
+                Log.d("FriendsTab", "📞 Loading chat data...")
+                loadChatConversations()
+            }
+            TYPE_FRIENDS -> {
+                // Clear old data to force fresh fetch
+                friendRequestViewModel.friendsListLiveData.value = null
+                friendRequestViewModel.getFriendsList(userData.id)
+            }
+            TYPE_MY_REQUESTS -> {
+                // Clear old data to force fresh fetch
+                friendRequestViewModel.myFriendRequestsLiveData.value = null
+                friendRequestViewModel.getMyFriendRequests(userData.id)
+            }
+            TYPE_THEIR_REQUESTS -> {
+                // Clear old data to force fresh fetch
+                friendRequestViewModel.receivedFriendRequestsLiveData.value = null
+                friendRequestViewModel.getReceivedFriendRequests(userData.id)
+            }
+        }
+    }
+
+    private fun updateEmptyState() {
+        val isEmpty = if (tabType == TYPE_CHAT) {
+            chatConversations.isEmpty()
+        } else {
+            friendsList.isEmpty()
+        }
+        
+        Log.d("FriendsTab", "📊 updateEmptyState - tabType: $tabType, isEmpty: $isEmpty, chatSize: ${chatConversations.size}, friendsSize: ${friendsList.size}")
+        
+        if (isEmpty) {
+            binding.emptyState.visibility = View.VISIBLE
+            binding.rvFriends.visibility = View.GONE
+            Log.d("FriendsTab", "👁️ Showing empty state")
+        } else {
+            binding.emptyState.visibility = View.GONE
+            binding.rvFriends.visibility = View.VISIBLE
+            Log.d("FriendsTab", "👁️ Showing RecyclerView with data")
+        }
     }
 
     private fun setupRecyclerView() {
+        Log.d("FriendsTab", "🎯 setupRecyclerView called for tabType: $tabType")
+        
+        // Setup Chat adapter
+        chatAdapter = ChatListAdapter(requireActivity(), chatConversations) { conversation ->
+            val intent = Intent(context, ChatActivity::class.java)
+            val userId = conversation.userId.toIntOrNull() ?: -1
+            intent.putExtra("USER_ID", userId)
+            intent.putExtra("USER_NAME", conversation.userName)
+            intent.putExtra("USER_IMAGE", conversation.userImage)
+            startActivity(intent)
+        }
+        Log.d("FriendsTab", "✅ Chat adapter created")
+        
+        // Setup Friends adapter
         adapter = FriendsAdapter(
             requireActivity(),
             friendsList,
@@ -74,21 +296,26 @@ class FriendsTabFragment : Fragment() {
                 startActivity(intent)
             },
             onAcceptClick = { friend ->
-                // Accept friend request
-                Toast.makeText(context, "Accepted ${friend.name}'s request", Toast.LENGTH_SHORT).show()
-                // TODO: Call API to accept friend request
-                removeFriend(friend)
+                // Accept friend request by calling API with status=1
+                acceptFriendRequest(friend)
             },
             onRemoveClick = { friend ->
                 // Remove friend or reject request
-                val action = when (tabType) {
-                    TYPE_THEIR_REQUESTS -> "Rejected"
-                    TYPE_MY_REQUESTS -> "Cancelled"
-                    else -> "Removed"
+                when (tabType) {
+                    TYPE_MY_REQUESTS -> {
+                        // Cancel friend request by calling API with status=2
+                        cancelFriendRequest(friend)
+                    }
+                    TYPE_THEIR_REQUESTS -> {
+                        // Reject friend request by calling API with status=2
+                        rejectFriendRequest(friend)
+                    }
+                    else -> {
+                        Toast.makeText(context, "Removed ${friend.name}", Toast.LENGTH_SHORT).show()
+                        // TODO: Call API to remove friend
+                        removeFriend(friend)
+                    }
                 }
-                Toast.makeText(context, "$action ${friend.name}", Toast.LENGTH_SHORT).show()
-                // TODO: Call API to remove/reject
-                removeFriend(friend)
             },
             onProfileClick = { friend ->
                 // Open profile detail
@@ -107,13 +334,243 @@ class FriendsTabFragment : Fragment() {
         )
 
         binding.rvFriends.layoutManager = LinearLayoutManager(requireContext())
+        
+        // Set appropriate adapter based on tab type
+        if (tabType == TYPE_CHAT) {
+            Log.d("FriendsTab", "✅ Setting chat adapter to RecyclerView")
+            binding.rvFriends.adapter = chatAdapter
+        } else {
+            Log.d("FriendsTab", "✅ Setting friends adapter to RecyclerView")
         binding.rvFriends.adapter = adapter
+        }
     }
 
     private fun setupSwipeRefresh() {
         binding.swipeRefresh.setOnRefreshListener {
-            loadMockData()
+            loadData()
         }
+    }
+
+    private fun cancelFriendRequest(friend: FriendData) {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
+        
+        friendRequestViewModel.sendFriendRequest(
+            senderId = userData.id,
+            receiverId = friend.friend_id,
+            status = 2
+        )
+    }
+
+    private fun acceptFriendRequest(friend: FriendData) {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
+        
+        friendRequestViewModel.sendFriendRequest(
+            senderId = friend.friend_id,
+            receiverId = userData.id,
+            status = 1
+        )
+    }
+
+    private fun rejectFriendRequest(friend: FriendData) {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
+        
+        friendRequestViewModel.sendFriendRequest(
+            senderId = friend.friend_id,
+            receiverId = userData.id,
+            status = 3
+        )
+    }
+
+    private fun loadChatConversations() {
+        if (!isAdded) {
+            Log.e("FriendsTab", "❌ Fragment not added, skipping")
+            return
+        }
+        
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val myUserId = userData?.id?.toString() ?: ""
+        
+        Log.d("FriendsTab", "🔵 loadChatConversations called. MyUserId: $myUserId")
+        
+        if (myUserId.isEmpty()) {
+            Log.e("FriendsTab", "❌ User ID is empty!")
+            binding.swipeRefresh.isRefreshing = false
+            updateChatUI(emptyList())
+            return
+        }
+        
+        Log.d("FriendsTab", "📱 Loading chat conversations for user: $myUserId")
+        binding.swipeRefresh.isRefreshing = true
+        
+        // Load conversations from Firebase - EXACTLY like ChatListActivity
+        db.collection("chats")
+            .addSnapshotListener { documents, error ->
+                if (!isAdded) return@addSnapshotListener
+                
+                binding.swipeRefresh.isRefreshing = false
+                
+                if (error != null) {
+                    Log.e("FriendsTab", "❌ Error: ${error.message}", error)
+                    updateChatUI(emptyList())
+                    return@addSnapshotListener
+                }
+                
+                if (documents == null || documents.isEmpty) {
+                    Log.d("FriendsTab", "⚠️ No chat threads found")
+                    updateChatUI(emptyList())
+                    return@addSnapshotListener
+                }
+                
+                Log.d("FriendsTab", "✅ Found ${documents.size()} chat documents")
+                
+                // Clear old conversations
+                val currentThreadIds = documents.map { it.id }.toSet()
+                conversationsMap.keys.retainAll(currentThreadIds)
+                
+                // Process each chat thread
+                for (document in documents) {
+                    val threadId = document.id
+                    
+                    // Parse participants from thread ID (format: "userId1_userId2")
+                    val participants = threadId.split("_")
+                    
+                    Log.d("FriendsTab", "Thread $threadId - parsed participants: $participants")
+                    
+                    if (participants.size != 2 || !participants.contains(myUserId)) {
+                        Log.d("FriendsTab", "Skipping $threadId - not my conversation")
+                        continue
+                    }
+                    
+                    val otherUserId = participants.firstOrNull { it != myUserId }
+                    if (otherUserId == null) {
+                        Log.d("FriendsTab", "Skipping $threadId - no other user")
+                        continue
+                    }
+                    
+                    Log.d("FriendsTab", "✅ Processing $threadId with user $otherUserId")
+                    
+                    // Get user metadata
+                    db.collection("chats")
+                        .document(threadId)
+                        .get()
+                        .addOnSuccessListener { threadDoc ->
+                            if (!isAdded) return@addOnSuccessListener
+                            
+                            val userName = threadDoc.getString("user_${otherUserId}_name") ?: "User $otherUserId"
+                            val userImage = threadDoc.getString("user_${otherUserId}_image") ?: ""
+                            
+                            Log.d("FriendsTab", "Got metadata for $otherUserId: $userName")
+                            
+                            // Real-time listener for messages
+                            db.collection("chats")
+                                .document(threadId)
+                                .collection("messages")
+                                .orderBy("timestamp", Query.Direction.DESCENDING)
+                                .limit(50)
+                                .addSnapshotListener { messagesSnapshot, messageError ->
+                                    if (!isAdded) {
+                                        return@addSnapshotListener
+                                    }
+                                    
+                                    if (messageError != null) {
+                                        Log.e("FriendsTab", "❌ Message error for $threadId: ${messageError.message}")
+                                        return@addSnapshotListener
+                                    }
+                                    
+                                    if (messagesSnapshot == null || messagesSnapshot.isEmpty) {
+                                        Log.d("FriendsTab", "⚠️ No messages in $threadId")
+                                        // Still create conversation but with empty message
+                                        val conversation = ChatConversation(
+                                            threadId = threadId,
+                                            userId = otherUserId,
+                                            userName = userName,
+                                            userImage = userImage,
+                                            lastMessage = "",
+                                            lastMessageTime = null,
+                                            unreadCount = 0,
+                                            isOnline = false
+                                        )
+                                        conversationsMap[threadId] = conversation
+                                        
+                                        val sortedConversations = conversationsMap.values
+                                            .sortedByDescending { it.lastMessageTime?.toDate()?.time ?: 0L }
+                                        updateChatUI(sortedConversations)
+                                        return@addSnapshotListener
+                                    }
+                                    
+                                    var lastMessage = ""
+                                    var lastMessageTime: Timestamp? = null
+                                    var unreadCount = 0
+                                    
+                                    Log.d("FriendsTab", "📨 Processing ${messagesSnapshot.size()} messages for $threadId")
+                                    
+                                    for (msgDoc in messagesSnapshot.documents) {
+                                        val fromId = msgDoc.getString("from") ?: ""
+                                        val text = msgDoc.getString("text") ?: ""
+                                        val timestamp = msgDoc.getTimestamp("timestamp")
+                                        val isRead = msgDoc.getBoolean("isRead") ?: false
+                                        
+                                        Log.d("FriendsTab", "Msg: from=$fromId, text='$text', isRead=$isRead")
+                                        
+                                        // Get the first (most recent) message
+                                        if (lastMessage.isEmpty() && text.isNotEmpty()) {
+                                            lastMessage = text
+                                            lastMessageTime = timestamp
+                                            Log.d("FriendsTab", "✅ Last message set: '$lastMessage'")
+                                        }
+                                        
+                                        // Count unread messages from other user
+                                        if (fromId == otherUserId && !isRead) {
+                                            unreadCount++
+                                        }
+                                    }
+                                    
+                                    Log.d("FriendsTab", "📊 Thread $threadId FINAL: lastMsg='$lastMessage', unread=$unreadCount")
+                                    
+                                    // Create/update conversation
+                                    val conversation = ChatConversation(
+                                        threadId = threadId,
+                                        userId = otherUserId,
+                                        userName = userName,
+                                        userImage = userImage,
+                                        lastMessage = lastMessage,
+                                        lastMessageTime = lastMessageTime,
+                                        unreadCount = unreadCount,
+                                        isOnline = false
+                                    )
+                                    
+                                    conversationsMap[threadId] = conversation
+                                    
+                                    // Update UI with sorted list (REAL-TIME!)
+                                    val sortedConversations = conversationsMap.values
+                                        .sortedByDescending { it.lastMessageTime?.toDate()?.time ?: 0L }
+                                    updateChatUI(sortedConversations)
+                                    
+                                    Log.d("FriendsTab", "🔄 UI updated with ${sortedConversations.size} conversations")
+                                }
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("FriendsTab", "Error loading metadata for $threadId", e)
+                        }
+                }
+            }
+    }
+    
+    private fun updateChatUI(conversationsList: List<ChatConversation>) {
+        if (!isAdded) return
+        
+        Log.d("FriendsTab", "📊 updateChatUI called with ${conversationsList.size} conversations")
+        Log.d("FriendsTab", "Conversations: ${conversationsList.map { "${it.userName} (${it.userId})" }}")
+        
+        // Use the adapter's updateConversations method like ChatListActivity does
+        if (::chatAdapter.isInitialized) {
+            Log.d("FriendsTab", "🔄 Updating chatAdapter with ${conversationsList.size} conversations")
+            chatAdapter.updateConversations(conversationsList)
+        } else {
+            Log.e("FriendsTab", "❌ chatAdapter not initialized!")
+        }
+        
+        updateEmptyState()
     }
 
     private fun loadMockData() {

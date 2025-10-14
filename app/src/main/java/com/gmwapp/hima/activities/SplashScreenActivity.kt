@@ -30,6 +30,7 @@ import androidx.lifecycle.Observer
 import com.bumptech.glide.Glide
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
+import com.gmwapp.hima.activities.ChatListActivity
 import com.gmwapp.hima.agora.female.FemaleCallAcceptActivity
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivitySplashScreenBinding
@@ -359,8 +360,12 @@ class SplashScreenActivity : BaseActivity() {
             if (remainingTime > 0) {
                 // Wait for remaining time to reach minimum display duration
                 Handler(Looper.getMainLooper()).postDelayed({
-                    startActivity(it)
-                    finish()
+                    if (BaseApplication.getInstance()?.isChatListActivityVisible() == false) {
+                        // currently on ChatListActivity
+                        startActivity(it)
+                        Log.d("FromSplash","Hello Splash")
+                        finish()
+                    }
                 }, remainingTime)
             } else {
                 // Minimum time already elapsed, navigate immediately
@@ -373,7 +378,6 @@ class SplashScreenActivity : BaseActivity() {
     fun GotoActivity(
         userData: UserData?,
     ) {
-
 //            Toast.makeText(this, "1", Toast.LENGTH_SHORT).show()
             if (userData == null) {
 //                Toast.makeText(this, "2", Toast.LENGTH_SHORT).show()

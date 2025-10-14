@@ -300,3 +300,4 @@ isChatVisible = false → Keeps messages unread
 
 Messages now work exactly as expected - unread until viewed! 🎉
 
+

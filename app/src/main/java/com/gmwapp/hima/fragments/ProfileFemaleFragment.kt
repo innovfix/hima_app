@@ -20,6 +20,7 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.AccountPrivacyActivity
 import com.gmwapp.hima.activities.EarningsActivity
 import com.gmwapp.hima.activities.EditProfileActivity
+import com.gmwapp.hima.activities.FriendsListActivity
 import com.gmwapp.hima.activities.RefundWebViewActivity
 import com.gmwapp.hima.activities.ShareActivity
 import com.gmwapp.hima.activities.TermConditionWebViewActivity
@@ -140,6 +141,11 @@ class ProfileFemaleFragment : BaseFragment() {
                 Toast.makeText(requireContext(), "Please Complete Kyc", Toast.LENGTH_SHORT).show()
 
             }
+        }
+
+        binding.clMyFriends.setOnSingleClickListener {
+            val intent = Intent(context, FriendsListActivity::class.java)
+            startActivity(intent)
         }
 
         binding.clTermsCondition.setOnSingleClickListener {

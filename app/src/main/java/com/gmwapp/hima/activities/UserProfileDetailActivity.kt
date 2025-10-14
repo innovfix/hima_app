@@ -4,7 +4,10 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.widget.Toast
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Observer
 import com.bumptech.glide.Glide
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
@@ -17,16 +20,20 @@ import com.gmwapp.hima.databinding.ActivityUserProfileDetailBinding
 import com.gmwapp.hima.retrofit.responses.Interests
 import com.gmwapp.hima.utils.Helper
 import com.gmwapp.hima.utils.setOnSingleClickListener
+import com.gmwapp.hima.viewmodels.FriendRequestViewModel
 import com.google.android.flexbox.AlignItems
 import com.google.android.flexbox.FlexDirection
 import com.google.android.flexbox.FlexWrap
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
 import com.google.android.material.chip.Chip
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class UserProfileDetailActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityUserProfileDetailBinding
+    private val friendRequestViewModel: FriendRequestViewModel by viewModels()
     
     // User data from intent
     private var userId: Int = 0
@@ -66,12 +73,43 @@ class UserProfileDetailActivity : AppCompatActivity() {
         // Setup click listeners
         setupClickListeners()
         
+        // Setup observers for ViewModel
+        setupObservers()
+        
         // Update UI based on friend status (Mock data for now)
         updateUIBasedOnFriendStatus()
         
         // Debug: Verify button visibility
         Log.d("UserProfileDetail", "Send Friend Request button visibility: ${binding.btnSendFriendRequest.visibility}")
         Log.d("UserProfileDetail", "Action buttons layout visibility: ${binding.llActionButtons.visibility}")
+    }
+
+    private fun setupObservers() {
+        // Observe friend request success
+        friendRequestViewModel.sendFriendRequestLiveData.observe(this, Observer { response ->
+            if (response != null) {
+                Log.d("UserProfileDetail", "✅ Friend request sent successfully: ${response.message}")
+                
+                // Update UI to show request sent
+                currentFriendStatus = FriendStatus.REQUEST_SENT
+                updateUIBasedOnFriendStatus()
+                
+                // Show success message
+                Toast.makeText(this, response.message, Toast.LENGTH_SHORT).show()
+            }
+        })
+
+        // Observe friend request errors
+        friendRequestViewModel.friendRequestErrorLiveData.observe(this, Observer { error ->
+            Log.e("UserProfileDetail", "❌ Friend request error: $error")
+            Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
+        })
+
+        // Observe loading state
+        friendRequestViewModel.loadingLiveData.observe(this, Observer { isLoading ->
+            // You can show/hide a progress bar here if needed
+            binding.btnSendFriendRequest.isEnabled = !isLoading
+        })
     }
 
     private fun getUserDataFromIntent() {
@@ -193,15 +231,22 @@ class UserProfileDetailActivity : AppCompatActivity() {
     }
 
     private fun sendFriendRequest() {
-        // TODO: API call to send friend request
-        Log.d("UserProfileDetail", "Sending friend request to user: $userId")
+        // Get current user ID from preferences
+        val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
         
-        // Update UI to show request sent
-        currentFriendStatus = FriendStatus.REQUEST_SENT
-        updateUIBasedOnFriendStatus()
+        if (currentUserId == 0) {
+            Toast.makeText(this, "Unable to send friend request. Please try again.", Toast.LENGTH_SHORT).show()
+            return
+        }
         
-        // Show toast or snackbar
-        android.widget.Toast.makeText(this, "Friend request sent to $userName", android.widget.Toast.LENGTH_SHORT).show()
+        Log.d("UserProfileDetail", "📤 Sending friend request from user $currentUserId to user: $userId")
+        
+        // Call API using ViewModel
+        friendRequestViewModel.sendFriendRequest(
+            senderId = currentUserId,
+            receiverId = userId,
+            status = 0
+        )
     }
 
     private fun acceptFriendRequest() {

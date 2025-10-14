@@ -39,6 +39,7 @@ import javax.inject.Inject
 import com.appsflyer.AppsFlyerLib;
 import com.appsflyer.AppsFlyerConversionListener;
 import com.gmwapp.hima.activities.MainActivity
+import com.gmwapp.hima.fragments.FriendsTabFragment
 import com.onesignal.notifications.INotificationClickEvent
 import com.onesignal.notifications.INotificationClickListener
 
@@ -56,8 +57,8 @@ class BaseApplication : Application(), Configuration.Provider {
     private var roomId: String? = null
     private var mediaPlayer: MediaPlayer? = null
     private var endCallUpdatePending: Boolean? = null
-   // val ONESIGNAL_APP_ID = "2c7d72ae-8f09-48ea-a3c8-68d9c913c592"
-   val ONESIGNAL_APP_ID = "5cd4154a-1ece-4c3b-b6af-e88bafee64cd"
+    // val ONESIGNAL_APP_ID = "2c7d72ae-8f09-48ea-a3c8-68d9c913c592"
+    val ONESIGNAL_APP_ID = "50cedb09-a202-455f-8c7b-683f4958df43"
 
     //val testingOneSingalAppId = "b5aee4f0-ef38-4116-a04d-ee279ee1f11f"
     private lateinit var sharedPreferences: SharedPreferences
@@ -71,6 +72,7 @@ class BaseApplication : Application(), Configuration.Provider {
     private var incomingCall: Boolean = false
 
 
+    var messageCameWhenIsAlive = 0
 
     private val lifecycleCallbacks: ActivityLifecycleCallbacks =
         object : ActivityLifecycleCallbacks {
@@ -133,14 +135,14 @@ class BaseApplication : Application(), Configuration.Provider {
 
 
 
-            lateinit var firebaseAnalytics: FirebaseAnalytics
-                private set
+        lateinit var firebaseAnalytics: FirebaseAnalytics
+            private set
 
 
 
 
 
-        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -182,34 +184,66 @@ class BaseApplication : Application(), Configuration.Provider {
             ?.getUserData()?.id.toString() // Set user_id
         Log.d("userIDCheck", "Logging in with userId: $userId")
 
-      //  initZoho()
+        //  initZoho()
 
 
-       OneSignal.Notifications.addClickListener(object : INotificationClickListener {
-           override fun onClick(event: INotificationClickEvent) {
-               // Parsed additionalData
-               val data = event.notification.additionalData
-               if (data != null) {
-                   val user_id = data.optInt("user_id")
-                   val prefs = getSharedPreferences("my_app_prefs", Context.MODE_PRIVATE)
-                   prefs.edit().putString("notification_user_id", user_id.toString()).apply()
-                   Log.d("NotificationDataOneSingal", "$data")
-               } else {
-                   // Raw fallback
-                   Log.d("NotificationDataOneSingal", event.notification.rawPayload)
-               }
+        OneSignal.Notifications.addClickListener(object : INotificationClickListener {
+            override fun onClick(event: INotificationClickEvent) {
+                // Parsed additionalData
+                val data = event.notification.additionalData
+                if (data != null) {
+                    val user_id = data.optInt("user_id")
+                    val prefs = getSharedPreferences("my_app_prefs", Context.MODE_PRIVATE)
+                    prefs.edit().putString("notification_user_id", user_id.toString()).apply()
+                    Log.d("NotificationDataOneSingal", "$data")
+                } else {
+                    // Raw fallback
+                    Log.d("NotificationDataOneSingal", event.notification.rawPayload)
+                }
 
 
-               if (data != null) {
-                   val intent = Intent(applicationContext, MainActivity::class.java).apply {
-                       flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                       putExtra("fromApplication", true)
+                if (data != null) {
+                    val type = data.optString("type", "")
+                    if (type == "message") {
+                        Log.d("OneSignalClick", "✅ App OPEN - Opening ChatListActivity")
+                        val intent = Intent(applicationContext, com.gmwapp.hima.activities.ChatListActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        }
+                        startActivity(intent)
+                    }
+                   else if (type == "friend_request") {
+                        Log.d("OneSignalClick", "✅ App OPEN - Opening ChatListActivity")
+                        val intent = Intent(applicationContext, com.gmwapp.hima.activities.FriendsListActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            putExtra("target_tab", FriendsTabFragment.TYPE_THEIR_REQUESTS)   // tell the activity which tab to open
 
-                   }
-                   startActivity(intent)
-               }
-           }
-       })
+                        }
+                        startActivity(intent)
+                    }
+                    else if (type == "friend_request_accepted") {
+                        Log.d("OneSignalClick", "✅ App OPEN - Opening ChatListActivity")
+                        val intent = Intent(applicationContext, com.gmwapp.hima.activities.FriendsListActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            putExtra("target_tab", FriendsTabFragment.TYPE_FRIENDS)   // tell the activity which tab to open
+
+                        }
+                        startActivity(intent)
+                    }
+
+
+                    else{
+
+                    val intent = Intent(applicationContext, MainActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        putExtra("fromApplication", true)
+
+                    }
+                    startActivity(intent)
+                }
+                }
+
+            }
+        })
 
 
 
@@ -554,4 +588,12 @@ class BaseApplication : Application(), Configuration.Provider {
             }
         })
     }
+
+    fun isChatListActivityVisible(): Boolean {
+        return currentActivity?.let { current ->
+            current::class.java.simpleName == "ChatListActivity" ||
+                    current::class.java.simpleName == "FriendsListActivity"
+        } ?: false
+    }
+
 }

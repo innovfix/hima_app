@@ -144,6 +144,7 @@ class RecentCallsAdapter(
             holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.white))
             holder.binding.ivVideo.isEnabled = true
             holder.binding.ivVideo.setImageResource(R.drawable.ic_video_modern)
+            holder.binding.ivVideoCircle.visibility= View.GONE
 
             // Chat button (design only)
             holder.binding.ivChatCircle.setOnSingleClickListener {

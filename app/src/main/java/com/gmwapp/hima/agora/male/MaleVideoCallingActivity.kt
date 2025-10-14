@@ -318,7 +318,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
         endcallBtn()
         onBackPressedBtn()
-        onMenuClicked()
+//        onMenuClicked()
 
         userAvatarViewModel.getUserAvatar(receiverId)
 
@@ -783,7 +783,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                         agoraEngine?.setupRemoteVideo(
                             VideoCanvas(
                                 remoteSurfaceView,
-                                VideoCanvas.RENDER_MODE_FIT,
+                                VideoCanvas.RENDER_MODE_HIDDEN,
                                 uid
                             )
                         )
@@ -842,6 +842,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             )
         )
         remoteSurfaceView!!.visibility = View.VISIBLE
+        binding.remoteVideoViewContainer.visibility = View.VISIBLE
     }
 
     private fun setupLocalVideo() {
@@ -856,8 +857,9 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 0
             )
         )
-
-
+        
+        binding.localVideoViewContainer.visibility = View.VISIBLE
+        binding.localCardView.visibility = View.VISIBLE
 
     }
 
@@ -1719,7 +1721,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             binding.localVideoViewContainer.addView(localView)
 
             // Attach local video feed
-            agoraEngine?.setupLocalVideo(VideoCanvas(localView, VideoCanvas.RENDER_MODE_FIT, 0))
+            agoraEngine?.setupLocalVideo(VideoCanvas(localView, VideoCanvas.RENDER_MODE_HIDDEN, 0))
             
             // Start local video preview
             agoraEngine?.startPreview()
@@ -1762,7 +1764,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 agoraEngine?.setupRemoteVideo(
                     VideoCanvas(
                         remoteSurfaceView,
-                        VideoCanvas.RENDER_MODE_FIT,
+                        VideoCanvas.RENDER_MODE_HIDDEN,
                         videoUid
                     )
                 )

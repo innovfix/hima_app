@@ -20,18 +20,17 @@
     android:keepScreenOn="true"
     android:background="@drawable/professional_call_background">
 
-    <!-- Local Video Preview (Small window in top-right) -->
+    <!-- Video Containers -->
     <androidx.cardview.widget.CardView
         android:id="@+id/localCardView"
-        android:layout_width="100dp"
-        android:layout_height="140dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginTop="80dp"
-        android:visibility="visible"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="8dp"
+        android:layout_width="@dimen/_120sdp"
+        android:layout_height="190dp"
+        android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintTop_toTopOf="parent"
+        android:layout_marginRight="@dimen/_6sdp"
+        android:layout_marginTop="@dimen/_6sdp"
+        app:cardElevation="5dp">
 
         <FrameLayout
             android:id="@+id/local_video_view_container"
@@ -39,13 +38,14 @@
             android:layout_height="match_parent"
             android:background="@android:color/black"/>
     </androidx.cardview.widget.CardView>
-
-    <!-- Remote Video Container (Full screen background) -->
+    
     <FrameLayout
         android:id="@+id/remote_video_view_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@android:color/black" />
+        android:visibility="gone"
+        android:layout_centerHorizontal="true"
+        android:background="@android:color/darker_gray" />
 
     <!-- Top Bar Container -->
     <LinearLayout
@@ -105,7 +105,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="00:00:00"
-                android:textColor="#FFFFFF"
+                android:textColor="#1A237E"
                 android:textSize="14sp"
                 android:fontFamily="sans-serif-medium"
                 android:letterSpacing="0.05"
@@ -373,7 +373,7 @@
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:visibility="visible">
+            android:visibility="gone">
 
             <FrameLayout
                 android:id="@+id/video_button_frame"

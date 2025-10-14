@@ -252,6 +252,7 @@
                     android:layout_marginStart="4dp"
                     android:clickable="true"
                     android:focusable="true"
+                    android:visibility="gone"
                     app:cardBackgroundColor="@color/grey_extra_light"
                     app:cardCornerRadius="10dp"
                     app:cardElevation="2dp"

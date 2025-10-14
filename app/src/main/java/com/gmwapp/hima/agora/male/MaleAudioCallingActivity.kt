@@ -310,7 +310,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         onBackPressedBtn()
 
 
-        onMenuClicked()
+//        onMenuClicked()
         avatarObservers()
         userAvatarViewModel.getUserAvatar(receiverId)
 
@@ -1542,8 +1542,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 dateFormat.format(Date()) // Set call end time only if startTime is not empty
 
             binding.btnVideoCall.setImageResource(R.drawable.audiocall_img)
-            binding.btnVideoCall.visibility= View.GONE
-
+            binding.layoutButtons.visibility = View.GONE
             binding.ivGift.visibility=View.GONE
 
 

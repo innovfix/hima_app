@@ -284,7 +284,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
         endcallBtn()
 
-        onMenuClicked()
+//        onMenuClicked()
         onBackPressedBtn()
         userAvatarViewModel.getUserAvatar(receiverId)
         avatarObservers()

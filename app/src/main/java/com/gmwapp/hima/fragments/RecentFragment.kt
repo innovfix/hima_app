@@ -264,6 +264,7 @@ class RecentFragment : BaseFragment() {
                                         
                                         // Sum all unread counts
                                         val totalUnread = unreadCountsMap.values.sum()
+                                        android.util.Log.d("RecentFragment", "📊 Thread $threadId unread: ${unreadCountsMap[threadId]}, Total: $totalUnread")
                                         updateUnreadBadge(totalUnread)
                                     }
                             }
@@ -273,13 +274,20 @@ class RecentFragment : BaseFragment() {
     }
 
     private fun updateUnreadBadge(count: Int) {
-        if (!::binding.isInitialized) return
+        if (!::binding.isInitialized) {
+            android.util.Log.d("RecentFragment", "❌ Binding not initialized")
+            return
+        }
+        
+        android.util.Log.d("RecentFragment", "📬 Updating unread badge: $count")
         
         if (count > 0) {
             binding.tvUnreadBadge.visibility = View.VISIBLE
             binding.tvUnreadBadge.text = if (count > 99) "99+" else count.toString()
+            android.util.Log.d("RecentFragment", "✅ Badge visible with count: $count")
         } else {
             binding.tvUnreadBadge.visibility = View.GONE
+            android.util.Log.d("RecentFragment", "⚠️ Badge hidden (no unread)")
         }
     }
 
@@ -291,6 +299,13 @@ class RecentFragment : BaseFragment() {
         }
         
         // Refresh unread count when returning to this screen
+        android.util.Log.d("RecentFragment", "🔄 onResume - reloading unread count")
         loadUnreadMessageCount()
+    }
+    
+    override fun onDestroyView() {
+        super.onDestroyView()
+        // Clean up listeners when fragment is destroyed
+        unreadCountsMap.clear()
     }
 }

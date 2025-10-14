@@ -27,6 +27,7 @@ import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
 import com.gmwapp.hima.retrofit.responses.GiftImageResponse
 import com.gmwapp.hima.retrofit.responses.IndividualAppUpdateResponse
 import com.gmwapp.hima.retrofit.responses.LoginResponse
+import com.gmwapp.hima.retrofit.responses.MessageNotificationResponse
 import com.gmwapp.hima.retrofit.responses.OfferResponse
 import com.gmwapp.hima.retrofit.responses.PanCardResponse
 import com.gmwapp.hima.retrofit.responses.RandomUsersResponse
@@ -34,6 +35,10 @@ import com.gmwapp.hima.retrofit.responses.RatingResponse
 import com.gmwapp.hima.retrofit.responses.ReferralCodeResponse
 import com.gmwapp.hima.retrofit.responses.RegisterResponse
 import com.gmwapp.hima.retrofit.responses.ReportsResponse
+import com.gmwapp.hima.retrofit.responses.FriendRequestResponse
+import com.gmwapp.hima.retrofit.responses.MyFriendRequestsResponse
+import com.gmwapp.hima.retrofit.responses.ReceivedFriendRequestsResponse
+import com.gmwapp.hima.retrofit.responses.FriendListResponse
 import com.gmwapp.hima.retrofit.responses.SendGiftResponse
 import com.gmwapp.hima.retrofit.responses.SendOTPResponse
 import com.gmwapp.hima.retrofit.responses.SettingsResponse
@@ -788,6 +793,75 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun sendMessageNotification(
+        senderId: Int,
+        receiverId: Int,
+        message: String,
+        callback: NetworkCallback<MessageNotificationResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<MessageNotificationResponse> =
+                getApiInterface().sendMessageNotification(senderId, receiverId, message)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun sendFriendRequest(
+        senderId: Int,
+        receiverId: Int,
+        status: Int,
+        callback: NetworkCallback<FriendRequestResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<FriendRequestResponse> =
+                getApiInterface().sendFriendRequest(senderId, receiverId, status)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getMyFriendRequests(
+        senderId: Int,
+        callback: NetworkCallback<MyFriendRequestsResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<MyFriendRequestsResponse> =
+                getApiInterface().getMyFriendRequests(senderId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getReceivedFriendRequests(
+        receiverId: Int,
+        callback: NetworkCallback<ReceivedFriendRequestsResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<ReceivedFriendRequestsResponse> =
+                getApiInterface().getReceivedFriendRequests(receiverId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getFriendsList(
+        senderId: Int,
+        callback: NetworkCallback<FriendListResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<FriendListResponse> =
+                getApiInterface().getFriendsList(senderId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun getUserAvatar(
         userId: Int,
         callback: NetworkCallback<UserAvatarResponse>
@@ -1274,5 +1348,38 @@ interface ApiInterface {
         @Field("call_status") callStatus: Int
     ): Call<FirstCallUpdateResponse>
 
+    @FormUrlEncoded
+    @POST("send_message_notification")
+    fun sendMessageNotification(
+        @Field("sender_id") senderId: Int,
+        @Field("receiver_id") receiverId: Int,
+        @Field("message") message: String
+    ): Call<MessageNotificationResponse>
+
+    @FormUrlEncoded
+    @POST("request_friends")
+    fun sendFriendRequest(
+        @Field("sender_id") senderId: Int,
+        @Field("receiver_id") receiverId: Int,
+        @Field("status") status: Int
+    ): Call<FriendRequestResponse>
+
+    @FormUrlEncoded
+    @POST("my_requests")
+    fun getMyFriendRequests(
+        @Field("sender_id") senderId: Int
+    ): Call<MyFriendRequestsResponse>
+
+    @FormUrlEncoded
+    @POST("received_requests")
+    fun getReceivedFriendRequests(
+        @Field("receiver_id") receiverId: Int
+    ): Call<ReceivedFriendRequestsResponse>
+
+    @FormUrlEncoded
+    @POST("friend_list")
+    fun getFriendsList(
+        @Field("sender_id") senderId: Int
+    ): Call<FriendListResponse>
 
 }

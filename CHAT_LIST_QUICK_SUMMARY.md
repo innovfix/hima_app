@@ -267,3 +267,4 @@ For chat integration: `FIRESTORE_CHAT_INTEGRATION.md`
 🎉 **Enjoy your new chat list feature!**
 
 
+

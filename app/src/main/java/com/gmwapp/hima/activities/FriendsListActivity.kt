@@ -1,14 +1,19 @@
 package com.gmwapp.hima.activities
 
+import android.content.Intent
 import android.os.Bundle
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.viewpager2.adapter.FragmentStateAdapter
+import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.databinding.ActivityFriendsListBinding
 import com.gmwapp.hima.fragments.FriendsTabFragment
 import com.google.android.material.tabs.TabLayoutMediator
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class FriendsListActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityFriendsListBinding
@@ -20,14 +25,43 @@ class FriendsListActivity : AppCompatActivity() {
 
         setupToolbar()
         setupViewPager()
+        onBackPressedBtn()
     }
 
     private fun setupToolbar() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         binding.toolbar.setNavigationOnClickListener {
-            finish()
-        }
+
+            val messageCameWhenIsAlive = BaseApplication.getInstance()?.messageCameWhenIsAlive ?: 0
+
+            if (messageCameWhenIsAlive == 0) {
+                val intent = Intent(this, MainActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                }
+                startActivity(intent)
+                finish()
+            } else {
+                finish()
+            }        }
+    }
+
+    private fun onBackPressedBtn() {
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                val messageCameWhenIsAlive = BaseApplication.getInstance()?.messageCameWhenIsAlive ?: 0
+
+                if (messageCameWhenIsAlive == 0) {
+                    val intent = Intent(this@FriendsListActivity, MainActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    }
+                    startActivity(intent)
+                    finish()
+                } else {
+                    finish()
+                }
+            }
+        })
     }
 
     private fun setupViewPager() {
@@ -43,6 +77,19 @@ class FriendsListActivity : AppCompatActivity() {
                 else -> ""
             }
         }.attach()
+
+        val targetTab = intent.getIntExtra(
+            "target_tab",
+            FriendsTabFragment.TYPE_CHAT // default
+        )
+
+        val targetIndex = when (targetTab) {
+            FriendsTabFragment.TYPE_FRIENDS -> 1
+            FriendsTabFragment.TYPE_MY_REQUESTS -> 2
+            FriendsTabFragment.TYPE_THEIR_REQUESTS -> 3
+            else -> 0
+        }
+        binding.viewPager.setCurrentItem(targetIndex, false)
     }
 
     private inner class FriendsPagerAdapter(activity: FragmentActivity) :

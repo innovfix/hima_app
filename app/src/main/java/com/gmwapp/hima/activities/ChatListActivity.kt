@@ -8,6 +8,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -47,7 +48,28 @@ class ChatListActivity : AppCompatActivity() {
         setupRecyclerView()
         setupClickListeners()
         loadConversations()
+        onBackPressedBtn()
+
     }
+
+    private fun onBackPressedBtn() {
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                val messageCameWhenIsAlive = BaseApplication.getInstance()?.messageCameWhenIsAlive ?: 0
+
+                if (messageCameWhenIsAlive == 0) {
+                    val intent = Intent(this@ChatListActivity, MainActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    }
+                    startActivity(intent)
+                    finish()
+                } else {
+                    finish()
+                }
+            }
+        })
+    }
+
 
     private fun initializeViews() {
         ivBack = findViewById(R.id.iv_back)
@@ -89,8 +111,19 @@ class ChatListActivity : AppCompatActivity() {
 
     private fun setupClickListeners() {
         ivBack.setOnClickListener {
-            finish()
-        }
+
+            val messageCameWhenIsAlive = BaseApplication.getInstance()?.messageCameWhenIsAlive ?: 0
+
+            if (messageCameWhenIsAlive == 0) {
+                val intent = Intent(this, MainActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                }
+                startActivity(intent)
+                finish()
+            } else {
+                finish()
+            }
+            }
 
         swipeRefreshLayout.setOnRefreshListener {
             loadConversations()

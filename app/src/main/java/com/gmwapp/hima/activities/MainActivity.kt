@@ -227,6 +227,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             // Ensure status bar stays pink
             window.statusBarColor = ContextCompat.getColor(this, R.color.pink)
         }
+        BaseApplication.getInstance()?.messageCameWhenIsAlive = 1
 
         fromApplication = intent.getBooleanExtra("fromApplication", false)
 
@@ -1533,5 +1534,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
 
 }
+
+// I am MainActivity
 
 //new branch track creator first call
