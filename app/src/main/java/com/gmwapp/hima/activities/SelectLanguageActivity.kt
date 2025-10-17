@@ -159,6 +159,11 @@ class SelectLanguageActivity : BaseActivity() {
             Language(getString(R.string.kannada), R.drawable.kannada, false),
             Language(getString(R.string.punjabi), R.drawable.punjabi, false),
             Language(getString(R.string.tamil), R.drawable.tamil, false),
+            Language(getString(R.string.marathi), R.drawable.marathi, false),
+            Language(getString(R.string.bengali), R.drawable.bengali, false),
+            Language(getString(R.string.assamese), R.drawable.assamese, false),
+            Language(getString(R.string.odia), R.drawable.odia, false),
+            Language(getString(R.string.gujarati), R.drawable.gujarati, false),
         ), object : OnItemSelectionListener<Language> {
             override fun onItemSelected(language: Language) {
                 binding.btnContinue.isEnabled = true

@@ -65,6 +65,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         var gender = userData?.gender
         Log.d("FCM", "From: ${remoteMessage.from}")
+        Log.d("FCM_Data_Complete", "From: ${remoteMessage.data}")
         Log.d("FCM_Message", "Message data payload: ${remoteMessage.data["message"]}")
 
         if (remoteMessage.getPriority() == RemoteMessage.PRIORITY_HIGH) {
@@ -91,6 +92,27 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     val receiverName = parts[4]  // Extract receiver name
 
                     Log.d("startingActvity","$gender")
+
+
+                    // 🕒 CHECK CALL TIME DIFFERENCE
+                    val fcmTimestamp = remoteMessage.data["timestamp"]
+                    val currentTime = System.currentTimeMillis()
+                    val callTimestamp = try {
+                        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
+                        sdf.timeZone = java.util.TimeZone.getDefault()
+                        sdf.parse(fcmTimestamp)?.time ?: 0L
+                    } catch (e: Exception) {
+                        0L
+                    }
+                    val timeDiffSeconds = (currentTime - callTimestamp) / 1000
+                    Log.w("FCM_Time", "⚠️ TimeDiffercne = ($timeDiffSeconds s late)")
+
+                    if (timeDiffSeconds > 20) {
+                        Log.w("FCM_Time", "⚠️ Ignoring old call notification ($timeDiffSeconds s late)")
+                        return
+                    }
+
+
 
 
                     if (gender == "female") {

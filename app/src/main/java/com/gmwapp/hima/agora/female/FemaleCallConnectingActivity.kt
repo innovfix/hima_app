@@ -419,7 +419,7 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
     private fun disconnectCall() {
         isRunning = false
         cancelTimeoutTracking()
-        Toast.makeText(this, "$receiverName is not responding", Toast.LENGTH_SHORT).show()
+     //   Toast.makeText(this, "$receiverName is not responding", Toast.LENGTH_SHORT).show()
         if (!designOnly && userId != null && callType != null) {
             sendCallNotification(userId!!, receiverId, callType!!, "callDeclined")
             FcmUtils.clearCallStatus()

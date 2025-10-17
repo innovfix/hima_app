@@ -2,6 +2,8 @@ package com.gmwapp.hima.fragments
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -16,6 +18,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import kotlinx.coroutines.launch
 import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.ChatActivity
 import com.gmwapp.hima.activities.UserProfileDetailActivity
 import com.gmwapp.hima.adapters.FriendsAdapter
@@ -46,6 +49,18 @@ class FriendsTabFragment : Fragment() {
     private var requestIdMap = mutableMapOf<Int, Int>() // Maps friend_id to request_id
     private val db by lazy { Firebase.firestore }
     private val conversationsMap = mutableMapOf<String, ChatConversation>()
+    
+    // Auto-refresh handler
+    private val autoRefreshHandler = Handler(Looper.getMainLooper())
+    private val autoRefreshRunnable = object : Runnable {
+        override fun run() {
+            if (isAdded) {
+                Log.d("FriendsTab", "🔄 Auto-refreshing friends list...")
+                loadData()
+                autoRefreshHandler.postDelayed(this, AUTO_REFRESH_INTERVAL)
+            }
+        }
+    }
 
     companion object {
         const val TYPE_CHAT = 0
@@ -53,6 +68,7 @@ class FriendsTabFragment : Fragment() {
         const val TYPE_MY_REQUESTS = 2
         const val TYPE_THEIR_REQUESTS = 3
         private const val ARG_TYPE = "type"
+        private const val AUTO_REFRESH_INTERVAL = 30_000L // 30 seconds
 
         fun newInstance(type: Int): FriendsTabFragment {
             val fragment = FriendsTabFragment()
@@ -95,6 +111,9 @@ class FriendsTabFragment : Fragment() {
             Log.d("FriendsTab", "💬 Chat tab - loading conversations immediately")
             loadChatConversations()
         }
+
+        // Start auto-refresh
+        startAutoRefresh()
     }
 
     override fun onResume() {
@@ -104,6 +123,23 @@ class FriendsTabFragment : Fragment() {
         if (tabType != TYPE_CHAT) {
             loadData()
         }
+        
+        // Restart auto-refresh
+        startAutoRefresh()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Stop auto-refresh when not visible
+        autoRefreshHandler.removeCallbacks(autoRefreshRunnable)
+        Log.d("FriendsTab", "⏸️ Stopped auto-refresh")
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        // Clean up handler
+        autoRefreshHandler.removeCallbacks(autoRefreshRunnable)
+        Log.d("FriendsTab", "🗑️ Cleaned up auto-refresh handler")
     }
 
     override fun setUserVisibleHint(isVisibleToUser: Boolean) {
@@ -134,6 +170,11 @@ class FriendsTabFragment : Fragment() {
                 response.data.forEach { friendData ->
                     friendsList.add(friendData.toFriendData())
                     requestIdMap[friendData.friend_data.id] = friendData.request_id
+                }
+                
+                // Check chat history for Friends tab
+                if (tabType == TYPE_FRIENDS) {
+                    checkChatHistoryForFriends()
                 }
             }
             
@@ -436,12 +477,14 @@ class FriendsTabFragment : Fragment() {
                     
                     Log.d("FriendsTab", "Thread $threadId - parsed participants: $participants")
                     
-                    if (participants.size != 2 || !participants.contains(myUserId)) {
+                    // Also include threads with "-1" as they might be old threads created before proper user ID was set
+                    if (participants.size != 2 || !(participants.contains(myUserId) || participants.contains("-1"))) {
                         Log.d("FriendsTab", "Skipping $threadId - not my conversation")
                         continue
                     }
                     
-                    val otherUserId = participants.firstOrNull { it != myUserId }
+                    // Get the other user's ID (not me and not -1)
+                    val otherUserId = participants.firstOrNull { it != myUserId && it != "-1" }
                     if (otherUserId == null) {
                         Log.d("FriendsTab", "Skipping $threadId - no other user")
                         continue
@@ -504,49 +547,104 @@ class FriendsTabFragment : Fragment() {
                                     
                                     Log.d("FriendsTab", "📨 Processing ${messagesSnapshot.size()} messages for $threadId")
                                     
-                                    for (msgDoc in messagesSnapshot.documents) {
-                                        val fromId = msgDoc.getString("from") ?: ""
-                                        val text = msgDoc.getString("text") ?: ""
-                                        val timestamp = msgDoc.getTimestamp("timestamp")
-                                        val isRead = msgDoc.getBoolean("isRead") ?: false
-                                        
-                                        Log.d("FriendsTab", "Msg: from=$fromId, text='$text', isRead=$isRead")
-                                        
-                                        // Get the first (most recent) message
-                                        if (lastMessage.isEmpty() && text.isNotEmpty()) {
-                                            lastMessage = text
-                                            lastMessageTime = timestamp
-                                            Log.d("FriendsTab", "✅ Last message set: '$lastMessage'")
+                                    // First, check if I blocked this user to filter messages
+                                    db.collection("blocked_users")
+                                        .document(myUserId)
+                                        .collection("users")
+                                        .document(otherUserId)
+                                        .get()
+                                        .addOnSuccessListener { blockDoc ->
+                                            val blockTimestamp = blockDoc.getTimestamp("blockedAt")
+                                            
+                                            // Filter messages based on block status
+                                            for (msgDoc in messagesSnapshot.documents) {
+                                                val fromId = msgDoc.getString("from") ?: ""
+                                                val text = msgDoc.getString("text") ?: ""
+                                                val timestamp = msgDoc.getTimestamp("timestamp")
+                                                val isRead = msgDoc.getBoolean("isRead") ?: false
+                                                
+                                                Log.d("FriendsTab", "Msg: from=$fromId, text='$text', isRead=$isRead, timestamp=$timestamp")
+                                                
+                                                // Check if this message should be visible
+                                                val isMessageVisible = if (blockTimestamp != null && fromId == otherUserId && timestamp != null) {
+                                                    timestamp.seconds < blockTimestamp.seconds  // Only show if before block
+                                                } else {
+                                                    true  // Show if no block, or from me, or no timestamp
+                                                }
+                                                
+                                                // Set last message from visible messages
+                                                if (isMessageVisible && lastMessage.isEmpty() && text.isNotEmpty()) {
+                                                    lastMessage = text
+                                                    lastMessageTime = timestamp
+                                                    Log.d("FriendsTab", "✅ Last visible message set: '$lastMessage'")
+                                                }
+                                                
+                                                // Count unread from visible messages
+                                                if (fromId == otherUserId && !isRead && isMessageVisible) {
+                                                    unreadCount++
+                                                    Log.d("FriendsTab", "✅ Counting unread from $fromId")
+                                                }
+                                            }
+                                            
+                                            Log.d("FriendsTab", "📊 Thread $threadId FINAL: lastMsg='$lastMessage', unread=$unreadCount")
+                                            
+                                            // Create/update conversation - ALWAYS show the conversation
+                                            val conversation = ChatConversation(
+                                                threadId = threadId,
+                                                userId = otherUserId,
+                                                userName = threadDoc.getString("user_${otherUserId}_name") ?: "User $otherUserId",
+                                                userImage = threadDoc.getString("user_${otherUserId}_image") ?: "",
+                                                lastMessage = lastMessage,  // Will be last visible message or empty
+                                                lastMessageTime = lastMessageTime,  // Will be timestamp of last visible message
+                                                unreadCount = unreadCount,  // Only visible messages count as unread
+                                                isOnline = false
+                                            )
+                                            
+                                            conversationsMap[threadId] = conversation
+                                            
+                                            // Update UI with sorted list (REAL-TIME!)
+                                            val sortedConversations = conversationsMap.values
+                                                .sortedByDescending { it.lastMessageTime?.toDate()?.time ?: 0L }
+                                            updateChatUI(sortedConversations)
+                                            
+                                            Log.d("FriendsTab", "🔄 UI updated with ${sortedConversations.size} conversations")
                                         }
-                                        
-                                        // Count unread messages from other user
-                                        if (fromId == otherUserId && !isRead) {
-                                            unreadCount++
+                                        .addOnFailureListener { e ->
+                                            Log.e("FriendsTab", "Failed to check block status: ${e.message}")
+                                            // Still show conversation, count all messages
+                                            for (msgDoc in messagesSnapshot.documents) {
+                                                val fromId = msgDoc.getString("from") ?: ""
+                                                val text = msgDoc.getString("text") ?: ""
+                                                val timestamp = msgDoc.getTimestamp("timestamp")
+                                                val isRead = msgDoc.getBoolean("isRead") ?: false
+                                                
+                                                if (lastMessage.isEmpty() && text.isNotEmpty()) {
+                                                    lastMessage = text
+                                                    lastMessageTime = timestamp
+                                                }
+                                                
+                                                if (fromId == otherUserId && !isRead) {
+                                                    unreadCount++
+                                                }
+                                            }
+                                            
+                                            val conversation = ChatConversation(
+                                                threadId = threadId,
+                                                userId = otherUserId,
+                                                userName = threadDoc.getString("user_${otherUserId}_name") ?: "User $otherUserId",
+                                                userImage = threadDoc.getString("user_${otherUserId}_image") ?: "",
+                                                lastMessage = lastMessage,
+                                                lastMessageTime = lastMessageTime,
+                                                unreadCount = unreadCount,
+                                                isOnline = false
+                                            )
+                                            
+                                            conversationsMap[threadId] = conversation
+                                            
+                                            val sortedConversations = conversationsMap.values
+                                                .sortedByDescending { it.lastMessageTime?.toDate()?.time ?: 0L }
+                                            updateChatUI(sortedConversations)
                                         }
-                                    }
-                                    
-                                    Log.d("FriendsTab", "📊 Thread $threadId FINAL: lastMsg='$lastMessage', unread=$unreadCount")
-                                    
-                                    // Create/update conversation
-                                    val conversation = ChatConversation(
-                                        threadId = threadId,
-                                        userId = otherUserId,
-                                        userName = userName,
-                                        userImage = userImage,
-                                        lastMessage = lastMessage,
-                                        lastMessageTime = lastMessageTime,
-                                        unreadCount = unreadCount,
-                                        isOnline = false
-                                    )
-                                    
-                                    conversationsMap[threadId] = conversation
-                                    
-                                    // Update UI with sorted list (REAL-TIME!)
-                                    val sortedConversations = conversationsMap.values
-                                        .sortedByDescending { it.lastMessageTime?.toDate()?.time ?: 0L }
-                                    updateChatUI(sortedConversations)
-                                    
-                                    Log.d("FriendsTab", "🔄 UI updated with ${sortedConversations.size} conversations")
                                 }
                         }
                         .addOnFailureListener { e ->
@@ -761,6 +859,60 @@ class FriendsTabFragment : Fragment() {
         if (friendsList.isEmpty()) {
             binding.emptyState.visibility = View.VISIBLE
             binding.rvFriends.visibility = View.GONE
+        }
+    }
+
+    private fun startAutoRefresh() {
+        // Start periodic refresh
+        autoRefreshHandler.postDelayed(autoRefreshRunnable, AUTO_REFRESH_INTERVAL)
+        Log.d("FriendsTab", "✅ Started auto-refresh every ${AUTO_REFRESH_INTERVAL / 1000} seconds")
+    }
+    
+    /**
+     * Check if chat history exists for each friend in the Friends tab
+     * This checks if a Firestore chat thread document exists (lightweight check)
+     */
+    private fun checkChatHistoryForFriends() {
+        if (friendsList.isEmpty()) return
+        
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val myUserId = userData?.id?.toString() ?: return
+        
+        Log.d("FriendsTab", "🔍 Checking chat history for ${friendsList.size} friends")
+        
+        friendsList.forEach { friend ->
+            val friendId = friend.friend_id.toString()
+            
+            // Generate thread ID (same logic as ChatActivity)
+            val threadId = if (myUserId.toInt() < friendId.toInt()) {
+                "${myUserId}_${friendId}"
+            } else {
+                "${friendId}_${myUserId}"
+            }
+            
+            // Check if chat thread exists and has messages
+            db.collection("chats")
+                .document(threadId)
+                .collection("messages")
+                .limit(1)
+                .get()
+                .addOnSuccessListener { messagesSnapshot ->
+                    if (!isAdded) return@addOnSuccessListener
+                    
+                    // Set hasChatHistory based on whether messages exist
+                    friend.hasChatHistory = !messagesSnapshot.isEmpty
+                    
+                    Log.d("FriendsTab", "💬 ${friend.name}: hasChatHistory = ${friend.hasChatHistory}")
+                    
+                    // Update UI
+                    if (::adapter.isInitialized) {
+                        adapter.notifyDataSetChanged()
+                    }
+                }
+                .addOnFailureListener { e ->
+                    Log.e("FriendsTab", "❌ Error checking chat for ${friend.name}: ${e.message}")
+                    friend.hasChatHistory = false
+                }
         }
     }
 }

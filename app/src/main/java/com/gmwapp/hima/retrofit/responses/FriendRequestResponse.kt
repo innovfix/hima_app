@@ -70,7 +70,8 @@ data class FriendData(
     val audio_status: Int,
     val video_status: Int,
     val is_online: Boolean,
-    val last_seen: String?
+    val last_seen: String?,
+    var hasChatHistory: Boolean = false  // Track if chat exists with this friend
 )
 
 // Response for checking friend status

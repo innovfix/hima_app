@@ -93,6 +93,11 @@
     <string name="kannada">Kannada</string>
     <string name="punjabi">Punjabi</string>
     <string name="tamil">Tamil</string>
+    <string name="marathi">Marathi</string>
+    <string name="bengali">Bengali</string>
+    <string name="assamese">Assamese</string>
+    <string name="odia">Odia</string>
+    <string name="gujarati">Gujarati</string>
     <string name="above_fields_are_not_editable">Above fields are not editable.</string>
     <string name="gender">Gender</string>
     <string name="preferred_language">Preferred Language</string>

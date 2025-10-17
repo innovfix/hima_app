@@ -1,0 +1,35 @@
+Test Case ID,Module,Feature,Test Case Title,Test Steps,Expected Result,Priority
+FR_001,Friends,Send Request,Send friend request to user,"1. Open any user profile; 2. Tap 'Send Friend Request' button.","Request is sent; button shows 'Request sent'; user appears in 'My Requests' tab.",High
+FR_002,Friends,Send Request,Send duplicate friend request,"1. Send friend request to user; 2. Try to send again to same user.","Shows error message 'Request already sent, still it is pending'; no duplicate request created.",High
+FR_003,Friends,My Requests,View sent friend requests,"1. Navigate to Friends List; 2. Open 'My Requests' tab.","All pending sent requests are displayed with user details and status.",High
+FR_004,Friends,My Requests,Refresh my requests tab,"1. Send request from app; 2. Close and reopen 'My Requests' tab.","Tab loads fresh data from server; shows latest requests automatically.",High
+FR_005,Friends,My Requests,My requests - No cancel button,"1. Open 'My Requests' tab; 2. Check each request card.","Request shows 'Request sent' status; no cancel button is visible.",High
+FR_006,Friends,Received Requests,View received friend requests,"1. Have another user send you friend request; 2. Open 'Received' tab.","All pending received requests are displayed with sender details; Accept and Reject buttons visible.",High
+FR_007,Friends,Received Requests,Accept friend request,"1. Open 'Received' tab; 2. Find a request; 3. Tap Accept button.","Request is accepted; user moves to Friends list; removed from Received tab; list refreshes automatically within 1 second.",High
+FR_008,Friends,Received Requests,Reject friend request,"1. Open 'Received' tab; 2. Find a request; 3. Tap Reject button.","Request is rejected; removed from list immediately; list refreshes automatically within 1 second.",High
+FR_009,Friends,Received Requests,Auto-refresh after accept,"1. Accept a request in 'Received' tab; 2. Wait 1 second.","List refreshes automatically; accepted user removed from received list; no old data shown.",High
+FR_010,Friends,Received Requests,Auto-refresh after reject,"1. Reject a request in 'Received' tab; 2. Wait 1 second.","List refreshes automatically; rejected user removed from list; no old data shown.",High
+FR_011,Friends,Received Requests,Refresh on tab switch,"1. Open 'Received' tab; 2. Switch to another tab; 3. Switch back to 'Received'.","Tab loads fresh data from server; shows latest requests.",High
+FR_012,Friends,Friends List,View accepted friends,"1. Navigate to Friends List; 2. Open 'Friends' tab.","All accepted friends are displayed with their details and 'friends since' date.",High
+FR_013,Friends,Friends List,View friend profile,"1. Open 'Friends' tab; 2. Tap on any friend card.","Friend's full profile opens showing all details correctly.",Medium
+FR_014,Friends,Chat Tab,View chat conversations,"1. Navigate to Friends List; 2. Open 'Chat' tab.","All active chat threads are displayed with user name, last message, and timestamp.",High
+FR_015,Friends,Chat Tab,Real-time last message update,"1. Open 'Chat' tab; 2. Have friend send you message.","Last message updates in real-time without manual refresh; shows correct message text.",High
+FR_016,Friends,Chat Tab,Unread message count,"1. Open 'Chat' tab; 2. Check conversations with unread messages.","Unread count badge shows correct number in real-time.",High
+FR_017,Friends,Chat Tab,Open chat conversation,"1. Open 'Chat' tab; 2. Tap on any conversation.","Opens ChatActivity with that user; full chat history is shown; can send/receive messages.",High
+FR_018,Friends,Chat Tab,Empty chat state,"1. Open 'Chat' tab when no conversations exist.","Shows 'No data found' or similar message; no crash.",Medium
+FR_019,Friends,Navigation,Switch between tabs,"1. Open Friends List; 2. Switch between Chat, Friends, My Requests, Received tabs multiple times.","Each tab loads correctly; data is current; no crashes or long delays.",Medium
+FR_020,Friends,Notification,Friend request notification click,"1. Receive friend request notification; 2. Tap notification.","Opens Friends List directly on 'My Requests' tab; shows the request.",High
+FR_021,Friends,UI State,Empty state - No sent requests,"1. Open 'My Requests' tab when you haven't sent any requests.","Shows 'No data found' message; no crash or infinite loading.",Medium
+FR_022,Friends,UI State,Empty state - No received requests,"1. Open 'Received' tab when no one sent you requests.","Shows 'No data found' message; no crash or infinite loading.",Medium
+FR_023,Friends,UI State,Empty state - No friends,"1. Open 'Friends' tab when no accepted friends exist.","Shows appropriate empty message; no crash.",Low
+FR_024,Friends,Network,Load requests without internet,"1. Turn off internet; 2. Open any requests tab.","Shows error message or 'No internet' toast; no crash; works when connection restored.",Medium
+FR_025,Friends,Network,Accept request without internet,"1. Turn off internet; 2. Try to accept a request.","Shows error message; request not accepted; stays in list.",Medium
+FR_026,Friends,Stability,Rapid tab switching,"1. Quickly switch between all 4 tabs 10 times.","No crashes; each tab loads correctly; no duplicate data or frozen UI.",Medium
+FR_027,Friends,Stability,Multiple quick accept/reject,"1. Open 'Received' tab with multiple requests; 2. Quickly tap Accept/Reject on different requests.","Each action processes correctly; no duplicate actions; list refreshes properly.",High
+FR_028,Friends,Data Consistency,Accepted friend appears in Friends tab,"1. Accept a friend request in 'Received' tab; 2. Go to 'Friends' tab.","Newly accepted friend appears in Friends list with correct details.",High
+FR_029,Friends,Data Consistency,Accepted friend appears in Chat tab,"1. Accept a friend request; 2. Send/receive message with that friend; 3. Go to 'Chat' tab.","Conversation with new friend appears in Chat tab.",Medium
+FR_030,Friends,Pull to Refresh,Swipe refresh on My Requests,"1. Open 'My Requests' tab; 2. Swipe down to refresh.","Loading indicator shows; fresh data loads from server.",Low
+FR_031,Friends,Pull to Refresh,Swipe refresh on Received,"1. Open 'Received' tab; 2. Swipe down to refresh.","Loading indicator shows; fresh data loads from server.",Low
+FR_032,Friends,Pull to Refresh,Swipe refresh on Friends,"1. Open 'Friends' tab; 2. Swipe down to refresh.","Loading indicator shows; fresh friends list loads from server.",Low
+
+

@@ -862,6 +862,21 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun checkFriendRequest(
+        senderId: Int,
+        receiverId: Int,
+        userId: Int,
+        callback: NetworkCallback<FriendRequestResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<FriendRequestResponse> =
+                getApiInterface().checkFriendRequest(senderId, receiverId, userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun getUserAvatar(
         userId: Int,
         callback: NetworkCallback<UserAvatarResponse>
@@ -1381,5 +1396,13 @@ interface ApiInterface {
     fun getFriendsList(
         @Field("sender_id") senderId: Int
     ): Call<FriendListResponse>
+
+    @FormUrlEncoded
+    @POST("check_friend_request")
+    fun checkFriendRequest(
+        @Field("sender_id") senderId: Int,
+        @Field("receiver_id") receiverId: Int,
+        @Field("user_id") userId: Int
+    ): Call<FriendRequestResponse>
 
 }

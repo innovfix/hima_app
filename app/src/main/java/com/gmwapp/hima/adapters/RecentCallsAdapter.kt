@@ -208,9 +208,9 @@ class RecentCallsAdapter(
                 putExtra(DConstants.USER_ID, call.id)
                 putExtra("USER_NAME", call.name)
                 putExtra("USER_IMAGE", call.image)
-                putExtra("USER_LANGUAGE", "") // Not available in CallsListResponseData
-                putExtra("USER_INTERESTS", "") // Not available in CallsListResponseData
-                putExtra("USER_ABOUT", "") // Not available in CallsListResponseData
+                putExtra("USER_LANGUAGE", call.language)
+                putExtra("USER_INTERESTS", call.interests)
+                putExtra("USER_ABOUT", call.describe_yourself)
                 putExtra("USER_AGE", 0) // Not available in CallsListResponseData
                 putExtra("AUDIO_STATUS", call.audio_status)
                 putExtra("VIDEO_STATUS", call.video_status)

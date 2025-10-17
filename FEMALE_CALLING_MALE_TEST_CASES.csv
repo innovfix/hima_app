@@ -1,0 +1,33 @@
+Test Case ID,Module,Feature,Test Case Title,Test Steps,Expected Result,Priority
+FC_001,Calling,Audio Call,Start audio call from female to male,"1. Female opens male profile; 2. Tap Audio Call button.","Ringing starts; 'Calling...' screen is shown; male receives incoming call notification.",High
+FC_002,Calling,Video Call,Start video call from female to male,"1. Female opens male profile; 2. Tap Video Call button.","Local camera preview shows; 'Calling...' screen is shown; male receives incoming video call notification.",High
+FC_003,Calling,Permissions,First time mic/camera permission,"1. Fresh app install; 2. Female taps Audio/Video Call; 3. Permission dialog appears.","If Allow: call proceeds normally; If Deny: shows error message and call does not start.",High
+FC_004,Calling,Acceptance,Male accepts audio call,"1. Female places audio call; 2. Male taps Accept on incoming call screen.","Call connects successfully; both sides can hear each other; call timer starts counting.",High
+FC_005,Calling,Acceptance,Male accepts video call,"1. Female places video call; 2. Male taps Accept on incoming call screen.","Call connects; both can see and hear each other; call timer starts; video quality is clear.",High
+FC_006,Calling,Rejection,Male rejects incoming call,"1. Female places call; 2. Male taps Reject button.","Female sees 'Call Rejected' or similar message; call ends; returns to previous screen.",High
+FC_007,Calling,Timeout,Male does not answer call,"1. Female places call; 2. Male does not answer for 60 seconds.","Call times out automatically; female sees 'No answer' message; call ends gracefully.",High
+FC_008,Calling,Busy State,Male is already on another call,"1. Male is on active call; 2. Female tries to call same male.","Female sees 'User busy' message; call ends; no notification sent to male.",High
+FC_009,Calling,Offline State,Male device is offline,"1. Male device has no internet/turned off; 2. Female tries to call.","Shows 'User not reachable' or timeout message; call ends after trying; no crash.",High
+FC_010,Calling,Notification,Click incoming call notification,"1. Female calls male; 2. Male taps incoming call notification.","Opens call accept screen directly; shows female details; Accept/Reject buttons work.",High
+FC_011,In-Call,Mute Toggle,Toggle mute during audio call,"1. Connect audio call; 2. Female taps Mute button; 3. Speak; 4. Tap Mute again.","When muted: male cannot hear female; When unmuted: male can hear normally; icon changes correctly.",High
+FC_012,In-Call,Speaker Toggle,Toggle speaker during audio call,"1. Connect audio call; 2. Female taps Speaker button; 3. Tap again to turn off.","Speaker on: audio plays from loudspeaker; Speaker off: audio from earpiece; icon changes correctly.",High
+FC_013,In-Call,Camera Toggle,Toggle camera during video call,"1. Connect video call; 2. Female taps Camera Off button; 3. Tap Camera On.","Camera off: male sees black screen or placeholder; Camera on: male sees female video again.",High
+FC_014,In-Call,Switch Camera,Switch front/back camera during video call,"1. Connect video call; 2. Female taps Switch Camera button.","Camera switches between front and back; video continues smoothly; no freeze or crash.",Medium
+FC_015,In-Call,End Call,Female ends call during conversation,"1. Connect call; 2. Female taps End Call button.","Call ends immediately; both sides see call ended screen; shows call duration.",High
+FC_016,In-Call,End Call,Male ends call during conversation,"1. Connect call; 2. Male taps End Call button.","Call ends for both; female sees 'Call ended' message; shows call duration; no crash.",High
+FC_017,Network,Poor network during call,"1. Connect call; 2. Female switches to poor network (2G or weak WiFi).","Shows 'Poor connection' or 'Reconnecting...' message; call continues when network improves or ends with timeout.",High
+FC_018,Network,Network drop and recovery,"1. Connect call; 2. Turn off female internet for 10 seconds; 3. Turn back on.","Shows 'Reconnecting...' indicator; call resumes when network returns; if too long call ends gracefully.",High
+FC_019,Navigation,Back button during ringing,"1. Female places call (ringing state); 2. Press Back button.","Call is cancelled; ringing stops on male side; female returns to previous screen.",Medium
+FC_020,Navigation,Home button during active call,"1. Connect call; 2. Press Home button on female device.","Call continues in background; notification shows 'Ongoing call'; can return to call from notification.",Medium
+FC_021,Blocked State,Female is blocked by male,"1. Male blocks female; 2. Female tries to call male.","Shows 'User not available' or similar message; call does not connect; male does not receive notification.",High
+FC_022,Blocked State,Male is blocked by female,"1. Female blocks male; 2. Female tries to call male.","Shows appropriate message or prevents call initiation; no call is placed.",Medium
+FC_023,Call History,Outgoing call saved in recent calls,"1. Female calls male; 2. Call connects or ends; 3. Check Recent Calls.","Call appears in recent calls list with correct details (name, time, duration, call type).",Medium
+FC_024,Call History,Missed call on male side,"1. Female calls male; 2. Male does not answer; 3. Male checks Recent Calls.","Shows as missed call with red indicator; shows female name and time.",Medium
+FC_025,Stability,Multiple consecutive calls,"1. Female calls male; 2. End call; 3. Immediately call again; 4. Repeat 5 times.","Each call works correctly; no crash; no memory issues; UI responds properly.",Medium
+FC_026,Stability,Switch between audio and video calls,"1. Female makes audio call; 2. End call; 3. Make video call; 4. End; 5. Make audio again.","Both call types work correctly; camera/mic permissions handled properly; no crashes.",Medium
+FC_027,UI State,Call screen rotation (video call),"1. Connect video call; 2. Rotate device from portrait to landscape; 3. Rotate back.","Video adjusts to orientation; controls remain accessible; no crash or freeze.",Low
+FC_028,Balance,Sufficient balance for call,"1. Female has sufficient balance; 2. Places call to male.","Call proceeds normally; balance deducts correctly per minute.",High
+FC_029,Balance,Insufficient balance for call,"1. Female has zero or low balance; 2. Tries to call male.","Shows 'Insufficient balance' message; call does not proceed; redirects to recharge/wallet.",High
+FC_030,Call Quality,Audio quality check,"1. Connect audio call; 2. Both users speak normally.","Audio is clear; no echo or distortion; minimal latency; volume is adequate.",High
+
+

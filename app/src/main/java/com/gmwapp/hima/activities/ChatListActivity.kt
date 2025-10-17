@@ -140,7 +140,10 @@ class ChatListActivity : AppCompatActivity() {
         progressBar.visibility = View.VISIBLE
         llEmptyState.visibility = View.GONE
 
-        // ✅ FIXED: Changed from .get() to .addSnapshotListener() for real-time updates
+        // Clear map at start to ensure clean state
+        conversationsMap.clear()
+
+        // Listen for real-time updates to chat threads
         db.collection("chats")
             .addSnapshotListener { documents, error ->
                 swipeRefreshLayout.isRefreshing = false
@@ -153,119 +156,136 @@ class ChatListActivity : AppCompatActivity() {
                 }
 
                 if (documents == null || documents.isEmpty) {
-                    Log.d("ChatListActivity", "No chat threads found.")
+                    Log.d("ChatListActivity", "No chat threads found in database")
                     updateUI(emptyList())
                     return@addSnapshotListener
                 }
-                Log.d("ChatListActivity", "Found ${documents.size()} chat documents")
-                
+
+                // ✅ FIXED: Filter documents FIRST to only get threads that involve current user
+                val myThreads = documents.filter { doc ->
+                    val threadId = doc.id
+                    val userIds = threadId.split("_")
+                    // Only include if: contains my ID, has exactly 2 users, and no "-1"
+                    userIds.contains(myUserId) && userIds.size == 2 && !userIds.contains("-1")
+                }
+
+                Log.d("ChatListActivity", "Found ${documents.size()} total threads, ${myThreads.size} belong to user $myUserId")
+
+                // ✅ If no threads for me, show empty state immediately
+                if (myThreads.isEmpty()) {
+                    conversationsMap.clear()
+                    updateUI(emptyList())
+                    return@addSnapshotListener
+                }
+
                 // Clear old conversations that are no longer in the list
-                val currentThreadIds = documents.map { it.id }.toSet()
+                val currentThreadIds = myThreads.map { it.id }.toSet()
                 conversationsMap.keys.retainAll(currentThreadIds)
 
-                documents.forEach { document ->
+                // Process each thread that belongs to current user
+                myThreads.forEach { document ->
                     val threadId = document.id
-                    
-                    // Check if this thread involves the current user
                     val userIds = threadId.split("_")
-                    if (userIds.contains(myUserId)) {
-                        // Get the other user's ID
-                        val otherUserId = userIds.firstOrNull { it != myUserId } ?: ""
-                        
-                            // Check if user is blocked first
-                            db.collection("blocked_users")
-                                .document(myUserId)
-                                .collection("users")
-                                .document(otherUserId)
+                    val otherUserId = userIds.firstOrNull { it != myUserId } ?: ""
+
+                    Log.d("ChatListActivity", "✅ Processing thread $threadId with user $otherUserId")
+
+                    // Check if user is blocked first
+                    db.collection("blocked_users")
+                        .document(myUserId)
+                        .collection("users")
+                        .document(otherUserId)
+                        .get()
+                        .addOnSuccessListener { blockDoc ->
+                            val blockTimestamp = blockDoc.getTimestamp("blockedAt")
+
+                            // Get user metadata
+                            db.collection("chats")
+                                .document(threadId)
                                 .get()
-                                .addOnSuccessListener { blockDoc ->
-                                    val blockTimestamp = blockDoc.getTimestamp("blockedAt")
-                                    
-                                    // Get user metadata
+                                .addOnSuccessListener { threadDoc ->
+                                    val userName = threadDoc.getString("user_${otherUserId}_name") ?: "User $otherUserId"
+                                    val userImage = threadDoc.getString("user_${otherUserId}_image") ?: ""
+
+                                    // Real-time listener for messages in this thread
                                     db.collection("chats")
                                         .document(threadId)
-                                        .get()
-                                        .addOnSuccessListener { threadDoc ->
-                                            val userName = threadDoc.getString("user_${otherUserId}_name") ?: "User $otherUserId"
-                                            val userImage = threadDoc.getString("user_${otherUserId}_image") ?: ""
-                                            
-                                            // Real-time listener for messages in this thread
-                                            db.collection("chats")
-                                                .document(threadId)
-                                                .collection("messages")
-                                                .orderBy("timestamp", Query.Direction.DESCENDING)
-                                                .limit(50)
-                                                .addSnapshotListener { messagesSnapshot, messageError ->
-                                                    if (messageError != null || messagesSnapshot == null) {
-                                                        Log.e("ChatListActivity", "Error listening to messages in $threadId", messageError)
-                                                        return@addSnapshotListener
+                                        .collection("messages")
+                                        .orderBy("timestamp", Query.Direction.DESCENDING)
+                                        .limit(50)
+                                        .addSnapshotListener { messagesSnapshot, messageError ->
+                                            if (messageError != null || messagesSnapshot == null) {
+                                                Log.e("ChatListActivity", "Error listening to messages in $threadId", messageError)
+                                                return@addSnapshotListener
+                                            }
+
+                                            var lastMessage = ""
+                                            var lastMessageTime: Timestamp? = null
+                                            var unreadCount = 0
+
+                                            if (!messagesSnapshot.isEmpty) {
+                                                // Filter messages sent after block timestamp
+                                                val validMessages = if (blockTimestamp != null) {
+                                                    messagesSnapshot.documents.filter { msg ->
+                                                        val msgTimestamp = msg.getTimestamp("timestamp")
+                                                        val fromId = msg.getString("from") ?: ""
+                                                        // Include own messages and messages from blocked user sent BEFORE blocking
+                                                        fromId != otherUserId || msgTimestamp == null || msgTimestamp.seconds < blockTimestamp.seconds
                                                     }
-
-                                                    var lastMessage = ""
-                                                    var lastMessageTime: Timestamp? = null
-                                                    var unreadCount = 0
-
-                                                    if (!messagesSnapshot.isEmpty) {
-                                                        // Filter messages sent after block timestamp
-                                                        val validMessages = if (blockTimestamp != null) {
-                                                            messagesSnapshot.documents.filter { msg ->
-                                                                val msgTimestamp = msg.getTimestamp("timestamp")
-                                                                val fromId = msg.getString("from") ?: ""
-                                                                // Include own messages and messages from blocked user sent BEFORE blocking
-                                                                fromId != otherUserId || msgTimestamp == null || msgTimestamp.seconds < blockTimestamp.seconds
-                                                            }
-                                                        } else {
-                                                            messagesSnapshot.documents
-                                                        }
-                                                        
-                                                        if (validMessages.isNotEmpty()) {
-                                                            // Get last valid message
-                                                            val lastMsgDoc = validMessages[0]
-                                                            lastMessage = lastMsgDoc.getString("text") ?: ""
-                                                            lastMessageTime = lastMsgDoc.getTimestamp("timestamp")
-
-                                                            // Count unread messages from other user (only those sent before block)
-                                                            validMessages.forEach { msg ->
-                                                                val fromId = msg.getString("from") ?: ""
-                                                                val isRead = msg.getBoolean("isRead") ?: false
-                                                                val msgTimestamp = msg.getTimestamp("timestamp")
-                                                                
-                                                                if (fromId == otherUserId && !isRead) {
-                                                                    if (blockTimestamp == null || msgTimestamp == null || msgTimestamp.seconds < blockTimestamp.seconds) {
-                                                                        unreadCount++
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-
-                                                    Log.d("ChatListActivity", "Thread $threadId - Last: '$lastMessage', Unread: $unreadCount")
-
-                                                    // Create/update conversation
-                                                    val conversation = ChatConversation(
-                                                        threadId = threadId,
-                                                        userId = otherUserId,
-                                                        userName = userName,
-                                                        userImage = userImage,
-                                                        lastMessage = lastMessage,
-                                                        lastMessageTime = lastMessageTime,
-                                                        unreadCount = unreadCount,
-                                                        isOnline = false
-                                                    )
-
-                                                    conversationsMap[threadId] = conversation
-                                                    
-                                                    // Update UI with sorted list
-                                                    val sortedConversations = conversationsMap.values
-                                                        .sortedByDescending { it.lastMessageTime?.toDate()?.time ?: 0L }
-                                                    updateUI(sortedConversations)
+                                                } else {
+                                                    messagesSnapshot.documents
                                                 }
+
+                                                if (validMessages.isNotEmpty()) {
+                                                    // Get last valid message
+                                                    val lastMsgDoc = validMessages[0]
+                                                    lastMessage = lastMsgDoc.getString("text") ?: ""
+                                                    lastMessageTime = lastMsgDoc.getTimestamp("timestamp")
+
+                                                    // Count unread messages from other user (only those sent before block)
+                                                    validMessages.forEach { msg ->
+                                                        val fromId = msg.getString("from") ?: ""
+                                                        val isRead = msg.getBoolean("isRead") ?: false
+                                                        val msgTimestamp = msg.getTimestamp("timestamp")
+
+                                                        if (fromId == otherUserId && !isRead) {
+                                                            if (blockTimestamp == null || msgTimestamp == null || msgTimestamp.seconds < blockTimestamp.seconds) {
+                                                                unreadCount++
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            Log.d("ChatListActivity", "Thread $threadId - Last: '$lastMessage', Unread: $unreadCount")
+
+                                            // Create/update conversation
+                                            val conversation = ChatConversation(
+                                                threadId = threadId,
+                                                userId = otherUserId,
+                                                userName = userName,
+                                                userImage = userImage,
+                                                lastMessage = lastMessage,
+                                                lastMessageTime = lastMessageTime,
+                                                unreadCount = unreadCount,
+                                                isOnline = false
+                                            )
+
+                                            conversationsMap[threadId] = conversation
+
+                                            // Update UI with sorted list
+                                            val sortedConversations = conversationsMap.values
+                                                .sortedByDescending { it.lastMessageTime?.toDate()?.time ?: 0L }
+                                            updateUI(sortedConversations)
                                         }
                                 }
-                            .addOnFailureListener { e ->
-                                Log.e("ChatListActivity", "Error loading thread metadata for $threadId", e)
-                            }
-                    }
+                                .addOnFailureListener { e ->
+                                    Log.e("ChatListActivity", "Error loading thread metadata for $threadId", e)
+                                }
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("ChatListActivity", "Error checking block status for $threadId", e)
+                        }
                 }
             }
     }

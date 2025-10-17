@@ -10,6 +10,7 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.databinding.AdapterFriendItemBinding
 import com.gmwapp.hima.fragments.FriendsTabFragment
 import com.gmwapp.hima.retrofit.responses.FriendData
+import com.gmwapp.hima.utils.DateTimeUtils
 import com.gmwapp.hima.utils.setOnSingleClickListener
 
 class FriendsAdapter(
@@ -60,7 +61,7 @@ class FriendsAdapter(
                     binding.tvStatus.text = if (friend.is_online) {
                         "Online now"
                     } else {
-                        "Last seen ${friend.last_seen}"
+                        DateTimeUtils.formatLastSeen(friend.last_seen)
                     }
                     binding.llActions.visibility = View.GONE
                     binding.cardFriend.setOnSingleClickListener {
@@ -68,11 +69,11 @@ class FriendsAdapter(
                     }
                 }
                 FriendsTabFragment.TYPE_FRIENDS -> {
-                    // Friends tab: Show status, no buttons, click to chat
-                    binding.tvStatus.text = if (friend.is_online) {
-                        "Online now"
+                    // Friends tab: Show different text based on chat history
+                    binding.tvStatus.text = if (friend.hasChatHistory) {
+                        "Tap to continue chatting"
                     } else {
-                        "Last seen ${friend.last_seen}"
+                        "Start your conversation now"
                     }
                     binding.llActions.visibility = View.GONE
                     binding.cardFriend.setOnSingleClickListener {
@@ -84,7 +85,7 @@ class FriendsAdapter(
                     binding.tvStatus.text = "Request sent"
                     binding.llActions.visibility = View.VISIBLE
                     binding.btnAccept.visibility = View.GONE
-                    binding.btnReject.visibility = View.VISIBLE
+                    binding.btnReject.visibility = View.GONE
                     
                     binding.btnReject.setOnSingleClickListener {
                         onRemoveClick(friend)

@@ -10,6 +10,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AlertDialog
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -30,6 +31,9 @@ import dagger.hilt.android.AndroidEntryPoint
 import de.hdodenhof.circleimageview.CircleImageView
 import java.text.SimpleDateFormat
 import java.util.*
+import android.widget.PopupMenu
+import com.google.firebase.Timestamp
+import android.view.View
 
 @AndroidEntryPoint
 class ChatActivity : AppCompatActivity() {
@@ -41,6 +45,8 @@ class ChatActivity : AppCompatActivity() {
     private lateinit var ivUser: CircleImageView
     private lateinit var tvUserName: TextView
     private lateinit var tvUserStatus: TextView
+    private lateinit var vOnlineIndicator: View
+    private lateinit var ivMore: ImageView
     
     private lateinit var chatAdapter: ChatAdapter
     private val messages = mutableListOf<ChatMessage>()
@@ -59,15 +65,26 @@ class ChatActivity : AppCompatActivity() {
     // Track if chat is visible to user
     private var isChatVisible = false
     private val pendingMessagesToMarkRead = mutableSetOf<String>()
+    
+    // Block/Unblock variables
+    private var isPeerBlocked: Boolean = false
+    private var blockTimestamp: Timestamp? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_chat)
         
+        // ✅ Restrict screenshots and screen recording
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
+        
         initializeViews()
         setupRecyclerView()
         setupUserIds()
-        setupFirestoreListener()
+        listenToUserOnlineStatus()  // Set up online status listener after user IDs are initialized
+        checkIfUserIsBlocked()  // Check block status before setting up listener
         setupClickListeners()
         observeNotificationResponse()
     }
@@ -80,13 +97,15 @@ class ChatActivity : AppCompatActivity() {
         ivUser = findViewById(R.id.iv_user)
         tvUserName = findViewById(R.id.tv_user_name)
         tvUserStatus = findViewById(R.id.tv_user_status)
+        vOnlineIndicator = findViewById(R.id.v_online_indicator)
+        ivMore = findViewById(R.id.iv_more)
         
         // Set user data from intent
         val userName = intent.getStringExtra("USER_NAME") ?: "User"
         val userImage = intent.getStringExtra("USER_IMAGE")
         
         tvUserName.text = userName
-        tvUserStatus.text = "Online"
+        // Status will be loaded from Firebase
         
         // Load user image
         if (!userImage.isNullOrEmpty()) {
@@ -177,6 +196,14 @@ class ChatActivity : AppCompatActivity() {
                         
                         Log.d("ChatActivity", "Message: from=$fromId, text=$text, timestamp=$timestamp")
                         
+                        // Filter messages if peer is blocked
+                        if (isPeerBlocked && fromId == peerUserId && blockTimestamp != null && timestamp != null) {
+                            if (timestamp.seconds >= blockTimestamp!!.seconds) {
+                                Log.d("ChatActivity", "🚫 Filtering blocked message: sent at ${timestamp.seconds}, blocked at ${blockTimestamp!!.seconds}")
+                                continue  // Skip messages sent after blocking
+                            }
+                        }
+                        
                         val timeString = if (timestamp != null) {
                             SimpleDateFormat("hh:mm a", Locale.getDefault()).format(timestamp.toDate())
                         } else {
@@ -266,6 +293,11 @@ class ChatActivity : AppCompatActivity() {
         btnSend.setOnClickListener {
             sendMessage()
         }
+        
+        // Three-dot menu listener for block/unblock
+        ivMore.setOnClickListener {
+            showOptionsMenu()
+        }
     }
 
     private fun sendMessage() {
@@ -280,6 +312,46 @@ class ChatActivity : AppCompatActivity() {
                 return
             }
             
+            // Check if I have blocked this user
+            if (isPeerBlocked) {
+                Toast.makeText(this, "Please unblock to send message", Toast.LENGTH_SHORT).show()
+                return
+            }
+            
+            // Check if peer has blocked me before sending
+            checkIfPeerBlockedMeAndSendMessage(messageText)
+        }
+    }
+    
+    private fun checkIfPeerBlockedMeAndSendMessage(messageText: String) {
+        // Check if the PEER has blocked ME (sender)
+        // If they blocked me, we still send the message (appears in MY chat)
+        // but they won't see it (their listener filters it) and won't get notification
+        db.collection("blocked_users")
+            .document(peerUserId)  // Check PEER's blocked list
+            .collection("users")
+            .document(myUserId)    // Is SENDER (ME) in it?
+            .get()
+            .addOnSuccessListener { doc ->
+                if (doc.exists()) {
+                    // Peer has blocked me - but we still send the message
+                    // They just won't see it or get notified
+                    Log.d("ChatActivity", "⚠️ Peer has blocked me - Sending anyway (they won't see it)")
+                    sendMessageToFirestore(messageText)
+                } else {
+                    // Not blocked - proceed with sending normally
+                    sendMessageToFirestore(messageText)
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("ChatActivity", "❌ Failed to check if peer blocked me", e)
+                // Proceed anyway - try to send
+                Toast.makeText(this, "Error checking status, sending anyway", Toast.LENGTH_SHORT).show()
+                sendMessageToFirestore(messageText)
+            }
+    }
+    
+    private fun sendMessageToFirestore(messageText: String) {
             // Create message data for Firestore
             val messageData = hashMapOf(
                 "from" to myUserId,
@@ -292,43 +364,66 @@ class ChatActivity : AppCompatActivity() {
             Log.d("ChatActivity", "Attempting to send message to threadId: $threadId")
             Log.d("ChatActivity", "Message data: $messageData")
             
-            // Send to Firestore
+            // First, ensure the parent thread document exists with user metadata
+            val userName = intent.getStringExtra("USER_NAME") ?: "User"
+            val userImage = intent.getStringExtra("USER_IMAGE") ?: ""
+            
+            val threadMetadata = hashMapOf(
+                "user_${myUserId}_name" to BaseApplication.getInstance()?.getPrefs()?.getUserData()?.name.orEmpty(),
+                "user_${myUserId}_image" to BaseApplication.getInstance()?.getPrefs()?.getUserData()?.image.orEmpty(),
+                "user_${peerUserId}_name" to userName,
+                "user_${peerUserId}_image" to userImage,
+                "lastUpdated" to FieldValue.serverTimestamp()
+            )
+            
+            // Create/update the parent thread document first
             db.collection("chats")
                 .document(threadId)
-                .collection("messages")
-                .add(messageData)
-                .addOnSuccessListener { documentReference ->
-                    Log.d("ChatActivity", "✅ Message sent successfully: ${documentReference.id}")
-                    Toast.makeText(this, "Message sent", Toast.LENGTH_SHORT).show()
+                .set(threadMetadata, com.google.firebase.firestore.SetOptions.merge())
+                .addOnSuccessListener {
+                    Log.d("ChatActivity", "✅ Thread metadata updated")
                     
-                    // Scroll to bottom
-                    rvMessages.postDelayed({
-                        if (messages.isNotEmpty()) {
-                            rvMessages.scrollToPosition(messages.size - 1)
+                    // Now send the message
+                    db.collection("chats")
+                        .document(threadId)
+                        .collection("messages")
+                        .add(messageData)
+                        .addOnSuccessListener { documentReference ->
+                            Log.d("ChatActivity", "✅ Message sent successfully: ${documentReference.id}")
+                         //   Toast.makeText(this, "Message sent", Toast.LENGTH_SHORT).show()
+                            
+                            // Scroll to bottom
+                            rvMessages.postDelayed({
+                                if (messages.isNotEmpty()) {
+                                    rvMessages.scrollToPosition(messages.size - 1)
+                                }
+                            }, 100)
+                            
+                            // Check if receiver has blocked sender before sending notification
+                            checkIfReceiverBlockedMeAndSendNotification(messageText)
                         }
-                    }, 100)
-                    
-                    // Check if receiver has blocked sender before sending notification
-                    checkIfReceiverBlockedMeAndSendNotification(messageText)
+                        .addOnFailureListener { e ->
+                            Log.e("ChatActivity", "❌ Error sending message", e)
+                            Log.e("ChatActivity", "Error type: ${e.javaClass.simpleName}")
+                            Log.e("ChatActivity", "Error message: ${e.message}")
+                            Log.e("ChatActivity", "Error cause: ${e.cause}")
+                            
+                            // Show detailed error to user
+                            val errorMsg = when {
+                                e.message?.contains("PERMISSION_DENIED") == true -> 
+                                    "Permission denied. Enable Firestore in Firebase Console"
+                                e.message?.contains("NOT_FOUND") == true -> 
+                                    "Firestore not enabled. Check Firebase Console"
+                                e.message?.contains("UNAVAILABLE") == true -> 
+                                    "No internet connection"
+                                else -> "Failed: ${e.message}"
+                            }
+                            Toast.makeText(this, errorMsg, Toast.LENGTH_LONG).show()
+                        }
                 }
                 .addOnFailureListener { e ->
-                    Log.e("ChatActivity", "❌ Error sending message", e)
-                    Log.e("ChatActivity", "Error type: ${e.javaClass.simpleName}")
-                    Log.e("ChatActivity", "Error message: ${e.message}")
-                    Log.e("ChatActivity", "Error cause: ${e.cause}")
-                    
-                    // Show detailed error to user
-                    val errorMsg = when {
-                        e.message?.contains("PERMISSION_DENIED") == true -> 
-                            "Permission denied. Enable Firestore in Firebase Console"
-                        e.message?.contains("NOT_FOUND") == true -> 
-                            "Firestore not enabled. Check Firebase Console"
-                        e.message?.contains("UNAVAILABLE") == true -> 
-                            "No internet connection"
-                        else -> "Failed: ${e.message}"
-                    }
-                    Toast.makeText(this, errorMsg, Toast.LENGTH_LONG).show()
-                }
+                    Log.e("ChatActivity", "❌ Error creating thread metadata", e)
+                    Toast.makeText(this, "Failed to create chat thread", Toast.LENGTH_SHORT).show()
         }
     }
     
@@ -433,14 +528,14 @@ class ChatActivity : AppCompatActivity() {
     
     private fun setMyActiveChatStatus() {
         // Mark this user as actively viewing this chat
-        val activeChatData = hashMapOf(
+        val activeChatData = mapOf<String, Any>(
             "threadId" to threadId,
             "lastUpdated" to System.currentTimeMillis()
         )
 
         db.collection("active_chats")
             .document(myUserId)
-            .set(activeChatData)
+            .update(activeChatData)
             .addOnSuccessListener {
                 Log.d("ChatActivity", "✅ Marked as actively viewing chat: $threadId")
             }
@@ -469,15 +564,28 @@ class ChatActivity : AppCompatActivity() {
 
 
     private fun clearMyActiveChatStatus() {
-        // Clear active chat status when leaving
+        // Update last seen timestamp instead of deleting
+        val lastSeenTimestamp = System.currentTimeMillis()
+        val lastSeenData = hashMapOf(
+            "lastSeen" to lastSeenTimestamp,
+            "threadId" to ""  // Clear active thread to indicate user left
+        )
+        
+        val date = java.util.Date(lastSeenTimestamp)
+        val format = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
+        
+        Log.d("lastseenlog", "💾 Saving MY last seen for user $myUserId: ${format.format(date)} ($lastSeenTimestamp)")
+        
         db.collection("active_chats")
             .document(myUserId)
-            .delete()
+            .set(lastSeenData)
             .addOnSuccessListener {
-                Log.d("ChatActivity", "✅ Cleared active chat status")
+                Log.d("ChatActivity", "✅ Updated last seen timestamp")
+                Log.d("lastseenlog", "✅ Successfully saved MY last seen to Firebase")
             }
             .addOnFailureListener { e ->
-                Log.e("ChatActivity", "❌ Failed to clear active chat status", e)
+                Log.e("ChatActivity", "❌ Failed to update last seen", e)
+                Log.e("lastseenlog", "❌ Failed to save MY last seen: ${e.message}")
             }
     }
 
@@ -516,6 +624,8 @@ class ChatActivity : AppCompatActivity() {
         // User is now viewing the chat - mark it as visible
         isChatVisible = true
         Log.d("ChatActivity", "Chat is now visible - marking pending messages as read")
+        Log.d("lastseenlog", "📱 My User ID: $myUserId - Resuming chat with user $peerUserId")
+        
         // Mark any pending messages as read
         markPendingMessagesAsRead()
         
@@ -530,6 +640,7 @@ class ChatActivity : AppCompatActivity() {
         // User is no longer viewing the chat
         isChatVisible = false
         Log.d("ChatActivity", "Chat is no longer visible")
+        Log.d("lastseenlog", "📱 My User ID: $myUserId - Pausing chat, updating last seen")
         
         // User is no longer actively viewing this chat
         clearMyActiveChatStatus()
@@ -541,6 +652,317 @@ class ChatActivity : AppCompatActivity() {
         // Clean up active chat status
         clearMyActiveChatStatus()
         Log.d("ChatActivity", "📱 Chat destroyed - Cleaned up presence tracking")
+    }
+
+    // ==================== BLOCK/UNBLOCK FUNCTIONS ====================
+    
+    private fun checkIfUserIsBlocked() {
+        // Check if I have blocked this peer user
+        db.collection("blocked_users")
+            .document(myUserId)
+            .collection("users")
+            .document(peerUserId)
+            .get()
+            .addOnSuccessListener { doc ->
+                isPeerBlocked = doc.exists()
+                blockTimestamp = if (isPeerBlocked) doc.getTimestamp("blockedAt") else null
+                Log.d("ChatActivity", "Block status loaded: isPeerBlocked=$isPeerBlocked, blockTimestamp=$blockTimestamp")
+                
+                // Now setup firestore listener with correct block status
+                setupFirestoreListener()
+            }
+            .addOnFailureListener { e ->
+                Log.e("ChatActivity", "❌ Failed to check block status", e)
+                // Proceed anyway with isPeerBlocked = false
+                setupFirestoreListener()
+            }
+    }
+    
+    private fun showOptionsMenu() {
+        val popup = PopupMenu(this, ivMore)
+        popup.menuInflater.inflate(R.menu.menu_chat, popup.menu)
+        
+        // Show block option or unblock option based on current status
+        popup.menu.findItem(R.id.action_block)?.isVisible = !isPeerBlocked
+        popup.menu.findItem(R.id.action_unblock)?.isVisible = isPeerBlocked
+        
+        popup.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.action_block -> {
+                    showBlockConfirmationDialog()
+                    true
+                }
+                R.id.action_unblock -> {
+                    unblockUser()
+                    true
+                }
+                else -> false
+            }
+        }
+        popup.show()
+    }
+    
+    private fun showBlockConfirmationDialog() {
+        // Create a custom dialog with beautiful UI
+        val dialogView = layoutInflater.inflate(R.layout.dialog_block_user_confirmation, null)
+        
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+        
+        // Make dialog background transparent
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        
+        // Set button listeners
+        dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_cancel).setOnClickListener {
+            dialog.dismiss()
+        }
+        
+        dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_block).setOnClickListener {
+            blockUser()
+            dialog.dismiss()
+        }
+        
+        dialog.show()
+    }
+    
+    private fun blockUser() {
+        val currentTimestamp = Timestamp.now()
+        val userName = intent.getStringExtra("USER_NAME") ?: "User"
+        val userImage = intent.getStringExtra("USER_IMAGE") ?: ""
+        
+        val blockData = hashMapOf(
+            "blockedAt" to currentTimestamp,
+            "userName" to userName,
+            "userImage" to userImage
+        )
+        
+        db.collection("blocked_users")
+            .document(myUserId)
+            .collection("users")
+            .document(peerUserId)
+            .set(blockData)
+            .addOnSuccessListener {
+                isPeerBlocked = true
+                blockTimestamp = currentTimestamp
+                Toast.makeText(this, "User blocked successfully", Toast.LENGTH_SHORT).show()
+                Log.d("ChatActivity", "✅ User blocked successfully")
+                
+                // Refresh Firestore listener to filter blocked user's messages
+                setupFirestoreListener()
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(this, "Failed to block user", Toast.LENGTH_SHORT).show()
+                Log.e("ChatActivity", "❌ Failed to block user", e)
+            }
+    }
+    
+    private fun unblockUser() {
+        // Show confirmation dialog before unblocking
+        showUnblockConfirmationDialog()
+    }
+    
+    private fun showUnblockConfirmationDialog() {
+        // Create a custom dialog with beautiful UI
+        val dialogView = layoutInflater.inflate(R.layout.dialog_unblock_user_confirmation, null)
+        
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+        
+        // Make dialog background transparent
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        
+        // Set button listeners
+        dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_cancel).setOnClickListener {
+            dialog.dismiss()
+        }
+        
+        dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_unblock).setOnClickListener {
+            performUnblock()
+            dialog.dismiss()
+        }
+        
+        dialog.show()
+    }
+    
+    private fun performUnblock() {
+        db.collection("blocked_users")
+            .document(myUserId)
+            .collection("users")
+            .document(peerUserId)
+            .delete()
+            .addOnSuccessListener {
+                isPeerBlocked = false
+                blockTimestamp = null
+                Toast.makeText(this, "User unblocked successfully", Toast.LENGTH_SHORT).show()
+                Log.d("ChatActivity", "✅ User unblocked successfully")
+                
+                // Refresh Firestore listener to show all messages
+                setupFirestoreListener()
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(this, "Failed to unblock user", Toast.LENGTH_SHORT).show()
+                Log.e("ChatActivity", "❌ Failed to unblock user", e)
+            }
+    }
+    
+    // ==================== ONLINE STATUS FUNCTIONS ====================
+    
+    /**
+     * Listen to peer user's online status from Firebase active_chats collection
+     * Shows:
+     * - "Active recently" if last seen < 60 minutes
+     * - "Active X hour(s) ago" if last seen < 24 hours
+     * - Hidden if last seen > 24 hours
+     */
+    private fun listenToUserOnlineStatus() {
+        if (peerUserId.isEmpty() || peerUserId == "-1") {
+            tvUserStatus.visibility = android.view.View.GONE
+            Log.d("lastseenlog", "❌ Invalid peer user ID: '$peerUserId'")
+            return
+        }
+        
+        Log.d("ChatActivity", "🔍 Listening to online status for user $peerUserId")
+        Log.d("lastseenlog", "🔍 Started listening for user $peerUserId")
+        
+        // Listen to peer user's active_chats document
+        db.collection("active_chats")
+            .document(peerUserId)
+            .addSnapshotListener { documentSnapshot, error ->
+                if (error != null) {
+                    Log.e("ChatActivity", "❌ Error listening to user status", error)
+                    Log.e("lastseenlog", "❌ Error for user $peerUserId: ${error.message}")
+                    tvUserStatus.visibility = android.view.View.GONE
+                    return@addSnapshotListener
+                }
+                
+                if (documentSnapshot != null && documentSnapshot.exists()) {
+                    // Check if user is actively chatting (has lastUpdated) or just has lastSeen
+                    val lastUpdated = documentSnapshot.getLong("lastUpdated")
+                    val lastSeen = documentSnapshot.getLong("lastSeen")
+                    val threadId = documentSnapshot.getString("threadId")
+                    
+                    // Log raw values
+                    Log.d("ChatActivity", "========== PEER USER STATUS ==========")
+                    Log.d("ChatActivity", "👤 Peer User ID: $peerUserId")
+                    Log.d("ChatActivity", "🔄 lastUpdated: $lastUpdated")
+                    Log.d("ChatActivity", "👋 lastSeen: $lastSeen")
+                    Log.d("ChatActivity", "💬 threadId: '$threadId'")
+                    
+                    // Convert to readable dates
+                    if (lastUpdated != null) {
+                        val date = java.util.Date(lastUpdated)
+                        val format = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
+                        Log.d("ChatActivity", "📅 lastUpdated (readable): ${format.format(date)}")
+                    }
+                    if (lastSeen != null) {
+                        val date = java.util.Date(lastSeen)
+                        val format = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
+                        Log.d("ChatActivity", "📅 lastSeen (readable): ${format.format(date)}")
+                    }
+                    
+                    // Determine which timestamp to use
+                    val timestamp = when {
+                        // If lastUpdated exists and threadId is not empty, user is actively chatting
+                        lastUpdated != null && !threadId.isNullOrEmpty() -> {
+                            Log.d("ChatActivity", "✅ Using lastUpdated (user is actively chatting)")
+                            lastUpdated
+                        }
+                        // Otherwise use lastSeen if available
+                        lastSeen != null -> {
+                            Log.d("ChatActivity", "✅ Using lastSeen (user left the chat)")
+                            lastSeen
+                        }
+                        // Fallback to lastUpdated even if threadId is empty
+                        lastUpdated != null -> {
+                            Log.d("ChatActivity", "✅ Using lastUpdated (fallback)")
+                            lastUpdated
+                        }
+                        else -> {
+                            Log.d("ChatActivity", "❌ No timestamp available")
+                            null
+                        }
+                    }
+                    
+                    if (timestamp != null) {
+                        val now = System.currentTimeMillis()
+                        val diffMillis = now - timestamp
+                        val diffMinutes = diffMillis / (1000 * 60)
+                        val diffHours = diffMillis / (1000 * 60 * 60)
+                        
+                        Log.d("ChatActivity", "⏰ Current time: $now")
+                        Log.d("ChatActivity", "⏰ Selected timestamp: $timestamp")
+                        Log.d("ChatActivity", "⏰ Difference: $diffMinutes minutes ($diffHours hours)")
+                        Log.d("ChatActivity", "======================================")
+                        
+                        // Dedicated log for last seen tracking
+                        val date = java.util.Date(timestamp)
+                        val format = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
+                        Log.d("lastseenlog", "User $peerUserId last seen: ${format.format(date)} ($diffMinutes min ago)")
+                        
+                        updateOnlineStatusUI(timestamp)
+                    } else {
+                        tvUserStatus.visibility = android.view.View.GONE
+                        Log.d("ChatActivity", "⚠️ No valid timestamp found - hiding status")
+                        Log.d("ChatActivity", "======================================")
+                    }
+                } else {
+                    // No active_chats document - user has never been active
+                    tvUserStatus.visibility = android.view.View.GONE
+                    Log.d("ChatActivity", "========== PEER USER STATUS ==========")
+                    Log.d("ChatActivity", "👤 Peer User ID: $peerUserId")
+                    Log.d("ChatActivity", "ℹ️ User has no active_chats document")
+                    Log.d("ChatActivity", "======================================")
+                    Log.w("lastseenlog", "⚠️ User $peerUserId has NO active_chats document - never been active")
+                }
+            }
+    }
+    
+    /**
+     * Update online status UI based on last seen timestamp
+     * @param lastSeenMillis The timestamp when user was last active (in milliseconds)
+     */
+    private fun updateOnlineStatusUI(lastSeenMillis: Long) {
+        val now = System.currentTimeMillis()
+        val diffMillis = now - lastSeenMillis
+        val diffMinutes = diffMillis / (1000 * 60)
+        val diffHours = diffMillis / (1000 * 60 * 60)
+        val diffDays = diffMillis / (1000 * 60 * 60 * 24)
+        
+        Log.d("ChatActivity", "========== UPDATE STATUS UI ==========")
+        Log.d("ChatActivity", "⏰ Current time (millis): $now")
+        Log.d("ChatActivity", "⏰ Last seen (millis): $lastSeenMillis")
+        Log.d("ChatActivity", "⏰ Difference: $diffMinutes minutes | $diffHours hours | $diffDays days")
+        
+        when {
+            // Within last 60 minutes - show "Active recently"
+            diffMinutes < 60 -> {
+                tvUserStatus.text = "Active recently"
+                tvUserStatus.visibility = android.view.View.VISIBLE
+                vOnlineIndicator.visibility = android.view.View.VISIBLE
+                Log.d("ChatActivity", "✅ DISPLAYING: 'Active recently' (< 60 min)")
+            }
+            
+            // Within last 24 hours - show "Active X hour(s) ago"
+            diffHours < 24 -> {
+                val hoursText = if (diffHours == 1L) "1 hour" else "$diffHours hours"
+                tvUserStatus.text = "Active $hoursText ago"
+                tvUserStatus.visibility = android.view.View.VISIBLE
+                vOnlineIndicator.visibility = android.view.View.VISIBLE
+                Log.d("ChatActivity", "✅ DISPLAYING: 'Active $hoursText ago' (< 24 hours)")
+            }
+            
+            // More than 24 hours - hide status AND dot
+            else -> {
+                tvUserStatus.visibility = android.view.View.GONE
+                vOnlineIndicator.visibility = android.view.View.GONE
+                Log.d("ChatActivity", "🚫 HIDING STATUS AND DOT (> 24 hours ago)")
+            }
+        }
+        Log.d("ChatActivity", "======================================")
     }
 
 }

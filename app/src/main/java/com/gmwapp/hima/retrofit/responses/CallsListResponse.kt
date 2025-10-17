@@ -16,5 +16,8 @@ data class CallsListResponseData(
     val income: String,
     val audio_status: Int,
     val video_status: Int,
-    val blocked:Int,
+    val blocked: Int,
+    val language: String = "",
+    val interests: String = "",
+    val describe_yourself: String = "",
 )

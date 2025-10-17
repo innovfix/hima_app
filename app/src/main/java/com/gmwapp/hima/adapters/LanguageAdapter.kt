@@ -21,13 +21,19 @@ class LanguageAdapter(
 
     // Map native scripts for each language
     private val nativeScripts = mapOf(
-        "Hindi" to "हिं",
-        "Telugu" to "తె",
+        "Hindi" to "ह",
+        "Telugu" to "త",
         "Malayalam" to "മ",
         "Kannada" to "ಕ",
-        "Punjabi" to "ਪੰ",
-        "Tamil" to "த"
+        "Punjabi" to "ਪ",
+        "Tamil" to "த",
+        "Marathi" to "म",
+        "Bengali" to "ব",
+        "Assamese" to "অ",
+        "Odia" to "ଓ",
+        "Gujarati" to "ગ"
     )
+
 
     private val nativeNames = mapOf(
         "Hindi" to "हिंदी",
@@ -35,8 +41,14 @@ class LanguageAdapter(
         "Malayalam" to "മലയാളം",
         "Kannada" to "ಕನ್ನಡ",
         "Punjabi" to "ਪੰਜਾਬੀ",
-        "Tamil" to "தமிழ்"
+        "Tamil" to "தமிழ்",
+        "Marathi" to "मराठी",
+        "Bengali" to "বাংলা",
+        "Assamese" to "অসমীয়া",
+        "Odia" to "ଓଡ଼ିଆ",
+        "Gujarati" to "ગુજરાતી"
     )
+
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val itemHolder = ItemHolder(

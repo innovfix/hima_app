@@ -27,6 +27,7 @@ class FriendRequestViewModel @Inject constructor(
     val friendsListLiveData = MutableLiveData<FriendListResponse>()
     val friendRequestErrorLiveData = MutableLiveData<String>()
     val loadingLiveData = MutableLiveData<Boolean>()
+    val checkFriendRequestLiveData = MutableLiveData<FriendRequestResponse>()
 
     fun sendFriendRequest(
         senderId: Int,
@@ -181,6 +182,50 @@ class FriendRequestViewModel @Inject constructor(
                 }
 
                 override fun onFailure(call: Call<FriendListResponse>, t: Throwable) {
+                    loadingLiveData.postValue(false)
+                    friendRequestErrorLiveData.postValue("Network error: ${t.message}")
+                    Log.e("FriendRequestVM", "❌ API Failure: ${t.message}")
+                }
+
+                override fun onNoNetwork() {
+                    loadingLiveData.postValue(false)
+                    friendRequestErrorLiveData.postValue("No internet connection")
+                    Log.e("FriendRequestVM", "❌ No Network Connection")
+                }
+            })
+        }
+    }
+
+    fun checkFriendRequest(
+        senderId: Int,
+        receiverId: Int,
+        userId: Int
+    ) {
+        loadingLiveData.postValue(true)
+        viewModelScope.launch {
+            repository.checkFriendRequest(senderId, receiverId, userId, object :
+                NetworkCallback<FriendRequestResponse> {
+                override fun onResponse(
+                    call: Call<FriendRequestResponse>,
+                    response: Response<FriendRequestResponse>
+                ) {
+                    loadingLiveData.postValue(false)
+                    if (response.body() != null) {
+                        val responseBody = response.body()!!
+                        if (responseBody.success) {
+                            checkFriendRequestLiveData.postValue(responseBody)
+                            Log.d("FriendRequestVM", "✅ Friend request status: ${responseBody.message}")
+                        } else {
+                            friendRequestErrorLiveData.postValue(responseBody.message)
+                            Log.e("FriendRequestVM", "❌ API Error: ${responseBody.message}")
+                        }
+                    } else {
+                        friendRequestErrorLiveData.postValue("Failed to check friend request")
+                        Log.e("FriendRequestVM", "❌ Error: ${response.errorBody()?.string()}")
+                    }
+                }
+
+                override fun onFailure(call: Call<FriendRequestResponse>, t: Throwable) {
                     loadingLiveData.postValue(false)
                     friendRequestErrorLiveData.postValue("Network error: ${t.message}")
                     Log.e("FriendRequestVM", "❌ API Failure: ${t.message}")

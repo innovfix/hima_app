@@ -252,6 +252,13 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding = ActivityMaleAudioCallingBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        
+        // ✅ Restrict screenshots and screen recording
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
+        
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
@@ -586,7 +593,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
 
-                showExitDialog()
+                showEndCallConfirmationDialog()
             }
         })
     }
@@ -752,7 +759,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                         binding.femaleMute.visibility= View.VISIBLE
 
                     }else{
-                        binding.femaleMute.visibility= View.GONE
+                        binding.femaleMute.visibility= View.INVISIBLE
                     }
                 }
 
@@ -760,7 +767,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 Log.d("userMuted","User is not muted")
 
                 runOnUiThread {
-                    binding.femaleMute.visibility= View.GONE
+                    binding.femaleMute.visibility= View.INVISIBLE
                 }
 
             }
@@ -768,6 +775,13 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
 
 
+        // Add these variables at the top of the class (after other class variables)
+        private var lastSpeakingStateChangeTime = 0L
+        private val SPEAKING_STATE_DEBOUNCE_MS = 500L
+        private var lastMaleSpeakingState = false
+        private var lastFemaleSpeakingState = false
+
+        // Then replace the entire onAudioVolumeIndication function with this:
         override fun onAudioVolumeIndication(
             speakers: Array<IRtcEngineEventHandler.AudioVolumeInfo>,
             totalVolume: Int
@@ -786,57 +800,47 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 }
             }
 
+            val currentTime = System.currentTimeMillis()
 
-            runOnUiThread {
-                // For Male (Local User)
+            // Only update if state changed AND enough time has passed
+            if (isLocalSpeaking != lastMaleSpeakingState || isRemoteSpeaking != lastFemaleSpeakingState) {
+                if (currentTime - lastSpeakingStateChangeTime > SPEAKING_STATE_DEBOUNCE_MS) {
+                    lastSpeakingStateChangeTime = currentTime
+                    lastMaleSpeakingState = isLocalSpeaking
+                    lastFemaleSpeakingState = isRemoteSpeaking
 
-                if (!isVideoCallGoing){
-
-
-                    if (isLocalSpeaking) {
-                    if (!binding.maleWave.isAnimating) {
-                        binding.maleWave.alpha = 1f
-                        binding.maleWave.visibility = View.VISIBLE
-                        binding.maleWave.playAnimation()
-                    }
-                } else {
-                    if (binding.maleWave.isAnimating) {
-                        binding.maleWave.addAnimatorListener(object : AnimatorListenerAdapter() {
-                            override fun onAnimationEnd(animation: android.animation.Animator) {
-                                super.onAnimationEnd(animation)
-                                binding.maleWave.alpha = 0f
-                                binding.maleWave.visibility = View.GONE
-                                binding.maleWave.removeAnimatorListener(this)
+                    runOnUiThread {
+                        if (!isVideoCallGoing) {
+                            // Male avatar
+                            if (isLocalSpeaking) {
+                                if (!binding.maleWave.isAnimating) {
+                                    binding.maleWave.alpha = 1f
+                                    binding.maleWave.visibility = View.VISIBLE
+                                    binding.maleWave.playAnimation()
+                                }
+                            } else {
+                                if (binding.maleWave.isAnimating) {
+                                    binding.maleWave.repeatCount = 0
+                                }
                             }
-                        })
-                        binding.maleWave.repeatCount = 0 // Let current loop finish, no new ones
-                    }
 
-                }
-
-                // For Female (Remote User)
-                if (isRemoteSpeaking) {
-                    if (!binding.femaleWave.isAnimating) {
-                        binding.femaleWave.alpha = 1f
-                        binding.femaleWave.visibility = View.VISIBLE
-                        binding.femaleWave.playAnimation()
-                    }
-                } else {
-                    if (binding.femaleWave.isAnimating) {
-                        binding.femaleWave.addAnimatorListener(object : AnimatorListenerAdapter() {
-                            override fun onAnimationEnd(animation: android.animation.Animator) {
-                                super.onAnimationEnd(animation)
-                                binding.femaleWave.alpha = 0f
-                                binding.femaleWave.visibility = View.GONE
-                                binding.femaleWave.removeAnimatorListener(this)
+                            // Female avatar
+                            if (isRemoteSpeaking) {
+                                if (!binding.femaleWave.isAnimating) {
+                                    binding.femaleWave.alpha = 1f
+                                    binding.femaleWave.visibility = View.VISIBLE
+                                    binding.femaleWave.playAnimation()
+                                }
+                            } else {
+                                if (binding.femaleWave.isAnimating) {
+                                    binding.femaleWave.repeatCount = 0
+                                }
                             }
-                        })
-                        binding.femaleWave.repeatCount = 0 // Let current loop finish, no new ones
+                        }
                     }
-
                 }
             }
-        }}
+        }
 
     }
 
@@ -1904,22 +1908,29 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             val startX = giftImage.x
             val startY = giftImage.y
 
-            val femaleCenterX = femaleImage.x + femaleImage.width / 2 - giftImage.width / 2
-            val femaleCenterY = femaleImage.y + femaleImage.height / 2 - giftImage.height / 2
+            // Get absolute positions on screen
+            val giftLocation = IntArray(2)
+            val femaleLocation = IntArray(2)
+            giftImage.getLocationOnScreen(giftLocation)
+            femaleImage.getLocationOnScreen(femaleLocation)
 
-            // First: animate movement only
+            // Calculate destination position relative to giftImage’s parent
+            val femaleCenterX = giftImage.x + (femaleLocation[0] - giftLocation[0]) + (femaleImage.width / 2f - giftImage.width / 2f)
+            val femaleCenterY = giftImage.y + (femaleLocation[1] - giftLocation[1]) + (femaleImage.height / 2f - giftImage.height / 2f)
+
+            // Animate movement
             giftImage.animate()
                 .x(femaleCenterX)
                 .y(femaleCenterY)
                 .setDuration(2000)
                 .withEndAction {
-                    // Then: fade out
+                    // Fade out after reaching target
                     giftImage.animate()
                         .alpha(0f)
                         .setDuration(1000)
                         .withEndAction {
                             giftImage.visibility = View.INVISIBLE
-                            // Reset position if needed
+                            // Reset to original position
                             giftImage.x = startX
                             giftImage.y = startY
                         }
@@ -1928,6 +1939,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 .start()
         }
     }
+
 
     fun sendGiftSentNotification(giftIcon : String) {
 
