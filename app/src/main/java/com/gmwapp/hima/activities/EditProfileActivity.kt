@@ -29,6 +29,8 @@ import com.google.android.flexbox.FlexboxItemDecoration
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
 import dagger.hilt.android.AndroidEntryPoint
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
 
 @AndroidEntryPoint
 class EditProfileActivity : BaseActivity() {
@@ -283,6 +285,10 @@ class EditProfileActivity : BaseActivity() {
                 sharedPreferences.edit().putBoolean("hasChangedName", true).apply()
 
                 BaseApplication.getInstance()?.getPrefs()?.setUserData(it.data)
+                
+                // ✅ Update profile picture in Firebase
+                updateProfilePicInFirebase(it.data.id, it.data.image)
+                
                 setResult(RESULT_OK)
                 finish()
             } else {
@@ -337,8 +343,85 @@ class EditProfileActivity : BaseActivity() {
         }
     }
 
-
-
+    // ✅ Update profile picture in Firebase for all chat threads
+    private fun updateProfilePicInFirebase(userId: Int, imageUrl: String) {
+        Log.d("ProfileUpdate", "🔍 Starting profile pic update - userId: $userId, imageUrl: $imageUrl")
+        
+        if (imageUrl.isEmpty()) {
+            Log.d("ProfileUpdate", "⚠️ Image URL is empty, skipping update")
+            return
+        }
+        
+        val db = Firebase.firestore
+        
+        // Get all chat threads where this user is a participant
+        Log.d("ProfileUpdate", "🔍 Querying chats collection for userId: $userId")
+        
+        db.collection("chats")
+            .whereArrayContains("participantIds", userId.toString())
+            .get()
+            .addOnSuccessListener { querySnapshot ->
+                Log.d("ProfileUpdate", "✅ Query successful - Found ${querySnapshot.documents.size} chat threads")
+                
+                if (querySnapshot.documents.isEmpty()) {
+                    Log.d("ProfileUpdate", "⚠️ No chat threads found with participantIds, will try direct thread lookup")
+                    // Fallback: try to find threads by checking all documents
+                    findAndUpdateThreadsByDirectQuery(userId, imageUrl)
+                    return@addOnSuccessListener
+                }
+                
+                querySnapshot.documents.forEach { doc ->
+                    Log.d("ProfileUpdate", "📝 Updating thread: ${doc.id}")
+                    doc.reference.update(mapOf("user_${userId}_image" to imageUrl as Any))
+                        .addOnSuccessListener {
+                            Log.d("ProfileUpdate", "✅ Updated avatar in thread: ${doc.id} with URL: $imageUrl")
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("ProfileUpdate", "❌ Failed to update avatar in ${doc.id}: ${e.message}")
+                        }
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("ProfileUpdate", "❌ Error fetching chat threads: ${e.message}")
+                // Fallback approach
+                findAndUpdateThreadsByDirectQuery(userId, imageUrl)
+            }
+    }
+    
+    // Fallback method to find threads by thread ID format
+    private fun findAndUpdateThreadsByDirectQuery(userId: Int, imageUrl: String) {
+        Log.d("ProfileUpdate", "🔍 Trying fallback approach - scanning all chat threads")
+        
+        val db = Firebase.firestore
+        val userIdStr = userId.toString()
+        
+        db.collection("chats")
+            .get()
+            .addOnSuccessListener { querySnapshot ->
+                var updateCount = 0
+                Log.d("ProfileUpdate", "📋 Scanning ${querySnapshot.documents.size} total threads")
+                
+                querySnapshot.documents.forEach { doc ->
+                    val threadId = doc.id
+                    // Check if this thread involves our user (format: userId_otherUserId or otherUserId_userId)
+                    if (threadId.contains(userIdStr)) {
+                        Log.d("ProfileUpdate", "📝 Found matching thread: $threadId")
+                        doc.reference.update(mapOf("user_${userId}_image" to imageUrl as Any))
+                            .addOnSuccessListener {
+                                Log.d("ProfileUpdate", "✅ Updated avatar in thread: $threadId")
+                                updateCount++
+                            }
+                            .addOnFailureListener { e ->
+                                Log.e("ProfileUpdate", "❌ Failed to update thread $threadId: ${e.message}")
+                            }
+                    }
+                }
+                Log.d("ProfileUpdate", "📊 Updated $updateCount threads")
+            }
+            .addOnFailureListener { e ->
+                Log.e("ProfileUpdate", "❌ Error in fallback query: ${e.message}")
+            }
+    }
 }
 
 

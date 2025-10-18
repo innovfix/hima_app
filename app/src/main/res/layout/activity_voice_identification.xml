@@ -61,7 +61,7 @@
                 android:layout_height="50dp"
                 android:layout_gravity="center"
                 android:src="@drawable/microphone"
-                app:tint="#6366F1" />
+                app:tint="@color/pink" />
 
         </com.google.android.material.card.MaterialCardView>
 
@@ -141,7 +141,7 @@
             android:layout_width="match_parent"
             android:layout_height="60dp"
             android:layout_marginTop="20dp"
-            android:backgroundTint="#6366F1"
+            android:backgroundTint="@color/pink"
             android:elevation="3dp"
             android:fontFamily="@font/poppins_semibold"
             android:letterSpacing="0.02"

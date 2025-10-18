@@ -260,6 +260,24 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             WindowManager.LayoutParams.FLAG_SECURE
         )
         
+        // ✅ Set status bar and navigation bar to black with light icons
+        window.statusBarColor = android.graphics.Color.BLACK
+        window.navigationBarColor = android.graphics.Color.BLACK
+        
+        // Make status bar icons light (white) so they're visible on black background
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.decorView.systemUiVisibility = 0 // Light icons on dark background
+        }
+        
+        // For Android 11+ use WindowInsetsController for better control
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val insetsController = window.insetsController
+            if (insetsController != null) {
+                insetsController.setSystemBarsAppearance(0, android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS)
+                insetsController.setSystemBarsAppearance(0, android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS)
+            }
+        }
+
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)

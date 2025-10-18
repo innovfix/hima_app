@@ -82,7 +82,10 @@ class FaceDetectVideoFrameObserver(private val context: Context) : IVideoFrameOb
                 if (faces.isEmpty()) {
                     Log.d("FaceDetection", "Show your face")
                     count++
-                    if (count==8){
+                    Log.d("FaceDetectionCount", "Show your face , Count = $count")
+
+                    if (count==18){
+
                         isFaceCurrentlyVisible = false
 
                         (context as? MaleVideoCallingActivity)?.disableVideo()

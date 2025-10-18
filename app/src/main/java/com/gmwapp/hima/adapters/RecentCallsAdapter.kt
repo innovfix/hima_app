@@ -128,22 +128,36 @@ class RecentCallsAdapter(
             holder.binding.ivVideo.visibility = View.VISIBLE
             holder.binding.tvAmount.visibility = View.VISIBLE // Show earnings
             holder.binding.tvAmount.text = activity.getString(R.string.rupee_text, call.income)
-            
-            // Audio call button - always enabled for creators to call male users
-            holder.binding.ivAudioCircle.setOnSingleClickListener{
-                onAudioListener.onItemSelected(call)
+
+            // ✅ Audio call button - check status for creators
+            if (call.audio_status == 0) {
+                holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
+                holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
+                holder.binding.ivAudio.isEnabled = false
+                holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
+            } else {
+                holder.binding.ivAudioCircle.setOnSingleClickListener{
+                    onAudioListener.onItemSelected(call)
+                }
+                holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.colorAccent))
+                holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.white))
+                holder.binding.ivAudio.isEnabled = true
+                holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
             }
-            holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.colorAccent))
-            holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.white))
-            holder.binding.ivAudio.isEnabled = true
-            holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
-            
-            // Video call button - always enabled for creators to call male users
-            holder.binding.ivVideoCircle.setOnSingleClickListener{ onVideoListener.onItemSelected(call) }
-            holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.green))
-            holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.white))
-            holder.binding.ivVideo.isEnabled = true
-            holder.binding.ivVideo.setImageResource(R.drawable.ic_video_modern)
+
+            // ✅ Video call button - check status for creators
+            if (call.video_status == 0) {
+                holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
+                holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
+                holder.binding.ivVideo.isEnabled = false
+                holder.binding.ivVideo.setImageResource(R.drawable.ic_video_modern)
+            } else {
+                holder.binding.ivVideoCircle.setOnSingleClickListener{ onVideoListener.onItemSelected(call) }
+                holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.green))
+                holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.white))
+                holder.binding.ivVideo.isEnabled = true
+                holder.binding.ivVideo.setImageResource(R.drawable.ic_video_modern)
+            }
             holder.binding.ivVideoCircle.visibility= View.GONE
 
             // Chat button (design only)

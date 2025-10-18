@@ -35,16 +35,48 @@ class FcmNotificationViewModel @Inject constructor(
         repository.sendFcmNotification(senderId, receiverId, callType, channelName, message, object :
             NetworkCallback<FcmNotificationResponse> {
             override fun onResponse(call: Call<FcmNotificationResponse>, response: Response<FcmNotificationResponse>) {
-                notificationResponseLiveData.postValue(response.body())
-                Log.d("FCMNotification", "Response: ${response.body()?.message}")
+                Log.d("FCMNotification", "✅ Response received - Status: ${response.code()}")
+                Log.d("FCMNotification", "📝 Response body: ${response.body()}")
+                
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body != null) {
+                        Log.d("FCMNotification", "✅ Notification sent successfully: ${body.message}")
+                        notificationResponseLiveData.postValue(body)
+                    } else {
+                        Log.e("FCMNotification", "⚠️ Response body is null")
+                        notificationErrorLiveData.postValue("Response is empty")
+                    }
+                } else {
+                    Log.e("FCMNotification", "❌ Response not successful - Code: ${response.code()}")
+                    // Try to read error body as string
+                    val errorBody = response.errorBody()?.string()
+                    Log.e("FCMNotification", "📝 Error body: $errorBody")
+                    notificationErrorLiveData.postValue("Error: ${response.code()} - $errorBody")
+                }
             }
 
             override fun onFailure(call: Call<FcmNotificationResponse>, t: Throwable) {
-                notificationErrorLiveData.postValue("API Failure: ${t.message}")
-                Log.e("FCMNotification", "Error: ${t.message}")
+                Log.e("FCMNotification", "❌ API Call Failed")
+                Log.e("FCMNotification", "Error type: ${t.javaClass.simpleName}")
+                Log.e("FCMNotification", "Error message: ${t.message}")
+                Log.e("FCMNotification", "Error cause: ${t.cause}")
+                
+                // Log detailed stack trace
+                t.printStackTrace()
+                
+                // Check if it's a JSON parsing error
+                if (t is com.google.gson.JsonSyntaxException || 
+                    t.message?.contains("Expected BEGIN_OBJECT") == true) {
+                    Log.e("FCMNotification", "🚨 JSON PARSING ERROR - API returned non-JSON response")
+                    notificationErrorLiveData.postValue("Server returned invalid response format")
+                } else {
+                    notificationErrorLiveData.postValue("API Failure: ${t.message}")
+                }
             }
 
             override fun onNoNetwork() {
+                Log.e("FCMNotification", "⚠️ No Network Connection")
                 notificationErrorLiveData.postValue("No Network Connection")
             }
         })

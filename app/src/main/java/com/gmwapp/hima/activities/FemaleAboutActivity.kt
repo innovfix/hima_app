@@ -112,15 +112,22 @@ class FemaleAboutActivity : BaseActivity() {
             }
         })
         binding.btnContinue.setOnSingleClickListener {
+            val age = binding.etEnterYourAge.text.toString()
+            val interests = selectedInterests.toString()
+            val summary = binding.etSummary.text.toString().trim().replace("\\s+".toRegex(), " ")
+            
+            // ✅ Validation: Check minimum 15 letters
+            if (summary.length < 15) {
+                Toast.makeText(this, "Minimum 15 letters required", Toast.LENGTH_SHORT).show()
+                return@setOnSingleClickListener
+            }
+            
             val intent = Intent(this, SelectLanguageActivity::class.java)
             intent.putExtra(DConstants.AVATAR_ID, getIntent().getIntExtra(DConstants.AVATAR_ID,0))
             intent.putExtra(
                 DConstants.MOBILE_NUMBER, getIntent().getStringExtra(DConstants.MOBILE_NUMBER)
             )
             intent.putExtra(DConstants.GENDER, getIntent().getStringExtra(DConstants.GENDER))
-            val age = binding.etEnterYourAge.text.toString()
-            val interests = selectedInterests.toString()
-            val summary = binding.etSummary.text.toString().trim().replace("\\s+".toRegex(), " ")
             intent.putExtra(DConstants.AGE, age)
             intent.putExtra(DConstants.INTERESTS, interests)
             intent.putExtra(DConstants.SUMMARY, summary)

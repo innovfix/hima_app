@@ -266,7 +266,6 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         }
 
 
-
         Glide.with(this)
             .load(R.drawable.gift_png)
             .into(binding.ivGift)
@@ -1485,13 +1484,30 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
         Log.d("isSwitchingToVideo","$isSwitchingToVideo")
 
-
         if (isSwitchingToVideo) {
             Log.d("enableAudioCall", "Already switching to video, skipping duplicate call")
             return
         }
 
         isSwitchingToVideo = true // ✅ Set flag to prevent duplicate calls
+
+        // ✅ Set status bar and navigation bar to black when switching to video
+        window.statusBarColor = android.graphics.Color.BLACK
+        window.navigationBarColor = android.graphics.Color.BLACK
+        
+        // Make status bar icons light (white) so they're visible on black background
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.decorView.systemUiVisibility = 0
+        }
+        
+        // For Android 11+ use WindowInsetsController for better control
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val insetsController = window.insetsController
+            if (insetsController != null) {
+                insetsController.setSystemBarsAppearance(0, android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS)
+                insetsController.setSystemBarsAppearance(0, android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS)
+            }
+        }
 
         FcmUtils.clearCallSwitch()
         updateCallEndDetails()

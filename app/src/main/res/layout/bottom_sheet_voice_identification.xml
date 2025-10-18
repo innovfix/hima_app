@@ -51,7 +51,7 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/poppins_semibold"
                 android:text="Please say this sentence"
-                android:textColor="#6B21A8"
+                android:textColor="@color/pink"
                 android:textSize="14sp" />
 
             <TextView
@@ -62,7 +62,7 @@
                 android:fontFamily="@font/poppins_bold"
                 android:gravity="center"
                 android:lineSpacingExtra="6dp"
-                android:textColor="#3B0764"
+                android:textColor="@color/pink"
                 android:textSize="24sp" />
 
         </LinearLayout>
@@ -76,7 +76,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="20dp"
         android:fontFamily="@font/poppins_bold"
-        android:textColor="#6366F1"
+        android:textColor="@color/pink"
         android:textSize="20sp"
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
@@ -107,7 +107,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/tl_speech_text_hint"
-        app:rb_color="#6366F1"
+        app:rb_color="@color/pink"
         app:rb_duration="1500"
         app:rb_radius="20dp"
         app:rb_rippleAmount="4"
@@ -134,6 +134,7 @@
                     android:layout_height="match_parent"
                     android:background="@drawable/voice_mic_background"
                     app:layout_constraintBottom_toBottomOf="parent"
+
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
@@ -211,7 +212,7 @@
                     android:layout_height="20dp"
                     android:layout_gravity="center"
                     android:src="@drawable/play"
-                    app:tint="#6366F1" />
+                    app:tint="@color/pink" />
 
             </com.google.android.material.card.MaterialCardView>
 
@@ -272,7 +273,7 @@
         android:layout_width="0dp"
         android:layout_height="60dp"
         android:layout_marginTop="16dp"
-        android:backgroundTint="#6366F1"
+        android:backgroundTint="@color/pink"
         android:elevation="3dp"
         android:fontFamily="@font/poppins_semibold"
         android:letterSpacing="0.02"
@@ -282,7 +283,6 @@
         android:textSize="17sp"
         android:visibility="gone"
         app:cornerRadius="14dp"
-        app:icon="@drawable/right_arrow"
         app:iconGravity="end"
         app:iconPadding="8dp"
         app:iconSize="20dp"

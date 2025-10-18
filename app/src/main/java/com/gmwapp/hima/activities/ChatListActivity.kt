@@ -38,7 +38,7 @@ class ChatListActivity : AppCompatActivity() {
     
     // Track conversations by threadId for real-time updates
     private val conversationsMap = mutableMapOf<String, ChatConversation>()
-
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_chat_list)
@@ -205,7 +205,31 @@ class ChatListActivity : AppCompatActivity() {
                                 .get()
                                 .addOnSuccessListener { threadDoc ->
                                     val userName = threadDoc.getString("user_${otherUserId}_name") ?: "User $otherUserId"
-                                    val userImage = threadDoc.getString("user_${otherUserId}_image") ?: ""
+                                    var userImage = threadDoc.getString("user_${otherUserId}_image") ?: ""
+
+                                    // ✅ Real-time listener for thread document to catch avatar updates
+                                    db.collection("chats")
+                                        .document(threadId)
+                                        .addSnapshotListener { threadSnapshot, threadError ->
+                                            if (threadError != null || threadSnapshot == null) {
+                                                return@addSnapshotListener
+                                            }
+                                            
+                                            // Check if avatar has changed
+                                            val updatedImage = threadSnapshot.getString("user_${otherUserId}_image") ?: ""
+                                            if (updatedImage != userImage && updatedImage.isNotEmpty()) {
+                                                Log.d("ChatListActivity", "✅ Avatar updated for $otherUserId: $updatedImage")
+                                                userImage = updatedImage
+                                                
+                                                // Update conversation with new avatar
+                                                conversationsMap[threadId]?.let { oldConversation ->
+                                                    val updatedConversation = oldConversation.copy(userImage = updatedImage)
+                                                    conversationsMap[threadId] = updatedConversation
+                                                    // Notify adapter to refresh this item
+                                                    chatListAdapter.notifyDataSetChanged()
+                                                }
+                                            }
+                                        }
 
                                     // Real-time listener for messages in this thread
                                     db.collection("chats")

@@ -307,6 +307,7 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
         receiverId?.let { receiverId ->
             userId?.let { userId ->
                 // For female calling male, use callMaleUser API
+                Log.d("callMaleUserApi","$userId $receiverId")
                 femaleUsersViewModel.callMaleUser(userId, receiverId, callType!!, 0)
             }
             callIdObserver()

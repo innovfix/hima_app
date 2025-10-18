@@ -34,6 +34,9 @@ import java.util.*
 import android.widget.PopupMenu
 import com.google.firebase.Timestamp
 import android.view.View
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 
 @AndroidEntryPoint
 class ChatActivity : AppCompatActivity() {
@@ -303,6 +306,12 @@ class ChatActivity : AppCompatActivity() {
     private fun sendMessage() {
         val messageText = etMessage.text.toString().trim()
         if (messageText.isNotEmpty()) {
+            // ✅ CHECK INTERNET FIRST
+            if (!isInternetAvailable()) {
+                Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show()
+                return  // ❌ DO NOT clear message, user can try again later
+            }
+            
             etMessage.setText("")
             
             // Validate user IDs before sending
@@ -963,6 +972,19 @@ class ChatActivity : AppCompatActivity() {
             }
         }
         Log.d("ChatActivity", "======================================")
+    }
+
+    private fun isInternetAvailable(): Boolean {
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val networkCapabilities = connectivityManager.activeNetwork ?: return false
+        val actNw = connectivityManager.getNetworkCapabilities(networkCapabilities) ?: return false
+
+        return when {
+            actNw.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
+            actNw.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
+            actNw.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> true
+            else -> false
+        }
     }
 
 }
