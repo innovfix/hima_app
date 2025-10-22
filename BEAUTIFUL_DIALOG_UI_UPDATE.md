@@ -305,3 +305,4 @@ BEFORE                          AFTER
 ✅ **Accessible** - Meets accessibility guidelines
 
 The block/unblock feature now has a beautiful, professional UI! 🎉
+
