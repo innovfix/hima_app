@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.gmwapp.hima.repositories.CouponRepository
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.CouponsResponse
+import com.gmwapp.hima.retrofit.responses.DefaultCouponResponse
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import retrofit2.Call
@@ -17,10 +18,12 @@ import javax.inject.Inject
 class CouponViewModel @Inject constructor(private val couponRepository: CouponRepository) : ViewModel() {
 
     val couponsLiveData = MutableLiveData<CouponsResponse>()
+    val defaultCouponLiveData = MutableLiveData<DefaultCouponResponse>()
+    val defaultCouponErrorLiveData = MutableLiveData<String>()
 
-    fun getCoupons(coinID: String?) {
+    fun getCoupons(coinID: String?, userId: Int) {
         viewModelScope.launch {
-            couponRepository.getCoupons(coinID,object : NetworkCallback<CouponsResponse> {
+            couponRepository.getCoupons(coinID, userId, object : NetworkCallback<CouponsResponse> {
                 override fun onResponse(
                     call: Call<CouponsResponse>,
                     response: Response<CouponsResponse>
@@ -36,6 +39,31 @@ class CouponViewModel @Inject constructor(private val couponRepository: CouponRe
 
                 override fun onNoNetwork() {
                     Log.e("CouponError", "No network connection")
+                }
+            })
+        }
+    }
+
+    fun getDefaultCoupon(userId: Int, coinsId: String) {
+        viewModelScope.launch {
+            couponRepository.getDefaultCoupon(userId, coinsId, object : NetworkCallback<DefaultCouponResponse> {
+                override fun onResponse(
+                    call: Call<DefaultCouponResponse>,
+                    response: Response<DefaultCouponResponse>
+                ) {
+                    defaultCouponLiveData.postValue(response.body())
+                    Log.d("DefaultCouponResponse", "URL: ${call.request().url}")
+                    Log.d("DefaultCouponResponse", "Response: ${response.body()}")
+                }
+
+                override fun onFailure(call: Call<DefaultCouponResponse>, t: Throwable) {
+                    defaultCouponErrorLiveData.postValue("Failure: ${t.localizedMessage}")
+                    Log.e("DefaultCouponError", "Failure: ${t.localizedMessage}")
+                }
+
+                override fun onNoNetwork() {
+                    defaultCouponErrorLiveData.postValue("No network connection")
+                    Log.e("DefaultCouponError", "No network connection")
                 }
             })
         }

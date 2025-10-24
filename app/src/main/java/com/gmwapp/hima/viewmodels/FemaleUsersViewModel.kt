@@ -165,6 +165,8 @@ class FemaleUsersViewModel @Inject constructor(private val femaleUsersRepositori
 
                 override fun onFailure(call: Call<CallFemaleUserResponse>, t: Throwable) {
                     callFemaleUserErrorLiveData.postValue(DConstants.LOGIN_ERROR);
+                    Log.d("callFemaleUserResponseLiveData","${t.message}")
+
                 }
 
                 override fun onNoNetwork() {

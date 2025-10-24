@@ -53,11 +53,13 @@ class CouponActivity : AppCompatActivity(), CouponAdapter.OnCouponClickListener 
         val rvBestCoupons = findViewById<RecyclerView>(R.id.rv_bestCoupons)
         val ivBack = findViewById<ImageView>(R.id.iv_back)
         val coinID = BaseApplication.getInstance()?.getPrefs()?.getString("last_coin_id")
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val userId = userData?.id ?: 0
         Log.d("CoinIDSaved","$coinID")
 
 
         if (!coinID.isNullOrEmpty()) {
-            couponViewModel.getCoupons(coinID)
+            couponViewModel.getCoupons(coinID, userId)
         } else {
             Log.e("CouponActivity", "CoinID is null or empty")
         }
@@ -116,12 +118,12 @@ class CouponActivity : AppCompatActivity(), CouponAdapter.OnCouponClickListener 
                 binding.rvBestCoupons.layoutManager = LinearLayoutManager(this)
                 binding.rvBestCoupons.adapter = bestCouponsAdapter
             }else{
-                binding.tvBestCoupons.visibility= View.GONE
-                binding.tvMoreCoupons.setText("No Coupon Found")
-
-                (binding.tvMoreCoupons.layoutParams as LinearLayout.LayoutParams).setMargins(0, (150 * resources.displayMetrics.density).toInt(), 0, 0)
-
-                binding.tvMoreCoupons.gravity = Gravity.CENTER
+                // Show when no coupons are available
+                binding.rvBestCoupons.visibility = View.GONE
+                binding.rvMoreCoupons.visibility = View.GONE
+                binding.tvBestCoupons.visibility = View.GONE
+                binding.tvMoreCoupons.visibility = View.GONE
+                binding.tvNoCouponsAvailable.visibility = View.VISIBLE
             }
         })
 

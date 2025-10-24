@@ -264,14 +264,16 @@
                         <EditText
                             android:id="@+id/et_couponCode"
                             style="@style/EditTextStyle"
-                            android:hint="Enter Coupon Code"
+                            android:hint="Enter Coupon"
                             android:textCursorDrawable="@drawable/color_cursor"
                             android:textColor="@color/black"
                             android:textSize="14sp"
+                            android:enabled="false"
                             android:background="@android:color/transparent"
                             android:layout_weight="1"
                             android:paddingStart="@dimen/_8sdp"
-                            android:fontFamily="@font/poppins_medium" />
+                            android:fontFamily="@font/poppins_medium"
+                            android:inputType="textNoSuggestions" />
 
                         <TextView
                             android:id="@+id/tv_applied"

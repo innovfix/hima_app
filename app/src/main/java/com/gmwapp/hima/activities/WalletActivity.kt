@@ -1,7 +1,9 @@
 package com.gmwapp.hima.activities
 
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.util.Base64
@@ -115,6 +117,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 
     private val cfEnvironment = CFSession.Environment.PRODUCTION
 
+    var messageCameWhenIsAlive = 0
 
     private val activityResultLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -141,7 +144,15 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         setContentView(binding.root)
         
         // Set status bar colors
-        window.statusBarColor = resources.getColor(R.color.white, null)
+       // window.statusBarColor = resources.getColor(R.color.white, null)
+
+        window.statusBarColor = Color.parseColor("#2193b0") // startColor of your gradient
+
+        // Make status bar icons light (white) so they're visible on black background
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.decorView.systemUiVisibility = 0
+        }
+
         window.navigationBarColor = resources.getColor(android.R.color.white, null)
 
         fromDeepLink = intent.getBooleanExtra("from_deeplink", false)
@@ -151,11 +162,21 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         observeCoins()
         intializePhonpe()
 
+        messageCameWhenIsAlive = BaseApplication.getInstance()?.messageCameWhenIsAlive ?: 0
+
+
+
         onBackPressedDispatcher.addCallback(this) {
             if (fromDeepLink){
             startActivity(Intent(this@WalletActivity, MainActivity::class.java))
             finish()
-        }else{
+        }else if (messageCameWhenIsAlive == 0) {
+            val intent = Intent(this@WalletActivity, MainActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
+                startActivity(intent)
+                finish()
+            }else{
             finish()
         }
 
@@ -441,7 +462,15 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
             if (fromDeepLink){
                 startActivity(Intent(this@WalletActivity, MainActivity::class.java))
                 finish()
-            }else{
+            }else if (messageCameWhenIsAlive == 0) {
+                val intent = Intent(this@WalletActivity, MainActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                }
+                startActivity(intent)
+                finish()
+            }
+
+            else{
                 finish()
             }
         }
@@ -580,167 +609,168 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 
 
             // Navigate to PaymentActivity to show coupon options
-//            val intent = Intent(this@WalletActivity, PaymentActivity::class.java).apply {
-//                putExtra("AMOUNT", amount)
-//                putExtra("COIN_SELECTED", selectedCoin)
-//                putExtra("SAVE_PERCENT", selectedSavePercent)
-//            }
-//            startActivity(intent)
+            val intent = Intent(this@WalletActivity, PaymentActivity::class.java).apply {
+                putExtra("AMOUNT", amount)
+                putExtra("COIN_SELECTED", selectedCoin)
+                putExtra("SAVE_PERCENT", selectedSavePercent)
+            }
+            startActivity(intent)
+
 
            //  OLD CODE - Direct payment (commented out to enable coupon screen)
-            if (userId != null && pointsId.isNotEmpty()) {
-                if (pointsIdInt != null) {
-
-                    if (paymentGateway.isNotEmpty()) {
-
-                        when (paymentGateway) {
-
-                            "phonepe"->{
-
-                                if (isPhonePeInitialized){
-                                    fetchOrderFromBackend(pointsId)
-                                }
-                            }
-
-
-
-                            "gpay" -> {
-
-                                val random4Digit = (1000..9999).random()
-
-                                // ✅ Save userId and pointsIdInt BEFORE launching billing
-                                val preferences = DPreferences(this)
-                                preferences.clearSelectedOrderId()
-                                preferences.setSelectedUserId(userId.toString())
-                                preferences.setSelectedPlanId(java.lang.String.valueOf(pointsIdInt))
-                                preferences.setSelectedOrderId(java.lang.String.valueOf(random4Digit))
-                                WalletViewModel.tryCoins(userId, pointsIdInt, 0, random4Digit, "try")
-                                billingManager!!.purchaseProduct(
-                                   // "coin_14",
-                                  pointsId,
-                                )
-                                WalletViewModel.navigateToMain.observe(this, Observer { shouldNavigate ->
-
-                                    if (shouldNavigate) {
-                                        Toast.makeText(
-                                            this,
-                                            "Coin purchased successfully",
-                                            Toast.LENGTH_SHORT
-                                        )
-                                            .show()
-                                        userData?.id?.let { profileViewModel.getUsers(it) }
-
-                                        updatePurchaseOnMeta()
-
-                                        profileViewModel.getUserLiveData.observe(this, Observer {
-                                            it.data?.let { it1 ->
-                                                BaseApplication.getInstance()?.getPrefs()
-                                                    ?.setUserData(it1)
-                                            }
-                                            binding.tvCoins.text = it.data?.coins.toString()
-                                            WalletViewModel._navigateToMain.postValue(false)
-                                        })
-                                    } else {
-
-                                        profileViewModel.getUserLiveData.observe(this, Observer {
-                                            it.data?.let { it1 ->
-                                                BaseApplication.getInstance()?.getPrefs()
-                                                    ?.setUserData(it1)
-                                            }
-                                            binding.tvCoins.text = it.data?.coins.toString()
-
-                                        })
-                                    }
-                                })
-                            }
-
-                            "razorpay" -> {
-
-                                callNewRazorPay = apiService.callNewRazorPay(userId,pointsId)
-
-
-                                callNewRazorPay.enqueue(object : retrofit2.Callback<NewRazorpayLinkResponse> {
-                    override fun onResponse(call: retrofit2.Call<NewRazorpayLinkResponse>, response: retrofit2.Response<NewRazorpayLinkResponse>) {
-                        if (response.isSuccessful && response.body() != null) {
-                            val apiResponse = response.body()
-
-                            // Extract the Razorpay payment link
-                            val paymentUrl = apiResponse?.data?.short_url
-
-                            Log.d("paymentUrlRazorPay","$paymentUrl")
-
-                            if (!paymentUrl.isNullOrEmpty()) {
-
-                                val intent =Intent(this@WalletActivity, LauncherActivity::class.java)
-                                intent.setData(Uri.parse(paymentUrl))
-                                Log.d("paymentUrlRazorPay","$paymentUrl")
-                                startActivity(intent)
-
-//                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(paymentUrl))
+//            if (userId != null && pointsId.isNotEmpty()) {
+//                if (pointsIdInt != null) {
+//
+//                    if (paymentGateway.isNotEmpty()) {
+//
+//                        when (paymentGateway) {
+//
+//                            "phonepe"->{
+//
+//                                if (isPhonePeInitialized){
+//                                    fetchOrderFromBackend(pointsId)
+//                                }
+//                            }
+//
+//
+//
+//                            "gpay" -> {
+//
+//                                val random4Digit = (1000..9999).random()
+//
+//                                // ✅ Save userId and pointsIdInt BEFORE launching billing
+//                                val preferences = DPreferences(this)
+//                                preferences.clearSelectedOrderId()
+//                                preferences.setSelectedUserId(userId.toString())
+//                                preferences.setSelectedPlanId(java.lang.String.valueOf(pointsIdInt))
+//                                preferences.setSelectedOrderId(java.lang.String.valueOf(random4Digit))
+//                                WalletViewModel.tryCoins(userId, pointsIdInt, 0, random4Digit, "try")
+//                                billingManager!!.purchaseProduct(
+//                                   // "coin_14",
+//                                  pointsId,
+//                                )
+//                                WalletViewModel.navigateToMain.observe(this, Observer { shouldNavigate ->
+//
+//                                    if (shouldNavigate) {
+//                                        Toast.makeText(
+//                                            this,
+//                                            "Coin purchased successfully",
+//                                            Toast.LENGTH_SHORT
+//                                        )
+//                                            .show()
+//                                        userData?.id?.let { profileViewModel.getUsers(it) }
+//
+//                                        updatePurchaseOnMeta()
+//
+//                                        profileViewModel.getUserLiveData.observe(this, Observer {
+//                                            it.data?.let { it1 ->
+//                                                BaseApplication.getInstance()?.getPrefs()
+//                                                    ?.setUserData(it1)
+//                                            }
+//                                            binding.tvCoins.text = it.data?.coins.toString()
+//                                            WalletViewModel._navigateToMain.postValue(false)
+//                                        })
+//                                    } else {
+//
+//                                        profileViewModel.getUserLiveData.observe(this, Observer {
+//                                            it.data?.let { it1 ->
+//                                                BaseApplication.getInstance()?.getPrefs()
+//                                                    ?.setUserData(it1)
+//                                            }
+//                                            binding.tvCoins.text = it.data?.coins.toString()
+//
+//                                        })
+//                                    }
+//                                })
+//                            }
+//
+//                            "razorpay" -> {
+//
+//                                callNewRazorPay = apiService.callNewRazorPay(userId,pointsId)
+//
+//
+//                                callNewRazorPay.enqueue(object : retrofit2.Callback<NewRazorpayLinkResponse> {
+//                    override fun onResponse(call: retrofit2.Call<NewRazorpayLinkResponse>, response: retrofit2.Response<NewRazorpayLinkResponse>) {
+//                        if (response.isSuccessful && response.body() != null) {
+//                            val apiResponse = response.body()
+//
+//                            // Extract the Razorpay payment link
+//                            val paymentUrl = apiResponse?.data?.short_url
+//
+//                            Log.d("paymentUrlRazorPay","$paymentUrl")
+//
+//                            if (!paymentUrl.isNullOrEmpty()) {
+//
+//                                val intent =Intent(this@WalletActivity, LauncherActivity::class.java)
+//                                intent.setData(Uri.parse(paymentUrl))
+//                                Log.d("paymentUrlRazorPay","$paymentUrl")
 //                                startActivity(intent)
-                            } else {
-                                Toast.makeText(this@WalletActivity, "Failed to get payment link", Toast.LENGTH_SHORT).show()
-                            }
-                        } else {
-                            Toast.makeText(this@WalletActivity, "Error: ${response.errorBody()?.string()}", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-
-                    override fun onFailure(call: retrofit2.Call<NewRazorpayLinkResponse>, t: Throwable) {
-                        Toast.makeText(this@WalletActivity, "Failed: ${t.message}", Toast.LENGTH_SHORT).show()
-                    }
-                })
-                            }
-
-                            "cashfree"->{
-
-
-                                fetchOrderOfCashfree(pointsId)
-                            }
-
-
-
-                            "upigateway" -> {
-
-                                val amountValue = amount.toDoubleOrNull()
-                                if (amountValue == null) {
-                                    return@OnClickListener
-                                }
-
-
-                                val twoPercentage = amountValue * 0.02
-                                val roundedAmount = Math.round(twoPercentage)
-                                total_amount = (amountValue + roundedAmount).toString()
-
-                                Log.d("upigateway","Clicked")
-                                val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-                                var userid = userData?.id
-                                userid?.let {
-                                    val clientTxnId = generateRandomTxnId(
-                                        it,
-                                        pointsId
-                                    )  // Generate a new transaction ID
-                                    upiPaymentViewModel.createUpiPayment(it, clientTxnId, total_amount)
-                                }
-
-                            }
-
-
-                            else -> {
-                                Toast.makeText(this, "Invalid Payment Gateway", Toast.LENGTH_SHORT)
-                                    .show()
-                            }
-
-
-                        }
-                    }
-                }
-            } else {
-                Toast.makeText(this, "Invalid input data", Toast.LENGTH_SHORT).show()
-            }
-             // END of OLD CODE - Direct payment
-
-        })
+//
+////                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(paymentUrl))
+////                                startActivity(intent)
+//                            } else {
+//                                Toast.makeText(this@WalletActivity, "Failed to get payment link", Toast.LENGTH_SHORT).show()
+//                            }
+//                        } else {
+//                            Toast.makeText(this@WalletActivity, "Error: ${response.errorBody()?.string()}", Toast.LENGTH_SHORT).show()
+//                        }
+//                    }
+//
+//                    override fun onFailure(call: retrofit2.Call<NewRazorpayLinkResponse>, t: Throwable) {
+//                        Toast.makeText(this@WalletActivity, "Failed: ${t.message}", Toast.LENGTH_SHORT).show()
+//                    }
+//                })
+//                            }
+//
+//                            "cashfree"->{
+//
+//
+//                                fetchOrderOfCashfree(pointsId)
+//                            }
+//
+//
+//
+//                            "upigateway" -> {
+//
+//                                val amountValue = amount.toDoubleOrNull()
+//                                if (amountValue == null) {
+//                                    return@OnClickListener
+//                                }
+//
+//
+//                                val twoPercentage = amountValue * 0.02
+//                                val roundedAmount = Math.round(twoPercentage)
+//                                total_amount = (amountValue + roundedAmount).toString()
+//
+//                                Log.d("upigateway","Clicked")
+//                                val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+//                                var userid = userData?.id
+//                                userid?.let {
+//                                    val clientTxnId = generateRandomTxnId(
+//                                        it,
+//                                        pointsId
+//                                    )  // Generate a new transaction ID
+//                                    upiPaymentViewModel.createUpiPayment(it, clientTxnId, total_amount)
+//                                }
+//
+//                            }
+//
+//
+//                            else -> {
+//                                Toast.makeText(this, "Invalid Payment Gateway", Toast.LENGTH_SHORT)
+//                                    .show()
+//                            }
+//
+//
+//                        }
+//                    }
+//                }
+//            } else {
+//                Toast.makeText(this, "Invalid input data", Toast.LENGTH_SHORT).show()
+//            }
+//             // END of OLD CODE - Direct payment
+//
+       })
 
 
 

@@ -34,6 +34,7 @@ import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.viewmodels.UpiPaymentViewModel
 import com.gmwapp.hima.viewmodels.WalletViewModel
+import com.gmwapp.hima.viewmodels.CouponViewModel
 import com.google.androidbrowserhelper.trusted.LauncherActivity
 import com.phonepe.intent.sdk.api.PhonePeInitException
 import com.phonepe.intent.sdk.api.PhonePeKt
@@ -57,6 +58,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
     private var billingManager: BillingManager? = null
     val profileViewModel: ProfileViewModel by viewModels()
     private val upiPaymentViewModel: UpiPaymentViewModel by viewModels()
+    private val couponViewModel: CouponViewModel by viewModels()
 
 
     private lateinit var callNewRazorPay: Call<NewRazorpayLinkResponse>
@@ -121,6 +123,8 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         val save = intent.getStringExtra("SAVE")
         val coins = intent.getStringExtra("COINS")
         val offer = intent.getStringExtra("OFFER")  // Get offer text from coupon
+        val coinId = BaseApplication.getInstance()?.getPrefs()?.getString("last_coin_id") ?: ""
+        val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
 
         Log.d("couponcode","$couponCode")
         Log.d("couponcode","$originalPrice")
@@ -144,7 +148,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         binding.llAllCoupons.setOnClickListener {
             var intent = Intent(this, CouponActivity::class.java)
             startActivity(intent)
-            binding.etCouponCode.text.clear()
+           // binding.etCouponCode.text.clear()
 
         }
 
@@ -155,6 +159,64 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
             finish()
         }
 
+        // ✅ Call the default coupon API
+        if (userId != 0 && coinId.isNotEmpty()) {
+            observeDefaultCoupon()
+            couponViewModel.getDefaultCoupon(userId, coinId)
+        } else {
+            // Use existing data if no user or coin id
+            updateUIWithCoupon(couponCode, originalPrice, discountedPrice, save, coins, offer)
+        }
+    }
+
+    private fun observeDefaultCoupon() {
+        couponViewModel.defaultCouponLiveData.observe(this, Observer { response ->
+            if (response?.success == true && response.default_coupon_enabled && response.data != null) {
+                // API returned a default coupon
+                val data = response.data
+                val newCouponCode = data.coupon_code
+                val newOriginalPrice = data.original_price?.toString()?.let { "₹$it" } ?: "₹0"
+                val newDiscountedPrice = data.discount_price?.let { "₹$it" } ?: "₹0"
+                val newSave = data.save_price?.replace("₹", "")?.replace("Save ", "")?.trim()
+                val newCoins = data.coins?.toString()?.let { "$it Coins" } ?: "0 Coins"
+                val newOffer = data.offer
+
+                Log.d("DefaultCoupon", "Coupon applied from API: $newCouponCode")
+                updateUIWithCoupon(newCouponCode, newOriginalPrice, newDiscountedPrice, newSave, newCoins, newOffer)
+            } else {
+                // API returned false or no data, use existing data
+                Log.d("DefaultCoupon", "No default coupon, using existing data")
+                val couponCode = intent.getStringExtra("COUPON_CODE")
+                val originalPrice = intent.getStringExtra("ORIGINAL_PRICE")
+                val discountedPrice = intent.getStringExtra("DISCOUNTED_PRICE")
+                val save = intent.getStringExtra("SAVE")
+                val coins = intent.getStringExtra("COINS")
+                val offer = intent.getStringExtra("OFFER")
+                updateUIWithCoupon(couponCode, originalPrice, discountedPrice, save, coins, offer)
+            }
+        })
+
+        couponViewModel.defaultCouponErrorLiveData.observe(this, Observer { error ->
+            Log.e("DefaultCouponError", "Error: $error")
+            // Use existing data on error
+            val couponCode = intent.getStringExtra("COUPON_CODE")
+            val originalPrice = intent.getStringExtra("ORIGINAL_PRICE")
+            val discountedPrice = intent.getStringExtra("DISCOUNTED_PRICE")
+            val save = intent.getStringExtra("SAVE")
+            val coins = intent.getStringExtra("COINS")
+            val offer = intent.getStringExtra("OFFER")
+            updateUIWithCoupon(couponCode, originalPrice, discountedPrice, save, coins, offer)
+        })
+    }
+
+    private fun updateUIWithCoupon(
+        couponCode: String?,
+        originalPrice: String?,
+        discountedPrice: String?,
+        save: String?,
+        coins: String?,
+        offer: String?
+    ) {
         val cleanedCouponCode = couponCode?.trim()
         binding.etCouponCode.clearFocus()
         binding.etCouponCode.error = null
@@ -163,10 +225,17 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         if (couponCode != null && originalPrice != null && discountedPrice != null && save != null) {
             binding.etCouponCode.setText(couponCode)
             binding.tvTotalAmount.text = "$originalPrice" // Set original price
-            binding.tvFinalAmount.text = "$originalPrice" // Use a different field for discounted price
+            binding.tvFinalAmount.text = "$discountedPrice" // Use a different field for discounted price
             // Show offer text with "Save" prefix (e.g., "Save 40%")
             binding.tvSavePercent.text = formatOfferText(offer, save)
             binding.tvCoinsText.text = coins
+            
+            // ✅ Show coupon applied indicators
+            binding.tvApplied.visibility = View.VISIBLE
+            binding.ivCorrect.visibility = View.VISIBLE
+            
+            // ✅ Disable EditText when coupon is applied
+            binding.etCouponCode.isEnabled = false
         }
     }
 
@@ -200,6 +269,15 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
             // Show offer text with "Save" prefix (e.g., "Save 40%")
             binding.tvSavePercent.text = formatOfferText(offer, save)
             binding.tvCoinsText.text = coins+" Coins"
+
+            // ✅ Show coupon applied indicators
+            if (couponCode != null && save != null) {
+                binding.tvApplied.visibility = View.VISIBLE
+                binding.ivCorrect.visibility = View.VISIBLE
+                
+                // ✅ Disable EditText when coupon is applied
+                binding.etCouponCode.isEnabled = false
+            }
 
             Log.d("PaymentActivityCheck", "Coupon Code: $couponCode")
             Log.d("PaymentActivity", "Original Price: $originalPrice")

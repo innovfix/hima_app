@@ -58,7 +58,7 @@ class BaseApplication : Application(), Configuration.Provider {
     private var mediaPlayer: MediaPlayer? = null
     private var endCallUpdatePending: Boolean? = null
     // val ONESIGNAL_APP_ID = "2c7d72ae-8f09-48ea-a3c8-68d9c913c592"
-    val ONESIGNAL_APP_ID = "5cd4154a-1ece-4c3b-b6af-e88bafee64cd"
+    val ONESIGNAL_APP_ID = "50cedb09-a202-455f-8c7b-683f4958df43"
 
     //val testingOneSingalAppId = "b5aee4f0-ef38-4116-a04d-ee279ee1f11f"
     private lateinit var sharedPreferences: SharedPreferences
@@ -207,6 +207,14 @@ class BaseApplication : Application(), Configuration.Provider {
                     if (type == "message") {
                         Log.d("OneSignalClick", "✅ App OPEN - Opening ChatListActivity")
                         val intent = Intent(applicationContext, com.gmwapp.hima.activities.ChatListActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        }
+                        startActivity(intent)
+                    }
+
+                   else if (type == "coupon_enabled") {
+                        Log.d("OneSignalClick", "✅ App OPEN - Opening WalletActivity")
+                        val intent = Intent(applicationContext, com.gmwapp.hima.activities.WalletActivity::class.java).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                         }
                         startActivity(intent)

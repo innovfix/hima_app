@@ -1,0 +1,51 @@
+Test Case ID,Test Case Name,Steps,Expected Result
+TC001,Default Coupon Applied,"1. Go to Wallet
+2. Select coin
+3. Click Add Coins
+4. Payment Activity opens","Coupon applied automatically
+Coupon code shown
+Applied badge visible"
+TC002,Coupon Code Displayed,"1. Payment Activity open
+2. Check coupon field","Coupon code visible in EditText
+EditText disabled
+Applied indicator visible"
+TC003,Discount Calculation,"1. Payment Activity with coupon
+2. Check amounts","Original price shown
+Final discounted amount shown
+Savings displayed"
+TC004,API Success,"1. Payment Activity loads
+2. API call completes","Coupon data received
+UI updated correctly
+No crashes"
+TC005,API Failure Fallback,"1. Payment Activity opens
+2. API fails/no network","Uses existing coupon data
+Activity works normally
+No errors shown"
+TC006,Price Update,"1. Open Payment Activity
+2. Coupon auto-applied","Final amount = discounted price
+Not original price
+Calculation correct"
+TC007,Multiple Coins,"1. Apply coupon on 500 coins
+2. Change to 1000 coins
+3. Re-apply","New coupon applied correctly
+Prices updated for new coin
+No data mix-up"
+TC008,Open Coupon Activity,"1. Payment Activity open
+2. Click 'View all coupons'","CouponActivity opens
+Coupon list displayed
+Best offers visible"
+TC009,Select Coupon,"1. CouponActivity open
+2. See coupon list
+3. Select a coupon","Coupon highlighted
+Coupon details visible
+Apply button ready"
+TC010,Apply Coupon Button,"1. Select coupon
+2. Click APPLY button
+3. Success dialog shows","Success dialog displayed
+Coupon code shown
+Discount amount shown"
+TC011,Return to Payment,"1. Click Continue on success dialog
+2. Return to Payment Activity","Back to Payment Activity
+Coupon applied
+Prices updated
+Applied badge visible"

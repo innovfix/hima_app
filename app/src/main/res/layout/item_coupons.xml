@@ -140,8 +140,8 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
-                    android:paddingStart="8dp"
-                    android:paddingEnd="8dp"
+                    android:paddingStart="3dp"
+                    android:paddingEnd="3dp"
                     android:paddingTop="5dp"
                     android:paddingBottom="5dp">
 

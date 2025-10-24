@@ -57,6 +57,7 @@ import com.gmwapp.hima.retrofit.responses.VoiceUpdateResponse
 import com.gmwapp.hima.retrofit.responses.WhatsappLinkResponse
 import com.gmwapp.hima.retrofit.responses.WithdrawResponse
 import com.gmwapp.hima.retrofit.responses.ZohoMailResponse
+import com.gmwapp.hima.retrofit.responses.DefaultCouponResponse
 import com.gmwapp.hima.utils.Helper
 import okhttp3.MultipartBody
 import retrofit2.Call
@@ -724,10 +725,21 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     }
 
     fun getCoupons(
-        coinID: String?, callback: NetworkCallback<CouponsResponse>
+        coinID: String?, userId: Int, callback: NetworkCallback<CouponsResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<CouponsResponse> = getApiInterface().getCoupons(coinID)
+            val apiCall: Call<CouponsResponse> = getApiInterface().getCoupons(coinID, userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getDefaultCoupon(
+        userId: Int, coinsId: String, callback: NetworkCallback<DefaultCouponResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<DefaultCouponResponse> = getApiInterface().getDefaultCoupon(userId, coinsId)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1337,9 +1349,16 @@ interface ApiInterface {
     @FormUrlEncoded
     @POST("coupons_list")
     fun getCoupons(
-        @Field("coins_id") coinID: String?
+        @Field("coins_id") coinID: String?,
+        @Field("user_id") userId: Int
     ): Call<CouponsResponse>
 
+    @FormUrlEncoded
+    @POST("default_coupon_applied")
+    fun getDefaultCoupon(
+        @Field("user_id") userId: Int,
+        @Field("coins_id") coinsId: String
+    ): Call<DefaultCouponResponse>
 
     @FormUrlEncoded
     @POST("zohomail_list")
