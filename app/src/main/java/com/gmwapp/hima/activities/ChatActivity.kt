@@ -238,12 +238,6 @@ class ChatActivity : AppCompatActivity() {
                     messages.addAll(tempMessages.reversed())
                     
                     Log.d("ChatActivity", "✅ Loaded ${messages.size} messages (limited to 50), notifying adapter")
-
-                        messages.add(message)
-                    }
-
-                    Log.d("ChatActivity", "✅ Loaded ${messages.size} messages, notifying adapter")
-
                     chatAdapter.notifyDataSetChanged()
 
                     // Scroll to bottom
