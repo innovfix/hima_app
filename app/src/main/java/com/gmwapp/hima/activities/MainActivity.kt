@@ -204,8 +204,17 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         setContentView(binding.root)
         
         // Set status bar color to pink
-        window.statusBarColor = ContextCompat.getColor(this, R.color.pink)
+        // Set colors
+        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
         window.navigationBarColor = ContextCompat.getColor(this, android.R.color.white)
+
+        // ✅ SIMPLE: Set status bar icons to LIGHT (white) - works on all devices
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.setSystemBarsAppearance(
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+            )
+        }
         
         // CRITICAL: Ensure bottom navigation is always visible
         binding.bottomNavigationView.elevation = 50f
@@ -225,7 +234,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             binding.bottomNavigationView.visibility = View.VISIBLE
             binding.bottomNavigationView.bringToFront()
             // Ensure status bar stays pink
-            window.statusBarColor = ContextCompat.getColor(this, R.color.pink)
+            window.statusBarColor = ContextCompat.getColor(this, R.color.white)
         }
         BaseApplication.getInstance()?.messageCameWhenIsAlive = 1
 
@@ -622,7 +631,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         when (item.itemId) {
             R.id.home -> {
                 // Set status bar to pink
-                window.statusBarColor = ContextCompat.getColor(this, R.color.pink)
+                window.statusBarColor = ContextCompat.getColor(this, R.color.white)
                 
                 val homeFragment = if (BaseApplication.getInstance()?.getPrefs()
                         ?.getUserData()?.gender == DConstants.FEMALE
@@ -633,7 +642,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
             R.id.recent -> {
                 // Set status bar to pink
-                window.statusBarColor = ContextCompat.getColor(this, R.color.pink)
+                window.statusBarColor = ContextCompat.getColor(this, R.color.white)
                 
                 transaction.replace(R.id.flFragment, RecentFragment()).commit()
                 return true
@@ -641,7 +650,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
             R.id.profile -> {
                 // Set status bar to pink
-                window.statusBarColor = ContextCompat.getColor(this, R.color.pink)
+                window.statusBarColor = ContextCompat.getColor(this, R.color.grey_extra_light)
                 
                 if (BaseApplication.getInstance()?.getPrefs()
                         ?.getUserData()?.gender == DConstants.MALE
