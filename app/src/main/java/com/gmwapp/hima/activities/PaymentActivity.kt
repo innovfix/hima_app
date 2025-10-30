@@ -70,6 +70,10 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
     private var isPhonePeInitialized = false
     private var cashfreeLastOrderId: String = ""
     private val cfEnvironment = CFSession.Environment.PRODUCTION
+    
+    // ✅ ADD THESE VARIABLES TO STORE COUPON DATA
+    private var selectedCouponId: String = ""
+    private var selectedCouponCode: String = ""
 
     private val activityResultLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -123,6 +127,9 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         val save = intent.getStringExtra("SAVE")
         val coins = intent.getStringExtra("COINS")
         val offer = intent.getStringExtra("OFFER")  // Get offer text from coupon
+        // ✅ ADD THIS LINE TO GET COUPON_ID
+        selectedCouponId = intent.getStringExtra("COUPON_ID") ?: ""
+        
         val coinId = BaseApplication.getInstance()?.getPrefs()?.getString("last_coin_id") ?: ""
         val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
 
@@ -131,6 +138,8 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         Log.d("couponcode","$discountedPrice")
         Log.d("couponcode","$save")
         Log.d("couponcode","Offer: $offer")
+        // ✅ LOG THE COUPON_ID
+        Log.d("couponcode","Coupon ID: $selectedCouponId")
 
         binding.tvCoinsText.text = coinSelected + " Coins"
         binding.tvTotalAmount.text = "₹$amount"
@@ -159,10 +168,19 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
             finish()
         }
 
-        // ✅ Call the default coupon API
+        // ✅ Call the default coupon API ONLY if user didn't select a coupon
         if (userId != 0 && coinId.isNotEmpty()) {
-            observeDefaultCoupon()
-            couponViewModel.getDefaultCoupon(userId, coinId)
+            // Check if user selected a coupon from CouponActivity
+            if (selectedCouponId.isEmpty()) {
+                // No coupon selected, fetch default coupon
+                observeDefaultCoupon()
+                couponViewModel.getDefaultCoupon(userId, coinId)
+                Log.d("CouponLogic", "No user coupon selected, fetching default coupon")
+            } else {
+                // User already selected a coupon, don't override it
+                Log.d("CouponLogic", "User selected coupon with ID: $selectedCouponId, skipping default coupon fetch")
+                updateUIWithCoupon(couponCode, originalPrice, discountedPrice, save, coins, offer)
+            }
         } else {
             // Use existing data if no user or coin id
             updateUIWithCoupon(couponCode, originalPrice, discountedPrice, save, coins, offer)
@@ -180,8 +198,11 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
                 val newSave = data.save_price?.replace("₹", "")?.replace("Save ", "")?.trim()
                 val newCoins = data.coins?.toString()?.let { "$it Coins" } ?: "0 Coins"
                 val newOffer = data.offer
+                // ✅ ADD THIS LINE TO STORE DEFAULT COUPON_ID
+                selectedCouponId = data.id?.toString() ?: ""
 
                 Log.d("DefaultCoupon", "Coupon applied from API: $newCouponCode")
+                Log.d("DefaultCoupon", "Coupon ID: $selectedCouponId")
                 updateUIWithCoupon(newCouponCode, newOriginalPrice, newDiscountedPrice, newSave, newCoins, newOffer)
             } else {
                 // API returned false or no data, use existing data
@@ -257,6 +278,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
     private fun handleIntent(intent: Intent?) {
         intent?.let {
             val couponCode = it.getStringExtra("COUPON_CODE")
+            val couponid = it.getStringExtra("COUPON_ID")
             val originalPrice = it.getStringExtra("ORIGINAL_PRICE")
             val discountedPrice = it.getStringExtra("DISCOUNTED_PRICE")
             val coins = it.getStringExtra("COINS")
@@ -274,7 +296,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
             if (couponCode != null && save != null) {
                 binding.tvApplied.visibility = View.VISIBLE
                 binding.ivCorrect.visibility = View.VISIBLE
-                
+                selectedCouponId = couponid.toString()
                 // ✅ Disable EditText when coupon is applied
                 binding.etCouponCode.isEnabled = false
             }
@@ -530,32 +552,62 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
                 val resultStr = response.body?.string()
-                val json = JSONObject(resultStr)
-                val phonePeStatus = json.getJSONObject("phonepe_status")
-                val state = phonePeStatus.getString("state")
-
-                val localRecord = json.getJSONObject("local_record")
-                val coin_id = localRecord.getString("coin_id")
-                val order_id = localRecord.getString("order_id")
-                Log.d("PhonePeOrderStatus", "Order Status: $resultStr")
-                Log.d("PhonePeOrderState", "Order State: $state,  Coin_id : $coin_id , Order_id :$order_id ")
                 Log.d("PhoneperesultStr", "$resultStr")
-
-
-                if (state=="COMPLETED"){
-                    runOnUiThread{
-                        Toast.makeText(this@PaymentActivity, "Payment Successful", Toast.LENGTH_LONG).show()
-                        user_id?.let { WalletViewModel.addCoins(it, coin_id, 1, order_id, "Coins purchased") }
-                        observeAddCoins()
-                        updatePurchaseOnMeta()
+                
+                try {
+                    val json = JSONObject(resultStr)
+                    
+                    // ✅ SAFELY GET phonepe_status
+                    if (!json.has("phonepe_status")) {
+                        Log.e("PhonePeError", "phonepe_status not found in response. Response: $resultStr")
+                        runOnUiThread {
+                            Toast.makeText(this@PaymentActivity, "Invalid response: missing phonepe_status", Toast.LENGTH_SHORT).show()
+                        }
+                        return
                     }
+                    
+                    val phonePeStatus = json.getJSONObject("phonepe_status")
+                    val state = phonePeStatus.optString("state", "UNKNOWN")
+                    
+                    // ✅ SAFELY GET local_record
+                    if (!json.has("local_record") || json.isNull("local_record")) {
+                        Log.e("PhonePeError", "local_record not found or null in response. Response: $resultStr")
+                        runOnUiThread {
+                            Toast.makeText(this@PaymentActivity, "Invalid response: missing local_record", Toast.LENGTH_SHORT).show()
+                        }
+                        return
+                    }
+                    
+                    val localRecord = json.getJSONObject("local_record")
+                    val coin_id = localRecord.optString("coin_id", "")
+                    val order_id = localRecord.optString("order_id", "")
+                    
+                    Log.d("PhonePeOrderStatus", "Order Status: $resultStr")
+                    Log.d("PhonePeOrderState", "Order State: $state,  Coin_id : $coin_id , Order_id :$order_id ")
 
-                }else{
-                    runOnUiThread{
-                        Toast.makeText(this@PaymentActivity, "Payment Failed", Toast.LENGTH_LONG).show()
+                    if (state == "COMPLETED") {
+                        runOnUiThread {
+                            Toast.makeText(this@PaymentActivity, "Payment Successful", Toast.LENGTH_LONG).show()
+                            if (coin_id.isNotEmpty() && order_id.isNotEmpty()) {
+                                user_id?.let { WalletViewModel.addCoins(it, coin_id, 1, order_id, "Coins purchased") }
+                                observeAddCoins()
+                                updatePurchaseOnMeta()
+                            } else {
+                                Log.e("PhonePeError", "Missing coin_id or order_id. coin_id=$coin_id, order_id=$order_id")
+                                Toast.makeText(this@PaymentActivity, "Error: Missing coin_id or order_id", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    } else {
+                        runOnUiThread {
+                            Toast.makeText(this@PaymentActivity, "Payment Failed", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("PhonePeException", "Error parsing response: ${e.message}\nResponse: $resultStr")
+                    runOnUiThread {
+                        Toast.makeText(this@PaymentActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
                     }
                 }
-
             }
         })
     }
@@ -586,12 +638,20 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val user_id = userData?.id.toString()
+        // ✅ SET COUPON_ID TO "0" IF EMPTY
+        val couponIdToPass = if (selectedCouponId.isNotEmpty()) selectedCouponId else "0"
+        Log.d("couponIdToPass","$couponIdToPass")
+
+
         val formBody = FormBody.Builder()
             .add("user_id", user_id)
             .add("coins_id", coinId)
+            // ✅ ALWAYS PASS COUPON_ID (0 if empty)
+            .add("coupon_id", couponIdToPass)
             .build()
 
         Log.d("SelectedCoinID", " $coinId")
+        Log.d("PhonePeRequest", "Coupon ID: $couponIdToPass")
 
         val request = Request.Builder()
             .url("https://himaapp.in/api/phonepe/live/create-order") // Should return { token, orderId }
@@ -735,12 +795,21 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         val user_id = userData?.id
         val client = OkHttpClient()
 
+        // ✅ SET COUPON_ID TO "0" IF EMPTY
+        val couponIdToPass = if (selectedCouponId.isNotEmpty()) selectedCouponId else "0"
+        Log.d("couponIdToPass","$couponIdToPass")
+
+        // ✅ ALWAYS INCLUDE COUPON_ID IN JSON BODY (0 if empty)
         val json = """{
         "user_id": "$user_id",
-        "coins_id": "$coinId"
+        "coins_id": "$coinId",
+        "coupon_id": "$couponIdToPass"
     }"""
         val mediaType = "application/json".toMediaTypeOrNull()
         val body = RequestBody.create(mediaType, json)
+        
+        // ✅ LOG THE REQUEST
+        Log.d("CashfreeRequest", "Request Body: $json")
 
         val request = Request.Builder()
             .url("https://himaapp.in/api/cashfree/create-order")
@@ -837,6 +906,17 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
                 }
             }
         })
+    }
+
+    override fun onResume() {
+        super.onResume()
+
+        Log.d("cashfreeLastOrderId","$cashfreeLastOrderId")
+        if (cashfreeLastOrderId.isNotEmpty()){
+            checkCashfreeOderStatus(cashfreeLastOrderId)
+            cashfreeLastOrderId = "" // reset so it won't run again
+
+        }
     }
 
 }

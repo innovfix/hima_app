@@ -141,16 +141,22 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityWalletBinding.inflate(layoutInflater)
+        enableEdgeToEdge()
         setContentView(binding.root)
         
         // Set status bar colors
        // window.statusBarColor = resources.getColor(R.color.white, null)
 
-        window.statusBarColor = Color.parseColor("#2193b0") // startColor of your gradient
+//        window.statusBarColor = Color.parseColor("#2193b0") // startColor of your gradient
+
+        window.statusBarColor = Color.parseColor("#ffffff") // startColor of your gradient
 
         // Make status bar icons light (white) so they're visible on black background
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.decorView.systemUiVisibility = 0
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.setSystemBarsAppearance(
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+            )
         }
 
         window.navigationBarColor = resources.getColor(android.R.color.white, null)

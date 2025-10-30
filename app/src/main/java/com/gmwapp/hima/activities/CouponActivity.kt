@@ -131,9 +131,9 @@ class CouponActivity : AppCompatActivity(), CouponAdapter.OnCouponClickListener 
 
 
         binding.ivBack.setOnClickListener {
-//            var intent = Intent(this, PaymentActivity::class.java)
-//            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-//            startActivity(intent)
+            var intent = Intent(this, PaymentActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            startActivity(intent)
             finish()
         }
 
@@ -227,6 +227,7 @@ class CouponActivity : AppCompatActivity(), CouponAdapter.OnCouponClickListener 
             onContinueClick = {
                 // Navigate to Payment Activity after dialog
                 val intent = Intent(this, PaymentActivity::class.java).apply {
+                    putExtra("COUPON_ID", coupon.id)  // ✅ ADD THIS LINE
                     putExtra("COUPON_CODE", coupon.couponCode)
                     putExtra("ORIGINAL_PRICE", coupon.originalPrice)
                     putExtra("DISCOUNTED_PRICE", coupon.discountedPrice)
