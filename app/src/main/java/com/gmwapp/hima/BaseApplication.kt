@@ -603,5 +603,6 @@ class BaseApplication : Application(), Configuration.Provider {
                     current::class.java.simpleName == "FriendsListActivity"
         } ?: false
     }
+//
 
 }
