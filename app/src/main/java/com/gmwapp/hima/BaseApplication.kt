@@ -27,6 +27,8 @@ import com.gmwapp.hima.repositories.FcmNotificationRepository
 import com.gmwapp.hima.utils.DPreferences
 import com.google.firebase.FirebaseApp
 import com.google.firebase.analytics.FirebaseAnalytics
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreSettings
 import com.onesignal.OneSignal
 import com.onesignal.debug.LogLevel
 import com.zoho.salesiqembed.ZohoSalesIQ
@@ -149,6 +151,21 @@ class BaseApplication : Application(), Configuration.Provider {
         mInstance = this
         mPreferences = DPreferences(this)
         FirebaseApp.initializeApp(this)
+        
+        // ✅ CRITICAL FIX: Enable Firestore offline persistence
+        // This caches data locally and dramatically reduces duplicate reads
+        try {
+            val firestore = FirebaseFirestore.getInstance()
+            val settings = FirebaseFirestoreSettings.Builder()
+                .setPersistenceEnabled(true)  // ✅ Enable offline cache
+                .setCacheSizeBytes(100 * 1024 * 1024)  // 100MB cache (default is 40MB)
+                .build()
+            firestore.firestoreSettings = settings
+            Log.d("FirestoreCache", "✅ Offline persistence enabled with 100MB cache")
+        } catch (e: Exception) {
+            Log.e("FirestoreCache", "❌ Failed to enable persistence: ${e.message}")
+        }
+        
         registerReceiver(ShutdownReceiver(), IntentFilter(Intent.ACTION_SHUTDOWN));
         if(BuildConfig.DEBUG) {
             OneSignal.Debug.logLevel = LogLevel.VERBOSE
@@ -604,5 +621,6 @@ class BaseApplication : Application(), Configuration.Provider {
         } ?: false
     }
 //
+
 
 }
