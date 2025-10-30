@@ -29,6 +29,8 @@ import com.google.android.flexbox.FlexboxItemDecoration
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
 import dagger.hilt.android.AndroidEntryPoint
+import com.google.firebase.FirebaseApp
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 
@@ -352,7 +354,7 @@ class EditProfileActivity : BaseActivity() {
             return
         }
         
-        val db = Firebase.firestore
+        val db = FirebaseFirestore.getInstance(FirebaseApp.getInstance(), "himadatabase")
         
         // Get all chat threads where this user is a participant
         Log.d("ProfileUpdate", "🔍 Querying chats collection for userId: $userId")
@@ -392,7 +394,7 @@ class EditProfileActivity : BaseActivity() {
     private fun findAndUpdateThreadsByDirectQuery(userId: Int, imageUrl: String) {
         Log.d("ProfileUpdate", "🔍 Trying fallback approach - scanning all chat threads")
         
-        val db = Firebase.firestore
+        val db = FirebaseFirestore.getInstance(FirebaseApp.getInstance(), "himadatabase")
         val userIdStr = userId.toString()
         
         db.collection("chats")

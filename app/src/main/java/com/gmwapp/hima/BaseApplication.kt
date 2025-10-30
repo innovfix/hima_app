@@ -29,6 +29,8 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreSettings
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
 import com.onesignal.OneSignal
 import com.onesignal.debug.LogLevel
 import com.zoho.salesiqembed.ZohoSalesIQ
@@ -60,7 +62,7 @@ class BaseApplication : Application(), Configuration.Provider {
     private var mediaPlayer: MediaPlayer? = null
     private var endCallUpdatePending: Boolean? = null
     // val ONESIGNAL_APP_ID = "2c7d72ae-8f09-48ea-a3c8-68d9c913c592"
-    val ONESIGNAL_APP_ID = "5cd4154a-1ece-4c3b-b6af-e88bafee64cd"
+    val ONESIGNAL_APP_ID = "50cedb09-a202-455f-8c7b-683f4958df43"
 
     //val testingOneSingalAppId = "b5aee4f0-ef38-4116-a04d-ee279ee1f11f"
     private lateinit var sharedPreferences: SharedPreferences
@@ -152,19 +154,14 @@ class BaseApplication : Application(), Configuration.Provider {
         mPreferences = DPreferences(this)
         FirebaseApp.initializeApp(this)
         
-        // ✅ CRITICAL FIX: Enable Firestore offline persistence
-        // This caches data locally and dramatically reduces duplicate reads
-        try {
-            val firestore = FirebaseFirestore.getInstance()
-            val settings = FirebaseFirestoreSettings.Builder()
-                .setPersistenceEnabled(true)  // ✅ Enable offline cache
-                .setCacheSizeBytes(100 * 1024 * 1024)  // 100MB cache (default is 40MB)
-                .build()
-            firestore.firestoreSettings = settings
-            Log.d("FirestoreCache", "✅ Offline persistence enabled with 100MB cache")
-        } catch (e: Exception) {
-            Log.e("FirestoreCache", "❌ Failed to enable persistence: ${e.message}")
-        }
+        // ✅ Connect to "himadatabase" explicitly with offline persistence
+        val firestoreSettings = FirebaseFirestoreSettings.Builder()
+            .setPersistenceEnabled(true)  // Enable offline cache
+            .build()
+        
+        // Get Firestore instance for "himadatabase" database
+        val db = FirebaseFirestore.getInstance(FirebaseApp.getInstance(), "himadatabase")
+        db.firestoreSettings = firestoreSettings
         
         registerReceiver(ShutdownReceiver(), IntentFilter(Intent.ACTION_SHUTDOWN));
         if(BuildConfig.DEBUG) {
@@ -224,14 +221,6 @@ class BaseApplication : Application(), Configuration.Provider {
                     if (type == "message") {
                         Log.d("OneSignalClick", "✅ App OPEN - Opening ChatListActivity")
                         val intent = Intent(applicationContext, com.gmwapp.hima.activities.ChatListActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                        }
-                        startActivity(intent)
-                    }
-
-                   else if (type == "coupon_enabled") {
-                        Log.d("OneSignalClick", "✅ App OPEN - Opening WalletActivity")
-                        val intent = Intent(applicationContext, com.gmwapp.hima.activities.WalletActivity::class.java).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                         }
                         startActivity(intent)
@@ -620,7 +609,5 @@ class BaseApplication : Application(), Configuration.Provider {
                     current::class.java.simpleName == "FriendsListActivity"
         } ?: false
     }
-//
-
 
 }

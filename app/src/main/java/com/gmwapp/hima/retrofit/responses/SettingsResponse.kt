@@ -22,7 +22,10 @@ data class SettingsResponseData(
     val auto_disable_info: String?,
 
     @SerializedName("block_words\t")
-    val block_words_raw: String?
+    val block_words_raw: String?,
+    
+    val audio_income: Int?,
+    val video_income: Int?
 ) {
     // Computed property to get List<String>
     val blockWords: List<String>

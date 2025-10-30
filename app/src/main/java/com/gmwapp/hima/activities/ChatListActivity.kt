@@ -17,7 +17,9 @@ import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.ChatListAdapter
 import com.gmwapp.hima.models.ChatConversation
+import com.google.firebase.FirebaseApp
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
@@ -33,7 +35,7 @@ class ChatListActivity : AppCompatActivity() {
 
     private lateinit var chatListAdapter: ChatListAdapter
     private val conversations = ArrayList<ChatConversation>()
-    private val db by lazy { Firebase.firestore }
+    private val db by lazy { FirebaseFirestore.getInstance(FirebaseApp.getInstance(), "himadatabase") }
     private var myUserId: String = ""
     
     // Track conversations by threadId for real-time updates

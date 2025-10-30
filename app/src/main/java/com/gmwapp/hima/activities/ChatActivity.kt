@@ -23,8 +23,11 @@ import com.gmwapp.hima.adapters.ChatAdapter
 import com.gmwapp.hima.models.ChatMessage
 import com.gmwapp.hima.viewmodels.MessageNotificationViewModel
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.firebase.FirebaseApp
 import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.SetOptions
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import dagger.hilt.android.AndroidEntryPoint
@@ -54,8 +57,8 @@ class ChatActivity : AppCompatActivity() {
     private lateinit var chatAdapter: ChatAdapter
     private val messages = mutableListOf<ChatMessage>()
 
-    // Firestore instance
-    private val db by lazy { Firebase.firestore }
+    // Firestore instance - connected to "himadatabase"
+    private val db by lazy { FirebaseFirestore.getInstance(FirebaseApp.getInstance(), "himadatabase") }
 
     // Message Notification ViewModel
     private val messageNotificationViewModel: MessageNotificationViewModel by viewModels()
@@ -217,17 +220,15 @@ class ChatActivity : AppCompatActivity() {
                             }
                         }
 
-                        val timeString = if (timestamp != null) {
-                            SimpleDateFormat("hh:mm a", Locale.getDefault()).format(timestamp.toDate())
-                        } else {
-                            SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
-                        }
+                        val messageDate = timestamp?.toDate() ?: Date()
+                        val timeString = formatMessageTime(messageDate)  // Only time, no date
 
                         val message = ChatMessage(
                             id = doc.id,
                             message = text,
                             timestamp = timeString,
-                            isSentByMe = fromId == myUserId
+                            isSentByMe = fromId == myUserId,
+                            date = messageDate  // Store Date object for date grouping
                         )
 
                         
@@ -235,7 +236,10 @@ class ChatActivity : AppCompatActivity() {
                     }
                     
                     // ✅ Reverse to show oldest first (since we queried DESCENDING)
-                    messages.addAll(tempMessages.reversed())
+                    val reversedMessages = tempMessages.reversed()
+                    
+                    // ✅ Insert date headers between message groups (like WhatsApp)
+                    messages.addAll(insertDateHeaders(reversedMessages))
                     
                     Log.d("ChatActivity", "✅ Loaded ${messages.size} messages (limited to 50), notifying adapter")
                     chatAdapter.notifyDataSetChanged()
@@ -558,7 +562,7 @@ class ChatActivity : AppCompatActivity() {
 
         db.collection("active_chats")
             .document(myUserId)
-            .update(activeChatData)
+            .set(activeChatData, SetOptions.merge())  // ✅ Use set() with merge instead of update()
             .addOnSuccessListener {
                 Log.d("ChatActivity", "✅ Marked as actively viewing chat: $threadId")
             }
@@ -575,7 +579,7 @@ class ChatActivity : AppCompatActivity() {
             override fun run() {
                 if (isChatVisible) {
                     db.collection("active_chats").document(myUserId)
-                        .update("lastUpdated", System.currentTimeMillis())
+                        .set(mapOf("lastUpdated" to System.currentTimeMillis()), SetOptions.merge())  // ✅ Use set() instead of update()
                         .addOnFailureListener { e ->
                             Log.e("ChatActivity", "⚠️ Failed to refresh active chat heartbeat", e)
                         }
@@ -1000,6 +1004,120 @@ class ChatActivity : AppCompatActivity() {
             actNw.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> true
             else -> false
         }
+    }
+
+    /**
+     * Format message timestamp like WhatsApp:
+     * - "Today, 10:30 AM" for today's messages
+     * - "Yesterday, 10:30 AM" for yesterday's messages
+     * - "24 Dec 2025, 10:30 AM" for older messages
+     */
+    private fun formatMessageTimestamp(date: Date): String {
+        val calendar = Calendar.getInstance()
+        val messageCalendar = Calendar.getInstance().apply { time = date }
+        
+        val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
+        val timeString = timeFormat.format(date)
+        
+        // Check if message is from today
+        val isToday = calendar.get(Calendar.YEAR) == messageCalendar.get(Calendar.YEAR) &&
+                calendar.get(Calendar.DAY_OF_YEAR) == messageCalendar.get(Calendar.DAY_OF_YEAR)
+        
+        if (isToday) {
+            return "Today, $timeString"
+        }
+        
+        // Check if message is from yesterday
+        calendar.add(Calendar.DAY_OF_YEAR, -1)
+        val isYesterday = calendar.get(Calendar.YEAR) == messageCalendar.get(Calendar.YEAR) &&
+                calendar.get(Calendar.DAY_OF_YEAR) == messageCalendar.get(Calendar.DAY_OF_YEAR)
+        
+        if (isYesterday) {
+            return "Yesterday, $timeString"
+        }
+        
+        // For older messages, show date like "24 Dec 2025, 10:30 AM"
+        val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+        val dateString = dateFormat.format(date)
+        
+        return "$dateString, $timeString"
+    }
+
+    /**
+     * Format message time only (for display in message bubble)
+     * Returns: "10:30 AM" or "2:45 PM"
+     */
+    private fun formatMessageTime(date: Date): String {
+        val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
+        return timeFormat.format(date)
+    }
+
+    /**
+     * Get date header text for a given date
+     * Returns: "Today", "Yesterday", or "24 Dec 2024"
+     */
+    private fun getDateHeaderText(date: Date): String {
+        val calendar = Calendar.getInstance()
+        val messageCalendar = Calendar.getInstance().apply { time = date }
+        
+        // Check if message is from today
+        val isToday = calendar.get(Calendar.YEAR) == messageCalendar.get(Calendar.YEAR) &&
+                calendar.get(Calendar.DAY_OF_YEAR) == messageCalendar.get(Calendar.DAY_OF_YEAR)
+        
+        if (isToday) {
+            return "Today"
+        }
+        
+        // Check if message is from yesterday
+        calendar.add(Calendar.DAY_OF_YEAR, -1)
+        val isYesterday = calendar.get(Calendar.YEAR) == messageCalendar.get(Calendar.YEAR) &&
+                calendar.get(Calendar.DAY_OF_YEAR) == messageCalendar.get(Calendar.DAY_OF_YEAR)
+        
+        if (isYesterday) {
+            return "Yesterday"
+        }
+        
+        // For older messages, show date like "24 Dec 2024"
+        val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+        return dateFormat.format(date)
+    }
+
+    /**
+     * Insert date headers between message groups (like WhatsApp)
+     * Groups messages by date and inserts date headers
+     */
+    private fun insertDateHeaders(messages: List<ChatMessage>): MutableList<ChatMessage> {
+        val result = mutableListOf<ChatMessage>()
+        
+        if (messages.isEmpty()) return result
+        
+        var currentDateHeader: String? = null
+        
+        for (message in messages) {
+            val messageDate = message.date ?: Date()
+            val dateHeaderText = getDateHeaderText(messageDate)
+            
+            // If this message has a different date header than the previous one, insert a date header
+            if (dateHeaderText != currentDateHeader) {
+                result.add(
+                    ChatMessage(
+                        id = "date_header_${message.id}",
+                        message = "",
+                        timestamp = "",
+                        isSentByMe = false,
+                        date = messageDate,
+                        isDateHeader = true,
+                        dateHeaderText = dateHeaderText
+                    )
+                )
+                currentDateHeader = dateHeaderText
+            }
+            
+            // Add the actual message
+            result.add(message)
+        }
+        
+        return result
     }
 
 }

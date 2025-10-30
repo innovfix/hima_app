@@ -408,6 +408,14 @@ class FemaleHomeFragment : BaseFragment() {
                         settingsData.auto_disable_info?.let { auto_disable_info ->
                             binding.tvDisclaimer.setText(auto_disable_info)
                         }
+                        // Update audio call price
+                        settingsData.audio_income?.let { audioIncome ->
+                            binding.tvAudioRateValue.text = "1 min = ₹$audioIncome"
+                        }
+                        // Update video call price
+                        settingsData.video_income?.let { videoIncome ->
+                            binding.tvVideoRateValue.text = "1 min = ₹$videoIncome"
+                        }
                     }
                 }
             }

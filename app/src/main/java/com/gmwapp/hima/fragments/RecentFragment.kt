@@ -21,6 +21,8 @@ import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentRecentBinding
 import com.gmwapp.hima.retrofit.responses.CallsListResponseData
 import com.gmwapp.hima.viewmodels.RecentViewModel
+import com.google.firebase.FirebaseApp
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import dagger.hilt.android.AndroidEntryPoint
@@ -209,7 +211,7 @@ class RecentFragment : BaseFragment() {
         if (myUserId.isEmpty()) return
 
         // Listen to Firestore for unread message count
-        Firebase.firestore.collection("chats")
+        FirebaseFirestore.getInstance(FirebaseApp.getInstance(), "himadatabase").collection("chats")
             .addSnapshotListener { documents, error ->
                 if (error != null || documents == null) {
                     updateUnreadBadge(0)
@@ -232,7 +234,7 @@ class RecentFragment : BaseFragment() {
                         val otherUserId = userIds.firstOrNull { it != myUserId} ?: ""
 
                         // Check if other user is blocked
-                        Firebase.firestore.collection("blocked_users")
+                        FirebaseFirestore.getInstance(FirebaseApp.getInstance(), "himadatabase").collection("blocked_users")
                             .document(myUserId)
                             .collection("users")
                             .document(otherUserId)
@@ -241,7 +243,7 @@ class RecentFragment : BaseFragment() {
                                 val blockTimestamp = blockDoc.getTimestamp("blockedAt")
                                 
                                 // Real-time listener for each thread's unread messages
-                                Firebase.firestore.collection("chats")
+                                FirebaseFirestore.getInstance(FirebaseApp.getInstance(), "himadatabase").collection("chats")
                                     .document(threadId)
                                     .collection("messages")
                                     .whereEqualTo("from", otherUserId)

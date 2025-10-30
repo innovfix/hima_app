@@ -30,7 +30,9 @@ import com.gmwapp.hima.retrofit.responses.FriendData
 import com.gmwapp.hima.retrofit.responses.toFriendData
 import com.gmwapp.hima.retrofit.responses.ReceivedFriendRequestsResponse
 import com.gmwapp.hima.viewmodels.FriendRequestViewModel
+import com.google.firebase.FirebaseApp
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
@@ -47,7 +49,7 @@ class FriendsTabFragment : Fragment() {
     private var tabType: Int = TYPE_FRIENDS
     private val friendRequestViewModel: FriendRequestViewModel by viewModels()
     private var requestIdMap = mutableMapOf<Int, Int>() // Maps friend_id to request_id
-    private val db by lazy { Firebase.firestore }
+    private val db by lazy { FirebaseFirestore.getInstance(FirebaseApp.getInstance(), "himadatabase") }
     private val conversationsMap = mutableMapOf<String, ChatConversation>()
     
     // Auto-refresh handler
