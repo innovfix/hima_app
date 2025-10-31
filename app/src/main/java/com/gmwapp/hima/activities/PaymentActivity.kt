@@ -277,13 +277,16 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         binding.etCouponCode.setText(cleanedCouponCode)
 
         if (couponCode != null && originalPrice != null && discountedPrice != null && save != null) {
+            // Format coins to ensure "Coins" text is appended
+            val formattedCoins = formatCoinsText(coins)
+            
             // Store current coupon state
             currentCouponCode = couponCode
             currentCouponId = selectedCouponId
             currentOriginalPrice = originalPrice
             currentDiscountedPrice = discountedPrice
             currentSave = save
-            currentCoins = coins
+            currentCoins = formattedCoins
             currentOffer = offer
             isCouponApplied = true
             
@@ -292,7 +295,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
             binding.tvFinalAmount.text = "$discountedPrice" // Use a different field for discounted price
             // Show offer text with "Save" prefix (e.g., "Save 40%")
             binding.tvSavePercent.text = formatOfferText(offer, save)
-            binding.tvCoinsText.text = coins
+            binding.tvCoinsText.text = formattedCoins
             
             // ✅ Show coupon applied indicators
             binding.tvApplied.visibility = View.VISIBLE
@@ -310,6 +313,35 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
             currentSave = null
             currentCoins = null
             currentOffer = null
+        }
+    }
+    
+    /**
+     * Format coins text to ensure "Coins" suffix is present
+     * Examples:
+     * - "50" → "50 Coins"
+     * - "50 Coins" → "50 Coins"
+     * - "100" → "100 Coins"
+     */
+    private fun formatCoinsText(coins: String?): String {
+        if (coins.isNullOrBlank()) {
+            return "0 Coins"
+        }
+        
+        val trimmedCoins = coins.trim()
+        
+        // Check if "Coins" is already present (case-insensitive)
+        if (trimmedCoins.contains("Coins", ignoreCase = true)) {
+            return trimmedCoins
+        }
+        
+        // Remove any non-numeric characters except digits and decimals
+        val numericValue = trimmedCoins.replace("[^0-9.]".toRegex(), "").trim()
+        
+        return if (numericValue.isNotEmpty()) {
+            "$numericValue Coins"
+        } else {
+            "0 Coins"
         }
     }
 

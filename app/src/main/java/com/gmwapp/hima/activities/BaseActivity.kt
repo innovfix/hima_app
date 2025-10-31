@@ -235,6 +235,14 @@ open class BaseActivity : AppCompatActivity() {
     }
 
     fun showErrorMessage(message: String) {
+        // ✅ FIX: Prevent showing "no data found" toast messages
+        if (message.contains("no data found", ignoreCase = true) || 
+            message.contains("no data", ignoreCase = true) ||
+            message.contains("data not found", ignoreCase = true)) {
+            Log.d("BaseActivity", "⚠️ Suppressed toast message: $message")
+            return
+        }
+        
         if (message == DConstants.NO_NETWORK) {
             Toast.makeText(
                 this@BaseActivity, getString(R.string.please_try_again_later), Toast.LENGTH_LONG

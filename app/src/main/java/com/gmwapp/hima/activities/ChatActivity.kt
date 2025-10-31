@@ -273,7 +273,10 @@ class ChatActivity : AppCompatActivity() {
                     if (snapshot.isEmpty) {
                         Log.d("ChatActivity", "No messages in thread yet")
                         hasMoreMessages = false
-                        chatAdapter.notifyDataSetChanged()
+                        // ✅ FIX: Only notify adapter if this is initial load, otherwise keep existing messages
+                        if (isInitialLoad) {
+                            chatAdapter.notifyDataSetChanged()
+                        }
                         isLoadingMoreMessages = false
                         return@addSnapshotListener
                     }
@@ -318,6 +321,13 @@ class ChatActivity : AppCompatActivity() {
                         
                         tempMessages.add(message)
                     }
+                    
+                    // ✅ FIX: If all messages were filtered out (blocked) and not initial load, keep existing messages
+                    if (tempMessages.isEmpty() && !isInitialLoad) {
+                        Log.d("ChatActivity", "⚠️ All messages filtered out (blocked), keeping existing messages")
+                        isLoadingMoreMessages = false
+                        return@addSnapshotListener
+                    }
 
                     // Update oldest message timestamp for pagination (only on initial load)
                     if (oldestTimestamp != null && isInitialLoad) {
@@ -358,8 +368,40 @@ class ChatActivity : AppCompatActivity() {
                         val newMessages = messagesWithHeaders.filter { !existingIds.contains(it.id) }
                         
                         if (newMessages.isNotEmpty()) {
-                            // Append new messages to the end
-                            messages.addAll(newMessages)
+                            // ✅ FIX: Remove duplicate date header if last message has same date header
+                            val filteredNewMessages = mutableListOf<ChatMessage>()
+                            
+                            // Check if last message in existing list has a date header
+                            val lastExistingMessage = messages.lastOrNull()
+                            val lastExistingDateHeader = if (lastExistingMessage?.isDateHeader == true) {
+                                lastExistingMessage.dateHeaderText
+                            } else {
+                                lastExistingMessage?.date?.let { getDateHeaderText(it) }
+                            }
+                            
+                            // Check first item in new messages
+                            val firstNewItem = newMessages.firstOrNull()
+                            val firstNewDateHeader = if (firstNewItem?.isDateHeader == true) {
+                                firstNewItem.dateHeaderText
+                            } else {
+                                firstNewItem?.date?.let { getDateHeaderText(it) }
+                            }
+                            
+                            // If date headers match, skip the first date header in new messages
+                            var skipFirstHeader = (lastExistingDateHeader != null && 
+                                                  lastExistingDateHeader == firstNewDateHeader &&
+                                                  firstNewItem?.isDateHeader == true)
+                            
+                            for (message in newMessages) {
+                                if (skipFirstHeader && message.isDateHeader) {
+                                    skipFirstHeader = false  // Skip this header, but process next ones
+                                    continue
+                                }
+                                filteredNewMessages.add(message)
+                            }
+                            
+                            // Append filtered new messages to the end
+                            messages.addAll(filteredNewMessages)
                             chatAdapter.notifyDataSetChanged()
                             
                             // Auto-scroll to bottom if user is at bottom
@@ -372,8 +414,8 @@ class ChatActivity : AppCompatActivity() {
                                 rvMessages.scrollToPosition(messages.size - 1)
                             }
                             
-                            Log.d("checkPagiantion", "📨 REAL-TIME UPDATE: Added ${newMessages.size} new messages. Total: ${messages.size}")
-                            Log.d("ChatActivity", "✅ Added ${newMessages.size} new messages. Total: ${messages.size}")
+                            Log.d("checkPagiantion", "📨 REAL-TIME UPDATE: Added ${filteredNewMessages.size} new messages. Total: ${messages.size}")
+                            Log.d("ChatActivity", "✅ Added ${filteredNewMessages.size} new messages. Total: ${messages.size}")
                         }
                     }
 
@@ -501,6 +543,38 @@ class ChatActivity : AppCompatActivity() {
                 Log.d("checkPagiantion", "⬆️ After duplicate filter: ${newMessages.size} new messages")
 
                 if (newMessages.isNotEmpty()) {
+                    // ✅ FIX: Remove duplicate date header if first message has same date header
+                    val filteredNewMessages = mutableListOf<ChatMessage>()
+                    
+                    // Check if first message in existing list has a date header
+                    val firstExistingMessage = messages.firstOrNull()
+                    val firstExistingDateHeader = if (firstExistingMessage?.isDateHeader == true) {
+                        firstExistingMessage.dateHeaderText
+                    } else {
+                        firstExistingMessage?.date?.let { getDateHeaderText(it) }
+                    }
+                    
+                    // Check last item in new messages (since we're prepending, the last item will be adjacent to first existing)
+                    val lastNewItem = newMessages.lastOrNull()
+                    val lastNewDateHeader = if (lastNewItem?.isDateHeader == true) {
+                        lastNewItem.dateHeaderText
+                    } else {
+                        lastNewItem?.date?.let { getDateHeaderText(it) }
+                    }
+                    
+                    // If date headers match, skip the last date header in new messages
+                    var skipLastHeader = (firstExistingDateHeader != null && 
+                                         firstExistingDateHeader == lastNewDateHeader &&
+                                         lastNewItem?.isDateHeader == true)
+                    
+                    for (message in newMessages) {
+                        if (skipLastHeader && message.isDateHeader && message == lastNewItem) {
+                            skipLastHeader = false  // Skip this header
+                            continue
+                        }
+                        filteredNewMessages.add(message)
+                    }
+                    
                     // Save current scroll position
                     val layoutManager = rvMessages.layoutManager as? LinearLayoutManager
                     val currentScrollPosition = layoutManager?.findFirstVisibleItemPosition() ?: 0
@@ -510,24 +584,24 @@ class ChatActivity : AppCompatActivity() {
                     Log.d("checkPagiantion", "⬆️ Scroll position before prepend: position=$currentScrollPosition, offset=$currentOffset")
 
                     // Prepend older messages
-                    messages.addAll(0, newMessages)
+                    messages.addAll(0, filteredNewMessages)
                     chatAdapter.notifyDataSetChanged()
 
                     Log.d("checkPagiantion", "✅ LOAD MORE COMPLETE")
-                    Log.d("checkPagiantion", "✅ Added ${newMessages.size} older messages")
-                    Log.d("checkPagiantion", "✅ Total messages now: ${messages.size} (was ${messages.size - newMessages.size})")
+                    Log.d("checkPagiantion", "✅ Added ${filteredNewMessages.size} older messages")
+                    Log.d("checkPagiantion", "✅ Total messages now: ${messages.size} (was ${messages.size - filteredNewMessages.size})")
                     Log.d("checkPagiantion", "✅ New oldest timestamp: $oldestMessageTimestamp")
                     Log.d("checkPagiantion", "✅ Has more messages: $hasMoreMessages")
 
                     // Restore scroll position
                     rvMessages.post {
-                        if (newMessages.size > 0) {
-                            layoutManager?.scrollToPositionWithOffset(currentScrollPosition + newMessages.size, currentOffset)
-                            Log.d("checkPagiantion", "⬆️ Scroll position restored to: ${currentScrollPosition + newMessages.size}")
+                        if (filteredNewMessages.size > 0) {
+                            layoutManager?.scrollToPositionWithOffset(currentScrollPosition + filteredNewMessages.size, currentOffset)
+                            Log.d("checkPagiantion", "⬆️ Scroll position restored to: ${currentScrollPosition + filteredNewMessages.size}")
                         }
                     }
 
-                    Log.d("ChatActivity", "✅ Loaded ${newMessages.size} older messages. Total: ${messages.size}")
+                    Log.d("ChatActivity", "✅ Loaded ${filteredNewMessages.size} older messages. Total: ${messages.size}")
                 } else {
                     Log.d("checkPagiantion", "⚠️ No new messages to add (all were duplicates)")
                     Log.d("ChatActivity", "No new messages to add (duplicates filtered)")

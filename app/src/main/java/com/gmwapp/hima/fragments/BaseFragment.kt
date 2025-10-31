@@ -174,6 +174,14 @@ open class BaseFragment : Fragment() {
     val profileViewModel: ProfileViewModel by viewModels()
     protected var roomID: String? = null
     fun showErrorMessage(message: String) {
+        // ✅ FIX: Prevent showing "no data found" toast messages
+        if (message.contains("no data found", ignoreCase = true) || 
+            message.contains("no data", ignoreCase = true) ||
+            message.contains("data not found", ignoreCase = true)) {
+            Log.d("BaseFragment", "⚠️ Suppressed toast message: $message")
+            return
+        }
+        
         if (message == DConstants.NO_NETWORK) {
             Toast.makeText(
                 context, getString(R.string.please_try_again_later), Toast.LENGTH_LONG
