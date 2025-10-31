@@ -445,6 +445,7 @@ android:background="@color/white">
         android:layout_marginTop="16dp"
         android:layout_marginHorizontal="20dp"
         android:padding="12dp"
+        android:gravity="center"
         android:background="@drawable/d_button_bg"
         android:backgroundTint="#FFF3E0"
         android:text=""

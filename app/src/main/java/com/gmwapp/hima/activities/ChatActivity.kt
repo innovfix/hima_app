@@ -76,8 +76,16 @@ class ChatActivity : AppCompatActivity() {
     private var isPeerBlocked: Boolean = false
     private var blockTimestamp: Timestamp? = null
 
+    // Pagination variables
+    private var oldestMessageTimestamp: Timestamp? = null  // Track oldest loaded message for pagination
+    private var isLoadingMoreMessages = false  // Prevent multiple simultaneous loads
+    private var hasMoreMessages = true  // Track if there are more messages to load
+    private var messagesListenerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
+    private val MESSAGES_PER_PAGE = 10L  // Load 10 messages at a time (Long for Firestore limit)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.d("checkPagiantion", "🏁 ChatActivity onCreate() called")
         setContentView(R.layout.activity_chat)
 
         // ✅ Restrict screenshots and screen recording
@@ -93,6 +101,7 @@ class ChatActivity : AppCompatActivity() {
         checkIfUserIsBlocked()  // Check block status before setting up listener
         setupClickListeners()
         observeNotificationResponse()
+        Log.d("checkPagiantion", "🏁 ChatActivity onCreate() completed")
     }
 
     private fun initializeViews() {
@@ -123,6 +132,7 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
+        Log.d("checkPagiantion", "📋 Setting up RecyclerView...")
         chatAdapter = ChatAdapter(messages)
         rvMessages.apply {
             val layoutManager = LinearLayoutManager(this@ChatActivity)
@@ -131,6 +141,44 @@ class ChatActivity : AppCompatActivity() {
             layoutManager.reverseLayout = false
             this.layoutManager = layoutManager
             adapter = chatAdapter
+
+            Log.d("checkPagiantion", "📋 RecyclerView setup complete - scroll listener will be added")
+
+            // Add scroll listener for pagination
+            addOnScrollListener(object : RecyclerView.OnScrollListener() {
+                override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                    super.onScrolled(recyclerView, dx, dy)
+                    
+                    // Debug log to verify scroll listener is working
+                    if (dy != 0) {
+                        Log.d("checkPagiantion", "🔄 Scroll detected - dy: $dy, dx: $dx, isLoadingMore: $isLoadingMoreMessages, hasMore: $hasMoreMessages")
+                    }
+                    
+                    // Check if user scrolled up (dy < 0 means scrolling up)
+                    if (dy < 0 && !isLoadingMoreMessages && hasMoreMessages) {
+                        val layoutManager = recyclerView.layoutManager as? LinearLayoutManager
+                        layoutManager?.let {
+                            // Check if first visible item is visible (user scrolled to top)
+                            val firstVisiblePosition = it.findFirstVisibleItemPosition()
+                            val firstCompletelyVisiblePosition = it.findFirstCompletelyVisibleItemPosition()
+                            val totalItemCount = chatAdapter.itemCount
+                            
+                            Log.d("checkPagiantion", "🔄 Scrolled up - First visible: $firstVisiblePosition, First completely visible: $firstCompletelyVisiblePosition, Total items: $totalItemCount")
+                            
+                            // If first visible item is within first 3 items (position 0, 1, or 2), load more
+                            // This means user has scrolled up and can see the oldest messages
+                            // Handle NO_POSITION (-1) case - only load if position is valid
+                            if (firstVisiblePosition >= 0 && firstVisiblePosition <= 2) {
+                                Log.d("checkPagiantion", "🔄 Scrolled to top detected - First visible position: $firstVisiblePosition")
+                                Log.d("checkPagiantion", "🔄 Current messages count: ${messages.size}, isLoadingMore: $isLoadingMoreMessages, hasMore: $hasMoreMessages")
+                                loadMoreMessages()
+                            }
+                        }
+                    }
+                }
+            })
+
+            Log.d("checkPagiantion", "📋 Scroll listener added successfully")
 
             // When keyboard opens, ensure we keep the latest message visible
             addOnLayoutChangeListener { _, _, _, _, bottom, _, _, _, oldBottom ->
@@ -141,6 +189,7 @@ class ChatActivity : AppCompatActivity() {
                 }
             }
         }
+        Log.d("checkPagiantion", "📋 RecyclerView setup completed")
     }
 
     private fun setupUserIds() {
@@ -154,9 +203,11 @@ class ChatActivity : AppCompatActivity() {
         // Generate unique thread ID (sorted to ensure same ID regardless of who initiates)
         threadId = listOf(myUserId, peerUserId).sorted().joinToString("_")
 
+        Log.d("checkPagiantion", "👤 User IDs setup - myUserId: $myUserId, peerUserId: $peerUserId, threadId: $threadId")
         Log.d("ChatActivity", "MyUserId: $myUserId, PeerUserId: $peerUserId, ThreadId: $threadId")
 
         if (myUserId.isEmpty() || peerUserId == "-1") {
+            Log.e("checkPagiantion", "❌ Invalid user data - finishing activity")
             Toast.makeText(this, "Error: Invalid user data", Toast.LENGTH_SHORT).show()
             finish()
         }
@@ -164,18 +215,32 @@ class ChatActivity : AppCompatActivity() {
 
     private fun setupFirestoreListener() {
         Log.d("ChatActivity", "Setting up Firestore listener for threadId: $threadId")
+        Log.d("checkPagiantion", "🚀 SETTING UP FIRESTORE LISTENER")
+        Log.d("checkPagiantion", "🚀 Thread ID: $threadId")
+        Log.d("checkPagiantion", "🚀 Messages per page: $MESSAGES_PER_PAGE")
 
-        
-        // ✅ OPTIMIZATION: Only load last 50 messages to reduce reads
-        // This changes 1000 reads per chat open → 50 reads (20x reduction!)
+        // Remove previous listener if exists
+        messagesListenerRegistration?.remove()
 
-        db.collection("chats")
+        // Reset pagination variables
+        oldestMessageTimestamp = null
+        hasMoreMessages = true
+        isLoadingMoreMessages = false
+
+        Log.d("checkPagiantion", "🚀 Pagination reset - oldestTimestamp: null, hasMore: true, isLoading: false")
+
+        // ✅ OPTIMIZATION: Only load last 10 messages to reduce reads
+        // This changes 1000 reads per chat open → 10 reads (100x reduction!)
+
+        messagesListenerRegistration = db.collection("chats")
             .document(threadId)
             .collection("messages")
             .orderBy("timestamp", Query.Direction.DESCENDING)  // Changed to DESCENDING
-            .limit(50)  // ✅ Only get last 50 messages
+            .limit(MESSAGES_PER_PAGE)  // ✅ Only get last 10 messages
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
+                    Log.e("checkPagiantion", "❌ FIRESTORE LISTENER ERROR: ${error.message}")
+                    Log.e("checkPagiantion", "❌ Error details: ${error.stackTraceToString()}")
                     Log.e("ChatActivity", "❌ Listen failed: ${error.message}", error)
 
                     // Show error to user
@@ -186,29 +251,48 @@ class ChatActivity : AppCompatActivity() {
                         else -> "Error loading messages: ${error.message}"
                     }
                     Toast.makeText(this, errorMsg, Toast.LENGTH_LONG).show()
+                    isLoadingMoreMessages = false
                     return@addSnapshotListener
                 }
 
                 Log.d("ChatActivity", "Snapshot received - isEmpty: ${snapshot?.isEmpty}, docs: ${snapshot?.documents?.size}")
+                Log.d("checkPagiantion", "📨 SNAPSHOT RECEIVED")
+                Log.d("checkPagiantion", "📨 Snapshot isEmpty: ${snapshot?.isEmpty}, document count: ${snapshot?.documents?.size}")
 
                 if (snapshot != null) {
-                    messages.clear()
+                    // This listener is only for initial load and real-time updates
+                    // Check if this is initial load (messages list is empty)
+                    val isInitialLoad = messages.isEmpty()
+                    
+                    Log.d("checkPagiantion", "📨 Is initial load: $isInitialLoad")
+                    
+                    if (isInitialLoad) {
+                        messages.clear()
+                    }
 
                     if (snapshot.isEmpty) {
                         Log.d("ChatActivity", "No messages in thread yet")
+                        hasMoreMessages = false
                         chatAdapter.notifyDataSetChanged()
+                        isLoadingMoreMessages = false
                         return@addSnapshotListener
                     }
 
-                    
                     // ✅ Collect messages first
                     val tempMessages = mutableListOf<ChatMessage>()
                     
+                    // Track oldest timestamp for pagination
+                    var oldestTimestamp: Timestamp? = null
 
                     for (doc in snapshot.documents) {
                         val fromId = doc.getString("from") ?: ""
                         val text = doc.getString("text") ?: ""
                         val timestamp = doc.getTimestamp("timestamp")
+
+                        // Update oldest timestamp (messages are DESCENDING, so last doc is oldest)
+                        if (timestamp != null && (oldestTimestamp == null || timestamp < oldestTimestamp)) {
+                            oldestTimestamp = timestamp
+                        }
 
                         Log.d("ChatActivity", "Message: from=$fromId, text=$text, timestamp=$timestamp")
 
@@ -234,30 +318,77 @@ class ChatActivity : AppCompatActivity() {
                         
                         tempMessages.add(message)
                     }
+
+                    // Update oldest message timestamp for pagination (only on initial load)
+                    if (oldestTimestamp != null && isInitialLoad) {
+                        oldestMessageTimestamp = oldestTimestamp
+                        // Check if we got fewer messages than requested - means no more messages
+                        if (snapshot.documents.size.toLong() < MESSAGES_PER_PAGE) {
+                            hasMoreMessages = false
+                            Log.d("ChatActivity", "No more messages to load (got ${snapshot.documents.size} < $MESSAGES_PER_PAGE)")
+                        }
+                    }
                     
                     // ✅ Reverse to show oldest first (since we queried DESCENDING)
                     val reversedMessages = tempMessages.reversed()
                     
                     // ✅ Insert date headers between message groups (like WhatsApp)
-                    messages.addAll(insertDateHeaders(reversedMessages))
+                    val messagesWithHeaders = insertDateHeaders(reversedMessages)
                     
-                    Log.d("ChatActivity", "✅ Loaded ${messages.size} messages (limited to 50), notifying adapter")
-                    chatAdapter.notifyDataSetChanged()
+                    // Handle initial load vs real-time updates
+                    if (isInitialLoad) {
+                        // Initial load - replace all messages
+                        messages.addAll(messagesWithHeaders)
+                        Log.d("checkPagiantion", "📥 INITIAL LOAD COMPLETE")
+                        Log.d("checkPagiantion", "📥 Messages loaded: ${messagesWithHeaders.size} (with date headers)")
+                        Log.d("checkPagiantion", "📥 Actual messages (without headers): ${tempMessages.size}")
+                        Log.d("checkPagiantion", "📥 Total messages now in list: ${messages.size}")
+                        Log.d("checkPagiantion", "📥 Oldest message timestamp: $oldestMessageTimestamp")
+                        Log.d("checkPagiantion", "📥 Has more messages: $hasMoreMessages")
+                        Log.d("ChatActivity", "✅ Loaded ${messages.size} messages (initial load), notifying adapter")
+                        chatAdapter.notifyDataSetChanged()
 
-                    // Scroll to bottom
-                    if (messages.isNotEmpty()) {
-                        rvMessages.scrollToPosition(messages.size - 1)
+                        // Scroll to bottom
+                        if (messages.isNotEmpty()) {
+                            rvMessages.scrollToPosition(messages.size - 1)
+                        }
+                    } else {
+                        // Real-time update - add only new messages (newer than what we have)
+                        val existingIds = messages.map { it.id }.toSet()
+                        val newMessages = messagesWithHeaders.filter { !existingIds.contains(it.id) }
+                        
+                        if (newMessages.isNotEmpty()) {
+                            // Append new messages to the end
+                            messages.addAll(newMessages)
+                            chatAdapter.notifyDataSetChanged()
+                            
+                            // Auto-scroll to bottom if user is at bottom
+                            val layoutManager = rvMessages.layoutManager as? LinearLayoutManager
+                            val lastVisiblePosition = layoutManager?.findLastVisibleItemPosition() ?: 0
+                            val totalItemCount = messages.size
+                            
+                            // If user is near bottom (within last 3 items), auto-scroll
+                            if ((totalItemCount.toLong() - lastVisiblePosition.toLong()) <= 3L) {
+                                rvMessages.scrollToPosition(messages.size - 1)
+                            }
+                            
+                            Log.d("checkPagiantion", "📨 REAL-TIME UPDATE: Added ${newMessages.size} new messages. Total: ${messages.size}")
+                            Log.d("ChatActivity", "✅ Added ${newMessages.size} new messages. Total: ${messages.size}")
+                        }
                     }
 
-                    // Collect unread messages from peer
+                    // Collect unread messages from snapshot
                     collectUnreadMessages(snapshot)
 
                     // Mark messages as read only if chat is visible
                     if (isChatVisible) {
                         markPendingMessagesAsRead()
                     }
+                    
+                    isLoadingMoreMessages = false
                 } else {
                     Log.e("ChatActivity", "Snapshot is null")
+                    isLoadingMoreMessages = false
                 }
             }
     }
@@ -277,6 +408,138 @@ class ChatActivity : AppCompatActivity() {
             }
         }
         Log.d("ChatActivity", "Pending unread messages: ${pendingMessagesToMarkRead.size}")
+    }
+
+    /**
+     * Load more older messages when user scrolls to top
+     */
+    private fun loadMoreMessages() {
+        if (isLoadingMoreMessages || !hasMoreMessages || oldestMessageTimestamp == null) {
+            Log.d("checkPagiantion", "⏭️ SKIPPING loadMoreMessages")
+            Log.d("checkPagiantion", "⏭️ Reason - isLoading: $isLoadingMoreMessages, hasMore: $hasMoreMessages, oldestTimestamp: $oldestMessageTimestamp")
+            Log.d("ChatActivity", "Skipping loadMoreMessages - isLoading: $isLoadingMoreMessages, hasMore: $hasMoreMessages, oldestTimestamp: $oldestMessageTimestamp")
+            return
+        }
+
+        isLoadingMoreMessages = true
+        Log.d("checkPagiantion", "⬆️ LOADING MORE MESSAGES (SCROLL UP)")
+        Log.d("checkPagiantion", "⬆️ Current messages count before load: ${messages.size}")
+        Log.d("checkPagiantion", "⬆️ Loading messages before timestamp: $oldestMessageTimestamp")
+        Log.d("checkPagiantion", "⬆️ Messages per page: $MESSAGES_PER_PAGE")
+        Log.d("ChatActivity", "Loading more messages before timestamp: $oldestMessageTimestamp")
+
+        db.collection("chats")
+            .document(threadId)
+            .collection("messages")
+            .orderBy("timestamp", Query.Direction.DESCENDING)
+            .whereLessThan("timestamp", oldestMessageTimestamp!!)
+            .limit(MESSAGES_PER_PAGE)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                if (snapshot.isEmpty) {
+                    hasMoreMessages = false
+                    isLoadingMoreMessages = false
+                    Log.d("checkPagiantion", "❌ NO MORE MESSAGES TO LOAD (empty snapshot)")
+                    Log.d("ChatActivity", "No more messages to load")
+                    return@addOnSuccessListener
+                }
+
+                Log.d("checkPagiantion", "⬆️ Received ${snapshot.documents.size} messages from Firestore")
+
+                val tempMessages = mutableListOf<ChatMessage>()
+                var oldestTimestamp: Timestamp? = null
+
+                for (doc in snapshot.documents) {
+                    val fromId = doc.getString("from") ?: ""
+                    val text = doc.getString("text") ?: ""
+                    val timestamp = doc.getTimestamp("timestamp")
+
+                    if (timestamp != null && (oldestTimestamp == null || timestamp < oldestTimestamp)) {
+                        oldestTimestamp = timestamp
+                    }
+
+                    // Filter messages if peer is blocked
+                    if (isPeerBlocked && fromId == peerUserId && blockTimestamp != null && timestamp != null) {
+                        if (timestamp.seconds >= blockTimestamp!!.seconds) {
+                            continue
+                        }
+                    }
+
+                    val messageDate = timestamp?.toDate() ?: Date()
+                    val timeString = formatMessageTime(messageDate)
+
+                    val message = ChatMessage(
+                        id = doc.id,
+                        message = text,
+                        timestamp = timeString,
+                        isSentByMe = fromId == myUserId,
+                        date = messageDate
+                    )
+
+                    tempMessages.add(message)
+                }
+
+                Log.d("checkPagiantion", "⬆️ After filtering blocked messages: ${tempMessages.size} messages")
+
+                if (oldestTimestamp != null) {
+                    oldestMessageTimestamp = oldestTimestamp
+                    if (snapshot.documents.size.toLong() < MESSAGES_PER_PAGE) {
+                        hasMoreMessages = false
+                        Log.d("checkPagiantion", "⬆️ No more messages available (got ${snapshot.documents.size} < $MESSAGES_PER_PAGE)")
+                        Log.d("ChatActivity", "No more messages to load (got ${snapshot.documents.size} < $MESSAGES_PER_PAGE)")
+                    }
+                }
+
+                val reversedMessages = tempMessages.reversed()
+                val messagesWithHeaders = insertDateHeaders(reversedMessages)
+
+                // Filter out duplicates
+                val existingIds = messages.map { it.id }.toSet()
+                val newMessages = messagesWithHeaders.filter { !existingIds.contains(it.id) }
+
+                Log.d("checkPagiantion", "⬆️ After date headers: ${messagesWithHeaders.size} items")
+                Log.d("checkPagiantion", "⬆️ After duplicate filter: ${newMessages.size} new messages")
+
+                if (newMessages.isNotEmpty()) {
+                    // Save current scroll position
+                    val layoutManager = rvMessages.layoutManager as? LinearLayoutManager
+                    val currentScrollPosition = layoutManager?.findFirstVisibleItemPosition() ?: 0
+                    val currentView = layoutManager?.findViewByPosition(currentScrollPosition)
+                    val currentOffset = currentView?.top ?: 0
+
+                    Log.d("checkPagiantion", "⬆️ Scroll position before prepend: position=$currentScrollPosition, offset=$currentOffset")
+
+                    // Prepend older messages
+                    messages.addAll(0, newMessages)
+                    chatAdapter.notifyDataSetChanged()
+
+                    Log.d("checkPagiantion", "✅ LOAD MORE COMPLETE")
+                    Log.d("checkPagiantion", "✅ Added ${newMessages.size} older messages")
+                    Log.d("checkPagiantion", "✅ Total messages now: ${messages.size} (was ${messages.size - newMessages.size})")
+                    Log.d("checkPagiantion", "✅ New oldest timestamp: $oldestMessageTimestamp")
+                    Log.d("checkPagiantion", "✅ Has more messages: $hasMoreMessages")
+
+                    // Restore scroll position
+                    rvMessages.post {
+                        if (newMessages.size > 0) {
+                            layoutManager?.scrollToPositionWithOffset(currentScrollPosition + newMessages.size, currentOffset)
+                            Log.d("checkPagiantion", "⬆️ Scroll position restored to: ${currentScrollPosition + newMessages.size}")
+                        }
+                    }
+
+                    Log.d("ChatActivity", "✅ Loaded ${newMessages.size} older messages. Total: ${messages.size}")
+                } else {
+                    Log.d("checkPagiantion", "⚠️ No new messages to add (all were duplicates)")
+                    Log.d("ChatActivity", "No new messages to add (duplicates filtered)")
+                }
+
+                isLoadingMoreMessages = false
+            }
+            .addOnFailureListener { e ->
+                Log.e("checkPagiantion", "❌ ERROR loading more messages: ${e.message}")
+                Log.e("ChatActivity", "❌ Error loading more messages", e)
+                isLoadingMoreMessages = false
+            }
     }
 
     private fun markPendingMessagesAsRead() {
@@ -679,12 +942,15 @@ class ChatActivity : AppCompatActivity() {
         super.onDestroy()
         // Clean up active chat status
         clearMyActiveChatStatus()
+        // Remove Firestore listener
+        messagesListenerRegistration?.remove()
         Log.d("ChatActivity", "📱 Chat destroyed - Cleaned up presence tracking")
     }
 
     // ==================== BLOCK/UNBLOCK FUNCTIONS ====================
 
     private fun checkIfUserIsBlocked() {
+        Log.d("checkPagiantion", "🔍 Checking if user is blocked...")
         // Check if I have blocked this peer user
         db.collection("blocked_users")
             .document(myUserId)
@@ -694,14 +960,18 @@ class ChatActivity : AppCompatActivity() {
             .addOnSuccessListener { doc ->
                 isPeerBlocked = doc.exists()
                 blockTimestamp = if (isPeerBlocked) doc.getTimestamp("blockedAt") else null
+                Log.d("checkPagiantion", "🔍 Block check complete - isPeerBlocked: $isPeerBlocked, blockTimestamp: $blockTimestamp")
+                Log.d("checkPagiantion", "🔍 Now calling setupFirestoreListener()...")
                 Log.d("ChatActivity", "Block status loaded: isPeerBlocked=$isPeerBlocked, blockTimestamp=$blockTimestamp")
 
                 // Now setup firestore listener with correct block status
                 setupFirestoreListener()
             }
             .addOnFailureListener { e ->
+                Log.e("checkPagiantion", "❌ Failed to check block status: ${e.message}")
                 Log.e("ChatActivity", "❌ Failed to check block status", e)
                 // Proceed anyway with isPeerBlocked = false
+                Log.d("checkPagiantion", "🔍 Proceeding with setupFirestoreListener() anyway...")
                 setupFirestoreListener()
             }
     }

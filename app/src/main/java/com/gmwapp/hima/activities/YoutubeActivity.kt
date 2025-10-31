@@ -80,13 +80,25 @@ class YoutubeActivity : BaseActivity() {
 
 
         binding.btnComplete.setOnSingleClickListener({
-            val intent = Intent(this, AlmostDoneActivity::class.java)
+            val userData = prefs?.getUserData()
+            val status = userData?.status
+            val intent = if (status == 2) {
+                Intent(this, MainActivity::class.java)
+            } else {
+                Intent(this, AlmostDoneActivity::class.java)
+            }
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
             startActivity(intent)
             finish()
         })
         binding.tvSkip.setOnSingleClickListener({
-            val intent = Intent(this, AlmostDoneActivity::class.java)
+            val userData = prefs?.getUserData()
+            val status = userData?.status
+            val intent = if (status == 2) {
+                Intent(this, MainActivity::class.java)
+            } else {
+                Intent(this, AlmostDoneActivity::class.java)
+            }
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
             startActivity(intent)
             finish()

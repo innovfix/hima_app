@@ -98,8 +98,25 @@ class VoiceIdentificationActivity : BaseActivity(), OnItemSelectionListener<Stri
         profileViewModel.voiceUpdateLiveData.observe(this, Observer {
             if (it!=null && it.success) {
                 BaseApplication.getInstance()?.getPrefs()?.setUserData(it.data)
-                val intent = Intent(this, YoutubeActivity::class.java)
-                startActivity(intent)
+                val gender = it.data?.gender
+                val status = it.data?.status
+                
+                if (gender.equals(DConstants.MALE, ignoreCase = true)) {
+                    val intent = Intent(this, MainActivity::class.java)
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    startActivity(intent)
+                    finish()
+                } else if (gender.equals(DConstants.FEMALE, ignoreCase = true) && status == 2) {
+                    val intent = Intent(this, YoutubeActivity::class.java)
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    startActivity(intent)
+                    finish()
+                } else if (gender.equals(DConstants.FEMALE, ignoreCase = true) && status == 1) {
+                    val intent = Intent(this, YoutubeActivity::class.java)
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    startActivity(intent)
+                    finish()
+                }
             } else {
                 Toast.makeText(
                     this@VoiceIdentificationActivity, it?.message, Toast.LENGTH_LONG

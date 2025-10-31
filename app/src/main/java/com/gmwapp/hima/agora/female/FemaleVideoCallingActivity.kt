@@ -696,6 +696,8 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             val intent = Intent(this@FemaleVideoCallingActivity, RatingActivity::class.java)
             intent.putExtra(DConstants.RECEIVER_NAME, receiverName)
             intent.putExtra(DConstants.RECEIVER_ID, receiverId)
+            intent.putExtra(DConstants.CALL_ID, call_Id)
+            intent.putExtra(DConstants.CALL_TYPE, DConstants.VIDEO)
             startActivity(intent)
             Log.d("Lifecycle", "onDestroy() called. Firestore listener removed.")
             }

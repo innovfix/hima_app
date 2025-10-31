@@ -74,6 +74,21 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
     // ✅ ADD THESE VARIABLES TO STORE COUPON DATA
     private var selectedCouponId: String = ""
     private var selectedCouponCode: String = ""
+    
+    // ✅ ADD THESE VARIABLES TO STORE ORIGINAL PAYMENT DATA
+    private var originalCoinSelected: String = ""
+    private var originalSavePercent: String = ""
+    private var originalAmount: String = ""
+    
+    // ✅ ADD THESE VARIABLES TO STORE CURRENTLY APPLIED COUPON STATE
+    private var currentCouponCode: String? = null
+    private var currentCouponId: String = ""
+    private var currentOriginalPrice: String? = null
+    private var currentDiscountedPrice: String? = null
+    private var currentSave: String? = null
+    private var currentCoins: String? = null
+    private var currentOffer: String? = null
+    private var isCouponApplied: Boolean = false
 
     private val activityResultLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -116,10 +131,14 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
     }
 
     private fun initUI(){
+        // Store original payment data in class variables
+        originalCoinSelected = intent.getStringExtra("COIN_SELECTED") ?: ""
+        originalSavePercent = intent.getStringExtra("SAVE_PERCENT") ?: ""
+        originalAmount = intent.getStringExtra("AMOUNT") ?: ""
 
-        val coinSelected = intent.getStringExtra("COIN_SELECTED")
-        val savePercent = intent.getStringExtra("SAVE_PERCENT")
-        val amount = intent.getStringExtra("AMOUNT")
+        val coinSelected = originalCoinSelected
+        val savePercent = originalSavePercent
+        val amount = originalAmount
 
         var couponCode = intent.getStringExtra("COUPON_CODE")
         val originalPrice = intent.getStringExtra("ORIGINAL_PRICE")
@@ -156,6 +175,20 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
 
         binding.llAllCoupons.setOnClickListener {
             var intent = Intent(this, CouponActivity::class.java)
+            // Pass original payment data to CouponActivity
+            intent.putExtra("COIN_SELECTED", originalCoinSelected)
+            intent.putExtra("SAVE_PERCENT", originalSavePercent)
+            intent.putExtra("AMOUNT", originalAmount)
+            // Pass current coupon state if applied
+            if (isCouponApplied) {
+                intent.putExtra("CURRENT_COUPON_CODE", currentCouponCode)
+                intent.putExtra("CURRENT_COUPON_ID", currentCouponId)
+                intent.putExtra("CURRENT_ORIGINAL_PRICE", currentOriginalPrice)
+                intent.putExtra("CURRENT_DISCOUNTED_PRICE", currentDiscountedPrice)
+                intent.putExtra("CURRENT_SAVE", currentSave)
+                intent.putExtra("CURRENT_COINS", currentCoins)
+                intent.putExtra("CURRENT_OFFER", currentOffer)
+            }
             startActivity(intent)
            // binding.etCouponCode.text.clear()
 
@@ -244,6 +277,16 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         binding.etCouponCode.setText(cleanedCouponCode)
 
         if (couponCode != null && originalPrice != null && discountedPrice != null && save != null) {
+            // Store current coupon state
+            currentCouponCode = couponCode
+            currentCouponId = selectedCouponId
+            currentOriginalPrice = originalPrice
+            currentDiscountedPrice = discountedPrice
+            currentSave = save
+            currentCoins = coins
+            currentOffer = offer
+            isCouponApplied = true
+            
             binding.etCouponCode.setText(couponCode)
             binding.tvTotalAmount.text = "$originalPrice" // Set original price
             binding.tvFinalAmount.text = "$discountedPrice" // Use a different field for discounted price
@@ -257,6 +300,16 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
             
             // ✅ Disable EditText when coupon is applied
             binding.etCouponCode.isEnabled = false
+        } else {
+            // No coupon applied, reset state
+            isCouponApplied = false
+            currentCouponCode = null
+            currentCouponId = ""
+            currentOriginalPrice = null
+            currentDiscountedPrice = null
+            currentSave = null
+            currentCoins = null
+            currentOffer = null
         }
     }
 
@@ -277,35 +330,70 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
 
     private fun handleIntent(intent: Intent?) {
         intent?.let {
-            val couponCode = it.getStringExtra("COUPON_CODE")
-            val couponid = it.getStringExtra("COUPON_ID")
-            val originalPrice = it.getStringExtra("ORIGINAL_PRICE")
-            val discountedPrice = it.getStringExtra("DISCOUNTED_PRICE")
-            val coins = it.getStringExtra("COINS")
-            val save = intent.getStringExtra("SAVE")
-            val offer = intent.getStringExtra("OFFER")  // Get offer text from coupon
-
-            binding.etCouponCode?.setText(couponCode)
-            binding.tvTotalAmount.text = "$originalPrice" // Set original price
-            binding.tvFinalAmount.text = "$discountedPrice" // Use a different field for discounted price
-            // Show offer text with "Save" prefix (e.g., "Save 40%")
-            binding.tvSavePercent.text = formatOfferText(offer, save)
-            binding.tvCoinsText.text = coins+" Coins"
-
-            // ✅ Show coupon applied indicators
-            if (couponCode != null && save != null) {
-                binding.tvApplied.visibility = View.VISIBLE
-                binding.ivCorrect.visibility = View.VISIBLE
-                selectedCouponId = couponid.toString()
-                // ✅ Disable EditText when coupon is applied
-                binding.etCouponCode.isEnabled = false
+            // Restore original payment data first
+            val coinSelected = it.getStringExtra("COIN_SELECTED") ?: originalCoinSelected
+            val savePercent = it.getStringExtra("SAVE_PERCENT") ?: originalSavePercent
+            val amount = it.getStringExtra("AMOUNT") ?: originalAmount
+            
+            // Check if there's a new coupon from CouponActivity
+            val newCouponCode = it.getStringExtra("COUPON_CODE")
+            val newCouponId = it.getStringExtra("COUPON_ID")
+            val newOriginalPrice = it.getStringExtra("ORIGINAL_PRICE")
+            val newDiscountedPrice = it.getStringExtra("DISCOUNTED_PRICE")
+            val newCoins = it.getStringExtra("COINS")
+            val newSave = it.getStringExtra("SAVE")
+            val newOffer = it.getStringExtra("OFFER")
+            
+            // Check if we need to restore previous coupon state
+            val restoreCouponCode = it.getStringExtra("RESTORE_COUPON_CODE")
+            val restoreCouponId = it.getStringExtra("RESTORE_COUPON_ID")
+            val restoreOriginalPrice = it.getStringExtra("RESTORE_ORIGINAL_PRICE")
+            val restoreDiscountedPrice = it.getStringExtra("RESTORE_DISCOUNTED_PRICE")
+            val restoreCoins = it.getStringExtra("RESTORE_COINS")
+            val restoreSave = it.getStringExtra("RESTORE_SAVE")
+            val restoreOffer = it.getStringExtra("RESTORE_OFFER")
+            
+            // If new coupon data is provided, use it
+            if (newCouponCode != null && newOriginalPrice != null && newDiscountedPrice != null && newSave != null) {
+                // Apply new coupon from CouponActivity
+                selectedCouponId = newCouponId ?: ""
+                updateUIWithCoupon(newCouponCode, newOriginalPrice, newDiscountedPrice, newSave, newCoins, newOffer)
+            } else if (restoreCouponCode != null && restoreOriginalPrice != null && restoreDiscountedPrice != null && restoreSave != null) {
+                // Restore previous coupon state (default or previously selected)
+                selectedCouponId = restoreCouponId ?: ""
+                updateUIWithCoupon(restoreCouponCode, restoreOriginalPrice, restoreDiscountedPrice, restoreSave, restoreCoins, restoreOffer)
+            } else {
+                // No new coupon, restore the last applied coupon state if exists
+                if (isCouponApplied && currentCouponCode != null) {
+                    // Restore the previously applied coupon
+                    selectedCouponId = currentCouponId
+                    updateUIWithCoupon(
+                        currentCouponCode,
+                        currentOriginalPrice,
+                        currentDiscountedPrice,
+                        currentSave,
+                        currentCoins,
+                        currentOffer
+                    )
+                } else {
+                    // No coupon was applied, show original payment data
+                    binding.tvCoinsText.text = coinSelected + " Coins"
+                    binding.tvTotalAmount.text = "₹$amount"
+                    binding.tvSavePercent.text = "Save $savePercent%"
+                    binding.tvFinalAmount.text = "₹$amount"
+                    binding.etCouponCode?.setText("")
+                    binding.tvApplied.visibility = View.GONE
+                    binding.ivCorrect.visibility = View.GONE
+                    binding.etCouponCode.isEnabled = true
+                }
             }
 
-            Log.d("PaymentActivityCheck", "Coupon Code: $couponCode")
-            Log.d("PaymentActivity", "Original Price: $originalPrice")
-            Log.d("PaymentActivity", "Discounted Price: $discountedPrice")
-            Log.d("PaymentActivity", "Offer: $offer")
-            Log.d("PaymentActivity", "Coins: $coins")
+            Log.d("PaymentActivityCheck", "Coin Selected: $coinSelected")
+            Log.d("PaymentActivityCheck", "Amount: $amount")
+            Log.d("PaymentActivityCheck", "Coupon Applied: $isCouponApplied")
+            Log.d("PaymentActivityCheck", "Current Coupon Code: $currentCouponCode")
+            Log.d("PaymentActivityCheck", "New Coupon Code: $newCouponCode")
+            Log.d("PaymentActivityCheck", "Restore Coupon Code: $restoreCouponCode")
         }
     }
 

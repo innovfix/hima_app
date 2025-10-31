@@ -13,6 +13,7 @@ import com.gmwapp.hima.retrofit.responses.BankUpdateResponse
 import com.gmwapp.hima.retrofit.responses.EarningsResponse
 import com.gmwapp.hima.retrofit.responses.RatingResponse
 import com.gmwapp.hima.retrofit.responses.TransactionsResponse
+import com.gmwapp.hima.retrofit.responses.UserCallDurationResponse
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import retrofit2.Call
@@ -28,6 +29,8 @@ class RatingViewModel @Inject constructor(private val ratingRepositories: Rating
 
     val ratingResponseLiveData = MutableLiveData<RatingResponse>()
     val ratingErrorLiveData = MutableLiveData<String>()
+    val userCallDurationLiveData = MutableLiveData<UserCallDurationResponse>()
+    val userCallDurationErrorLiveData = MutableLiveData<String>()
 
     fun updatedrating(
         userId: Int,
@@ -51,6 +54,27 @@ class RatingViewModel @Inject constructor(private val ratingRepositories: Rating
 
                 override fun onNoNetwork() {
                     ratingErrorLiveData.postValue(DConstants.NO_NETWORK)
+                }
+            })
+        }
+    }
+
+    fun getUserCallDuration(callId: Int) {
+        viewModelScope.launch {
+            ratingRepositories.getUserCallDuration(callId, object : NetworkCallback<UserCallDurationResponse> {
+                override fun onResponse(
+                    call: Call<UserCallDurationResponse>,
+                    response: Response<UserCallDurationResponse>
+                ) {
+                    userCallDurationLiveData.postValue(response.body())
+                }
+
+                override fun onFailure(call: Call<UserCallDurationResponse>, t: Throwable) {
+                    userCallDurationErrorLiveData.postValue(DConstants.LOGIN_ERROR)
+                }
+
+                override fun onNoNetwork() {
+                    userCallDurationErrorLiveData.postValue(DConstants.NO_NETWORK)
                 }
             })
         }

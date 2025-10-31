@@ -2,6 +2,8 @@ package com.gmwapp.hima.activities
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -12,6 +14,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import com.google.android.material.card.MaterialCardView
@@ -79,7 +82,18 @@ class RatingActivity : BaseActivity() {
         binding.etUserName.addTextChangedListener {
             validatebtn() // Validate the button whenever the user types
         }
-    }
+
+
+        window.statusBarColor = Color.parseColor("#ffffff") // startColor of your gradient
+
+        // Make status bar icons light (white) so they're visible on black background
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.setSystemBarsAppearance(
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+            )
+        }
+        }
 
     private fun initUi() {
 
@@ -98,6 +112,28 @@ class RatingActivity : BaseActivity() {
             R.string.review_hint,
             intent.getStringExtra(DConstants.RECEIVER_NAME) ?: "User"
         )
+
+        // Check if female user AND call type was video, then call API for call duration
+        val gender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
+        val callType = intent.getStringExtra(DConstants.CALL_TYPE)
+        
+        if (gender == "female" && callType == DConstants.VIDEO) {
+            val callId = intent.getIntExtra(DConstants.CALL_ID, 0)
+            if (callId != 0) {
+                viewModel.getUserCallDuration(callId)
+            }
+        }
+
+        // Observe call duration response
+        viewModel.userCallDurationLiveData.observe(this) { response ->
+            if (response != null) {
+                // Show dialog only if success=false AND valid=1
+                if (!response.success && response.valid == 1) {
+                    showCallDurationDialog(response.title, response.message)
+                }
+                // If success=true or valid!=1, don't show anything
+            }
+        }
 
         viewModel.ratingResponseLiveData.observe(this, Observer { response ->
             if (response != null && response.success) {
@@ -310,6 +346,29 @@ class RatingActivity : BaseActivity() {
         intent.putExtra("from_rating", true)
         startActivity(intent)
         finish()
+    }
+
+    private fun showCallDurationDialog(title: String, message: String) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_call_duration, null)
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+        
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        
+        val titleTextView = dialogView.findViewById<TextView>(R.id.tv_dialog_title)
+        titleTextView?.text = title
+        
+        val messageTextView = dialogView.findViewById<TextView>(R.id.tv_dialog_message)
+        messageTextView?.text = message
+        
+        val okButton = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_dialog_ok)
+        okButton?.setOnClickListener {
+            dialog.dismiss()
+        }
+        
+        dialog.show()
     }
 
 }

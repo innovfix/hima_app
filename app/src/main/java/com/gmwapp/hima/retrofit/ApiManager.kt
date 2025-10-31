@@ -52,6 +52,7 @@ import com.gmwapp.hima.retrofit.responses.UpiPaymentResponse
 import com.gmwapp.hima.retrofit.responses.UpiUpdateResponse
 import com.gmwapp.hima.retrofit.responses.UpiWithdrawResponse
 import com.gmwapp.hima.retrofit.responses.UserAvatarResponse
+import com.gmwapp.hima.retrofit.responses.UserCallDurationResponse
 import com.gmwapp.hima.retrofit.responses.UserValidationResponse
 import com.gmwapp.hima.retrofit.responses.VoiceUpdateResponse
 import com.gmwapp.hima.retrofit.responses.WhatsappLinkResponse
@@ -377,6 +378,18 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<RatingResponse> = getApiInterface().updateRatings(userId,call_user_id,ratings,title,description)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getUserCallDuration(
+        callId: Int,
+        callback: NetworkCallback<UserCallDurationResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<UserCallDurationResponse> = getApiInterface().getUserCallDuration(callId)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1389,6 +1402,12 @@ interface ApiInterface {
         @Field("receiver_id") receiverId: Int,
         @Field("message") message: String
     ): Call<MessageNotificationResponse>
+
+    @FormUrlEncoded
+    @POST("user_call_duration")
+    fun getUserCallDuration(
+        @Field("call_id") callId: Int
+    ): Call<UserCallDurationResponse>
 
     @FormUrlEncoded
     @POST("request_friends")

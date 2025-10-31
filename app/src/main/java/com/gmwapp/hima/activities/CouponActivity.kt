@@ -132,6 +132,34 @@ class CouponActivity : AppCompatActivity(), CouponAdapter.OnCouponClickListener 
 
         binding.ivBack.setOnClickListener {
             var intent = Intent(this, PaymentActivity::class.java)
+            // Pass back original payment data
+            val coinSelected = this.intent.getStringExtra("COIN_SELECTED")
+            val savePercent = this.intent.getStringExtra("SAVE_PERCENT")
+            val amount = this.intent.getStringExtra("AMOUNT")
+            
+            if (coinSelected != null) intent.putExtra("COIN_SELECTED", coinSelected)
+            if (savePercent != null) intent.putExtra("SAVE_PERCENT", savePercent)
+            if (amount != null) intent.putExtra("AMOUNT", amount)
+            
+            // Pass back current coupon state if it exists (from previous application)
+            val currentCouponCode = this.intent.getStringExtra("CURRENT_COUPON_CODE")
+            val currentCouponId = this.intent.getStringExtra("CURRENT_COUPON_ID")
+            val currentOriginalPrice = this.intent.getStringExtra("CURRENT_ORIGINAL_PRICE")
+            val currentDiscountedPrice = this.intent.getStringExtra("CURRENT_DISCOUNTED_PRICE")
+            val currentSave = this.intent.getStringExtra("CURRENT_SAVE")
+            val currentCoins = this.intent.getStringExtra("CURRENT_COINS")
+            val currentOffer = this.intent.getStringExtra("CURRENT_OFFER")
+            
+            if (currentCouponCode != null) {
+                intent.putExtra("RESTORE_COUPON_CODE", currentCouponCode)
+                intent.putExtra("RESTORE_COUPON_ID", currentCouponId)
+                intent.putExtra("RESTORE_ORIGINAL_PRICE", currentOriginalPrice)
+                intent.putExtra("RESTORE_DISCOUNTED_PRICE", currentDiscountedPrice)
+                intent.putExtra("RESTORE_SAVE", currentSave)
+                intent.putExtra("RESTORE_COINS", currentCoins)
+                intent.putExtra("RESTORE_OFFER", currentOffer)
+            }
+            
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             startActivity(intent)
             finish()
