@@ -70,7 +70,7 @@ class FriendsTabFragment : Fragment() {
         const val TYPE_MY_REQUESTS = 2
         const val TYPE_THEIR_REQUESTS = 3
         private const val ARG_TYPE = "type"
-        private const val AUTO_REFRESH_INTERVAL = 30_000L // 30 seconds
+        private const val AUTO_REFRESH_INTERVAL = 30_000000L // 30 seconds
 
         fun newInstance(type: Int): FriendsTabFragment {
             val fragment = FriendsTabFragment()
