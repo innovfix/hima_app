@@ -59,9 +59,9 @@ class RatingViewModel @Inject constructor(private val ratingRepositories: Rating
         }
     }
 
-    fun getUserCallDuration(callId: Int) {
+    fun getUserCallDuration(callId: Int, userId: Int) {
         viewModelScope.launch {
-            ratingRepositories.getUserCallDuration(callId, object : NetworkCallback<UserCallDurationResponse> {
+            ratingRepositories.getUserCallDuration(callId, userId, object : NetworkCallback<UserCallDurationResponse> {
                 override fun onResponse(
                     call: Call<UserCallDurationResponse>,
                     response: Response<UserCallDurationResponse>

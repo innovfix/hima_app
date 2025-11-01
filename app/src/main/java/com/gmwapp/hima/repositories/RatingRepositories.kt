@@ -25,9 +25,10 @@ class RatingRepositories @Inject constructor(private val apiManager: ApiManager)
 
         fun getUserCallDuration(
             callId: Int,
+            userId: Int,
             callback: NetworkCallback<UserCallDurationResponse>
         ) {
-            apiManager.getUserCallDuration(callId, callback)
+            apiManager.getUserCallDuration(callId, userId, callback)
         }
     }
 

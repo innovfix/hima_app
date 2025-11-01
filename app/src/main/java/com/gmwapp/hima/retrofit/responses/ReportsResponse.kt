@@ -11,5 +11,5 @@ data class ReportData(
     val today_calls: Int,
     val today_earnings: String,
     val first_call: Int,
-
+    val call_rates: String?
 )

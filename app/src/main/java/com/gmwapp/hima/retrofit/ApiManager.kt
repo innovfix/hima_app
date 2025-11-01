@@ -386,10 +386,11 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
 
     fun getUserCallDuration(
         callId: Int,
+        userId: Int,
         callback: NetworkCallback<UserCallDurationResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<UserCallDurationResponse> = getApiInterface().getUserCallDuration(callId)
+            val apiCall: Call<UserCallDurationResponse> = getApiInterface().getUserCallDuration(callId, userId)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1406,7 +1407,8 @@ interface ApiInterface {
     @FormUrlEncoded
     @POST("user_call_duration")
     fun getUserCallDuration(
-        @Field("call_id") callId: Int
+        @Field("call_id") callId: Int,
+        @Field("user_id") userId: Int
     ): Call<UserCallDurationResponse>
 
     @FormUrlEncoded

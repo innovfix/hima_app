@@ -33,6 +33,7 @@ import com.gmwapp.hima.databinding.FragmentFemaleHomeBinding
 import com.gmwapp.hima.retrofit.responses.BadgeData
 import com.gmwapp.hima.retrofit.responses.UserData
 import com.gmwapp.hima.utils.setOnSingleClickListener
+import com.bumptech.glide.Glide
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.BadgeViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
@@ -481,6 +482,22 @@ class FemaleHomeFragment : BaseFragment() {
                 binding.tvApproxEarnings.text = it.data[0].today_earnings.toString()
                 binding.tvTotalCalls.text = it.data[0].today_calls.toString()
 
+                // Load call rates image if available
+                it.data[0].call_rates?.let { imageUrl ->
+                    if (imageUrl.isNotEmpty()) {
+                        binding.ivCallRates.visibility = View.VISIBLE
+                        binding.cvCallRates.visibility = View.VISIBLE
+                        Glide.with(requireContext())
+                            .load(imageUrl)
+                            .into(binding.ivCallRates)
+                    } else {
+                        binding.ivCallRates.visibility = View.GONE
+                        binding.cvCallRates.visibility = View.GONE
+                    }
+                } ?: run {
+                    binding.ivCallRates.visibility = View.GONE
+                    binding.cvCallRates.visibility = View.GONE
+                }
 
                 var firstCall = it.data[0].first_call
                 if (firstCall==1){

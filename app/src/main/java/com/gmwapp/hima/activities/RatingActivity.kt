@@ -119,8 +119,9 @@ class RatingActivity : BaseActivity() {
         
         if (gender == "female" && callType == DConstants.VIDEO) {
             val callId = intent.getIntExtra(DConstants.CALL_ID, 0)
-            if (callId != 0) {
-                viewModel.getUserCallDuration(callId)
+            val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
+            if (callId != 0 && userId != null) {
+                viewModel.getUserCallDuration(callId, userId)
             }
         }
 
