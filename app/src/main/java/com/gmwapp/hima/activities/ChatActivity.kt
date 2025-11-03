@@ -597,58 +597,58 @@ class ChatActivity : AppCompatActivity() {
                 Log.d("checkPagiantion", "⬆️ After duplicate filter: ${newMessages.size} new messages")
 
                 if (newMessages.isNotEmpty()) {
-                    // ✅ FIX: Remove duplicate date header when prepending older messages
+                    // ✅ FIX: Remove duplicate date headers when prepending older messages
+                    // When prepending older messages, we want to keep the date header at the TOP (with older messages)
+                    // and remove duplicate date headers from existing messages (that are now in the middle)
                     
-                    // Check if first message in existing list has a date header
-                    val firstExistingMessage = messages.firstOrNull()
-                    val firstExistingDateHeader = if (firstExistingMessage?.isDateHeader == true) {
-                        firstExistingMessage.dateHeaderText
-                    } else {
-                        firstExistingMessage?.date?.let { getDateHeaderText(it) }
-                    }
-                    
-                    // Check last item in new messages (since we're prepending, the last item will be adjacent to first existing)
-                    val lastNewItem = newMessages.lastOrNull()
-                    val lastNewDateHeader = if (lastNewItem?.isDateHeader == true) {
-                        lastNewItem.dateHeaderText
-                    } else {
-                        lastNewItem?.date?.let { getDateHeaderText(it) }
-                    }
-                    
-                    // If date headers match, remove the first existing header (since it's a duplicate)
-                    val shouldRemoveFirstExisting = (firstExistingMessage?.isDateHeader == true && 
-                                                     firstExistingDateHeader != null &&
-                                                     firstExistingDateHeader == lastNewDateHeader)
-                    
-                    if (shouldRemoveFirstExisting) {
-                        // Remove the duplicate date header from existing messages
-                        messages.removeAt(0)
-                    }
-                    
-                    // Save current scroll position
+                    // Save current scroll position BEFORE any modifications
                     val layoutManager = rvMessages.layoutManager as? LinearLayoutManager
                     val currentScrollPosition = layoutManager?.findFirstVisibleItemPosition() ?: 0
                     val currentView = layoutManager?.findViewByPosition(currentScrollPosition)
                     val currentOffset = currentView?.top ?: 0
-
-                    Log.d("checkPagiantion", "⬆️ Scroll position before prepend: position=$currentScrollPosition, offset=$currentOffset")
-
-                    // Prepend older messages
+                    
+                    Log.d("checkPagiantion", "⬆️ Scroll position before changes: position=$currentScrollPosition, offset=$currentOffset")
+                    
+                    // Get date headers from the new messages batch
+                    val newDateHeaders = newMessages
+                        .filter { it.isDateHeader }
+                        .map { it.dateHeaderText }
+                        .toSet()
+                    
+                    // Remove duplicate date headers from EXISTING messages (not from new messages)
+                    // This ensures the date header stays at the top with all messages from that date
+                    var headersRemovedCount = 0
+                    if (newDateHeaders.isNotEmpty()) {
+                        headersRemovedCount = messages.count { msg ->
+                            msg.isDateHeader && newDateHeaders.contains(msg.dateHeaderText)
+                        }
+                        messages.removeAll { msg ->
+                            msg.isDateHeader && newDateHeaders.contains(msg.dateHeaderText)
+                        }
+                        Log.d("checkPagiantion", "⬆️ Removed $headersRemovedCount duplicate date headers from existing messages")
+                    }
+                    
+                    // Calculate scroll adjustment: new items added minus headers removed
+                    val scrollAdjustment = newMessages.size - headersRemovedCount
+                    
+                    // Prepend older messages (duplicate headers already removed from existing messages)
                     messages.addAll(0, newMessages)
                     chatAdapter.notifyDataSetChanged()
 
                     Log.d("checkPagiantion", "✅ LOAD MORE COMPLETE")
                     Log.d("checkPagiantion", "✅ Added ${newMessages.size} older messages")
+                    Log.d("checkPagiantion", "✅ Removed $headersRemovedCount duplicate headers")
+                    Log.d("checkPagiantion", "✅ Net items added: $scrollAdjustment")
                     Log.d("checkPagiantion", "✅ Total messages now: ${messages.size}")
                     Log.d("checkPagiantion", "✅ New oldest timestamp: $oldestMessageTimestamp")
                     Log.d("checkPagiantion", "✅ Has more messages: $hasMoreMessages")
 
-                    // Restore scroll position (account for items added minus any removed header)
+                    // Restore scroll position (account for net change in items)
                     rvMessages.post {
-                        val itemsAdded = if (shouldRemoveFirstExisting) newMessages.size - 1 else newMessages.size
-                        if (itemsAdded > 0) {
-                            layoutManager?.scrollToPositionWithOffset(currentScrollPosition + itemsAdded, currentOffset)
-                            Log.d("checkPagiantion", "⬆️ Scroll position restored to: ${currentScrollPosition + itemsAdded}")
+                        if (scrollAdjustment > 0) {
+                            val newScrollPosition = currentScrollPosition + scrollAdjustment
+                            layoutManager?.scrollToPositionWithOffset(newScrollPosition, currentOffset)
+                            Log.d("checkPagiantion", "⬆️ Scroll position restored to: $newScrollPosition (was $currentScrollPosition + $scrollAdjustment)")
                         }
                     }
 
