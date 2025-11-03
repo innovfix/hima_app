@@ -40,6 +40,8 @@ import android.view.View
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.os.Build
+import androidx.core.content.ContextCompat
 
 @AndroidEntryPoint
 class ChatActivity : AppCompatActivity() {
@@ -128,6 +130,16 @@ class ChatActivity : AppCompatActivity() {
                 .load(userImage)
                 .apply(RequestOptions.circleCropTransform())
                 .into(ivUser)
+        }
+
+        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+
+        // ✅ SIMPLE: Set status bar icons to LIGHT (white) - works on all devices
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.setSystemBarsAppearance(
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+            )
         }
     }
 
@@ -307,7 +319,14 @@ class ChatActivity : AppCompatActivity() {
                             }
                         }
 
-                        val messageDate = timestamp?.toDate() ?: Date()
+                        // Handle timestamp - only use IST for null timestamps (when server timestamp not resolved yet)
+                        val messageDate = if (timestamp != null) {
+                            timestamp.toDate()
+                        } else {
+                            // If timestamp is null (server timestamp not resolved), use current time in IST
+                            val istTimeZone = TimeZone.getTimeZone("Asia/Kolkata")
+                            Calendar.getInstance(istTimeZone).time
+                        }
                         val timeString = formatMessageTime(messageDate)  // Only time, no date
 
                         val message = ChatMessage(
@@ -364,10 +383,37 @@ class ChatActivity : AppCompatActivity() {
                         }
                     } else {
                         // Real-time update - add only new messages (newer than what we have)
+                        // Also check for temp messages that need to be replaced
                         val existingIds = messages.map { it.id }.toSet()
                         val newMessages = messagesWithHeaders.filter { !existingIds.contains(it.id) }
                         
-                        if (newMessages.isNotEmpty()) {
+                        // Track which message IDs were used to replace temp messages
+                        val replacedMessageIds = mutableSetOf<String>()
+                        
+                        // Replace any temp messages with real ones (matching text and sender within 30 seconds)
+                        for (newMsg in messagesWithHeaders.filter { !it.isDateHeader }) {
+                            val tempMsgIndex = messages.indexOfFirst { msg ->
+                                !msg.isDateHeader &&
+                                msg.id.startsWith("temp_") &&
+                                msg.message == newMsg.message &&
+                                msg.isSentByMe == newMsg.isSentByMe &&
+                                msg.date != null && newMsg.date != null &&
+                                Math.abs(msg.date!!.time - newMsg.date!!.time) < 30000 // Within 30 seconds
+                            }
+                            
+                            if (tempMsgIndex != -1) {
+                                // Replace temp message with real one
+                                messages[tempMsgIndex] = newMsg
+                                chatAdapter.notifyItemChanged(tempMsgIndex)
+                                replacedMessageIds.add(newMsg.id)
+                                Log.d("ChatActivity", "✅ Replaced temp message with real message: ${newMsg.id}")
+                            }
+                        }
+                        
+                        // Filter out messages that were used to replace temp messages
+                        val actuallyNewMessages = newMessages.filter { !replacedMessageIds.contains(it.id) }
+                        
+                        if (actuallyNewMessages.isNotEmpty()) {
                             // ✅ FIX: Remove duplicate date header if last message has same date header
                             val filteredNewMessages = mutableListOf<ChatMessage>()
                             
@@ -379,22 +425,23 @@ class ChatActivity : AppCompatActivity() {
                                 lastExistingMessage?.date?.let { getDateHeaderText(it) }
                             }
                             
-                            // Check first item in new messages
-                            val firstNewItem = newMessages.firstOrNull()
+                            // Check first item in new messages (that weren't used to replace temp messages)
+                            val firstNewItem = actuallyNewMessages.firstOrNull()
                             val firstNewDateHeader = if (firstNewItem?.isDateHeader == true) {
                                 firstNewItem.dateHeaderText
                             } else {
                                 firstNewItem?.date?.let { getDateHeaderText(it) }
                             }
                             
-                            // If date headers match, skip the first date header in new messages
+                            // If date headers match, skip duplicate date header in new messages
+                            // This applies whether the first new item is a header or a message with the same date
                             var skipFirstHeader = (lastExistingDateHeader != null && 
-                                                  lastExistingDateHeader == firstNewDateHeader &&
-                                                  firstNewItem?.isDateHeader == true)
+                                                  lastExistingDateHeader == firstNewDateHeader)
                             
-                            for (message in newMessages) {
-                                if (skipFirstHeader && message.isDateHeader) {
-                                    skipFirstHeader = false  // Skip this header, but process next ones
+                            for (message in actuallyNewMessages) {
+                                // Skip the first date header if dates match (to avoid duplicate "Today" headers)
+                                if (skipFirstHeader && message.isDateHeader && message.dateHeaderText == firstNewDateHeader) {
+                                    skipFirstHeader = false  // Only skip the first matching header
                                     continue
                                 }
                                 filteredNewMessages.add(message)
@@ -507,7 +554,14 @@ class ChatActivity : AppCompatActivity() {
                         }
                     }
 
-                    val messageDate = timestamp?.toDate() ?: Date()
+                    // Handle timestamp - only use IST for null timestamps (when server timestamp not resolved yet)
+                    val messageDate = if (timestamp != null) {
+                        timestamp.toDate()
+                    } else {
+                        // If timestamp is null (server timestamp not resolved), use current time in IST
+                        val istTimeZone = TimeZone.getTimeZone("Asia/Kolkata")
+                        Calendar.getInstance(istTimeZone).time
+                    }
                     val timeString = formatMessageTime(messageDate)
 
                     val message = ChatMessage(
@@ -543,8 +597,7 @@ class ChatActivity : AppCompatActivity() {
                 Log.d("checkPagiantion", "⬆️ After duplicate filter: ${newMessages.size} new messages")
 
                 if (newMessages.isNotEmpty()) {
-                    // ✅ FIX: Remove duplicate date header if first message has same date header
-                    val filteredNewMessages = mutableListOf<ChatMessage>()
+                    // ✅ FIX: Remove duplicate date header when prepending older messages
                     
                     // Check if first message in existing list has a date header
                     val firstExistingMessage = messages.firstOrNull()
@@ -562,17 +615,14 @@ class ChatActivity : AppCompatActivity() {
                         lastNewItem?.date?.let { getDateHeaderText(it) }
                     }
                     
-                    // If date headers match, skip the last date header in new messages
-                    var skipLastHeader = (firstExistingDateHeader != null && 
-                                         firstExistingDateHeader == lastNewDateHeader &&
-                                         lastNewItem?.isDateHeader == true)
+                    // If date headers match, remove the first existing header (since it's a duplicate)
+                    val shouldRemoveFirstExisting = (firstExistingMessage?.isDateHeader == true && 
+                                                     firstExistingDateHeader != null &&
+                                                     firstExistingDateHeader == lastNewDateHeader)
                     
-                    for (message in newMessages) {
-                        if (skipLastHeader && message.isDateHeader && message == lastNewItem) {
-                            skipLastHeader = false  // Skip this header
-                            continue
-                        }
-                        filteredNewMessages.add(message)
+                    if (shouldRemoveFirstExisting) {
+                        // Remove the duplicate date header from existing messages
+                        messages.removeAt(0)
                     }
                     
                     // Save current scroll position
@@ -584,24 +634,25 @@ class ChatActivity : AppCompatActivity() {
                     Log.d("checkPagiantion", "⬆️ Scroll position before prepend: position=$currentScrollPosition, offset=$currentOffset")
 
                     // Prepend older messages
-                    messages.addAll(0, filteredNewMessages)
+                    messages.addAll(0, newMessages)
                     chatAdapter.notifyDataSetChanged()
 
                     Log.d("checkPagiantion", "✅ LOAD MORE COMPLETE")
-                    Log.d("checkPagiantion", "✅ Added ${filteredNewMessages.size} older messages")
-                    Log.d("checkPagiantion", "✅ Total messages now: ${messages.size} (was ${messages.size - filteredNewMessages.size})")
+                    Log.d("checkPagiantion", "✅ Added ${newMessages.size} older messages")
+                    Log.d("checkPagiantion", "✅ Total messages now: ${messages.size}")
                     Log.d("checkPagiantion", "✅ New oldest timestamp: $oldestMessageTimestamp")
                     Log.d("checkPagiantion", "✅ Has more messages: $hasMoreMessages")
 
-                    // Restore scroll position
+                    // Restore scroll position (account for items added minus any removed header)
                     rvMessages.post {
-                        if (filteredNewMessages.size > 0) {
-                            layoutManager?.scrollToPositionWithOffset(currentScrollPosition + filteredNewMessages.size, currentOffset)
-                            Log.d("checkPagiantion", "⬆️ Scroll position restored to: ${currentScrollPosition + filteredNewMessages.size}")
+                        val itemsAdded = if (shouldRemoveFirstExisting) newMessages.size - 1 else newMessages.size
+                        if (itemsAdded > 0) {
+                            layoutManager?.scrollToPositionWithOffset(currentScrollPosition + itemsAdded, currentOffset)
+                            Log.d("checkPagiantion", "⬆️ Scroll position restored to: ${currentScrollPosition + itemsAdded}")
                         }
                     }
 
-                    Log.d("ChatActivity", "✅ Loaded ${filteredNewMessages.size} older messages. Total: ${messages.size}")
+                    Log.d("ChatActivity", "✅ Loaded ${newMessages.size} older messages. Total: ${messages.size}")
                 } else {
                     Log.d("checkPagiantion", "⚠️ No new messages to add (all were duplicates)")
                     Log.d("ChatActivity", "No new messages to add (duplicates filtered)")
@@ -716,6 +767,47 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun sendMessageToFirestore(messageText: String) {
+        // Add message optimistically to show it immediately
+        val istTimeZone = TimeZone.getTimeZone("Asia/Kolkata")
+        val currentTime = Calendar.getInstance(istTimeZone).time
+        val timeString = formatMessageTime(currentTime)
+        
+        // Create temporary message to show immediately (optimistic update)
+        val tempId = "temp_${System.currentTimeMillis()}"
+        val tempMessage = ChatMessage(
+            id = tempId,
+            message = messageText,
+            timestamp = timeString,
+            isSentByMe = true,
+            date = currentTime
+        )
+        
+        // Add to UI immediately
+        val lastMessage = messages.lastOrNull()
+        val lastDateHeader = if (lastMessage?.isDateHeader == true) {
+            lastMessage.dateHeaderText
+        } else {
+            lastMessage?.date?.let { getDateHeaderText(it) }
+        }
+        val newDateHeader = getDateHeaderText(currentTime)
+        
+        // Only add date header if date changed
+        if (lastDateHeader != newDateHeader) {
+            messages.add(ChatMessage(
+                id = "date_header_$tempId",
+                message = "",
+                timestamp = "",
+                isSentByMe = false,
+                date = currentTime,
+                isDateHeader = true,
+                dateHeaderText = newDateHeader
+            ))
+        }
+        
+        messages.add(tempMessage)
+        chatAdapter.notifyItemInserted(messages.size - 1)
+        rvMessages.scrollToPosition(messages.size - 1)
+        
         // Create message data for Firestore
         val messageData = hashMapOf(
             "from" to myUserId,
@@ -754,15 +846,8 @@ class ChatActivity : AppCompatActivity() {
                     .add(messageData)
                     .addOnSuccessListener { documentReference ->
                         Log.d("ChatActivity", "✅ Message sent successfully: ${documentReference.id}")
-                        //   Toast.makeText(this, "Message sent", Toast.LENGTH_SHORT).show()
-
-                        // Scroll to bottom
-                        rvMessages.postDelayed({
-                            if (messages.isNotEmpty()) {
-                                rvMessages.scrollToPosition(messages.size - 1)
-                            }
-                        }, 100)
-
+                        // Temp message will be replaced when listener receives the real message
+                        
                         // Check if receiver has blocked sender before sending notification
                         checkIfReceiverBlockedMeAndSendNotification(messageText)
                     }
@@ -771,6 +856,19 @@ class ChatActivity : AppCompatActivity() {
                         Log.e("ChatActivity", "Error type: ${e.javaClass.simpleName}")
                         Log.e("ChatActivity", "Error message: ${e.message}")
                         Log.e("ChatActivity", "Error cause: ${e.cause}")
+
+                        // Remove temp message on failure
+                        val tempIndex = messages.indexOfFirst { it.id == tempId }
+                        if (tempIndex != -1) {
+                            messages.removeAt(tempIndex)
+                            // Also remove date header if it was added and there are no more messages after it
+                            if (tempIndex > 0 && messages.getOrNull(tempIndex - 1)?.isDateHeader == true) {
+                                if (tempIndex >= messages.size || messages.getOrNull(tempIndex)?.isDateHeader == true) {
+                                    messages.removeAt(tempIndex - 1)
+                                }
+                            }
+                            chatAdapter.notifyDataSetChanged()
+                        }
 
                         // Show detailed error to user
                         val errorMsg = when {
@@ -787,6 +885,20 @@ class ChatActivity : AppCompatActivity() {
             }
             .addOnFailureListener { e ->
                 Log.e("ChatActivity", "❌ Error creating thread metadata", e)
+                
+                // Remove temp message on failure
+                val tempIndex = messages.indexOfFirst { it.id == tempId }
+                if (tempIndex != -1) {
+                    messages.removeAt(tempIndex)
+                    // Also remove date header if it was added and there are no more messages after it
+                    if (tempIndex > 0 && messages.getOrNull(tempIndex - 1)?.isDateHeader == true) {
+                        if (tempIndex >= messages.size || messages.getOrNull(tempIndex)?.isDateHeader == true) {
+                            messages.removeAt(tempIndex - 1)
+                        }
+                    }
+                    chatAdapter.notifyDataSetChanged()
+                }
+                
                 Toast.makeText(this, "Failed to create chat thread", Toast.LENGTH_SHORT).show()
             }
     }
@@ -1354,34 +1466,63 @@ class ChatActivity : AppCompatActivity() {
      * Format message timestamp like WhatsApp:
      * - "Today, 10:30 AM" for today's messages
      * - "Yesterday, 10:30 AM" for yesterday's messages
-     * - "24 Dec 2025, 10:30 AM" for older messages
+     * - "31 Oct 2025, 10:30 AM" for older messages
      */
     private fun formatMessageTimestamp(date: Date): String {
-        val calendar = Calendar.getInstance()
-        val messageCalendar = Calendar.getInstance().apply { time = date }
+        // Use Indian Standard Time (IST) for all date comparisons
+        val istTimeZone = TimeZone.getTimeZone("Asia/Kolkata")
         
-        val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
+        // Get today's calendar in IST and normalize to midnight
+        val todayCalendar = Calendar.getInstance(istTimeZone).apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        
+        // Get message calendar in IST and normalize to midnight
+        val messageCalendar = Calendar.getInstance(istTimeZone).apply { 
+            time = date
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        
+        // Format time in IST
+        val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault()).apply {
+            timeZone = istTimeZone
+        }
         val timeString = timeFormat.format(date)
         
-        // Check if message is from today
-        val isToday = calendar.get(Calendar.YEAR) == messageCalendar.get(Calendar.YEAR) &&
-                calendar.get(Calendar.DAY_OF_YEAR) == messageCalendar.get(Calendar.DAY_OF_YEAR)
+        // Check if message is from today (in IST)
+        val isToday = todayCalendar.get(Calendar.YEAR) == messageCalendar.get(Calendar.YEAR) &&
+                todayCalendar.get(Calendar.DAY_OF_YEAR) == messageCalendar.get(Calendar.DAY_OF_YEAR)
         
         if (isToday) {
             return "Today, $timeString"
         }
         
-        // Check if message is from yesterday
-        calendar.add(Calendar.DAY_OF_YEAR, -1)
-        val isYesterday = calendar.get(Calendar.YEAR) == messageCalendar.get(Calendar.YEAR) &&
-                calendar.get(Calendar.DAY_OF_YEAR) == messageCalendar.get(Calendar.DAY_OF_YEAR)
+        // Check if message is from yesterday (in IST)
+        val yesterdayCalendar = Calendar.getInstance(istTimeZone).apply {
+            add(Calendar.DAY_OF_YEAR, -1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        
+        val isYesterday = yesterdayCalendar.get(Calendar.YEAR) == messageCalendar.get(Calendar.YEAR) &&
+                yesterdayCalendar.get(Calendar.DAY_OF_YEAR) == messageCalendar.get(Calendar.DAY_OF_YEAR)
         
         if (isYesterday) {
             return "Yesterday, $timeString"
         }
         
-        // For older messages, show date like "24 Dec 2025, 10:30 AM"
-        val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+        // For older messages, show date like "31 Oct 2025, 10:30 AM" (in IST)
+        val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).apply {
+            timeZone = istTimeZone
+        }
         val dateString = dateFormat.format(date)
         
         return "$dateString, $timeString"
@@ -1389,41 +1530,71 @@ class ChatActivity : AppCompatActivity() {
 
     /**
      * Format message time only (for display in message bubble)
-     * Returns: "10:30 AM" or "2:45 PM"
+     * Returns: "10:30 AM" or "2:45 PM" (in IST)
      */
     private fun formatMessageTime(date: Date): String {
-        val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
+        val istTimeZone = TimeZone.getTimeZone("Asia/Kolkata")
+        val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault()).apply {
+            timeZone = istTimeZone
+        }
         return timeFormat.format(date)
     }
 
     /**
      * Get date header text for a given date
-     * Returns: "Today", "Yesterday", or "24 Dec 2024"
+     * Returns: "Today", "Yesterday", or "31 Oct 2025" (in IST)
      */
     private fun getDateHeaderText(date: Date): String {
-        val calendar = Calendar.getInstance()
-        val messageCalendar = Calendar.getInstance().apply { time = date }
+        // Use Indian Standard Time (IST) for all date comparisons
+        val istTimeZone = TimeZone.getTimeZone("Asia/Kolkata")
         
-        // Check if message is from today
-        val isToday = calendar.get(Calendar.YEAR) == messageCalendar.get(Calendar.YEAR) &&
-                calendar.get(Calendar.DAY_OF_YEAR) == messageCalendar.get(Calendar.DAY_OF_YEAR)
+        // Get today's calendar in IST and normalize to midnight
+        val todayCalendar = Calendar.getInstance(istTimeZone).apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        
+        // Get message calendar in IST and normalize to midnight
+        val messageCalendar = Calendar.getInstance(istTimeZone).apply { 
+            time = date
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        
+        // Check if message is from today (in IST)
+        val isToday = todayCalendar.get(Calendar.YEAR) == messageCalendar.get(Calendar.YEAR) &&
+                todayCalendar.get(Calendar.DAY_OF_YEAR) == messageCalendar.get(Calendar.DAY_OF_YEAR)
         
         if (isToday) {
             return "Today"
         }
         
-        // Check if message is from yesterday
-        calendar.add(Calendar.DAY_OF_YEAR, -1)
-        val isYesterday = calendar.get(Calendar.YEAR) == messageCalendar.get(Calendar.YEAR) &&
-                calendar.get(Calendar.DAY_OF_YEAR) == messageCalendar.get(Calendar.DAY_OF_YEAR)
+        // Check if message is from yesterday (in IST)
+        val yesterdayCalendar = Calendar.getInstance(istTimeZone).apply {
+            add(Calendar.DAY_OF_YEAR, -1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        
+        val isYesterday = yesterdayCalendar.get(Calendar.YEAR) == messageCalendar.get(Calendar.YEAR) &&
+                yesterdayCalendar.get(Calendar.DAY_OF_YEAR) == messageCalendar.get(Calendar.DAY_OF_YEAR)
         
         if (isYesterday) {
             return "Yesterday"
         }
         
-        // For older messages, show date like "24 Dec 2024"
-        val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
-        return dateFormat.format(date)
+        // For older messages, show date like "31 Oct 2025" (in IST)
+        val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).apply {
+            timeZone = istTimeZone
+        }
+        val result = dateFormat.format(date)
+        return result
     }
 
     /**
@@ -1438,7 +1609,11 @@ class ChatActivity : AppCompatActivity() {
         var currentDateHeader: String? = null
         
         for (message in messages) {
-            val messageDate = message.date ?: Date()
+            // Use IST timezone for fallback date
+            val messageDate = message.date ?: run {
+                val istTimeZone = TimeZone.getTimeZone("Asia/Kolkata")
+                Calendar.getInstance(istTimeZone).time
+            }
             val dateHeaderText = getDateHeaderText(messageDate)
             
             // If this message has a different date header than the previous one, insert a date header

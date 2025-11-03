@@ -1,6 +1,7 @@
 package com.gmwapp.hima.activities
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -10,6 +11,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
@@ -80,6 +82,16 @@ class ChatListActivity : AppCompatActivity() {
         swipeRefreshLayout = findViewById(R.id.swipe_refresh_layout)
         llEmptyState = findViewById(R.id.ll_empty_state)
         progressBar = findViewById(R.id.progress_bar)
+
+        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+
+        // ✅ SIMPLE: Set status bar icons to LIGHT (white) - works on all devices
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.setSystemBarsAppearance(
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+            )
+        }
     }
 
     private fun setupUserId() {
