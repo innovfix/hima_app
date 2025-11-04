@@ -385,7 +385,24 @@ class ChatActivity : AppCompatActivity() {
                         // Real-time update - add only new messages (newer than what we have)
                         // Also check for temp messages that need to be replaced
                         val existingIds = messages.map { it.id }.toSet()
-                        val newMessages = messagesWithHeaders.filter { !existingIds.contains(it.id) }
+                        
+                        // ✅ FIX: Also track existing date headers by their text to avoid duplicates
+                        val existingDateHeaders = messages
+                            .filter { it.isDateHeader }
+                            .map { it.dateHeaderText }
+                            .toSet()
+                        
+                        // Filter for truly new messages (not already in list)
+                        // For date headers, check by dateHeaderText instead of ID to avoid duplicates
+                        val newMessages = messagesWithHeaders.filter { msg ->
+                            if (msg.isDateHeader) {
+                                // For date headers, check if this date header text already exists
+                                !existingDateHeaders.contains(msg.dateHeaderText)
+                            } else {
+                                // For regular messages, check by ID
+                                !existingIds.contains(msg.id)
+                            }
+                        }
                         
                         // Track which message IDs were used to replace temp messages
                         val replacedMessageIds = mutableSetOf<String>()
