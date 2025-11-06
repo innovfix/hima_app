@@ -1,6 +1,9 @@
 package com.gmwapp.hima.activities
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.pm.ResolveInfo
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -13,6 +16,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Observer
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.cashfree.pg.api.CFPaymentGatewayService
 import com.cashfree.pg.base.exception.CFException
@@ -26,8 +30,12 @@ import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.BillingManager.BillingManager
 import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.CoinAdapter
+import com.gmwapp.hima.adapters.UPIAppAdapter
+import com.gmwapp.hima.adapters.UPIAppDialogAdapter
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.gmwapp.hima.databinding.ActivityPaymentBinding
+import com.gmwapp.hima.models.UPIApp
 import com.gmwapp.hima.retrofit.responses.CoinsResponseData
 import com.gmwapp.hima.retrofit.responses.NewRazorpayLinkResponse
 import com.gmwapp.hima.utils.DPreferences
@@ -89,6 +97,29 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
     private var currentCoins: String? = null
     private var currentOffer: String? = null
     private var isCouponApplied: Boolean = false
+    
+    // UPI Selection variables
+    private var selectedUPIApp: UPIApp? = null
+    private var allInstalledUPIApps: List<UPIApp> = emptyList()
+    private val cashfreeSupportedUPIApps = listOf(
+        "com.google.android.apps.nfc.payment", // Google Pay (old)
+        "com.google.android.apps.walletnfcrel", // Google Pay (newer)
+        "com.google.android.gms", // Google Play Services (sometimes handles UPI)
+        "com.phonepe.app", // PhonePe
+        "net.one97.paytm", // Paytm
+        "in.org.npci.upiapp", // BHIM
+        "in.amazon.mShop.android.shopping", // Amazon Pay
+        "com.mobikwik_new", // MobiKwik
+        "com.freecharge.android", // Freecharge
+        "com.airtel.money", // Airtel Thanks
+        "com.axis.mobile", // Axis Pay
+        "com.hdfcbank.hdfcpayzapp", // HDFC PayZapp
+        "com.icici.bank.imobile", // iMobile Pay
+        "com.sbi.SBIFreedomPlus", // SBI Pay
+        "com.paytm.paytmwallet", // Paytm Wallet
+        "com.olacabs.customer", // Ola Money
+        "com.truecaller", // Truecaller Pay
+    )
 
     private val activityResultLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -124,6 +155,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
 
         getPaymentGateway()
         initUI()
+        setupUPISelection()
         startPayment()
         observeAddCoins()
         intializePhonpe()
@@ -454,6 +486,191 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         }
     }
 
+    // Get default UPI app based on priority: PhonePe > Google Pay > First available
+    private fun getDefaultUPIApp(upiApps: List<UPIApp>): UPIApp {
+        // Priority 1: PhonePe
+        val phonePe = upiApps.find { 
+            it.packageName == "com.phonepe.app" || 
+            it.appName.contains("PhonePe", ignoreCase = true)
+        }
+        if (phonePe != null) {
+            Log.d("UPISelection", "Default selected: PhonePe")
+            return phonePe
+        }
+        
+        // Priority 2: Google Pay
+        val googlePay = upiApps.find { 
+            it.packageName.contains("google", ignoreCase = true) && 
+            (it.packageName.contains("pay", ignoreCase = true) || 
+             it.packageName.contains("wallet", ignoreCase = true) ||
+             it.packageName.contains("nfc", ignoreCase = true)) ||
+            it.appName.contains("Google Pay", ignoreCase = true) ||
+            it.appName.contains("GPay", ignoreCase = true)
+        }
+        if (googlePay != null) {
+            Log.d("UPISelection", "Default selected: Google Pay")
+            return googlePay
+        }
+        
+        // Priority 3: First available app
+        Log.d("UPISelection", "Default selected: ${upiApps[0].appName}")
+        return upiApps[0]
+    }
+
+    // Get installed UPI apps supported by Cashfree
+    private fun getInstalledUPIApps(): List<UPIApp> {
+        val pm = packageManager
+        val allUPIApps = mutableSetOf<ResolveInfo>()
+        
+        // Try different UPI intent schemes to catch all apps
+        val upiSchemes = listOf(
+            "upi://pay",
+            "tez://pay", // Google Pay specific
+            "gpay://pay", // Google Pay alternative
+        )
+        
+        for (scheme in upiSchemes) {
+            try {
+                val intent = Intent(Intent.ACTION_VIEW)
+                intent.data = Uri.parse(scheme)
+                val resolveInfos = pm.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+                allUPIApps.addAll(resolveInfos)
+                Log.d("UPIDetection", "Scheme $scheme found ${resolveInfos.size} apps")
+            } catch (e: Exception) {
+                Log.e("UPIDetection", "Error with scheme $scheme: ${e.message}")
+            }
+        }
+        
+        // Debug: Log all detected UPI apps
+        Log.d("UPIDetection", "Total unique UPI apps detected: ${allUPIApps.size}")
+        val upiApps = mutableListOf<UPIApp>()
+        
+        for (resolveInfo in allUPIApps) {
+            val packageName = resolveInfo.activityInfo.packageName
+            val appName = try {
+                pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString()
+            } catch (e: Exception) {
+                packageName
+            }
+            
+            Log.d("UPIDetection", "Found UPI app: $appName ($packageName)")
+            
+            // Check if it's in our supported list OR if it's Google Pay (by name or package)
+            val isGooglePay = appName.contains("Google Pay", ignoreCase = true) || 
+                    appName.contains("GPay", ignoreCase = true) ||
+                    (packageName.contains("google", ignoreCase = true) && 
+                     (packageName.contains("pay", ignoreCase = true) || 
+                      packageName.contains("wallet", ignoreCase = true) ||
+                      packageName.contains("nfc", ignoreCase = true)))
+            
+            val isSupported = cashfreeSupportedUPIApps.contains(packageName) || isGooglePay
+            
+            if (isSupported) {
+                Log.d("UPIDetection", "Adding supported UPI app: $appName ($packageName)")
+                upiApps.add(UPIApp(
+                    packageName = packageName,
+                    appName = appName,
+                    resolveInfo = resolveInfo
+                ))
+            } else {
+                Log.d("UPIDetection", "Skipping unsupported UPI app: $appName ($packageName)")
+            }
+        }
+        
+        Log.d("UPIDetection", "Final list of supported UPI apps: ${upiApps.size}")
+        return upiApps.sortedBy { it.appName }
+    }
+
+    // Setup UPI selection UI (only for Cashfree)
+    private fun setupUPISelection() {
+        if (paymentGateway != "cashfree") {
+            binding.llUpiSelection.visibility = View.GONE
+            binding.btnPay.visibility = View.VISIBLE
+            return
+        }
+        
+        allInstalledUPIApps = getInstalledUPIApps()
+        
+        if (allInstalledUPIApps.isEmpty()) {
+            // No UPI apps found, show regular pay button
+            binding.llUpiSelection.visibility = View.GONE
+            binding.btnPay.visibility = View.VISIBLE
+            return
+        }
+        
+        // Show UPI selection UI
+        binding.llUpiSelection.visibility = View.VISIBLE
+        binding.btnPay.visibility = View.GONE
+        
+        // Select default app based on priority: PhonePe > Google Pay > First available
+        if (allInstalledUPIApps.isNotEmpty()) {
+            selectedUPIApp = getDefaultUPIApp(allInstalledUPIApps)
+            updateSelectedUPIDisplay()
+        }
+        
+        // Setup dropdown click to show app selection dialog
+        binding.llSelectedUpi.setOnClickListener {
+            showUPIAppSelectionDialog()
+        }
+        
+        // Setup Pay button click
+        binding.btnPayUpi.setOnClickListener {
+            Log.d("paynowcasfree", "Pay Now clicked")
+            selectedUPIApp?.let { app ->
+                val coinID = BaseApplication.getInstance()?.getPrefs()?.getString("last_coin_id")
+                coinID?.let { 
+                    Log.d("paynowcasfree", "UPI: ${app.appName}, Coin: $it")
+                    fetchOrderOfCashfree(it, app.packageName) 
+                } ?: run {
+                    Toast.makeText(this, "Please select a coin", Toast.LENGTH_SHORT).show()
+                }
+            } ?: run {
+                Toast.makeText(this, "Please select a UPI app", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+    
+    // Update the selected UPI app display
+    private fun updateSelectedUPIDisplay() {
+        selectedUPIApp?.let { app ->
+            binding.tvSelectedUpiName.text = app.appName
+            
+            // Load app icon
+            try {
+                val icon = packageManager.getApplicationIcon(app.packageName)
+                binding.ivSelectedUpiIcon.setImageDrawable(icon)
+            } catch (e: Exception) {
+                binding.ivSelectedUpiIcon.setImageResource(R.drawable.ic_launcher_foreground)
+            }
+        } ?: run {
+            binding.tvSelectedUpiName.text = "Select UPI App"
+            binding.ivSelectedUpiIcon.setImageResource(R.drawable.ic_launcher_foreground)
+        }
+    }
+    
+    // Show bottom sheet dialog with all available UPI apps
+    private fun showUPIAppSelectionDialog() {
+        val dialog = BottomSheetDialog(this)
+        val dialogView = layoutInflater.inflate(R.layout.dialog_upi_apps, null)
+        dialog.setContentView(dialogView)
+        
+        val recyclerView = dialogView.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rv_upi_apps_list)
+        
+        val adapter = UPIAppDialogAdapter(
+            allInstalledUPIApps,
+            selectedUPIApp?.packageName
+        ) { upiApp ->
+            selectedUPIApp = upiApp
+            updateSelectedUPIDisplay()
+            dialog.dismiss()
+        }
+        
+        recyclerView.layoutManager = LinearLayoutManager(this)
+        recyclerView.adapter = adapter
+        
+        dialog.show()
+    }
+
     fun getPaymentGateway(){
 
         paymentGateway = BaseApplication.getInstance()?.getPrefs()?.getString("last_coin_pg").toString()
@@ -582,6 +799,12 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
 
 
                             "cashfree" -> {
+                                // If UPI selection UI is visible, payment is handled by btnPayUpi
+                                if (binding.llUpiSelection.visibility == View.VISIBLE) {
+                                    // Payment will be handled by btnPayUpi click listener
+                                    return@setOnClickListener
+                                }
+                                // Fallback: no UPI apps installed, use regular checkout
                                 fetchOrderOfCashfree(coinID)
                             }
 
@@ -890,6 +1113,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
     }
 
     fun cashfreeCheckout(paymentSessionID: String, orderID: String) {
+        Log.d("paynowcasfree", "Opening Cashfree web checkout")
         try {
             val cfSession = CFSession.CFSessionBuilder()
                 .setEnvironment(cfEnvironment)
@@ -903,33 +1127,36 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
 
             CFPaymentGatewayService.getInstance()
                 .doPayment(this@PaymentActivity, cfWebCheckoutPayment)
-
         } catch (e: CFException) {
-            e.printStackTrace()
-            Toast.makeText(this, "Cashfree checkout failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            Log.e("paynowcasfree", "Cashfree error: ${e.message}")
+            runOnUiThread {
+                Toast.makeText(this, "Cashfree checkout failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
-    private fun fetchOrderOfCashfree(coinId: String) {
+    private fun fetchOrderOfCashfree(coinId: String, upiPackageName: String? = null) {
+        Log.d("paynowcasfree", "Creating order...")
+        
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val user_id = userData?.id
         val client = OkHttpClient()
-
-        // ✅ SET COUPON_ID TO "0" IF EMPTY
         val couponIdToPass = if (selectedCouponId.isNotEmpty()) selectedCouponId else "0"
-        Log.d("couponIdToPass","$couponIdToPass")
 
-        // ✅ ALWAYS INCLUDE COUPON_ID IN JSON BODY (0 if empty)
+        val upiPackageJson = if (upiPackageName != null) {
+            """,
+        "upi_package_name": "$upiPackageName""""
+        } else {
+            ""
+        }
+        
         val json = """{
         "user_id": "$user_id",
         "coins_id": "$coinId",
-        "coupon_id": "$couponIdToPass"
+        "coupon_id": "$couponIdToPass"$upiPackageJson
     }"""
         val mediaType = "application/json".toMediaTypeOrNull()
         val body = RequestBody.create(mediaType, json)
-        
-        // ✅ LOG THE REQUEST
-        Log.d("CashfreeRequest", "Request Body: $json")
 
         val request = Request.Builder()
             .url("https://himaapp.in/api/cashfree/create-order")
@@ -939,6 +1166,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
 
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
+                Log.e("paynowcasfree", "Order creation failed: ${e.message}")
                 runOnUiThread {
                     Toast.makeText(this@PaymentActivity, "Order creation failed: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
@@ -946,28 +1174,38 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
                 val resultStr = response.body?.string()
-                Log.d("CashfreeOrderResponse", "$resultStr")
+                Log.d("paynowcasfree", "Order response: ${response.code}")
 
                 try {
                     val json = JSONObject(resultStr)
                     val success = json.optBoolean("success", false)
 
                     if (success) {
-                        val sessionId = json.getString("payment_session_id")
                         val orderId = json.getString("order_id")
-
                         cashfreeLastOrderId = orderId
+                        Log.d("paynowcasfree", "Order created: $orderId")
+                        
+                        val upiIntentUrl = json.optString("upi_intent_url", "")
+                        val sessionId = json.optString("payment_session_id", "")
+                        
                         runOnUiThread {
-                            // Start the Cashfree payment flow
-                            cashfreeCheckout(sessionId, orderId)
+                            if (upiIntentUrl.isNotEmpty() && upiPackageName != null) {
+                                Log.d("paynowcasfree", "UPI intent URL received, opening app")
+                                openUPIAppDirectly(upiIntentUrl, upiPackageName, orderId)
+                            } else {
+                                Log.d("paynowcasfree", "No UPI URL, using web checkout")
+                                cashfreeCheckout(sessionId, orderId)
+                            }
                         }
                     } else {
+                        val errorMsg = json.optJSONObject("errors")?.toString() ?: "Order creation failed"
+                        Log.e("paynowcasfree", "Order failed: $errorMsg")
                         runOnUiThread {
-                            val errorMsg = json.optJSONObject("errors")?.toString() ?: "Order creation failed"
                             Toast.makeText(this@PaymentActivity, errorMsg, Toast.LENGTH_SHORT).show()
                         }
                     }
                 } catch (e: Exception) {
+                    Log.e("paynowcasfree", "Parse error: ${e.message}")
                     runOnUiThread {
                         Toast.makeText(this@PaymentActivity, "Invalid server response", Toast.LENGTH_SHORT).show()
                     }
@@ -976,7 +1214,36 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         })
     }
 
+    // Open UPI app directly with intent URL from backend
+    private fun openUPIAppDirectly(upiIntentUrl: String, upiPackageName: String, orderId: String) {
+        Log.d("paynowcasfree", "Opening UPI app: $upiPackageName")
+        try {
+            val upiIntent = Intent.parseUri(upiIntentUrl, Intent.URI_INTENT_SCHEME)
+            upiIntent.setPackage(upiPackageName)
+            
+            if (upiIntent.resolveActivity(packageManager) != null) {
+                startActivity(upiIntent)
+                Log.d("paynowcasfree", "UPI app opened")
+            } else {
+                upiIntent.setPackage(null)
+                if (upiIntent.resolveActivity(packageManager) != null) {
+                    startActivity(upiIntent)
+                    Log.d("paynowcasfree", "UPI app opened (system choice)")
+                } else {
+                    throw ActivityNotFoundException("No UPI app found")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("paynowcasfree", "Failed to open UPI: ${e.message}")
+            runOnUiThread {
+                Toast.makeText(this, "Failed to open UPI app: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     fun checkCashfreeOderStatus(orderId: String) {
+        Log.d("paynowcasfree", "Checking payment status: $orderId")
+        
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val user_id = userData?.id
         val client = OkHttpClient()
@@ -989,6 +1256,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
 
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
+                Log.e("paynowcasfree", "Status check failed: ${e.message}")
                 runOnUiThread {
                     Toast.makeText(this@PaymentActivity, "Status check failed: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
@@ -996,30 +1264,32 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
                 val resultStr = response.body?.string()
-                Log.d("CashfreeOrderStatus", "$resultStr")
-
                 try {
                     val json = JSONObject(resultStr)
-
                     val paymentStatus = json.optString("order_status", "UNKNOWN")
                     val coin_id = json.optString("coin_id", "")
                     val order_id = json.optString("order_id", "")
 
-                    Log.d("cashfreePaymentStatus", "Status: $paymentStatus, Coin ID: $coin_id, Order ID: $order_id")
+                    Log.d("paynowcasfree", "Payment status: $paymentStatus")
 
                     if (paymentStatus.equals("PAID", ignoreCase = true)) {
+                        Log.d("paynowcasfree", "Payment successful!")
                         runOnUiThread {
                             Toast.makeText(this@PaymentActivity, "Payment Successful", Toast.LENGTH_LONG).show()
-                            user_id?.let { WalletViewModel.add_coins_cashfree(it, coin_id, 1, order_id, "Coins purchased") }
+                            user_id?.let { 
+                                WalletViewModel.add_coins_cashfree(it, coin_id, 1, order_id, "Coins purchased")
+                            }
                             observeAddCoins()
                             updatePurchaseOnMeta()
                         }
                     } else {
+                        Log.d("paynowcasfree", "Payment not paid: $paymentStatus")
                         runOnUiThread {
                             Toast.makeText(this@PaymentActivity, "Payment Failed", Toast.LENGTH_LONG).show()
                         }
                     }
                 } catch (e: Exception) {
+                    Log.e("paynowcasfree", "Status parse error: ${e.message}")
                     runOnUiThread {
                         Toast.makeText(this@PaymentActivity, "Invalid response", Toast.LENGTH_SHORT).show()
                     }
@@ -1030,12 +1300,10 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
 
     override fun onResume() {
         super.onResume()
-
-        Log.d("cashfreeLastOrderId","$cashfreeLastOrderId")
         if (cashfreeLastOrderId.isNotEmpty()){
+            Log.d("paynowcasfree", "Resumed, checking status: $cashfreeLastOrderId")
             checkCashfreeOderStatus(cashfreeLastOrderId)
-            cashfreeLastOrderId = "" // reset so it won't run again
-
+            cashfreeLastOrderId = ""
         }
     }
 

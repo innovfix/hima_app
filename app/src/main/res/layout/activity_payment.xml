@@ -342,6 +342,138 @@
 
     </androidx.cardview.widget.CardView>
 
+    <!-- UPI Selection Section (Only for Cashfree) -->
+    <LinearLayout
+        android:id="@+id/ll_upi_selection"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="@dimen/_16sdp"
+        android:layout_marginRight="@dimen/_16sdp"
+        android:layout_marginTop="@dimen/_20sdp"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <!-- PAY USING Label -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="PAY USING"
+            android:textSize="11sp"
+            android:textColor="#6B7280"
+            android:fontFamily="@font/poppins_semibold"
+            android:letterSpacing="0.08"
+            android:layout_marginBottom="12dp"
+            android:layout_marginStart="4dp" />
+
+        <!-- Main Payment Row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:baselineAligned="false">
+
+            <!-- UPI App Selection Card -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/cv_upi_selection"
+                android:layout_width="0dp"
+                android:layout_height="64dp"
+                android:layout_weight="1"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="3dp"
+                app:cardBackgroundColor="@color/white"
+                android:layout_marginEnd="12dp">
+
+                <LinearLayout
+                    android:id="@+id/ll_selected_upi"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="10dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackground">
+
+                    <ImageView
+                        android:id="@+id/iv_selected_upi_icon"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:scaleType="fitCenter"
+                        android:layout_marginEnd="10dp"
+                        android:adjustViewBounds="true" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:layout_marginEnd="6dp">
+
+                        <TextView
+                            android:id="@+id/tv_selected_upi_name"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Select UPI App"
+                            android:textSize="15sp"
+                            android:textColor="#111827"
+                            android:fontFamily="@font/poppins_bold"
+                            android:maxLines="1"
+                            android:ellipsize="end"
+                            android:includeFontPadding="false"
+                            android:minWidth="0dp" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Tap to change"
+                            android:textSize="9sp"
+                            android:textColor="#9CA3AF"
+                            android:fontFamily="@font/poppins_regular"
+                            android:layout_marginTop="1dp"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:ellipsize="end"
+                            android:minWidth="0dp" />
+
+                    </LinearLayout>
+
+                    <ImageView
+                        android:id="@+id/iv_dropdown_arrow"
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:src="@drawable/baseline_arrow_forward_24"
+                        android:tint="#9CA3AF"
+                        android:rotation="90"
+                        android:layout_marginStart="2dp" />
+
+                </LinearLayout>
+
+            </androidx.cardview.widget.CardView>
+
+            <!-- Pay Now Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_pay_upi"
+                android:layout_width="wrap_content"
+                android:layout_height="64dp"
+                android:minWidth="140dp"
+                android:textAllCaps="false"
+                android:textSize="16sp"
+                android:fontFamily="@font/poppins_bold"
+                android:paddingHorizontal="20dp"
+                app:cornerRadius="16dp"
+                android:text="Pay Now"
+                android:textColor="@color/white"
+                android:backgroundTint="@color/pink"
+                app:elevation="4dp"
+                app:strokeWidth="0dp"
+                android:letterSpacing="0.01" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_pay"
         android:layout_width="match_parent"
