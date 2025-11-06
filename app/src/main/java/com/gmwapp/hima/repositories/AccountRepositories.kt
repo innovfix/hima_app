@@ -7,6 +7,7 @@ import com.gmwapp.hima.retrofit.responses.SettingsResponse
 import com.gmwapp.hima.retrofit.responses.SubmitTicketResponse
 import com.gmwapp.hima.retrofit.responses.SubqueriesResponse
 import com.gmwapp.hima.retrofit.responses.TicketsListResponse
+import com.gmwapp.hima.retrofit.responses.CallRejectCountResponse
 import javax.inject.Inject
 
 class AccountRepositories @Inject constructor(private val apiManager: ApiManager) {
@@ -28,5 +29,9 @@ class AccountRepositories @Inject constructor(private val apiManager: ApiManager
 
     fun getTicketsList(userId: Int, callback: NetworkCallback<TicketsListResponse>) {
         apiManager.getTicketsList(userId, callback)
+    }
+
+    fun callRejectCount(maleUserId: Int, femaleUserId: Int, callback: NetworkCallback<CallRejectCountResponse>) {
+        apiManager.callRejectCount(maleUserId, femaleUserId, callback)
     }
 }

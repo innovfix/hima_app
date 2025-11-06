@@ -15,6 +15,8 @@ object FcmUtils {
 
     var isUserAvailable = 1
 
+    var shouldRefreshCallList = 0
+
     private val _updatedTime = MutableLiveData<String?>()
     val updatedTime: LiveData<String?> get() = _updatedTime
 

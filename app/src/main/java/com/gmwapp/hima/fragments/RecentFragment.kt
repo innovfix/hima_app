@@ -299,7 +299,14 @@ class RecentFragment : BaseFragment() {
         if (FcmUtils.isUserAvailable==0){
             loadCallsList(currentSortType, resetData = true)
         }
-        
+
+        if (FcmUtils.shouldRefreshCallList == 1) {
+            android.util.Log.d("RecentFragment", "Call rejected detected, refreshing call list")
+            loadCallsList(currentSortType, resetData = true)
+            FcmUtils.shouldRefreshCallList = 0  // Reset flag after refresh
+        }
+
+
         // Refresh unread count when returning to this screen
         android.util.Log.d("RecentFragment", "🔄 onResume - reloading unread count")
         loadUnreadMessageCount()

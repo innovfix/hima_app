@@ -245,9 +245,10 @@ class BaseApplication : Application(), Configuration.Provider {
                     }
 
                     else if (type == "your ticket") {
-                        Log.d("OneSignalClick", "✅ App OPEN - Opening ChatListActivity")
+                        Log.d("OneSignalClick", "✅ App OPEN - Opening TicketsListActivity")
                         val intent = Intent(applicationContext, com.gmwapp.hima.activities.TicketsListActivity::class.java).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            putExtra("TAB_POSITION", 1) // 1 = Resolved tab
                         }
                         startActivity(intent)
                     }

@@ -395,6 +395,7 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                     cancelTimeoutTracking()
                     isRunning = false
                     FcmUtils.clearCallStatus()
+                    FcmUtils.shouldRefreshCallList = 1
                     Toast.makeText(
                         this@FemaleCallConnectingActivity,
                         "$receiverName is busy",

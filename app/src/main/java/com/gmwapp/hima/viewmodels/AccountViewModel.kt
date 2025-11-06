@@ -11,6 +11,7 @@ import com.gmwapp.hima.retrofit.responses.SettingsResponse
 import com.gmwapp.hima.retrofit.responses.SubmitTicketResponse
 import com.gmwapp.hima.retrofit.responses.SubqueriesResponse
 import com.gmwapp.hima.retrofit.responses.TicketsListResponse
+import com.gmwapp.hima.retrofit.responses.CallRejectCountResponse
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import retrofit2.Call
@@ -30,6 +31,8 @@ class AccountViewModel @Inject constructor(private val accountRepositories: Acco
     val submitTicketErrorLiveData = MutableLiveData<String>()
     val ticketsListLiveData = MutableLiveData<TicketsListResponse>()
     val ticketsListErrorLiveData = MutableLiveData<String>()
+    val callRejectCountLiveData = MutableLiveData<CallRejectCountResponse>()
+    val callRejectCountErrorLiveData = MutableLiveData<String>()
 
     fun getSettings() {
         viewModelScope.launch {
@@ -195,6 +198,30 @@ class AccountViewModel @Inject constructor(private val accountRepositories: Acco
                     Log.w("TicketsListAPI", "No network connection available")
                     
                     ticketsListErrorLiveData.postValue("No network connection")
+                }
+            })
+        }
+    }
+
+    fun callRejectCount(maleUserId: Int, femaleUserId: Int) {
+        viewModelScope.launch {
+            accountRepositories.callRejectCount(maleUserId, femaleUserId, object: NetworkCallback<CallRejectCountResponse> {
+                override fun onResponse(
+                    call: Call<CallRejectCountResponse>,
+                    response: Response<CallRejectCountResponse>
+                ) {
+                    callRejectCountLiveData.postValue(response.body())
+                    Log.d("CallRejectCount", "Request URL: ${call.request().url}")
+                    Log.d("CallRejectCount", "Response: ${response.body()}")
+                }
+
+                override fun onFailure(call: Call<CallRejectCountResponse>, t: Throwable) {
+                    callRejectCountErrorLiveData.postValue(t.message ?: "Unknown error")
+                    Log.e("CallRejectCount", "Error: ${t.message}", t)
+                }
+
+                override fun onNoNetwork() {
+                    callRejectCountErrorLiveData.postValue("No network connection")
                 }
             })
         }

@@ -63,6 +63,7 @@ import com.gmwapp.hima.retrofit.responses.WhatsappLinkResponse
 import com.gmwapp.hima.retrofit.responses.WithdrawResponse
 import com.gmwapp.hima.retrofit.responses.ZohoMailResponse
 import com.gmwapp.hima.retrofit.responses.DefaultCouponResponse
+import com.gmwapp.hima.retrofit.responses.CallRejectCountResponse
 import com.gmwapp.hima.utils.Helper
 import okhttp3.MultipartBody
 import retrofit2.Call
@@ -1011,6 +1012,19 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
             callback.onNoNetwork()
         }
     }
+
+    fun callRejectCount(
+        maleUserId: Int,
+        femaleUserId: Int,
+        callback: NetworkCallback<CallRejectCountResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<CallRejectCountResponse> = getApiInterface().callRejectCount(maleUserId, femaleUserId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
 }
 
 interface ApiInterface {
@@ -1317,6 +1331,13 @@ interface ApiInterface {
     fun getSpeechText(
         @Field("user_id") userId: Int, @Field("language") language: String
     ): Call<SpeechTextResponse>
+
+    @FormUrlEncoded
+    @POST("call_reject_count")
+    fun callRejectCount(
+        @Field("male_user_id") maleUserId: Int,
+        @Field("female_user_id") femaleUserId: Int
+    ): Call<CallRejectCountResponse>
 
     @Multipart
     @POST("update_voice")

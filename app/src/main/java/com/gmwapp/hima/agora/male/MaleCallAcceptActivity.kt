@@ -24,6 +24,7 @@ import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.databinding.ActivityMaleCallAcceptBinding
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.UserAvatarViewModel
+import com.gmwapp.hima.viewmodels.AccountViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlin.system.exitProcess
 
@@ -31,6 +32,7 @@ import kotlin.system.exitProcess
 class MaleCallAcceptActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMaleCallAcceptBinding
     private val fcmNotificationViewModel: FcmNotificationViewModel by viewModels()
+    private val accountViewModel: AccountViewModel by viewModels()
 
     private var callType: String? = null
     private var receiverId: Int = -1
@@ -117,6 +119,7 @@ class MaleCallAcceptActivity : AppCompatActivity() {
 
         userAvatarViewModel.getUserAvatar(receiverId)
         avatarObservers()
+        observeCallRejectCount()
 
         Log.d("MaleCallAccept_CallID","$call_Id")
 
@@ -182,6 +185,11 @@ class MaleCallAcceptActivity : AppCompatActivity() {
 
         binding.reject.setOnClickListener {
             if (receiverId != -1 && !channelName.isNullOrEmpty() && !callType.isNullOrEmpty()) {
+                // Call reject count API
+                userId?.let { maleUserId ->
+                    accountViewModel.callRejectCount(maleUserId, receiverId)
+                }
+                
                 sendCallNotification(userId!!, receiverId, callType!!, channelName!!, "rejected")
 
                 if (isLocked) {
@@ -247,6 +255,24 @@ class MaleCallAcceptActivity : AppCompatActivity() {
                 } else {
                     Log.e("MaleCallAccept_FCM", "Failed to send notification")
                 }
+            }
+        }
+    }
+
+    fun observeCallRejectCount() {
+        accountViewModel.callRejectCountLiveData.observe(this) { response ->
+            response?.let {
+                if (it.success) {
+                    Log.d("MaleCallAccept_RejectCount", "Call reject count recorded: ${it.data?.rejecting_count}")
+                } else {
+                    Log.e("MaleCallAccept_RejectCount", "Failed to record reject count: ${it.message}")
+                }
+            }
+        }
+
+        accountViewModel.callRejectCountErrorLiveData.observe(this) { error ->
+            error?.let {
+                Log.e("MaleCallAccept_RejectCount", "Error: $it")
             }
         }
     }

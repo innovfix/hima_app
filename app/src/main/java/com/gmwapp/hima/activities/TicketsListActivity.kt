@@ -82,6 +82,14 @@ class TicketsListActivity : BaseActivity() {
                 else -> ""
             }
         }.attach()
+        
+        // Check if we need to open a specific tab from intent
+        val tabPosition = intent.getIntExtra("TAB_POSITION", 0)
+        if (tabPosition in 0..1) {
+            binding.viewPager.post {
+                binding.viewPager.setCurrentItem(tabPosition, false)
+            }
+        }
     }
 
     private fun loadTickets() {
