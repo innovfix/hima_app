@@ -19,6 +19,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.os.CountDownTimer
 import android.text.Editable
+import android.text.InputFilter
 import android.text.SpannableString
 import android.text.Spanned
 import android.text.TextPaint
@@ -484,6 +485,18 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                 binding.btnSendOtp.isEnabled = false
             }
         }
+        // Filter to allow only digits (no special characters) and max 10 digits
+        binding.etMobileNumber.filters = arrayOf(
+            InputFilter.LengthFilter(10), // Max 10 digits
+            InputFilter { source, start, end, dest, dstart, dend ->
+                // Only allow digits
+                if (source.toString().matches(Regex("\\d*"))) {
+                    null // Accept the input
+                } else {
+                    "" // Reject special characters
+                }
+            }
+        )
         binding.etMobileNumber.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {
             }
@@ -651,6 +664,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             binding.pbVerifyOtpLoader.visibility = View.GONE
             binding.btnVerifyOtp.setText(getString(R.string.verify_otp))
             binding.btnVerifyOtp.isEnabled = true
+            Toast.makeText(this@NewLoginActivity, "Invalid OTP. Please try again.", Toast.LENGTH_SHORT).show()
         })
         loginViewModel.loginResponseLiveData.observe(this, Observer {
             binding.pbVerifyOtpLoader.visibility = View.GONE
@@ -692,6 +706,10 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                     intent.putExtra(DConstants.MOBILE_NUMBER, it.usernumber)
                     startActivity(intent)
                 }
+            } else {
+                // Login failed - show error message
+                val errorMessage = it.message ?: "Invalid OTP. Please try again."
+                Toast.makeText(this@NewLoginActivity, errorMessage, Toast.LENGTH_SHORT).show()
             }
         })
         binding.btnResendOtp.setOnClickListener({
@@ -731,6 +749,9 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                 binding.pbVerifyOtpLoader.visibility = View.VISIBLE
                 binding.btnVerifyOtp.text = ""
                 login(mobile)
+            } else {
+                // Wrong OTP entered
+                Toast.makeText(this@NewLoginActivity, "Invalid OTP. Please try again.", Toast.LENGTH_SHORT).show()
             }
         }
     }

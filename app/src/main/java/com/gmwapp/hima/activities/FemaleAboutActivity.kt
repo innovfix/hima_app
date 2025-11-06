@@ -195,10 +195,10 @@ class FemaleAboutActivity : BaseActivity() {
     private fun updateButton() {
         if (isValidAge && selectedInterests.size > 0 && binding.etSummary.text.length >= 15) {
             binding.btnContinue.isEnabled = true
-         //   binding.btnContinue.setBackgroundResource(R.drawable.d_button_bg_white)
+            binding.btnContinue.backgroundTintList = ContextCompat.getColorStateList(this, R.color.colorAccent)
         } else {
             binding.btnContinue.isEnabled = false
-         //   binding.btnContinue.setBackgroundResource(R.drawable.d_button_bg_female_button_disabled)
+            binding.btnContinue.backgroundTintList = ContextCompat.getColorStateList(this, R.color.kyc_button_disabled)
         }
     }
 

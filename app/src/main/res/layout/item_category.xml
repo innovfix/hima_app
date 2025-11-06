@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="12dp"
+    android:clickable="true"
+    android:focusable="true"
+    app:cardBackgroundColor="@android:color/white"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="2dp"
+    app:cardUseCompatPadding="false"
+    app:rippleColor="#E0E0E0">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="20dp"
+        android:paddingTop="20dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="20dp">
+
+        <!-- Icon Circle Background -->
+        <View
+            android:id="@+id/icon_bg_category"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="@drawable/circle_background"
+            android:backgroundTint="@color/pink_extra_light"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <ImageView
+            android:id="@+id/iv_category_icon"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:contentDescription="Category icon"
+            android:src="@drawable/ic_help"
+            app:layout_constraintBottom_toBottomOf="@+id/icon_bg_category"
+            app:layout_constraintEnd_toEndOf="@+id/icon_bg_category"
+            app:layout_constraintStart_toStartOf="@+id/icon_bg_category"
+            app:layout_constraintTop_toTopOf="@+id/icon_bg_category"
+            app:tint="@color/pink" />
+
+        <TextView
+            android:id="@+id/tv_category_name"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="8dp"
+            android:text="Category Name"
+            android:textColor="#212121"
+            android:textSize="16sp"
+            android:fontFamily="@font/poppins_medium"
+            app:layout_constraintEnd_toStartOf="@+id/iv_category_arrow"
+            app:layout_constraintStart_toEndOf="@+id/icon_bg_category"
+            app:layout_constraintTop_toTopOf="@+id/icon_bg_category" />
+
+        <ImageView
+            android:id="@+id/iv_category_arrow"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:contentDescription="Arrow"
+            android:src="@drawable/right_arrow"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/icon_bg_category"
+            app:tint="#9E9E9E" />
+
+        <!-- Contact Support Team Text (for Other Queries only) -->
+        <TextView
+            android:id="@+id/tv_contact_support"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="6dp"
+            android:layout_marginEnd="8dp"
+            android:text="Contact Support Team"
+            android:textColor="#666666"
+            android:textSize="13sp"
+            android:fontFamily="@font/poppins_regular"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toEndOf="@+id/icon_bg_category"
+            app:layout_constraintTop_toBottomOf="@+id/tv_category_name"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</com.google.android.material.card.MaterialCardView>
+
+
+

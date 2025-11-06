@@ -203,6 +203,11 @@
         </activity>
         <activity android:name=".activities.TransactionsActivity" />
         <activity android:name=".activities.AccountPrivacyActivity" />
+        <activity android:name=".activities.HelpAndSupportActivity" />
+        <activity android:name=".activities.SubqueriesActivity" />
+        <activity android:name=".activities.SubqueryDetailActivity" />
+        <activity android:name=".activities.SubmitTicketActivity" />
+        <activity android:name=".activities.TicketsListActivity" />
         <activity android:name=".activities.DeleteAccountActivity" />
         <activity android:name=".activities.EditProfileActivity" />
         <activity

@@ -64,6 +64,12 @@ class KycActivity : AppCompatActivity() {
         setupPanValidation()
         binding.tvCurrentBalance.text = "₹" + userData?.balance.toString()
 
+        // Back arrow button click listener
+        binding.ivBack.setOnClickListener {
+            onBackPressed()
+            finish()
+        }
+
         binding.btnSubmit.setOnClickListener {
             val panName = binding.etPanName.text.toString().trim()
             val panNumber = binding.etPanNumber.text.toString().trim()

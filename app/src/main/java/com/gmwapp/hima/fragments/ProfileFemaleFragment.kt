@@ -21,6 +21,7 @@ import com.gmwapp.hima.activities.AccountPrivacyActivity
 import com.gmwapp.hima.activities.EarningsActivity
 import com.gmwapp.hima.activities.EditProfileActivity
 import com.gmwapp.hima.activities.FriendsListActivity
+import com.gmwapp.hima.activities.HelpAndSupportActivity
 import com.gmwapp.hima.activities.RefundWebViewActivity
 import com.gmwapp.hima.activities.ShareActivity
 import com.gmwapp.hima.activities.TermConditionWebViewActivity
@@ -172,6 +173,10 @@ class ProfileFemaleFragment : BaseFragment() {
             }
         }
 
+        binding.clHelpSupport.setOnSingleClickListener {
+            val intent = Intent(context, HelpAndSupportActivity::class.java)
+            startActivity(intent)
+        }
 
         accountViewModel.getSettings()
         accountViewModel.settingsLiveData.observe(viewLifecycleOwner, Observer {

@@ -8,6 +8,10 @@ import com.gmwapp.hima.retrofit.responses.AppUpdateResponse
 import com.gmwapp.hima.retrofit.responses.AvatarsListResponse
 import com.gmwapp.hima.retrofit.responses.BadgeResponse
 import com.gmwapp.hima.retrofit.responses.BankUpdateResponse
+import com.gmwapp.hima.retrofit.responses.CategoriesResponse
+import com.gmwapp.hima.retrofit.responses.SubqueriesResponse
+import com.gmwapp.hima.retrofit.responses.SubmitTicketResponse
+import com.gmwapp.hima.retrofit.responses.TicketsListResponse
 import com.gmwapp.hima.retrofit.responses.BlockUserResponse
 import com.gmwapp.hima.retrofit.responses.CallFemaleUserResponse
 import com.gmwapp.hima.retrofit.responses.CallMaleUserResponse
@@ -659,6 +663,63 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun getCategoriesList(
+        userId: Int,
+        callback: NetworkCallback<CategoriesResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<CategoriesResponse> = getApiInterface().getCategoriesList(userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getSubqueriesList(
+        userId: Int,
+        categoryId: Int,
+        callback: NetworkCallback<SubqueriesResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<SubqueriesResponse> = getApiInterface().getSubqueriesList(userId, categoryId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun submitTicket(
+        userId: Int,
+        message: String,
+        screenshots: List<MultipartBody.Part>,
+        callback: NetworkCallback<SubmitTicketResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            // Convert List to varargs array for Retrofit
+            val screenshotsArray = screenshots.toTypedArray()
+            val apiCall: Call<SubmitTicketResponse> = getApiInterface().submitTicket(
+                userId, 
+                message, 
+                *screenshotsArray
+            )
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getTicketsList(
+        userId: Int,
+        callback: NetworkCallback<TicketsListResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<TicketsListResponse> = getApiInterface().getTicketsList(userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun getBadgesInformation(id: Int,callback: NetworkCallback<BadgeResponse>) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<BadgeResponse> = getApiInterface().getBadgesInformation(id)
@@ -1271,6 +1332,33 @@ interface ApiInterface {
 
     @POST("settings_list")
     fun getSettings(): Call<SettingsResponse>
+
+    @FormUrlEncoded
+    @POST("categories_list")
+    fun getCategoriesList(
+        @Field("user_id") userId: Int
+    ): Call<CategoriesResponse>
+
+    @FormUrlEncoded
+    @POST("subqueries_list")
+    fun getSubqueriesList(
+        @Field("user_id") userId: Int,
+        @Field("category_id") categoryId: Int
+    ): Call<SubqueriesResponse>
+
+    @Multipart
+    @POST("create_ticket")
+    fun submitTicket(
+        @Part("user_id") userId: Int,
+        @Part("message") message: String,
+        @Part vararg screenshots: MultipartBody.Part
+    ): Call<SubmitTicketResponse>
+
+    @FormUrlEncoded
+    @POST("tickets_list")
+    fun getTicketsList(
+        @Field("user_id") userId: Int
+    ): Call<TicketsListResponse>
 
     @FormUrlEncoded
     @POST("badges_information_list")
