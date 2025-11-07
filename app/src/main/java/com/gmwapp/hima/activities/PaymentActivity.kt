@@ -1143,18 +1143,18 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         val client = OkHttpClient()
         val couponIdToPass = if (selectedCouponId.isNotEmpty()) selectedCouponId else "0"
 
-        val upiPackageJson = if (upiPackageName != null) {
-            """,
-        "upi_package_name": "$upiPackageName""""
-        } else {
-            ""
+        // ✅ Use JSONObject to properly construct JSON and prevent data mixing/escaping issues
+        val jsonObject = JSONObject().apply {
+            put("user_id", user_id)
+            put("coins_id", coinId)
+            put("coupon_id", couponIdToPass)
+            if (upiPackageName != null) {
+                put("upi_package_name", upiPackageName)
+            }
         }
         
-        val json = """{
-        "user_id": "$user_id",
-        "coins_id": "$coinId",
-        "coupon_id": "$couponIdToPass"$upiPackageJson
-    }"""
+        val json = jsonObject.toString()
+        Log.d("paynowcasfree", "Request JSON: $json")
         val mediaType = "application/json".toMediaTypeOrNull()
         val body = RequestBody.create(mediaType, json)
 
