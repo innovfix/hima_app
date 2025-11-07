@@ -1,5 +1,6 @@
 package com.gmwapp.hima.viewmodels
 
+import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -38,10 +39,15 @@ class OfferViewModel @Inject constructor(private val offerRepositories: OfferRep
                     response: Response<OfferResponse>
                 ) {
                     offerResponseLiveData.postValue(response.body())
+                    Log.d("offerResponseLiveData", "${response.body()}")
+
+
                 }
 
                 override fun onFailure(call: Call<OfferResponse>, t: Throwable) {
                     offerrrorLiveData.postValue(DConstants.LOGIN_ERROR)
+                    Log.d("offerResponseLiveData", "${t.message}")
+
                 }
 
                 override fun onNoNetwork() {
