@@ -24,6 +24,8 @@ import com.cashfree.pg.core.api.CFSession
 import com.cashfree.pg.core.api.callback.CFCheckoutResponseCallback
 import com.cashfree.pg.core.api.utils.CFErrorResponse
 import com.cashfree.pg.core.api.webcheckout.CFWebCheckoutPayment
+import com.cashfree.pg.ui.api.upi.intent.CFUPIIntentCheckout
+import com.cashfree.pg.ui.api.upi.intent.CFUPIIntentCheckoutPayment
 import com.facebook.appevents.AppEventsConstants
 import com.facebook.appevents.AppEventsLogger
 import com.gmwapp.hima.BaseApplication
@@ -1189,13 +1191,9 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
                         val sessionId = json.optString("payment_session_id", "")
                         
                         runOnUiThread {
-                            if (upiIntentUrl.isNotEmpty() && upiPackageName != null) {
-                                Log.d("paynowcasfree", "UPI intent URL received, opening app")
-                                openUPIAppDirectly(upiIntentUrl, upiPackageName, orderId)
-                            } else {
-                                Log.d("paynowcasfree", "No UPI URL, using web checkout")
-                                cashfreeCheckout(sessionId, orderId)
-                            }
+
+                                cashfreeUPIIntentPayment(sessionId, orderId)
+
                         }
                     } else {
                         val errorMsg = json.optJSONObject("errors")?.toString() ?: "Order creation failed"
@@ -1213,6 +1211,91 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
             }
         })
     }
+
+    private fun cashfreeUPIIntentPayment(paymentSessionID: String, orderID: String) {
+        try {
+            val cfSession = CFSession.CFSessionBuilder()
+                .setEnvironment(cfEnvironment)
+                .setPaymentSessionID(paymentSessionID)
+                .setOrderId(orderID)
+                .build()
+
+            // Get the selected UPI app package name
+            val selectedPackageName = selectedUPIApp?.packageName
+
+            // Map package name to Cashfree UPI app enum
+            val targetUPIApp = when (selectedPackageName) {
+                "com.phonepe.app" -> CFUPIIntentCheckout.CFUPIApps.PHONEPE
+                "com.google.android.apps.nfc.payment",
+                "com.google.android.apps.walletnfcrel",
+                "com.google.android.gms" -> CFUPIIntentCheckout.CFUPIApps.GOOGLE_PAY
+                "net.one97.paytm" -> CFUPIIntentCheckout.CFUPIApps.PAYTM
+                "in.org.npci.upiapp" -> CFUPIIntentCheckout.CFUPIApps.BHIM
+                else -> CFUPIIntentCheckout.CFUPIApps.PHONEPE // Default fallback
+            }
+
+            // Create UPI intent with ONLY the selected app
+            val cfUPIIntentCheckout = CFUPIIntentCheckout.CFUPIIntentBuilder()
+                .setOrder(listOf(targetUPIApp)) // Single app only
+                .build()
+
+            val payment = CFUPIIntentCheckoutPayment.CFUPIIntentPaymentBuilder()
+                .setSession(cfSession)
+                .setCfUPIIntentCheckout(cfUPIIntentCheckout)
+                .build()
+
+            // Register callback
+            CFPaymentGatewayService.getInstance().setCheckoutCallback(this)
+
+            // Start payment directly with selected app
+            CFPaymentGatewayService.getInstance().doPayment(this, payment)
+
+            Log.d("CashfreeUPI", "UPI Intent started with selected app: ${selectedUPIApp?.appName}")
+
+        } catch (e: CFException) {
+            Log.e("CashfreeUPI", "Error starting UPI intent: ${e.message}")
+            Toast.makeText(this, "Cashfree error: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+//    private fun cashfreeUPIIntentPayment(paymentSessionID: String, orderID: String) {
+//        try {
+//            val cfSession = CFSession.CFSessionBuilder()
+//                .setEnvironment(cfEnvironment) // already set to PRODUCTION at top
+//                .setPaymentSessionID(paymentSessionID)
+//                .setOrderId(orderID)
+//                .build()
+//
+//
+//
+//            // ✅ Tell SDK which UPI apps to show (you can customize this list)
+//            val cfUPIIntentCheckout = CFUPIIntentCheckout.CFUPIIntentBuilder()
+//                .setOrder(listOf(
+//                    CFUPIIntentCheckout.CFUPIApps.BHIM,
+//                    CFUPIIntentCheckout.CFUPIApps.GOOGLE_PAY,
+//                    CFUPIIntentCheckout.CFUPIApps.PHONEPE
+//                ))
+//                .build()
+//
+//            val payment = CFUPIIntentCheckoutPayment.CFUPIIntentPaymentBuilder()
+//                .setSession(cfSession)
+//                .setCfUPIIntentCheckout(cfUPIIntentCheckout)
+//                .build()
+//
+//            // Register callback
+//            CFPaymentGatewayService.getInstance().setCheckoutCallback(this)
+//
+//            // ✅ Start payment directly
+//            CFPaymentGatewayService.getInstance().doPayment(this, payment)
+//
+//            Log.d("CashfreeUPI", "UPI Intent flow started successfully")
+//
+//        } catch (e: CFException) {
+//            Log.e("CashfreeUPI", "Error starting UPI intent: ${e.message}")
+//            Toast.makeText(this, "Cashfree error: ${e.message}", Toast.LENGTH_SHORT).show()
+//        }
+//    }
+
 
     // Open UPI app directly with intent URL from backend
     private fun openUPIAppDirectly(upiIntentUrl: String, upiPackageName: String, orderId: String) {
