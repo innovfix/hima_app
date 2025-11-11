@@ -1220,23 +1220,12 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
                 .setOrderId(orderID)
                 .build()
 
-            // Get the selected UPI app package name
-            val selectedPackageName = selectedUPIApp?.packageName
-
-            // Map package name to Cashfree UPI app enum
-            val targetUPIApp = when (selectedPackageName) {
-                "com.phonepe.app" -> CFUPIIntentCheckout.CFUPIApps.PHONEPE
-                "com.google.android.apps.nfc.payment",
-                "com.google.android.apps.walletnfcrel",
-                "com.google.android.gms" -> CFUPIIntentCheckout.CFUPIApps.GOOGLE_PAY
-                "net.one97.paytm" -> CFUPIIntentCheckout.CFUPIApps.PAYTM
-                "in.org.npci.upiapp" -> CFUPIIntentCheckout.CFUPIApps.BHIM
-                else -> CFUPIIntentCheckout.CFUPIApps.PHONEPE // Default fallback
-            }
-
-            // Create UPI intent with ONLY the selected app
             val cfUPIIntentCheckout = CFUPIIntentCheckout.CFUPIIntentBuilder()
-                .setOrder(listOf(targetUPIApp)) // Single app only
+                .setOrder(listOf(
+                    CFUPIIntentCheckout.CFUPIApps.GOOGLE_PAY,
+                    CFUPIIntentCheckout.CFUPIApps.PHONEPE,
+                    CFUPIIntentCheckout.CFUPIApps.BHIM
+                    ))
                 .build()
 
             val payment = CFUPIIntentCheckoutPayment.CFUPIIntentPaymentBuilder()
