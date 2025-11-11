@@ -58,8 +58,11 @@ class RecentFragment : BaseFragment() {
         // Setup chat icon click listener
         setupChatIconClickListener()
         
+        // Hide unread badge
+        binding.tvUnreadBadge.visibility = View.GONE
+        
         // Load unread message count
-        loadUnreadMessageCount()
+//        loadUnreadMessageCount()
 
         // Swipe to refresh
         binding.swipeRefreshLayout.setOnRefreshListener {
@@ -195,15 +198,19 @@ class RecentFragment : BaseFragment() {
 
     private fun setupChatIconClickListener() {
         binding.cardChat.setOnClickListener {
-            // Open ChatListActivity
-            val intent = Intent(requireContext(), com.gmwapp.hima.activities.ChatListActivity::class.java)
-            startActivity(intent)
+            // Show coming soon toast instead of opening ChatListActivity
+            android.widget.Toast.makeText(
+                requireContext(),
+                "Chat feature coming soon",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
     // Track unread counts per thread for real-time updates
-    private val unreadCountsMap = mutableMapOf<String, Int>()
+//    private val unreadCountsMap = mutableMapOf<String, Int>()
 
+    /* Commented out - unread message count feature disabled
     private fun loadUnreadMessageCount() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
         val myUserId = userData.id.toString()
@@ -274,7 +281,9 @@ class RecentFragment : BaseFragment() {
                 }
             }
     }
+    */
 
+    /* Commented out - unread message count feature disabled
     private fun updateUnreadBadge(count: Int) {
         if (!::binding.isInitialized) {
             android.util.Log.d("RecentFragment", "❌ Binding not initialized")
@@ -292,6 +301,7 @@ class RecentFragment : BaseFragment() {
             android.util.Log.d("RecentFragment", "⚠️ Badge hidden (no unread)")
         }
     }
+    */
 
     override fun onResume() {
         super.onResume()
@@ -308,13 +318,13 @@ class RecentFragment : BaseFragment() {
 
 
         // Refresh unread count when returning to this screen
-        android.util.Log.d("RecentFragment", "🔄 onResume - reloading unread count")
-        loadUnreadMessageCount()
+//        android.util.Log.d("RecentFragment", "🔄 onResume - reloading unread count")
+//        loadUnreadMessageCount()
     }
     
     override fun onDestroyView() {
         super.onDestroyView()
         // Clean up listeners when fragment is destroyed
-        unreadCountsMap.clear()
+//        unreadCountsMap.clear()
     }
 }

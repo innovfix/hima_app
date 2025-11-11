@@ -20,7 +20,6 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.AccountPrivacyActivity
 import com.gmwapp.hima.activities.EarningsActivity
 import com.gmwapp.hima.activities.EditProfileActivity
-import com.gmwapp.hima.activities.FriendsListActivity
 import com.gmwapp.hima.activities.HelpAndSupportActivity
 import com.gmwapp.hima.activities.RefundWebViewActivity
 import com.gmwapp.hima.activities.ShareActivity
@@ -145,8 +144,7 @@ class ProfileFemaleFragment : BaseFragment() {
         }
 
         binding.clMyFriends.setOnSingleClickListener {
-            val intent = Intent(context, FriendsListActivity::class.java)
-            startActivity(intent)
+            Toast.makeText(requireContext(), "Chat feature coming soon", Toast.LENGTH_SHORT).show()
         }
 
         binding.clTermsCondition.setOnSingleClickListener {
