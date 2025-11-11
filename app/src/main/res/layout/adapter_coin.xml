@@ -21,7 +21,7 @@
 
         <RelativeLayout
             android:id="@+id/main"
-            android:layout_width="@dimen/_104sdp"
+            android:layout_width="@dimen/_93sdp"
             android:layout_height="@dimen/_122sdp"
             android:background="@drawable/bg_card_clean"
             android:orientation="vertical">
