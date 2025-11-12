@@ -42,6 +42,8 @@ import com.cashfree.pg.core.api.CFSession
 import com.cashfree.pg.core.api.callback.CFCheckoutResponseCallback
 import com.cashfree.pg.core.api.utils.CFErrorResponse
 import com.cashfree.pg.core.api.webcheckout.CFWebCheckoutPayment
+import com.cashfree.pg.ui.api.upi.intent.CFUPIIntentCheckout
+import com.cashfree.pg.ui.api.upi.intent.CFUPIIntentCheckoutPayment
 import com.facebook.appevents.AppEventsConstants
 import com.facebook.appevents.AppEventsLogger
 import com.gmwapp.hima.BaseApplication
@@ -1382,6 +1384,39 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         throw IllegalArgumentException("Error")
     }
 
+    private fun cashfreeUPIIntentPayment(paymentSessionID: String, orderID: String) {
+        try {
+            val cfSession = CFSession.CFSessionBuilder()
+                .setEnvironment(cfEnvironment)
+                .setPaymentSessionID(paymentSessionID)
+                .setOrderId(orderID)
+                .build()
+
+            val cfUPIIntentCheckout = CFUPIIntentCheckout.CFUPIIntentBuilder()
+                .setOrder(listOf(
+                    CFUPIIntentCheckout.CFUPIApps.GOOGLE_PAY,
+                    CFUPIIntentCheckout.CFUPIApps.PHONEPE,
+                    CFUPIIntentCheckout.CFUPIApps.BHIM
+                ))
+                .build()
+
+            val payment = CFUPIIntentCheckoutPayment.CFUPIIntentPaymentBuilder()
+                .setSession(cfSession)
+                .setCfUPIIntentCheckout(cfUPIIntentCheckout)
+                .build()
+
+            // Register callback
+            CFPaymentGatewayService.getInstance().setCheckoutCallback(this)
+
+            // Start payment directly with selected app
+            CFPaymentGatewayService.getInstance().doPayment(this, payment)
+
+
+        } catch (e: CFException) {
+            Log.e("CashfreeUPI", "Error starting UPI intent: ${e.message}")
+            Toast.makeText(this, "Cashfree error: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
     fun cashfreeCheckout(paymentSessionID:String,orderID:String){
 
         try {
@@ -1458,7 +1493,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                         cashfreeLastOrderId = orderId
                         runOnUiThread {
                             // Start the Cashfree payment flow
-                            cashfreeCheckout(sessionId, orderId)
+                           // cashfreeCheckout(sessionId, orderId)
+                            cashfreeUPIIntentPayment(sessionId, orderId)
                         }
                     } else {
                         runOnUiThread {
