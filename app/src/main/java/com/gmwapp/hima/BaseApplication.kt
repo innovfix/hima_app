@@ -2,6 +2,8 @@ package com.gmwapp.hima
 
 import android.app.Activity
 import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Intent
 import android.content.IntentFilter
 import android.media.MediaPlayer
@@ -9,7 +11,9 @@ import android.os.Bundle
 import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.ActivityInfo
+import android.content.pm.PackageManager
 import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
 
@@ -187,6 +191,37 @@ class BaseApplication : Application(), Configuration.Provider {
 
         // OneSignal Initialization
         OneSignal.initWithContext(this, ONESIGNAL_APP_ID)
+
+        // Create the same channel ID as your OneSignal dashboard
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channelId = "f49d2168-bc20-4a4b-a984-a7abffe0d6aa" // 👈 same as dashboard
+            val channelName = "Default notification"
+            val importance = NotificationManager.IMPORTANCE_HIGH
+            val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+
+            val audioAttributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+
+            val channel = NotificationChannel(channelId, channelName, importance).apply {
+                setSound(soundUri, audioAttributes)
+                enableLights(true)
+                enableVibration(true)
+            }
+
+            val manager = getSystemService(NotificationManager::class.java)
+            manager?.createNotificationChannel(channel)
+        }
+
+        // Ask for permission (Android 13+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                // Only call from Activity, so you can handle this there
+            }
+        }
 
 
         // requestPermission will show the native Android notification permission prompt.
