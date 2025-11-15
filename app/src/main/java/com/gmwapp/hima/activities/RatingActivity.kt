@@ -158,9 +158,8 @@ class RatingActivity : BaseActivity() {
 
             var gender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
 
-            if (gender=="female"){
-                blockMale(userid,call_userid)
-            }
+            val isBlocking = gender == "female" && binding.cbBlockUser.isChecked
+
 
             val rating = if (selectedRating > 0) selectedRating else 0 // Default to 3 if no rating is selected
             val description = binding.etUserName.text.toString().takeIf { it.isNotEmpty() } ?: "No data provided" // Default description
@@ -172,15 +171,28 @@ class RatingActivity : BaseActivity() {
 
             if (rating > 0) {500
                 // Proceed with rating submission
+
+                if (isBlocking) {
+                    blockMale(userid, call_userid)
+                }
+
                 BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
                     if (call_userid != null) {
                         viewModel.updatedrating(it,call_userid,rating.toString(),title,description)
                     }
                 }
+
             } else {
                 // If no rating is provided, just finish the activity
                 //  Toast.makeText(this, "No rating provided", Toast.LENGTH_SHORT).show()
-                finish()
+                if (isBlocking) {
+                    // Only blocking - wait for block API to complete before finishing
+                    blockMale(userid, call_userid)
+                    // Don't finish here - let observeBlockuser() handle it
+                } else {
+                    // Neither rating nor blocking - just finish
+                    finish()
+                }
             }
         }
 
@@ -335,10 +347,16 @@ class RatingActivity : BaseActivity() {
     fun observeBlockuser(){
         blockUserViewModel.blockUserLiveData.observe(this) {
             Toast.makeText(this, it.message, Toast.LENGTH_SHORT).show()
+            if (selectedRating == 0) {
+                finish()
+            }
         }
 
         blockUserViewModel.blockUserErrorLiveData.observe(this) {
             Toast.makeText(this, it, Toast.LENGTH_SHORT).show()
+            if (selectedRating == 0) {
+                finish()
+            }
         }
     }
 

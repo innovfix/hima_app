@@ -1799,67 +1799,105 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
 
     fun disableVideo(){
-        binding.blackscreen.visibility=View.VISIBLE
+        Handler(Looper.getMainLooper()).post {
+            if (isFinishing || isDestroyed) {
+                return@post
+            }
+            
+            binding.blackscreen.visibility=View.VISIBLE
+            binding.blackscreen.bringToFront()  // ✅ Bring blackscreen to front
+            binding.blackscreen.elevation = 100f  // ✅ Set high elevation to ensure it's on top
 //        agoraEngine?.muteAllRemoteAudioStreams(true)
 //        agoraEngine?.muteLocalVideoStream(true)
 //        agoraEngine?.muteLocalAudioStream(true)
 
-        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        val senderId = userData?.id
-        if (senderId != null) {
-            fcmNotificationViewModel.sendNotification(
-                senderId = senderId,
-                receiverId = receiverId,
-                callType = "calltype",
-                channelName = channelName,
-                message = "greyScreenEnable"
-            )
-        }
+            val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+            val senderId = userData?.id
+            if (senderId != null) {
+                fcmNotificationViewModel.sendNotification(
+                    senderId = senderId,
+                    receiverId = receiverId,
+                    callType = "calltype",
+                    channelName = channelName,
+                    message = "greyScreenEnable"
+                )
+            }
 
-        showNoFaceDetectedDialog()
+            showNoFaceDetectedDialog()
+        }
     }
 
     fun enableVideo(){
-        binding.blackscreen.visibility=View.GONE
-        agoraEngine?.muteAllRemoteAudioStreams(false)
-        agoraEngine?.muteLocalVideoStream(false)
-        agoraEngine?.muteLocalAudioStream(false)
+        Handler(Looper.getMainLooper()).post {
+            if (isFinishing || isDestroyed) {
+                return@post
+            }
+            
+            binding.blackscreen.visibility=View.GONE
+            agoraEngine?.muteAllRemoteAudioStreams(false)
+            agoraEngine?.muteLocalVideoStream(false)
+            agoraEngine?.muteLocalAudioStream(false)
 
-        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        val senderId = userData?.id
-        if (senderId != null) {
-            fcmNotificationViewModel.sendNotification(
-                senderId = senderId,
-                receiverId = receiverId,
-                callType = "calltype",
-                channelName = channelName,
-                message = "greyScreenDisable"
-            )
+            val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+            val senderId = userData?.id
+            if (senderId != null) {
+                fcmNotificationViewModel.sendNotification(
+                    senderId = senderId,
+                    receiverId = receiverId,
+                    callType = "calltype",
+                    channelName = channelName,
+                    message = "greyScreenDisable"
+                )
+            }
+
+
+            dismissNoFaceDetectedDialog()
         }
-
-
-        dismissNoFaceDetectedDialog()
     }
 
 
     private fun showNoFaceDetectedDialog() {
         if (faceDialog?.isShowing == true) return  // Already showing
-
-        faceDialog = Dialog(this).apply {
-            requestWindowFeature(Window.FEATURE_NO_TITLE)
-            setContentView(R.layout.dialog_show_face)
-            window?.setLayout(
-                (resources.displayMetrics.widthPixels * 0.9).toInt(),
-                WindowManager.LayoutParams.WRAP_CONTENT
-            )
-            window?.setBackgroundDrawableResource(android.R.color.transparent)
-            show()
+        
+        // Post to main thread and check activity state
+        Handler(Looper.getMainLooper()).post {
+            // Check if activity is still valid before showing dialog
+            if (isFinishing || isDestroyed) {
+                return@post
+            }
+            
+            try {
+                faceDialog = Dialog(this).apply {
+                    requestWindowFeature(Window.FEATURE_NO_TITLE)
+                    setContentView(R.layout.dialog_show_face)
+                    window?.setLayout(
+                        (resources.displayMetrics.widthPixels * 0.9).toInt(),
+                        WindowManager.LayoutParams.WRAP_CONTENT
+                    )
+                    window?.setBackgroundDrawableResource(android.R.color.transparent)
+                    show()
+                }
+            } catch (e: WindowManager.BadTokenException) {
+                Log.e("FemaleVideoCallingActivity", "Cannot show dialog: activity is not valid", e)
+                faceDialog = null
+            }
         }
     }
 
     private fun dismissNoFaceDetectedDialog() {
-        faceDialog?.dismiss()
-        faceDialog = null
+        Handler(Looper.getMainLooper()).post {
+            if (isFinishing || isDestroyed) {
+                faceDialog = null
+                return@post
+            }
+            
+            try {
+                faceDialog?.dismiss()
+            } catch (e: Exception) {
+                Log.e("FemaleVideoCallingActivity", "Error dismissing dialog", e)
+            }
+            faceDialog = null
+        }
     }
 
     fun showGreyScreen(){

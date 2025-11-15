@@ -210,6 +210,11 @@ class ProfileFemaleFragment : BaseFragment() {
 
         userData?.let { loginViewModel.login(it.mobile,"0","0") }
         loginViewModel.loginResponseLiveData.observe(viewLifecycleOwner, Observer {
+            // ✅ Add null check before accessing properties
+            if (it == null) {
+                Log.w("ProfileFemaleFragment", "LoginResponse is null")
+                return@Observer
+            }
 
             if (it.success) {
                 if (!it.data?.pancard_name.isNullOrEmpty()&& !it.data?.pancard_number.isNullOrEmpty()){

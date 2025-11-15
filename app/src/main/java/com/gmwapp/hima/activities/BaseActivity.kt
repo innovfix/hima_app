@@ -88,15 +88,21 @@ open class BaseActivity : AppCompatActivity() {
     private val dateFormat = SimpleDateFormat("HH:mm:ss").apply {
         timeZone = TimeZone.getTimeZone("Asia/Kolkata") // Set to IST time zone
     }
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private var connectivityManager: ConnectivityManager? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        try {
+            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        } catch (e: IllegalStateException) {
+            // Activity is not fullscreen (multi-window, PiP, etc.), skip orientation
+            Log.w("BaseActivity", "Cannot set orientation in non-fullscreen mode: ${e.message}")
+        }
 
-        val connectivityManager =
+        connectivityManager =
             getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        connectivityManager.registerDefaultNetworkCallback(object :
-            ConnectivityManager.NetworkCallback() {
+        networkCallback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 val app = BaseApplication.getInstance()
                 if (Helper.checkNetworkConnection() && app?.isEndCallUpdatePending() == true) {
@@ -104,7 +110,13 @@ open class BaseActivity : AppCompatActivity() {
                     app.setEndCallUpdatePending(null)
                 }
             }
-        })
+        }
+        try {
+            connectivityManager?.registerDefaultNetworkCallback(networkCallback!!)
+        } catch (e: Exception) {
+            // Handle TooManyRequestsException or other exceptions gracefully
+            Log.e("BaseActivity", "Failed to register network callback: ${e.message}")
+        }
     }
 
 //    override fun onStart() {
@@ -232,6 +244,20 @@ open class BaseActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
         EventBus.getDefault().unregister(this)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Unregister the network callback to prevent TooManyRequestsException
+        networkCallback?.let { callback ->
+            try {
+                connectivityManager?.unregisterNetworkCallback(callback)
+            } catch (e: Exception) {
+                Log.e("BaseActivity", "Failed to unregister network callback: ${e.message}")
+            }
+        }
+        networkCallback = null
+        connectivityManager = null
     }
 
     fun showErrorMessage(message: String) {

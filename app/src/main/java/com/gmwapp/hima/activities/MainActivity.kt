@@ -1568,6 +1568,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         userData?.let { loginViewModel.login(it.mobile,"0","0") }
         loginViewModel.loginResponseLiveData.observe(this, Observer {
+            // ✅ Add null check before accessing properties
+            if (it == null) {
+                Log.w("MainActivity", "LoginResponse is null")
+                return@Observer
+            }
 
             if (it.success) {
                 if (!it.data?.payment_type.isNullOrEmpty()){

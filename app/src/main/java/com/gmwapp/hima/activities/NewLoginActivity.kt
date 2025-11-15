@@ -519,6 +519,14 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             binding.pbSendOtpLoader.visibility = View.GONE
             binding.btnSendOtp.setText(getString(R.string.send_otp))
             binding.btnSendOtp.isEnabled = true
+            
+            // ✅ Add null check before accessing properties
+            if (it == null) {
+                binding.tvOtpText.text = getString(R.string.please_try_again_later)
+                binding.tvOtpText.setTextColor(getColor(R.color.error))
+                return@Observer
+            }
+            
             if (it.success) {
                 binding.loginSection.visibility  = View.GONE
                 binding.otpSection.visibility  = View.VISIBLE
@@ -670,6 +678,13 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             binding.pbVerifyOtpLoader.visibility = View.GONE
             binding.btnVerifyOtp.setText(getString(R.string.verify_otp))
             binding.btnVerifyOtp.isEnabled = true
+            
+            // ✅ Add null check before accessing properties
+            if (it == null) {
+                Toast.makeText(this@NewLoginActivity, "Login failed. Please try again.", Toast.LENGTH_SHORT).show()
+                return@Observer
+            }
+            
             if (it.success) {
                 if (it.registered) {
                     it.data?.let { it1 ->

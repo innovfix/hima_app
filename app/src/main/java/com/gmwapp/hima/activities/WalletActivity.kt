@@ -487,6 +487,11 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 //        binding.rvPlans.addItemDecoration(SpacesItemDecoration(10))
         BaseApplication.getInstance()?.getPrefs()?.getUserData()?.let { WalletViewModel.getCoins(it.id) }
         WalletViewModel.coinsLiveData.observe(this, Observer {
+            // ✅ Add null check before accessing properties
+            if (it == null) {
+                Log.w("WalletActivity", "CoinsResponse is null")
+                return@Observer
+            }
 
             if(it.success){
                 //  Toast.makeText(this, it.message, Toast.LENGTH_SHORT).show()
@@ -495,7 +500,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                 Toast.makeText(this, it.message, Toast.LENGTH_SHORT).show()
             }
 
-            if (it!=null && it.success && it.data != null) {
+            if (it.success && it.data != null) {
                 // Create the adapter
                // binding.ivBonus.visibility= View.VISIBLE
                 var bannerOfferImage= it.banner_image
