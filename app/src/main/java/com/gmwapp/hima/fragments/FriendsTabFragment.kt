@@ -19,7 +19,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import kotlinx.coroutines.launch
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
-import com.gmwapp.hima.activities.ChatActivity
+import com.gmwapp.hima.activities.ChatActivityInHouse
 import com.gmwapp.hima.activities.UserProfileDetailActivity
 import com.gmwapp.hima.adapters.FriendsAdapter
 import com.gmwapp.hima.adapters.ChatListAdapter
@@ -316,7 +316,7 @@ class FriendsTabFragment : Fragment() {
         
         // Setup Chat adapter
         chatAdapter = ChatListAdapter(requireActivity(), chatConversations) { conversation ->
-            val intent = Intent(context, ChatActivity::class.java)
+            val intent = Intent(context, ChatActivityInHouse::class.java)
             val userId = conversation.userId.toIntOrNull() ?: -1
             intent.putExtra("USER_ID", userId)
             intent.putExtra("USER_NAME", conversation.userName)
@@ -332,7 +332,7 @@ class FriendsTabFragment : Fragment() {
             tabType,
             onChatClick = { friend ->
                 // Open chat
-                val intent = Intent(requireContext(), ChatActivity::class.java)
+                val intent = Intent(requireContext(), ChatActivityInHouse::class.java)
                 intent.putExtra("USER_ID", friend.friend_id)
                 intent.putExtra("USER_NAME", friend.name)
                 intent.putExtra("USER_IMAGE", friend.image)

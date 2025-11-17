@@ -127,6 +127,9 @@
             android:name=".activities.FriendsListActivity"
             android:exported="false" />
         <activity
+            android:name=".activities.ChatActivityInHouse"
+            android:exported="false" />
+        <activity
             android:name=".agora.male.MaleCallConnectingActivity"
             android:exported="true" />
         <activity

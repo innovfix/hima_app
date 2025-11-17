@@ -48,6 +48,7 @@ import com.appsflyer.AppsFlyerLib;
 import com.appsflyer.AppsFlyerConversionListener;
 import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.fragments.FriendsTabFragment
+import com.gmwapp.hima.socket.SocketManager
 import com.onesignal.notifications.INotificationClickEvent
 import com.onesignal.notifications.INotificationClickListener
 
@@ -154,6 +155,10 @@ class BaseApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        
+        // Test log to verify SocketIOCheck tag is working
+        Log.d("SocketIOCheck", "🎯 BaseApplication.onCreate() STARTED - SocketIOCheck tag is working!")
+        
         mInstance = this
         mPreferences = DPreferences(this)
         FirebaseApp.initializeApp(this)
@@ -232,6 +237,11 @@ class BaseApplication : Application(), Configuration.Provider {
         var userId = getInstance()?.getPrefs()
             ?.getUserData()?.id.toString() // Set user_id
         Log.d("userIDCheck", "Logging in with userId: $userId")
+
+        // Initialize Socket.IO if user is already logged in
+        Log.d("SocketIOCheck", "📍 BaseApplication.onCreate() - About to call initializeSocketIO()")
+        initializeSocketIO()
+        Log.d("SocketIOCheck", "📍 BaseApplication.onCreate() - initializeSocketIO() call completed")
 
         //  initZoho()
 
@@ -653,6 +663,40 @@ class BaseApplication : Application(), Configuration.Provider {
                     current::class.java.simpleName == "FriendsListActivity" ||
             current::class.java.simpleName == "TicketsListActivity"
         } ?: false
+    }
+
+    /**
+     * Initialize Socket.IO connection if user is already logged in
+     * Uses userId instead of JWT token as per Socket.IO server requirements
+     */
+    fun initializeSocketIO() {
+        Log.d("SocketIOCheck", "═══════════════════════════════════════")
+        Log.d("SocketIOCheck", "🚀 initializeSocketIO() CALLED")
+        Log.d("SocketIOCheck", "═══════════════════════════════════════")
+        
+        try {
+            val prefs = getPrefs()
+            Log.d("SocketIOCheck", "📦 Prefs instance: ${if (prefs != null) "✅ Found" else "❌ Null"}")
+            
+            val userData = prefs?.getUserData()
+            Log.d("SocketIOCheck", "👤 UserData: ${if (userData != null) "✅ Found (ID: ${userData.id})" else "❌ Null"}")
+            
+            val userId = userData?.id
+            Log.d("SocketIOCheck", "🆔 User ID: $userId")
+            
+            if (userId != null && userId > 0) {
+                Log.d("SocketIOCheck", "🔌 Initializing Socket.IO in BaseApplication with User ID: $userId")
+                SocketManager.getInstance().connect(userId)
+            } else {
+                Log.d("SocketIOCheck", "⚠️ No user ID found (userId=$userId) - Socket.IO will connect after login")
+                Log.d("SocketIOCheck", "💡 This is normal if user hasn't logged in yet")
+            }
+        } catch (e: Exception) {
+            Log.e("SocketIOCheck", "❌ Error in initializeSocketIO: ${e.message}", e)
+            Log.e("SocketIOCheck", "❌ Stack trace: ${e.stackTraceToString()}")
+        }
+        
+        Log.d("SocketIOCheck", "═══════════════════════════════════════")
     }
 
 }

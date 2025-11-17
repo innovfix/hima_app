@@ -20,10 +20,12 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.AccountPrivacyActivity
 import com.gmwapp.hima.activities.EarningsActivity
 import com.gmwapp.hima.activities.EditProfileActivity
+import com.gmwapp.hima.activities.FriendsListActivity
 import com.gmwapp.hima.activities.HelpAndSupportActivity
 import com.gmwapp.hima.activities.RefundWebViewActivity
 import com.gmwapp.hima.activities.ShareActivity
 import com.gmwapp.hima.activities.TermConditionWebViewActivity
+import com.gmwapp.hima.fragments.FriendsTabFragment
 import com.gmwapp.hima.databinding.FragmentProfileFemaleBinding
 import com.gmwapp.hima.dialogs.BottomSheetLogout
 import com.gmwapp.hima.utils.setOnSingleClickListener
@@ -144,7 +146,9 @@ class ProfileFemaleFragment : BaseFragment() {
         }
 
         binding.clMyFriends.setOnSingleClickListener {
-            Toast.makeText(requireContext(), "Chat feature coming soon", Toast.LENGTH_SHORT).show()
+            val intent = Intent(context, FriendsListActivity::class.java)
+            intent.putExtra("target_tab", FriendsTabFragment.TYPE_FRIENDS)
+            startActivity(intent)
         }
 
         binding.clTermsCondition.setOnSingleClickListener {

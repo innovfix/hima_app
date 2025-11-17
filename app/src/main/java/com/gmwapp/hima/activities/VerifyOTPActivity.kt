@@ -19,6 +19,7 @@ import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityVerifyOtpBinding
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.LoginViewModel
+import com.gmwapp.hima.socket.SocketManager
 //import com.zego.ve.Log
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -75,6 +76,15 @@ class VerifyOTPActivity : BaseActivity() {
                     it.data?.let { it1 ->
                         BaseApplication.getInstance()?.getPrefs()?.setUserData(it1)
                         BaseApplication.getInstance()?.getPrefs()?.setAuthenticationToken(it.token)
+                        
+                        // Connect Socket.IO after successful login using userId
+                        val userId = it1.id
+                        if (userId != null && userId > 0) {
+                            Log.d("SocketIOCheck", "🔌 Connecting Socket.IO after OTP verification with User ID: $userId")
+                            SocketManager.getInstance().connect(userId)
+                        } else {
+                            Log.e("SocketIOCheck", "❌ Cannot connect Socket.IO - Invalid user ID: $userId")
+                        }
                     }
                     var intent:Intent? = null
                     if(it.data?.gender == DConstants.MALE) {

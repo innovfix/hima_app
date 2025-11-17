@@ -25,6 +25,7 @@ import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.widgets.SpacesItemDecoration
+import com.gmwapp.hima.socket.SocketManager
 import com.google.firebase.analytics.FirebaseAnalytics
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -60,6 +61,15 @@ class SelectLanguageActivity : BaseActivity() {
             if (it!=null && it.success) {
                 BaseApplication.getInstance()?.getPrefs()?.setUserData(it.data)
                 BaseApplication.getInstance()?.getPrefs()?.setAuthenticationToken(it.token)
+                
+                // Connect Socket.IO after successful registration using userId
+                val userId = it.data?.id
+                if (userId != null && userId > 0) {
+                    Log.d("SocketIOCheck", "🔌 Connecting Socket.IO after language selection with User ID: $userId")
+                    SocketManager.getInstance().connect(userId)
+                } else {
+                    Log.e("SocketIOCheck", "❌ Cannot connect Socket.IO - Invalid user ID: $userId")
+                }
 
                 if (it.data?.gender == DConstants.MALE) {
                     val intent = Intent(this, MainActivity::class.java)

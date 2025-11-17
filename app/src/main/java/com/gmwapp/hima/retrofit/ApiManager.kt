@@ -64,6 +64,10 @@ import com.gmwapp.hima.retrofit.responses.WithdrawResponse
 import com.gmwapp.hima.retrofit.responses.ZohoMailResponse
 import com.gmwapp.hima.retrofit.responses.DefaultCouponResponse
 import com.gmwapp.hima.retrofit.responses.CallRejectCountResponse
+import com.gmwapp.hima.retrofit.responses.ChatListResponse
+import com.gmwapp.hima.retrofit.responses.MessageListResponse
+import com.gmwapp.hima.retrofit.responses.SendMessageResponse
+import com.gmwapp.hima.retrofit.responses.MarkReadResponse
 import com.gmwapp.hima.utils.Helper
 import okhttp3.MultipartBody
 import retrofit2.Call
@@ -71,9 +75,11 @@ import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
+import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
+import retrofit2.http.Query
 import javax.inject.Inject
 
 class ApiManager @Inject constructor(private val retrofit: Retrofit) {
@@ -896,6 +902,63 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun getChats(
+        userId: Int,
+        page: Int = 1,
+        limit: Int = 20,
+        callback: NetworkCallback<ChatListResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<ChatListResponse> = getApiInterface().getChats(userId, page, limit)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getMessages(
+        userId: Int,
+        chatId: String,
+        page: Int = 1,
+        limit: Int = 50,
+        callback: NetworkCallback<MessageListResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<MessageListResponse> = getApiInterface().getMessages(userId, chatId, page, limit)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun sendMessage(
+        userId: Int,
+        toUserId: Int,
+        message: String,
+        messageType: String = "text",
+        callback: NetworkCallback<SendMessageResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<SendMessageResponse> = getApiInterface().sendMessage(userId, toUserId, message, messageType)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun markRead(
+        userId: Int,
+        chatId: String,
+        callback: NetworkCallback<MarkReadResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<MarkReadResponse> = getApiInterface().markRead(userId, chatId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun sendFriendRequest(
         senderId: Int,
         receiverId: Int,
@@ -1553,5 +1616,36 @@ interface ApiInterface {
         @Field("receiver_id") receiverId: Int,
         @Field("user_id") userId: Int
     ): Call<FriendRequestResponse>
+
+    @GET("chats")
+    fun getChats(
+        @Query("user_id") userId: Int,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20
+    ): Call<ChatListResponse>
+
+    @GET("chats/messages")
+    fun getMessages(
+        @Query("user_id") userId: Int,
+        @Query("chat_id") chatId: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 50
+    ): Call<MessageListResponse>
+
+    @FormUrlEncoded
+    @POST("chats/send-message")
+    fun sendMessage(
+        @Field("user_id") userId: Int,
+        @Field("to_user_id") toUserId: Int,
+        @Field("message") message: String,
+        @Field("message_type") messageType: String = "text"
+    ): Call<SendMessageResponse>
+
+    @FormUrlEncoded
+    @POST("chats/mark-read")
+    fun markRead(
+        @Field("user_id") userId: Int,
+        @Field("chat_id") chatId: String
+    ): Call<MarkReadResponse>
 
 }

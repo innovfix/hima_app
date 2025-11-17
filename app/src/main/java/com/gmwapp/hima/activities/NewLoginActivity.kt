@@ -47,6 +47,7 @@ import com.gmwapp.hima.retrofit.responses.Country
 import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.viewmodels.ReferralCodeViewModel
+import com.gmwapp.hima.socket.SocketManager
 import com.google.android.gms.auth.api.phone.SmsRetriever
 import com.google.android.material.snackbar.Snackbar
 import com.onesignal.OneSignal
@@ -690,6 +691,15 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                     it.data?.let { it1 ->
                         BaseApplication.getInstance()?.getPrefs()?.setUserData(it1)
                         BaseApplication.getInstance()?.getPrefs()?.setAuthenticationToken(it.token)
+                        
+                        // Connect Socket.IO after successful login using userId
+                        val userId = it1.id
+                        if (userId != null && userId > 0) {
+                            Log.d("SocketIOCheck", "🔌 Connecting Socket.IO after login with User ID: $userId")
+                            SocketManager.getInstance().connect(userId)
+                        } else {
+                            Log.e("SocketIOCheck", "❌ Cannot connect Socket.IO - Invalid user ID: $userId")
+                        }
                     }
                     var intent: Intent? = null
                     if (it.data?.gender == DConstants.MALE) {
