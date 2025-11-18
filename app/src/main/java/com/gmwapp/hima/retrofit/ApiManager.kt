@@ -68,6 +68,10 @@ import com.gmwapp.hima.retrofit.responses.ChatListResponse
 import com.gmwapp.hima.retrofit.responses.MessageListResponse
 import com.gmwapp.hima.retrofit.responses.SendMessageResponse
 import com.gmwapp.hima.retrofit.responses.MarkReadResponse
+import com.gmwapp.hima.retrofit.responses.MarkMessagesReadResponse
+import com.gmwapp.hima.retrofit.responses.ChatHistoryResponse
+import com.gmwapp.hima.retrofit.responses.MyChatResponse
+import com.gmwapp.hima.retrofit.responses.FallbackSendMessageResponse
 import com.gmwapp.hima.utils.Helper
 import okhttp3.MultipartBody
 import retrofit2.Call
@@ -931,6 +935,21 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun getChatHistory(
+        userId: Int,
+        receiverId: Int,
+        limit: Int = 10,
+        offset: Int = 0,
+        callback: NetworkCallback<ChatHistoryResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<ChatHistoryResponse> = getApiInterface().getChatHistory(userId, receiverId, limit, offset)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun sendMessage(
         userId: Int,
         toUserId: Int,
@@ -946,6 +965,20 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun fallbackSendMessage(
+        fromUserId: Int,
+        toUserId: Int,
+        message: String,
+        callback: NetworkCallback<FallbackSendMessageResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<FallbackSendMessageResponse> = getApiInterface().fallbackSendMessage(fromUserId, toUserId, message)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun markRead(
         userId: Int,
         chatId: String,
@@ -953,6 +986,20 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<MarkReadResponse> = getApiInterface().markRead(userId, chatId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun markMessagesRead(
+        userId: Int,
+        receiverId: Int,
+        lastMessageId: Int,
+        callback: NetworkCallback<MarkMessagesReadResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<MarkMessagesReadResponse> = getApiInterface().markMessagesRead(userId, receiverId, lastMessageId)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1007,6 +1054,44 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<FriendListResponse> =
                 getApiInterface().getFriendsList(senderId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getMyChat(
+        userId: Int,
+        callback: NetworkCallback<MyChatResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<MyChatResponse> = getApiInterface().getMyChat(userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun blockChatUser(
+        userId: Int,
+        blockedUserId: Int,
+        callback: NetworkCallback<BlockUserResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<BlockUserResponse> = getApiInterface().blockChatUser(userId, blockedUserId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun unblockChatUser(
+        userId: Int,
+        blockedUserId: Int,
+        callback: NetworkCallback<BlockUserResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<BlockUserResponse> = getApiInterface().unblockChatUser(userId, blockedUserId)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1647,5 +1732,50 @@ interface ApiInterface {
         @Field("user_id") userId: Int,
         @Field("chat_id") chatId: String
     ): Call<MarkReadResponse>
+
+    @FormUrlEncoded
+    @POST("mark_messages_read")
+    fun markMessagesRead(
+        @Field("user_id") userId: Int,
+        @Field("receiver_id") receiverId: Int,
+        @Field("last_message_id") lastMessageId: Int
+    ): Call<MarkMessagesReadResponse>
+
+    @FormUrlEncoded
+    @POST("chat_history")
+    fun getChatHistory(
+        @Field("user_id") userId: Int,
+        @Field("receiver_id") receiverId: Int,
+        @Field("limit") limit: Int = 10,
+        @Field("offset") offset: Int = 0
+    ): Call<ChatHistoryResponse>
+
+    @FormUrlEncoded
+    @POST("my_chat")
+    fun getMyChat(
+        @Field("user_id") userId: Int
+    ): Call<MyChatResponse>
+
+    @FormUrlEncoded
+    @POST("chat_block_user")
+    fun blockChatUser(
+        @Field("user_id") userId: Int,
+        @Field("blocked_user_id") blockedUserId: Int
+    ): Call<BlockUserResponse>
+
+    @FormUrlEncoded
+    @POST("chat_unblock_user")
+    fun unblockChatUser(
+        @Field("user_id") userId: Int,
+        @Field("blocked_user_id") blockedUserId: Int
+    ): Call<BlockUserResponse>
+
+    @FormUrlEncoded
+    @POST("fallback_send_message")
+    fun fallbackSendMessage(
+        @Field("from_user_id") fromUserId: Int,
+        @Field("to_user_id") toUserId: Int,
+        @Field("message") message: String
+    ): Call<FallbackSendMessageResponse>
 
 }

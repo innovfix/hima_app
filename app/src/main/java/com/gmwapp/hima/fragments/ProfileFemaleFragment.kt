@@ -147,7 +147,7 @@ class ProfileFemaleFragment : BaseFragment() {
 
         binding.clMyFriends.setOnSingleClickListener {
             val intent = Intent(context, FriendsListActivity::class.java)
-            intent.putExtra("target_tab", FriendsTabFragment.TYPE_FRIENDS)
+            intent.putExtra("target_tab", FriendsTabFragment.TYPE_CHAT)
             startActivity(intent)
         }
 

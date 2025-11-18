@@ -77,14 +77,8 @@ class VerifyOTPActivity : BaseActivity() {
                         BaseApplication.getInstance()?.getPrefs()?.setUserData(it1)
                         BaseApplication.getInstance()?.getPrefs()?.setAuthenticationToken(it.token)
                         
-                        // Connect Socket.IO after successful login using userId
-                        val userId = it1.id
-                        if (userId != null && userId > 0) {
-                            Log.d("SocketIOCheck", "🔌 Connecting Socket.IO after OTP verification with User ID: $userId")
-                            SocketManager.getInstance().connect(userId)
-                        } else {
-                            Log.e("SocketIOCheck", "❌ Cannot connect Socket.IO - Invalid user ID: $userId")
-                        }
+                        // Socket.IO will connect only when ChatActivityInHouse opens
+                        Log.d("SocketIOCheck", "✅ OTP verification successful - Socket.IO will connect when chat opens")
                     }
                     var intent:Intent? = null
                     if(it.data?.gender == DConstants.MALE) {

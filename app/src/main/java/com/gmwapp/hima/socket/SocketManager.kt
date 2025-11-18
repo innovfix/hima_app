@@ -29,6 +29,11 @@ class SocketManager private constructor() {
     private val _isConnected = MutableStateFlow<Boolean>(false)
     val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
     
+    // Synchronization lock to prevent multiple simultaneous connection attempts
+    @Volatile
+    private var isConnecting = false
+    private val connectionLock = Any()
+    
     private val _newMessage = MutableStateFlow<ChatMessageSocket?>(null)
     val newMessage: StateFlow<ChatMessageSocket?> = _newMessage.asStateFlow()
     
@@ -47,53 +52,101 @@ class SocketManager private constructor() {
     /**
      * Connect to Socket.IO server using userId
      * After connection, automatically joins user room
+     * Thread-safe: prevents multiple simultaneous connection attempts
      */
     fun connect(userId: Int) {
-        Log.d("SocketIOCheck", "═══════════════════════════════════════")
-        Log.d("SocketIOCheck", "🔌 SocketManager.connect() CALLED with userId: $userId")
-        Log.d("SocketIOCheck", "═══════════════════════════════════════")
-        
-        if (socket?.connected() == true) {
-            Log.d("SocketIOCheck", "✅ Already connected, joining user room...")
-            joinUserRoom(userId)
-            return
-        }
-        
-        try {
-            Log.d("SocketIOCheck", "🔌 Starting Socket.IO connection...")
-            Log.d("SocketIOCheck", "📡 Socket URL: ${Config.SOCKET_URL}")
-            Log.d("SocketIOCheck", "📂 Socket Path: ${Config.SOCKET_PATH}")
-            Log.d("SocketIOCheck", "👤 User ID: $userId")
+        synchronized(connectionLock) {
+            Log.d("SocketIOCheck", "═══════════════════════════════════════")
+            Log.d("SocketIOCheck", "🔌 SocketManager.connect() CALLED with userId: $userId")
+            Log.d("SocketIOCheck", "═══════════════════════════════════════")
             
-            val options = IO.Options().apply {
-                path = Config.SOCKET_PATH
-                transports = arrayOf("polling", "websocket")  // Try polling first, then upgrade to websocket
-                reconnection = true
-                reconnectionDelay = 1000
-                reconnectionAttempts = 5
-                timeout = 20000
-                forceNew = true  // Force new connection
-                // Socket.IO client 2.1.0 automatically handles EIO version
+            // If already connected and same user, just ensure room is joined
+            if (socket?.connected() == true && currentUserId == userId) {
+                Log.d("SocketIOCheck", "✅ Already connected for user $userId, ensuring user room is joined...")
+                joinUserRoom(userId)
+                return
             }
             
-            socket = IO.socket(Config.SOCKET_URL, options)
-            currentUserId = userId // Store userId for joining room after connection
-            setupListeners()
+            // If connection is already in progress, wait or return
+            if (isConnecting) {
+                Log.w("SocketIOCheck", "⚠️ Connection already in progress, skipping duplicate call")
+                // Update userId in case it changed
+                currentUserId = userId
+                return
+            }
             
-            Log.d("SocketIOCheck", "🔌 Attempting to connect to Socket.IO: ${Config.SOCKET_URL}${Config.SOCKET_PATH}")
-            socket?.connect()
+            // If socket exists but not connected, disconnect it first
+            val hadExistingSocket = socket != null
+            socket?.let { existingSocket ->
+                if (!existingSocket.connected()) {
+                    Log.d("SocketIOCheck", "🔌 Disconnecting existing socket before creating new connection...")
+                    try {
+                        existingSocket.off() // Remove all listeners
+                        existingSocket.disconnect()
+                    } catch (e: Exception) {
+                        Log.e("SocketIOCheck", "Error disconnecting old socket: ${e.message}")
+                    }
+                    socket = null // Clear reference
+                } else if (currentUserId != userId) {
+                    // Different user, need to disconnect and reconnect
+                    Log.d("SocketIOCheck", "🔌 User changed from $currentUserId to $userId, reconnecting...")
+                    try {
+                        existingSocket.off() // Remove all listeners
+                        existingSocket.disconnect()
+                    } catch (e: Exception) {
+                        Log.e("SocketIOCheck", "Error disconnecting socket for user change: ${e.message}")
+                    }
+                    socket = null // Clear reference
+                } else {
+                    // Same user and connected, just join room
+                    joinUserRoom(userId)
+                    return
+                }
+            }
             
-            // Log connection attempt after a delay
-            Handler(Looper.getMainLooper()).postDelayed({
-                val connected = socket?.connected() == true
-                Log.d("SocketIOCheck", "📊 Connection check after 3s: ${if (connected) "✅ CONNECTED" else "❌ STILL CONNECTING/FAILED"}")
-            }, 3000)
+            isConnecting = true
+            currentUserId = userId
             
-        } catch (e: Exception) {
-            Log.e("SocketIOCheck", "❌ Connection error: ${e.message}", e)
-            Log.e("SocketIOCheck", "❌ Exception type: ${e.javaClass.simpleName}")
-            Log.e("SocketIOCheck", "❌ Stack trace: ${e.stackTraceToString()}")
-            _isConnected.value = false
+            try {
+                Log.d("SocketIOCheck", "🔌 Starting Socket.IO connection...")
+                Log.d("SocketIOCheck", "📡 Socket URL: ${Config.SOCKET_URL}")
+                Log.d("SocketIOCheck", "📂 Socket Path: ${Config.SOCKET_PATH}")
+                Log.d("SocketIOCheck", "👤 User ID: $userId")
+                
+                val options = IO.Options().apply {
+                    path = Config.SOCKET_PATH
+                    transports = arrayOf("polling", "websocket")  // Try polling first, then upgrade to websocket
+                    reconnection = true
+                    reconnectionDelay = 2000  // Increased delay to prevent rapid reconnection loops
+                    reconnectionAttempts = 5
+                    timeout = 20000
+                    // Force new connection if we had an existing socket (to avoid reusing old connection)
+                    forceNew = hadExistingSocket
+                    // Socket.IO client 2.1.0 automatically handles EIO version
+                }
+                
+                socket = IO.socket(Config.SOCKET_URL, options)
+                setupListeners()
+                
+                Log.d("SocketIOCheck", "🔌 Attempting to connect to Socket.IO: ${Config.SOCKET_URL}${Config.SOCKET_PATH}")
+                socket?.connect()
+                
+                // Log connection attempt after a delay
+                Handler(Looper.getMainLooper()).postDelayed({
+                    val connected = socket?.connected() == true
+                    Log.d("SocketIOCheck", "📊 Connection check after 3s: ${if (connected) "✅ CONNECTED" else "❌ STILL CONNECTING/FAILED"}")
+                    if (!connected) {
+                        isConnecting = false
+                    }
+                }, 3000)
+                
+            } catch (e: Exception) {
+                Log.e("SocketIOCheck", "❌ Connection error: ${e.message}", e)
+                Log.e("SocketIOCheck", "❌ Exception type: ${e.javaClass.simpleName}")
+                Log.e("SocketIOCheck", "❌ Stack trace: ${e.stackTraceToString()}")
+                _isConnected.value = false
+                isConnecting = false
+            }
         }
     }
     
@@ -121,31 +174,45 @@ class SocketManager private constructor() {
     private fun setupListeners() {
         Log.d("SocketIOCheck", "🔧 setupListeners() called - Socket instance: ${if (socket != null) "✅ Found" else "❌ Null"}")
         socket?.apply {
+            // Remove all existing listeners first to prevent duplicates
+            off()
             on(Socket.EVENT_CONNECT) {
-                Log.d("SocketIOCheck", "✅ Socket.IO CONNECTED successfully!")
-                _isConnected.value = true
-                // Join user room after connection
-                currentUserId?.let { userId ->
-                    Log.d("SocketIOCheck", "✅ Socket.IO CONNECTED - Joining user room...")
-                    joinUserRoom(userId)
+                synchronized(connectionLock) {
+                    Log.d("SocketIOCheck", "✅ Socket.IO CONNECTED successfully!")
+                    _isConnected.value = true
+                    isConnecting = false
+                    // Join user room after connection
+                    currentUserId?.let { userId ->
+                        Log.d("SocketIOCheck", "✅ Socket.IO CONNECTED - Joining user room...")
+                        // Small delay to ensure connection is fully established
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            joinUserRoom(userId)
+                        }, 100)
+                    }
                 }
             }
             
             on(Socket.EVENT_DISCONNECT) { args ->
-                val reason = args.getOrNull(0)?.toString() ?: "Unknown"
-                Log.d("SocketIOCheck", "❌ Socket.IO DISCONNECTED - Reason: $reason")
-                _isConnected.value = false
+                synchronized(connectionLock) {
+                    val reason = args.getOrNull(0)?.toString() ?: "Unknown"
+                    Log.d("SocketIOCheck", "❌ Socket.IO DISCONNECTED - Reason: $reason")
+                    _isConnected.value = false
+                    isConnecting = false
+                }
             }
             
             on(Socket.EVENT_CONNECT_ERROR) { args ->
-                val error = args[0] as? Exception
-                val errorMessage = error?.message ?: args[0]?.toString() ?: "Unknown error"
-                Log.e("SocketIOCheck", "❌ Socket.IO CONNECTION ERROR: $errorMessage")
-                Log.e("SocketIOCheck", "❌ Error type: ${error?.javaClass?.simpleName ?: "Unknown"}")
-                if (error != null) {
-                    Log.e("SocketIOCheck", "❌ Stack trace: ${error.stackTraceToString()}")
+                synchronized(connectionLock) {
+                    val error = args[0] as? Exception
+                    val errorMessage = error?.message ?: args[0]?.toString() ?: "Unknown error"
+                    Log.e("SocketIOCheck", "❌ Socket.IO CONNECTION ERROR: $errorMessage")
+                    Log.e("SocketIOCheck", "❌ Error type: ${error?.javaClass?.simpleName ?: "Unknown"}")
+                    if (error != null) {
+                        Log.e("SocketIOCheck", "❌ Stack trace: ${error.stackTraceToString()}")
+                    }
+                    _isConnected.value = false
+                    isConnecting = false
                 }
-                _isConnected.value = false
             }
             
             on("reconnect_attempt") {
@@ -306,10 +373,19 @@ class SocketManager private constructor() {
     }
     
     fun disconnect() {
-        socket?.disconnect()
-        socket = null
-        _isConnected.value = false
-        Log.d("SocketIOCheck", "Socket.IO disconnected")
+        synchronized(connectionLock) {
+            try {
+                socket?.off() // Remove all listeners first
+                socket?.disconnect()
+            } catch (e: Exception) {
+                Log.e("SocketIOCheck", "Error during disconnect: ${e.message}")
+            }
+            socket = null
+            _isConnected.value = false
+            isConnecting = false
+            currentUserId = null
+            Log.d("SocketIOCheck", "Socket.IO disconnected")
+        }
     }
     
     fun isConnected(): Boolean {

@@ -1,6 +1,8 @@
 package com.gmwapp.hima.activities
 
 import android.content.Intent
+import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
@@ -26,6 +28,15 @@ class FriendsListActivity : AppCompatActivity() {
         setupToolbar()
         setupViewPager()
         onBackPressedBtn()
+        window.statusBarColor = Color.parseColor("#ffffff") // startColor of your gradient
+
+        // Make status bar icons light (white) so they're visible on black background
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.setSystemBarsAppearance(
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+            )
+        }
     }
 
     private fun setupToolbar() {

@@ -19,13 +19,19 @@ import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.ChatListAdapter
 import com.gmwapp.hima.models.ChatConversation
-import com.google.firebase.FirebaseApp
+import com.gmwapp.hima.retrofit.ApiManager
+import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
+import com.gmwapp.hima.retrofit.responses.MyChatResponse
 import com.google.firebase.Timestamp
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
-import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.ktx.Firebase
+import dagger.hilt.android.AndroidEntryPoint
+import retrofit2.Call
+import retrofit2.Response
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class ChatListActivity : AppCompatActivity() {
 
     private lateinit var ivBack: ImageView
@@ -35,13 +41,17 @@ class ChatListActivity : AppCompatActivity() {
     private lateinit var llEmptyState: LinearLayout
     private lateinit var progressBar: ProgressBar
 
+    @Inject
+    lateinit var apiManager: ApiManager
+
     private lateinit var chatListAdapter: ChatListAdapter
     private val conversations = ArrayList<ChatConversation>()
-    private val db by lazy { FirebaseFirestore.getInstance(FirebaseApp.getInstance(), "himadatabase") }
-    private var myUserId: String = ""
+    private var myUserId: Int = 0
     
-    // Track conversations by threadId for real-time updates
-    private val conversationsMap = mutableMapOf<String, ChatConversation>()
+    // Date format for parsing timestamps from API
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).apply {
+        timeZone = TimeZone.getTimeZone("UTC")
+    }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,7 +63,6 @@ class ChatListActivity : AppCompatActivity() {
         setupClickListeners()
         loadConversations()
         onBackPressedBtn()
-
     }
 
     private fun onBackPressedBtn() {
@@ -96,10 +105,10 @@ class ChatListActivity : AppCompatActivity() {
 
     private fun setupUserId() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        myUserId = userData?.id?.toString() ?: ""
+        myUserId = userData?.id ?: 0
 
-        if (myUserId.isEmpty()) {
-            Log.e("ChatListActivity", "User ID is empty!")
+        if (myUserId == 0) {
+            Log.e("ChatListActivity", "User ID is invalid!")
             showEmptyState()
             progressBar.visibility = View.GONE
         }
@@ -107,9 +116,9 @@ class ChatListActivity : AppCompatActivity() {
 
     private fun setupRecyclerView() {
         chatListAdapter = ChatListAdapter(this, conversations) { conversation ->
-            // Open ChatActivity when conversation is clicked
-            val intent = Intent(this, ChatActivity::class.java)
-            // Convert userId back to Int for ChatActivity
+            // Open ChatActivityInHouse when conversation is clicked (same as FriendsTabFragment)
+            val intent = Intent(this, ChatActivityInHouse::class.java)
+            // Convert userId back to Int for ChatActivityInHouse
             val userId = conversation.userId.toIntOrNull() ?: -1
             intent.putExtra("USER_ID", userId)
             intent.putExtra("USER_NAME", conversation.userName)
@@ -145,187 +154,91 @@ class ChatListActivity : AppCompatActivity() {
     }
 
     private fun loadConversations() {
-        if (myUserId.isEmpty()) {
+        if (myUserId == 0) {
             swipeRefreshLayout.isRefreshing = false
+            showEmptyState()
             return
         }
 
-        Log.d("ChatListActivity", "Loading conversations for user: $myUserId")
+        Log.d("ChatListActivity", "Loading chat conversations from API for user: $myUserId")
         progressBar.visibility = View.VISIBLE
         llEmptyState.visibility = View.GONE
+        swipeRefreshLayout.isRefreshing = true
 
-        // Clear map at start to ensure clean state
-        conversationsMap.clear()
-
-        // Listen for real-time updates to chat threads
-        db.collection("chats")
-            .addSnapshotListener { documents, error ->
+        // Call API to get chat list
+        apiManager.getMyChat(myUserId, object : NetworkCallback<MyChatResponse> {
+            override fun onResponse(call: Call<MyChatResponse>, response: Response<MyChatResponse>) {
                 swipeRefreshLayout.isRefreshing = false
                 progressBar.visibility = View.GONE
 
-                if (error != null) {
-                    Log.e("ChatListActivity", "Error listening for chat threads: ${error.message}", error)
-                    showEmptyState()
-                    return@addSnapshotListener
-                }
+                if (response.isSuccessful) {
+                    val responseBody = response.body()
+                    if (responseBody?.success == true && responseBody.data != null) {
+                        val chats = responseBody.data.chats
+                        Log.d("ChatListActivity", "✅ Received ${chats.size} chats from API")
 
-                if (documents == null || documents.isEmpty) {
-                    Log.d("ChatListActivity", "No chat threads found in database")
-                    updateUI(emptyList())
-                    return@addSnapshotListener
-                }
-
-                // ✅ FIXED: Filter documents FIRST to only get threads that involve current user
-                val myThreads = documents.filter { doc ->
-                    val threadId = doc.id
-                    val userIds = threadId.split("_")
-                    // Only include if: contains my ID, has exactly 2 users, and no "-1"
-                    userIds.contains(myUserId) && userIds.size == 2 && !userIds.contains("-1")
-                }
-
-                Log.d("ChatListActivity", "Found ${documents.size()} total threads, ${myThreads.size} belong to user $myUserId")
-
-                // ✅ If no threads for me, show empty state immediately
-                if (myThreads.isEmpty()) {
-                    conversationsMap.clear()
-                    updateUI(emptyList())
-                    return@addSnapshotListener
-                }
-
-                // Clear old conversations that are no longer in the list
-                val currentThreadIds = myThreads.map { it.id }.toSet()
-                conversationsMap.keys.retainAll(currentThreadIds)
-
-                // Process each thread that belongs to current user
-                myThreads.forEach { document ->
-                    val threadId = document.id
-                    val userIds = threadId.split("_")
-                    val otherUserId = userIds.firstOrNull { it != myUserId } ?: ""
-
-                    Log.d("ChatListActivity", "✅ Processing thread $threadId with user $otherUserId")
-
-                    // Check if user is blocked first
-                    db.collection("blocked_users")
-                        .document(myUserId)
-                        .collection("users")
-                        .document(otherUserId)
-                        .get()
-                        .addOnSuccessListener { blockDoc ->
-                            val blockTimestamp = blockDoc.getTimestamp("blockedAt")
-
-                            // Get user metadata
-                            db.collection("chats")
-                                .document(threadId)
-                                .get()
-                                .addOnSuccessListener { threadDoc ->
-                                    val userName = threadDoc.getString("user_${otherUserId}_name") ?: "User $otherUserId"
-                                    var userImage = threadDoc.getString("user_${otherUserId}_image") ?: ""
-
-                                    // ✅ Real-time listener for thread document to catch avatar updates
-                                    db.collection("chats")
-                                        .document(threadId)
-                                        .addSnapshotListener { threadSnapshot, threadError ->
-                                            if (threadError != null || threadSnapshot == null) {
-                                                return@addSnapshotListener
-                                            }
-                                            
-                                            // Check if avatar has changed
-                                            val updatedImage = threadSnapshot.getString("user_${otherUserId}_image") ?: ""
-                                            if (updatedImage != userImage && updatedImage.isNotEmpty()) {
-                                                Log.d("ChatListActivity", "✅ Avatar updated for $otherUserId: $updatedImage")
-                                                userImage = updatedImage
-                                                
-                                                // Update conversation with new avatar
-                                                conversationsMap[threadId]?.let { oldConversation ->
-                                                    val updatedConversation = oldConversation.copy(userImage = updatedImage)
-                                                    conversationsMap[threadId] = updatedConversation
-                                                    // Notify adapter to refresh this item
-                                                    chatListAdapter.notifyDataSetChanged()
-                                                }
-                                            }
-                                        }
-
-                                    // Real-time listener for messages in this thread
-                                    db.collection("chats")
-                                        .document(threadId)
-                                        .collection("messages")
-                                        .orderBy("timestamp", Query.Direction.DESCENDING)
-                                        .limit(50)
-                                        .addSnapshotListener { messagesSnapshot, messageError ->
-                                            if (messageError != null || messagesSnapshot == null) {
-                                                Log.e("ChatListActivity", "Error listening to messages in $threadId", messageError)
-                                                return@addSnapshotListener
-                                            }
-
-                                            var lastMessage = ""
-                                            var lastMessageTime: Timestamp? = null
-                                            var unreadCount = 0
-
-                                            if (!messagesSnapshot.isEmpty) {
-                                                // Filter messages sent after block timestamp
-                                                val validMessages = if (blockTimestamp != null) {
-                                                    messagesSnapshot.documents.filter { msg ->
-                                                        val msgTimestamp = msg.getTimestamp("timestamp")
-                                                        val fromId = msg.getString("from") ?: ""
-                                                        // Include own messages and messages from blocked user sent BEFORE blocking
-                                                        fromId != otherUserId || msgTimestamp == null || msgTimestamp.seconds < blockTimestamp.seconds
-                                                    }
-                                                } else {
-                                                    messagesSnapshot.documents
-                                                }
-
-                                                if (validMessages.isNotEmpty()) {
-                                                    // Get last valid message
-                                                    val lastMsgDoc = validMessages[0]
-                                                    lastMessage = lastMsgDoc.getString("text") ?: ""
-                                                    lastMessageTime = lastMsgDoc.getTimestamp("timestamp")
-
-                                                    // Count unread messages from other user (only those sent before block)
-                                                    validMessages.forEach { msg ->
-                                                        val fromId = msg.getString("from") ?: ""
-                                                        val isRead = msg.getBoolean("isRead") ?: false
-                                                        val msgTimestamp = msg.getTimestamp("timestamp")
-
-                                                        if (fromId == otherUserId && !isRead) {
-                                                            if (blockTimestamp == null || msgTimestamp == null || msgTimestamp.seconds < blockTimestamp.seconds) {
-                                                                unreadCount++
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-
-                                            Log.d("ChatListActivity", "Thread $threadId - Last: '$lastMessage', Unread: $unreadCount")
-
-                                            // Create/update conversation
-                                            val conversation = ChatConversation(
-                                                threadId = threadId,
-                                                userId = otherUserId,
-                                                userName = userName,
-                                                userImage = userImage,
-                                                lastMessage = lastMessage,
-                                                lastMessageTime = lastMessageTime,
-                                                unreadCount = unreadCount,
-                                                isOnline = false
-                                            )
-
-                                            conversationsMap[threadId] = conversation
-
-                                            // Update UI with sorted list
-                                            val sortedConversations = conversationsMap.values
-                                                .sortedByDescending { it.lastMessageTime?.toDate()?.time ?: 0L }
-                                            updateUI(sortedConversations)
-                                        }
+                        // Convert API response to ChatConversation objects
+                        val conversations = chats.map { chatItem ->
+                            val lastMessage = chatItem.lastMessage
+                            val lastMessageTime = if (lastMessage != null) {
+                                try {
+                                    val date = dateFormat.parse(lastMessage.timestamp)
+                                    if (date != null) {
+                                        Timestamp(date)
+                                    } else {
+                                        null
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e("ChatListActivity", "Error parsing timestamp: ${lastMessage.timestamp}", e)
+                                    null
                                 }
-                                .addOnFailureListener { e ->
-                                    Log.e("ChatListActivity", "Error loading thread metadata for $threadId", e)
-                                }
+                            } else {
+                                null
+                            }
+
+                            ChatConversation(
+                                threadId = chatItem.chatId,
+                                userId = chatItem.user.id.toString(),
+                                userName = chatItem.user.name,
+                                userImage = chatItem.user.image ?: "",
+                                lastMessage = lastMessage?.message ?: "",
+                                lastMessageTime = lastMessageTime,
+                                unreadCount = chatItem.unreadCount,
+                                isOnline = false
+                            )
                         }
-                        .addOnFailureListener { e ->
-                            Log.e("ChatListActivity", "Error checking block status for $threadId", e)
+
+                        // Sort by last message time (newest first)
+                        val sortedConversations = conversations.sortedByDescending {
+                            it.lastMessageTime?.toDate()?.time ?: 0L
                         }
+
+                        Log.d("ChatListActivity", "✅ Converted to ${sortedConversations.size} conversations")
+                        updateUI(sortedConversations)
+                    } else {
+                        Log.e("ChatListActivity", "❌ API response unsuccessful or data is null")
+                        updateUI(emptyList())
+                    }
+                } else {
+                    Log.e("ChatListActivity", "❌ API call failed: ${response.code()}")
+                    updateUI(emptyList())
                 }
             }
+
+            override fun onFailure(call: Call<MyChatResponse>, t: Throwable) {
+                swipeRefreshLayout.isRefreshing = false
+                progressBar.visibility = View.GONE
+                Log.e("ChatListActivity", "❌ Error loading chat conversations: ${t.message}", t)
+                updateUI(emptyList())
+            }
+
+            override fun onNoNetwork() {
+                swipeRefreshLayout.isRefreshing = false
+                progressBar.visibility = View.GONE
+                Log.e("ChatListActivity", "❌ No network connection")
+                updateUI(emptyList())
+            }
+        })
     }
 
 

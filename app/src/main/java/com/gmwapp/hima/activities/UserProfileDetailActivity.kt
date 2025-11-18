@@ -1,6 +1,8 @@
 package com.gmwapp.hima.activities
 
 import android.content.Intent
+import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -77,12 +79,18 @@ class UserProfileDetailActivity : AppCompatActivity() {
         // Setup observers for ViewModel
         setupObservers()
         
-        // Hide add friend button and friend status text
-        binding.btnSendFriendRequest.visibility = View.GONE
-        binding.cvFriendStatus.visibility = View.GONE
-        
         // Check friend request status from API
-//        checkFriendRequestStatus()
+        checkFriendRequestStatus()
+
+        window.statusBarColor = Color.parseColor("#ffffff") // startColor of your gradient
+
+        // Make status bar icons light (white) so they're visible on black background
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.setSystemBarsAppearance(
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+            )
+        }
         
         // Debug: Verify button visibility
         Log.d("UserProfileDetail", "Send Friend Request button visibility: ${binding.btnSendFriendRequest.visibility}")
@@ -372,44 +380,39 @@ class UserProfileDetailActivity : AppCompatActivity() {
     }
 
     private fun updateUIBasedOnFriendStatus() {
-        // Always hide add friend button and friend status text
-        binding.btnSendFriendRequest.visibility = View.GONE
-        binding.cvFriendStatus.visibility = View.GONE
+        // Always hide call buttons
+        binding.llCallButtons.visibility = View.GONE
         
         when (currentFriendStatus) {
             FriendStatus.NOT_FRIENDS -> {
-                // Show send friend request button - DISABLED
-//                binding.btnSendFriendRequest.visibility = View.VISIBLE
+                // Show send friend request button
+                binding.btnSendFriendRequest.visibility = View.VISIBLE
                 binding.llAcceptRejectButtons.visibility = View.GONE
-                binding.llCallButtons.visibility = View.GONE
-//                binding.cvFriendStatus.visibility = View.GONE
+                binding.cvFriendStatus.visibility = View.GONE
                 binding.btnSendFriendRequest.isEnabled = true
             }
             
             FriendStatus.REQUEST_SENT -> {
-                // Show status that request is sent (hide button, show message) - DISABLED
-//                binding.btnSendFriendRequest.visibility = View.GONE
+                // Show status that request is sent (hide button, show message)
+                binding.btnSendFriendRequest.visibility = View.GONE
                 binding.llAcceptRejectButtons.visibility = View.GONE
-                binding.llCallButtons.visibility = View.GONE
-//                binding.cvFriendStatus.visibility = View.VISIBLE
-//                binding.tvFriendStatus.text = "Friend request sent"
+                binding.cvFriendStatus.visibility = View.VISIBLE
+                binding.tvFriendStatus.text = "Friend request sent"
             }
             
             FriendStatus.REQUEST_RECEIVED -> {
                 // Show accept and reject friend request buttons
                 binding.btnSendFriendRequest.visibility = View.GONE
                 binding.llAcceptRejectButtons.visibility = View.VISIBLE
-                binding.llCallButtons.visibility = View.GONE
-//                binding.cvFriendStatus.visibility = View.GONE
+                binding.cvFriendStatus.visibility = View.GONE
             }
             
             FriendStatus.FRIENDS -> {
-                // Show call buttons and friend status - DISABLED
-//                binding.btnSendFriendRequest.visibility = View.GONE
+                // Show friend status (call buttons are hidden)
+                binding.btnSendFriendRequest.visibility = View.GONE
                 binding.llAcceptRejectButtons.visibility = View.GONE
-                binding.llCallButtons.visibility = View.GONE
-//                binding.cvFriendStatus.visibility = View.VISIBLE
-//                binding.tvFriendStatus.text = "You are friends"
+                binding.cvFriendStatus.visibility = View.VISIBLE
+                binding.tvFriendStatus.text = "You are friends"
             }
         }
     }

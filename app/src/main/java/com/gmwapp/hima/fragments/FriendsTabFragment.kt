@@ -29,6 +29,9 @@ import com.gmwapp.hima.models.ChatConversation
 import com.gmwapp.hima.retrofit.responses.FriendData
 import com.gmwapp.hima.retrofit.responses.toFriendData
 import com.gmwapp.hima.retrofit.responses.ReceivedFriendRequestsResponse
+import com.gmwapp.hima.retrofit.responses.MyChatResponse
+import com.gmwapp.hima.retrofit.ApiManager
+import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.viewmodels.FriendRequestViewModel
 import com.google.firebase.FirebaseApp
 import com.google.firebase.Timestamp
@@ -37,9 +40,18 @@ import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import dagger.hilt.android.AndroidEntryPoint
+import retrofit2.Call
+import retrofit2.Response
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class FriendsTabFragment : Fragment() {
+
+    @Inject
+    lateinit var apiManager: ApiManager
 
     private lateinit var binding: FragmentFriendsTabBinding
     private lateinit var adapter: FriendsAdapter
@@ -51,6 +63,11 @@ class FriendsTabFragment : Fragment() {
     private var requestIdMap = mutableMapOf<Int, Int>() // Maps friend_id to request_id
     private val db by lazy { FirebaseFirestore.getInstance(FirebaseApp.getInstance(), "himadatabase") }
     private val conversationsMap = mutableMapOf<String, ChatConversation>()
+    
+    // Date format for parsing timestamps from API
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).apply {
+        timeZone = TimeZone.getTimeZone("UTC")
+    }
     
     // Auto-refresh handler
     private val autoRefreshHandler = Handler(Looper.getMainLooper())
@@ -122,7 +139,11 @@ class FriendsTabFragment : Fragment() {
         super.onResume()
         Log.d("FriendsTab", "▶️ onResume - tabType: $tabType")
         // Call API/Load data when entering this tab
-        if (tabType != TYPE_CHAT) {
+        if (tabType == TYPE_CHAT) {
+            // Refresh chat conversations from API
+            Log.d("FriendsTab", "💬 Chat tab resumed - refreshing chat conversations")
+            loadChatConversations()
+        } else {
             loadData()
         }
         
@@ -431,21 +452,98 @@ class FriendsTabFragment : Fragment() {
         }
         
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        val myUserId = userData?.id?.toString() ?: ""
+        val myUserId = userData?.id ?: 0
         
         Log.d("FriendsTab", "🔵 loadChatConversations called. MyUserId: $myUserId")
         
-        if (myUserId.isEmpty()) {
-            Log.e("FriendsTab", "❌ User ID is empty!")
+        if (myUserId == 0) {
+            Log.e("FriendsTab", "❌ User ID is invalid!")
             binding.swipeRefresh.isRefreshing = false
             updateChatUI(emptyList())
             return
         }
         
-        Log.d("FriendsTab", "📱 Loading chat conversations for user: $myUserId")
+        Log.d("FriendsTab", "📱 Loading chat conversations from API for user: $myUserId")
         binding.swipeRefresh.isRefreshing = true
         
-        // Load conversations from Firebase - EXACTLY like ChatListActivity
+        // Call API to get chat list
+        apiManager.getMyChat(myUserId, object : NetworkCallback<MyChatResponse> {
+            override fun onResponse(call: Call<MyChatResponse>, response: Response<MyChatResponse>) {
+                if (!isAdded) return
+                
+                binding.swipeRefresh.isRefreshing = false
+                
+                if (response.isSuccessful) {
+                    val responseBody = response.body()
+                    if (responseBody?.success == true && responseBody.data != null) {
+                        val chats = responseBody.data.chats
+                        Log.d("FriendsTab", "✅ Received ${chats.size} chats from API")
+                        
+                        // Convert API response to ChatConversation objects
+                        val conversations = chats.map { chatItem ->
+                            val lastMessage = chatItem.lastMessage
+                            val lastMessageTime = if (lastMessage != null) {
+                                try {
+                                    val date = dateFormat.parse(lastMessage.timestamp)
+                                    if (date != null) {
+                                        Timestamp(date)
+                                    } else {
+                                        null
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e("FriendsTab", "Error parsing timestamp: ${lastMessage.timestamp}", e)
+                                    null
+                                }
+                            } else {
+                                null
+                            }
+                            
+                            ChatConversation(
+                                threadId = chatItem.chatId,
+                                userId = chatItem.user.id.toString(),
+                                userName = chatItem.user.name,
+                                userImage = chatItem.user.image ?: "",
+                                lastMessage = lastMessage?.message ?: "",
+                                lastMessageTime = lastMessageTime,
+                                unreadCount = chatItem.unreadCount,
+                                isOnline = false
+                            )
+                        }
+                        
+                        // Sort by last message time (newest first)
+                        val sortedConversations = conversations.sortedByDescending { 
+                            it.lastMessageTime?.toDate()?.time ?: 0L 
+                        }
+                        
+                        Log.d("FriendsTab", "✅ Converted to ${sortedConversations.size} conversations")
+                        updateChatUI(sortedConversations)
+                    } else {
+                        Log.e("FriendsTab", "❌ API response unsuccessful or data is null")
+                        updateChatUI(emptyList())
+                    }
+                } else {
+                    Log.e("FriendsTab", "❌ API call failed: ${response.code()}")
+                    updateChatUI(emptyList())
+                }
+            }
+
+            override fun onFailure(call: Call<MyChatResponse>, t: Throwable) {
+                if (!isAdded) return
+                binding.swipeRefresh.isRefreshing = false
+                Log.e("FriendsTab", "❌ Error loading chat conversations: ${t.message}", t)
+                updateChatUI(emptyList())
+            }
+
+            override fun onNoNetwork() {
+                if (!isAdded) return
+                binding.swipeRefresh.isRefreshing = false
+                Log.e("FriendsTab", "❌ No network connection")
+                updateChatUI(emptyList())
+            }
+        })
+        
+        // OLD FIREBASE CODE - REMOVED
+        /* Load conversations from Firebase - EXACTLY like ChatListActivity
         db.collection("chats")
             .addSnapshotListener { documents, error ->
                 if (!isAdded) return@addSnapshotListener
@@ -654,6 +752,7 @@ class FriendsTabFragment : Fragment() {
                         }
                 }
             }
+        } */
     }
     
     private fun updateChatUI(conversationsList: List<ChatConversation>) {

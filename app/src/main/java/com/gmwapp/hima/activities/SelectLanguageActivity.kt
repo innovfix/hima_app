@@ -62,14 +62,8 @@ class SelectLanguageActivity : BaseActivity() {
                 BaseApplication.getInstance()?.getPrefs()?.setUserData(it.data)
                 BaseApplication.getInstance()?.getPrefs()?.setAuthenticationToken(it.token)
                 
-                // Connect Socket.IO after successful registration using userId
-                val userId = it.data?.id
-                if (userId != null && userId > 0) {
-                    Log.d("SocketIOCheck", "🔌 Connecting Socket.IO after language selection with User ID: $userId")
-                    SocketManager.getInstance().connect(userId)
-                } else {
-                    Log.e("SocketIOCheck", "❌ Cannot connect Socket.IO - Invalid user ID: $userId")
-                }
+                // Socket.IO will connect only when ChatActivityInHouse opens
+                Log.d("SocketIOCheck", "✅ Registration successful - Socket.IO will connect when chat opens")
 
                 if (it.data?.gender == DConstants.MALE) {
                     val intent = Intent(this, MainActivity::class.java)

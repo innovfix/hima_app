@@ -15,6 +15,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -29,8 +30,12 @@ import com.gmwapp.hima.models.ChatMessageApi
 import com.gmwapp.hima.retrofit.ApiManager
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.MarkReadResponse
+import com.gmwapp.hima.retrofit.responses.MarkMessagesReadResponse
 import com.gmwapp.hima.retrofit.responses.MessageListResponse
 import com.gmwapp.hima.retrofit.responses.SendMessageResponse
+import com.gmwapp.hima.retrofit.responses.ChatHistoryResponse
+import com.gmwapp.hima.retrofit.responses.BlockUserResponse
+import com.gmwapp.hima.retrofit.responses.FallbackSendMessageResponse
 import retrofit2.Call
 import retrofit2.Response
 import com.gmwapp.hima.socket.ChatMessageSocket
@@ -54,6 +59,7 @@ class ChatActivityInHouse : AppCompatActivity() {
     private lateinit var etMessage: EditText
     private lateinit var btnSend: FloatingActionButton
     private lateinit var ivBack: ImageView
+    private lateinit var ivMore: ImageView
     private lateinit var ivUser: CircleImageView
     private lateinit var tvUserName: TextView
     private lateinit var tvUserStatus: TextView
@@ -74,7 +80,20 @@ class ChatActivityInHouse : AppCompatActivity() {
     // Track message sending method
     private val messageSendMethod = mutableMapOf<String, String>() // messageId -> "socket" or "api"
     
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).apply {
+    // Store last online status from API
+    private var lastOnlineStatus: String? = null
+    
+    // Track if user is blocked
+    private var iHaveBlockedThisUser: Boolean = false
+    
+    // Pagination variables
+    private var currentOffset = 0
+    private var isLoadingMore = false
+    private var hasMoreMessages = true
+    private val MESSAGES_PER_PAGE = 10
+    
+    // API returns timestamps in format: "2025-11-18 05:18:47" (space, not 'T')
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).apply {
         timeZone = TimeZone.getTimeZone("UTC")
     }
     private val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault()).apply {
@@ -110,6 +129,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         etMessage = findViewById(R.id.et_message)
         btnSend = findViewById(R.id.btn_send)
         ivBack = findViewById(R.id.iv_back)
+        ivMore = findViewById(R.id.iv_more)
         ivUser = findViewById(R.id.iv_user)
         tvUserName = findViewById(R.id.tv_user_name)
         tvUserStatus = findViewById(R.id.tv_user_status)
@@ -140,13 +160,38 @@ class ChatActivityInHouse : AppCompatActivity() {
     private fun setupRecyclerView() {
         chatAdapter = ChatAdapter(messages)
         rvMessages.apply {
-            layoutManager = LinearLayoutManager(this@ChatActivityInHouse).apply {
-                stackFromEnd = true
+            // WhatsApp-style layout: messages anchored to bottom, newest at bottom
+            // Messages are sorted oldest first (index 0 = oldest, index N = newest)
+            // With stackFromEnd=true, RecyclerView shows the last item (newest) at bottom
+            // With reverseLayout=false, it keeps the order: oldest at top, newest at bottom
+            val layoutManager = LinearLayoutManager(this@ChatActivityInHouse).apply {
+                stackFromEnd = true  // Anchor to bottom - shows last item (index N = newest) at bottom
+                reverseLayout = false  // Don't reverse - keeps chronological order
             }
+            this.layoutManager = layoutManager
             adapter = chatAdapter
             isFocusable = false
             isFocusableInTouchMode = false
             descendantFocusability = RecyclerView.FOCUS_BLOCK_DESCENDANTS
+            
+            // Add scroll listener for pagination (load older messages when scrolling up)
+            addOnScrollListener(object : RecyclerView.OnScrollListener() {
+                override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                    super.onScrolled(recyclerView, dx, dy)
+                    
+                    val layoutManager = recyclerView.layoutManager as? LinearLayoutManager
+                    if (layoutManager != null) {
+                        val firstVisiblePosition = layoutManager.findFirstVisibleItemPosition()
+                        
+                        // Load more when user scrolls to top (older messages)
+                        // Trigger when user is near the top (within first 5 items) and scrolling up
+                        if (firstVisiblePosition <= 5 && dy < 0 && !isLoadingMore && hasMoreMessages) {
+                            Log.d("ChatPagination", "🔄 Scroll detected - Loading more messages. First visible: $firstVisiblePosition")
+                            loadMoreMessages()
+                        }
+                    }
+                }
+            })
         }
     }
 
@@ -175,52 +220,56 @@ class ChatActivityInHouse : AppCompatActivity() {
             onBackPressed()
         }
 
+        ivMore.setOnClickListener {
+            showOptionsMenu()
+        }
+
         btnSend.setOnClickListener {
             sendMessage()
         }
     }
 
     private fun connectSocket() {
-        // Socket.IO is already connected globally in BaseApplication
-        // Just check the connection status and update UI
-        val isConnected = socketManager.isConnected()
-        Log.d("SocketIOCheck", "📊 Checking Socket.IO connection status: ${if (isConnected) "✅ CONNECTED" else "❌ DISCONNECTED"}")
+        Log.d("SocketIOCheck", "═══════════════════════════════════════")
+        Log.d("SocketIOCheck", "🔌 Connecting Socket.IO for ChatActivityInHouse")
+        Log.d("SocketIOCheck", "═══════════════════════════════════════")
         
-        // If not connected, try to reconnect (in case connection was lost)
-        if (!isConnected) {
-            val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-            val userId = userData?.id
-            if (userId != null && userId > 0) {
-                Log.d("SocketIOCheck", "🔄 Attempting to reconnect Socket.IO with User ID: $userId")
-                socketManager.connect(userId)
+        // Get user ID and connect Socket.IO
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val userId = userData?.id
+        
+        if (userId != null && userId > 0) {
+            Log.d("SocketIOCheck", "🔌 Connecting Socket.IO with User ID: $userId")
+            
+            // If already connected, join chat room immediately
+            if (socketManager.isConnected() && myUserId > 0 && peerUserId > 0) {
+                Log.d("SocketIOCheck", "✅ Socket.IO already connected - Joining chat room immediately: $chatId")
+                socketManager.joinChatRoom(myUserId, peerUserId)
             } else {
-                Log.e("SocketIOCheck", "❌ No user ID available - Cannot reconnect Socket.IO")
+                // Connect and wait for connection event to join room (handled in observeSocketEvents)
+                socketManager.connect(userId)
             }
+        } else {
+            Log.e("SocketIOCheck", "❌ No user ID available - Cannot connect Socket.IO")
         }
-        
-        // Join chat room when socket is connected
-        if (isConnected && myUserId > 0 && peerUserId > 0) {
-            socketManager.joinChatRoom(myUserId, peerUserId)
-            Log.d("SocketIOCheck", "✅ Joined chat room: $chatId")
-        }
-        
-        // Update UI after a short delay
-        mainHandler.postDelayed({
-            val connected = socketManager.isConnected()
-            Log.d("SocketIOCheck", "Socket.IO connection status: ${if (connected) "✅ CONNECTED" else "❌ DISCONNECTED"}")
-            updateSocketStatusUI(connected)
-        }, 2000)
     }
     
     private fun updateSocketStatusUI(isConnected: Boolean) {
+        // Don't update UI based on Socket.IO status anymore
+        // UI will be updated based on last_online_status from API
+    }
+    
+    private fun updateOnlineStatusFromAPI(lastOnlineStatus: String?) {
+        this.lastOnlineStatus = lastOnlineStatus
         mainHandler.post {
-            if (isConnected) {
-                tvUserStatus.text = "Online • Socket.IO Connected"
-                tvUserStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_green_dark))
+            // Show status only if it's not null or empty
+            if (!lastOnlineStatus.isNullOrEmpty()) {
+                tvUserStatus.text = lastOnlineStatus
                 vOnlineIndicator.visibility = View.VISIBLE
             } else {
-                tvUserStatus.text = "Socket.IO Disconnected"
-                tvUserStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark))
+                // Hide status if null or empty
+                tvUserStatus.text = ""
+                tvUserStatus.visibility = View.GONE
                 vOnlineIndicator.visibility = View.GONE
             }
         }
@@ -230,12 +279,17 @@ class ChatActivityInHouse : AppCompatActivity() {
         lifecycleScope.launch {
             socketManager.isConnected.collectLatest { connected ->
                 if (connected) {
-                    Log.d("SocketIOCheck", "✅ Socket.IO CONNECTED - joining chat room: $chatId")
-                    updateSocketStatusUI(true)
-                    socketManager.joinChat(chatId)
+                    Log.d("SocketIOCheck", "✅ Socket.IO CONNECTED - joining chat room immediately: $chatId")
+                    // Join chat room immediately when connected
+                    if (myUserId > 0 && peerUserId > 0) {
+                        socketManager.joinChatRoom(myUserId, peerUserId)
+                        Log.d("SocketIOCheck", "✅ Joined chat room: $chatId")
+                    } else {
+                        // Fallback to chatId if user IDs not set
+                        socketManager.joinChat(chatId)
+                    }
                 } else {
                     Log.d("SocketIOCheck", "❌ Socket.IO DISCONNECTED")
-                    updateSocketStatusUI(false)
                 }
             }
         }
@@ -257,7 +311,6 @@ class ChatActivityInHouse : AppCompatActivity() {
                         val messageId = it.id.toString()
                         messageSendMethod[messageId] = "socket"
                         Log.d("SocketIOCheck", "✅ Message sent via SOCKET.IO - ID: $messageId")
-                        Toast.makeText(this@ChatActivityInHouse, "✅ Sent via Socket.IO", Toast.LENGTH_SHORT).show()
                         // Message already shown optimistically, just update status if needed
                         logSocketIOStatus() // Log updated status
                     }
@@ -268,7 +321,6 @@ class ChatActivityInHouse : AppCompatActivity() {
         lifecycleScope.launch {
             socketManager.messageError.collectLatest { error ->
                 error?.let {
-                    Toast.makeText(this@ChatActivityInHouse, it, Toast.LENGTH_SHORT).show()
                     Log.e("SocketIOCheck", "Message error: $it")
                 }
             }
@@ -276,51 +328,277 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun loadMessages() {
-        apiManager.getMessages(
+        // Reset pagination state
+        currentOffset = 0
+        hasMoreMessages = true
+        isLoadingMore = false
+        
+        Log.d("ChatPagination", "═══════════════════════════════════════")
+        Log.d("ChatPagination", "🔄 INITIAL LOAD - Requesting chat history")
+        Log.d("ChatPagination", "User ID: $myUserId, Receiver ID: $peerUserId")
+        Log.d("ChatPagination", "Limit: $MESSAGES_PER_PAGE, Offset: $currentOffset")
+        Log.d("ChatPagination", "═══════════════════════════════════════")
+        
+        apiManager.getChatHistory(
             userId = myUserId,
-            chatId = chatId,
-            page = 1,
-            limit = 50,
-            object : NetworkCallback<MessageListResponse> {
-                override fun onResponse(call: Call<MessageListResponse>, response: Response<MessageListResponse>) {
+            receiverId = peerUserId,
+            limit = MESSAGES_PER_PAGE,
+            offset = currentOffset,
+            object : NetworkCallback<ChatHistoryResponse> {
+                override fun onResponse(call: Call<ChatHistoryResponse>, response: Response<ChatHistoryResponse>) {
                     if (response.isSuccessful) {
                         val responseBody = response.body()
-                        if (responseBody?.status == true && responseBody.data != null) {
-                            val apiMessages = responseBody.data.messages
-                            val convertedMessages = apiMessages.map { apiMsg ->
+                        if (responseBody?.success == true && responseBody.data != null) {
+                            val data = responseBody.data
+                            val apiMessages = data.messages
+                            
+                            // Update blocked status FIRST before filtering messages
+                            iHaveBlockedThisUser = data.iHaveBlockedThisUser
+                            
+                            Log.d("ChatPagination", "═══════════════════════════════════════")
+                            Log.d("ChatPagination", "✅ INITIAL LOAD RESPONSE:")
+                            Log.d("ChatPagination", "Total Messages: ${data.totalMessages}")
+                            Log.d("ChatPagination", "Returned Messages: ${data.returnedMessages}")
+                            Log.d("ChatPagination", "Has More: ${data.hasMore}")
+                            Log.d("ChatPagination", "Offset: ${data.offset}")
+                            Log.d("ChatPagination", "Limit: ${data.limit}")
+                            Log.d("ChatPagination", "Messages received: ${apiMessages.size}")
+                            Log.d("ChatPagination", "User blocked: $iHaveBlockedThisUser")
+                            Log.d("ChatPagination", "═══════════════════════════════════════")
+                            
+                            // Filter out messages from blocked user
+                            val filteredMessages = if (iHaveBlockedThisUser) {
+                                apiMessages.filter { it.fromUserId != peerUserId }
+                            } else {
+                                apiMessages
+                            }
+                            
+                            Log.d("ChatPagination", "Messages after filtering blocked user: ${filteredMessages.size}")
+                            
+                            // Log ALL messages from API response in order
+                            Log.d("ChatPagination", "📋 API RESPONSE MESSAGES (Original Order from API):")
+                            apiMessages.forEachIndexed { index, msg ->
+                                Log.d("ChatPagination", "  [$index] ID=${msg.id}, ChatID=${msg.chatId}, From=${msg.fromUserId} (${msg.from}), To=${msg.toUserId} (${msg.to}), Type=${msg.messageType}, Text='${msg.message.take(50)}...', Timestamp=${msg.timestamp}, Read=${msg.isRead}")
+                            }
+                            Log.d("ChatPagination", "═══════════════════════════════════════")
+                            
+                            val convertedMessages = filteredMessages.map { apiMsg ->
                                 convertApiMessageToChatMessage(apiMsg)
                             }
                             
+                            // Sort messages by date (oldest first) - WhatsApp style
+                            // This ensures: index 0 = oldest message, index N = newest message
+                            // With stackFromEnd=true, newest (index N) will appear at bottom, oldest (index 0) at top
+                            val sortedMessages = convertedMessages.sortedBy { it.date?.time ?: 0L }
+                            
                             messages.clear()
-                            messages.addAll(convertedMessages)
+                            messages.addAll(sortedMessages)
                             chatAdapter.notifyDataSetChanged()
                             
-                            if (messages.isNotEmpty()) {
-                                rvMessages.scrollToPosition(messages.size - 1)
+                            // Log message order for debugging - show ALL sorted messages
+                            Log.d("ChatPagination", "═══════════════════════════════════════")
+                            Log.d("ChatPagination", "📋 SORTED MESSAGES (After sorting - should be oldest to newest):")
+                            sortedMessages.forEachIndexed { index, msg ->
+                                val msgId = if (msg.id.startsWith("temp_")) msg.id else msg.id
+                                Log.d("ChatPagination", "  [$index] ID=$msgId, Text='${msg.message.take(40)}...', Timestamp=${msg.timestamp}, Date=${msg.date?.time}")
+                            }
+                            Log.d("ChatPagination", "═══════════════════════════════════════")
+                            
+                            if (sortedMessages.isNotEmpty()) {
+                                Log.d("ChatPagination", "Message order check:")
+                                Log.d("ChatPagination", "  First (index 0 - should be OLDEST): '${sortedMessages.first().message.take(30)}...' at ${sortedMessages.first().timestamp}, Date=${sortedMessages.first().date?.time}")
+                                Log.d("ChatPagination", "  Last (index ${sortedMessages.size-1} - should be NEWEST): '${sortedMessages.last().message.take(30)}...' at ${sortedMessages.last().timestamp}, Date=${sortedMessages.last().date?.time}")
                             }
                             
-                            // Mark messages as read
+                            // Update pagination state
+                            currentOffset = data.offset + data.returnedMessages
+                            hasMoreMessages = data.hasMore
+                            
+                            // Scroll to bottom (newest message) - WhatsApp style
+                            if (messages.isNotEmpty()) {
+                                rvMessages.post {
+                                    rvMessages.scrollToPosition(messages.size - 1)
+                                    Log.d("ChatPagination", "Scrolled to bottom, showing latest ${messages.size} messages")
+                                }
+                            }
+                            
+                            // Update online status from API response
+                            updateOnlineStatusFromAPI(data.lastOnlineStatus)
+                            
+                            // Mark messages as read using the new API with last message id
+                            // Use filtered messages to get the last visible message
+                            if (filteredMessages.isNotEmpty()) {
+                                // Get the last message id (newest message) from filtered messages
+                                val lastMessageId = filteredMessages.maxByOrNull { it.id }?.id
+                                if (lastMessageId != null) {
+                                    markMessagesAsReadWithLastMessageId(lastMessageId)
+                                }
+                            }
+                            
+                            // Mark messages as read (old method - keeping for backward compatibility)
                             if (isChatVisible) {
                                 markMessagesAsRead()
                             }
+                            
+                            Log.d("ChatPagination", "✅ Initial load complete. Displaying ${messages.size} messages")
+                            Log.d("ChatPagination", "Next offset for pagination: $currentOffset, Has more: $hasMoreMessages")
                         }
                     } else {
-                        Log.e("ChatActivityInHouse", "Error loading messages: ${response.code()}")
+                        Log.e("ChatPagination", "❌ Error loading messages: ${response.code()}")
+                        Toast.makeText(this@ChatActivityInHouse, "Failed to load messages", Toast.LENGTH_SHORT).show()
                     }
+                    isLoadingMore = false
                 }
 
-                override fun onFailure(call: Call<MessageListResponse>, t: Throwable) {
-                    Log.e("ChatActivityInHouse", "Error loading messages: ${t.message}", t)
+                override fun onFailure(call: Call<ChatHistoryResponse>, t: Throwable) {
+                    Log.e("ChatPagination", "❌ Error loading messages: ${t.message}", t)
+                    Toast.makeText(this@ChatActivityInHouse, "Error: ${t.message}", Toast.LENGTH_SHORT).show()
+                    isLoadingMore = false
                 }
 
                 override fun onNoNetwork() {
+                    Log.e("ChatPagination", "❌ No network connection")
                     Toast.makeText(this@ChatActivityInHouse, "No internet connection", Toast.LENGTH_SHORT).show()
+                    isLoadingMore = false
+                }
+            }
+        )
+    }
+    
+    private fun loadMoreMessages() {
+        if (isLoadingMore || !hasMoreMessages) {
+            Log.d("ChatPagination", "⏸️ Skipping load more - isLoadingMore: $isLoadingMore, hasMoreMessages: $hasMoreMessages")
+            return
+        }
+        
+        isLoadingMore = true
+        
+        Log.d("ChatPagination", "═══════════════════════════════════════")
+        Log.d("ChatPagination", "📜 LOADING MORE MESSAGES (Pagination)")
+        Log.d("ChatPagination", "Current Offset: $currentOffset")
+        Log.d("ChatPagination", "Current Messages Count: ${messages.size}")
+        Log.d("ChatPagination", "Limit: $MESSAGES_PER_PAGE")
+        Log.d("ChatPagination", "═══════════════════════════════════════")
+        
+        // Save current scroll position to restore after loading (WhatsApp style)
+        val layoutManager = rvMessages.layoutManager as? LinearLayoutManager
+        val currentFirstVisiblePosition = layoutManager?.findFirstVisibleItemPosition() ?: 0
+        val currentFirstVisibleView = layoutManager?.findViewByPosition(currentFirstVisiblePosition)
+        val offset = currentFirstVisibleView?.top ?: 0
+        
+        Log.d("ChatPagination", "Current scroll position - First visible: $currentFirstVisiblePosition, Offset: $offset")
+        
+        apiManager.getChatHistory(
+            userId = myUserId,
+            receiverId = peerUserId,
+            limit = MESSAGES_PER_PAGE,
+            offset = currentOffset,
+            object : NetworkCallback<ChatHistoryResponse> {
+                override fun onResponse(call: Call<ChatHistoryResponse>, response: Response<ChatHistoryResponse>) {
+                    if (response.isSuccessful) {
+                        val responseBody = response.body()
+                        if (responseBody?.success == true && responseBody.data != null) {
+                            val data = responseBody.data
+                            val apiMessages = data.messages
+                            
+                            // Filter out messages from blocked user
+                            val filteredMessages = if (iHaveBlockedThisUser) {
+                                apiMessages.filter { it.fromUserId != peerUserId }
+                            } else {
+                                apiMessages
+                            }
+                            
+                            Log.d("ChatPagination", "✅ PAGINATION RESPONSE:")
+                            Log.d("ChatPagination", "Total Messages: ${data.totalMessages}")
+                            Log.d("ChatPagination", "Returned Messages: ${data.returnedMessages}")
+                            Log.d("ChatPagination", "Has More: ${data.hasMore}")
+                            Log.d("ChatPagination", "Offset: ${data.offset}")
+                            Log.d("ChatPagination", "Messages received: ${apiMessages.size}")
+                            Log.d("ChatPagination", "Messages after filtering blocked user: ${filteredMessages.size}")
+                            
+                            // Log first few message IDs and timestamps
+                            filteredMessages.take(3).forEachIndexed { index, msg ->
+                                Log.d("ChatPagination", "Older Message[$index]: ID=${msg.id}, Text='${msg.message.take(20)}...', Timestamp=${msg.timestamp}")
+                            }
+                            
+                            if (filteredMessages.isNotEmpty()) {
+                                val convertedMessages = filteredMessages.map { apiMsg ->
+                                    convertApiMessageToChatMessage(apiMsg)
+                                }
+                                
+                                // Sort older messages by date (oldest first)
+                                // This ensures chronological order: oldest first, newest last
+                                val sortedOlderMessages = convertedMessages.sortedBy { it.date?.time ?: 0L }
+                                
+                                // Get the oldest message timestamp from existing messages
+                                val oldestExistingTimestamp = messages.firstOrNull()?.date?.time ?: Long.MAX_VALUE
+                                
+                                // Filter out any messages that are newer than our oldest existing message
+                                // (This prevents duplicates if API returns overlapping data)
+                                val filteredOlderMessages = sortedOlderMessages.filter { msg ->
+                                    val msgTime = msg.date?.time ?: 0L
+                                    msgTime < oldestExistingTimestamp
+                                }
+                                
+                                if (filteredOlderMessages.isNotEmpty()) {
+                                    // Insert older messages at the beginning (oldest first)
+                                    val oldSize = messages.size
+                                    messages.addAll(0, filteredOlderMessages)
+                                    chatAdapter.notifyItemRangeInserted(0, filteredOlderMessages.size)
+                                    
+                                    // Restore scroll position to prevent jumping (WhatsApp style)
+                                    // The position shifts by the number of items we added
+                                    rvMessages.post {
+                                        layoutManager?.scrollToPositionWithOffset(
+                                            currentFirstVisiblePosition + filteredOlderMessages.size,
+                                            offset
+                                        )
+                                        Log.d("ChatPagination", "Restored scroll position - New position: ${currentFirstVisiblePosition + filteredOlderMessages.size}")
+                                    }
+                                    
+                                    // Update pagination state
+                                    currentOffset = data.offset + data.returnedMessages
+                                    hasMoreMessages = data.hasMore
+                                    
+                                    Log.d("ChatPagination", "✅ Loaded ${filteredOlderMessages.size} older messages")
+                                    Log.d("ChatPagination", "Total messages now: ${messages.size} (was $oldSize)")
+                                    Log.d("ChatPagination", "Next offset: $currentOffset, Has more: $hasMoreMessages")
+                                } else {
+                                    Log.d("ChatPagination", "⚠️ All messages filtered (duplicates or newer than existing)")
+                                    hasMoreMessages = false
+                                }
+                            } else {
+                                hasMoreMessages = false
+                                Log.d("ChatPagination", "✅ No more messages to load (empty response)")
+                            }
+                        }
+                    } else {
+                        Log.e("ChatPagination", "❌ Error loading more messages: ${response.code()}")
+                    }
+                    isLoadingMore = false
+                }
+
+                override fun onFailure(call: Call<ChatHistoryResponse>, t: Throwable) {
+                    Log.e("ChatPagination", "❌ Error loading more messages: ${t.message}", t)
+                    isLoadingMore = false
+                }
+
+                override fun onNoNetwork() {
+                    Log.e("ChatPagination", "❌ No network connection")
+                    Toast.makeText(this@ChatActivityInHouse, "No internet connection", Toast.LENGTH_SHORT).show()
+                    isLoadingMore = false
                 }
             }
         )
     }
 
     private fun sendMessage() {
+        // Check if user is blocked
+        if (iHaveBlockedThisUser) {
+            Toast.makeText(this, "Please unblock to send message", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
         val messageText = etMessage.text.toString().trim()
         if (messageText.isEmpty()) {
             return
@@ -330,18 +608,24 @@ class ChatActivityInHouse : AppCompatActivity() {
         etMessage.setText("")
         etMessage.requestFocus()
 
-        // Show message optimistically
+        // Show message optimistically (WhatsApp style - add to bottom)
+        val currentTime = Date()
         val tempMessage = ChatMessage(
             id = "temp_${System.currentTimeMillis()}",
             message = messageText,
-            timestamp = timeFormat.format(Date()),
+            timestamp = timeFormat.format(currentTime),
             isSentByMe = true,
-            date = Date()
+            date = currentTime
         )
         
+        // Add to end (newest at bottom)
         messages.add(tempMessage)
         chatAdapter.notifyItemInserted(messages.size - 1)
-        rvMessages.scrollToPosition(messages.size - 1)
+        
+        // Smooth scroll to bottom to show new message
+        rvMessages.post {
+            rvMessages.smoothScrollToPosition(messages.size - 1)
+        }
 
         // Try Socket.IO first, fallback to API
         val tempMessageId = tempMessage.id
@@ -350,29 +634,27 @@ class ChatActivityInHouse : AppCompatActivity() {
             // ⭐ Updated to use new signature: sendMessage(fromUserId, toUserId, message, messageType, attachmentUrl)
             socketManager.sendMessage(myUserId, peerUserId, messageText, "text")
             Log.d("SocketIOCheck", "🚀 Sending via SOCKET.IO - From: $myUserId, To: $peerUserId, Message: '$messageText'")
-            Toast.makeText(this, "🚀 Sending via Socket.IO...", Toast.LENGTH_SHORT).show()
         } else {
             messageSendMethod[tempMessageId] = "api"
-            Log.w("SocketIOCheck", "⚠️ Socket.IO NOT CONNECTED - Using API fallback")
-            Toast.makeText(this, "⚠️ Socket.IO offline - Using API", Toast.LENGTH_SHORT).show()
+            Log.w("SocketIOCheck", "⚠️ Socket.IO NOT CONNECTED - Using fallback API")
             // Fallback to API
             sendMessageViaAPI(messageText)
         }
     }
 
     private fun sendMessageViaAPI(messageText: String) {
-        apiManager.sendMessage(
-            userId = myUserId,
+        apiManager.fallbackSendMessage(
+            fromUserId = myUserId,
             toUserId = peerUserId,
             message = messageText,
-            messageType = "text",
-            object : NetworkCallback<SendMessageResponse> {
-                override fun onResponse(call: Call<SendMessageResponse>, response: Response<SendMessageResponse>) {
+            object : NetworkCallback<FallbackSendMessageResponse> {
+                override fun onResponse(call: Call<FallbackSendMessageResponse>, response: Response<FallbackSendMessageResponse>) {
                     if (response.isSuccessful) {
                         val responseBody = response.body()
-                        if (responseBody?.status == true && responseBody.data != null) {
+                        if (responseBody?.success == true && responseBody.data?.message != null) {
                             // Replace temp message with real one
-                            val realMessage = convertApiMessageToChatMessage(responseBody.data)
+                            val fallbackMessage = responseBody.data.message
+                            val realMessage = convertFallbackMessageToChatMessage(fallbackMessage)
                             val tempIndex = messages.indexOfFirst { it.id.startsWith("temp_") && it.message == messageText }
                             if (tempIndex != -1) {
                                 val tempId = messages[tempIndex].id
@@ -380,9 +662,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                                 messageSendMethod[realMessage.id] = "api"
                                 chatAdapter.notifyItemChanged(tempIndex)
                             }
-                            Log.d("SocketIOCheck", "✅ Message sent via API - ID: ${responseBody.data.id}")
-                            Toast.makeText(this@ChatActivityInHouse, "✅ Sent via API", Toast.LENGTH_SHORT).show()
-                            logSocketIOStatus() // Log updated status
+                            Log.d("SocketIOCheck", "✅ Message sent via fallback API - ID: ${fallbackMessage.id}")
                         }
                     } else {
                         // Remove temp message on error
@@ -391,18 +671,18 @@ class ChatActivityInHouse : AppCompatActivity() {
                             messages.removeAt(tempIndex)
                             chatAdapter.notifyItemRemoved(tempIndex)
                         }
-                        Toast.makeText(this@ChatActivityInHouse, "Failed to send message: ${response.code()}", Toast.LENGTH_SHORT).show()
+                        Log.e("SocketIOCheck", "Failed to send message via fallback API: ${response.code()}")
                     }
                 }
 
-                override fun onFailure(call: Call<SendMessageResponse>, t: Throwable) {
+                override fun onFailure(call: Call<FallbackSendMessageResponse>, t: Throwable) {
                     // Remove temp message on error
                     val tempIndex = messages.indexOfFirst { it.id.startsWith("temp_") && it.message == messageText }
                     if (tempIndex != -1) {
                         messages.removeAt(tempIndex)
                         chatAdapter.notifyItemRemoved(tempIndex)
                     }
-                    Toast.makeText(this@ChatActivityInHouse, "Failed to send message: ${t.message}", Toast.LENGTH_SHORT).show()
+                    Log.e("SocketIOCheck", "Failed to send message via fallback API: ${t.message}", t)
                 }
 
                 override fun onNoNetwork() {
@@ -411,7 +691,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                         messages.removeAt(tempIndex)
                         chatAdapter.notifyItemRemoved(tempIndex)
                     }
-                    Toast.makeText(this@ChatActivityInHouse, "No internet connection", Toast.LENGTH_SHORT).show()
+                    Log.e("SocketIOCheck", "No internet connection")
                 }
             }
         )
@@ -423,23 +703,53 @@ class ChatActivityInHouse : AppCompatActivity() {
             return
         }
 
-        // Check if we already have this message
-        val existingMessage = messages.find { 
-            it.id == socketMessage.id.toString() || 
-            (it.message == socketMessage.message && 
-             it.isSentByMe == (socketMessage.fromUserId == myUserId))
+        // Filter out messages from blocked user
+        if (iHaveBlockedThisUser && socketMessage.fromUserId == peerUserId) {
+            Log.d("ChatActivityInHouse", "🚫 Blocked message filtered: from ${socketMessage.fromUserId}")
+            return
         }
 
-        if (existingMessage == null) {
-            val chatMessage = convertSocketMessageToChatMessage(socketMessage)
+        val realMessageId = socketMessage.id.toString()
+        val isSentByMe = socketMessage.fromUserId == myUserId
+        
+        // Check if we already have this message (by ID)
+        val existingMessageIndex = messages.indexOfFirst { it.id == realMessageId }
+        
+        if (existingMessageIndex != -1) {
+            // Message already exists, skip
+            return
+        }
+        
+        // Check if there's a temp message that should be replaced
+        // This happens when we send a message and it comes back via Socket.IO
+        val tempMessageIndex = messages.indexOfFirst { 
+            it.id.startsWith("temp_") && 
+            it.message == socketMessage.message && 
+            it.isSentByMe == isSentByMe
+        }
+        
+        val chatMessage = convertSocketMessageToChatMessage(socketMessage)
+        
+        if (tempMessageIndex != -1) {
+            // Replace temp message with real one
+            messages[tempMessageIndex] = chatMessage
+            chatAdapter.notifyItemChanged(tempMessageIndex)
+            messageSendMethod[realMessageId] = "socket"
+            Log.d("ChatActivityInHouse", "Replaced temp message with real message ID: $realMessageId")
+        } else {
+            // New incoming message - add to end (newest at bottom - WhatsApp style)
             messages.add(chatMessage)
             chatAdapter.notifyItemInserted(messages.size - 1)
-            rvMessages.scrollToPosition(messages.size - 1)
-
-            // Mark as read if chat is visible
-            if (isChatVisible) {
-                markMessagesAsRead()
+            
+            // Smooth scroll to bottom to show new message
+            rvMessages.post {
+                rvMessages.smoothScrollToPosition(messages.size - 1)
             }
+        }
+
+        // Mark as read if chat is visible
+        if (isChatVisible) {
+            markMessagesAsRead()
         }
     }
 
@@ -469,11 +779,30 @@ class ChatActivityInHouse : AppCompatActivity() {
         )
     }
 
+    private fun convertFallbackMessageToChatMessage(fallbackMsg: com.gmwapp.hima.retrofit.responses.FallbackMessage): ChatMessage {
+        val timestamp = parseTimestamp(fallbackMsg.timestamp)
+        val isSentByMe = fallbackMsg.fromUserId == myUserId
+        
+        return ChatMessage(
+            id = fallbackMsg.id.toString(),
+            message = fallbackMsg.message,
+            timestamp = timeFormat.format(timestamp),
+            isSentByMe = isSentByMe,
+            date = timestamp
+        )
+    }
+
     private fun parseTimestamp(timestampString: String): Date {
         return try {
-            dateFormat.parse(timestampString) ?: Date()
+            val parsed = dateFormat.parse(timestampString)
+            if (parsed == null) {
+                Log.e("ChatPagination", "⚠️ Failed to parse timestamp: '$timestampString' - returned null, using current time")
+                Date()
+            } else {
+                parsed
+            }
         } catch (e: Exception) {
-            Log.e("ChatActivityInHouse", "Error parsing timestamp: ${e.message}")
+            Log.e("ChatPagination", "❌ Error parsing timestamp: '$timestampString' - ${e.message}, using current time")
             Date()
         }
     }
@@ -502,24 +831,87 @@ class ChatActivityInHouse : AppCompatActivity() {
         )
     }
 
+    private fun markMessagesAsReadWithLastMessageId(lastMessageId: Int) {
+        apiManager.markMessagesRead(
+            userId = myUserId,
+            receiverId = peerUserId,
+            lastMessageId = lastMessageId,
+            object : NetworkCallback<MarkMessagesReadResponse> {
+                override fun onResponse(call: Call<MarkMessagesReadResponse>, response: Response<MarkMessagesReadResponse>) {
+                    if (response.isSuccessful) {
+                        val responseBody = response.body()
+                        if (responseBody?.success == true) {
+                            Log.d("ChatActivityInHouse", "Messages marked as read successfully. Last message ID: $lastMessageId")
+                            responseBody.data?.let { data ->
+                                Log.d("ChatActivityInHouse", "Messages marked read: ${data.messagesMarkedRead}, Remaining unread: ${data.remainingUnreadCount}")
+                            }
+                        } else {
+                            Log.e("ChatActivityInHouse", "Error marking messages as read: ${responseBody?.message}")
+                        }
+                    } else {
+                        Log.e("ChatActivityInHouse", "Error marking messages as read: ${response.code()}")
+                    }
+                }
+
+                override fun onFailure(call: Call<MarkMessagesReadResponse>, t: Throwable) {
+                    Log.e("ChatActivityInHouse", "Error marking messages as read: ${t.message}")
+                }
+
+                override fun onNoNetwork() {
+                    // Silent fail for read status
+                }
+            }
+        )
+    }
+
+    /**
+     * Helper method to mark messages as read using the last message ID from loaded messages
+     * This is called when user enters or leaves the activity
+     */
+    private fun markMessagesAsReadIfAvailable() {
+        if (messages.isNotEmpty() && myUserId > 0 && peerUserId > 0) {
+            // Get the last message id (newest message) from the messages list
+            val lastMessage = messages.maxByOrNull { 
+                // Extract numeric ID from message ID (handle both "temp_" prefixed and regular IDs)
+                val idStr = it.id.replace("temp_", "")
+                idStr.toIntOrNull() ?: 0
+            }
+            lastMessage?.let { msg ->
+                val messageId = msg.id.replace("temp_", "").toIntOrNull()
+                if (messageId != null && messageId > 0) {
+                    Log.d("ChatActivityInHouse", "Marking messages as read before leaving activity. Last message ID: $messageId")
+                    markMessagesAsReadWithLastMessageId(messageId)
+                }
+            }
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         isChatVisible = true
+        
+        // Mark messages as read using the new API with last message id if messages are loaded
+        markMessagesAsReadIfAvailable()
+        
+        // Also call old method for backward compatibility
         markMessagesAsRead()
         
-        // Update online status
-        socketManager.updateStatus("online")
-        
-        // Check and display Socket.IO connection status
+        // Check Socket.IO connection status and reconnect if needed
         val isConnected = socketManager.isConnected()
         Log.d("SocketIOCheck", "onResume - Socket.IO status: ${if (isConnected) "✅ CONNECTED" else "❌ DISCONNECTED"}")
-        updateSocketStatusUI(isConnected)
         
-        // Log connection info
-        if (isConnected) {
-            Log.d("SocketIOCheck", "✅ Socket.IO is WORKING - Messages will be sent via Socket.IO")
+        if (!isConnected) {
+            // Reconnect Socket.IO if not connected (e.g., if activity was paused and resumed)
+            Log.d("SocketIOCheck", "🔄 Reconnecting Socket.IO in onResume...")
+            connectSocket()
         } else {
-            Log.w("SocketIOCheck", "⚠️ Socket.IO is NOT WORKING - Messages will use API fallback")
+            // Update online status and join chat room immediately if already connected
+            socketManager.updateStatus("online")
+            if (myUserId > 0 && peerUserId > 0) {
+                Log.d("SocketIOCheck", "✅ Socket.IO connected in onResume - Joining chat room immediately: $chatId")
+                socketManager.joinChatRoom(myUserId, peerUserId)
+            }
+            Log.d("SocketIOCheck", "✅ Socket.IO is WORKING - Messages will be sent via Socket.IO")
         }
         
         // Log status report
@@ -530,17 +922,31 @@ class ChatActivityInHouse : AppCompatActivity() {
         super.onPause()
         isChatVisible = false
         
-        // Update online status
-        socketManager.updateStatus("offline")
+        // Mark messages as read when user leaves the activity (e.g., pressing home, switching apps, etc.)
+        markMessagesAsReadIfAvailable()
+        
+        // Keep Socket.IO connected - do not disconnect on pause
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        
+        Log.d("SocketIOCheck", "═══════════════════════════════════════")
+        Log.d("SocketIOCheck", "🔌 Disconnecting Socket.IO - Leaving ChatActivityInHouse")
+        Log.d("SocketIOCheck", "═══════════════════════════════════════")
+        
+        // Leave chat room
         socketManager.leaveChat(chatId)
-        // Don't disconnect Socket.IO here - it's a singleton used app-wide
+        
+        // Disconnect Socket.IO only on destroy
+        socketManager.disconnect()
+        
+        Log.d("SocketIOCheck", "✅ Socket.IO disconnected")
     }
 
     override fun onBackPressed() {
+        // Mark messages as read when user presses back button
+        markMessagesAsReadIfAvailable()
         super.onBackPressed()
     }
     
@@ -570,6 +976,182 @@ class ChatActivityInHouse : AppCompatActivity() {
         Log.d("SocketIOCheck", "Messages sent via API: $apiMessages")
         Log.d("SocketIOCheck", "Total messages tracked: ${messageSendMethod.size}")
         Log.d("SocketIOCheck", "═══════════════════════════════════════")
+    }
+
+    private fun showOptionsMenu() {
+        val popup = PopupMenu(this, ivMore)
+        popup.menuInflater.inflate(R.menu.menu_chat, popup.menu)
+
+        // Show block option or unblock option based on current status
+        popup.menu.findItem(R.id.action_block)?.isVisible = !iHaveBlockedThisUser
+        popup.menu.findItem(R.id.action_unblock)?.isVisible = iHaveBlockedThisUser
+
+        popup.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.action_block -> {
+                    showBlockConfirmationDialog()
+                    true
+                }
+                R.id.action_unblock -> {
+                    showUnblockConfirmationDialog()
+                    true
+                }
+                else -> false
+            }
+        }
+        popup.show()
+    }
+
+    private fun showBlockConfirmationDialog() {
+        // Create a custom dialog with beautiful UI
+        val dialogView = layoutInflater.inflate(R.layout.dialog_block_user_confirmation, null)
+
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+
+        // Make dialog background transparent
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        // Set button listeners
+        dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_cancel).setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_block).setOnClickListener {
+            blockUser()
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
+    private fun showUnblockConfirmationDialog() {
+        // Create a custom dialog with beautiful UI (reusing the same layout)
+        val dialogView = layoutInflater.inflate(R.layout.dialog_block_user_confirmation, null)
+
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+
+        // Make dialog background transparent
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        // Find TextViews by traversing the view hierarchy
+        fun findTextViews(parent: android.view.ViewGroup): Pair<android.widget.TextView?, android.widget.TextView?> {
+            var titleTextView: android.widget.TextView? = null
+            var messageTextView: android.widget.TextView? = null
+            
+            for (i in 0 until parent.childCount) {
+                val child = parent.getChildAt(i)
+                if (child is android.widget.TextView) {
+                    if (titleTextView == null) {
+                        titleTextView = child
+                    } else if (messageTextView == null) {
+                        messageTextView = child
+                        break
+                    }
+                } else if (child is android.view.ViewGroup) {
+                    val result = findTextViews(child)
+                    if (result.first != null && titleTextView == null) titleTextView = result.first
+                    if (result.second != null && messageTextView == null) messageTextView = result.second
+                    if (titleTextView != null && messageTextView != null) break
+                }
+            }
+            return Pair(titleTextView, messageTextView)
+        }
+        
+        val (titleTextView, messageTextView) = findTextViews(dialogView as android.view.ViewGroup)
+        val btnBlock = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_block)
+        
+        // Update title and message text
+        titleTextView?.text = "Unblock User?"
+        messageTextView?.text = "Once you unblock this user, you'll be able to send and receive messages from them again."
+        btnBlock?.text = "Unblock"
+
+        // Set button listeners
+        dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_cancel).setOnClickListener {
+            dialog.dismiss()
+        }
+
+        btnBlock?.setOnClickListener {
+            unblockUser()
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
+    private fun blockUser() {
+        Log.d("ChatActivityInHouse", "📤 Blocking user: $peerUserId")
+        
+        apiManager.blockChatUser(
+            userId = myUserId,
+            blockedUserId = peerUserId,
+            object : NetworkCallback<BlockUserResponse> {
+                override fun onResponse(call: Call<BlockUserResponse>, response: Response<BlockUserResponse>) {
+                    if (response.isSuccessful) {
+                        val responseBody = response.body()
+                        if (responseBody?.success == true) {
+                            Toast.makeText(this@ChatActivityInHouse, responseBody.message, Toast.LENGTH_SHORT).show()
+                            Log.d("ChatActivityInHouse", "✅ User blocked successfully")
+                            // Reload chat history to update blocked status
+                            loadMessages()
+                        } else {
+                            Toast.makeText(this@ChatActivityInHouse, "Failed to block user", Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        Toast.makeText(this@ChatActivityInHouse, "Failed to block user: ${response.code()}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+
+                override fun onFailure(call: Call<BlockUserResponse>, t: Throwable) {
+                    Log.e("ChatActivityInHouse", "❌ Error blocking user: ${t.message}", t)
+                    Toast.makeText(this@ChatActivityInHouse, "Failed to block user: ${t.message}", Toast.LENGTH_SHORT).show()
+                }
+
+                override fun onNoNetwork() {
+                    Toast.makeText(this@ChatActivityInHouse, "No internet connection", Toast.LENGTH_SHORT).show()
+                }
+            }
+        )
+    }
+
+    private fun unblockUser() {
+        Log.d("ChatActivityInHouse", "📤 Unblocking user: $peerUserId")
+        
+        apiManager.unblockChatUser(
+            userId = myUserId,
+            blockedUserId = peerUserId,
+            object : NetworkCallback<BlockUserResponse> {
+                override fun onResponse(call: Call<BlockUserResponse>, response: Response<BlockUserResponse>) {
+                    if (response.isSuccessful) {
+                        val responseBody = response.body()
+                        if (responseBody?.success == true) {
+                            Toast.makeText(this@ChatActivityInHouse, responseBody.message, Toast.LENGTH_SHORT).show()
+                            Log.d("ChatActivityInHouse", "✅ User unblocked successfully")
+                            // Reload chat history to update blocked status
+                            loadMessages()
+                        } else {
+                            Toast.makeText(this@ChatActivityInHouse, "Failed to unblock user", Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        Toast.makeText(this@ChatActivityInHouse, "Failed to unblock user: ${response.code()}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+
+                override fun onFailure(call: Call<BlockUserResponse>, t: Throwable) {
+                    Log.e("ChatActivityInHouse", "❌ Error unblocking user: ${t.message}", t)
+                    Toast.makeText(this@ChatActivityInHouse, "Failed to unblock user: ${t.message}", Toast.LENGTH_SHORT).show()
+                }
+
+                override fun onNoNetwork() {
+                    Toast.makeText(this@ChatActivityInHouse, "No internet connection", Toast.LENGTH_SHORT).show()
+                }
+            }
+        )
     }
 }
 

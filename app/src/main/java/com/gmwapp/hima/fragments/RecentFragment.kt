@@ -10,6 +10,7 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import android.util.Log
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.RandomUserActivity
@@ -19,16 +20,21 @@ import com.gmwapp.hima.agora.male.MaleCallConnectingActivity
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentRecentBinding
+import com.gmwapp.hima.retrofit.ApiManager
+import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.CallsListResponseData
+import com.gmwapp.hima.retrofit.responses.MyChatResponse
 import com.gmwapp.hima.viewmodels.RecentViewModel
-import com.google.firebase.FirebaseApp
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.ktx.Firebase
 import dagger.hilt.android.AndroidEntryPoint
+import retrofit2.Call
+import retrofit2.Response
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class RecentFragment : BaseFragment() {
+
+    @Inject
+    lateinit var apiManager: ApiManager
 
     private lateinit var binding: FragmentRecentBinding
     private val recentViewModel: RecentViewModel by viewModels()
@@ -58,11 +64,8 @@ class RecentFragment : BaseFragment() {
         // Setup chat icon click listener
         setupChatIconClickListener()
         
-        // Hide unread badge
-        binding.tvUnreadBadge.visibility = View.GONE
-        
-        // Load unread message count
-//        loadUnreadMessageCount()
+        // Load unread message count from API
+        loadUnreadMessageCount()
 
         // Swipe to refresh
         binding.swipeRefreshLayout.setOnRefreshListener {
@@ -198,110 +201,80 @@ class RecentFragment : BaseFragment() {
 
     private fun setupChatIconClickListener() {
         binding.cardChat.setOnClickListener {
-            // Show coming soon toast instead of opening ChatListActivity
-            android.widget.Toast.makeText(
-                requireContext(),
-                "Chat feature coming soon",
-                android.widget.Toast.LENGTH_SHORT
-            ).show()
+            // Open ChatListActivity
+            val intent = Intent(requireContext(), com.gmwapp.hima.activities.ChatListActivity::class.java)
+            startActivity(intent)
         }
     }
 
-    // Track unread counts per thread for real-time updates
-//    private val unreadCountsMap = mutableMapOf<String, Int>()
-
-    /* Commented out - unread message count feature disabled
     private fun loadUnreadMessageCount() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
-        val myUserId = userData.id.toString()
+        val myUserId = userData.id
 
-        if (myUserId.isEmpty()) return
-
-        // Listen to Firestore for unread message count
-        FirebaseFirestore.getInstance(FirebaseApp.getInstance(), "himadatabase").collection("chats")
-            .addSnapshotListener { documents, error ->
-                if (error != null || documents == null) {
-                    updateUnreadBadge(0)
-                    return@addSnapshotListener
-                }
-
-                if (documents.isEmpty) {
-                    updateUnreadBadge(0)
-                    return@addSnapshotListener
-                }
-
-                // Clear and re-track all threads
-                unreadCountsMap.clear()
-
-                documents.forEach { document ->
-                    val threadId = document.id
-                    val userIds = threadId.split("_")
-
-                    if (userIds.contains(myUserId)) {
-                        val otherUserId = userIds.firstOrNull { it != myUserId} ?: ""
-
-                        // Check if other user is blocked
-                        FirebaseFirestore.getInstance(FirebaseApp.getInstance(), "himadatabase").collection("blocked_users")
-                            .document(myUserId)
-                            .collection("users")
-                            .document(otherUserId)
-                            .get()
-                            .addOnSuccessListener { blockDoc ->
-                                val blockTimestamp = blockDoc.getTimestamp("blockedAt")
-                                
-                                // Real-time listener for each thread's unread messages
-                                FirebaseFirestore.getInstance(FirebaseApp.getInstance(), "himadatabase").collection("chats")
-                                    .document(threadId)
-                                    .collection("messages")
-                                    .whereEqualTo("from", otherUserId)
-                                    .whereEqualTo("isRead", false)
-                                    .addSnapshotListener { messages, messageError ->
-                                        if (messageError != null || messages == null) {
-                                            unreadCountsMap[threadId] = 0
-                                        } else {
-                                            // Filter out messages sent after block timestamp
-                                            val unreadCount = if (blockTimestamp != null) {
-                                                messages.documents.count { msg ->
-                                                    val msgTimestamp = msg.getTimestamp("timestamp")
-                                                    msgTimestamp == null || msgTimestamp.seconds < blockTimestamp.seconds
-                                                }
-                                            } else {
-                                                messages.size()
-                                            }
-                                            unreadCountsMap[threadId] = unreadCount
-                                        }
-                                        
-                                        // Sum all unread counts
-                                        val totalUnread = unreadCountsMap.values.sum()
-                                        android.util.Log.d("RecentFragment", "📊 Thread $threadId unread: ${unreadCountsMap[threadId]}, Total: $totalUnread")
-                                        updateUnreadBadge(totalUnread)
-                                    }
-                            }
-                    }
-                }
-            }
-    }
-    */
-
-    /* Commented out - unread message count feature disabled
-    private fun updateUnreadBadge(count: Int) {
-        if (!::binding.isInitialized) {
-            android.util.Log.d("RecentFragment", "❌ Binding not initialized")
+        if (myUserId == 0) {
+            updateUnreadBadge(0)
             return
         }
-        
-        android.util.Log.d("RecentFragment", "📬 Updating unread badge: $count")
-        
+
+        Log.d("RecentFragment", "Loading unread message count for user: $myUserId")
+
+        // Call API to get chat list
+        apiManager.getMyChat(myUserId, object : NetworkCallback<MyChatResponse> {
+            override fun onResponse(call: Call<MyChatResponse>, response: Response<MyChatResponse>) {
+                if (!isAdded) return
+
+                if (response.isSuccessful) {
+                    val responseBody = response.body()
+                    if (responseBody?.success == true && responseBody.data != null) {
+                        val chats = responseBody.data.chats
+                        Log.d("RecentFragment", "✅ Received ${chats.size} chats from API")
+
+                        // Calculate total unread count
+                        val totalUnread = chats.sumOf { it.unreadCount }
+                        Log.d("RecentFragment", "📊 Total unread count: $totalUnread")
+                        updateUnreadBadge(totalUnread)
+                    } else {
+                        Log.e("RecentFragment", "❌ API response unsuccessful or data is null")
+                        updateUnreadBadge(0)
+                    }
+                } else {
+                    Log.e("RecentFragment", "❌ API call failed: ${response.code()}")
+                    updateUnreadBadge(0)
+                }
+            }
+
+            override fun onFailure(call: Call<MyChatResponse>, t: Throwable) {
+                if (!isAdded) return
+                Log.e("RecentFragment", "❌ Error loading unread count: ${t.message}", t)
+                updateUnreadBadge(0)
+            }
+
+            override fun onNoNetwork() {
+                if (!isAdded) return
+                Log.e("RecentFragment", "❌ No network connection")
+                updateUnreadBadge(0)
+            }
+        })
+    }
+
+    private fun updateUnreadBadge(count: Int) {
+        if (!::binding.isInitialized) {
+            Log.d("RecentFragment", "❌ Binding not initialized")
+            return
+        }
+
+        Log.d("RecentFragment", "📬 Updating unread badge: $count")
+
         if (count > 0) {
             binding.tvUnreadBadge.visibility = View.VISIBLE
             binding.tvUnreadBadge.text = if (count > 99) "99+" else count.toString()
-            android.util.Log.d("RecentFragment", "✅ Badge visible with count: $count")
+            Log.d("RecentFragment", "✅ Badge visible with count: $count")
         } else {
             binding.tvUnreadBadge.visibility = View.GONE
-            android.util.Log.d("RecentFragment", "⚠️ Badge hidden (no unread)")
+            Log.d("RecentFragment", "⚠️ Badge hidden (no unread)")
         }
     }
-    */
+
 
     override fun onResume() {
         super.onResume()
@@ -311,15 +284,14 @@ class RecentFragment : BaseFragment() {
         }
 
         if (FcmUtils.shouldRefreshCallList == 1) {
-            android.util.Log.d("RecentFragment", "Call rejected detected, refreshing call list")
+            Log.d("RecentFragment", "Call rejected detected, refreshing call list")
             loadCallsList(currentSortType, resetData = true)
             FcmUtils.shouldRefreshCallList = 0  // Reset flag after refresh
         }
 
-
         // Refresh unread count when returning to this screen
-//        android.util.Log.d("RecentFragment", "🔄 onResume - reloading unread count")
-//        loadUnreadMessageCount()
+        Log.d("RecentFragment", "🔄 onResume - reloading unread count")
+        loadUnreadMessageCount()
     }
     
     override fun onDestroyView() {
