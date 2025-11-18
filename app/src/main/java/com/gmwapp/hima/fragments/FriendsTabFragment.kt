@@ -64,9 +64,9 @@ class FriendsTabFragment : Fragment() {
     private val db by lazy { FirebaseFirestore.getInstance(FirebaseApp.getInstance(), "himadatabase") }
     private val conversationsMap = mutableMapOf<String, ChatConversation>()
     
-    // Date format for parsing timestamps from API
+    // Date format for parsing timestamps from API (API returns IST timestamps)
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).apply {
-        timeZone = TimeZone.getTimeZone("UTC")
+        timeZone = TimeZone.getTimeZone("Asia/Kolkata")
     }
     
     // Auto-refresh handler

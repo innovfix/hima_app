@@ -48,9 +48,9 @@ class ChatListActivity : AppCompatActivity() {
     private val conversations = ArrayList<ChatConversation>()
     private var myUserId: Int = 0
     
-    // Date format for parsing timestamps from API
+    // Date format for parsing timestamps from API (API returns IST timestamps)
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).apply {
-        timeZone = TimeZone.getTimeZone("UTC")
+        timeZone = TimeZone.getTimeZone("Asia/Kolkata")
     }
     
     override fun onCreate(savedInstanceState: Bundle?) {

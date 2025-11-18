@@ -16,6 +16,8 @@ data class ChatMessageApi(
     @SerializedName("is_read")
     val isRead: Boolean = false,
     val timestamp: String,
+    @SerializedName("created_at")
+    val createdAt: String? = null,
     @SerializedName("from_user_id")
     val fromUserId: Int? = null,
     @SerializedName("to_user_id")

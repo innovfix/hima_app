@@ -9,7 +9,6 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.View
-import android.view.WindowManager
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
@@ -92,9 +91,9 @@ class ChatActivityInHouse : AppCompatActivity() {
     private var hasMoreMessages = true
     private val MESSAGES_PER_PAGE = 10
     
-    // API returns timestamps in format: "2025-11-18 05:18:47" (space, not 'T')
+    // API returns timestamps in IST format: "2025-11-18 19:10:31"
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).apply {
-        timeZone = TimeZone.getTimeZone("UTC")
+        timeZone = TimeZone.getTimeZone("Asia/Kolkata")
     }
     private val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault()).apply {
         timeZone = TimeZone.getTimeZone("Asia/Kolkata")
@@ -103,12 +102,6 @@ class ChatActivityInHouse : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_chat)
-
-        // Restrict screenshots
-        window.setFlags(
-            WindowManager.LayoutParams.FLAG_SECURE,
-            WindowManager.LayoutParams.FLAG_SECURE
-        )
 
         initializeViews()
         setupRecyclerView()
@@ -348,6 +341,70 @@ class ChatActivityInHouse : AppCompatActivity() {
                 override fun onResponse(call: Call<ChatHistoryResponse>, response: Response<ChatHistoryResponse>) {
                     if (response.isSuccessful) {
                         val responseBody = response.body()
+                        
+                        // Log complete API response with chathisoryapi tag
+                        Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
+                        Log.d("chathisoryapi", "📥 COMPLETE CHAT HISTORY API RESPONSE")
+                        Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
+                        Log.d("chathisoryapi", "HTTP Status Code: ${response.code()}")
+                        Log.d("chathisoryapi", "Response Headers: ${response.headers()}")
+                        Log.d("chathisoryapi", "Request URL: ${call.request().url}")
+                        Log.d("chathisoryapi", "Request Method: ${call.request().method}")
+                        
+                        if (responseBody != null) {
+                            Log.d("chathisoryapi", "Response Success: ${responseBody.success}")
+                            Log.d("chathisoryapi", "Response Message: ${responseBody.message}")
+                            
+                            if (responseBody.data != null) {
+                                val data = responseBody.data
+                                Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
+                                Log.d("chathisoryapi", "📊 RESPONSE DATA:")
+                                Log.d("chathisoryapi", "Chat ID: ${data.chatId}")
+                                Log.d("chathisoryapi", "User ID: ${data.userId}")
+                                Log.d("chathisoryapi", "Receiver ID: ${data.receiverId}")
+                                Log.d("chathisoryapi", "Total Messages: ${data.totalMessages}")
+                                Log.d("chathisoryapi", "Returned Messages: ${data.returnedMessages}")
+                                Log.d("chathisoryapi", "Limit: ${data.limit}")
+                                Log.d("chathisoryapi", "Offset: ${data.offset}")
+                                Log.d("chathisoryapi", "Has More: ${data.hasMore}")
+                                Log.d("chathisoryapi", "Last Online: ${data.lastOnline}")
+                                Log.d("chathisoryapi", "Last Online Status: ${data.lastOnlineStatus}")
+                                Log.d("chathisoryapi", "I Have Blocked This User: ${data.iHaveBlockedThisUser}")
+                                Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
+                                
+                                val apiMessages = data.messages
+                                Log.d("chathisoryapi", "📨 MESSAGES COUNT: ${apiMessages.size}")
+                                Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
+                                
+                                // Log each message with complete details
+                                apiMessages.forEachIndexed { index, msg ->
+                                    Log.d("chathisoryapi", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                                    Log.d("chathisoryapi", "Message #${index + 1}:")
+                                    Log.d("chathisoryapi", "  ID: ${msg.id}")
+                                    Log.d("chathisoryapi", "  Chat ID: ${msg.chatId}")
+                                    Log.d("chathisoryapi", "  From User ID: ${msg.fromUserId}")
+                                    Log.d("chathisoryapi", "  From: ${msg.from}")
+                                    Log.d("chathisoryapi", "  To User ID: ${msg.toUserId}")
+                                    Log.d("chathisoryapi", "  To: ${msg.to}")
+                                    Log.d("chathisoryapi", "  Message: ${msg.message}")
+                                    Log.d("chathisoryapi", "  Message Type: ${msg.messageType}")
+                                    Log.d("chathisoryapi", "  Attachment URL: ${msg.attachmentUrl ?: "null"}")
+                                    Log.d("chathisoryapi", "  Is Read: ${msg.isRead}")
+                                    Log.d("chathisoryapi", "  Timestamp: ${msg.timestamp}")
+                                    Log.d("chathisoryapi", "  Created At: ${msg.createdAt ?: "null"}")
+                                    Log.d("chathisoryapi", "  ⭐ Using for display: ${msg.createdAt ?: msg.timestamp}")
+                                }
+                                Log.d("chathisoryapi", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                                Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
+                                Log.d("chathisoryapi", "✅ END OF CHAT HISTORY API RESPONSE")
+                                Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
+                            } else {
+                                Log.d("chathisoryapi", "⚠️ Response data is null")
+                            }
+                        } else {
+                            Log.d("chathisoryapi", "⚠️ Response body is null")
+                        }
+                        
                         if (responseBody?.success == true && responseBody.data != null) {
                             val data = responseBody.data
                             val apiMessages = data.messages
@@ -445,6 +502,8 @@ class ChatActivityInHouse : AppCompatActivity() {
                         }
                     } else {
                         Log.e("ChatPagination", "❌ Error loading messages: ${response.code()}")
+                        Log.e("chathisoryapi", "❌ ERROR: HTTP ${response.code()}")
+                        Log.e("chathisoryapi", "Error Body: ${response.errorBody()?.string()}")
                         Toast.makeText(this@ChatActivityInHouse, "Failed to load messages", Toast.LENGTH_SHORT).show()
                     }
                     isLoadingMore = false
@@ -452,12 +511,15 @@ class ChatActivityInHouse : AppCompatActivity() {
 
                 override fun onFailure(call: Call<ChatHistoryResponse>, t: Throwable) {
                     Log.e("ChatPagination", "❌ Error loading messages: ${t.message}", t)
+                    Log.e("chathisoryapi", "❌ NETWORK ERROR: ${t.message}")
+                    Log.e("chathisoryapi", "Request URL: ${call.request().url}")
                     Toast.makeText(this@ChatActivityInHouse, "Error: ${t.message}", Toast.LENGTH_SHORT).show()
                     isLoadingMore = false
                 }
 
                 override fun onNoNetwork() {
                     Log.e("ChatPagination", "❌ No network connection")
+                    Log.e("chathisoryapi", "❌ NO NETWORK CONNECTION")
                     Toast.makeText(this@ChatActivityInHouse, "No internet connection", Toast.LENGTH_SHORT).show()
                     isLoadingMore = false
                 }
@@ -497,6 +559,37 @@ class ChatActivityInHouse : AppCompatActivity() {
                 override fun onResponse(call: Call<ChatHistoryResponse>, response: Response<ChatHistoryResponse>) {
                     if (response.isSuccessful) {
                         val responseBody = response.body()
+                        
+                        // Log complete API response with chathisoryapi tag (for pagination)
+                        Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
+                        Log.d("chathisoryapi", "📥 PAGINATION - CHAT HISTORY API RESPONSE")
+                        Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
+                        Log.d("chathisoryapi", "HTTP Status Code: ${response.code()}")
+                        Log.d("chathisoryapi", "Request URL: ${call.request().url}")
+                        
+                        if (responseBody != null) {
+                            Log.d("chathisoryapi", "Response Success: ${responseBody.success}")
+                            Log.d("chathisoryapi", "Response Message: ${responseBody.message}")
+                            
+                            if (responseBody.data != null) {
+                                val data = responseBody.data
+                                Log.d("chathisoryapi", "Chat ID: ${data.chatId}")
+                                Log.d("chathisoryapi", "Total Messages: ${data.totalMessages}")
+                                Log.d("chathisoryapi", "Returned Messages: ${data.returnedMessages}")
+                                Log.d("chathisoryapi", "Limit: ${data.limit}, Offset: ${data.offset}")
+                                Log.d("chathisoryapi", "Has More: ${data.hasMore}")
+                                
+                                val apiMessages = data.messages
+                                Log.d("chathisoryapi", "📨 MESSAGES COUNT: ${apiMessages.size}")
+                                
+                                // Log each message with complete details
+                                apiMessages.forEachIndexed { index, msg ->
+                                    Log.d("chathisoryapi", "Message #${index + 1}: ID=${msg.id}, From=${msg.fromUserId}, To=${msg.toUserId}, Text='${msg.message}', Timestamp=${msg.timestamp}, Created At=${msg.createdAt ?: "null"}, ⭐ Using: ${msg.createdAt ?: msg.timestamp}")
+                                }
+                                Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
+                            }
+                        }
+                        
                         if (responseBody?.success == true && responseBody.data != null) {
                             val data = responseBody.data
                             val apiMessages = data.messages
@@ -574,17 +667,22 @@ class ChatActivityInHouse : AppCompatActivity() {
                         }
                     } else {
                         Log.e("ChatPagination", "❌ Error loading more messages: ${response.code()}")
+                        Log.e("chathisoryapi", "❌ PAGINATION ERROR: HTTP ${response.code()}")
+                        Log.e("chathisoryapi", "Error Body: ${response.errorBody()?.string()}")
                     }
                     isLoadingMore = false
                 }
 
                 override fun onFailure(call: Call<ChatHistoryResponse>, t: Throwable) {
                     Log.e("ChatPagination", "❌ Error loading more messages: ${t.message}", t)
+                    Log.e("chathisoryapi", "❌ PAGINATION NETWORK ERROR: ${t.message}")
+                    Log.e("chathisoryapi", "Request URL: ${call.request().url}")
                     isLoadingMore = false
                 }
 
                 override fun onNoNetwork() {
                     Log.e("ChatPagination", "❌ No network connection")
+                    Log.e("chathisoryapi", "❌ PAGINATION - NO NETWORK CONNECTION")
                     Toast.makeText(this@ChatActivityInHouse, "No internet connection", Toast.LENGTH_SHORT).show()
                     isLoadingMore = false
                 }
@@ -754,8 +852,12 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun convertApiMessageToChatMessage(apiMsg: ChatMessageApi): ChatMessage {
-        val timestamp = parseTimestamp(apiMsg.timestamp)
+        // Use created_at for accurate message time, fallback to timestamp if created_at is null
+        val timestampString = apiMsg.createdAt ?: apiMsg.timestamp
+        val timestamp = parseTimestamp(timestampString)
         val isSentByMe = apiMsg.fromUserId == myUserId
+        
+        Log.d("ChatTimeFix", "Message ID: ${apiMsg.id}, Using: ${if (apiMsg.createdAt != null) "created_at" else "timestamp"}, Value: $timestampString")
         
         return ChatMessage(
             id = apiMsg.id.toString(),
@@ -780,8 +882,12 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun convertFallbackMessageToChatMessage(fallbackMsg: com.gmwapp.hima.retrofit.responses.FallbackMessage): ChatMessage {
-        val timestamp = parseTimestamp(fallbackMsg.timestamp)
+        // Use created_at for accurate message time, fallback to timestamp if created_at is null
+        val timestampString = fallbackMsg.createdAt ?: fallbackMsg.timestamp
+        val timestamp = parseTimestamp(timestampString)
         val isSentByMe = fallbackMsg.fromUserId == myUserId
+        
+        Log.d("ChatTimeFix", "Fallback Message ID: ${fallbackMsg.id}, Using: ${if (fallbackMsg.createdAt != null) "created_at" else "timestamp"}, Value: $timestampString")
         
         return ChatMessage(
             id = fallbackMsg.id.toString(),
