@@ -450,6 +450,10 @@ class ChatActivityInHouse : AppCompatActivity() {
                             
                             messages.clear()
                             messages.addAll(sortedMessages)
+                            
+                            // Add header at top (position 0) and at date boundaries
+                            updateTopHeader(messages)
+                            
                             chatAdapter.notifyDataSetChanged()
                             
                             // Log message order for debugging - show ALL sorted messages
@@ -637,16 +641,23 @@ class ChatActivityInHouse : AppCompatActivity() {
                                     // Insert older messages at the beginning (oldest first)
                                     val oldSize = messages.size
                                     messages.addAll(0, filteredOlderMessages)
-                                    chatAdapter.notifyItemRangeInserted(0, filteredOlderMessages.size)
+                                    
+                                    // Update headers - this will remove old header and add new one at top
+                                    updateTopHeader(messages)
+                                    
+                                    // Notify adapter of all changes
+                                    chatAdapter.notifyDataSetChanged()
                                     
                                     // Restore scroll position to prevent jumping (WhatsApp style)
                                     // The position shifts by the number of items we added
+                                    val newSize = messages.size
+                                    val addedCount = newSize - oldSize
                                     rvMessages.post {
                                         layoutManager?.scrollToPositionWithOffset(
-                                            currentFirstVisiblePosition + filteredOlderMessages.size,
+                                            currentFirstVisiblePosition + addedCount,
                                             offset
                                         )
-                                        Log.d("ChatPagination", "Restored scroll position - New position: ${currentFirstVisiblePosition + filteredOlderMessages.size}")
+                                        Log.d("ChatPagination", "Restored scroll position - New position: ${currentFirstVisiblePosition + addedCount}")
                                     }
                                     
                                     // Update pagination state
@@ -718,7 +729,10 @@ class ChatActivityInHouse : AppCompatActivity() {
         
         // Add to end (newest at bottom)
         messages.add(tempMessage)
-        chatAdapter.notifyItemInserted(messages.size - 1)
+        
+        // Update headers (will add boundary header if date changed)
+        updateTopHeader(messages)
+        chatAdapter.notifyDataSetChanged()
         
         // Smooth scroll to bottom to show new message
         rvMessages.post {
@@ -758,7 +772,10 @@ class ChatActivityInHouse : AppCompatActivity() {
                                 val tempId = messages[tempIndex].id
                                 messages[tempIndex] = realMessage
                                 messageSendMethod[realMessage.id] = "api"
-                                chatAdapter.notifyItemChanged(tempIndex)
+                                
+                                // Update headers (will add boundary header if date changed)
+                                updateTopHeader(messages)
+                                chatAdapter.notifyDataSetChanged()
                             }
                             Log.d("SocketIOCheck", "✅ Message sent via fallback API - ID: ${fallbackMessage.id}")
                         }
@@ -831,13 +848,20 @@ class ChatActivityInHouse : AppCompatActivity() {
         if (tempMessageIndex != -1) {
             // Replace temp message with real one
             messages[tempMessageIndex] = chatMessage
-            chatAdapter.notifyItemChanged(tempMessageIndex)
+            
+            // Update headers (will add boundary header if date changed)
+            updateTopHeader(messages)
+            chatAdapter.notifyDataSetChanged()
+            
             messageSendMethod[realMessageId] = "socket"
             Log.d("ChatActivityInHouse", "Replaced temp message with real message ID: $realMessageId")
         } else {
             // New incoming message - add to end (newest at bottom - WhatsApp style)
             messages.add(chatMessage)
-            chatAdapter.notifyItemInserted(messages.size - 1)
+            
+            // Update headers (will add boundary header if date changed)
+            updateTopHeader(messages)
+            chatAdapter.notifyDataSetChanged()
             
             // Smooth scroll to bottom to show new message
             rvMessages.post {
@@ -910,6 +934,100 @@ class ChatActivityInHouse : AppCompatActivity() {
         } catch (e: Exception) {
             Log.e("ChatPagination", "❌ Error parsing timestamp: '$timestampString' - ${e.message}, using current time")
             Date()
+        }
+    }
+
+    // Helper function to check if two dates are on the same day (using IST timezone)
+    private fun isSameDay(date1: Date?, date2: Date?): Boolean {
+        if (date1 == null || date2 == null) return false
+        val istTimeZone = TimeZone.getTimeZone("Asia/Kolkata")
+        val cal1 = Calendar.getInstance(istTimeZone).apply { time = date1 }
+        val cal2 = Calendar.getInstance(istTimeZone).apply { time = date2 }
+        return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
+               cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
+    }
+
+    // Helper function to check if yesterday (using IST timezone)
+    private fun isYesterday(today: Calendar, messageDate: Calendar): Boolean {
+        val yesterday = today.clone() as Calendar
+        yesterday.add(Calendar.DAY_OF_YEAR, -1)
+        return yesterday.get(Calendar.YEAR) == messageDate.get(Calendar.YEAR) &&
+               yesterday.get(Calendar.DAY_OF_YEAR) == messageDate.get(Calendar.DAY_OF_YEAR)
+    }
+
+    // Helper function to format date header (using IST timezone)
+    private fun getDateHeaderText(date: Date): String {
+        val istTimeZone = TimeZone.getTimeZone("Asia/Kolkata")
+        val today = Calendar.getInstance(istTimeZone)
+        val messageDate = Calendar.getInstance(istTimeZone).apply { time = date }
+        
+        return when {
+            isSameDay(today.time, date) -> "Today"
+            isYesterday(today, messageDate) -> "Yesterday"
+            else -> {
+                val dateFormat = SimpleDateFormat("dd MMM", Locale.getDefault())
+                dateFormat.timeZone = istTimeZone
+                dateFormat.format(date)
+            }
+        }
+    }
+
+    // Function to add/update header at the top of messages and at date boundaries
+    private fun updateTopHeader(messages: MutableList<ChatMessage>) {
+        // Remove all existing headers first
+        messages.removeAll { it.isDateHeader }
+        
+        if (messages.isEmpty()) return
+        
+        // Get the first actual message (not header)
+        val firstMessage = messages.firstOrNull()
+        
+        if (firstMessage != null && firstMessage.date != null) {
+            // Add header at position 0 (top)
+            val header = ChatMessage(
+                id = "header_top_${firstMessage.date!!.time}",
+                message = "",
+                timestamp = "",
+                isSentByMe = false,
+                date = firstMessage.date,
+                isDateHeader = true,
+                dateHeaderText = getDateHeaderText(firstMessage.date!!)
+            )
+            messages.add(0, header)
+        }
+        
+        // Now add headers at date boundaries (where dates change)
+        var i = 1 // Start from 1 (skip the top header)
+        while (i < messages.size) {
+            val currentMessage = messages[i]
+            val nextMessage = messages.getOrNull(i + 1)
+            
+            // Skip if current is a header
+            if (currentMessage.isDateHeader) {
+                i++
+                continue
+            }
+            
+            val currentDate = currentMessage.date
+            val nextDate = nextMessage?.date
+            
+            // If dates are different, insert header for the NEXT date AFTER current message
+            if (currentDate != null && nextDate != null && !isSameDay(currentDate, nextDate)) {
+                // Add header for the NEXT date (not current date)
+                val header = ChatMessage(
+                    id = "header_${nextDate.time}",
+                    message = "",
+                    timestamp = "",
+                    isSentByMe = false,
+                    date = nextDate,
+                    isDateHeader = true,
+                    dateHeaderText = getDateHeaderText(nextDate)
+                )
+                messages.add(i + 1, header)
+                i += 2 // Skip both message and header
+            } else {
+                i++
+            }
         }
     }
 
