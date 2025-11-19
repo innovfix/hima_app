@@ -67,3 +67,4 @@ data class LastMessage(
     val createdAt: String
 )
 
+

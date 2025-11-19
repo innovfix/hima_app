@@ -409,7 +409,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                             val data = responseBody.data
                             val apiMessages = data.messages
                             
-                            // Update blocked status FIRST before filtering messages
+                            // Update blocked status (for UI display purposes)
                             iHaveBlockedThisUser = data.iHaveBlockedThisUser
                             
                             Log.d("ChatPagination", "═══════════════════════════════════════")
@@ -423,15 +423,6 @@ class ChatActivityInHouse : AppCompatActivity() {
                             Log.d("ChatPagination", "User blocked: $iHaveBlockedThisUser")
                             Log.d("ChatPagination", "═══════════════════════════════════════")
                             
-                            // Filter out messages from blocked user
-                            val filteredMessages = if (iHaveBlockedThisUser) {
-                                apiMessages.filter { it.fromUserId != peerUserId }
-                            } else {
-                                apiMessages
-                            }
-                            
-                            Log.d("ChatPagination", "Messages after filtering blocked user: ${filteredMessages.size}")
-                            
                             // Log ALL messages from API response in order
                             Log.d("ChatPagination", "📋 API RESPONSE MESSAGES (Original Order from API):")
                             apiMessages.forEachIndexed { index, msg ->
@@ -439,7 +430,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                             }
                             Log.d("ChatPagination", "═══════════════════════════════════════")
                             
-                            val convertedMessages = filteredMessages.map { apiMsg ->
+                            val convertedMessages = apiMessages.map { apiMsg ->
                                 convertApiMessageToChatMessage(apiMsg)
                             }
                             
@@ -487,10 +478,9 @@ class ChatActivityInHouse : AppCompatActivity() {
                             updateOnlineStatusFromAPI(data.lastOnlineStatus)
                             
                             // Mark messages as read using the new API with last message id
-                            // Use filtered messages to get the last visible message
-                            if (filteredMessages.isNotEmpty()) {
-                                // Get the last message id (newest message) from filtered messages
-                                val lastMessageId = filteredMessages.maxByOrNull { it.id }?.id
+                            if (apiMessages.isNotEmpty()) {
+                                // Get the last message id (newest message) from API messages
+                                val lastMessageId = apiMessages.maxByOrNull { it.id }?.id
                                 if (lastMessageId != null) {
                                     markMessagesAsReadWithLastMessageId(lastMessageId)
                                 }
@@ -598,28 +588,20 @@ class ChatActivityInHouse : AppCompatActivity() {
                             val data = responseBody.data
                             val apiMessages = data.messages
                             
-                            // Filter out messages from blocked user
-                            val filteredMessages = if (iHaveBlockedThisUser) {
-                                apiMessages.filter { it.fromUserId != peerUserId }
-                            } else {
-                                apiMessages
-                            }
-                            
                             Log.d("ChatPagination", "✅ PAGINATION RESPONSE:")
                             Log.d("ChatPagination", "Total Messages: ${data.totalMessages}")
                             Log.d("ChatPagination", "Returned Messages: ${data.returnedMessages}")
                             Log.d("ChatPagination", "Has More: ${data.hasMore}")
                             Log.d("ChatPagination", "Offset: ${data.offset}")
                             Log.d("ChatPagination", "Messages received: ${apiMessages.size}")
-                            Log.d("ChatPagination", "Messages after filtering blocked user: ${filteredMessages.size}")
                             
                             // Log first few message IDs and timestamps
-                            filteredMessages.take(3).forEachIndexed { index, msg ->
+                            apiMessages.take(3).forEachIndexed { index, msg ->
                                 Log.d("ChatPagination", "Older Message[$index]: ID=${msg.id}, Text='${msg.message.take(20)}...', Timestamp=${msg.timestamp}")
                             }
                             
-                            if (filteredMessages.isNotEmpty()) {
-                                val convertedMessages = filteredMessages.map { apiMsg ->
+                            if (apiMessages.isNotEmpty()) {
+                                val convertedMessages = apiMessages.map { apiMsg ->
                                     convertApiMessageToChatMessage(apiMsg)
                                 }
                                 
@@ -815,12 +797,6 @@ class ChatActivityInHouse : AppCompatActivity() {
     private fun handleNewMessage(socketMessage: ChatMessageSocket) {
         // Check if message is from this chat
         if (socketMessage.chatId != chatId) {
-            return
-        }
-
-        // Filter out messages from blocked user
-        if (iHaveBlockedThisUser && socketMessage.fromUserId == peerUserId) {
-            Log.d("ChatActivityInHouse", "🚫 Blocked message filtered: from ${socketMessage.fromUserId}")
             return
         }
 
