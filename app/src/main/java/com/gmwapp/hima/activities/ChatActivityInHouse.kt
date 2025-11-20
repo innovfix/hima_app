@@ -1271,6 +1271,32 @@ class ChatActivityInHouse : AppCompatActivity() {
         messageTextView?.text = "Once you unblock this user, you'll be able to send and receive messages from them again."
         btnBlock?.text = "Unblock"
 
+        // Find the ImageView (icon) and change its background to dark pink
+        fun findImageView(parent: android.view.ViewGroup): android.widget.ImageView? {
+            for (i in 0 until parent.childCount) {
+                val child = parent.getChildAt(i)
+                if (child is android.widget.ImageView) {
+                    return child
+                } else if (child is android.view.ViewGroup) {
+                    val result = findImageView(child)
+                    if (result != null) return result
+                }
+            }
+            return null
+        }
+        
+        val iconImageView = findImageView(dialogView as android.view.ViewGroup)
+        
+        // Change icon circle background to dark pink
+        iconImageView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+            resources.getColor(R.color.pink, theme)
+        )
+        
+        // Change button background to lighter pink
+        btnBlock?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+            resources.getColor(R.color.pink, theme)
+        )
+
         // Set button listeners
         dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_cancel).setOnClickListener {
             dialog.dismiss()

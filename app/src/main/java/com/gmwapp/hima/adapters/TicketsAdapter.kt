@@ -9,6 +9,21 @@ import com.gmwapp.hima.retrofit.responses.TicketDataResponse
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+/**
+ * Helper function to unescape common escape sequences in text
+ * Handles: \n, \', \u0027, HTML entities, etc.
+ */
+private fun String.unescapeText(): String {
+    return this
+        .replace("\\n", "\n")  // Newlines
+        .replace("\\'", "'")   // Escaped apostrophes
+        .replace("\\u0027", "'")  // Unicode apostrophe
+        .replace("&#39;", "'")  // HTML entity apostrophe
+        .replace("&apos;", "'")  // HTML entity apostrophe (XML)
+        .replace("&quot;", "\"")  // HTML entity quote
+        .replace("\\\\", "\\")  // Double backslashes
+}
+
 class TicketsAdapter(
     private val tickets: MutableList<TicketDataResponse>,
     private val onAttachmentClick: (List<String>) -> Unit
@@ -49,9 +64,9 @@ class TicketsAdapter(
                 )
             }
             
-            // Message - replace literal \n with actual newlines
+            // Message - unescape common escape sequences
             val messageText = ticket.message ?: ""
-            binding.tvMessage.text = messageText.replace("\\n", "\n")
+            binding.tvMessage.text = messageText.unescapeText()
             
             // Created date - format from "2025-11-05 12:11:14" to "5 Nov 2025"
             try {
@@ -63,11 +78,11 @@ class TicketsAdapter(
                 binding.tvCreatedDate.text = ticket.created_at
             }
             
-            // Reply section - replace literal \n with actual newlines
+            // Reply section - unescape common escape sequences
             val replyText = ticket.reply ?: ""
             if (replyText.isNotEmpty()) {
                 binding.llReplySection.visibility = View.VISIBLE
-                binding.tvReply.text = replyText.replace("\\n", "\n")
+                binding.tvReply.text = replyText.unescapeText()
             } else {
                 binding.llReplySection.visibility = View.GONE
             }
