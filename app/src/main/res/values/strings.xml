@@ -247,8 +247,11 @@
     <string name="appupdate">A brand new version of the Hi ma app is available in the Google play store. Please update your app to explore all of new amazing featuresy</string>
 
 
-    <string name="facebook_app_id">1310903060012417</string>
-    <string name="facebook_client_token">ed13227b54f4f5cff5f4d326b1ddefce</string>
+<!--    <string name="facebook_app_id">1310903060012417</string>-->
+<!--    <string name="facebook_client_token">ed13227b54f4f5cff5f4d326b1ddefce</string>-->
+
+    <string name="facebook_app_id">866451756064625</string>
+    <string name="facebook_client_token">6d5e012186e28f4668987be088cda8ce</string>
 
 
     <string name="juspay_sdk_"> Juspay SDK Integration Demo </string>
