@@ -993,7 +993,50 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         return "$userId-$coinId-${System.currentTimeMillis()}"
     }
 
-
+    private fun isNewUser(createdAt: String?): Boolean {
+        if (createdAt.isNullOrEmpty()) return false
+        
+        try {
+            // Parse the created_at timestamp (format: "2025-11-05 12:09:17" or similar)
+            val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
+            val createdDate = dateFormat.parse(createdAt) ?: return false
+            val createdCalendar = java.util.Calendar.getInstance().apply { time = createdDate }
+            
+            // Get today and yesterday dates
+            val today = java.util.Calendar.getInstance()
+            val yesterday = java.util.Calendar.getInstance().apply {
+                add(java.util.Calendar.DAY_OF_YEAR, -1)
+            }
+            
+            // Check if created_at is today (compare only dates, not time)
+            val createdDateOnly = createdCalendar.apply {
+                set(java.util.Calendar.HOUR_OF_DAY, 0)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }.timeInMillis
+            
+            val todayDateOnly = today.apply {
+                set(java.util.Calendar.HOUR_OF_DAY, 0)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }.timeInMillis
+            
+            val yesterdayDateOnly = yesterday.apply {
+                set(java.util.Calendar.HOUR_OF_DAY, 0)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }.timeInMillis
+            
+            return createdDateOnly == todayDateOnly
+            
+        } catch (e: Exception) {
+            Log.e("NewUserCheck", "Error parsing created_at: $createdAt", e)
+            return false
+        }
+    }
 
     fun updatePurchaseOnMeta(){
         val prefs = BaseApplication.getInstance()?.getPrefs()
@@ -1035,6 +1078,33 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
             "af_purchase",
             purchaseEvent
         )
+
+        // Log new_user_purchase event if user registered today
+        if (isNewUser(userData?.created_at)) {
+            // Firebase Analytics - new_user_purchase
+            val newUserPurchaseBundle = Bundle().apply {
+                putString(FirebaseAnalytics.Param.CURRENCY, "INR")
+                putDouble(FirebaseAnalytics.Param.VALUE, coinAmount)
+                putString(FirebaseAnalytics.Param.ITEM_ID, coinId)
+                putString("user_id", "$userId")
+                putString("created_at", userData?.created_at ?: "")
+            }
+            BaseApplication.firebaseAnalytics.logEvent("new_user_purchase", newUserPurchaseBundle)
+            
+            // Meta/Facebook Analytics - new_user_purchase
+            val newUserParams = Bundle().apply {
+                putString(AppEventsConstants.EVENT_PARAM_CURRENCY, "INR")
+                putDouble(AppEventsConstants.EVENT_PARAM_VALUE_TO_SUM, coinAmount)
+                putString("user_id", "$userId")
+                putString("coin_id", "$coinId")
+                putString("created_at", userData?.created_at ?: "")
+            }
+            AppEventsLogger.newLogger(this).logEvent("new_user_purchase", coinAmount, newUserParams)
+            
+            Log.d("NewUserPurchase", "✅ new_user_purchase event logged for user $userId (created: ${userData?.created_at})")
+        } else {
+            Log.d("NewUserPurchase", "⏭️ Skipped new_user_purchase - User not new (created: ${userData?.created_at})")
+        }
 
     }
     fun generateJwtToken(): String {

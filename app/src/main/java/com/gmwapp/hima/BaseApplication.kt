@@ -12,12 +12,15 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
+import android.content.pm.PackageInfo
 import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
-
+import android.util.Base64
 import android.util.Log
+import java.security.MessageDigest
+import java.security.NoSuchAlgorithmException
 import android.view.WindowManager
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
@@ -184,6 +187,33 @@ class BaseApplication : Application(), Configuration.Provider {
         FacebookSdk.setApplicationId(getString(R.string.facebook_app_id))
         FacebookSdk.sdkInitialize(applicationContext)
         AppEventsLogger.activateApp(this)
+
+        // ========== GET DEBUG KEY HASH FOR META ==========
+        try {
+            val info: PackageInfo = packageManager.getPackageInfo(
+                packageName,
+                PackageManager.GET_SIGNATURES
+            )
+            info.signatures?.let { signatures ->
+                for (signature in signatures) {
+                    val md = MessageDigest.getInstance("SHA")
+                    md.update(signature.toByteArray())
+                    val hashKey = String(Base64.encode(md.digest(), Base64.DEFAULT))
+                    
+                    Log.e("🔑 DEBUG_HASH", "========================================")
+                    Log.e("🔑 DEBUG_HASH", "YOUR DEBUG KEY HASH FOR META:")
+                    Log.e("🔑 DEBUG_HASH", hashKey.trim())
+                    Log.e("🔑 DEBUG_HASH", "========================================")
+                    Log.e("🔑 DEBUG_HASH", "Copy this hash to Meta dashboard!")
+                    Log.e("🔑 DEBUG_HASH", "Settings → Basic → Android → Key Hashes")
+                }
+            }
+        } catch (e: NoSuchAlgorithmException) {
+            Log.e("🔑 DEBUG_HASH", "Error getting key hash: ${e.message}")
+        } catch (e: Exception) {
+            Log.e("🔑 DEBUG_HASH", "Error getting key hash: ${e.message}")
+        }
+        // ==================================================
 
         if (BuildConfig.DEBUG) {
             OneSignal.Debug.logLevel = LogLevel.VERBOSE
