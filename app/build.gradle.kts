@@ -48,7 +48,9 @@ android {
         create("development") {
             dimension = "hima"
           applicationIdSuffix = ".dev"
-            buildConfigField( "String", "BASE_URL",  "\"https://test.himaapp.in/api/auth/\"")
+           // buildConfigField( "String", "BASE_URL",  "\"http://192.168.29.190/hima-admin-panel/public/api/auth/\"")
+
+            buildConfigField( "String", "BASE_URL",  "\"https://demohima.himaapp.in/api/auth/\"")
         }
         create("production") {
             dimension = "hima"

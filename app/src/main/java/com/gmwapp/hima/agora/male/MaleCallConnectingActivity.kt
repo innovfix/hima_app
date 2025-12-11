@@ -41,6 +41,8 @@ class MaleCallConnectingActivity : AppCompatActivity() {
     var receiverName : String? = null
     var userId: Int? = null
     private var callId = 0
+    private var fromChat: Boolean = false
+    private var chatPeerUserId: Int = -1
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
     private lateinit var progressBar: ProgressBar
     private val handler = Handler(Looper.getMainLooper())
@@ -86,6 +88,15 @@ class MaleCallConnectingActivity : AppCompatActivity() {
 
         Log.d("FcmUtils.isUserAvailable","${FcmUtils.isUserAvailable}")
 
+        // Read intent extras immediately (outside coroutine) so they're available for onBackPressed
+        callType = intent.getStringExtra(DConstants.CALL_TYPE)
+        receiverId = intent.getIntExtra(DConstants.RECEIVER_ID, -1)
+        receiverImg = intent.getStringExtra(DConstants.IMAGE)
+        receiverName = intent.getStringExtra(DConstants.RECEIVER_NAME)
+        fromChat = intent.getBooleanExtra("FROM_CHAT", false)
+        chatPeerUserId = intent.getIntExtra("CHAT_PEER_USER_ID", -1)
+        
+        Log.d("MaleCallConnecting", "fromChat=$fromChat, chatPeerUserId=$chatPeerUserId, receiverId=$receiverId")
 
         lifecycleScope.launch {
              FcmUtils.clearCallStatus()
@@ -108,11 +119,6 @@ class MaleCallConnectingActivity : AppCompatActivity() {
 
              userData?.id?.let { userId = userData?.id }
 
-             callType = intent.getStringExtra(DConstants.CALL_TYPE)
-             receiverId = intent.getIntExtra(DConstants.RECEIVER_ID, -1)
-             receiverImg = intent.getStringExtra(DConstants.IMAGE)
-             receiverName = intent.getStringExtra(DConstants.RECEIVER_NAME)
-
              getCallId()
 
 
@@ -123,30 +129,51 @@ class MaleCallConnectingActivity : AppCompatActivity() {
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                Log.d("FemaleCallAcceptActivity", "onBackPressed called via Dispatcher")
+                Log.d("MaleCallConnecting", "onBackPressed called - fromChat=$fromChat, chatPeerUserId=$chatPeerUserId")
+                
                 if (userId != null && receiverId != -1 && callType != null) {
                     sendCallNotification(userId!!, receiverId, callType!!, "callDeclined")
                     FcmUtils.clearCallStatus()  // Clear before moving to MainActivity
 
-                    Log.d("NavigationDebug", "Redirecting to MainActivity due to back pressed when user id is not null")
-
-                    val intent =
-                        Intent(this@MaleCallConnectingActivity, MainActivity::class.java)
-                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    startActivity(intent)
-                    finish()
+                    if (fromChat && chatPeerUserId != -1) {
+                        // Return to ChatActivityInHouse if call was initiated from chat
+                        Log.d("NavigationDebug", "Returning to ChatActivityInHouse - fromChat=$fromChat, chatPeerUserId=$chatPeerUserId")
+                        val intent = Intent(this@MaleCallConnectingActivity, com.gmwapp.hima.activities.ChatActivityInHouse::class.java).apply {
+                            putExtra("USER_ID", chatPeerUserId)
+                            putExtra("USER_NAME", receiverName ?: "")
+                            putExtra("USER_IMAGE", receiverImg ?: "")
+                            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        }
+                        startActivity(intent)
+                        finish()
+                    } else {
+                        Log.d("NavigationDebug", "Going to MainActivity - fromChat=$fromChat, chatPeerUserId=$chatPeerUserId")
+                        val intent = Intent(this@MaleCallConnectingActivity, MainActivity::class.java)
+                        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        startActivity(intent)
+                        finish()
+                    }
                 } else {
-
-
                     FcmUtils.clearCallStatus()  // Clear before moving to MainActivity
 
-                    Log.d("NavigationDebug", "Redirecting to MainActivity due to back pressed when user id is null")
-
-                    val intent =
-                        Intent(this@MaleCallConnectingActivity, MainActivity::class.java)
-                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    startActivity(intent)
-                    finish()
+                    if (fromChat && chatPeerUserId != -1) {
+                        // Return to ChatActivityInHouse if call was initiated from chat
+                        Log.d("NavigationDebug", "Returning to ChatActivityInHouse (no userId) - fromChat=$fromChat, chatPeerUserId=$chatPeerUserId")
+                        val intent = Intent(this@MaleCallConnectingActivity, com.gmwapp.hima.activities.ChatActivityInHouse::class.java).apply {
+                            putExtra("USER_ID", chatPeerUserId)
+                            putExtra("USER_NAME", receiverName ?: "")
+                            putExtra("USER_IMAGE", receiverImg ?: "")
+                            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        }
+                        startActivity(intent)
+                        finish()
+                    } else {
+                        Log.d("NavigationDebug", "Going to MainActivity (no userId) - fromChat=$fromChat, chatPeerUserId=$chatPeerUserId")
+                        val intent = Intent(this@MaleCallConnectingActivity, MainActivity::class.java)
+                        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        startActivity(intent)
+                        finish()
+                    }
 
                     Log.e(
                         "MaleCallConnectingActivity",
@@ -338,6 +365,16 @@ class MaleCallConnectingActivity : AppCompatActivity() {
                         finish()
                     } else {
                         Toast.makeText(this@MaleCallConnectingActivity, message, Toast.LENGTH_LONG).show()
+                        // Return to ChatActivityInHouse if call was initiated from chat
+                        if (fromChat && chatPeerUserId != -1) {
+                            val intent = Intent(this@MaleCallConnectingActivity, com.gmwapp.hima.activities.ChatActivityInHouse::class.java).apply {
+                                putExtra("USER_ID", chatPeerUserId)
+                                putExtra("USER_NAME", receiverName ?: "")
+                                putExtra("USER_IMAGE", receiverImg ?: "")
+                                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                            }
+                            startActivity(intent)
+                        }
                         finish()
                     }
                 }
@@ -349,18 +386,34 @@ class MaleCallConnectingActivity : AppCompatActivity() {
     private fun disconnectCall() {
         var currentActivity = BaseApplication.getInstance()?.getCurrentActivity()
         if (currentActivity is MaleCallConnectingActivity){
-        sendCallNotification(userId!!, receiverId,callType!!,"callDeclined")
-        cancelTimeoutTracking()
-        FcmUtils.clearCallStatus()  // Clear before moving to MainActivity
+            if (userId != null && receiverId != -1 && callType != null) {
+                sendCallNotification(userId!!, receiverId, callType!!, "callDeclined")
+            }
+            cancelTimeoutTracking()
+            FcmUtils.clearCallStatus()  // Clear before moving to MainActivity
 
-
-        Log.d("NavigationDebug", "Redirecting to MainActivity due to timeout.")
-
-        val intent = Intent(this@MaleCallConnectingActivity, MainActivity::class.java)
-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        startActivity(intent)
-        finish()
-    }}
+            Log.d("MaleCallConnecting", "disconnectCall - fromChat=$fromChat, chatPeerUserId=$chatPeerUserId")
+            
+            if (fromChat && chatPeerUserId != -1) {
+                // Return to ChatActivityInHouse if call was initiated from chat
+                Log.d("NavigationDebug", "Returning to ChatActivityInHouse due to timeout from chat")
+                val intent = Intent(this@MaleCallConnectingActivity, com.gmwapp.hima.activities.ChatActivityInHouse::class.java).apply {
+                    putExtra("USER_ID", chatPeerUserId)
+                    putExtra("USER_NAME", receiverName ?: "")
+                    putExtra("USER_IMAGE", receiverImg ?: "")
+                    addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                }
+                startActivity(intent)
+                finish()
+            } else {
+                Log.d("NavigationDebug", "Redirecting to MainActivity due to timeout.")
+                val intent = Intent(this@MaleCallConnectingActivity, MainActivity::class.java)
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                startActivity(intent)
+                finish()
+            }
+        }
+    }
 
     fun sendCallNotification(senderId:Int, receiverId:Int, callType:String, message:String) {
         fcmNotificationViewModel.sendNotification(
@@ -429,14 +482,28 @@ class MaleCallConnectingActivity : AppCompatActivity() {
                     FcmUtils.clearCallStatus()  // Clear before moving to MainActivity
 
                     cancelTimeoutTracking()
-                    Log.d("NavigationDebug", "Redirecting to MainActivity due to call rejected")
-
-                    val intent = Intent(this, MainActivity::class.java)
-                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    startActivity(intent)
-                    Log.d("wentToMain","$status")
-
-                    finish()
+                    
+                    Log.d("MaleCallConnecting", "Call rejected - fromChat=$fromChat, chatPeerUserId=$chatPeerUserId")
+                    
+                    if (fromChat && chatPeerUserId != -1) {
+                        // Return to ChatActivityInHouse if call was initiated from chat
+                        Log.d("NavigationDebug", "Returning to ChatActivityInHouse due to call rejected from chat")
+                        val intent = Intent(this, com.gmwapp.hima.activities.ChatActivityInHouse::class.java).apply {
+                            putExtra("USER_ID", chatPeerUserId)
+                            putExtra("USER_NAME", receiverName ?: "")
+                            putExtra("USER_IMAGE", receiverImg ?: "")
+                            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        }
+                        startActivity(intent)
+                        finish()
+                    } else {
+                        Log.d("NavigationDebug", "Redirecting to MainActivity due to call rejected")
+                        val intent = Intent(this, MainActivity::class.java)
+                        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        startActivity(intent)
+                        Log.d("wentToMain","$status")
+                        finish()
+                    }
                 }
             }
         })
@@ -462,12 +529,25 @@ class MaleCallConnectingActivity : AppCompatActivity() {
         FcmUtils.isUserAvailable = 0
         cancelTimeoutTracking()
         Log.d("GoinginMain", "${FcmUtils.isUserAvailable}")
+        Log.d("MaleCallConnecting", "navigateToMain - fromChat=$fromChat, chatPeerUserId=$chatPeerUserId")
 
-        val intent = Intent(this, MainActivity::class.java)
-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        startActivity(intent)
-
-        finish()
+        if (fromChat && chatPeerUserId != -1) {
+            // Return to ChatActivityInHouse if call was initiated from chat
+            Log.d("NavigationDebug", "Returning to ChatActivityInHouse from navigateToMain")
+            val intent = Intent(this, com.gmwapp.hima.activities.ChatActivityInHouse::class.java).apply {
+                putExtra("USER_ID", chatPeerUserId)
+                putExtra("USER_NAME", receiverName ?: "")
+                putExtra("USER_IMAGE", receiverImg ?: "")
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
+            startActivity(intent)
+            finish()
+        } else {
+            val intent = Intent(this, MainActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            startActivity(intent)
+            finish()
+        }
     }
 
 

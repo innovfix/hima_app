@@ -15,6 +15,7 @@ import com.gmwapp.hima.retrofit.responses.TicketsListResponse
 import com.gmwapp.hima.retrofit.responses.BlockUserResponse
 import com.gmwapp.hima.retrofit.responses.CallFemaleUserResponse
 import com.gmwapp.hima.retrofit.responses.CallMaleUserResponse
+import com.gmwapp.hima.retrofit.responses.CheckCallAvailabilityResponse
 import com.gmwapp.hima.retrofit.responses.CallsListResponse
 import com.gmwapp.hima.retrofit.responses.CoinsResponse
 import com.gmwapp.hima.retrofit.responses.CouponsResponse
@@ -1173,6 +1174,19 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
             callback.onNoNetwork()
         }
     }
+
+    fun checkCallAvailability(
+        maleUserId: Int,
+        femaleUserId: Int,
+        callback: NetworkCallback<CheckCallAvailabilityResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<CheckCallAvailabilityResponse> = getApiInterface().checkCallAvailability(maleUserId, femaleUserId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
 }
 
 interface ApiInterface {
@@ -1777,6 +1791,13 @@ interface ApiInterface {
         @Field("to_user_id") toUserId: Int,
         @Field("message") message: String
     ): Call<FallbackSendMessageResponse>
+
+    @FormUrlEncoded
+    @POST("check_call_availability")
+    fun checkCallAvailability(
+        @Field("male_user_id") maleUserId: Int,
+        @Field("female_user_id") femaleUserId: Int
+    ): Call<CheckCallAvailabilityResponse>
 
 
 }

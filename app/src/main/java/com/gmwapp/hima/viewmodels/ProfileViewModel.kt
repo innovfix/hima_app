@@ -54,6 +54,8 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
                         call: Call<AvatarsListResponse>, response: Response<AvatarsListResponse>
                     ) {
                         avatarsListLiveData.postValue(response.body())
+                        Log.d("avatarsListLiveData","${response.body()}")
+
                     }
 
                     override fun onFailure(call: Call<AvatarsListResponse>, t: Throwable) {

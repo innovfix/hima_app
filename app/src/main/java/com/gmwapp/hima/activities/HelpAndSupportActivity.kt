@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.CategoriesAdapter
+import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityHelpAndSupportBinding
 import com.gmwapp.hima.retrofit.responses.CategoryData
 import com.gmwapp.hima.retrofit.responses.TicketDataResponse
@@ -70,6 +71,35 @@ class HelpAndSupportActivity : BaseActivity() {
             val intent = Intent(this, TicketsListActivity::class.java)
             startActivity(intent)
         }
+
+        // Handle raise ticket card click (for male users)
+        binding.cvRaiseTicket.setOnSingleClickListener {
+            val intent = Intent(this, SubmitTicketActivity::class.java)
+            startActivity(intent)
+        }
+
+        // Check user gender and configure UI accordingly
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val gender = userData?.gender
+
+        if (gender?.equals(DConstants.MALE, ignoreCase = true) == true) {
+            // Hide category section for male users
+            binding.tvSelectCategoryTitle.visibility = android.view.View.GONE
+            binding.rvCategories.visibility = android.view.View.GONE
+            binding.tvEmpty.visibility = android.view.View.GONE
+            
+            // Show create ticket section for male users
+            binding.tvCreateTicketTitle.visibility = android.view.View.VISIBLE
+            binding.cvRaiseTicket.visibility = android.view.View.VISIBLE
+        } else {
+            // Show category section for female users
+            binding.tvSelectCategoryTitle.visibility = android.view.View.VISIBLE
+            binding.rvCategories.visibility = android.view.View.VISIBLE
+            
+            // Hide create ticket section for female users
+            binding.tvCreateTicketTitle.visibility = android.view.View.GONE
+            binding.cvRaiseTicket.visibility = android.view.View.GONE
+        }
     }
 
     private fun setupRecyclerView() {
@@ -107,13 +137,19 @@ class HelpAndSupportActivity : BaseActivity() {
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val userId = userData?.id ?: 0
+        val gender = userData?.gender
         
         if (userId > 0) {
-            // Load tickets first
+            // Load tickets first (for both male and female)
             accountViewModel.getTicketsList(userId)
             
-            // Then load categories
-            accountViewModel.getCategoriesList(userId)
+            // Only load categories for female users
+            if (gender?.equals(DConstants.MALE, ignoreCase = true) != true) {
+                accountViewModel.getCategoriesList(userId)
+            } else {
+                // For male users, hide progress bar after tickets load
+                binding.progressBar.visibility = android.view.View.GONE
+            }
         } else {
             binding.progressBar.visibility = android.view.View.GONE
             showEmptyState()
@@ -125,6 +161,13 @@ class HelpAndSupportActivity : BaseActivity() {
             // Always show "Your tickets" section
             binding.tvYourTicketsTitle.visibility = android.view.View.VISIBLE
             binding.cvYourTickets.visibility = android.view.View.VISIBLE
+            
+            // Hide progress bar after tickets are loaded (for male users who don't load categories)
+            val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+            val gender = userData?.gender
+            if (gender?.equals(DConstants.MALE, ignoreCase = true) == true) {
+                binding.progressBar.visibility = android.view.View.GONE
+            }
             
             if (response != null && response.success) {
                 // Get the data array - this contains multiple tickets, each with a status field

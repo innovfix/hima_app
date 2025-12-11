@@ -157,6 +157,89 @@
                 </androidx.constraintlayout.widget.ConstraintLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Create a new ticket Section (for Male users) -->
+            <TextView
+                android:id="@+id/tv_create_ticket_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Create a new ticket"
+                android:textColor="#212121"
+                android:textSize="18sp"
+                android:fontFamily="@font/poppins_semibold"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="12dp"
+                android:visibility="gone" />
+
+            <!-- Raise New Ticket Card (for Male users) -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cv_raise_ticket"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
+                app:cardBackgroundColor="@android:color/white"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp"
+                android:visibility="gone">
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="16dp">
+
+                    <View
+                        android:id="@+id/icon_bg_raise_ticket"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:background="@drawable/circle_background"
+                        android:backgroundTint="@color/pink_extra_light"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintBottom_toBottomOf="parent" />
+
+                    <ImageView
+                        android:id="@+id/iv_raise_ticket_icon"
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:src="@drawable/ic_info"
+                        app:tint="@color/pink"
+                        app:layout_constraintBottom_toBottomOf="@+id/icon_bg_raise_ticket"
+                        app:layout_constraintEnd_toEndOf="@+id/icon_bg_raise_ticket"
+                        app:layout_constraintStart_toStartOf="@+id/icon_bg_raise_ticket"
+                        app:layout_constraintTop_toTopOf="@+id/icon_bg_raise_ticket" />
+
+                    <LinearLayout
+                        android:id="@+id/ll_raise_ticket_info"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_marginStart="16dp"
+                        app:layout_constraintEnd_toStartOf="@+id/iv_raise_arrow"
+                        app:layout_constraintStart_toEndOf="@+id/icon_bg_raise_ticket"
+                        app:layout_constraintTop_toTopOf="@+id/icon_bg_raise_ticket"
+                        app:layout_constraintBottom_toBottomOf="@+id/icon_bg_raise_ticket">
+
+                        <TextView
+                            android:id="@+id/tv_raise_ticket"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Raise new ticket"
+                            android:textColor="#212121"
+                            android:textSize="16sp"
+                            android:fontFamily="@font/poppins_semibold" />
+                    </LinearLayout>
+
+                    <ImageView
+                        android:id="@+id/iv_raise_arrow"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/right_arrow"
+                        app:tint="#9E9E9E"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toTopOf="@+id/icon_bg_raise_ticket"
+                        app:layout_constraintBottom_toBottomOf="@+id/icon_bg_raise_ticket" />
+                </androidx.constraintlayout.widget.ConstraintLayout>
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- Select Category Section -->
             <TextView
                 android:id="@+id/tv_select_category_title"

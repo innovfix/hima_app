@@ -1,8 +1,5 @@
 package com.gmwapp.hima.activities
 
-import android.content.Context
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -17,6 +14,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.Observer
+import androidx.activity.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
@@ -24,6 +23,7 @@ import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.ChatAdapter
+import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.models.ChatMessage
 import com.gmwapp.hima.models.ChatMessageApi
 import com.gmwapp.hima.retrofit.ApiManager
@@ -34,7 +34,9 @@ import com.gmwapp.hima.retrofit.responses.MessageListResponse
 import com.gmwapp.hima.retrofit.responses.SendMessageResponse
 import com.gmwapp.hima.retrofit.responses.ChatHistoryResponse
 import com.gmwapp.hima.retrofit.responses.BlockUserResponse
+import com.gmwapp.hima.retrofit.responses.CheckCallAvailabilityResponse
 import com.gmwapp.hima.retrofit.responses.FallbackSendMessageResponse
+import com.gmwapp.hima.retrofit.responses.RegisterResponse
 import retrofit2.Call
 import retrofit2.Response
 import com.gmwapp.hima.socket.ChatMessageSocket
@@ -47,12 +49,15 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
+import android.content.Intent
 
 @AndroidEntryPoint
 class ChatActivityInHouse : AppCompatActivity() {
 
     @Inject
     lateinit var apiManager: ApiManager
+
+    private val femaleUsersViewModel: com.gmwapp.hima.viewmodels.FemaleUsersViewModel by viewModels()
 
     private lateinit var rvMessages: RecyclerView
     private lateinit var etMessage: EditText
@@ -85,6 +90,18 @@ class ChatActivityInHouse : AppCompatActivity() {
     // Track if user is blocked
     private var iHaveBlockedThisUser: Boolean = false
     
+    // Call buttons
+    private lateinit var callButtonsContainer: View
+    private lateinit var cvAudioCall: com.google.android.material.card.MaterialCardView
+    private lateinit var cvVideoCall: com.google.android.material.card.MaterialCardView
+    private lateinit var ivAudioCall: ImageView
+    private lateinit var ivVideoCall: ImageView
+    private var peerUserGender: String? = null
+    private var isPeerUserOnline: Boolean = false
+    private var peerAudioStatus: Int? = null  // 0 or 1
+    private var peerVideoStatus: Int? = null   // 0 or 1
+    private var isCallBlocked: Boolean = false  // true if male user is blocked by female user (blocked = 1 or 2)
+    
     // Pagination variables
     private var currentOffset = 0
     private var isLoadingMore = false
@@ -110,6 +127,9 @@ class ChatActivityInHouse : AppCompatActivity() {
         connectSocket()
         loadMessages()
         observeSocketEvents()
+        setupCallStatusObservers()
+        setupCallButtons()
+        setupCallButtonListeners()
         
         // Log initial status
         mainHandler.postDelayed({
@@ -127,6 +147,13 @@ class ChatActivityInHouse : AppCompatActivity() {
         tvUserName = findViewById(R.id.tv_user_name)
         tvUserStatus = findViewById(R.id.tv_user_status)
         vOnlineIndicator = findViewById(R.id.v_online_indicator)
+        
+        // Initialize call buttons
+        callButtonsContainer = findViewById(R.id.call_buttons_container)
+        cvAudioCall = findViewById(R.id.cv_audio_call)
+        ivAudioCall = findViewById(R.id.iv_audio_call)
+        cvVideoCall = findViewById(R.id.cv_video_call)
+        ivVideoCall = findViewById(R.id.iv_video_call)
 
         val userName = intent.getStringExtra("USER_NAME") ?: "User"
         val userImage = intent.getStringExtra("USER_IMAGE")
@@ -138,6 +165,26 @@ class ChatActivityInHouse : AppCompatActivity() {
                 .load(userImage)
                 .apply(RequestOptions.circleCropTransform())
                 .into(ivUser)
+        }
+
+        // Configure UI based on user gender
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val isMaleUser = userData?.gender?.equals(DConstants.MALE, ignoreCase = true) == true
+        
+        if (isMaleUser) {
+            // Hide back button and align avatar from start for male users
+            ivBack.visibility = View.GONE
+            val layoutParams = ivUser.layoutParams as android.view.ViewGroup.MarginLayoutParams
+            layoutParams.marginStart = 0
+            ivUser.layoutParams = layoutParams
+        } else {
+            // Keep back button visible and avatar with margin for female users
+            ivBack.visibility = View.VISIBLE
+            val layoutParams = ivUser.layoutParams as android.view.ViewGroup.MarginLayoutParams
+            // Convert 12dp to pixels
+            val marginInPx = (12 * resources.displayMetrics.density).toInt()
+            layoutParams.marginStart = marginInPx
+            ivUser.layoutParams = layoutParams
         }
 
         window.statusBarColor = ContextCompat.getColor(this, R.color.white)
@@ -264,6 +311,11 @@ class ChatActivityInHouse : AppCompatActivity() {
                 tvUserStatus.text = ""
                 tvUserStatus.visibility = View.GONE
                 vOnlineIndicator.visibility = View.GONE
+            }
+            
+            // Update call buttons state based on online status
+            if (::callButtonsContainer.isInitialized && callButtonsContainer.visibility == View.VISIBLE) {
+                updateCallButtonsState()
             }
         }
     }
@@ -1179,6 +1231,106 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun showOptionsMenu() {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val isFemaleUser = userData?.gender?.equals(DConstants.FEMALE, ignoreCase = true) == true
+
+        if (isFemaleUser) {
+            // Show custom popup with toggles for female users
+            showCustomMenuWithToggles()
+        } else {
+            // Show regular menu for non-female users
+            showRegularMenu()
+        }
+    }
+
+    private fun showCustomMenuWithToggles() {
+        val popupView = layoutInflater.inflate(R.layout.popup_call_settings_menu, null)
+        val popupWindow = android.widget.PopupWindow(
+            popupView,
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+            true
+        )
+
+        // Set background and elevation
+        popupWindow.setBackgroundDrawable(ContextCompat.getDrawable(this, android.R.drawable.dialog_holo_light_frame))
+        popupWindow.elevation = 8f
+        popupWindow.isOutsideTouchable = true
+        popupWindow.isFocusable = true
+
+        val switchAudio = popupView.findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.switch_audio)
+        val switchVideo = popupView.findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.switch_video)
+        val itemBlockUser = popupView.findViewById<TextView>(R.id.item_block_user)
+
+        // Get current user data
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        
+        // Temporarily disable listeners to prevent API calls while setting initial state
+        switchAudio?.setOnCheckedChangeListener(null)
+        switchVideo?.setOnCheckedChangeListener(null)
+        
+        // Set initial switch states
+        switchAudio?.isChecked = userData?.audio_status == 1
+        switchVideo?.isChecked = userData?.video_status == 1
+
+        // Audio switch listener
+        switchAudio?.setOnCheckedChangeListener { _, isChecked ->
+            if (userData != null) {
+                Log.d("ChatActivityInHouse", "📞 Updating audio status: ${if (isChecked) "ON" else "OFF"}")
+                femaleUsersViewModel.updateCallStatus(
+                    userId = userData.id,
+                    callType = DConstants.AUDIO,
+                    status = if (isChecked) 1 else 0
+                )
+            }
+        }
+
+        // Video switch listener
+        switchVideo?.setOnCheckedChangeListener { _, isChecked ->
+            if (userData != null) {
+                Log.d("ChatActivityInHouse", "📹 Updating video status: ${if (isChecked) "ON" else "OFF"}")
+                femaleUsersViewModel.updateCallStatus(
+                    userId = userData.id,
+                    callType = DConstants.VIDEO,
+                    status = if (isChecked) 1 else 0
+                )
+            }
+        }
+
+        // Block user click listener - show block or unblock based on status
+        if (iHaveBlockedThisUser) {
+            itemBlockUser?.text = "Unblock User"
+            itemBlockUser?.setOnClickListener {
+                popupWindow.dismiss()
+                showUnblockConfirmationDialog()
+            }
+        } else {
+            itemBlockUser?.text = "Block User"
+            itemBlockUser?.setOnClickListener {
+                popupWindow.dismiss()
+                showBlockConfirmationDialog()
+            }
+        }
+
+        // Measure popup to get its width
+        popupView.measure(
+            android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED),
+            android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED)
+        )
+        val popupWidth = popupView.measuredWidth
+
+        // Calculate popup position (below the three-dot icon, aligned to the right)
+        val location = IntArray(2)
+        ivMore.getLocationOnScreen(location)
+        val screenWidth = resources.displayMetrics.widthPixels
+        val x = (location[0] + ivMore.width - popupWidth).coerceAtLeast(16) // Align to right edge, with margin
+        val y = location[1] + ivMore.height + 8 // Add small gap below icon
+
+        // Show popup
+        popupWindow.showAtLocation(ivMore, android.view.Gravity.NO_GRAVITY, x, y)
+    }
+
+    private fun showRegularMenu() {
         val popup = PopupMenu(this, ivMore)
         popup.menuInflater.inflate(R.menu.menu_chat, popup.menu)
 
@@ -1378,6 +1530,239 @@ class ChatActivityInHouse : AppCompatActivity() {
                 }
             }
         )
+    }
+
+    private fun setupCallStatusObservers() {
+        // Observe call status update response
+        femaleUsersViewModel.updateCallStatusResponseLiveData.observe(this, Observer { response ->
+            if (response != null && response.success && response.data != null) {
+                // Update user data in preferences
+                BaseApplication.getInstance()?.getPrefs()?.setUserData(response.data)
+                Log.d("ChatActivityInHouse", "✅ Call status updated successfully")
+                Toast.makeText(this, "Call status updated", Toast.LENGTH_SHORT).show()
+            }
+        })
+
+        // Observe call status update errors
+        femaleUsersViewModel.updateCallStatusErrorLiveData.observe(this, Observer { error ->
+            if (error != null) {
+                Log.e("ChatActivityInHouse", "❌ Error updating call status: $error")
+                when (error) {
+                    DConstants.NO_NETWORK -> {
+                        Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show()
+                    }
+                    else -> {
+                        Toast.makeText(this, "Failed to update call status", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        })
+    }
+
+    // ==================== CALL BUTTONS FUNCTIONS ====================
+
+    private fun setupCallButtons() {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val isMaleUser = userData?.gender?.equals(DConstants.MALE, ignoreCase = true) == true
+        
+        if (isMaleUser && peerUserId > 0 && myUserId > 0) {
+            checkCallAvailability()
+        } else {
+            callButtonsContainer.visibility = View.GONE
+        }
+    }
+
+    private fun checkCallAvailability() {
+        apiManager.checkCallAvailability(
+            maleUserId = myUserId,
+            femaleUserId = peerUserId,
+            object : NetworkCallback<CheckCallAvailabilityResponse> {
+                override fun onResponse(
+                    call: Call<CheckCallAvailabilityResponse>,
+                    response: Response<CheckCallAvailabilityResponse>
+                ) {
+                    if (response.isSuccessful) {
+                        val responseData = response.body()?.data
+                        if (responseData != null) {
+                            isCallBlocked = responseData.is_blocked
+                            peerAudioStatus = responseData.audio_status
+                            peerVideoStatus = responseData.video_status
+                            
+                            Log.d("ChatActivityInHouse", "Call availability - Blocked: $isCallBlocked, Audio: $peerAudioStatus, Video: $peerVideoStatus")
+                            
+                            mainHandler.post {
+                                callButtonsContainer.visibility = View.VISIBLE
+                                // Initialize buttons as disabled (gray) first
+                                cvAudioCall.setCardBackgroundColor(ContextCompat.getColor(this@ChatActivityInHouse, R.color.light_grey))
+                                cvVideoCall.setCardBackgroundColor(ContextCompat.getColor(this@ChatActivityInHouse, R.color.light_grey))
+                                ivAudioCall.setColorFilter(ContextCompat.getColor(this@ChatActivityInHouse, R.color.grey_medium))
+                                ivVideoCall.setColorFilter(ContextCompat.getColor(this@ChatActivityInHouse, R.color.grey_medium))
+                                cvAudioCall.isEnabled = false
+                                cvVideoCall.isEnabled = false
+                                // Then update based on actual online status and audio/video status
+                                updateCallButtonsState()
+                            }
+                        } else {
+                            Log.e("ChatActivityInHouse", "Call availability response data is null")
+                            callButtonsContainer.visibility = View.GONE
+                        }
+                    } else {
+                        Log.e("ChatActivityInHouse", "Failed to check call availability: ${response.code()}")
+                        callButtonsContainer.visibility = View.GONE
+                    }
+                }
+
+                override fun onFailure(call: Call<CheckCallAvailabilityResponse>, t: Throwable) {
+                    Log.e("ChatActivityInHouse", "Failed to check call availability: ${t.message}")
+                    callButtonsContainer.visibility = View.GONE
+                }
+
+                override fun onNoNetwork() {
+                    callButtonsContainer.visibility = View.GONE
+                }
+            }
+        )
+    }
+
+    private fun updateCallButtonsState() {
+        // Check online status from lastOnlineStatus
+        // Store in local variable to avoid smart cast issues
+        val currentStatus = lastOnlineStatus
+        Log.d("CallButtons", "Updating call buttons state. Current status: '$currentStatus', Blocked: $isCallBlocked")
+        
+        val isOnline = when {
+            currentStatus == null -> {
+                Log.d("CallButtons", "Status is null - user is offline")
+                false
+            }
+            currentStatus.equals("Active recently", ignoreCase = true) -> {
+                Log.d("CallButtons", "User is active recently - ONLINE")
+                true
+            }
+            currentStatus.contains("minute", ignoreCase = true) -> {
+                val minutes = currentStatus.filter { it.isDigit() }.toIntOrNull() ?: 0
+                val online = minutes < 5
+                Log.d("CallButtons", "Status: '$currentStatus', Minutes: $minutes, IsOnline: $online")
+                online
+            }
+            currentStatus.contains("hour", ignoreCase = true) -> {
+                Log.d("CallButtons", "Status contains 'hour' - user is offline")
+                false
+            }
+            else -> {
+                Log.d("CallButtons", "Status doesn't match any pattern - user is offline")
+                false
+            }
+        }
+        
+        isPeerUserOnline = isOnline
+        
+        // If blocked (is_blocked = true, meaning backend blocked = 1 or 2), disable both buttons
+        if (isCallBlocked) {
+            Log.d("CallButtons", "User is BLOCKED - disabling both audio and video buttons")
+            mainHandler.post {
+                // DISABLED - Gray for both buttons
+                cvAudioCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.light_grey))
+                ivAudioCall.setColorFilter(ContextCompat.getColor(this, R.color.grey_medium))
+                cvAudioCall.isEnabled = false
+                
+                cvVideoCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.light_grey))
+                ivVideoCall.setColorFilter(ContextCompat.getColor(this, R.color.grey_medium))
+                cvVideoCall.isEnabled = false
+            }
+            return
+        }
+        
+        // If not blocked, check individual audio and video status (0 = disabled, 1 = enabled)
+        val isAudioEnabled = peerAudioStatus == 1
+        val isVideoEnabled = peerVideoStatus == 1
+        
+        Log.d("CallButtons", "Final status - Online: $isOnline, Audio: $isAudioEnabled ($peerAudioStatus), Video: $isVideoEnabled ($peerVideoStatus)")
+        
+        mainHandler.post {
+            // Audio button state - enabled only if online AND audio is enabled (status = 1)
+            val audioCanCall = isOnline && isAudioEnabled
+            if (audioCanCall) {
+                // ENABLED - Purple
+                Log.d("CallButtons", "Setting audio button to ENABLED (purple)")
+                cvAudioCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.colorAccent))
+                ivAudioCall.setColorFilter(ContextCompat.getColor(this, R.color.white))
+                cvAudioCall.isEnabled = true
+            } else {
+                // DISABLED - Gray
+                Log.d("CallButtons", "Setting audio button to DISABLED (gray) - Online: $isOnline, AudioEnabled: $isAudioEnabled")
+                cvAudioCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.light_grey))
+                ivAudioCall.setColorFilter(ContextCompat.getColor(this, R.color.grey_medium))
+                cvAudioCall.isEnabled = false
+            }
+            
+            // Video button state - enabled only if online AND video is enabled (status = 1)
+            val videoCanCall = isOnline && isVideoEnabled
+            if (videoCanCall) {
+                // ENABLED - Green
+                Log.d("CallButtons", "Setting video button to ENABLED (green)")
+                cvVideoCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.green))
+                ivVideoCall.setColorFilter(ContextCompat.getColor(this, R.color.white))
+                cvVideoCall.isEnabled = true
+            } else {
+                // DISABLED - Gray
+                Log.d("CallButtons", "Setting video button to DISABLED (gray) - Online: $isOnline, VideoEnabled: $isVideoEnabled")
+                cvVideoCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.light_grey))
+                ivVideoCall.setColorFilter(ContextCompat.getColor(this, R.color.grey_medium))
+                cvVideoCall.isEnabled = false
+            }
+        }
+    }
+
+    private fun setupCallButtonListeners() {
+        cvAudioCall.setOnClickListener {
+            when {
+                isCallBlocked -> {
+                    Toast.makeText(this, "You are blocked by this user", Toast.LENGTH_SHORT).show()
+                }
+                !isPeerUserOnline -> {
+                    Toast.makeText(this, "User is offline", Toast.LENGTH_SHORT).show()
+                }
+                peerAudioStatus != 1 -> {
+                    Toast.makeText(this, "Audio calls are disabled for this user", Toast.LENGTH_SHORT).show()
+                }
+                else -> {
+                    initiateCall("audio")
+                }
+            }
+        }
+        
+        cvVideoCall.setOnClickListener {
+            when {
+                isCallBlocked -> {
+                    Toast.makeText(this, "You are blocked by this user", Toast.LENGTH_SHORT).show()
+                }
+                !isPeerUserOnline -> {
+                    Toast.makeText(this, "User is offline", Toast.LENGTH_SHORT).show()
+                }
+                peerVideoStatus != 1 -> {
+                    Toast.makeText(this, "Video calls are disabled for this user", Toast.LENGTH_SHORT).show()
+                }
+                else -> {
+                    initiateCall("video")
+                }
+            }
+        }
+    }
+
+    private fun initiateCall(callType: String) {
+        val userName = intent.getStringExtra("USER_NAME") ?: "User"
+        val userImage = intent.getStringExtra("USER_IMAGE") ?: ""
+        
+        val intent = Intent(this, com.gmwapp.hima.agora.male.MaleCallConnectingActivity::class.java).apply {
+            putExtra(DConstants.CALL_TYPE, callType)
+            putExtra(DConstants.RECEIVER_ID, peerUserId)
+            putExtra(DConstants.IMAGE, userImage)
+            putExtra(DConstants.RECEIVER_NAME, userName)
+            putExtra("FROM_CHAT", true)
+            putExtra("CHAT_PEER_USER_ID", peerUserId)
+        }
+        startActivity(intent)
     }
 }
 
