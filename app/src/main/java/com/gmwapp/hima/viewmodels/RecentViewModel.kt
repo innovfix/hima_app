@@ -21,7 +21,7 @@ class RecentViewModel @Inject constructor(private val profileRepositories: Profi
 
     val callsListErrorLiveData = MutableLiveData<String>()
     val callsListLiveData = MutableLiveData<CallsListResponse>()
-    fun getCallsList(userId: Int, gender: String, limit: Int, currentOffset: Int, type: String) {
+    fun getCallsList(userId: Int, gender: String, limit: Int, currentOffset: Int, type: String, search: String? = null, fav: Int? = null) {
         viewModelScope.launch {
             profileRepositories.getCallsList(
                 userId,
@@ -29,6 +29,8 @@ class RecentViewModel @Inject constructor(private val profileRepositories: Profi
                 limit,
                 currentOffset,
                 type,
+                search,
+                fav,
                 object : NetworkCallback<CallsListResponse> {
                     override fun onResponse(
                         call: Call<CallsListResponse>, response: Response<CallsListResponse>

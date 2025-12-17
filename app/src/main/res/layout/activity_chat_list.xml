@@ -66,6 +66,47 @@
                         android:textSize="13sp" />
                 </LinearLayout>
             </LinearLayout>
+
+            <!-- Search Bar -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_search"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="@color/grey_extra_light">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingHorizontal="12dp">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_search"
+                        android:tint="@color/grey_medium"
+                        android:contentDescription="Search" />
+
+                    <EditText
+                        android:id="@+id/et_search"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:background="@android:color/transparent"
+                        android:hint="Search by name"
+                        android:paddingStart="10dp"
+                        android:textColor="@color/black_light"
+                        android:textColorHint="@color/grey_medium"
+                        android:textSize="14sp"
+                        android:fontFamily="@font/poppins_regular"
+                        android:singleLine="true"
+                        android:imeOptions="actionSearch" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
     </com.google.android.material.appbar.AppBarLayout>
 

@@ -10,7 +10,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
-import androidx.appcompat.widget.PopupMenu
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -18,13 +17,12 @@ import androidx.recyclerview.widget.RecyclerView
 import android.util.Log
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
-import com.gmwapp.hima.activities.RandomUserActivity
 import com.gmwapp.hima.adapters.RecentCallsAdapter
 import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.agora.male.MaleCallConnectingActivity
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
-import com.gmwapp.hima.databinding.FragmentRecentBinding
+import com.gmwapp.hima.databinding.FragmentFavouriteBinding
 import com.gmwapp.hima.retrofit.ApiManager
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.CallsListResponseData
@@ -36,19 +34,19 @@ import retrofit2.Response
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class RecentFragment : BaseFragment() {
+class FavouriteFragment : BaseFragment() {
 
     @Inject
     lateinit var apiManager: ApiManager
 
-    private lateinit var binding: FragmentRecentBinding
+    private lateinit var binding: FragmentFavouriteBinding
     private val recentViewModel: RecentViewModel by viewModels()
     private lateinit var recentCallsAdapter: RecentCallsAdapter
     private var isLoading = false
     private var offset = 0
     private val limit = 10
     private var currentSortType = "recent"  // Default: recent
-    private var currentSearchQuery = ""  // Current search query
+    private var hasMoreItems = true  // Track if there are more items to load
     
     // Debouncing for search
     private val searchHandler = Handler(Looper.getMainLooper())
@@ -58,10 +56,9 @@ class RecentFragment : BaseFragment() {
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
-        binding = FragmentRecentBinding.inflate(inflater, container, false)
+        binding = FragmentFavouriteBinding.inflate(inflater, container, false)
         initUI()
         observeViewModel()
-        setupSortOptions()
         return binding.root
     }
 
@@ -77,13 +74,10 @@ class RecentFragment : BaseFragment() {
         
         // Load unread message count from API
         loadUnreadMessageCount()
-        
-        // Setup search listener
-        setupSearchListener()
 
         // Swipe to refresh
         binding.swipeRefreshLayout.setOnRefreshListener {
-            loadCallsList(currentSortType, resetData = true)
+            loadFavouritesList(resetData = true)
         }
 
         // Set up RecyclerView
@@ -101,12 +95,12 @@ class RecentFragment : BaseFragment() {
                     startMaleCallConnectingActivity(data, "video")
                 }
             },
-            isFavouriteMode = false // Not favorite mode for RecentFragment
+            isFavouriteMode = true // Enable favorite mode
         )
         binding.rvCalls.adapter = recentCallsAdapter
 
-        // Initial call with default type (after adapter is initialized)
-        loadCallsList(currentSortType, resetData = true)
+        // Initial call to load favorites
+        loadFavouritesList(resetData = true)
 
         // Pagination
         binding.rvCalls.addOnScrollListener(object : RecyclerView.OnScrollListener() {
@@ -114,55 +108,33 @@ class RecentFragment : BaseFragment() {
                 super.onScrolled(recyclerView, dx, dy)
 
                 val layoutManager = recyclerView.layoutManager as LinearLayoutManager
-                if (!isLoading &&
+                if (!isLoading && hasMoreItems &&
                     layoutManager.findLastCompletelyVisibleItemPosition() == recentCallsAdapter.itemCount - 1
                 ) {
                     isLoading = true
                     offset += limit
                     userData.let {
-                        recentViewModel.getCallsList(it.id, it.gender, limit, offset, currentSortType, if (currentSearchQuery.isEmpty()) null else currentSearchQuery)
+                        recentViewModel.getCallsList(it.id, it.gender, limit, offset, currentSortType, null, 1)
                     }
                 }
             }
         })
     }
 
-    private fun loadCallsList(sortType: String, resetData: Boolean, searchQuery: String = "") {
+    private fun loadFavouritesList(resetData: Boolean) {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
         
         if (resetData) {
             offset = 0
             isLoading = true
+            hasMoreItems = true  // Reset hasMoreItems when refreshing
             if (::recentCallsAdapter.isInitialized) {
                 recentCallsAdapter.clearData()
             }
         }
         
-        val search = searchQuery.trim()
-        currentSearchQuery = search
-        recentViewModel.getCallsList(userData.id, userData.gender, limit, offset, sortType, if (search.isEmpty()) null else search)
-    }
-    
-    private fun setupSearchListener() {
-        binding.etSearch.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                // Cancel previous search runnable
-                searchRunnable?.let { searchHandler.removeCallbacks(it) }
-                
-                // Create new search runnable
-                val searchQuery = s?.toString()?.trim() ?: ""
-                searchRunnable = Runnable {
-                    loadCallsList(currentSortType, resetData = true, searchQuery = searchQuery)
-                }
-                
-                // Post delayed search with debouncing
-                searchHandler.postDelayed(searchRunnable!!, SEARCH_DEBOUNCE_DELAY)
-            }
-
-            override fun afterTextChanged(s: Editable?) {}
-        })
+        // Call with fav=1 to get only favorites
+        recentViewModel.getCallsList(userData.id, userData.gender, limit, offset, currentSortType, null, 1)
     }
 
     private fun observeViewModel() {
@@ -174,9 +146,20 @@ class RecentFragment : BaseFragment() {
                 binding.tlTitle.visibility = View.GONE
                 binding.rvCalls.visibility = View.VISIBLE
                 recentCallsAdapter.addData(it.data)
+                
+                // Check if there are more items to load
+                val total = it.total ?: 0
+                val currentCount = recentCallsAdapter.itemCount
+                hasMoreItems = currentCount < total
+                
+                Log.d("FavouriteFragment", "Pagination: total=$total, current=$currentCount, hasMore=$hasMoreItems")
             } else if (recentCallsAdapter.itemCount == 0) {
                 binding.tlTitle.visibility = View.VISIBLE
                 binding.rvCalls.visibility = View.GONE
+                hasMoreItems = false  // No more items if empty response
+            } else {
+                // Empty response but we have some items - reached the end
+                hasMoreItems = false
             }
         })
     }
@@ -204,40 +187,6 @@ class RecentFragment : BaseFragment() {
         startActivity(intent)
     }
 
-    private fun setupSortOptions() {
-        binding.cardSort.setOnClickListener { showSortMenu() }
-    }
-
-    private fun showSortMenu() {
-        val popup = PopupMenu(requireContext(), binding.cardSort)
-        popup.menuInflater.inflate(R.menu.menu_recent_sort, popup.menu)
-        
-        popup.setOnMenuItemClickListener { menuItem ->
-            when (menuItem.itemId) {
-                R.id.action_sort_recent -> {
-                    currentSortType = "recent"
-                    binding.tvSortLabel.text = "Recent"
-                    loadCallsList(currentSortType, resetData = true)
-                    true
-                }
-                R.id.action_sort_talk_time -> {
-                    currentSortType = "talk_time"
-                    binding.tvSortLabel.text = "Talk Time"
-                    loadCallsList(currentSortType, resetData = true)
-                    true
-                }
-                R.id.action_sort_name -> {
-                    currentSortType = "a_z"
-                    binding.tvSortLabel.text = "A-Z"
-                    loadCallsList(currentSortType, resetData = true)
-                    true
-                }
-                else -> false
-            }
-        }
-        popup.show()
-    }
-
     private fun setupChatIconClickListener() {
         binding.cardChat.setOnClickListener {
             // Open ChatListActivity
@@ -255,7 +204,7 @@ class RecentFragment : BaseFragment() {
             return
         }
 
-        Log.d("RecentFragment", "Loading unread message count for user: $myUserId")
+        Log.d("FavouriteFragment", "Loading unread message count for user: $myUserId")
 
         // Call API to get chat list
         apiManager.getMyChat(myUserId, null, 100, 0, object : NetworkCallback<MyChatResponse> {
@@ -266,31 +215,31 @@ class RecentFragment : BaseFragment() {
                     val responseBody = response.body()
                     if (responseBody?.success == true && responseBody.data != null) {
                         val chats = responseBody.data.chats
-                        Log.d("RecentFragment", "✅ Received ${chats.size} chats from API")
+                        Log.d("FavouriteFragment", "✅ Received ${chats.size} chats from API")
 
                         // Calculate total unread count
                         val totalUnread = chats.sumOf { it.unreadCount }
-                        Log.d("RecentFragment", "📊 Total unread count: $totalUnread")
+                        Log.d("FavouriteFragment", "📊 Total unread count: $totalUnread")
                         updateUnreadBadge(totalUnread)
                     } else {
-                        Log.e("RecentFragment", "❌ API response unsuccessful or data is null")
+                        Log.e("FavouriteFragment", "❌ API response unsuccessful or data is null")
                         updateUnreadBadge(0)
                     }
                 } else {
-                    Log.e("RecentFragment", "❌ API call failed: ${response.code()}")
+                    Log.e("FavouriteFragment", "❌ API call failed: ${response.code()}")
                     updateUnreadBadge(0)
                 }
             }
 
             override fun onFailure(call: Call<MyChatResponse>, t: Throwable) {
                 if (!isAdded) return
-                Log.e("RecentFragment", "❌ Error loading unread count: ${t.message}", t)
+                Log.e("FavouriteFragment", "❌ Error loading unread count: ${t.message}", t)
                 updateUnreadBadge(0)
             }
 
             override fun onNoNetwork() {
                 if (!isAdded) return
-                Log.e("RecentFragment", "❌ No network connection")
+                Log.e("FavouriteFragment", "❌ No network connection")
                 updateUnreadBadge(0)
             }
         })
@@ -298,38 +247,37 @@ class RecentFragment : BaseFragment() {
 
     private fun updateUnreadBadge(count: Int) {
         if (!::binding.isInitialized) {
-            Log.d("RecentFragment", "❌ Binding not initialized")
+            Log.d("FavouriteFragment", "❌ Binding not initialized")
             return
         }
 
-        Log.d("RecentFragment", "📬 Updating unread badge: $count")
+        Log.d("FavouriteFragment", "📬 Updating unread badge: $count")
 
         if (count > 0) {
             binding.tvUnreadBadge.visibility = View.VISIBLE
             binding.tvUnreadBadge.text = if (count > 99) "99+" else count.toString()
-            Log.d("RecentFragment", "✅ Badge visible with count: $count")
+            Log.d("FavouriteFragment", "✅ Badge visible with count: $count")
         } else {
             binding.tvUnreadBadge.visibility = View.GONE
-            Log.d("RecentFragment", "⚠️ Badge hidden (no unread)")
+            Log.d("FavouriteFragment", "⚠️ Badge hidden (no unread)")
         }
     }
-
 
     override fun onResume() {
         super.onResume()
 
         if (FcmUtils.isUserAvailable==0){
-            loadCallsList(currentSortType, resetData = true)
+            loadFavouritesList(resetData = true)
         }
 
         if (FcmUtils.shouldRefreshCallList == 1) {
-            Log.d("RecentFragment", "Call rejected detected, refreshing call list")
-            loadCallsList(currentSortType, resetData = true)
+            Log.d("FavouriteFragment", "Call rejected detected, refreshing favourite list")
+            loadFavouritesList(resetData = true)
             FcmUtils.shouldRefreshCallList = 0  // Reset flag after refresh
         }
 
         // Refresh unread count when returning to this screen
-        Log.d("RecentFragment", "🔄 onResume - reloading unread count")
+        Log.d("FavouriteFragment", "🔄 onResume - reloading unread count")
         loadUnreadMessageCount()
     }
     
@@ -337,7 +285,6 @@ class RecentFragment : BaseFragment() {
         super.onDestroyView()
         // Clean up search handler
         searchRunnable?.let { searchHandler.removeCallbacks(it) }
-        // Clean up listeners when fragment is destroyed
-//        unreadCountsMap.clear()
     }
 }
+

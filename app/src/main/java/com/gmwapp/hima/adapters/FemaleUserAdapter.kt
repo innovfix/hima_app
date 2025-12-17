@@ -73,6 +73,10 @@ class FemaleUserAdapter(
         val audioStatus = femaleUser.audio_status
         val videoStatus = femaleUser.video_status
 
+        // Show online indicator if either audio or video is enabled
+        val isOnline = audioStatus == 1 || videoStatus == 1
+        holder.binding.onlineIndicator.visibility = if (isOnline) View.VISIBLE else View.GONE
+
         // Configure Audio Call Button with Gradient
         val audioButton = holder.binding.cvAudio.getChildAt(0) as? android.widget.LinearLayout
         if (audioStatus == 1) {
@@ -115,7 +119,9 @@ class FemaleUserAdapter(
             holder.binding.cvVideo.alpha = 0.7f
         }
 
-        holder.binding.tvName.text = femaleUser.name
+        // Remove numbers from name - show only alphabets
+        val nameWithoutNumbers = femaleUser.name.replace(Regex("[0-9]"), "")
+        holder.binding.tvName.text = nameWithoutNumbers
         holder.binding.tvLanguage.text = femaleUser.language
 
         val interestsAsString = femaleUser.interests.trim('[', ']').split(", ")

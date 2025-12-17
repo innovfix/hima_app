@@ -14,7 +14,6 @@
         android:layout_height="wrap_content"
         android:background="@color/white"
         android:elevation="2dp"
-        android:fitsSystemWindows="true"
         app:elevation="2dp">
 
         <androidx.constraintlayout.widget.ConstraintLayout
@@ -183,6 +182,46 @@
         </com.google.android.material.card.MaterialCardView>
     </com.google.android.material.appbar.AppBarLayout>
 
+    <!-- Filter Card (Centered between AppBar and RecyclerView) -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/card_filter"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="85dp"
+        app:layout_anchor="@id/app_bar_layout"
+        app:layout_anchorGravity="bottom|center"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="2dp"
+        app:strokeWidth="1dp"
+        app:strokeColor="@color/light_grey"
+        app:cardBackgroundColor="@color/white">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="8dp">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:src="@drawable/ic_sort"
+                app:tint="@color/black_light" />
+
+            <TextView
+                android:id="@+id/tv_filter_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:fontFamily="@font/poppins_medium"
+                android:text="All"
+                android:textColor="@color/black_light"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
     <!-- Profiles List -->
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/swipeRefreshLayout"
@@ -196,7 +235,7 @@
             android:layout_height="match_parent"
             android:clipToPadding="false"
             android:paddingHorizontal="12dp"
-            android:paddingTop="8dp"
+            android:paddingTop="48dp"
             android:paddingBottom="72dp" />
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
@@ -270,7 +309,7 @@
         android:layout_marginEnd="110dp"
         android:layout_marginBottom="182dp"
         android:background="@drawable/coin_d"
-        android:visibility="gone" 
+        android:visibility="gone"
         tools:ignore="ContentDescription" />
 
     <TextView
@@ -315,7 +354,7 @@
         android:layout_marginEnd="110dp"
         android:layout_marginBottom="106dp"
         android:background="@drawable/coin_d"
-        android:visibility="gone" 
+        android:visibility="gone"
         tools:ignore="ContentDescription" />
 
     <TextView

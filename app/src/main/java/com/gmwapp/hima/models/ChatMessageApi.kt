@@ -21,6 +21,7 @@ data class ChatMessageApi(
     @SerializedName("from_user_id")
     val fromUserId: Int? = null,
     @SerializedName("to_user_id")
-    val toUserId: Int? = null
+    val toUserId: Int? = null,
+    val reactions: List<MessageReaction>? = null  // Array of {user_id, reaction_emoji}
 )
 

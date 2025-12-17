@@ -32,6 +32,12 @@ import com.gmwapp.hima.databinding.ActivityRatingBinding
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.BlockUserViewModel
 import com.gmwapp.hima.viewmodels.RatingViewModel
+import com.gmwapp.hima.retrofit.ApiManager
+import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
+import com.gmwapp.hima.retrofit.responses.AddFavoriteResponse
+import retrofit2.Call
+import retrofit2.Response
+import javax.inject.Inject
 import com.google.android.flexbox.AlignItems
 import com.google.android.flexbox.FlexDirection
 import com.google.android.flexbox.FlexWrap
@@ -43,6 +49,9 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class RatingActivity : BaseActivity() {
 
+    @Inject
+    lateinit var apiManager: ApiManager
+
     val viewModel: RatingViewModel by viewModels()
     val blockUserViewModel: BlockUserViewModel by viewModels()
 
@@ -53,6 +62,12 @@ class RatingActivity : BaseActivity() {
     private var selectedReviewPosition: Int = RecyclerView.NO_POSITION // Track the selected review position
     private var discription: String = ""
     var isBlocked = false
+    
+    // Track API completion status
+    private var wasRatingApiCalled = false
+    private var wasFavoriteApiCalled = false
+    private var isRatingApiCompleted = false
+    private var isFavoriteApiCompleted = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -77,6 +92,7 @@ class RatingActivity : BaseActivity() {
 
         initUi()
         showBlockToogle()
+        showFavouriteToggle()
 
         // Add listener to review text input for validation
         binding.etUserName.addTextChangedListener {
@@ -140,13 +156,15 @@ class RatingActivity : BaseActivity() {
             if (response != null && response.success) {
                 // Handle successful rating submission
                 Toast.makeText(this, "Rating submitted successfully", Toast.LENGTH_SHORT).show()
-                finish()
+                isRatingApiCompleted = true
             } else {
                 // Handle failure
                 //    Toast.makeText(this, "Rating submission failed", Toast.LENGTH_SHORT).show()
-
-                finish()
+                isRatingApiCompleted = true
             }
+            
+            // Check if we can close the activity now
+            checkAndCloseActivity()
         })
 
 
@@ -159,6 +177,7 @@ class RatingActivity : BaseActivity() {
             var gender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
 
             val isBlocking = gender == "female" && binding.cbBlockUser.isChecked
+            val isAddingFavorite = gender == "male" && binding.cbFavouriteUser.isChecked
 
 
             val rating = if (selectedRating > 0) selectedRating else 0 // Default to 3 if no rating is selected
@@ -169,11 +188,23 @@ class RatingActivity : BaseActivity() {
 
 
 
-            if (rating > 0) {500
+            // Reset completion flags
+            wasRatingApiCalled = false
+            wasFavoriteApiCalled = false
+            isRatingApiCompleted = false
+            isFavoriteApiCompleted = false
+            
+            if (rating > 0) {
                 // Proceed with rating submission
+                wasRatingApiCalled = true
 
                 if (isBlocking) {
                     blockMale(userid, call_userid)
+                }
+
+                if (isAddingFavorite && userid != null && call_userid != 0) {
+                    wasFavoriteApiCalled = true
+                    addToFavorite(userid, call_userid)
                 }
 
                 BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
@@ -183,14 +214,17 @@ class RatingActivity : BaseActivity() {
                 }
 
             } else {
-                // If no rating is provided, just finish the activity
-                //  Toast.makeText(this, "No rating provided", Toast.LENGTH_SHORT).show()
+                // If no rating is provided
                 if (isBlocking) {
                     // Only blocking - wait for block API to complete before finishing
                     blockMale(userid, call_userid)
                     // Don't finish here - let observeBlockuser() handle it
+                } else if (isAddingFavorite && userid != null && call_userid != 0) {
+                    // Only adding favorite - call API then finish after success
+                    wasFavoriteApiCalled = true
+                    addToFavorite(userid, call_userid)
                 } else {
-                    // Neither rating nor blocking - just finish
+                    // Neither rating nor blocking nor favorite - just finish
                     finish()
                 }
             }
@@ -327,6 +361,13 @@ class RatingActivity : BaseActivity() {
         }
     }
 
+    fun showFavouriteToggle(){
+        var gender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
+        if(gender=="male"){
+            binding.llFavouriteUser.visibility= View.VISIBLE
+        }
+    }
+
     fun blockMale(userid: Int?, call_userid: Int) {
         var blocked = 0
         isBlocked = binding.cbBlockUser.isChecked
@@ -357,6 +398,57 @@ class RatingActivity : BaseActivity() {
             if (selectedRating == 0) {
                 finish()
             }
+        }
+    }
+
+    fun addToFavorite(userId: Int, favoriteId: Int) {
+        apiManager.addFavorite(userId, favoriteId, object : NetworkCallback<AddFavoriteResponse> {
+            override fun onResponse(call: Call<AddFavoriteResponse>, response: Response<AddFavoriteResponse>) {
+                if (response.isSuccessful && response.body() != null) {
+                    val result = response.body()
+                    if (result?.success == true) {
+                        Toast.makeText(this@RatingActivity, result.message ?: "Added to favorites", Toast.LENGTH_SHORT).show()
+                        isFavoriteApiCompleted = true
+                    } else {
+                        Toast.makeText(this@RatingActivity, result?.message ?: "Failed to add to favorites", Toast.LENGTH_SHORT).show()
+                        isFavoriteApiCompleted = true
+                    }
+                } else {
+                    Toast.makeText(this@RatingActivity, "Failed to add to favorites", Toast.LENGTH_SHORT).show()
+                    isFavoriteApiCompleted = true
+                }
+                
+                // Check if we can close the activity now
+                checkAndCloseActivity()
+            }
+
+            override fun onFailure(call: Call<AddFavoriteResponse>, t: Throwable) {
+                isFavoriteApiCompleted = true
+                Toast.makeText(this@RatingActivity, "Error: ${t.message}", Toast.LENGTH_SHORT).show()
+                
+                // Check if we can close the activity now
+                checkAndCloseActivity()
+            }
+
+            override fun onNoNetwork() {
+                isFavoriteApiCompleted = true
+                Toast.makeText(this@RatingActivity, "No network connection", Toast.LENGTH_SHORT).show()
+                
+                // Check if we can close the activity now
+                checkAndCloseActivity()
+            }
+        })
+    }
+    
+    private fun checkAndCloseActivity() {
+        // Close activity when:
+        // 1. Rating API was not called OR rating API is completed
+        // 2. Favorite API was not called OR favorite API is completed
+        val ratingDone = !wasRatingApiCalled || isRatingApiCompleted
+        val favoriteDone = !wasFavoriteApiCalled || isFavoriteApiCompleted
+        
+        if (ratingDone && favoriteDone) {
+            finish()
         }
     }
 

@@ -15,6 +15,13 @@
         android:title="@string/recent"
         app:showAsAction="always" />
     <item
+        android:id="@+id/favourite"
+        android:enabled="true"
+        android:icon="@drawable/nav_favourite"
+        android:iconTint="@color/white"
+        android:title="@string/favourite"
+        app:showAsAction="always" />
+    <item
         android:id="@+id/profile"
         android:enabled="true"
         android:icon="@drawable/nav_profile"

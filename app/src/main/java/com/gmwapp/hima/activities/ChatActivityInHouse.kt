@@ -5,7 +5,9 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
@@ -50,6 +52,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
 import android.content.Intent
+import org.json.JSONObject
 
 @AndroidEntryPoint
 class ChatActivityInHouse : AppCompatActivity() {
@@ -198,7 +201,13 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        chatAdapter = ChatAdapter(messages)
+        chatAdapter = ChatAdapter(
+            messages = messages,
+            enableReactions = true,
+            myUserId = myUserId,
+            onReactionChanged = { message, reactionEmoji -> handleReactionUpdate(message, reactionEmoji) },
+            onReactionClick = { message, emoji -> showReactionDetails(message, emoji) }
+        )
         rvMessages.apply {
             // WhatsApp-style layout: messages anchored to bottom, newest at bottom
             // Messages are sorted oldest first (index 0 = oldest, index N = newest)
@@ -252,6 +261,60 @@ class ChatActivityInHouse : AppCompatActivity() {
         if (myUserId == 0 || peerUserId == -1) {
             Toast.makeText(this, "Error: Invalid user data", Toast.LENGTH_SHORT).show()
             finish()
+        }
+    }
+
+    private fun handleReactionUpdate(message: ChatMessage, reactionEmoji: String?) {
+        if (message.isDateHeader) return
+        
+        val messageId = message.id.toIntOrNull() ?: return
+        
+        // Send reaction to server via Socket.IO (with API fallback)
+        if (socketManager.isConnected()) {
+            socketManager.sendReaction(myUserId, messageId, reactionEmoji)
+            Log.d("ChatReactions", "📤 Sending reaction via Socket.IO - Message: $messageId, Reaction: $reactionEmoji")
+        } else {
+            // Fallback to API
+            apiManager.addMessageReaction(
+                userId = myUserId,
+                messageId = messageId,
+                reactionEmoji = reactionEmoji,
+                object : NetworkCallback<com.gmwapp.hima.retrofit.responses.AddReactionResponse> {
+                    override fun onResponse(
+                        call: Call<com.gmwapp.hima.retrofit.responses.AddReactionResponse>,
+                        response: Response<com.gmwapp.hima.retrofit.responses.AddReactionResponse>
+                    ) {
+                        if (response.isSuccessful && response.body()?.success == true) {
+                            val data = response.body()?.data
+                            if (data != null) {
+                                // Update local message with reactions
+                                updateMessageReactions(messageId.toString(), data.allReactions)
+                            }
+                        }
+                    }
+
+                    override fun onFailure(
+                        call: Call<com.gmwapp.hima.retrofit.responses.AddReactionResponse>,
+                        t: Throwable
+                    ) {
+                        Log.e("ChatReactions", "Failed to send reaction via API: ${t.message}")
+                    }
+
+                    override fun onNoNetwork() {
+                        Log.e("ChatReactions", "No network connection")
+                    }
+                }
+            )
+            Log.w("ChatReactions", "⚠️ Socket.IO not connected - Using API fallback")
+        }
+    }
+    
+    private fun updateMessageReactions(messageId: String, reactions: List<com.gmwapp.hima.models.MessageReaction>?) {
+        val messageIndex = messages.indexOfFirst { it.id == messageId }
+        if (messageIndex != -1) {
+            val reactionsMap = reactions?.associate { it.userId to it.reactionEmoji } ?: emptyMap()
+            messages[messageIndex].reactions = reactionsMap
+            chatAdapter.notifyItemChanged(messageIndex)
         }
     }
 
@@ -370,6 +433,73 @@ class ChatActivityInHouse : AppCompatActivity() {
                 }
             }
         }
+
+        lifecycleScope.launch {
+            socketManager.reactionUpdated.collectLatest { reactionUpdate ->
+                reactionUpdate?.let {
+                    if (it.chatId == chatId) {
+                        handleIncomingReaction(it)
+                    }
+                }
+            }
+        }
+    }
+    
+    private fun handleIncomingReaction(reactionUpdate: com.gmwapp.hima.socket.ReactionUpdateEvent) {
+        val messageId = reactionUpdate.messageId.toString()
+        val messageIndex = messages.indexOfFirst { it.id == messageId }
+        
+        if (messageIndex != -1) {
+            // Convert all_reactions to Map<userId, emoji>
+            val reactionsMap = mutableMapOf<Int, String>()
+            reactionUpdate.allReactions?.forEach { reactionMapData ->
+                val userId = (reactionMapData["user_id"] as? Number)?.toInt() ?: return@forEach
+                val emoji = reactionMapData["reaction_emoji"] as? String ?: return@forEach
+                reactionsMap[userId] = emoji
+            }
+            
+            messages[messageIndex].reactions = reactionsMap
+            chatAdapter.notifyItemChanged(messageIndex)
+            Log.d("ChatReactions", "✅ Updated reaction for message $messageId: $reactionsMap")
+        }
+    }
+    
+    private fun showReactionDetails(message: ChatMessage, clickedEmoji: String) {
+        val reactions = message.reactions
+        if (reactions.isEmpty()) return
+        
+        // Get peer user info from intent
+        val peerUserName = intent.getStringExtra("USER_NAME") ?: "User"
+        val peerUserImage = intent.getStringExtra("USER_IMAGE") ?: ""
+        
+        // Show bottom sheet
+        val bottomSheet = com.gmwapp.hima.dialogs.BottomSheetReactionDetails.newInstance(
+            message = message,
+            myUserId = myUserId,
+            peerUserId = peerUserId,
+            peerUserName = peerUserName,
+            peerUserImage = peerUserImage,
+            onReactionRemove = { msg, emoji ->
+                // Remove reaction when user taps "Tap to remove"
+                handleReactionUpdate(msg, null)
+            },
+            onAddReaction = { msg ->
+                // Show reaction popup when user taps "Add Reaction" button
+                val messageIndex = messages.indexOfFirst { it.id == msg.id }
+                if (messageIndex != -1) {
+                    val viewHolder = rvMessages.findViewHolderForAdapterPosition(messageIndex)
+                    if (viewHolder != null && viewHolder.itemView != null) {
+                        val tvMessage = viewHolder.itemView.findViewById<TextView>(R.id.tv_message)
+                        if (tvMessage != null) {
+                            // Use the adapter's method to show reaction popup
+                            chatAdapter.showReactionPopupForPosition(tvMessage, messageIndex)
+                        }
+                    }
+                }
+            }
+        )
+        
+        bottomSheet.show(supportFragmentManager, "BottomSheetReactionDetails")
     }
 
     private fun loadMessages() {
@@ -493,6 +623,8 @@ class ChatActivityInHouse : AppCompatActivity() {
                             
                             messages.clear()
                             messages.addAll(sortedMessages)
+                            
+                            // Reactions are now loaded from API response, no need to apply stored reactions
                             
                             // Add header at top (position 0) and at date boundaries
                             updateTopHeader(messages)
@@ -804,7 +936,9 @@ class ChatActivityInHouse : AppCompatActivity() {
                             val tempIndex = messages.indexOfFirst { it.id.startsWith("temp_") && it.message == messageText }
                             if (tempIndex != -1) {
                                 val tempId = messages[tempIndex].id
+                                val existingReactions = messages[tempIndex].reactions
                                 messages[tempIndex] = realMessage
+                                messages[tempIndex].reactions = existingReactions
                                 messageSendMethod[realMessage.id] = "api"
                                 
                                 // Update headers (will add boundary header if date changed)
@@ -875,7 +1009,10 @@ class ChatActivityInHouse : AppCompatActivity() {
         
         if (tempMessageIndex != -1) {
             // Replace temp message with real one
+            val tempId = messages[tempMessageIndex].id
+            val existingReactions = messages[tempMessageIndex].reactions
             messages[tempMessageIndex] = chatMessage
+            messages[tempMessageIndex].reactions = existingReactions
             
             // Update headers (will add boundary header if date changed)
             updateTopHeader(messages)
@@ -909,6 +1046,9 @@ class ChatActivityInHouse : AppCompatActivity() {
         val timestamp = parseTimestamp(timestampString)
         val isSentByMe = apiMsg.fromUserId == myUserId
         
+        // Convert reactions from API to Map<userId, emoji>
+        val reactionsMap = apiMsg.reactions?.associate { it.userId to it.reactionEmoji } ?: emptyMap()
+        
         Log.d("ChatTimeFix", "Message ID: ${apiMsg.id}, Using: ${if (apiMsg.createdAt != null) "created_at" else "timestamp"}, Value: $timestampString")
         
         return ChatMessage(
@@ -916,7 +1056,8 @@ class ChatActivityInHouse : AppCompatActivity() {
             message = apiMsg.message,
             timestamp = timeFormat.format(timestamp),
             isSentByMe = isSentByMe,
-            date = timestamp
+            date = timestamp,
+            reactions = reactionsMap
         )
     }
 
@@ -924,12 +1065,21 @@ class ChatActivityInHouse : AppCompatActivity() {
         val timestamp = parseTimestamp(socketMsg.timestamp)
         val isSentByMe = socketMsg.fromUserId == myUserId
         
+        // Convert reactions from Socket to Map<userId, emoji>
+        val reactionsMap = mutableMapOf<Int, String>()
+        socketMsg.reactions?.forEach { reactionMap ->
+            val userId = (reactionMap["user_id"] as? Number)?.toInt() ?: return@forEach
+            val emoji = reactionMap["reaction_emoji"] as? String ?: return@forEach
+            reactionsMap[userId] = emoji
+        }
+        
         return ChatMessage(
             id = socketMsg.id.toString(),
             message = socketMsg.message,
             timestamp = timeFormat.format(timestamp),
             isSentByMe = isSentByMe,
-            date = timestamp
+            date = timestamp,
+            reactions = reactionsMap
         )
     }
 
@@ -939,6 +1089,9 @@ class ChatActivityInHouse : AppCompatActivity() {
         val timestamp = parseTimestamp(timestampString)
         val isSentByMe = fallbackMsg.fromUserId == myUserId
         
+        // Fallback messages don't include reactions, use empty map
+        val reactionsMap = emptyMap<Int, String>()
+        
         Log.d("ChatTimeFix", "Fallback Message ID: ${fallbackMsg.id}, Using: ${if (fallbackMsg.createdAt != null) "created_at" else "timestamp"}, Value: $timestampString")
         
         return ChatMessage(
@@ -946,7 +1099,8 @@ class ChatActivityInHouse : AppCompatActivity() {
             message = fallbackMsg.message,
             timestamp = timeFormat.format(timestamp),
             isSentByMe = isSentByMe,
-            date = timestamp
+            date = timestamp,
+            reactions = reactionsMap
         )
     }
 

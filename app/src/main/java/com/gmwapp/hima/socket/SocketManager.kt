@@ -49,6 +49,9 @@ class SocketManager private constructor() {
     private val _userTyping = MutableStateFlow<TypingEvent?>(null)
     val userTyping: StateFlow<TypingEvent?> = _userTyping.asStateFlow()
     
+    private val _reactionUpdated = MutableStateFlow<ReactionUpdateEvent?>(null)
+    val reactionUpdated: StateFlow<ReactionUpdateEvent?> = _reactionUpdated.asStateFlow()
+    
     /**
      * Connect to Socket.IO server using userId
      * After connection, automatically joins user room
@@ -311,6 +314,19 @@ class SocketManager private constructor() {
                     // Handle chat message event (real-time sync in chat room)
                     val messageObj = args[0] as? JSONObject
                     if (messageObj != null) {
+                        // Parse reactions if present
+                        val reactionsArray = messageObj.optJSONArray("reactions")
+                        val reactionsList = mutableListOf<Map<String, Any>>()
+                        if (reactionsArray != null) {
+                            for (i in 0 until reactionsArray.length()) {
+                                val reactionObj = reactionsArray.getJSONObject(i)
+                                reactionsList.add(mapOf(
+                                    "user_id" to reactionObj.optInt("user_id", 0),
+                                    "reaction_emoji" to reactionObj.optString("reaction_emoji", "")
+                                ))
+                            }
+                        }
+                        
                         val message = ChatMessageSocket(
                             id = messageObj.optInt("id", 0),
                             chatId = messageObj.optString("chat_id", ""),
@@ -322,7 +338,8 @@ class SocketManager private constructor() {
                             isRead = messageObj.optInt("is_read", 0) == 1,
                             timestamp = messageObj.optString("timestamp", ""),
                             fromUserId = messageObj.optInt("from_user_id", 0).takeIf { it > 0 },
-                            toUserId = messageObj.optInt("to_user_id", 0).takeIf { it > 0 }
+                            toUserId = messageObj.optInt("to_user_id", 0).takeIf { it > 0 },
+                            reactions = if (reactionsList.isNotEmpty()) reactionsList else null
                         )
                         _newMessage.value = message
                         Log.d("SocketIOCheck", "📨 Chat message received: ${message.message}")
@@ -367,6 +384,47 @@ class SocketManager private constructor() {
                     _userTyping.value = event
                 } catch (e: Exception) {
                     Log.e("SocketIOCheck", "Error parsing user_typing: ${e.message}", e)
+                }
+            }
+            
+            on("reaction_updated") { args ->
+                try {
+                    val data = args[0] as? JSONObject
+                    val allReactionsArray = data?.optJSONArray("all_reactions")
+                    val reactionsList = mutableListOf<Map<String, Any>>()
+                    
+                    if (allReactionsArray != null) {
+                        for (i in 0 until allReactionsArray.length()) {
+                            val reactionObj = allReactionsArray.getJSONObject(i)
+                            reactionsList.add(mapOf(
+                                "user_id" to reactionObj.optInt("user_id", 0),
+                                "reaction_emoji" to reactionObj.optString("reaction_emoji", "")
+                            ))
+                        }
+                    }
+                    
+                    val event = ReactionUpdateEvent(
+                        messageId = data?.optInt("message_id", 0) ?: 0,
+                        chatId = data?.optString("chat_id", "") ?: "",
+                        userId = data?.optInt("user_id", 0) ?: 0,
+                        reactionEmoji = data?.optString("reaction_emoji", null),
+                        allReactions = reactionsList
+                    )
+                    _reactionUpdated.value = event
+                    Log.d("SocketIOCheck", "✅ Reaction updated received - Message: ${event.messageId}, Reaction: ${event.reactionEmoji}")
+                } catch (e: Exception) {
+                    Log.e("SocketIOCheck", "Error parsing reaction_updated: ${e.message}", e)
+                }
+            }
+            
+            on("reaction_error") { args ->
+                try {
+                    val errorObj = args[0] as? JSONObject
+                    val errorMessage = errorObj?.optString("error", "Unknown error")
+                    Log.e("SocketIOCheck", "❌ Reaction error: $errorMessage")
+                    _messageError.value = "Reaction error: $errorMessage"
+                } catch (e: Exception) {
+                    Log.e("SocketIOCheck", "Error parsing reaction_error: ${e.message}", e)
                 }
             }
         }
@@ -527,6 +585,38 @@ class SocketManager private constructor() {
             Log.e("SocketIOCheck", "Error updating status: ${e.message}", e)
         }
     }
+    
+    /**
+     * Send a reaction to a message
+     * @param userId Current user's ID
+     * @param messageId Message ID to react to
+     * @param reactionEmoji Emoji reaction (e.g., "👍", "❤️") or null to remove reaction
+     */
+    fun sendReaction(userId: Int, messageId: Int, reactionEmoji: String?) {
+        if (!isConnected()) {
+            Log.e("SocketIOCheck", "❌ Cannot send reaction: Socket.IO not connected")
+            _messageError.value = "Socket.IO not connected"
+            return
+        }
+        
+        try {
+            val data = JSONObject().apply {
+                put("user_id", userId)
+                put("message_id", messageId)
+                if (reactionEmoji != null) {
+                    put("reaction_emoji", reactionEmoji)
+                } else {
+                    put("reaction_emoji", JSONObject.NULL)
+                }
+            }
+            
+            socket?.emit("send_reaction", data)
+            Log.d("SocketIOCheck", "📤 Sent reaction from $userId on message $messageId: $reactionEmoji")
+        } catch (e: Exception) {
+            Log.e("SocketIOCheck", "Error sending reaction: ${e.message}", e)
+            _messageError.value = e.message ?: "Unknown error"
+        }
+    }
 }
 
 // Data classes for Socket.IO events
@@ -541,7 +631,16 @@ data class ChatMessageSocket(
     val isRead: Boolean,
     val timestamp: String,
     val fromUserId: Int?,
-    val toUserId: Int?
+    val toUserId: Int?,
+    val reactions: List<Map<String, Any>>? = null  // Array of {user_id, reaction_emoji}
+)
+
+data class ReactionUpdateEvent(
+    val messageId: Int,
+    val chatId: String,
+    val userId: Int,
+    val reactionEmoji: String?,
+    val allReactions: List<Map<String, Any>>?  // Array of {user_id, reaction_emoji}
 )
 
 data class ChatUpdatedEvent(

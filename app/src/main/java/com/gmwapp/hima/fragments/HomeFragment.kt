@@ -13,6 +13,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AnimationUtils
+import androidx.appcompat.widget.PopupMenu
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -41,6 +42,7 @@ import kotlinx.coroutines.launch
 @AndroidEntryPoint
 class HomeFragment : BaseFragment() {
     private var isAllFabVisible: Boolean = false
+    private var filterType: String = "all" // Default filter is "all"
     lateinit var binding: FragmentHomeBinding
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
 
@@ -148,6 +150,9 @@ class HomeFragment : BaseFragment() {
 
 
 
+        // Setup filter menu
+        setupFilterMenu()
+        
         userData?.id?.let {
             if (context?.let { it1 -> isInternetAvailable(it1) } == true) {
                 loadFemaleUsers(it)
@@ -286,7 +291,7 @@ class HomeFragment : BaseFragment() {
                     // Notify the adapter that data has been cleared
                     (binding.rvProfiles.adapter as? FemaleUserAdapter)?.notifyDataSetChanged()
 
-                    // Reload the data
+                    // Reload the data with current filter
                     loadFemaleUsers(it)
                     Log.d("refreshing", "refreshing")
                 } else {
@@ -299,7 +304,65 @@ class HomeFragment : BaseFragment() {
 
 
     private fun loadFemaleUsers(userId: Int) {
-        femaleUsersViewModel.getFemaleUsers(userId)
+        // Only send filter parameter if it's "new", otherwise send null (backward compatible)
+        val filter = if (filterType == "new") "new" else null
+        femaleUsersViewModel.getFemaleUsers(userId, filter)
+    }
+    
+    private fun setupFilterMenu() {
+        // Set initial label - "All" is selected by default
+        binding.tvFilterLabel.text = "All"
+        
+        // Setup filter card click listener
+        binding.cardFilter.setOnClickListener {
+            showFilterMenu()
+        }
+    }
+    
+    private fun showFilterMenu() {
+        val popup = PopupMenu(requireContext(), binding.cardFilter)
+        popup.menuInflater.inflate(R.menu.menu_filter, popup.menu)
+        
+        popup.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.action_filter_all -> {
+                    if (filterType != "all") {
+                        filterType = "all"
+                        binding.tvFilterLabel.text = "All"
+                        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                        userData?.id?.let {
+                            if (context?.let { it1 -> isInternetAvailable(it1) } == true) {
+                                // Clear existing data
+                                femaleUsersViewModel.femaleUsersResponseLiveData.value?.data?.clear()
+                                (binding.rvProfiles.adapter as? FemaleUserAdapter)?.notifyDataSetChanged()
+                                // Reload with new filter
+                                loadFemaleUsers(it)
+                            }
+                        }
+                    }
+                    true
+                }
+                R.id.action_filter_new -> {
+                    if (filterType != "new") {
+                        filterType = "new"
+                        binding.tvFilterLabel.text = "New"
+                        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                        userData?.id?.let {
+                            if (context?.let { it1 -> isInternetAvailable(it1) } == true) {
+                                // Clear existing data
+                                femaleUsersViewModel.femaleUsersResponseLiveData.value?.data?.clear()
+                                (binding.rvProfiles.adapter as? FemaleUserAdapter)?.notifyDataSetChanged()
+                                // Reload with new filter
+                                loadFemaleUsers(it)
+                            }
+                        }
+                    }
+                    true
+                }
+                else -> false
+            }
+        }
+        popup.show()
     }
 
     fun initFab() {
@@ -402,6 +465,9 @@ class HomeFragment : BaseFragment() {
         if (FcmUtils.isUserAvailable==0){
             userData?.let { loadFemaleUsers(it.id) }
         }
+        
+        // Update filter label when resuming
+        binding.tvFilterLabel.text = if (filterType == "all") "All" else "New"
 
         checkFemaleStatus()
 

@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@android:color/white"
+    android:paddingBottom="16dp">
+
+    <!-- Top Handle/Drag Indicator -->
+    <View
+        android:id="@+id/bottom_sheet_handle"
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_marginTop="8dp"
+        android:background="#E0E0E0"
+        android:backgroundTint="#D1D5DB"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Title -->
+    <TextView
+        android:id="@+id/tv_reaction_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="20dp"
+        android:layout_marginEnd="24dp"
+        android:text="2 reactions"
+        android:textColor="#1F1F1F"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:fontFamily="@font/poppins_semibold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/bottom_sheet_handle" />
+
+    <!-- Reaction Filter Buttons Container -->
+    <HorizontalScrollView
+        android:id="@+id/hsv_reaction_filters"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="24dp"
+        android:scrollbars="none"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tv_reaction_title">
+
+        <LinearLayout
+            android:id="@+id/ll_reaction_filters"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <!-- Add Reaction Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_add_reaction"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:minWidth="0dp"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                android:text="➕"
+                android:textSize="20sp"
+                android:backgroundTint="#F3F4F6"
+                android:textColor="#1F1F1F"
+                app:cornerRadius="20dp"
+                app:strokeWidth="0dp"
+                app:elevation="0dp" />
+
+            <!-- Filter buttons will be added dynamically here -->
+
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!-- RecyclerView for Users List -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_reaction_users"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:nestedScrollingEnabled="false"
+        android:maxHeight="400dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/hsv_reaction_filters" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+

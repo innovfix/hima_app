@@ -455,6 +455,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         Log.d("DEBUG", "Received userID: $userID")
 
         userID?.toIntOrNull()?.let { offerViewModel.getOffer(it) }
+        
+        // Show/hide favourite menu item based on user gender (only for MALE users)
+        val userGender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
+        binding.bottomNavigationView.menu.findItem(R.id.favourite)?.isVisible = (userGender == DConstants.MALE)
+        
         binding.bottomNavigationView.setOnNavigationItemSelectedListener(this)
         
         // Ensure bottom navigation is visible on top
@@ -647,6 +652,14 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 window.statusBarColor = ContextCompat.getColor(this, R.color.white)
                 
                 transaction.replace(R.id.flFragment, RecentFragment()).commit()
+                return true
+            }
+
+            R.id.favourite -> {
+                // Set status bar to pink
+                window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+                
+                transaction.replace(R.id.flFragment, com.gmwapp.hima.fragments.FavouriteFragment()).commit()
                 return true
             }
 

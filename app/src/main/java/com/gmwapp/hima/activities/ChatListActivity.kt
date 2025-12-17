@@ -3,8 +3,13 @@ package com.gmwapp.hima.activities
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
 import android.view.View
+import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
@@ -40,6 +45,7 @@ class ChatListActivity : AppCompatActivity() {
     private lateinit var swipeRefreshLayout: SwipeRefreshLayout
     private lateinit var llEmptyState: LinearLayout
     private lateinit var progressBar: ProgressBar
+    private lateinit var etSearch: EditText
 
     @Inject
     lateinit var apiManager: ApiManager
@@ -47,6 +53,16 @@ class ChatListActivity : AppCompatActivity() {
     private lateinit var chatListAdapter: ChatListAdapter
     private val conversations = ArrayList<ChatConversation>()
     private var myUserId: Int = 0
+    
+    // Pagination
+    private var isLoading = false
+    private var offset = 0
+    private val limit = 10 // 10 chats per page
+    
+    // Debouncing for search
+    private val searchHandler = Handler(Looper.getMainLooper())
+    private var searchRunnable: Runnable? = null
+    private val SEARCH_DEBOUNCE_DELAY = 300L // 300ms delay
     
     // Date format for parsing timestamps from API (API returns IST timestamps)
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).apply {
@@ -61,6 +77,8 @@ class ChatListActivity : AppCompatActivity() {
         setupUserId()
         setupRecyclerView()
         setupClickListeners()
+        setupSearchListener()
+        setupPagination()
         loadConversations()
         onBackPressedBtn()
     }
@@ -91,6 +109,7 @@ class ChatListActivity : AppCompatActivity() {
         swipeRefreshLayout = findViewById(R.id.swipe_refresh_layout)
         llEmptyState = findViewById(R.id.ll_empty_state)
         progressBar = findViewById(R.id.progress_bar)
+        etSearch = findViewById(R.id.et_search)
 
         window.statusBarColor = ContextCompat.getColor(this, R.color.white)
 
@@ -149,36 +168,86 @@ class ChatListActivity : AppCompatActivity() {
             }
 
         swipeRefreshLayout.setOnRefreshListener {
-            loadConversations()
+            val currentSearch = etSearch.text.toString().trim()
+            loadConversations(currentSearch, resetData = true)
         }
     }
+    
+    private fun setupPagination() {
+        rvChatList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
 
-    private fun loadConversations() {
+                val layoutManager = recyclerView.layoutManager as LinearLayoutManager
+                if (!isLoading &&
+                    layoutManager.findLastCompletelyVisibleItemPosition() == chatListAdapter.itemCount - 1
+                ) {
+                    isLoading = true
+                    val currentSearch = etSearch.text.toString().trim()
+                    loadConversations(currentSearch, resetData = false)
+                }
+            }
+        })
+    }
+
+    private fun setupSearchListener() {
+        etSearch.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                // Cancel previous search runnable
+                searchRunnable?.let { searchHandler.removeCallbacks(it) }
+                
+                // Create new search runnable
+                val searchQuery = s?.toString()?.trim() ?: ""
+                searchRunnable = Runnable {
+                    loadConversations(searchQuery, resetData = true)
+                }
+                
+                // Post delayed search with debouncing
+                searchHandler.postDelayed(searchRunnable!!, SEARCH_DEBOUNCE_DELAY)
+            }
+
+            override fun afterTextChanged(s: Editable?) {}
+        })
+    }
+
+    private fun loadConversations(searchQuery: String = "", resetData: Boolean = true) {
         if (myUserId == 0) {
             swipeRefreshLayout.isRefreshing = false
             showEmptyState()
             return
         }
 
-        Log.d("ChatListActivity", "Loading chat conversations from API for user: $myUserId")
+        if (resetData) {
+            offset = 0
+            isLoading = true
+            if (::chatListAdapter.isInitialized) {
+                chatListAdapter.updateConversations(emptyList())
+            }
+        }
+
+        val searchText = searchQuery.trim()
+        Log.d("ChatListActivity", "Loading chat conversations from API for user: $myUserId, search: $searchText, offset: $offset, limit: $limit")
         progressBar.visibility = View.VISIBLE
         llEmptyState.visibility = View.GONE
         swipeRefreshLayout.isRefreshing = true
 
-        // Call API to get chat list
-        apiManager.getMyChat(myUserId, object : NetworkCallback<MyChatResponse> {
+        // Call API to get chat list with search query and pagination
+        apiManager.getMyChat(myUserId, if (searchText.isEmpty()) null else searchText, limit, offset, object : NetworkCallback<MyChatResponse> {
             override fun onResponse(call: Call<MyChatResponse>, response: Response<MyChatResponse>) {
                 swipeRefreshLayout.isRefreshing = false
                 progressBar.visibility = View.GONE
+                isLoading = false
 
                 if (response.isSuccessful) {
                     val responseBody = response.body()
                     if (responseBody?.success == true && responseBody.data != null) {
                         val chats = responseBody.data.chats
-                        Log.d("ChatListActivity", "✅ Received ${chats.size} chats from API")
+                        Log.d("ChatListActivity", "✅ Received ${chats.size} chats from API (offset: $offset)")
 
                         // Convert API response to ChatConversation objects
-                        val conversations = chats.map { chatItem ->
+                        val newConversations = chats.map { chatItem ->
                             val lastMessage = chatItem.lastMessage
                             val lastMessageTime = if (lastMessage != null) {
                                 try {
@@ -209,45 +278,69 @@ class ChatListActivity : AppCompatActivity() {
                         }
 
                         // Sort by last message time (newest first)
-                        val sortedConversations = conversations.sortedByDescending {
+                        val sortedConversations = newConversations.sortedByDescending {
                             it.lastMessageTime?.toDate()?.time ?: 0L
                         }
 
                         Log.d("ChatListActivity", "✅ Converted to ${sortedConversations.size} conversations")
-                        updateUI(sortedConversations)
+                        
+                        // Append to existing list if pagination, replace if reset
+                        if (resetData) {
+                            updateUI(sortedConversations, !searchText.isEmpty())
+                        } else {
+                            // Append new conversations to existing list
+                            val currentList = conversations.toMutableList()
+                            currentList.addAll(sortedConversations)
+                            updateUI(currentList, !searchText.isEmpty())
+                        }
+                        
+                        // Update offset for next page
+                        if (sortedConversations.isNotEmpty()) {
+                            offset += limit
+                        }
                     } else {
                         Log.e("ChatListActivity", "❌ API response unsuccessful or data is null")
-                        updateUI(emptyList())
+                        updateUI(emptyList(), !searchText.isEmpty())
                     }
                 } else {
                     Log.e("ChatListActivity", "❌ API call failed: ${response.code()}")
-                    updateUI(emptyList())
+                    updateUI(emptyList(), !searchText.isEmpty())
                 }
             }
 
             override fun onFailure(call: Call<MyChatResponse>, t: Throwable) {
                 swipeRefreshLayout.isRefreshing = false
                 progressBar.visibility = View.GONE
+                isLoading = false
                 Log.e("ChatListActivity", "❌ Error loading chat conversations: ${t.message}", t)
-                updateUI(emptyList())
+                if (resetData) {
+                    updateUI(emptyList(), !searchText.isEmpty())
+                }
             }
 
             override fun onNoNetwork() {
                 swipeRefreshLayout.isRefreshing = false
                 progressBar.visibility = View.GONE
+                isLoading = false
                 Log.e("ChatListActivity", "❌ No network connection")
-                updateUI(emptyList())
+                if (resetData) {
+                    updateUI(emptyList(), !searchText.isEmpty())
+                }
             }
         })
     }
 
 
-    private fun updateUI(conversationsList: List<ChatConversation>) {
+    private fun updateUI(conversationsList: List<ChatConversation>, isSearching: Boolean = false) {
         swipeRefreshLayout.isRefreshing = false
         progressBar.visibility = View.GONE
 
+        // Update the conversations list
+        conversations.clear()
+        conversations.addAll(conversationsList)
+
         if (conversationsList.isEmpty()) {
-            showEmptyState()
+            showEmptyState(isSearching)
         } else {
             hideEmptyState()
             chatListAdapter.updateConversations(conversationsList)
@@ -262,10 +355,14 @@ class ChatListActivity : AppCompatActivity() {
         }
     }
 
-    private fun showEmptyState() {
+    private fun showEmptyState(isSearching: Boolean = false) {
         rvChatList.visibility = View.GONE
         llEmptyState.visibility = View.VISIBLE
-        tvChatCount.text = "No conversations yet"
+        tvChatCount.text = if (isSearching) {
+            "No conversations found"
+        } else {
+            "No conversations yet"
+        }
     }
 
     private fun hideEmptyState() {
@@ -276,7 +373,14 @@ class ChatListActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         // Refresh conversations when returning to this screen
-        loadConversations()
+        val currentSearch = etSearch.text.toString().trim()
+        loadConversations(currentSearch, resetData = true)
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        // Clean up search handler
+        searchRunnable?.let { searchHandler.removeCallbacks(it) }
     }
 }
 

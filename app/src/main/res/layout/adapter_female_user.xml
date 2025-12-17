@@ -102,6 +102,45 @@
                 android:letterSpacing="0.08" />
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Online Indicator Badge (Right Side) -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/onlineIndicator"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="6dp"
+            android:layout_marginTop="6dp"
+            android:visibility="gone"
+            app:cardBackgroundColor="#10B981"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="2dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="5dp"
+                android:paddingVertical="2dp">
+
+                <View
+                    android:layout_width="5dp"
+                    android:layout_height="5dp"
+                    android:layout_marginEnd="3dp"
+                    android:background="@drawable/online_indicator" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="ONLINE"
+                    android:textColor="@color/white"
+                    android:fontFamily="@font/poppins_semibold"
+                    android:textSize="8sp"
+                    android:letterSpacing="0.02" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
         <!-- Right Side Content Area -->
         <LinearLayout
             android:id="@+id/content_area"

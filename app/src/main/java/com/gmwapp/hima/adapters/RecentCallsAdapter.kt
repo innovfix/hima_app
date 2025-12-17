@@ -35,7 +35,8 @@ class RecentCallsAdapter(
     val activity: Activity,
     private val callList: ArrayList<CallsListResponseData>,
     val onAudioListener: OnItemSelectionListener<CallsListResponseData>,
-    val onVideoListener: OnItemSelectionListener<CallsListResponseData>
+    val onVideoListener: OnItemSelectionListener<CallsListResponseData>,
+    val isFavouriteMode: Boolean = false // Flag to indicate if this is for favorites
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
 
@@ -76,7 +77,9 @@ class RecentCallsAdapter(
 
 
 
-        holder.binding.tvName.text = call.name
+        // Remove numbers from name - show only alphabets
+        val nameWithoutNumbers = call.name.replace(Regex("[0-9]"), "")
+        holder.binding.tvName.text = nameWithoutNumbers
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         if (userData?.gender == DConstants.MALE) {
             // Male users calling female users
@@ -169,15 +172,39 @@ class RecentCallsAdapter(
                 activity.startActivity(intent)
             }
         }
-        holder.binding.tvTime.text = call.started_time
-        // Add "min" only if not already present
-//        val durationText = if (call.duration.contains("min", ignoreCase = true)) {
-//            call.duration
-//        } else {
-//            "${call.duration} min"
-//        }
-        val durationText =    call.duration
-        holder.binding.tvDuration.text = durationText
+        // Hide duration and time for favorites mode
+        if (isFavouriteMode) {
+            holder.binding.tvTime.visibility = View.GONE
+            holder.binding.tvDuration.visibility = View.GONE
+            holder.binding.llDuration.visibility = View.GONE
+            
+            // Show "Chat Now" text instead of language
+            holder.binding.tvTime.visibility = View.VISIBLE
+            holder.binding.tvTime.text = activity.getString(R.string.chat_now)
+            holder.binding.tvTime.setBackgroundResource(R.drawable.language_tag_background)
+            holder.binding.tvTime.setTextColor(ContextCompat.getColor(activity, R.color.colorAccent))
+            holder.binding.tvTime.textSize = 10f
+            val padding = (8 * activity.resources.displayMetrics.density).toInt()
+            holder.binding.tvTime.setPadding(padding, padding / 2, padding, padding / 2)
+            
+            // Make "Chat Now" clickable to open ChatActivityInHouse
+            holder.binding.tvTime.setOnSingleClickListener {
+                val intent = android.content.Intent(activity, com.gmwapp.hima.activities.ChatActivityInHouse::class.java)
+                intent.putExtra("USER_ID", call.id)
+                intent.putExtra("USER_NAME", call.name)
+                intent.putExtra("USER_IMAGE", call.image)
+                activity.startActivity(intent)
+            }
+        } else {
+            holder.binding.tvTime.visibility = View.VISIBLE
+            holder.binding.tvDuration.visibility = View.VISIBLE
+            holder.binding.llDuration.visibility = View.VISIBLE
+            holder.binding.tvTime.text = call.started_time ?: ""
+            val durationText = call.duration ?: ""
+            holder.binding.tvDuration.text = durationText
+            // Remove click listener for non-favorite mode
+            holder.binding.tvTime.setOnClickListener(null)
+        }
 
         Log.d("RecentCallUserName","${call.name}")
 

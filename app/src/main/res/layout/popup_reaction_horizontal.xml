@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/ll_reaction_container"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="@drawable/bg_reaction_popup"
+    android:padding="8dp"
+    android:alpha="1.0"
+    android:gravity="center_vertical">
+
+    <!-- Emoji buttons will be added dynamically -->
+
+</LinearLayout>
+

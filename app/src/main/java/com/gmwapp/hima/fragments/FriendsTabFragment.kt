@@ -467,7 +467,7 @@ class FriendsTabFragment : Fragment() {
         binding.swipeRefresh.isRefreshing = true
         
         // Call API to get chat list
-        apiManager.getMyChat(myUserId, object : NetworkCallback<MyChatResponse> {
+        apiManager.getMyChat(myUserId, null, 100, 0, object : NetworkCallback<MyChatResponse> {
             override fun onResponse(call: Call<MyChatResponse>, response: Response<MyChatResponse>) {
                 if (!isAdded) return
                 

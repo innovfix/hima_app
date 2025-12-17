@@ -307,6 +307,37 @@
             android:layout_marginStart="4dp" />
     </LinearLayout>
 
+    <!-- Add to Favourite Option (Only for Male Users) -->
+    <LinearLayout
+        android:id="@+id/ll_favourite_user"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:visibility="gone"
+        android:layout_marginTop="8dp"
+        android:gravity="center_vertical"
+        app:layout_constraintTop_toBottomOf="@id/ll_block_user"
+        app:layout_constraintStart_toStartOf="@id/gl_left_margin_inner"
+        app:layout_constraintEnd_toEndOf="@id/gl_right_margin_inner">
+
+        <CheckBox
+            android:id="@+id/cb_favourite_user"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:buttonTint="@color/colorAccent" />
+
+        <TextView
+            android:id="@+id/tv_favourite_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Add to Favourite"
+            android:textColor="#333333"
+            android:fontFamily="@font/poppins_regular"
+            android:textSize="12sp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="4dp" />
+    </LinearLayout>
+
     <!-- Submit Button -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_submit"
@@ -325,7 +356,7 @@
         app:elevation="3dp"
         app:layout_constraintEnd_toEndOf="@id/gl_right_margin_inner"
         app:layout_constraintStart_toStartOf="@id/gl_left_margin_inner"
-        app:layout_constraintTop_toBottomOf="@id/ll_block_user"
+        app:layout_constraintTop_toBottomOf="@id/ll_favourite_user"
         app:layout_constraintBottom_toBottomOf="parent" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
