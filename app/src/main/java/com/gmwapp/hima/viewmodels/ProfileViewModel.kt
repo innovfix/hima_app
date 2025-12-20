@@ -261,16 +261,42 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
                         call: Call<UserValidationResponse>,
                         response: Response<UserValidationResponse>
                     ) {
-                        userValidationLiveData.postValue(response.body())
-                        Log.d("userValidationLiveData","${response.body()}")
+                        val responseBody = response.body()
+                        if (response.isSuccessful && responseBody != null) {
+                            // Post the response body (contains success status and message)
+                            // Backend returns HTTP 200 even for errors, with success: false in JSON
+                            userValidationLiveData.postValue(responseBody)
+                            Log.d("userValidationLiveData","Response: ${responseBody}")
+                        } else {
+                            // Handle cases where response body is null or HTTP error
+                            val errorMessage = try {
+                                if (response.errorBody() != null) {
+                                    response.errorBody()?.string() ?: "An error occurred"
+                                } else {
+                                    "An error occurred. Please try again."
+                                }
+                            } catch (e: Exception) {
+                                "An error occurred. Please try again."
+                            }
+                            // Create error response object
+                            val errorResponse = UserValidationResponse(
+                                success = false,
+                                message = errorMessage
+                            )
+                            userValidationLiveData.postValue(errorResponse)
+                            Log.e("userValidationLiveData","Error response: $errorMessage")
+                        }
                     }
 
                     override fun onFailure(call: Call<UserValidationResponse>, t: Throwable) {
-                        userValidationErrorLiveData.postValue(t.message)
+                        val errorMessage = t.message ?: "Network error occurred"
+                        userValidationErrorLiveData.postValue(errorMessage)
+                        Log.e("userValidationErrorLiveData","Network failure: $errorMessage")
                     }
 
                     override fun onNoNetwork() {
                         userValidationErrorLiveData.postValue(DConstants.NO_NETWORK)
+                        Log.e("userValidationErrorLiveData","No network connection")
                     }
                 })
         }

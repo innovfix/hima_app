@@ -51,8 +51,8 @@ class ChatListAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(conversation: ChatConversation) {
-            // Set user name
-            binding.tvUserName.text = conversation.userName
+            // Set user name (extract name only, remove trailing numbers)
+            binding.tvUserName.text = extractNameOnly(conversation.userName)
 
             // Set user image
             Glide.with(activity)
@@ -149,6 +149,17 @@ class ChatListAdapter(
             }
             return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
                     cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
+        }
+
+        /**
+         * Extracts the name part from username by removing trailing numbers
+         * Examples: "Joy22" -> "Joy", "ZNKAK467" -> "ZNKAK"
+         */
+        private fun extractNameOnly(username: String): String {
+            if (username.isEmpty()) return username
+            
+            // Remove trailing digits
+            return username.replace(Regex("\\d+$"), "").trim()
         }
     }
 }

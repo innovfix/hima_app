@@ -38,6 +38,7 @@ class ShareActivity : AppCompatActivity() {
      var downloadLink : String = ""
     private val loginViewModel: LoginViewModel by viewModels()
     private  var isPanCardVerified = false
+    private var disclaimerText: String = ""
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -78,6 +79,17 @@ class ShareActivity : AppCompatActivity() {
             }
         }
 
+        // Info icon click listener to toggle disclaimer
+        binding.ivInfo.setOnSingleClickListener {
+            if (disclaimerText.isNotEmpty()) {
+                if (binding.tvDisclamair.visibility == View.VISIBLE) {
+                    binding.tvDisclamair.visibility = View.GONE
+                } else {
+                    binding.tvDisclamair.visibility = View.VISIBLE
+                }
+            }
+        }
+
         if (userData?.gender=="female"){
             binding.coinPerInvite.text = "Money per invites"
             binding.coinEarned.text = "Total money earned"
@@ -100,20 +112,20 @@ class ShareActivity : AppCompatActivity() {
                 if (userData?.gender=="female"){
                     binding.tvCoinEarned.text = userData.referral_amount_gained.toString()
                     binding.tvCoinPerInvite.text = userData.money_per_referral.toString()
-
-                    var disclaimer = userData.disclaimer.toString()
-                    if (disclaimer.isNullOrEmpty()){
-                        binding.tvDisclamair.visibility = View.GONE
-                    }else{
-                        binding.tvDisclamair.visibility = View.VISIBLE
-                        binding.tvDisclamair.text = disclaimer
-
-                    }
-
                 }else{
                     binding.tvCoinEarned.text = userData.referral_coins_gained.toString()
                     binding.tvCoinPerInvite.text = userData.coins_per_referral.toString()
+                }
 
+                // Store disclaimer text and show/hide info icon based on API response
+                disclaimerText = userData.disclaimer?.toString() ?: ""
+                if (disclaimerText.isNotEmpty() && !disclaimerText.equals("null", ignoreCase = true)) {
+                    binding.tvDisclamair.text = disclaimerText
+                    binding.tvDisclamair.visibility = View.GONE // Initially hidden, shown on info icon click
+                    binding.ivInfo.visibility = View.VISIBLE
+                } else {
+                    binding.tvDisclamair.visibility = View.GONE
+                    binding.ivInfo.visibility = View.GONE
                 }
 
                 Log.d("referral", "${userData.referral_coins_gained}")

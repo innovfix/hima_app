@@ -42,6 +42,7 @@ class EditProfileActivity : BaseActivity() {
     private val profileViewModel: ProfileViewModel by viewModels()
     private val selectedInterests: ArrayList<String> = ArrayList()
     private var isValidUserName = true
+    private var originalUserName: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,9 +59,9 @@ class EditProfileActivity : BaseActivity() {
 
     private fun initUI() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        originalUserName = userData?.name
         binding.etUserName.setText(userData?.name)
         val sharedPreferences = getSharedPreferences("UserPrefs", MODE_PRIVATE)
-        val hasChangedName = sharedPreferences.getBoolean("hasChangedName", false)
 
         val gender = userData?.gender
 
@@ -70,13 +71,10 @@ class EditProfileActivity : BaseActivity() {
         else
         {
             binding.tvGender.text = "Female"
-            if (hasChangedName) {
-                binding.etUserName.isEnabled = false
-             //   Toast.makeText(this, "You can change your name only once.", Toast.LENGTH_SHORT).show()
-            } else {
-                binding.etUserName.isEnabled = true
-            }
         }
+        
+        // Always allow users to edit their name - backend will validate and return error if second time
+        binding.etUserName.isEnabled = true
 
         binding.tvPreferredLanguage.text = userData?.language
         //  binding.btnUpdate.setBackgroundResource(R.drawable.d_button_bg_disabled)
@@ -228,8 +226,11 @@ class EditProfileActivity : BaseActivity() {
         snapHelper.attachToRecyclerView(binding.rvAvatars)
         setCenterLayoutManager(binding.rvAvatars)
         userData?.gender?.let { profileViewModel.getAvatarsList(it) }
-        profileViewModel.userValidationLiveData.observe(this, Observer {
-            if (it!=null && it.success) {
+        profileViewModel.userValidationLiveData.observe(this, Observer { response ->
+            Log.d("EditProfile", "userValidationLiveData received: success=${response?.success}, message=${response?.message}")
+            
+            if (response != null && response.success) {
+                // ✅ Success - name is valid
                 isValidUserName = true
                 binding.cvUserName.setBackgroundResource(R.drawable.d_button_bg_user_name)
                 binding.pbUserNameLoader.visibility = View.GONE
@@ -237,34 +238,54 @@ class EditProfileActivity : BaseActivity() {
                 binding.ivWarning.visibility = View.GONE
                 binding.tvUserNameHint.text = getString(R.string.user_name_hint)
                 binding.tvUserNameHint.setTextColor(getColor(R.color.white))
+                binding.tvUserNameHint.visibility = View.VISIBLE
             } else {
+                // ❌ Error - display error message from API
                 isValidUserName = false
                 binding.cvUserName.setBackgroundResource(R.drawable.d_button_bg_error)
                 binding.pbUserNameLoader.visibility = View.GONE
                 binding.ivSuccess.visibility = View.GONE
                 binding.ivWarning.visibility = View.VISIBLE
-                binding.tvUserNameHint.text = it?.message
+                
+                // Get error message from API response
+                val errorMessage = if (response?.message != null && response.message.isNotEmpty()) {
+                    response.message
+                } else {
+                    getString(R.string.please_try_again_later)
+                }
+                
+                Log.d("EditProfile", "Displaying error message: $errorMessage")
+                
+                // Set error message in TextView
+                binding.tvUserNameHint.text = errorMessage
                 binding.tvUserNameHint.setTextColor(getColor(android.R.color.white))
+                binding.tvUserNameHint.visibility = View.VISIBLE
+                
+                // Also show Toast to ensure user sees the error
+                Toast.makeText(this@EditProfileActivity, errorMessage, Toast.LENGTH_LONG).show()
+                
+                Log.d("EditProfile", "Error message displayed - TextView text: ${binding.tvUserNameHint.text}, visibility: ${binding.tvUserNameHint.visibility}")
             }
             updateButton()
         })
         profileViewModel.userValidationErrorLiveData.observe(this, Observer {
+            isValidUserName = false
+            binding.cvUserName.setBackgroundResource(R.drawable.d_button_bg_error)
+            binding.pbUserNameLoader.visibility = View.GONE
+            binding.ivSuccess.visibility = View.GONE
+            binding.ivWarning.visibility = View.VISIBLE
+            
             if (it == DConstants.NO_NETWORK) {
-                Toast.makeText(
-                    this@EditProfileActivity,
-                    getString(R.string.please_try_again_later),
-                    Toast.LENGTH_LONG
-                ).show()
+                binding.tvUserNameHint.text = getString(R.string.please_try_again_later)
             } else {
-                isValidUserName = false
-                binding.cvUserName.setBackgroundResource(R.drawable.d_button_bg_error)
-                binding.pbUserNameLoader.visibility = View.GONE
-                binding.ivSuccess.visibility = View.GONE
-                binding.ivWarning.visibility = View.VISIBLE
-                binding.tvUserNameHint.text = it
-                binding.tvUserNameHint.setTextColor(getColor(android.R.color.white))
-                updateButton()
+                // Display the error message from API or exception
+                val errorMessage = it?.takeIf { it.isNotEmpty() } 
+                    ?: getString(R.string.please_try_again_later)
+                binding.tvUserNameHint.text = errorMessage
             }
+            
+            binding.tvUserNameHint.setTextColor(getColor(android.R.color.white))
+            updateButton()
         })
         profileViewModel.updateProfileErrorLiveData.observe(this, Observer {
             binding.pbUpdateLoader.visibility = View.GONE
@@ -281,10 +302,17 @@ class EditProfileActivity : BaseActivity() {
             binding.btnUpdate.text = getString(R.string.update)
             binding.btnUpdate.isEnabled = true
             if (it.data != null) {
+                // Check if name was changed
+                val oldName = originalUserName
+                val newName = it.data.name
+                if (oldName != null && oldName != newName) {
+                    // Name was changed, mark it in SharedPreferences
+                    sharedPreferences.edit().putBoolean("hasChangedName", true).apply()
+                }
+                
                 Toast.makeText(
                     this@EditProfileActivity, getString(R.string.profile_updated), Toast.LENGTH_LONG
                 ).show()
-                sharedPreferences.edit().putBoolean("hasChangedName", true).apply()
 
                 BaseApplication.getInstance()?.getPrefs()?.setUserData(it.data)
                 
@@ -294,7 +322,8 @@ class EditProfileActivity : BaseActivity() {
                 setResult(RESULT_OK)
                 finish()
             } else {
-                Toast.makeText(this@EditProfileActivity, it.message, Toast.LENGTH_LONG).show()
+                // Show error message from backend (e.g., "You can change your name only once.")
+                Toast.makeText(this@EditProfileActivity, it.message ?: getString(R.string.please_try_again_later), Toast.LENGTH_LONG).show()
             }
         })
         profileViewModel.avatarsListLiveData.observe(this, Observer {

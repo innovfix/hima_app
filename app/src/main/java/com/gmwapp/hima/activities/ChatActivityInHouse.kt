@@ -161,7 +161,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         val userName = intent.getStringExtra("USER_NAME") ?: "User"
         val userImage = intent.getStringExtra("USER_IMAGE")
 
-        tvUserName.text = userName
+        tvUserName.text = extractNameOnly(userName)
 
         if (!userImage.isNullOrEmpty()) {
             Glide.with(this)
@@ -469,7 +469,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         if (reactions.isEmpty()) return
         
         // Get peer user info from intent
-        val peerUserName = intent.getStringExtra("USER_NAME") ?: "User"
+        val peerUserName = extractNameOnly(intent.getStringExtra("USER_NAME") ?: "User")
         val peerUserImage = intent.getStringExtra("USER_IMAGE") ?: ""
         
         // Show bottom sheet
@@ -1905,7 +1905,7 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun initiateCall(callType: String) {
-        val userName = intent.getStringExtra("USER_NAME") ?: "User"
+        val userName = extractNameOnly(intent.getStringExtra("USER_NAME") ?: "User")
         val userImage = intent.getStringExtra("USER_IMAGE") ?: ""
         
         val intent = Intent(this, com.gmwapp.hima.agora.male.MaleCallConnectingActivity::class.java).apply {
@@ -1917,6 +1917,17 @@ class ChatActivityInHouse : AppCompatActivity() {
             putExtra("CHAT_PEER_USER_ID", peerUserId)
         }
         startActivity(intent)
+    }
+
+    /**
+     * Extracts the name part from username by removing trailing numbers
+     * Examples: "Joy22" -> "Joy", "ZNKAK467" -> "ZNKAK"
+     */
+    private fun extractNameOnly(username: String): String {
+        if (username.isEmpty()) return username
+        
+        // Remove trailing digits
+        return username.replace(Regex("\\d+$"), "").trim()
     }
 }
 

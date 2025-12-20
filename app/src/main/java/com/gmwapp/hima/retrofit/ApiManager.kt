@@ -76,6 +76,8 @@ import com.gmwapp.hima.retrofit.responses.FallbackSendMessageResponse
 import com.gmwapp.hima.retrofit.responses.AddReactionResponse
 import com.gmwapp.hima.retrofit.responses.AddFavoriteResponse
 import com.gmwapp.hima.retrofit.responses.RemoveFavoriteResponse
+import com.gmwapp.hima.retrofit.responses.CheckFavoriteResponse
+import com.gmwapp.hima.retrofit.responses.CheckReferralOfferResponse
 import com.gmwapp.hima.utils.Helper
 import okhttp3.MultipartBody
 import retrofit2.Call
@@ -1145,6 +1147,19 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun checkFavorite(
+        userId: Int,
+        favoriteId: Int,
+        callback: NetworkCallback<CheckFavoriteResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<CheckFavoriteResponse> = getApiInterface().checkFavorite(userId, favoriteId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun checkFriendRequest(
         senderId: Int,
         receiverId: Int,
@@ -1228,6 +1243,18 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<CheckCallAvailabilityResponse> = getApiInterface().checkCallAvailability(maleUserId, femaleUserId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun checkReferralOffer(
+        userId: Int,
+        callback: NetworkCallback<CheckReferralOfferResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<CheckReferralOfferResponse> = getApiInterface().checkReferralOffer(userId)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1797,6 +1824,13 @@ interface ApiInterface {
     ): Call<RemoveFavoriteResponse>
 
     @FormUrlEncoded
+    @POST("check_favorite")
+    fun checkFavorite(
+        @Field("user_id") userId: Int,
+        @Field("favorite_id") favoriteId: Int
+    ): Call<CheckFavoriteResponse>
+
+    @FormUrlEncoded
     @POST("chats/send-message")
     fun sendMessage(
         @Field("user_id") userId: Int,
@@ -1874,6 +1908,12 @@ interface ApiInterface {
         @Field("message_id") messageId: Int,
         @Field("reaction_emoji") reactionEmoji: String?
     ): Call<AddReactionResponse>
+
+    @FormUrlEncoded
+    @POST("check_referral_offer")
+    fun checkReferralOffer(
+        @Field("user_id") userId: Int
+    ): Call<CheckReferralOfferResponse>
 
 
 }

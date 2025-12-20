@@ -35,6 +35,7 @@ import com.gmwapp.hima.viewmodels.RatingViewModel
 import com.gmwapp.hima.retrofit.ApiManager
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.AddFavoriteResponse
+import com.gmwapp.hima.retrofit.responses.CheckFavoriteResponse
 import retrofit2.Call
 import retrofit2.Response
 import javax.inject.Inject
@@ -364,8 +365,64 @@ class RatingActivity : BaseActivity() {
     fun showFavouriteToggle(){
         var gender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
         if(gender=="male"){
-            binding.llFavouriteUser.visibility= View.VISIBLE
+            // Initially show the toggle, then check if user is already favorite
+            binding.llFavouriteUser.visibility = View.VISIBLE
+            // Check if the user is already in favorites before showing the toggle
+            checkIfUserIsAlreadyFavorite()
         }
+    }
+    
+    private fun checkIfUserIsAlreadyFavorite() {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
+        val receiverId = intent.getIntExtra(DConstants.RECEIVER_ID, 0)
+        
+        if (receiverId == 0) {
+            // If no receiver ID, show the toggle (default behavior)
+            binding.llFavouriteUser.visibility = View.VISIBLE
+            return
+        }
+        
+        Log.d("RatingActivity", "Checking if user is favorite: userId=${userData.id}, receiverId=$receiverId")
+        
+        // Use the new check_favorite API to check if user is already in favorites
+        apiManager.checkFavorite(
+            userData.id,
+            receiverId,
+            object : NetworkCallback<CheckFavoriteResponse> {
+                override fun onResponse(
+                    call: Call<CheckFavoriteResponse>,
+                    response: Response<CheckFavoriteResponse>
+                ) {
+                    if (response.isSuccessful && response.body() != null) {
+                        val checkResponse = response.body()
+                        if (checkResponse != null && checkResponse.success) {
+                            val isAlreadyFavorite = checkResponse.is_favorite
+                            
+                            Log.d("RatingActivity", "Favorite check result: receiverId=$receiverId, isAlreadyFavorite=$isAlreadyFavorite")
+                            
+                            // Hide toggle if user is already a favorite, show otherwise
+                            binding.llFavouriteUser.visibility = if (isAlreadyFavorite) View.GONE else View.VISIBLE
+                        } else {
+                            Log.d("RatingActivity", "Favorite check failed: ${checkResponse?.message}")
+                            binding.llFavouriteUser.visibility = View.VISIBLE
+                        }
+                    } else {
+                        Log.d("RatingActivity", "Favorite check API call unsuccessful: ${response.code()}")
+                        binding.llFavouriteUser.visibility = View.VISIBLE
+                    }
+                }
+
+                override fun onFailure(call: Call<CheckFavoriteResponse>, t: Throwable) {
+                    Log.e("RatingActivity", "Favorite check API call failed: ${t.message}", t)
+                    binding.llFavouriteUser.visibility = View.VISIBLE
+                }
+
+                override fun onNoNetwork() {
+                    Log.d("RatingActivity", "No network for favorite check")
+                    binding.llFavouriteUser.visibility = View.VISIBLE
+                }
+            }
+        )
     }
 
     fun blockMale(userid: Int?, call_userid: Int) {

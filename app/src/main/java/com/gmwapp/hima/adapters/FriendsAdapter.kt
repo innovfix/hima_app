@@ -51,8 +51,8 @@ class FriendsAdapter(
                 .circleCrop()
                 .into(binding.ivProfile)
 
-            // Set name
-            binding.tvName.text = friend.name
+            // Set name (extract name only, remove trailing numbers)
+            binding.tvName.text = extractNameOnly(friend.name)
 
             // Configure UI based on tab type
             when (tabType) {
@@ -117,6 +117,17 @@ class FriendsAdapter(
                     }
                 }
             }
+        }
+
+        /**
+         * Extracts the name part from username by removing trailing numbers
+         * Examples: "Joy22" -> "Joy", "ZNKAK467" -> "ZNKAK"
+         */
+        private fun extractNameOnly(username: String): String {
+            if (username.isEmpty()) return username
+            
+            // Remove trailing digits
+            return username.replace(Regex("\\d+$"), "").trim()
         }
     }
 }

@@ -51,6 +51,8 @@ data class UserData (
     val pancard_number:String?,
     val disclaimer:String?,
     val payment_type:String?,
+    @SerializedName("name_changed")
+    val name_changed:Int?,
 
 
 )

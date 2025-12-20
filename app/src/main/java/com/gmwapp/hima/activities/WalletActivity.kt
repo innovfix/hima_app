@@ -41,8 +41,10 @@ import com.gmwapp.hima.databinding.ActivityWalletBinding
 import com.gmwapp.hima.retrofit.responses.CoinsResponseData
 import com.gmwapp.hima.retrofit.responses.NewRazorpayLinkResponse
 import com.gmwapp.hima.retrofit.responses.RazorPayApiResponse
+import com.gmwapp.hima.utils.Config
 import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.utils.setOnSingleClickListener
+import androidx.appcompat.app.AlertDialog
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.CashfreeOrderViewModel
 import com.gmwapp.hima.viewmodels.LoginViewModel
@@ -50,6 +52,11 @@ import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.viewmodels.UpiPaymentViewModel
 import com.gmwapp.hima.viewmodels.UpiViewModel
 import com.gmwapp.hima.viewmodels.WalletViewModel
+import com.gmwapp.hima.retrofit.ApiManager
+import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
+import com.gmwapp.hima.retrofit.responses.CheckReferralOfferResponse
+import retrofit2. Call
+import retrofit2.Response
 import com.google.androidbrowserhelper.trusted.LauncherActivity
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.onesignal.OneSignal
@@ -67,13 +74,13 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
-import okhttp3.Response
+import okhttp3.Response as OkHttpResponse
 import org.json.JSONObject
-import retrofit2.Call
 import java.io.IOException
 import java.security.Key
 import java.util.Date
 import javax.crypto.spec.SecretKeySpec
+import javax.inject.Inject
 
 
 @AndroidEntryPoint
@@ -90,6 +97,9 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 
     val profileViewModel: ProfileViewModel by viewModels()
     private val cashfreeOrderViewModel : CashfreeOrderViewModel by viewModels()
+
+    @Inject
+    lateinit var apiManager: ApiManager
 
     private lateinit var selectedCoin : String
     private lateinit var selectedSavePercent : String
@@ -169,6 +179,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         initUI()
         observeCoins()
         intializePhonpe()
+        checkReferralOffer()
 
         messageCameWhenIsAlive = BaseApplication.getInstance()?.messageCameWhenIsAlive ?: 0
 
@@ -260,7 +271,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                 }
             }
 
-            override fun onResponse(call: okhttp3.Call, response: Response) {
+            override fun onResponse(call: okhttp3.Call, response: OkHttpResponse) {
                 val responseStr = response.body?.string() ?: return
                 Log.d("PhonePeResponse", "Backend Response: $responseStr")
 
@@ -326,7 +337,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                 }
             }
 
-            override fun onResponse(call: okhttp3.Call, response: Response) {
+            override fun onResponse(call: okhttp3.Call, response: OkHttpResponse) {
                 val resultStr = response.body?.string()
                 val json = JSONObject(resultStr)
                 val phonePeStatus = json.getJSONObject("phonepe_status")
@@ -567,223 +578,8 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 
 
         binding.btnAddCoins.setOnClickListener(View.OnClickListener { view: View? ->
-            accountViewModel.getSettings()
-            val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-            val userId = userData?.id
-            val pointsIdInt = pointsId.toIntOrNull()
-            val priceDouble = amount?.toDoubleOrNull() ?: 0.0
-
-
-            val checkoutEvent = HashMap<String, Any>()
-            checkoutEvent["af_price"] = priceDouble          // Cart total
-            checkoutEvent["af_currency"] = "INR"
-
-            AppsFlyerLib.getInstance().logEvent(
-                this,
-                "af_initiated_checkout",
-                checkoutEvent
-            )
-
-
-
-            val firebaseBundle = Bundle().apply {
-                putString("user_id", "$userId")
-                putString("coin_id", "$pointsId")
-                putDouble("price", priceDouble)
-            }
-            BaseApplication.firebaseAnalytics.logEvent("initial_checkout", firebaseBundle)
-
-
-
-            val checkoutAmount = amount.toDoubleOrNull() ?: 0.0
-            if (checkoutAmount > 0.0) {
-                val checkoutParams = Bundle().apply {
-                    putString(AppEventsConstants.EVENT_PARAM_CURRENCY, "INR")
-                    putDouble(AppEventsConstants.EVENT_PARAM_VALUE_TO_SUM, checkoutAmount)
-                    putString("user_id", "$userId")
-                    putString("coin_id", "$pointsId")
-                }
-
-                AppEventsLogger.newLogger(this).logEvent(
-                    AppEventsConstants.EVENT_NAME_INITIATED_CHECKOUT,
-                    checkoutAmount,
-                    checkoutParams
-                )
-            } else {
-                Log.w("FB_Event", "Skipped INITIATED_CHECKOUT event. Invalid amount = $checkoutAmount")
-            }
-
-
-            BaseApplication.getInstance()?.getPrefs()?.apply {
-                setString("last_coin_id", pointsId)
-                setString("last_coin_amount", amount.toString())
-                setString("last_coin_pg", paymentGateway.toString())
-            }
-
-
-            // Navigate to PaymentActivity to show coupon options
-//            val intent = Intent(this@WalletActivity, PaymentActivity::class.java).apply {
-//                putExtra("AMOUNT", amount)
-//                putExtra("COIN_SELECTED", selectedCoin)
-//                putExtra("SAVE_PERCENT", selectedSavePercent)
-//            }
-//            startActivity(intent)
-
-
-
-            if (userId != null && pointsId.isNotEmpty()) {
-                if (pointsIdInt != null) {
-
-                    if (paymentGateway.isNotEmpty()) {
-
-                        when (paymentGateway) {
-
-                            "phonepe"->{
-
-                                if (isPhonePeInitialized){
-                                    fetchOrderFromBackend(pointsId)
-                                }
-                            }
-
-
-
-                            "gpay" -> {
-
-                                val random4Digit = (1000..9999).random()
-
-                                // ✅ Save userId and pointsIdInt BEFORE launching billing
-                                val preferences = DPreferences(this)
-                                preferences.clearSelectedOrderId()
-                                preferences.setSelectedUserId(userId.toString())
-                                preferences.setSelectedPlanId(java.lang.String.valueOf(pointsIdInt))
-                                preferences.setSelectedOrderId(java.lang.String.valueOf(random4Digit))
-                                WalletViewModel.tryCoins(userId, pointsIdInt, 0, random4Digit, "try")
-                                billingManager!!.purchaseProduct(
-                                   // "coin_14",
-                                  pointsId,
-                                )
-                                WalletViewModel.navigateToMain.observe(this, Observer { shouldNavigate ->
-
-                                    if (shouldNavigate) {
-                                        Toast.makeText(
-                                            this,
-                                            "Coin purchased successfully",
-                                            Toast.LENGTH_SHORT
-                                        )
-                                            .show()
-                                        userData?.id?.let { profileViewModel.getUsers(it) }
-
-                                        updatePurchaseOnMeta()
-
-                                        profileViewModel.getUserLiveData.observe(this, Observer {
-                                            it.data?.let { it1 ->
-                                                BaseApplication.getInstance()?.getPrefs()
-                                                    ?.setUserData(it1)
-                                            }
-                                            binding.tvCoins.text = it.data?.coins.toString()
-                                            WalletViewModel._navigateToMain.postValue(false)
-                                        })
-                                    } else {
-
-                                        profileViewModel.getUserLiveData.observe(this, Observer {
-                                            it.data?.let { it1 ->
-                                                BaseApplication.getInstance()?.getPrefs()
-                                                    ?.setUserData(it1)
-                                            }
-                                            binding.tvCoins.text = it.data?.coins.toString()
-
-                                        })
-                                    }
-                                })
-                            }
-
-                            "razorpay" -> {
-
-                                callNewRazorPay = apiService.callNewRazorPay(userId,pointsId)
-
-
-                                callNewRazorPay.enqueue(object : retrofit2.Callback<NewRazorpayLinkResponse> {
-                    override fun onResponse(call: retrofit2.Call<NewRazorpayLinkResponse>, response: retrofit2.Response<NewRazorpayLinkResponse>) {
-                        if (response.isSuccessful && response.body() != null) {
-                            val apiResponse = response.body()
-
-                            // Extract the Razorpay payment link
-                            val paymentUrl = apiResponse?.data?.short_url
-
-                            Log.d("paymentUrlRazorPay","$paymentUrl")
-
-                            if (!paymentUrl.isNullOrEmpty()) {
-
-                                val intent =Intent(this@WalletActivity, LauncherActivity::class.java)
-                                intent.setData(Uri.parse(paymentUrl))
-                                Log.d("paymentUrlRazorPay","$paymentUrl")
-                                startActivity(intent)
-
-//                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(paymentUrl))
-//                                startActivity(intent)
-                            } else {
-                                Toast.makeText(this@WalletActivity, "Failed to get payment link", Toast.LENGTH_SHORT).show()
-                            }
-                        } else {
-                            Toast.makeText(this@WalletActivity, "Error: ${response.errorBody()?.string()}", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-
-                    override fun onFailure(call: retrofit2.Call<NewRazorpayLinkResponse>, t: Throwable) {
-                        Toast.makeText(this@WalletActivity, "Failed: ${t.message}", Toast.LENGTH_SHORT).show()
-                    }
-                })
-                            }
-
-                            "cashfree"->{
-
-
-                                fetchOrderOfCashfree(pointsId)
-                            }
-
-
-
-                            "upigateway" -> {
-
-                                val amountValue = amount.toDoubleOrNull()
-                                if (amountValue == null) {
-                                    return@OnClickListener
-                                }
-
-
-                                val twoPercentage = amountValue * 0.02
-                                val roundedAmount = Math.round(twoPercentage)
-                                total_amount = (amountValue + roundedAmount).toString()
-
-                                Log.d("upigateway","Clicked")
-                                val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-                                var userid = userData?.id
-                                userid?.let {
-                                    val clientTxnId = generateRandomTxnId(
-                                        it,
-                                        pointsId
-                                    )  // Generate a new transaction ID
-                                    upiPaymentViewModel.createUpiPayment(it, clientTxnId, total_amount)
-                                }
-
-                            }
-
-
-                            else -> {
-                                Toast.makeText(this, "Invalid Payment Gateway", Toast.LENGTH_SHORT)
-                                    .show()
-                            }
-
-
-                        }
-                    }
-                }
-            } else {
-                Toast.makeText(this, "Invalid input data", Toast.LENGTH_SHORT).show()
-            }
-             // END of OLD CODE - Direct payment
-
-       })
+            handleCoinPurchase()
+        })
 
 
 
@@ -1216,7 +1012,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                 }
             }
 
-            override fun onResponse(call: okhttp3.Call, response: Response) {
+            override fun onResponse(call: okhttp3.Call, response: OkHttpResponse) {
                 val resultStr = response.body?.string()
                 Log.d("CashfreeOrderResponse", "$resultStr")
 
@@ -1267,7 +1063,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                 }
             }
 
-            override fun onResponse(call: okhttp3.Call, response: Response) {
+            override fun onResponse(call: okhttp3.Call, response: OkHttpResponse) {
                 val resultStr = response.body?.string()
                 Log.d("CashfreeOrderStatus", "$resultStr")
 
@@ -1317,6 +1113,241 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 
             }
         })
+    }
+
+    private fun checkReferralOffer() {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val userId = userData?.id ?: return
+        
+        apiManager.checkReferralOffer(userId, object : NetworkCallback<CheckReferralOfferResponse> {
+            override fun onResponse(
+                call: Call<CheckReferralOfferResponse>,
+                response: Response<CheckReferralOfferResponse>
+            ) {
+                val responseBody = response.body()
+                Log.d("CheckReferralOffer", "Response: success=${responseBody?.success}, show_dialog=${responseBody?.show_dialog}, coin_id=${responseBody?.coin_id}")
+                
+                if (responseBody != null && responseBody.show_dialog) {
+                    runOnUiThread {
+                        showReferralOfferDialog(
+                            responseBody.offer_coins,
+                            responseBody.offer_price,
+                            responseBody.coin_id ?: 0
+                        )
+                    }
+                }
+            }
+
+            override fun onFailure(call: Call<CheckReferralOfferResponse>, t: Throwable) {
+                Log.e("CheckReferralOffer", "API call failed: ${t.message}")
+                // No toast - silent failure as per requirements
+            }
+
+            override fun onNoNetwork() {
+                Log.e("CheckReferralOffer", "No network connection")
+                // No toast - silent failure as per requirements
+            }
+        })
+    }
+
+    private fun showReferralOfferDialog(coins: Int, price: Int, coinId: Int) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_referral_offer, null)
+        
+        // Set coins and price
+        val tvOfferCoins = dialogView.findViewById<android.widget.TextView>(R.id.tv_offer_coins)
+        val tvOfferPrice = dialogView.findViewById<android.widget.TextView>(R.id.tv_offer_price)
+        val btnBuyNow = dialogView.findViewById<androidx.cardview.widget.CardView>(R.id.btn_buy_now)
+        val btnMaybeLater = dialogView.findViewById<android.widget.TextView>(R.id.btn_maybe_later)
+        
+        tvOfferCoins.text = coins.toString()
+        tvOfferPrice.text = "₹$price"
+        
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+        
+        // Set transparent background for rounded corners
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        
+        // Set dimming to show black background overlay
+        dialog.window?.setDimAmount(0.5f)
+        
+        // Buy Now button click
+        btnBuyNow.setOnClickListener {
+            if (coinId > 0) {
+                // Set the variables to match what btnAddCoins expects
+                pointsId = coinId.toString()
+                amount = price.toString()
+                selectedCoin = coins.toString()
+                
+                // Call the same function that btnAddCoins calls
+                handleCoinPurchase()
+            }
+            dialog.dismiss()
+        }
+        
+        // Maybe Later button click
+        btnMaybeLater.setOnClickListener {
+            dialog.dismiss()
+        }
+        
+        dialog.show()
+    }
+
+    private fun handleCoinPurchase() {
+        accountViewModel.getSettings()
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val userId = userData?.id
+        val pointsIdInt = pointsId.toIntOrNull()
+        val priceDouble = amount?.toDoubleOrNull() ?: 0.0
+
+        val checkoutEvent = HashMap<String, Any>()
+        checkoutEvent["af_price"] = priceDouble
+        checkoutEvent["af_currency"] = "INR"
+
+        AppsFlyerLib.getInstance().logEvent(
+            this,
+            "af_initiated_checkout",
+            checkoutEvent
+        )
+
+        val firebaseBundle = Bundle().apply {
+            putString("user_id", "$userId")
+            putString("coin_id", "$pointsId")
+            putDouble("price", priceDouble)
+        }
+        BaseApplication.firebaseAnalytics.logEvent("initial_checkout", firebaseBundle)
+
+        val checkoutAmount = amount.toDoubleOrNull() ?: 0.0
+        if (checkoutAmount > 0.0) {
+            val checkoutParams = Bundle().apply {
+                putString(AppEventsConstants.EVENT_PARAM_CURRENCY, "INR")
+                putDouble(AppEventsConstants.EVENT_PARAM_VALUE_TO_SUM, checkoutAmount)
+                putString("user_id", "$userId")
+                putString("coin_id", "$pointsId")
+            }
+
+            AppEventsLogger.newLogger(this).logEvent(
+                AppEventsConstants.EVENT_NAME_INITIATED_CHECKOUT,
+                checkoutAmount,
+                checkoutParams
+            )
+        } else {
+            Log.w("FB_Event", "Skipped INITIATED_CHECKOUT event. Invalid amount = $checkoutAmount")
+        }
+
+        BaseApplication.getInstance()?.getPrefs()?.apply {
+            setString("last_coin_id", pointsId)
+            setString("last_coin_amount", amount.toString())
+            setString("last_coin_pg", paymentGateway.toString())
+        }
+
+        if (userId != null && pointsId.isNotEmpty()) {
+            if (pointsIdInt != null) {
+                if (paymentGateway.isNotEmpty()) {
+                    when (paymentGateway) {
+                        "phonepe" -> {
+                            if (isPhonePeInitialized) {
+                                fetchOrderFromBackend(pointsId)
+                            }
+                        }
+
+                        "gpay" -> {
+                            val random4Digit = (1000..9999).random()
+                            val preferences = DPreferences(this)
+                            preferences.clearSelectedOrderId()
+                            preferences.setSelectedUserId(userId.toString())
+                            preferences.setSelectedPlanId(java.lang.String.valueOf(pointsIdInt))
+                            preferences.setSelectedOrderId(java.lang.String.valueOf(random4Digit))
+                            WalletViewModel.tryCoins(userId, pointsIdInt, 0, random4Digit, "try")
+                            billingManager!!.purchaseProduct(pointsId)
+                            WalletViewModel.navigateToMain.observe(this, Observer { shouldNavigate ->
+                                if (shouldNavigate) {
+                                    Toast.makeText(
+                                        this,
+                                        "Coin purchased successfully",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    userData?.id?.let { profileViewModel.getUsers(it) }
+                                    updatePurchaseOnMeta()
+                                    profileViewModel.getUserLiveData.observe(this, Observer {
+                                        it.data?.let { it1 ->
+                                            BaseApplication.getInstance()?.getPrefs()
+                                                ?.setUserData(it1)
+                                        }
+                                        binding.tvCoins.text = it.data?.coins.toString()
+                                        WalletViewModel._navigateToMain.postValue(false)
+                                    })
+                                } else {
+                                    profileViewModel.getUserLiveData.observe(this, Observer {
+                                        it.data?.let { it1 ->
+                                            BaseApplication.getInstance()?.getPrefs()
+                                                ?.setUserData(it1)
+                                        }
+                                        binding.tvCoins.text = it.data?.coins.toString()
+                                    })
+                                }
+                            })
+                        }
+
+                        "razorpay" -> {
+                            callNewRazorPay = apiService.callNewRazorPay(userId, pointsId)
+                            callNewRazorPay.enqueue(object : retrofit2.Callback<NewRazorpayLinkResponse> {
+                                override fun onResponse(call: retrofit2.Call<NewRazorpayLinkResponse>, response: retrofit2.Response<NewRazorpayLinkResponse>) {
+                                    if (response.isSuccessful && response.body() != null) {
+                                        val apiResponse = response.body()
+                                        val paymentUrl = apiResponse?.data?.short_url
+                                        Log.d("paymentUrlRazorPay", "$paymentUrl")
+                                        if (!paymentUrl.isNullOrEmpty()) {
+                                            val intent = Intent(this@WalletActivity, LauncherActivity::class.java)
+                                            intent.setData(Uri.parse(paymentUrl))
+                                            Log.d("paymentUrlRazorPay", "$paymentUrl")
+                                            startActivity(intent)
+                                        } else {
+                                            Toast.makeText(this@WalletActivity, "Failed to get payment link", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } else {
+                                        Toast.makeText(this@WalletActivity, "Error: ${response.errorBody()?.string()}", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+
+                                override fun onFailure(call: retrofit2.Call<NewRazorpayLinkResponse>, t: Throwable) {
+                                    Toast.makeText(this@WalletActivity, "Failed: ${t.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            })
+                        }
+
+                        "cashfree" -> {
+                            fetchOrderOfCashfree(pointsId)
+                        }
+
+                        "upigateway" -> {
+                            val amountValue = amount.toDoubleOrNull()
+                            if (amountValue == null) {
+                                return
+                            }
+                            val twoPercentage = amountValue * 0.02
+                            val roundedAmount = Math.round(twoPercentage)
+                            total_amount = (amountValue + roundedAmount).toString()
+                            Log.d("upigateway", "Clicked")
+                            val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                            var userid = userData?.id
+                            userid?.let {
+                                val clientTxnId = generateRandomTxnId(it, pointsId)
+                                upiPaymentViewModel.createUpiPayment(it, clientTxnId, total_amount)
+                            }
+                        }
+
+                        else -> {
+                            Toast.makeText(this, "Invalid Payment Gateway", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+        } else {
+            Toast.makeText(this, "Invalid input data", Toast.LENGTH_SHORT).show()
+        }
     }
 
 
