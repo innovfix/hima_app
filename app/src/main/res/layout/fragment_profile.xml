@@ -789,7 +789,8 @@
                         android:fontFamily="@font/poppins_medium"
                         android:text="@string/need_help"
                         android:textColor="#6B7280"
-                        android:textSize="13sp" />
+                        android:textSize="13sp"
+                        android:visibility="gone" />
 
                     <TextView
                         android:id="@+id/tv_support_mail"
@@ -800,7 +801,8 @@
                         android:textColor="@color/colorAccent"
                         android:textSize="13sp"
                         android:maxLines="1"
-                        android:ellipsize="end" />
+                        android:ellipsize="end"
+                        android:visibility="gone" />
                 </LinearLayout>
             </LinearLayout>
         </androidx.constraintlayout.widget.ConstraintLayout>

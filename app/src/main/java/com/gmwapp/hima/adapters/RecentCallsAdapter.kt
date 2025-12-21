@@ -19,13 +19,18 @@ import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.AdapterCoinBinding
 import com.gmwapp.hima.databinding.AdapterRecentCallsBinding
+import com.gmwapp.hima.retrofit.ApiManager
+import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.CallsListResponse
 import com.gmwapp.hima.retrofit.responses.CallsListResponseData
 import com.gmwapp.hima.retrofit.responses.CoinsResponseData
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponseData
+import com.gmwapp.hima.retrofit.responses.FriendRequestResponse
 import com.gmwapp.hima.retrofit.responses.TransactionsResponseData
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import kotlinx.coroutines.withContext
+import retrofit2.Call
+import retrofit2.Response
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.TimeZone
@@ -36,7 +41,8 @@ class RecentCallsAdapter(
     private val callList: ArrayList<CallsListResponseData>,
     val onAudioListener: OnItemSelectionListener<CallsListResponseData>,
     val onVideoListener: OnItemSelectionListener<CallsListResponseData>,
-    val isFavouriteMode: Boolean = false // Flag to indicate if this is for favorites
+    val isFavouriteMode: Boolean = false, // Flag to indicate if this is for favorites
+    val apiManager: ApiManager? = null // ApiManager for checking friend status
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
 
@@ -187,13 +193,9 @@ class RecentCallsAdapter(
             val padding = (8 * activity.resources.displayMetrics.density).toInt()
             holder.binding.tvTime.setPadding(padding, padding / 2, padding, padding / 2)
             
-            // Make "Chat Now" clickable to open ChatActivityInHouse
+            // Make "Chat Now" clickable - check friend status first
             holder.binding.tvTime.setOnSingleClickListener {
-                val intent = android.content.Intent(activity, com.gmwapp.hima.activities.ChatActivityInHouse::class.java)
-                intent.putExtra("USER_ID", call.id)
-                intent.putExtra("USER_NAME", call.name)
-                intent.putExtra("USER_IMAGE", call.image)
-                activity.startActivity(intent)
+                checkFriendStatusAndOpenChat(call)
             }
         } else {
             holder.binding.tvTime.visibility = View.VISIBLE
@@ -363,6 +365,100 @@ class RecentCallsAdapter(
         } catch (e: Exception) {
             0
         }
+    }
+
+    private fun checkFriendStatusAndOpenChat(call: CallsListResponseData) {
+        val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+        
+        if (currentUserId == 0) {
+            android.widget.Toast.makeText(activity, "Unable to load user data", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        if (apiManager == null) {
+            // Fallback: open profile if ApiManager not available
+            Log.d("RecentCallsAdapter", "ApiManager not available, opening profile")
+            openUserProfile(call)
+            return
+        }
+        
+        Log.d("RecentCallsAdapter", "Checking friend status between user $currentUserId and user: ${call.id}")
+        
+        // Store call data in local variable to avoid shadowing in callback
+        val callData = call
+        
+        // Call API to check friend request status
+        apiManager.checkFriendRequest(
+            senderId = currentUserId,
+            receiverId = callData.id,
+            userId = currentUserId,
+            object : NetworkCallback<FriendRequestResponse> {
+                override fun onResponse(
+                    apiCall: Call<FriendRequestResponse>,
+                    response: Response<FriendRequestResponse>
+                ) {
+                    if (response.isSuccessful && response.body() != null) {
+                        val friendResponse = response.body()
+                        if (friendResponse?.success == true) {
+                            // Check if users are friends
+                            if (friendResponse.message == "You are friends") {
+                                Log.d("RecentCallsAdapter", "Users are friends - opening ChatActivityInHouse")
+                                // Open ChatActivityInHouse
+                                openChatActivity(callData)
+                            } else {
+                                Log.d("RecentCallsAdapter", "Users are not friends (${friendResponse.message}) - opening UserProfileDetailActivity")
+                                // Not friends - open UserProfileDetailActivity
+                                openUserProfile(callData)
+                            }
+                        } else {
+                            Log.e("RecentCallsAdapter", "API call unsuccessful - opening profile as fallback")
+                            // API call unsuccessful - open profile as fallback
+                            openUserProfile(callData)
+                        }
+                    } else {
+                        Log.e("RecentCallsAdapter", "Response not successful (${response.code()}) - opening profile as fallback")
+                        // Response not successful - open profile as fallback
+                        openUserProfile(callData)
+                    }
+                }
+                
+                override fun onFailure(
+                    apiCall: Call<FriendRequestResponse>,
+                    t: Throwable
+                ) {
+                    Log.e("RecentCallsAdapter", "Error checking friend status: ${t.message}", t)
+                    // On error, open profile as fallback
+                    openUserProfile(callData)
+                }
+                
+                override fun onNoNetwork() {
+                    android.widget.Toast.makeText(activity, "No internet connection", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+        )
+    }
+    
+    private fun openChatActivity(call: CallsListResponseData) {
+        val intent = android.content.Intent(activity, com.gmwapp.hima.activities.ChatActivityInHouse::class.java)
+        intent.putExtra("USER_ID", call.id)
+        intent.putExtra("USER_NAME", call.name)
+        intent.putExtra("USER_IMAGE", call.image)
+        activity.startActivity(intent)
+    }
+    
+    private fun openUserProfile(call: CallsListResponseData) {
+        val intent = Intent(activity, UserProfileDetailActivity::class.java).apply {
+            putExtra(DConstants.USER_ID, call.id)
+            putExtra("USER_NAME", call.name)
+            putExtra("USER_IMAGE", call.image)
+            putExtra("USER_LANGUAGE", call.language)
+            putExtra("USER_INTERESTS", call.interests)
+            putExtra("USER_ABOUT", call.describe_yourself)
+            putExtra("USER_AGE", 0)
+            putExtra("AUDIO_STATUS", call.audio_status)
+            putExtra("VIDEO_STATUS", call.video_status)
+        }
+        activity.startActivity(intent)
     }
 
     internal class ItemHolder(val binding: AdapterRecentCallsBinding) :

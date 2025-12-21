@@ -95,7 +95,8 @@ class FavouriteFragment : BaseFragment() {
                     startMaleCallConnectingActivity(data, "video")
                 }
             },
-            isFavouriteMode = true // Enable favorite mode
+            isFavouriteMode = true, // Enable favorite mode
+            apiManager = apiManager // Pass ApiManager for friend status check
         )
         binding.rvCalls.adapter = recentCallsAdapter
 
