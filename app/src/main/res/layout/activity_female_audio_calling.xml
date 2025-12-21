@@ -474,6 +474,41 @@
 
         </LinearLayout>
 
+        <!-- Ludo Game Button -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <FrameLayout
+                android:layout_width="56dp"
+                android:layout_height="56dp">
+
+                <ImageView
+                    android:id="@+id/btn_ludo_game"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/professional_control_button_bg"
+                    android:src="@drawable/ic_dice"
+                    android:padding="14dp"
+                    android:scaleType="fitCenter"
+                    android:contentDescription="Ludo Game"/>
+
+            </FrameLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Ludo"
+                android:textColor="#CCFFFFFF"
+                android:textSize="12sp"
+                android:layout_marginTop="8dp"
+                android:fontFamily="sans-serif"/>
+
+        </LinearLayout>
+
     </LinearLayout>
 
     <!-- Gift Icon (hidden on female side) -->

@@ -6,3 +6,5 @@ data class CheckFavoriteResponse(
     val is_favorite: Boolean
 )
 
+
+

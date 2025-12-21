@@ -73,11 +73,6 @@ import com.gmwapp.hima.retrofit.responses.MarkMessagesReadResponse
 import com.gmwapp.hima.retrofit.responses.ChatHistoryResponse
 import com.gmwapp.hima.retrofit.responses.MyChatResponse
 import com.gmwapp.hima.retrofit.responses.FallbackSendMessageResponse
-import com.gmwapp.hima.retrofit.responses.AddReactionResponse
-import com.gmwapp.hima.retrofit.responses.AddFavoriteResponse
-import com.gmwapp.hima.retrofit.responses.RemoveFavoriteResponse
-import com.gmwapp.hima.retrofit.responses.CheckFavoriteResponse
-import com.gmwapp.hima.retrofit.responses.CheckReferralOfferResponse
 import com.gmwapp.hima.utils.Helper
 import okhttp3.MultipartBody
 import retrofit2.Call
@@ -158,10 +153,10 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     }
 
     fun getCallsList(
-        userId: Int, gender: String, limit: Int, currentOffset: Int, type: String, search: String?, fav: Int? = null, callback: NetworkCallback<CallsListResponse>
+        userId: Int, gender: String, limit: Int, currentOffset: Int, type: String, callback: NetworkCallback<CallsListResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<CallsListResponse> = getApiInterface().getCallsList(userId, gender, currentOffset, limit, type, search, fav)
+            val apiCall: Call<CallsListResponse> = getApiInterface().getCallsList(userId, gender, currentOffset, limit, type)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -247,10 +242,10 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     }
 
     fun getFemaleUsers(
-        userId: Int, filter: String? = null, callback: NetworkCallback<FemaleUsersResponse>
+        userId: Int, callback: NetworkCallback<FemaleUsersResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<FemaleUsersResponse> = getApiInterface().getFemaleUsers(userId, filter)
+            val apiCall: Call<FemaleUsersResponse> = getApiInterface().getFemaleUsers(userId)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -985,20 +980,6 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
-    fun addMessageReaction(
-        userId: Int,
-        messageId: Int,
-        reactionEmoji: String?,
-        callback: NetworkCallback<AddReactionResponse>
-    ) {
-        if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<AddReactionResponse> = getApiInterface().addMessageReaction(userId, messageId, reactionEmoji)
-            apiCall.enqueue(callback)
-        } else {
-            callback.onNoNetwork()
-        }
-    }
-
     fun markRead(
         userId: Int,
         chatId: String,
@@ -1082,13 +1063,10 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
 
     fun getMyChat(
         userId: Int,
-        search: String?,
-        limit: Int,
-        offset: Int,
         callback: NetworkCallback<MyChatResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<MyChatResponse> = getApiInterface().getMyChat(userId, search, limit, offset)
+            val apiCall: Call<MyChatResponse> = getApiInterface().getMyChat(userId)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1115,45 +1093,6 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<BlockUserResponse> = getApiInterface().unblockChatUser(userId, blockedUserId)
-            apiCall.enqueue(callback)
-        } else {
-            callback.onNoNetwork()
-        }
-    }
-
-    fun addFavorite(
-        userId: Int,
-        favoriteId: Int,
-        callback: NetworkCallback<AddFavoriteResponse>
-    ) {
-        if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<AddFavoriteResponse> = getApiInterface().addFavorite(userId, favoriteId)
-            apiCall.enqueue(callback)
-        } else {
-            callback.onNoNetwork()
-        }
-    }
-
-    fun removeFavorite(
-        userId: Int,
-        favoriteId: Int,
-        callback: NetworkCallback<RemoveFavoriteResponse>
-    ) {
-        if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<RemoveFavoriteResponse> = getApiInterface().removeFavorite(userId, favoriteId)
-            apiCall.enqueue(callback)
-        } else {
-            callback.onNoNetwork()
-        }
-    }
-
-    fun checkFavorite(
-        userId: Int,
-        favoriteId: Int,
-        callback: NetworkCallback<CheckFavoriteResponse>
-    ) {
-        if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<CheckFavoriteResponse> = getApiInterface().checkFavorite(userId, favoriteId)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1248,18 +1187,6 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
             callback.onNoNetwork()
         }
     }
-
-    fun checkReferralOffer(
-        userId: Int,
-        callback: NetworkCallback<CheckReferralOfferResponse>
-    ) {
-        if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<CheckReferralOfferResponse> = getApiInterface().checkReferralOffer(userId)
-            apiCall.enqueue(callback)
-        } else {
-            callback.onNoNetwork()
-        }
-    }
 }
 
 interface ApiInterface {
@@ -1303,9 +1230,7 @@ interface ApiInterface {
         @Field("gender") gender: String,
         @Field("offset") offset: Int,
         @Field("limit") limit: Int,
-        @Field("type") type: String,
-        @Field("search") search: String?,
-        @Field("fav") fav: Int? = null
+        @Field("type") type: String
     ): Call<CallsListResponse>
 
     @FormUrlEncoded
@@ -1363,10 +1288,7 @@ interface ApiInterface {
 
     @FormUrlEncoded
     @POST("female_users_list")
-    fun getFemaleUsers(
-        @Field("user_id") userId: Int,
-        @Field("filter") filter: String?
-    ): Call<FemaleUsersResponse>
+    fun getFemaleUsers(@Field("user_id") userId: Int): Call<FemaleUsersResponse>
 
     @FormUrlEncoded
     @POST("random_user")
@@ -1810,27 +1732,6 @@ interface ApiInterface {
     ): Call<MessageListResponse>
 
     @FormUrlEncoded
-    @POST("add_favorite")
-    fun addFavorite(
-        @Field("user_id") userId: Int,
-        @Field("favorite_id") favoriteId: Int
-    ): Call<AddFavoriteResponse>
-
-    @FormUrlEncoded
-    @POST("remove_favorite")
-    fun removeFavorite(
-        @Field("user_id") userId: Int,
-        @Field("favorite_id") favoriteId: Int
-    ): Call<RemoveFavoriteResponse>
-
-    @FormUrlEncoded
-    @POST("check_favorite")
-    fun checkFavorite(
-        @Field("user_id") userId: Int,
-        @Field("favorite_id") favoriteId: Int
-    ): Call<CheckFavoriteResponse>
-
-    @FormUrlEncoded
     @POST("chats/send-message")
     fun sendMessage(
         @Field("user_id") userId: Int,
@@ -1866,10 +1767,7 @@ interface ApiInterface {
     @FormUrlEncoded
     @POST("my_chat")
     fun getMyChat(
-        @Field("user_id") userId: Int,
-        @Field("search") search: String?,
-        @Field("limit") limit: Int,
-        @Field("offset") offset: Int
+        @Field("user_id") userId: Int
     ): Call<MyChatResponse>
 
     @FormUrlEncoded
@@ -1900,20 +1798,6 @@ interface ApiInterface {
         @Field("male_user_id") maleUserId: Int,
         @Field("female_user_id") femaleUserId: Int
     ): Call<CheckCallAvailabilityResponse>
-
-    @FormUrlEncoded
-    @POST("add_message_reaction")
-    fun addMessageReaction(
-        @Field("user_id") userId: Int,
-        @Field("message_id") messageId: Int,
-        @Field("reaction_emoji") reactionEmoji: String?
-    ): Call<AddReactionResponse>
-
-    @FormUrlEncoded
-    @POST("check_referral_offer")
-    fun checkReferralOffer(
-        @Field("user_id") userId: Int
-    ): Call<CheckReferralOfferResponse>
 
 
 }

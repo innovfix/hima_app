@@ -239,6 +239,11 @@
             android:name=".activities.WithdrawActivity"
             android:resizeableActivity="true" />
         <activity android:name=".activities.PaymentInitiatedActivity" />
+        <activity
+            android:name=".activities.LudoGameActivity"
+            android:configChanges="orientation|screenSize"
+            android:screenOrientation="portrait"
+            android:exported="false" />
 
         <provider
             android:name="androidx.startup.InitializationProvider"

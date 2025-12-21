@@ -3,7 +3,6 @@ package com.gmwapp.hima.retrofit.responses
 data class CallsListResponse(
     val success: Boolean,
     val message: String,
-    val total: Int? = null,
     val data: ArrayList<CallsListResponseData>?,
 )
 

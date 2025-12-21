@@ -427,6 +427,195 @@ class SocketManager private constructor() {
                     Log.e("SocketIOCheck", "Error parsing reaction_error: ${e.message}", e)
                 }
             }
+            
+            // Ludo Game Events
+            on("ludo_invitation_received") { args ->
+                try {
+                    Log.d("LudoGame", "═══════════════════════════════════════")
+                    Log.d("LudoGame", "📨 LUDO INVITATION RECEIVED")
+                    Log.d("LudoGame", "═══════════════════════════════════════")
+                    val data = args[0] as? JSONObject
+                    val event = LudoInvitationEvent(
+                        sessionId = data?.optString("session_id", "") ?: "",
+                        fromUserId = data?.optInt("from_user_id", 0) ?: 0,
+                        fromUserName = data?.optString("from_user_name", "") ?: "",
+                        callId = data?.optInt("call_id", 0) ?: 0,
+                        gameUrl = data?.optString("game_url", "") ?: ""
+                    )
+                    _ludoInvitationReceived.value = event
+                    Log.d("LudoGame", "✅ Invitation details:")
+                    Log.d("LudoGame", "   Session ID: ${event.sessionId}")
+                    Log.d("LudoGame", "   From User ID: ${event.fromUserId}")
+                    Log.d("LudoGame", "   From User Name: ${event.fromUserName}")
+                    Log.d("LudoGame", "   Call ID: ${event.callId}")
+                    Log.d("LudoGame", "   Game URL: ${event.gameUrl}")
+                } catch (e: Exception) {
+                    Log.e("LudoGame", "❌ ERROR parsing ludo_invitation_received", e)
+                    Log.e("LudoGame", "   Error message: ${e.message}")
+                    Log.e("LudoGame", "   Stack trace: ${e.stackTraceToString()}")
+                    _ludoInvitationError.value = "Error receiving invitation: ${e.message}"
+                }
+            }
+            
+            on("ludo_game_start") { args ->
+                try {
+                    val data = args[0] as? JSONObject
+                    val event = LudoGameStartEvent(
+                        sessionId = data?.optString("session_id", "") ?: "",
+                        gameUrl = data?.optString("game_url", "") ?: "",
+                        user1Id = data?.optInt("user1_id", 0) ?: 0,
+                        user2Id = data?.optInt("user2_id", 0) ?: 0
+                    )
+                    _ludoGameStart.value = event
+                    Log.d("LudoGame", "🎮 Ludo game start - Session: ${event.sessionId}, URL: ${event.gameUrl}")
+                } catch (e: Exception) {
+                    Log.e("LudoGame", "Error parsing ludo_game_start: ${e.message}", e)
+                }
+            }
+            
+            on("ludo_invitation_accepted") { args ->
+                try {
+                    val data = args[0] as? JSONObject
+                    val event = LudoInvitationAcceptedEvent(
+                        sessionId = data?.optString("session_id", "") ?: "",
+                        acceptedByUserId = data?.optInt("accepted_by_user_id", 0) ?: 0
+                    )
+                    _ludoInvitationAccepted.value = event
+                    Log.d("LudoGame", "✅ Ludo invitation accepted - Session: ${event.sessionId}, By: ${event.acceptedByUserId}")
+                } catch (e: Exception) {
+                    Log.e("LudoGame", "Error parsing ludo_invitation_accepted: ${e.message}", e)
+                }
+            }
+            
+            on("ludo_invitation_rejected") { args ->
+                try {
+                    val data = args[0] as? JSONObject
+                    val event = LudoInvitationRejectedEvent(
+                        sessionId = data?.optString("session_id", "") ?: "",
+                        rejectedByUserId = data?.optInt("rejected_by_user_id", 0) ?: 0
+                    )
+                    _ludoInvitationRejected.value = event
+                    Log.d("LudoGame", "❌ Ludo invitation rejected - Session: ${event.sessionId}, By: ${event.rejectedByUserId}")
+                } catch (e: Exception) {
+                    Log.e("LudoGame", "Error parsing ludo_invitation_rejected: ${e.message}", e)
+                }
+            }
+            
+            on("ludo_invitation_sent") { args ->
+                try {
+                    val data = args[0] as? JSONObject
+                    val event = LudoInvitationSentEvent(
+                        sessionId = data?.optString("session_id", "") ?: "",
+                        toUserId = data?.optInt("to_user_id", 0) ?: 0,
+                        status = data?.optString("status", "") ?: ""
+                    )
+                    _ludoInvitationSent.value = event
+                    Log.d("LudoGame", "✅ Ludo invitation sent successfully - Session: ${event.sessionId}, To: ${event.toUserId}")
+                } catch (e: Exception) {
+                    Log.e("LudoGame", "Error parsing ludo_invitation_sent: ${e.message}", e)
+                }
+            }
+            
+            on("ludo_invitation_error") { args ->
+                try {
+                    Log.e("LudoGame", "═══════════════════════════════════════")
+                    Log.e("LudoGame", "❌ LUDO INVITATION ERROR")
+                    Log.e("LudoGame", "═══════════════════════════════════════")
+                    val errorObj = args[0] as? JSONObject
+                    val errorMessage = errorObj?.optString("error", "Unknown error")
+                    Log.e("LudoGame", "   Error message: $errorMessage")
+                    _ludoInvitationError.value = errorMessage
+                } catch (e: Exception) {
+                    Log.e("LudoGame", "Error parsing ludo_invitation_error: ${e.message}", e)
+                    _ludoInvitationError.value = "Error parsing error message: ${e.message}"
+                }
+            }
+        }
+    }
+    
+    // Ludo Game Events
+    private val _ludoInvitationReceived = MutableStateFlow<LudoInvitationEvent?>(null)
+    val ludoInvitationReceived: StateFlow<LudoInvitationEvent?> = _ludoInvitationReceived.asStateFlow()
+
+    private val _ludoGameStart = MutableStateFlow<LudoGameStartEvent?>(null)
+    val ludoGameStart: StateFlow<LudoGameStartEvent?> = _ludoGameStart.asStateFlow()
+
+    private val _ludoInvitationAccepted = MutableStateFlow<LudoInvitationAcceptedEvent?>(null)
+    val ludoInvitationAccepted: StateFlow<LudoInvitationAcceptedEvent?> = _ludoInvitationAccepted.asStateFlow()
+
+    private val _ludoInvitationRejected = MutableStateFlow<LudoInvitationRejectedEvent?>(null)
+    val ludoInvitationRejected: StateFlow<LudoInvitationRejectedEvent?> = _ludoInvitationRejected.asStateFlow()
+    
+    private val _ludoInvitationSent = MutableStateFlow<LudoInvitationSentEvent?>(null)
+    val ludoInvitationSent: StateFlow<LudoInvitationSentEvent?> = _ludoInvitationSent.asStateFlow()
+    
+    private val _ludoInvitationError = MutableStateFlow<String?>(null)
+    val ludoInvitationError: StateFlow<String?> = _ludoInvitationError.asStateFlow()
+    
+    /**
+     * Send Ludo game invitation
+     */
+    fun sendLudoInvitation(callId: Int, fromUserId: Int, toUserId: Int) {
+        if (!isConnected()) {
+            Log.e("LudoGame", "❌ Cannot send Ludo invitation: Socket.IO not connected")
+            return
+        }
+        
+        try {
+            val data = JSONObject().apply {
+                put("call_id", callId)
+                put("from_user_id", fromUserId)
+                put("to_user_id", toUserId)
+            }
+            
+            socket?.emit("ludo_game_invite", data)
+            Log.d("LudoGame", "📤 Sent Ludo invitation from $fromUserId to $toUserId for call $callId")
+        } catch (e: Exception) {
+            Log.e("LudoGame", "Error sending Ludo invitation: ${e.message}", e)
+        }
+    }
+    
+    /**
+     * Accept Ludo game invitation
+     */
+    fun acceptLudoGame(sessionId: String, userId: Int) {
+        if (!isConnected()) {
+            Log.e("LudoGame", "❌ Cannot accept Ludo game: Socket.IO not connected")
+            return
+        }
+        
+        try {
+            val data = JSONObject().apply {
+                put("session_id", sessionId)
+                put("user_id", userId)
+            }
+            
+            socket?.emit("ludo_game_accept", data)
+            Log.d("LudoGame", "✅ Accepted Ludo game session: $sessionId")
+        } catch (e: Exception) {
+            Log.e("LudoGame", "Error accepting Ludo game: ${e.message}", e)
+        }
+    }
+    
+    /**
+     * Reject Ludo game invitation
+     */
+    fun rejectLudoGame(sessionId: String, userId: Int) {
+        if (!isConnected()) {
+            Log.e("LudoGame", "❌ Cannot reject Ludo game: Socket.IO not connected")
+            return
+        }
+        
+        try {
+            val data = JSONObject().apply {
+                put("session_id", sessionId)
+                put("user_id", userId)
+            }
+            
+            socket?.emit("ludo_game_reject", data)
+            Log.d("LudoGame", "❌ Rejected Ludo game session: $sessionId")
+        } catch (e: Exception) {
+            Log.e("LudoGame", "Error rejecting Ludo game: ${e.message}", e)
         }
     }
     
@@ -448,6 +637,20 @@ class SocketManager private constructor() {
     
     fun isConnected(): Boolean {
         return socket?.connected() == true
+    }
+    
+    /**
+     * Clear all Ludo game StateFlow values
+     * Call this when call ends or when starting a new call to prevent old values from triggering
+     */
+    fun clearLudoGameState() {
+        _ludoInvitationSent.value = null
+        _ludoInvitationReceived.value = null
+        _ludoGameStart.value = null
+        _ludoInvitationAccepted.value = null
+        _ludoInvitationRejected.value = null
+        _ludoInvitationError.value = null
+        Log.d("LudoGame", "🧹 Cleared all Ludo game StateFlow values")
     }
     
     /**
@@ -653,5 +856,37 @@ data class TypingEvent(
     val chatId: String,
     val userId: Int,
     val isTyping: Boolean
+)
+
+// Ludo Game Event Data Classes
+data class LudoInvitationEvent(
+    val sessionId: String,
+    val fromUserId: Int,
+    val fromUserName: String,
+    val callId: Int,
+    val gameUrl: String
+)
+
+data class LudoGameStartEvent(
+    val sessionId: String,
+    val gameUrl: String,
+    val user1Id: Int,
+    val user2Id: Int
+)
+
+data class LudoInvitationAcceptedEvent(
+    val sessionId: String,
+    val acceptedByUserId: Int
+)
+
+data class LudoInvitationRejectedEvent(
+    val sessionId: String,
+    val rejectedByUserId: Int
+)
+
+data class LudoInvitationSentEvent(
+    val sessionId: String,
+    val toUserId: Int,
+    val status: String
 )
 

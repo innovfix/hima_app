@@ -43,6 +43,15 @@ import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ProcessLifecycleOwner
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import com.gmwapp.hima.activities.LudoGameActivity
+import com.gmwapp.hima.socket.SocketManager
+import com.gmwapp.hima.socket.LudoInvitationEvent
+import com.gmwapp.hima.socket.LudoInvitationSentEvent
+import com.gmwapp.hima.socket.LudoGameStartEvent
+import com.gmwapp.hima.socket.LudoInvitationRejectedEvent
 import androidx.work.Constraints
 import androidx.work.Data
 import androidx.work.NetworkType
@@ -169,6 +178,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     var callId: Int = 0
 
+    // Ludo Game Integration
+    private val socketManager = SocketManager.getInstance()
+    private var currentLudoSessionId: String? = null
 
     private var isRemoteUserJoined = false
     private var elapsedTime = 0  // Tracks elapsed seconds
@@ -328,6 +340,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
         giftIconClicked()
         getBlockWords()
+        
+        // Ludo Game Integration
+        setupLudoGame()
     }
 
     private fun getBlockWords(){
@@ -867,6 +882,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     }
 
     fun leaveChannel(view: View) {
+        // Clean up Ludo game state
+        cleanupLudoGameState()
+        
         if (!isJoined) {
           //  showMessage("Join a channel first")
             val intent = Intent(this@MaleAudioCallingActivity, MainActivity::class.java)
@@ -924,6 +942,10 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        
+        // Clean up Ludo game state
+        cleanupLudoGameState()
+        
         stopCountdown()
         agoraEngine?.apply {
             leaveChannel()
@@ -2049,6 +2071,191 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 binding.remoteVideoViewContainer.visibility= View.VISIBLE
             }
         }
+    }
+
+    // ============================================
+    // LUDO GAME INTEGRATION
+    // ============================================
+    
+    private fun setupLudoGame() {
+        // Clear any previous state first to prevent auto-triggering old events
+        socketManager.clearLudoGameState()
+        currentLudoSessionId = null
+        
+        // Ensure Socket.IO is connected
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        if (userData != null) {
+            socketManager.connect(userData.id)
+        }
+        
+        // Setup Ludo button click listener (ONLY when clicked, not auto-send)
+        binding.btnLudoGame.setOnClickListener {
+            Log.d("LudoGame", "═══════════════════════════════════════")
+            Log.d("LudoGame", "🎲 LUDO BUTTON CLICKED")
+            Log.d("LudoGame", "═══════════════════════════════════════")
+            sendLudoInvitation()
+        }
+        
+        // Setup Socket.IO listeners for Ludo events
+        observeLudoEvents()
+    }
+    
+    private fun sendLudoInvitation() {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        
+        Log.d("LudoGame", "📋 sendLudoInvitation() called")
+        Log.d("LudoGame", "   User ID: ${userData?.id}")
+        Log.d("LudoGame", "   Call ID: $callId")
+        Log.d("LudoGame", "   Receiver ID: $receiverId")
+        Log.d("LudoGame", "   Socket Connected: ${socketManager.isConnected()}")
+        
+        if (userData != null && callId > 0 && receiverId > 0) {
+            if (socketManager.isConnected()) {
+                socketManager.sendLudoInvitation(callId, userData.id, receiverId)
+                // Don't show toast here - wait for success confirmation from server
+                Log.d("LudoGame", "📤 Invitation request sent via Socket.IO - Call ID: $callId, From: ${userData.id}, To: $receiverId")
+            } else {
+                Log.e("LudoGame", "❌ Socket.IO not connected - Cannot send invitation")
+                Toast.makeText(this, "Connecting... Please try again", Toast.LENGTH_SHORT).show()
+                // Try to reconnect
+                socketManager.connect(userData.id)
+            }
+        } else {
+            Log.e("LudoGame", "❌ Invalid parameters - User: ${userData != null}, CallId: $callId, ReceiverId: $receiverId")
+            Toast.makeText(this, "Unable to send invitation", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    private fun observeLudoEvents() {
+        // Listen for Ludo invitation sent successfully
+        lifecycleScope.launch {
+            socketManager.ludoInvitationSent.collectLatest {
+                it?.let { sentEvent ->
+                    Toast.makeText(this@MaleAudioCallingActivity, 
+                        "Ludo invitation sent successfully!", Toast.LENGTH_SHORT).show()
+                    currentLudoSessionId = sentEvent.sessionId
+                    Log.d("LudoGame", "✅ Ludo invitation sent successfully - Session: ${sentEvent.sessionId}, To: ${sentEvent.toUserId}")
+                }
+            }
+        }
+        
+        // Listen for Ludo invitation errors
+        lifecycleScope.launch {
+            socketManager.ludoInvitationError.collectLatest {
+                it?.let { errorMessage ->
+                    Log.e("LudoGame", "❌ Ludo invitation error: $errorMessage")
+                    // Don't show toast for errors, just log them
+                }
+            }
+        }
+        
+        // Listen for Ludo invitation received
+        lifecycleScope.launch {
+            socketManager.ludoInvitationReceived.collectLatest { event ->
+                event?.let {
+                    Log.d("LudoGame", "📨 Received Ludo invitation - Showing dialog")
+                    showLudoInvitationDialog(it)
+                }
+            }
+        }
+        
+        // Listen for Ludo game start
+        lifecycleScope.launch {
+            socketManager.ludoGameStart.collectLatest { event ->
+                event?.let {
+                    startLudoGame(it.gameUrl)
+                }
+            }
+        }
+        
+        // Listen for Ludo invitation accepted
+        lifecycleScope.launch {
+            socketManager.ludoInvitationAccepted.collectLatest { event ->
+                event?.let {
+                    Toast.makeText(this@MaleAudioCallingActivity, 
+                        "Ludo invitation accepted! Starting game...", Toast.LENGTH_SHORT).show()
+                    Log.d("LudoGame", "✅ Ludo invitation accepted - Session: ${it.sessionId}")
+                }
+            }
+        }
+        
+        // Listen for Ludo invitation rejected
+        lifecycleScope.launch {
+            socketManager.ludoInvitationRejected.collectLatest { event ->
+                event?.let {
+                    Toast.makeText(this@MaleAudioCallingActivity, 
+                        "Ludo invitation was rejected", Toast.LENGTH_SHORT).show()
+                    Log.d("LudoGame", "❌ Ludo invitation rejected - Session: ${it.sessionId}")
+                }
+            }
+        }
+    }
+    
+    private fun showLudoInvitationDialog(invitation: LudoInvitationEvent) {
+        AlertDialog.Builder(this)
+            .setTitle("🎲 Ludo Game Invitation")
+            .setMessage("${invitation.fromUserName} wants to play Ludo with you!")
+            .setPositiveButton("Accept") { _, _ ->
+                currentLudoSessionId = invitation.sessionId
+                val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                if (userData != null) {
+                    socketManager.acceptLudoGame(invitation.sessionId, userData.id)
+                    Log.d("LudoGame", "✅ Accepting Ludo invitation - Session: ${invitation.sessionId}")
+                }
+            }
+            .setNegativeButton("Reject") { _, _ ->
+                val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                if (userData != null) {
+                    socketManager.rejectLudoGame(invitation.sessionId, userData.id)
+                    Log.d("LudoGame", "❌ Rejecting Ludo invitation - Session: ${invitation.sessionId}")
+                }
+            }
+            .setCancelable(false)
+            .show()
+    }
+    
+    private fun startLudoGame(gameUrl: String) {
+        try {
+            val intent = Intent(this, LudoGameActivity::class.java)
+            intent.putExtra("GAME_URL", gameUrl)
+            startActivity(intent)
+            Log.d("LudoGame", "🎮 Starting Ludo game - URL: $gameUrl")
+        } catch (e: Exception) {
+            Log.e("LudoGame", "Error starting Ludo game: ${e.message}", e)
+            Toast.makeText(this, "Error opening game", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    /**
+     * Clean up Ludo game state when call ends
+     */
+    private fun cleanupLudoGameState() {
+        Log.d("LudoGame", "═══════════════════════════════════════")
+        Log.d("LudoGame", "🧹 CLEANING UP LUDO GAME STATE")
+        Log.d("LudoGame", "═══════════════════════════════════════")
+        
+        // Clear all StateFlow values to prevent auto-triggering on next call
+        socketManager.clearLudoGameState()
+        
+        // Cancel any pending invitations by updating session status if exists
+        val sessionIdToCancel = currentLudoSessionId
+        if (sessionIdToCancel != null) {
+            try {
+                val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                if (userData != null) {
+                    // Cancel the session via Socket.IO
+                    socketManager.rejectLudoGame(sessionIdToCancel, userData.id)
+                    Log.d("LudoGame", "✅ Cancelled pending Ludo session: $sessionIdToCancel")
+                }
+            } catch (e: Exception) {
+                Log.e("LudoGame", "❌ Error cancelling Ludo session: ${e.message}", e)
+            }
+        }
+        
+        // Reset session ID
+        currentLudoSessionId = null
+        
+        Log.d("LudoGame", "✅ Ludo game state cleaned up - Session reset")
     }
 
 
