@@ -300,7 +300,7 @@
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Buy Now"
+                            android:text="Add Coin"
                             android:textColor="@color/white"
                             android:textSize="16sp"
                             android:textStyle="bold"
