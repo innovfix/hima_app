@@ -26,8 +26,8 @@ android {
         applicationId = "com.gmwapp.hima"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1054
-        versionName = "1054"
+        versionCode = 1056
+        versionName = "1056"
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -146,6 +146,10 @@ dependencies {
 
 
     implementation("com.intuit.sdp:sdp-android:1.1.0")
+    
+    // Google Play In-App Review
+    implementation("com.google.android.play:review:2.0.1")
+    implementation("com.google.android.play:review-ktx:2.0.1")
 
     //circleimageview
     implementation("de.hdodenhof:circleimageview:3.1.0")

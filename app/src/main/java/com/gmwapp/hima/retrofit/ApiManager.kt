@@ -78,6 +78,8 @@ import com.gmwapp.hima.retrofit.responses.AddFavoriteResponse
 import com.gmwapp.hima.retrofit.responses.RemoveFavoriteResponse
 import com.gmwapp.hima.retrofit.responses.CheckFavoriteResponse
 import com.gmwapp.hima.retrofit.responses.CheckReferralOfferResponse
+import com.gmwapp.hima.retrofit.responses.RatingPromptResponse
+import com.gmwapp.hima.retrofit.responses.UpdateRatingPromptResponse
 import com.gmwapp.hima.utils.Helper
 import okhttp3.MultipartBody
 import retrofit2.Call
@@ -1260,6 +1262,31 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
             callback.onNoNetwork()
         }
     }
+
+    fun checkRatingPrompt(
+        userId: Int,
+        callback: NetworkCallback<RatingPromptResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<RatingPromptResponse> = getApiInterface().checkRatingPrompt(userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun updateRatingPromptShown(
+        userId: Int,
+        ratingSubmitted: Int = 0,
+        callback: NetworkCallback<UpdateRatingPromptResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<UpdateRatingPromptResponse> = getApiInterface().updateRatingPromptShown(userId, ratingSubmitted)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
 }
 
 interface ApiInterface {
@@ -1914,6 +1941,19 @@ interface ApiInterface {
     fun checkReferralOffer(
         @Field("user_id") userId: Int
     ): Call<CheckReferralOfferResponse>
+
+    @FormUrlEncoded
+    @POST("check_rating_prompt")
+    fun checkRatingPrompt(
+        @Field("user_id") userId: Int
+    ): Call<RatingPromptResponse>
+
+    @FormUrlEncoded
+    @POST("update_rating_prompt_shown")
+    fun updateRatingPromptShown(
+        @Field("user_id") userId: Int,
+        @Field("rating_submitted") ratingSubmitted: Int = 0
+    ): Call<UpdateRatingPromptResponse>
 
 
 }

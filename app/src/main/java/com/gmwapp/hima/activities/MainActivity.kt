@@ -66,6 +66,7 @@ import com.gmwapp.hima.retrofit.responses.CoinsResponseData
 import com.gmwapp.hima.retrofit.responses.NewRazorpayLinkResponse
 import com.gmwapp.hima.retrofit.responses.RazorPayApiResponse
 import com.gmwapp.hima.utils.DPreferences
+import com.gmwapp.hima.utils.RatingPromptHelper
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.FcmTokenViewModel
 import com.gmwapp.hima.viewmodels.IndividualAppUpdateViewModel
@@ -136,6 +137,9 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     private var billingManager: BillingManager? = null
     private val WalletViewModel: WalletViewModel by viewModels()
     private val fetchedSkuList: MutableList<String> = mutableListOf()
+    
+    @javax.inject.Inject
+    lateinit var ratingPromptHelper: RatingPromptHelper
 
 
     private var blockWordDialog: Dialog? = null
@@ -1122,6 +1126,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             checkCashfreeOderStatus(cashfreeLastOrderId)
             cashfreeLastOrderId = "" // reset so it won't run again
         }
+        
+        // Check and show rating prompt if conditions are met
+        userData?.id?.let { userId ->
+            ratingPromptHelper.checkAndShowRatingPrompt(this, userId)
+        }
     }
 
     fun getSkuListID() {
@@ -1395,6 +1404,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             "af_purchase",
             purchaseEvent
         )
+
+        // Check rating prompt after successful purchase
+        userId?.let {
+            ratingPromptHelper.forceCheckRatingPrompt(this, it)
+        }
 
         // Log new_user_purchase event if user registered today
         if (isNewUser(userData?.created_at)) {

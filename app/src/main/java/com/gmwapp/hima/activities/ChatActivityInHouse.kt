@@ -376,10 +376,8 @@ class ChatActivityInHouse : AppCompatActivity() {
                 vOnlineIndicator.visibility = View.GONE
             }
             
-            // Update call buttons state based on online status
-            if (::callButtonsContainer.isInitialized && callButtonsContainer.visibility == View.VISIBLE) {
-                updateCallButtonsState()
-            }
+            // Removed: Update call buttons state based on online status
+            // Buttons are now controlled only by check_call_availability API response
         }
     }
 
@@ -1753,7 +1751,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                                 ivVideoCall.setColorFilter(ContextCompat.getColor(this@ChatActivityInHouse, R.color.grey_medium))
                                 cvAudioCall.isEnabled = false
                                 cvVideoCall.isEnabled = false
-                                // Then update based on actual online status and audio/video status
+                                // Update buttons based on API response (is_blocked, audio_status, video_status)
                                 updateCallButtonsState()
                             }
                         } else {
@@ -1779,39 +1777,9 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun updateCallButtonsState() {
-        // Check online status from lastOnlineStatus
-        // Store in local variable to avoid smart cast issues
-        val currentStatus = lastOnlineStatus
-        Log.d("CallButtons", "Updating call buttons state. Current status: '$currentStatus', Blocked: $isCallBlocked")
+        Log.d("CallButtons", "Updating call buttons state. Blocked: $isCallBlocked, Audio: $peerAudioStatus, Video: $peerVideoStatus")
         
-        val isOnline = when {
-            currentStatus == null -> {
-                Log.d("CallButtons", "Status is null - user is offline")
-                false
-            }
-            currentStatus.equals("Active recently", ignoreCase = true) -> {
-                Log.d("CallButtons", "User is active recently - ONLINE")
-                true
-            }
-            currentStatus.contains("minute", ignoreCase = true) -> {
-                val minutes = currentStatus.filter { it.isDigit() }.toIntOrNull() ?: 0
-                val online = minutes < 5
-                Log.d("CallButtons", "Status: '$currentStatus', Minutes: $minutes, IsOnline: $online")
-                online
-            }
-            currentStatus.contains("hour", ignoreCase = true) -> {
-                Log.d("CallButtons", "Status contains 'hour' - user is offline")
-                false
-            }
-            else -> {
-                Log.d("CallButtons", "Status doesn't match any pattern - user is offline")
-                false
-            }
-        }
-        
-        isPeerUserOnline = isOnline
-        
-        // If blocked (is_blocked = true, meaning backend blocked = 1 or 2), disable both buttons
+        // If blocked (is_blocked = true), disable both buttons
         if (isCallBlocked) {
             Log.d("CallButtons", "User is BLOCKED - disabling both audio and video buttons")
             mainHandler.post {
@@ -1827,16 +1795,15 @@ class ChatActivityInHouse : AppCompatActivity() {
             return
         }
         
-        // If not blocked, check individual audio and video status (0 = disabled, 1 = enabled)
+        // Check individual audio and video status (0 = disabled, 1 = enabled)
         val isAudioEnabled = peerAudioStatus == 1
         val isVideoEnabled = peerVideoStatus == 1
         
-        Log.d("CallButtons", "Final status - Online: $isOnline, Audio: $isAudioEnabled ($peerAudioStatus), Video: $isVideoEnabled ($peerVideoStatus)")
+        Log.d("CallButtons", "Final status - Audio: $isAudioEnabled ($peerAudioStatus), Video: $isVideoEnabled ($peerVideoStatus)")
         
         mainHandler.post {
-            // Audio button state - enabled only if online AND audio is enabled (status = 1)
-            val audioCanCall = isOnline && isAudioEnabled
-            if (audioCanCall) {
+            // Audio button state - enabled only if audio is enabled (status = 1)
+            if (isAudioEnabled) {
                 // ENABLED - Purple
                 Log.d("CallButtons", "Setting audio button to ENABLED (purple)")
                 cvAudioCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.colorAccent))
@@ -1844,15 +1811,14 @@ class ChatActivityInHouse : AppCompatActivity() {
                 cvAudioCall.isEnabled = true
             } else {
                 // DISABLED - Gray
-                Log.d("CallButtons", "Setting audio button to DISABLED (gray) - Online: $isOnline, AudioEnabled: $isAudioEnabled")
+                Log.d("CallButtons", "Setting audio button to DISABLED (gray) - AudioEnabled: $isAudioEnabled")
                 cvAudioCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.light_grey))
                 ivAudioCall.setColorFilter(ContextCompat.getColor(this, R.color.grey_medium))
                 cvAudioCall.isEnabled = false
             }
             
-            // Video button state - enabled only if online AND video is enabled (status = 1)
-            val videoCanCall = isOnline && isVideoEnabled
-            if (videoCanCall) {
+            // Video button state - enabled only if video is enabled (status = 1)
+            if (isVideoEnabled) {
                 // ENABLED - Green
                 Log.d("CallButtons", "Setting video button to ENABLED (green)")
                 cvVideoCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.green))
@@ -1860,7 +1826,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                 cvVideoCall.isEnabled = true
             } else {
                 // DISABLED - Gray
-                Log.d("CallButtons", "Setting video button to DISABLED (gray) - Online: $isOnline, VideoEnabled: $isVideoEnabled")
+                Log.d("CallButtons", "Setting video button to DISABLED (gray) - VideoEnabled: $isVideoEnabled")
                 cvVideoCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.light_grey))
                 ivVideoCall.setColorFilter(ContextCompat.getColor(this, R.color.grey_medium))
                 cvVideoCall.isEnabled = false
@@ -1873,9 +1839,6 @@ class ChatActivityInHouse : AppCompatActivity() {
             when {
                 isCallBlocked -> {
                     Toast.makeText(this, "You are blocked by this user", Toast.LENGTH_SHORT).show()
-                }
-                !isPeerUserOnline -> {
-                    Toast.makeText(this, "User is offline", Toast.LENGTH_SHORT).show()
                 }
                 peerAudioStatus != 1 -> {
                     Toast.makeText(this, "Audio calls are disabled for this user", Toast.LENGTH_SHORT).show()
@@ -1890,9 +1853,6 @@ class ChatActivityInHouse : AppCompatActivity() {
             when {
                 isCallBlocked -> {
                     Toast.makeText(this, "You are blocked by this user", Toast.LENGTH_SHORT).show()
-                }
-                !isPeerUserOnline -> {
-                    Toast.makeText(this, "User is offline", Toast.LENGTH_SHORT).show()
                 }
                 peerVideoStatus != 1 -> {
                     Toast.makeText(this, "Video calls are disabled for this user", Toast.LENGTH_SHORT).show()
