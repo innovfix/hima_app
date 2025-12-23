@@ -5,3 +5,4 @@ data class AddFavoriteResponse(
     val message: String
 )
 
+

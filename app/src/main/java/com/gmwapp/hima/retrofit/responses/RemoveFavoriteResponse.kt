@@ -5,3 +5,4 @@ data class RemoveFavoriteResponse(
     val message: String
 )
 
+
