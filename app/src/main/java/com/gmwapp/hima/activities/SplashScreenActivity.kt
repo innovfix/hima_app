@@ -221,6 +221,9 @@ class SplashScreenActivity : BaseActivity() {
             return
         }
 
+        // Capture install referrer on first launch
+        BaseApplication.getInstance()?.getInstallReferrer()
+
         ZohoSalesIQ.showLauncher(false)
 
 

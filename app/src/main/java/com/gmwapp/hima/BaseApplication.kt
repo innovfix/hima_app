@@ -19,6 +19,7 @@ import android.net.Uri
 import android.os.Build
 import android.util.Base64
 import android.util.Log
+import java.net.URLDecoder
 import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
 import android.view.WindowManager
@@ -669,21 +670,63 @@ class BaseApplication : Application(), Configuration.Provider {
             override fun onInstallReferrerSetupFinished(responseCode: Int) {
                 when (responseCode) {
                     InstallReferrerClient.InstallReferrerResponse.OK -> {
-                        val response: ReferrerDetails = referrerClient.installReferrer
-                        val referrerUrl = response.installReferrer
-                        Log.d("Referrer", "User installed from: $referrerUrl")
+                        try {
+                            val response: ReferrerDetails = referrerClient.installReferrer
+                            val referrerUrl = response.installReferrer
+                            
+                            if (!referrerUrl.isNullOrEmpty()) {
+                                // Parse UTM parameters
+                                val utmParams = parseUtmParameters(referrerUrl)
+                                val source = utmParams["utm_source"] ?: "unknown"
+                                val campaign = utmParams["utm_campaign"] ?: "unknown"
+                                val medium = utmParams["utm_medium"] ?: "unknown"
+                                
+                                // Log with tag AppDownloadSoruce
+                                Log.d("AppDownloadSoruce", "Full Referrer: $referrerUrl")
+                                Log.d("AppDownloadSoruce", "Source: $source")
+                                Log.d("AppDownloadSoruce", "Campaign: $campaign")
+                                Log.d("AppDownloadSoruce", "Medium: $medium")
+                                
+                            } else {
+                                Log.d("AppDownloadSoruce", "No referrer data (organic install)")
+                            }
+                        } catch (e: Exception) {
+                            Log.e("AppDownloadSoruce", "Error getting referrer: ${e.message}")
+                        }
                     }
                     InstallReferrerClient.InstallReferrerResponse.FEATURE_NOT_SUPPORTED ->
-                        Log.e("Referrer", "API not supported")
+                        Log.e("AppDownloadSoruce", "API not supported")
                     InstallReferrerClient.InstallReferrerResponse.SERVICE_UNAVAILABLE ->
-                        Log.e("Referrer", "Service unavailable")
+                        Log.e("AppDownloadSoruce", "Service unavailable")
                 }
+                referrerClient.endConnection()
             }
 
             override fun onInstallReferrerServiceDisconnected() {
                 // Retry later if needed
             }
         })
+    }
+
+    // Helper function to parse UTM parameters
+    private fun parseUtmParameters(referrerUrl: String): Map<String, String> {
+        val params = mutableMapOf<String, String>()
+        
+        try {
+            val parts = referrerUrl.split("&")
+            for (part in parts) {
+                val keyValue = part.split("=")
+                if (keyValue.size == 2) {
+                    val key = keyValue[0]
+                    val value = URLDecoder.decode(keyValue[1], "UTF-8")
+                    params[key] = value
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("AppDownloadSoruce", "Error parsing UTM: ${e.message}")
+        }
+        
+        return params
     }
 
     fun isChatListActivityVisible(): Boolean {
