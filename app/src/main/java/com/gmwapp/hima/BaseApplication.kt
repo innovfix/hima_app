@@ -28,6 +28,17 @@ import androidx.work.Configuration
 import com.android.installreferrer.api.InstallReferrerClient
 import com.android.installreferrer.api.InstallReferrerStateListener
 import com.android.installreferrer.api.ReferrerDetails
+import com.google.android.gms.ads.identifier.AdvertisingIdClient
+import com.google.android.gms.common.GooglePlayServicesNotAvailableException
+import com.google.android.gms.common.GooglePlayServicesRepairableException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
+import java.io.IOException
 import com.facebook.FacebookSdk
 import com.facebook.appevents.AppEventsLogger
 import com.gmwapp.hima.constants.DConstants
@@ -677,9 +688,11 @@ class BaseApplication : Application(), Configuration.Provider {
                             if (!referrerUrl.isNullOrEmpty()) {
                                 // Parse UTM parameters
                                 val utmParams = parseUtmParameters(referrerUrl)
-                                val source = utmParams["utm_source"] ?: "unknown"
-                                val campaign = utmParams["utm_campaign"] ?: "unknown"
-                                val medium = utmParams["utm_medium"] ?: "unknown"
+                                val source = utmParams["utm_source"] ?: utmParams["source"] ?: "organic"
+                                val campaign = utmParams["utm_campaign"] ?: utmParams["campaign"] ?: null
+                                val medium = utmParams["utm_medium"] ?: utmParams["medium"] ?: null
+                                val adId = utmParams["ad_id"] ?: null
+                                val clickId = utmParams["click_id"] ?: null
                                 
                                 // Log with tag AppDownloadSoruce
                                 Log.d("AppDownloadSoruce", "Full Referrer: $referrerUrl")
@@ -687,17 +700,27 @@ class BaseApplication : Application(), Configuration.Provider {
                                 Log.d("AppDownloadSoruce", "Campaign: $campaign")
                                 Log.d("AppDownloadSoruce", "Medium: $medium")
                                 
+                                // Get device ID and report install
+                                getDeviceIdAndReportInstall(source, campaign, adId, clickId, utmParams)
+                                
                             } else {
                                 Log.d("AppDownloadSoruce", "No referrer data (organic install)")
+                                // Still report as organic install
+                                getDeviceIdAndReportInstall("organic", null, null, null, emptyMap())
                             }
                         } catch (e: Exception) {
                             Log.e("AppDownloadSoruce", "Error getting referrer: ${e.message}")
+                            getDeviceIdAndReportInstall("organic", null, null, null, emptyMap())
                         }
                     }
-                    InstallReferrerClient.InstallReferrerResponse.FEATURE_NOT_SUPPORTED ->
+                    InstallReferrerClient.InstallReferrerResponse.FEATURE_NOT_SUPPORTED -> {
                         Log.e("AppDownloadSoruce", "API not supported")
-                    InstallReferrerClient.InstallReferrerResponse.SERVICE_UNAVAILABLE ->
+                        getDeviceIdAndReportInstall("organic", null, null, null, emptyMap())
+                    }
+                    InstallReferrerClient.InstallReferrerResponse.SERVICE_UNAVAILABLE -> {
                         Log.e("AppDownloadSoruce", "Service unavailable")
+                        getDeviceIdAndReportInstall("organic", null, null, null, emptyMap())
+                    }
                 }
                 referrerClient.endConnection()
             }
@@ -706,6 +729,109 @@ class BaseApplication : Application(), Configuration.Provider {
                 // Retry later if needed
             }
         })
+    }
+    
+    private fun getDeviceIdAndReportInstall(
+        source: String,
+        campaign: String?,
+        adId: String?,
+        clickId: String?,
+        referrerData: Map<String, String>
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val adInfo = AdvertisingIdClient.getAdvertisingIdInfo(applicationContext)
+                val deviceId = adInfo.id
+                
+                Log.d("AppDownloadSoruce", "Device ID (GAID): $deviceId")
+                
+                // Report install to backend
+                reportInstallToBackend(deviceId, source, campaign, adId, clickId, referrerData)
+                
+            } catch (e: GooglePlayServicesNotAvailableException) {
+                Log.e("AppDownloadSoruce", "Google Play Services not available: ${e.message}")
+                // Try to report without device ID
+                reportInstallToBackend(null, source, campaign, adId, clickId, referrerData)
+            } catch (e: GooglePlayServicesRepairableException) {
+                Log.e("AppDownloadSoruce", "Google Play Services repairable: ${e.message}")
+                reportInstallToBackend(null, source, campaign, adId, clickId, referrerData)
+            } catch (e: Exception) {
+                Log.e("AppDownloadSoruce", "Error getting device ID: ${e.message}")
+                reportInstallToBackend(null, source, campaign, adId, clickId, referrerData)
+            }
+        }
+    }
+    
+    private fun reportInstallToBackend(
+        deviceId: String?,
+        source: String,
+        campaign: String?,
+        adId: String?,
+        clickId: String?,
+        referrerData: Map<String, String>
+    ) {
+        // Check if already reported
+        val prefs = getSharedPreferences("install_tracking", Context.MODE_PRIVATE)
+        if (prefs.getBoolean("install_reported", false)) {
+            Log.d("AppDownloadSoruce", "Install already reported, skipping")
+            return
+        }
+        
+        if (deviceId == null) {
+            Log.w("AppDownloadSoruce", "Device ID is null, cannot report install")
+            return
+        }
+        
+        try {
+            val jsonObject = JSONObject().apply {
+                put("device_id", deviceId)
+                put("source", source)
+                if (campaign != null) put("campaign", campaign)
+                if (adId != null) put("ad_id", adId)
+                
+                // Add referrer data
+                val referrerDataJson = JSONObject()
+                referrerData.forEach { (key, value) ->
+                    referrerDataJson.put(key, value)
+                }
+                if (clickId != null) {
+                    referrerDataJson.put("click_id", clickId)
+                }
+                put("referrer_data", referrerDataJson)
+            }
+            
+            val mediaType = "application/json; charset=utf-8".toMediaType()
+            val requestBody = jsonObject.toString().toRequestBody(mediaType)
+            
+            val request = Request.Builder()
+                .url("https://himaapp.in/api/attribution/report-install")
+                .post(requestBody)
+                .addHeader("Content-Type", "application/json")
+                .build()
+            
+            val client = OkHttpClient()
+            client.newCall(request).enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    Log.e("AppDownloadSoruce", "Failed to report install: ${e.message}")
+                }
+                
+                override fun onResponse(call: Call, response: Response) {
+                    val responseBody = response.body?.string()
+                    Log.d("AppDownloadSoruce", "Install report response: $responseBody")
+                    
+                    if (response.isSuccessful) {
+                        // Mark as reported
+                        prefs.edit().putBoolean("install_reported", true).apply()
+                        Log.d("AppDownloadSoruce", "Install reported successfully")
+                    } else {
+                        Log.e("AppDownloadSoruce", "Failed to report install: ${response.code}")
+                    }
+                }
+            })
+            
+        } catch (e: Exception) {
+            Log.e("AppDownloadSoruce", "Error reporting install: ${e.message}")
+        }
     }
 
     // Helper function to parse UTM parameters
@@ -727,6 +853,50 @@ class BaseApplication : Application(), Configuration.Provider {
         }
         
         return params
+    }
+    
+    /**
+     * Link install attribution to user after registration
+     */
+    fun linkInstallToUser(userId: Int) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val adInfo = AdvertisingIdClient.getAdvertisingIdInfo(applicationContext)
+                val deviceId = adInfo.id
+                
+                val jsonObject = JSONObject().apply {
+                    put("device_id", deviceId)
+                    put("user_id", userId)
+                }
+                
+                val mediaType = "application/json; charset=utf-8".toMediaType()
+                val requestBody = jsonObject.toString().toRequestBody(mediaType)
+                
+                val request = Request.Builder()
+                    .url("https://himaapp.in/api/attribution/link-install-to-user")
+                    .post(requestBody)
+                    .addHeader("Content-Type", "application/json")
+                    .build()
+                
+                val client = OkHttpClient()
+                client.newCall(request).enqueue(object : Callback {
+                    override fun onFailure(call: Call, e: IOException) {
+                        Log.e("AppDownloadSoruce", "Failed to link install to user: ${e.message}")
+                    }
+                    
+                    override fun onResponse(call: Call, response: Response) {
+                        val responseBody = response.body?.string()
+                        Log.d("AppDownloadSoruce", "Link install response: $responseBody")
+                        if (response.isSuccessful) {
+                            Log.d("AppDownloadSoruce", "Install linked to user successfully")
+                        }
+                    }
+                })
+                
+            } catch (e: Exception) {
+                Log.e("AppDownloadSoruce", "Error linking install to user: ${e.message}")
+            }
+        }
     }
 
     fun isChatListActivityVisible(): Boolean {

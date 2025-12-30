@@ -62,6 +62,11 @@ class SelectLanguageActivity : BaseActivity() {
                 BaseApplication.getInstance()?.getPrefs()?.setUserData(it.data)
                 BaseApplication.getInstance()?.getPrefs()?.setAuthenticationToken(it.token)
                 
+                // Link install attribution to user
+                it.data?.id?.let { userId ->
+                    BaseApplication.getInstance()?.linkInstallToUser(userId)
+                }
+                
                 // Socket.IO will connect only when ChatActivityInHouse opens
                 Log.d("SocketIOCheck", "✅ Registration successful - Socket.IO will connect when chat opens")
 
