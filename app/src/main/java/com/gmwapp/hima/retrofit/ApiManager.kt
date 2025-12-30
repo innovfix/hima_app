@@ -25,6 +25,7 @@ import com.gmwapp.hima.retrofit.responses.EarningsResponse
 import com.gmwapp.hima.retrofit.responses.ExplanationVideoResponse
 import com.gmwapp.hima.retrofit.responses.FcmNotificationResponse
 import com.gmwapp.hima.retrofit.responses.FcmTokenResponse
+import com.gmwapp.hima.retrofit.responses.FirstInstallResponse
 import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponse
 import com.gmwapp.hima.retrofit.responses.FirstCallUpdateResponse
@@ -1287,6 +1288,18 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
             callback.onNoNetwork()
         }
     }
+
+    fun firstInstall(
+        userId: Int? = null,
+        callback: NetworkCallback<FirstInstallResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<FirstInstallResponse> = getApiInterface().firstInstall(userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
 }
 
 interface ApiInterface {
@@ -1703,6 +1716,12 @@ interface ApiInterface {
         @Field("user_id") userId: Int,
         @Field("token") token: String
     ): Call<FcmTokenResponse>
+
+    @FormUrlEncoded
+    @POST("first_install")
+    fun firstInstall(
+        @Field("user_id") userId: Int? = null
+    ): Call<FirstInstallResponse>
 
     @FormUrlEncoded
     @POST("send-fcm-notification")

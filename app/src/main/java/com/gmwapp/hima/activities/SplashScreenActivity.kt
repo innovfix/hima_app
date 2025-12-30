@@ -35,9 +35,15 @@ import com.gmwapp.hima.agora.female.FemaleCallAcceptActivity
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivitySplashScreenBinding
 import com.gmwapp.hima.retrofit.responses.UserData
+import com.gmwapp.hima.retrofit.ApiManager
+import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
+import com.gmwapp.hima.retrofit.responses.FirstInstallResponse
 import com.gmwapp.hima.viewmodels.IndividualAppUpdateViewModel
 import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
+import retrofit2.Call
+import retrofit2.Response
+import javax.inject.Inject
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.google.android.play.core.appupdate.AppUpdateOptions
@@ -54,6 +60,10 @@ class SplashScreenActivity : BaseActivity() {
     val profileViewModel: ProfileViewModel by viewModels()
     val individualAppUpdateViewModel: IndividualAppUpdateViewModel by viewModels()
     val viewModel: LoginViewModel by viewModels()
+    
+    @Inject
+    lateinit var apiManager: ApiManager
+    
     var currentVersion = ""
     
     // Track splash screen start time for minimum display duration
@@ -230,7 +240,25 @@ class SplashScreenActivity : BaseActivity() {
         val prefs = BaseApplication.getInstance()?.getPrefs()
         var userData = prefs?.getUserData()
 
+        // Call first_install API - server captures IP automatically
+        // Send user_id if available to update user and install records
+        val userId = userData?.id
+        apiManager.firstInstall(userId, object : NetworkCallback<FirstInstallResponse> {
+            override fun onResponse(
+                call: Call<FirstInstallResponse>,
+                response: Response<FirstInstallResponse>
+            ) {
+                Log.d("FirstInstall", "IP captured: ${response.body()?.ip_address}")
+            }
 
+            override fun onFailure(call: Call<FirstInstallResponse>, t: Throwable) {
+                Log.e("FirstInstall", "Failed to capture IP: ${t.message}")
+            }
+
+            override fun onNoNetwork() {
+                Log.e("FirstInstall", "No network connection")
+            }
+        })
 
         try {
             val pInfo = packageManager.getPackageInfo(packageName, 0)
