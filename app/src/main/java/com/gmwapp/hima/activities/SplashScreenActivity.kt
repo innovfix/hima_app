@@ -221,7 +221,11 @@ class SplashScreenActivity : BaseActivity() {
             return
         }
 
-        // Capture install referrer on first launch
+        // Check install attribution - sends device ID to server
+        // Server checks if device clicked a link and creates install record
+        BaseApplication.getInstance()?.checkInstallAttribution()
+        
+        // Also log install referrer for debugging (optional)
         BaseApplication.getInstance()?.getInstallReferrer()
 
         ZohoSalesIQ.showLauncher(false)

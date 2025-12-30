@@ -215,9 +215,6 @@ dependencies {
 
     //Install referer
     implementation ("com.android.installreferrer:installreferrer:2.2")
-    
-    // Google Play Services Ads for GAID
-    implementation ("com.google.android.gms:play-services-ads:23.0.0")
 
 
     //Cashfree

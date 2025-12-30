@@ -83,6 +83,11 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
                     ) {
                         registerLiveData.postValue(response.body())
                         Log.d("registerLiveData","${response.body()}")
+                        
+                        // Link install attribution to user after successful registration
+                        response.body()?.data?.id?.let { userId ->
+                            com.gmwapp.hima.BaseApplication.getInstance()?.linkInstallToUser(userId)
+                        }
                     }
 
                     override fun onFailure(call: Call<RegisterResponse>, t: Throwable) {
@@ -180,6 +185,11 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
                     ) {
                         registerLiveData.postValue(response.body())
                         Log.d("registerFemale","${response.body()}")
+                        
+                        // Link install attribution to user after successful registration
+                        response.body()?.data?.id?.let { userId ->
+                            com.gmwapp.hima.BaseApplication.getInstance()?.linkInstallToUser(userId)
+                        }
                     }
 
                     override fun onFailure(call: Call<RegisterResponse>, t: Throwable) {
