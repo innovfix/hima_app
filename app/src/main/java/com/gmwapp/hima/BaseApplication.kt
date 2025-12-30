@@ -28,6 +28,17 @@ import androidx.work.Configuration
 import com.android.installreferrer.api.InstallReferrerClient
 import com.android.installreferrer.api.InstallReferrerStateListener
 import com.android.installreferrer.api.ReferrerDetails
+import com.google.android.gms.ads.identifier.AdvertisingIdClient
+import com.google.android.gms.common.GooglePlayServicesNotAvailableException
+import com.google.android.gms.common.GooglePlayServicesRepairableException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
+import java.io.IOException
 import com.facebook.FacebookSdk
 import com.facebook.appevents.AppEventsLogger
 import com.gmwapp.hima.constants.DConstants
@@ -674,10 +685,17 @@ class BaseApplication : Application(), Configuration.Provider {
                 val adInfo = AdvertisingIdClient.getAdvertisingIdInfo(applicationContext)
                 val deviceId = adInfo.id
                 
-                Log.d("AppDownloadSoruce", "Checking install attribution for device ID: $deviceId")
-                
-                // Send device ID to server - server will check if clicked link exists
-                reportInstallToBackend(deviceId)
+                if (deviceId != null) {
+                    Log.d("AppDownloadSoruce", "Checking install attribution for device ID: $deviceId")
+                    
+                    // Send device ID to server - server will check if clicked link exists
+                    reportInstallToBackend(deviceId)
+                    
+                    // Update IP address whenever app opens
+                    updateDeviceIp(deviceId)
+                } else {
+                    Log.w("AppDownloadSoruce", "Device ID is null, cannot report install")
+                }
                 
             } catch (e: GooglePlayServicesNotAvailableException) {
                 Log.e("AppDownloadSoruce", "Google Play Services not available: ${e.message}")
@@ -686,6 +704,48 @@ class BaseApplication : Application(), Configuration.Provider {
             } catch (e: Exception) {
                 Log.e("AppDownloadSoruce", "Error getting device ID: ${e.message}")
             }
+        }
+    }
+    
+    /**
+     * Update IP address for device
+     * Called whenever user opens app
+     */
+    private fun updateDeviceIp(deviceId: String) {
+        try {
+            val jsonObject = JSONObject().apply {
+                put("device_id", deviceId)
+            }
+            
+            val mediaType = "application/json; charset=utf-8".toMediaType()
+            val requestBody = jsonObject.toString().toRequestBody(mediaType)
+            
+            val request = Request.Builder()
+                .url("https://himaapp.in/api/attribution/update-device-ip")
+                .post(requestBody)
+                .addHeader("Content-Type", "application/json")
+                .build()
+            
+            val client = OkHttpClient()
+            client.newCall(request).enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    Log.e("AppDownloadSoruce", "Failed to update IP: ${e.message}")
+                }
+                
+                override fun onResponse(call: Call, response: Response) {
+                    val responseBody = response.body?.string()
+                    Log.d("AppDownloadSoruce", "Update IP response: $responseBody")
+                    
+                    if (response.isSuccessful) {
+                        Log.d("AppDownloadSoruce", "IP address updated successfully")
+                    } else {
+                        Log.e("AppDownloadSoruce", "Failed to update IP: ${response.code}")
+                    }
+                }
+            })
+            
+        } catch (e: Exception) {
+            Log.e("AppDownloadSoruce", "Error updating IP: ${e.message}")
         }
     }
     
