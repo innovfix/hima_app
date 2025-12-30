@@ -26,6 +26,7 @@ import com.gmwapp.hima.retrofit.responses.ExplanationVideoResponse
 import com.gmwapp.hima.retrofit.responses.FcmNotificationResponse
 import com.gmwapp.hima.retrofit.responses.FcmTokenResponse
 import com.gmwapp.hima.retrofit.responses.UpdateIpResponse
+import com.gmwapp.hima.retrofit.responses.MyIpAddressResponse
 import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponse
 import com.gmwapp.hima.retrofit.responses.FirstCallUpdateResponse
@@ -797,6 +798,18 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<UpdateIpResponse> = getApiInterface().updateIp()
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun myipaddress(
+        userId: Int,
+        callback: NetworkCallback<MyIpAddressResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<MyIpAddressResponse> = getApiInterface().myipaddress(userId)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1718,6 +1731,12 @@ interface ApiInterface {
 
     @POST("attribution/update-ip")
     fun updateIp(): Call<UpdateIpResponse>
+
+    @FormUrlEncoded
+    @POST("myipaddress")
+    fun myipaddress(
+        @Field("user_id") userId: Int
+    ): Call<MyIpAddressResponse>
 
     @FormUrlEncoded
     @POST("send-fcm-notification")

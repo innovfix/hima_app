@@ -39,6 +39,7 @@ import com.gmwapp.hima.viewmodels.IndividualAppUpdateViewModel
 import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.viewmodels.UpdateIpViewModel
+import com.gmwapp.hima.viewmodels.MyIpAddressViewModel
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.google.android.play.core.appupdate.AppUpdateOptions
@@ -56,6 +57,7 @@ class SplashScreenActivity : BaseActivity() {
     val individualAppUpdateViewModel: IndividualAppUpdateViewModel by viewModels()
     val viewModel: LoginViewModel by viewModels()
     val updateIpViewModel: UpdateIpViewModel by viewModels()
+    val myIpAddressViewModel: MyIpAddressViewModel by viewModels()
     var currentVersion = ""
     
     // Track splash screen start time for minimum display duration
@@ -242,7 +244,11 @@ class SplashScreenActivity : BaseActivity() {
         val prefs = BaseApplication.getInstance()?.getPrefs()
         var userData = prefs?.getUserData()
 
-
+        // Update user IP address if user is logged in
+        val userId = userData?.id
+        if (userId != null) {
+            myIpAddressViewModel.myipaddress(userId)
+        }
 
         try {
             val pInfo = packageManager.getPackageInfo(packageName, 0)
@@ -252,7 +258,6 @@ class SplashScreenActivity : BaseActivity() {
             e.printStackTrace()
         }
       //  userData?.let { individualAppUpdateViewModel.checkUserAppVersion(it.id,currentVersion) }
-        val userId = userData?.id
         if (userId != null) {
             individualAppUpdateViewModel.checkUserAppVersion(userId, currentVersion)
         }else{
