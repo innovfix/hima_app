@@ -80,6 +80,7 @@ import com.gmwapp.hima.retrofit.responses.CheckFavoriteResponse
 import com.gmwapp.hima.retrofit.responses.CheckReferralOfferResponse
 import com.gmwapp.hima.retrofit.responses.RatingPromptResponse
 import com.gmwapp.hima.retrofit.responses.UpdateRatingPromptResponse
+import com.gmwapp.hima.retrofit.responses.FirstInstallResponse
 import com.gmwapp.hima.utils.Helper
 import okhttp3.MultipartBody
 import retrofit2.Call
@@ -1287,6 +1288,17 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
             callback.onNoNetwork()
         }
     }
+
+    fun firstInstall(
+        callback: NetworkCallback<FirstInstallResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<FirstInstallResponse> = getApiInterface().firstInstall()
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
 }
 
 interface ApiInterface {
@@ -1954,6 +1966,9 @@ interface ApiInterface {
         @Field("user_id") userId: Int,
         @Field("rating_submitted") ratingSubmitted: Int = 0
     ): Call<UpdateRatingPromptResponse>
+
+    @POST("first_install")
+    fun firstInstall(): Call<FirstInstallResponse>
 
 
 }

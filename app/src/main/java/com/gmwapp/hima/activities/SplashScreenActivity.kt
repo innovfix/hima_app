@@ -38,7 +38,11 @@ import com.gmwapp.hima.retrofit.responses.UserData
 import com.gmwapp.hima.viewmodels.IndividualAppUpdateViewModel
 import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
+import com.gmwapp.hima.retrofit.ApiManager
+import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
+import com.gmwapp.hima.retrofit.responses.FirstInstallResponse
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import javax.inject.Inject
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.google.android.play.core.appupdate.AppUpdateOptions
 import com.google.android.play.core.install.model.AppUpdateType
@@ -55,6 +59,9 @@ class SplashScreenActivity : BaseActivity() {
     val individualAppUpdateViewModel: IndividualAppUpdateViewModel by viewModels()
     val viewModel: LoginViewModel by viewModels()
     var currentVersion = ""
+    
+    @Inject
+    lateinit var apiManager: ApiManager
     
     // Track splash screen start time for minimum display duration
     private var splashStartTime: Long = 0
@@ -230,7 +237,10 @@ class SplashScreenActivity : BaseActivity() {
         val prefs = BaseApplication.getInstance()?.getPrefs()
         var userData = prefs?.getUserData()
 
-
+        // Track first install if user is not logged in
+        if (userData == null) {
+            trackFirstInstall()
+        }
 
         try {
             val pInfo = packageManager.getPackageInfo(packageName, 0)
@@ -411,6 +421,26 @@ class SplashScreenActivity : BaseActivity() {
         val network = connectivityManager.activeNetwork
         val networkCapabilities = connectivityManager.getNetworkCapabilities(network)
         return networkCapabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+    }
+
+    private fun trackFirstInstall() {
+        apiManager.firstInstall(object : NetworkCallback<FirstInstallResponse> {
+            override fun onResponse(call: retrofit2.Call<FirstInstallResponse>, response: retrofit2.Response<FirstInstallResponse>) {
+                if (response.isSuccessful && response.body() != null) {
+                    Log.d("FirstInstall", "Install tracked successfully")
+                } else {
+                    Log.e("FirstInstall", "Failed to track install: ${response.message()}")
+                }
+            }
+
+            override fun onFailure(call: retrofit2.Call<FirstInstallResponse>, t: Throwable) {
+                Log.e("FirstInstall", "Error tracking install: ${t.message}")
+            }
+
+            override fun onNoNetwork() {
+                Log.e("FirstInstall", "No network connection")
+            }
+        })
     }
 
     private fun showUpdateDialog(link: String, description: String) {
