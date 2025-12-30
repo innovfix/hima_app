@@ -38,6 +38,7 @@ import com.gmwapp.hima.retrofit.responses.UserData
 import com.gmwapp.hima.viewmodels.IndividualAppUpdateViewModel
 import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
+import com.gmwapp.hima.viewmodels.UpdateIpViewModel
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.google.android.play.core.appupdate.AppUpdateOptions
@@ -54,6 +55,7 @@ class SplashScreenActivity : BaseActivity() {
     val profileViewModel: ProfileViewModel by viewModels()
     val individualAppUpdateViewModel: IndividualAppUpdateViewModel by viewModels()
     val viewModel: LoginViewModel by viewModels()
+    val updateIpViewModel: UpdateIpViewModel by viewModels()
     var currentVersion = ""
     
     // Track splash screen start time for minimum display duration
@@ -224,6 +226,9 @@ class SplashScreenActivity : BaseActivity() {
         // Check install attribution - sends device ID to server
         // Server checks if device clicked a link and creates install record
         BaseApplication.getInstance()?.checkInstallAttribution()
+        
+        // Update IP address - server captures IP from HTTP request
+        updateIpViewModel.updateIp()
         
         // Also log install referrer for debugging (optional)
         BaseApplication.getInstance()?.getInstallReferrer()

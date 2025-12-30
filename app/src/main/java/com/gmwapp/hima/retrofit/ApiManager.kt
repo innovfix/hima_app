@@ -25,6 +25,7 @@ import com.gmwapp.hima.retrofit.responses.EarningsResponse
 import com.gmwapp.hima.retrofit.responses.ExplanationVideoResponse
 import com.gmwapp.hima.retrofit.responses.FcmNotificationResponse
 import com.gmwapp.hima.retrofit.responses.FcmTokenResponse
+import com.gmwapp.hima.retrofit.responses.UpdateIpResponse
 import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponse
 import com.gmwapp.hima.retrofit.responses.FirstCallUpdateResponse
@@ -785,6 +786,17 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<FcmTokenResponse> = getApiInterface().sendFcmToken(userId, token)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun updateIp(
+        callback: NetworkCallback<UpdateIpResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<UpdateIpResponse> = getApiInterface().updateIp()
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1703,6 +1715,9 @@ interface ApiInterface {
         @Field("user_id") userId: Int,
         @Field("token") token: String
     ): Call<FcmTokenResponse>
+
+    @POST("attribution/update-ip")
+    fun updateIp(): Call<UpdateIpResponse>
 
     @FormUrlEncoded
     @POST("send-fcm-notification")
