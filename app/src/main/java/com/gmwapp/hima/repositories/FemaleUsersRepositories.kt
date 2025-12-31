@@ -8,6 +8,7 @@ import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponse
 import com.gmwapp.hima.retrofit.responses.RandomUsersResponse
 import com.gmwapp.hima.retrofit.responses.ReportsResponse
+import com.gmwapp.hima.retrofit.responses.GetFemaleTalkDurationResponse
 import com.gmwapp.hima.retrofit.responses.TransactionsResponse
 import com.gmwapp.hima.retrofit.responses.UpdateCallStatusResponse
 import com.gmwapp.hima.retrofit.responses.UpdateConnectedCallResponse
@@ -25,6 +26,10 @@ class FemaleUsersRepositories @Inject constructor(private val apiManager: ApiMan
 
   fun getCalldetailsUser(userId: Int, callback: NetworkCallback<ReportsResponse>) {
         apiManager.getCalldetails(userId,callback)
+    }
+
+    fun getFemaleTalkDuration(userId: Int, callback: NetworkCallback<GetFemaleTalkDurationResponse>) {
+        apiManager.getFemaleTalkDuration(userId, callback)
     }
 
     fun updateCallStatus(

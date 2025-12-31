@@ -674,12 +674,24 @@ class BaseApplication : Application(), Configuration.Provider {
                             val response: ReferrerDetails = referrerClient.installReferrer
                             val referrerUrl = response.installReferrer
                             
+                            // Build complete response data map
+                            val responseData = mutableMapOf<String, Any>()
+                            responseData["response_code"] = responseCode
+                            responseData["install_referrer"] = referrerUrl ?: ""
+                            responseData["referrer_click_timestamp_seconds"] = response.referrerClickTimestampSeconds
+                            responseData["install_begin_timestamp_seconds"] = response.installBeginTimestampSeconds
+                            
                             if (!referrerUrl.isNullOrEmpty()) {
                                 // Parse UTM parameters
                                 val utmParams = parseUtmParameters(referrerUrl)
                                 val source = utmParams["utm_source"] ?: "unknown"
                                 val campaign = utmParams["utm_campaign"] ?: "unknown"
                                 val medium = utmParams["utm_medium"] ?: "unknown"
+                                
+                                responseData["utm_source"] = source
+                                responseData["utm_campaign"] = campaign
+                                responseData["utm_medium"] = medium
+                                responseData["utm_params"] = utmParams
                                 
                                 // Log with tag AppDownloadSoruce
                                 Log.d("AppDownloadSoruce", "Full Referrer: $referrerUrl")
@@ -690,14 +702,41 @@ class BaseApplication : Application(), Configuration.Provider {
                             } else {
                                 Log.d("AppDownloadSoruce", "No referrer data (organic install)")
                             }
+                            
+                            // Check if userData is empty/null, then send to backend
+                            val userData = getPrefs()?.getUserData()
+                            if (userData == null) {
+                                sendInstallReferrerToBackend(responseData)
+                            }
+                            
                         } catch (e: Exception) {
                             Log.e("AppDownloadSoruce", "Error getting referrer: ${e.message}")
                         }
                     }
-                    InstallReferrerClient.InstallReferrerResponse.FEATURE_NOT_SUPPORTED ->
+                    InstallReferrerClient.InstallReferrerResponse.FEATURE_NOT_SUPPORTED -> {
                         Log.e("AppDownloadSoruce", "API not supported")
-                    InstallReferrerClient.InstallReferrerResponse.SERVICE_UNAVAILABLE ->
+                        // Still send response with error code
+                        val userData = getPrefs()?.getUserData()
+                        if (userData == null) {
+                            val responseData = mapOf(
+                                "response_code" to responseCode,
+                                "error" to "FEATURE_NOT_SUPPORTED"
+                            )
+                            sendInstallReferrerToBackend(responseData)
+                        }
+                    }
+                    InstallReferrerClient.InstallReferrerResponse.SERVICE_UNAVAILABLE -> {
                         Log.e("AppDownloadSoruce", "Service unavailable")
+                        // Still send response with error code
+                        val userData = getPrefs()?.getUserData()
+                        if (userData == null) {
+                            val responseData = mapOf(
+                                "response_code" to responseCode,
+                                "error" to "SERVICE_UNAVAILABLE"
+                            )
+                            sendInstallReferrerToBackend(responseData)
+                        }
+                    }
                 }
                 referrerClient.endConnection()
             }
@@ -706,6 +745,86 @@ class BaseApplication : Application(), Configuration.Provider {
                 // Retry later if needed
             }
         })
+    }
+    
+    private fun sendInstallReferrerToBackend(responseData: Map<String, Any>) {
+        try {
+            val apiManager = getApiManager()
+            if (apiManager == null) {
+                Log.e("AppDownloadSoruce", "ApiManager not available")
+                return
+            }
+            
+            // Get device info
+            val deviceInfo = "${Build.MANUFACTURER} ${Build.MODEL}"
+            val appVersion = try {
+                val packageInfo = packageManager.getPackageInfo(packageName, 0)
+                packageInfo.versionName ?: "unknown"
+            } catch (e: Exception) {
+                "unknown"
+            }
+            val osVersion = "Android ${Build.VERSION.RELEASE}"
+            
+            // Convert responseData to JSON string
+            val gson = com.google.gson.Gson()
+            val responseDataJson = gson.toJson(responseData)
+            
+            apiManager.logInstallReferrer(
+                responseDataJson,
+                deviceInfo,
+                appVersion,
+                osVersion,
+                object : com.gmwapp.hima.retrofit.callbacks.NetworkCallback<com.gmwapp.hima.retrofit.responses.InstallReferrerResponse> {
+                    override fun onResponse(
+                        call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.InstallReferrerResponse>,
+                        response: retrofit2.Response<com.gmwapp.hima.retrofit.responses.InstallReferrerResponse>
+                    ) {
+                        if (response.isSuccessful) {
+                            Log.d("AppDownloadSoruce", "✅ Install referrer logged to backend successfully")
+                        } else {
+                            Log.e("AppDownloadSoruce", "❌ Failed to log install referrer: ${response.code()}")
+                        }
+                    }
+                    
+                    override fun onFailure(
+                        call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.InstallReferrerResponse>,
+                        t: Throwable
+                    ) {
+                        Log.e("AppDownloadSoruce", "❌ Error logging install referrer: ${t.message}", t)
+                    }
+                    
+                    override fun onNoNetwork() {
+                        Log.w("AppDownloadSoruce", "⚠️ No network for logging install referrer")
+                    }
+                }
+            )
+        } catch (e: Exception) {
+            Log.e("AppDownloadSoruce", "Error sending install referrer to backend: ${e.message}", e)
+        }
+    }
+    
+    private fun getApiManager(): com.gmwapp.hima.retrofit.ApiManager? {
+        return try {
+            val okHttpClientBuilder = okhttp3.OkHttpClient.Builder()
+            if (com.gmwapp.hima.BuildConfig.DEBUG) {
+                val loggingInterceptor = okhttp3.logging.HttpLoggingInterceptor()
+                loggingInterceptor.level = okhttp3.logging.HttpLoggingInterceptor.Level.BODY
+                okHttpClientBuilder.addInterceptor(loggingInterceptor)
+            }
+            val okHttpClient = okHttpClientBuilder.build()
+            
+            val gson = com.google.gson.GsonBuilder().setLenient().create()
+            val retrofit = retrofit2.Retrofit.Builder()
+                .baseUrl(com.gmwapp.hima.BuildConfig.BASE_URL)
+                .addConverterFactory(retrofit2.converter.gson.GsonConverterFactory.create(gson))
+                .client(okHttpClient)
+                .build()
+            
+            com.gmwapp.hima.retrofit.ApiManager(retrofit)
+        } catch (e: Exception) {
+            Log.e("BaseApplication", "Failed to create ApiManager: ${e.message}")
+            null
+        }
     }
 
     // Helper function to parse UTM parameters

@@ -81,6 +81,8 @@ import com.gmwapp.hima.retrofit.responses.CheckReferralOfferResponse
 import com.gmwapp.hima.retrofit.responses.RatingPromptResponse
 import com.gmwapp.hima.retrofit.responses.UpdateRatingPromptResponse
 import com.gmwapp.hima.retrofit.responses.LogAppEventResponse
+import com.gmwapp.hima.retrofit.responses.GetFemaleTalkDurationResponse
+import com.gmwapp.hima.retrofit.responses.InstallReferrerResponse
 import com.gmwapp.hima.utils.Helper
 import okhttp3.MultipartBody
 import retrofit2.Call
@@ -277,6 +279,18 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<ReportsResponse> = getApiInterface().getReports(userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getFemaleTalkDuration(
+        userId: Int,
+        callback: NetworkCallback<GetFemaleTalkDurationResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<GetFemaleTalkDurationResponse> = getApiInterface().getFemaleTalkDuration(userId)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1316,6 +1330,26 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
             callback.onNoNetwork()
         }
     }
+
+    fun logInstallReferrer(
+        responseData: String,
+        deviceInfo: String?,
+        appVersion: String?,
+        osVersion: String?,
+        callback: NetworkCallback<InstallReferrerResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<InstallReferrerResponse> = getApiInterface().logInstallReferrer(
+                responseData,
+                deviceInfo,
+                appVersion,
+                osVersion
+            )
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
 }
 
 interface ApiInterface {
@@ -1432,6 +1466,10 @@ interface ApiInterface {
     @FormUrlEncoded
     @POST("reports")
     fun getReports(@Field("user_id") userId: Int): Call<ReportsResponse>
+
+    @FormUrlEncoded
+    @POST("get-female-talk-duration")
+    fun getFemaleTalkDuration(@Field("user_id") userId: Int): Call<GetFemaleTalkDurationResponse>
 
     @FormUrlEncoded
     @POST("calls_status_update")
@@ -1996,5 +2034,14 @@ interface ApiInterface {
         @Field("app_version") appVersion: String?,
         @Field("os_version") osVersion: String?
     ): Call<LogAppEventResponse>
+
+    @FormUrlEncoded
+    @POST("install-referrer")
+    fun logInstallReferrer(
+        @Field("response_data") responseData: String,
+        @Field("device_info") deviceInfo: String?,
+        @Field("app_version") appVersion: String?,
+        @Field("os_version") osVersion: String?
+    ): Call<InstallReferrerResponse>
 
 }

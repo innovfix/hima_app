@@ -42,6 +42,9 @@ import com.gmwapp.hima.viewmodels.FirstCallUpdateViewModel
 import com.gmwapp.hima.viewmodels.WhatsappLinkViewModel
 import com.gmwapp.hima.viewmodels.ZohoMailViewModel
 import com.google.firebase.analytics.FirebaseAnalytics
+import com.facebook.appevents.AppEventsConstants
+import com.facebook.appevents.AppEventsLogger
+import com.appsflyer.AppsFlyerLib
 import com.onesignal.OneSignal
 import com.zoho.commons.LauncherModes
 import com.zoho.commons.LauncherProperties
@@ -57,6 +60,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 import java.util.TimeZone
 
 
@@ -556,6 +561,44 @@ class FemaleHomeFragment : BaseFragment() {
             setupSwitchListeners(userData)
         })
         
+        // Observe female talk duration response
+        femaleUsersViewModel.femaleTalkDurationResponseLiveData.observe(viewLifecycleOwner, Observer { response ->
+            Log.d("FemaleHomeFragment", "📥 Observer received femaleTalkDurationResponseLiveData: $response")
+            if (response != null && response.success) {
+                Log.d("FemaleHomeFragment", "✅ Response is successful")
+                val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                if (userData != null) {
+                    val totalMinutes = response.data?.total_talk_duration_minutes ?: 0
+                    
+                    Log.d("femaleTalkDurationResponseLiveData", "Total talk duration for user ${userData.id}: $totalMinutes minutes")
+                    
+                    // Check if total duration >= 2 minutes
+                    if (totalMinutes >= 2) {
+                        Log.d("FemaleHomeFragment", "✅ Total duration ($totalMinutes min) >= 2 minutes, logging event")
+                        // Log the event to Firebase, Meta, AppsFlyer, and backend
+                        logTwoMinDurationCompleted(userData, totalMinutes)
+                        
+                        // Mark as logged locally
+                        sharedPreferences.edit()
+                            .putBoolean("last_two_min_duration_logged_${userData.id}", true)
+                            .apply()
+                    } else {
+                        Log.d("FemaleHomeFragment", "⏭️ Total duration ($totalMinutes min) is less than 2 minutes")
+                    }
+                } else {
+                    Log.e("FemaleHomeFragment", "❌ UserData is null in observer")
+                }
+            } else {
+                Log.e("FemaleHomeFragment", "❌ Response is null or not successful: $response")
+            }
+        })
+        
+        femaleUsersViewModel.femaleTalkDurationErrorLiveData.observe(viewLifecycleOwner, Observer { error ->
+            if (error != null) {
+                Log.e("FemaleHomeFragment", "❌ Error getting talk duration: $error")
+            }
+        })
+        
         // Set up switch listeners once at the end of initUI
         setupSwitchListeners(userData)
     }
@@ -614,6 +657,12 @@ class FemaleHomeFragment : BaseFragment() {
         // This prevents race condition between cached data and API data
 
         if (userData != null && userData.id != null) {
+            // Check and log voice_verified event if status is 2
+            checkAndLogVoiceVerified(userData)
+            
+            // Check and log two_min_duration_completed event
+            checkAndLogTwoMinDuration(userData)
+            
             femaleUsersViewModel.getReports(userData.id)
             updateEarnings()
         } else {
@@ -622,6 +671,157 @@ class FemaleHomeFragment : BaseFragment() {
 
 //        femaleUsersViewModel.getReports(userData?.id!!)
 //        updateEarnings()
+    }
+
+    private fun checkAndLogVoiceVerified(userData: UserData) {
+        // Check if user is verified (status == 2)
+        if (userData.status == 2) {
+            // Check if we've already logged this event for this user (to prevent duplicate API calls)
+            val lastLoggedStatus = sharedPreferences.getInt("last_voice_verified_status_${userData.id}", 0)
+            
+            if (lastLoggedStatus != 2) {
+                // Prepare event parameters
+                val userId = userData.id
+
+                // 1. Firebase Analytics - voice_verified
+                val firebaseBundle = Bundle().apply {
+                    putString("user_id", "$userId")
+                    putString("gender", userData.gender ?: "")
+                    putString("status", "${userData.status}")
+                }
+                BaseApplication.firebaseAnalytics.logEvent("voice_verified", firebaseBundle)
+                
+                // 2. Meta/Facebook Analytics - voice_verified
+                val metaParams = Bundle().apply {
+                    putString("user_id", "$userId")
+                    putString("gender", userData.gender ?: "")
+                    putString("status", "${userData.status}")
+                }
+                AppEventsLogger.newLogger(requireContext()).logEvent("voice_verified", metaParams)
+                
+                // 3. AppsFlyer - voice_verified
+                val appsFlyerEvent = HashMap<String, Any>().apply {
+                    put("user_id", "$userId")
+                    put("gender", userData.gender ?: "")
+                    put("status", "${userData.status}")
+                }
+                AppsFlyerLib.getInstance().logEvent(
+                    requireContext(),
+                    "voice_verified",
+                    appsFlyerEvent
+                )
+                
+                // 4. Log to backend (only Firebase events)
+                AppEventLogger.logEvent(
+                    context = requireContext(),
+                    eventName = "voice_verified",
+                    platform = "firebase",
+                    userId = userId,
+                    params = AppEventLogger.bundleToMap(firebaseBundle)
+                )
+                
+                // Mark as logged for this user (backend will also check, but this prevents unnecessary API calls)
+                sharedPreferences.edit()
+                    .putInt("last_voice_verified_status_${userData.id}", 2)
+                    .apply()
+                
+                Log.d("FemaleHomeFragment", "✅ voice_verified event logged to Firebase, Meta, AppsFlyer, and backend for user $userId")
+            }
+        }
+    }
+
+    private fun checkAndLogTwoMinDuration(userData: UserData) {
+        Log.d("FemaleHomeFragment", "🔍 checkAndLogTwoMinDuration called for user ${userData.id}")
+        
+        // Check if account was created after 30 Dec 2025
+        val cutoffDate = Calendar.getInstance().apply {
+            set(2025, Calendar.DECEMBER, 30, 0, 0, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        
+        Log.d("FemaleHomeFragment", "📅 Cutoff date: ${cutoffDate.time}")
+        Log.d("FemaleHomeFragment", "📅 User created_at: ${userData.created_at}")
+        
+        val userCreatedAt = try {
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            val parsedDate = userData.created_at?.let { dateFormat.parse(it) }
+            if (parsedDate == null) {
+                Log.e("FemaleHomeFragment", "❌ created_at is null, returning")
+                return
+            }
+            parsedDate
+        } catch (e: Exception) {
+            Log.e("FemaleHomeFragment", "❌ Error parsing created_at: ${e.message}", e)
+            return
+        }
+        
+        val userCreatedCalendar = Calendar.getInstance().apply {
+            time = userCreatedAt
+        }
+        
+        Log.d("FemaleHomeFragment", "📅 Parsed user created date: ${userCreatedCalendar.time}")
+        Log.d("FemaleHomeFragment", "📅 Is before cutoff? ${userCreatedCalendar.before(cutoffDate)}")
+        
+        // Only proceed if account was created after 30 Dec 2025
+        if (userCreatedCalendar.before(cutoffDate)) {
+            Log.d("FemaleHomeFragment", "⏭️ Account created before cutoff date (${userCreatedCalendar.time}), skipping two_min_duration check")
+            return
+        }
+        
+        // Check if we've already logged this event locally
+        val lastLoggedTwoMin = sharedPreferences.getBoolean("last_two_min_duration_logged_${userData.id}", false)
+        Log.d("FemaleHomeFragment", "🔐 Already logged locally? $lastLoggedTwoMin")
+        if (lastLoggedTwoMin) {
+            Log.d("FemaleHomeFragment", "⏭️ two_min_duration_completed already logged locally for user ${userData.id}")
+            return
+        }
+        
+        // Call API via ViewModel to get total talk duration
+        Log.d("FemaleHomeFragment", "✅ Calling getFemaleTalkDuration API for user ${userData.id}")
+        femaleUsersViewModel.getFemaleTalkDuration(userData.id)
+    }
+
+    private fun logTwoMinDurationCompleted(userData: UserData, totalMinutes: Int) {
+        val userId = userData.id
+        
+        // 1. Firebase Analytics - two_min_duration_completed
+        val firebaseBundle = Bundle().apply {
+            putString("user_id", "$userId")
+            putInt("total_talk_duration_minutes", totalMinutes)
+            putString("gender", userData.gender ?: "")
+        }
+        BaseApplication.firebaseAnalytics.logEvent("two_min_duration_completed", firebaseBundle)
+        
+        // 2. Meta/Facebook Analytics - two_min_duration_completed
+        val metaParams = Bundle().apply {
+            putString("user_id", "$userId")
+            putInt("total_talk_duration_minutes", totalMinutes)
+            putString("gender", userData.gender ?: "")
+        }
+        AppEventsLogger.newLogger(requireContext()).logEvent("two_min_duration_completed", metaParams)
+        
+        // 3. AppsFlyer - two_min_duration_completed
+        val appsFlyerEvent = HashMap<String, Any>().apply {
+            put("user_id", "$userId")
+            put("total_talk_duration_minutes", totalMinutes)
+            put("gender", userData.gender ?: "")
+        }
+        AppsFlyerLib.getInstance().logEvent(
+            requireContext(),
+            "two_min_duration_completed",
+            appsFlyerEvent
+        )
+        
+        // 4. Log to backend (only Firebase events)
+        AppEventLogger.logEvent(
+            context = requireContext(),
+            eventName = "two_min_duration_completed",
+            platform = "firebase",
+            userId = userId,
+            params = AppEventLogger.bundleToMap(firebaseBundle)
+        )
+        
+        Log.d("FemaleHomeFragment", "✅ two_min_duration_completed event logged for user $userId ($totalMinutes minutes)")
     }
 
 

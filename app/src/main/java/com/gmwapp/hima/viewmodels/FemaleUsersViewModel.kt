@@ -15,6 +15,7 @@ import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponse
 import com.gmwapp.hima.retrofit.responses.RandomUsersResponse
 import com.gmwapp.hima.retrofit.responses.ReportsResponse
+import com.gmwapp.hima.retrofit.responses.GetFemaleTalkDurationResponse
 import com.gmwapp.hima.retrofit.responses.TransactionsResponse
 import com.gmwapp.hima.retrofit.responses.UpdateCallStatusResponse
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -48,6 +49,9 @@ class FemaleUsersViewModel @Inject constructor(private val femaleUsersRepositori
 
     val reportResponseLiveData = MutableLiveData<ReportsResponse>()
     val reportsErrorLiveData = MutableLiveData<String>()
+
+    val femaleTalkDurationResponseLiveData = MutableLiveData<GetFemaleTalkDurationResponse>()
+    val femaleTalkDurationErrorLiveData = MutableLiveData<String>()
 
     fun getFemaleUsers(userId: Int, filter: String? = null) {
         viewModelScope.launch {
@@ -118,8 +122,32 @@ class FemaleUsersViewModel @Inject constructor(private val femaleUsersRepositori
         }
     }
 
+    fun getFemaleTalkDuration(userId: Int) {
+        Log.d("FemaleUsersViewModel", "🚀 getFemaleTalkDuration called for user $userId")
+        viewModelScope.launch {
+            Log.d("FemaleUsersViewModel", "📞 Calling repository.getFemaleTalkDuration for user $userId")
+            femaleUsersRepositories.getFemaleTalkDuration(userId, object: NetworkCallback<GetFemaleTalkDurationResponse> {
+                override fun onResponse(
+                    call: Call<GetFemaleTalkDurationResponse>,
+                    response: Response<GetFemaleTalkDurationResponse>
+                ) {
+                    Log.d("FemaleUsersViewModel", "✅ getFemaleTalkDuration response received: success=${response.body()?.success}, code=${response.code()}")
+                    Log.d("FemaleUsersViewModel", "📊 Response body: ${response.body()}")
+                    femaleTalkDurationResponseLiveData.postValue(response.body())
+                }
 
+                override fun onNoNetwork() {
+                    Log.e("FemaleUsersViewModel", "❌ No network for getFemaleTalkDuration")
+                    femaleTalkDurationErrorLiveData.postValue(DConstants.NO_NETWORK)
+                }
 
+                override fun onFailure(call: Call<GetFemaleTalkDurationResponse>, t: Throwable) {
+                    Log.e("FemaleUsersViewModel", "❌ Failure getting talk duration: ${t.message}", t)
+                    femaleTalkDurationErrorLiveData.postValue(DConstants.LOGIN_ERROR)
+                }
+            })
+        }
+    }
 
     fun updateCallStatus(userId: Int, callType:String, status:Int) {
         viewModelScope.launch {

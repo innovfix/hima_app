@@ -12,6 +12,8 @@ import com.google.gson.GsonBuilder
 import com.gmwapp.hima.BuildConfig
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Call
+import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
@@ -93,12 +95,19 @@ object AppEventLogger {
                 appVersion = appVersion,
                 osVersion = osVersion,
                 callback = object : NetworkCallback<LogAppEventResponse> {
-                    override fun onSuccess(response: LogAppEventResponse) {
-                        Log.d("AppEventLogger", "✅ Event logged: $eventName ($platform)")
+                    override fun onResponse(
+                        call: Call<LogAppEventResponse>,
+                        response: Response<LogAppEventResponse>
+                    ) {
+                        if (response.isSuccessful && response.body() != null) {
+                            Log.d("AppEventLogger", "✅ Event logged: $eventName ($platform)")
+                        } else {
+                            Log.e("AppEventLogger", "❌ Failed to log event $eventName: HTTP ${response.code()}")
+                        }
                     }
 
-                    override fun onFailure(error: String) {
-                        Log.e("AppEventLogger", "❌ Failed to log event $eventName: $error")
+                    override fun onFailure(call: Call<LogAppEventResponse>, t: Throwable) {
+                        Log.e("AppEventLogger", "❌ Failed to log event $eventName: ${t.message}")
                     }
 
                     override fun onNoNetwork() {
