@@ -45,6 +45,7 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.activities.MainActivity
+import com.gmwapp.hima.utils.AppEventLogger
 import com.gmwapp.hima.activities.RatingActivity
 import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.agora.FcmUtils
@@ -752,6 +753,15 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 this@MaleVideoCallingActivity,
                 "call_started",
                 eventValues
+            )
+
+            // Log to backend (only Firebase events)
+            AppEventLogger.logEvent(
+                context = this@MaleVideoCallingActivity,
+                eventName = "call_started",
+                platform = "firebase",
+                userId = maleUserId,
+                params = AppEventLogger.bundleToMap(bundle)
             )
 
             initVosk()

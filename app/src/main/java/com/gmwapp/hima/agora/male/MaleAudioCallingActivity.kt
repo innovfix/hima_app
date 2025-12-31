@@ -64,6 +64,7 @@ import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
 import com.gmwapp.hima.agora.services.CallingService
 import com.gmwapp.hima.utils.setOnSingleClickListener
+import com.gmwapp.hima.utils.AppEventLogger
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
@@ -720,6 +721,15 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 this@MaleAudioCallingActivity,
                 "call_started",
                 eventValues
+            )
+
+            // Log to backend (only Firebase events)
+            AppEventLogger.logEvent(
+                context = this@MaleAudioCallingActivity,
+                eventName = "call_started",
+                platform = "firebase",
+                userId = maleUserId,
+                params = AppEventLogger.bundleToMap(bundle)
             )
 
 

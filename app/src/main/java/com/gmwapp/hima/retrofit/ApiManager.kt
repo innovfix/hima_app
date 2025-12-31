@@ -80,6 +80,7 @@ import com.gmwapp.hima.retrofit.responses.CheckFavoriteResponse
 import com.gmwapp.hima.retrofit.responses.CheckReferralOfferResponse
 import com.gmwapp.hima.retrofit.responses.RatingPromptResponse
 import com.gmwapp.hima.retrofit.responses.UpdateRatingPromptResponse
+import com.gmwapp.hima.retrofit.responses.LogAppEventResponse
 import com.gmwapp.hima.utils.Helper
 import okhttp3.MultipartBody
 import retrofit2.Call
@@ -1287,6 +1288,34 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
             callback.onNoNetwork()
         }
     }
+
+    fun logAppEvent(
+        eventName: String,
+        userId: Int?,
+        platform: String,
+        eventParams: String?,
+        eventValue: Double?,
+        deviceInfo: String?,
+        appVersion: String?,
+        osVersion: String?,
+        callback: NetworkCallback<LogAppEventResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<LogAppEventResponse> = getApiInterface().logAppEvent(
+                eventName,
+                userId,
+                platform,
+                eventParams,
+                eventValue,
+                deviceInfo,
+                appVersion,
+                osVersion
+            )
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
 }
 
 interface ApiInterface {
@@ -1955,5 +1984,17 @@ interface ApiInterface {
         @Field("rating_submitted") ratingSubmitted: Int = 0
     ): Call<UpdateRatingPromptResponse>
 
+    @FormUrlEncoded
+    @POST("log-app-event")
+    fun logAppEvent(
+        @Field("event_name") eventName: String,
+        @Field("user_id") userId: Int?,
+        @Field("platform") platform: String,
+        @Field("event_params") eventParams: String?,
+        @Field("event_value") eventValue: Double?,
+        @Field("device_info") deviceInfo: String?,
+        @Field("app_version") appVersion: String?,
+        @Field("os_version") osVersion: String?
+    ): Call<LogAppEventResponse>
 
 }

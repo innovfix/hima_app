@@ -67,6 +67,7 @@ import com.gmwapp.hima.retrofit.responses.NewRazorpayLinkResponse
 import com.gmwapp.hima.retrofit.responses.RazorPayApiResponse
 import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.utils.RatingPromptHelper
+import com.gmwapp.hima.utils.AppEventLogger
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.FcmTokenViewModel
 import com.gmwapp.hima.viewmodels.IndividualAppUpdateViewModel
@@ -781,6 +782,16 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         }
         BaseApplication.firebaseAnalytics.logEvent("initial_checkout", firebaseBundle)
 
+        // Log to backend (only Firebase events)
+        AppEventLogger.logEvent(
+            context = this,
+            eventName = "initial_checkout",
+            platform = "firebase",
+            userId = userId,
+            params = AppEventLogger.bundleToMap(firebaseBundle),
+            value = priceDouble
+        )
+
         BaseApplication.getInstance()?.getPrefs()?.apply {
             setString("last_coin_id", pointsId)
             setString("last_coin_amount", amount.toString())
@@ -1405,6 +1416,16 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             purchaseEvent
         )
 
+        // Log to backend (only Firebase events)
+        AppEventLogger.logEvent(
+            context = this,
+            eventName = "purchase",
+            platform = "firebase",
+            userId = userId,
+            params = AppEventLogger.bundleToMap(purchaseBundle),
+            value = coinAmount
+        )
+
         // Check rating prompt after successful purchase
         userId?.let {
             ratingPromptHelper.forceCheckRatingPrompt(this, it)
@@ -1432,6 +1453,16 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             }
             AppEventsLogger.newLogger(this).logEvent("new_user_purchase", coinAmount, newUserParams)
             
+            // Log to backend (only Firebase events)
+            AppEventLogger.logEvent(
+                context = this,
+                eventName = "new_user_purchase",
+                platform = "firebase",
+                userId = userId,
+                params = AppEventLogger.bundleToMap(newUserPurchaseBundle),
+                value = coinAmount
+            )
+            
             Log.d("NewUserPurchase", "✅ new_user_purchase event logged for user $userId (created: ${userData?.created_at})")
         } else {
             Log.d("NewUserPurchase", "⏭️ Skipped new_user_purchase - User not new (created: ${userData?.created_at})")
@@ -1452,6 +1483,15 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             FirebaseAnalytics.getInstance(this).logEvent("daily_active_user", bundle)
             prefs?.setString("last_dau_logged_date", todayDate)
 
+            // Log to backend (only Firebase events)
+            val userId = prefs?.getUserData()?.id
+            AppEventLogger.logEvent(
+                context = this,
+                eventName = "daily_active_user",
+                platform = "firebase",
+                userId = userId,
+                params = AppEventLogger.bundleToMap(bundle)
+            )
 
             if (prefs?.getUserData()?.gender=="male"){
 

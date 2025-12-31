@@ -33,6 +33,7 @@ import com.gmwapp.hima.databinding.ActivityPaymentBinding
 import com.gmwapp.hima.retrofit.responses.CoinsResponseData
 import com.gmwapp.hima.retrofit.responses.NewRazorpayLinkResponse
 import com.gmwapp.hima.utils.DPreferences
+import com.gmwapp.hima.utils.AppEventLogger
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.viewmodels.UpiPaymentViewModel
 import com.gmwapp.hima.viewmodels.WalletViewModel
@@ -648,6 +649,9 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
             putString("coin_id", "$coinId")
         }
         AppEventsLogger.newLogger(this).logEvent(AppEventsConstants.EVENT_NAME_PURCHASED, coinAmount, params)
+
+        // Note: PaymentActivity only logs to Meta, so no backend logging here
+        // Backend logging happens in WalletActivity and MainActivity when Firebase events are triggered
     }
 
     private fun checkOrderStatus(orderId: String) {

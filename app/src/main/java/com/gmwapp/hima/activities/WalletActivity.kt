@@ -44,6 +44,7 @@ import com.gmwapp.hima.retrofit.responses.RazorPayApiResponse
 import com.gmwapp.hima.utils.Config
 import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.utils.setOnSingleClickListener
+import com.gmwapp.hima.utils.AppEventLogger
 import androidx.appcompat.app.AlertDialog
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.CashfreeOrderViewModel
@@ -875,6 +876,16 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
             purchaseEvent
         )
 
+        // Log to backend (only Firebase events)
+        AppEventLogger.logEvent(
+            context = this,
+            eventName = "purchase",
+            platform = "firebase",
+            userId = userId,
+            params = AppEventLogger.bundleToMap(purchaseBundle),
+            value = coinAmount
+        )
+
         // Log new_user_purchase event if user registered today
         if (isNewUser(userData?.created_at)) {
             // Firebase Analytics - new_user_purchase
@@ -896,6 +907,16 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                 putString("created_at", userData?.created_at ?: "")
             }
             AppEventsLogger.newLogger(this).logEvent("new_user_purchase", coinAmount, newUserParams)
+            
+            // Log to backend (only Firebase events)
+            AppEventLogger.logEvent(
+                context = this,
+                eventName = "new_user_purchase",
+                platform = "firebase",
+                userId = userId,
+                params = AppEventLogger.bundleToMap(newUserPurchaseBundle),
+                value = coinAmount
+            )
             
             Log.d("NewUserPurchase", "✅ new_user_purchase event logged for user $userId (created: ${userData?.created_at})")
         } else {
@@ -1232,6 +1253,16 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                 AppEventsConstants.EVENT_NAME_INITIATED_CHECKOUT,
                 checkoutAmount,
                 checkoutParams
+            )
+
+            // Log to backend (only Firebase events)
+            AppEventLogger.logEvent(
+                context = this,
+                eventName = "initial_checkout",
+                platform = "firebase",
+                userId = userId,
+                params = AppEventLogger.bundleToMap(firebaseBundle),
+                value = checkoutAmount
             )
         } else {
             Log.w("FB_Event", "Skipped INITIATED_CHECKOUT event. Invalid amount = $checkoutAmount")

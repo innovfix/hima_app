@@ -33,6 +33,7 @@ import com.gmwapp.hima.databinding.FragmentFemaleHomeBinding
 import com.gmwapp.hima.retrofit.responses.BadgeData
 import com.gmwapp.hima.retrofit.responses.UserData
 import com.gmwapp.hima.utils.setOnSingleClickListener
+import com.gmwapp.hima.utils.AppEventLogger
 import com.bumptech.glide.Glide
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.BadgeViewModel
@@ -508,6 +509,15 @@ class FemaleHomeFragment : BaseFragment() {
                         putString("first_call_status", "Received")
                     }
                     BaseApplication.firebaseAnalytics.logEvent("first_call", bundle)
+
+                    // Log to backend
+                    AppEventLogger.logEvent(
+                        context = requireContext(),
+                        eventName = "first_call",
+                        platform = "firebase",
+                        userId = femaleuserid,
+                        params = AppEventLogger.bundleToMap(bundle)
+                    )
 
                     if (femaleuserid != null) {
                         firstCallUpdateViewModel.updateFirstCallStatus(femaleuserid, 2)

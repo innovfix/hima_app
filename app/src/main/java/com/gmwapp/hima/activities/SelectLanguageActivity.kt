@@ -23,6 +23,7 @@ import com.gmwapp.hima.databinding.ActivitySelectLanguageBinding
 import com.gmwapp.hima.retrofit.responses.Language
 import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.utils.setOnSingleClickListener
+import com.gmwapp.hima.utils.AppEventLogger
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.widgets.SpacesItemDecoration
 import com.gmwapp.hima.socket.SocketManager
@@ -92,6 +93,15 @@ class SelectLanguageActivity : BaseActivity() {
                     }
 
                     BaseApplication.firebaseAnalytics.logEvent(FirebaseAnalytics.Event.SIGN_UP, bundle)
+
+                    // Log to backend (only Firebase events)
+                    AppEventLogger.logEvent(
+                        context = this,
+                        eventName = "sign_up",
+                        platform = "firebase",
+                        userId = it.data.id,
+                        params = AppEventLogger.bundleToMap(bundle)
+                    )
 
 
                     intent.putExtra(DConstants.LANGUAGE, selectedLanguage)
