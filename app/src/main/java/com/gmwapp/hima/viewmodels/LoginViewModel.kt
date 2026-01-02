@@ -8,6 +8,7 @@ import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.repositories.LoginRepositories
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.AppUpdateResponse
+import com.gmwapp.hima.retrofit.responses.FirstInstallResponse
 import com.gmwapp.hima.retrofit.responses.LoginResponse
 import com.gmwapp.hima.retrofit.responses.SendOTPResponse
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,6 +29,9 @@ class LoginViewModel @Inject constructor(private val loginRepositories: LoginRep
 
     val appUpdateResponseLiveData = MutableLiveData<AppUpdateResponse>()
     val appUpdateErrorLiveData = MutableLiveData<String>()
+
+    val firstInstallResponseLiveData = MutableLiveData<FirstInstallResponse>()
+    val firstInstallErrorLiveData = MutableLiveData<String>()
 
     fun login(mobile: String,code: String,code_verifier: String) {
         viewModelScope.launch {
@@ -101,6 +105,29 @@ class LoginViewModel @Inject constructor(private val loginRepositories: LoginRep
 
                 override fun onNoNetwork() {
                     sendOTPErrorLiveData.postValue(DConstants.NO_NETWORK);
+                }
+            })
+        }
+    }
+
+    fun firstInstall() {
+        viewModelScope.launch {
+            loginRepositories.firstInstall(object: NetworkCallback<FirstInstallResponse> {
+                override fun onResponse(
+                    call: Call<FirstInstallResponse>,
+                    response: Response<FirstInstallResponse>
+                ) {
+                    firstInstallResponseLiveData.postValue(response.body())
+                    Log.d("FirstInstall", "Response: ${response.body()}")
+                }
+
+                override fun onFailure(call: Call<FirstInstallResponse>, t: Throwable) {
+                    firstInstallErrorLiveData.postValue(DConstants.LOGIN_ERROR)
+                    Log.d("FirstInstallError", "Error: ${t.message}")
+                }
+
+                override fun onNoNetwork() {
+                    firstInstallErrorLiveData.postValue(DConstants.NO_NETWORK)
                 }
             })
         }

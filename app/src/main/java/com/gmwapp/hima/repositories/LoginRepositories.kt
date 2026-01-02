@@ -3,6 +3,7 @@ package com.gmwapp.hima.repositories
 import com.gmwapp.hima.retrofit.ApiManager
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.AppUpdateResponse
+import com.gmwapp.hima.retrofit.responses.FirstInstallResponse
 import com.gmwapp.hima.retrofit.responses.LoginResponse
 import com.gmwapp.hima.retrofit.responses.SendOTPResponse
 import javax.inject.Inject
@@ -28,5 +29,9 @@ class LoginRepositories @Inject constructor(private val apiManager: ApiManager) 
         callback: NetworkCallback<SendOTPResponse>
     ) {
         apiManager.sendOTP(mobile, countryCode, otp, callback)
+    }
+
+    fun firstInstall(callback: NetworkCallback<FirstInstallResponse>) {
+        apiManager.firstInstall(callback)
     }
 }

@@ -234,6 +234,9 @@ class SplashScreenActivity : BaseActivity() {
         var userData = prefs?.getUserData()
 
 
+        if (userData == null) {
+            viewModel.firstInstall()
+        }
 
         try {
             val pInfo = packageManager.getPackageInfo(packageName, 0)
@@ -349,6 +352,17 @@ class SplashScreenActivity : BaseActivity() {
             }
         }
 
+        viewModel.firstInstallResponseLiveData.observe(this) { response ->
+            if (response != null) {
+                Log.d("FirstInstall", "First install tracked: ${response.message}")
+            }
+        }
+
+        viewModel.firstInstallErrorLiveData.observe(this) { error ->
+            if (error != null) {
+                Log.e("FirstInstall", "Error tracking first install: $error")
+            }
+        }
 
     }
 
@@ -415,6 +429,8 @@ class SplashScreenActivity : BaseActivity() {
         val networkCapabilities = connectivityManager.getNetworkCapabilities(network)
         return networkCapabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
     }
+
+    
 
     private fun showUpdateDialog(link: String, description: String) {
         val bottomSheetDialog = BottomSheetDialog(this)

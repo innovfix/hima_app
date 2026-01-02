@@ -564,13 +564,16 @@ class FemaleHomeFragment : BaseFragment() {
         // Observe female talk duration response
         femaleUsersViewModel.femaleTalkDurationResponseLiveData.observe(viewLifecycleOwner, Observer { response ->
             Log.d("FemaleHomeFragment", "📥 Observer received femaleTalkDurationResponseLiveData: $response")
+            Log.d("FemaleHomeFragment", "📥 Response details - isNull: ${response == null}, success: ${response?.success}, data: ${response?.data}")
             if (response != null && response.success) {
                 Log.d("FemaleHomeFragment", "✅ Response is successful")
                 val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                Log.d("FemaleHomeFragment", "👤 UserData check - isNull: ${userData == null}, userId: ${userData?.id}")
                 if (userData != null) {
                     val totalMinutes = response.data?.total_talk_duration_minutes ?: 0
                     
-                    Log.d("femaleTalkDurationResponseLiveData", "Total talk duration for user ${userData.id}: $totalMinutes minutes")
+                    Log.d("FemaleHomeFragment", "⏱️ Total talk duration for user ${userData.id}: $totalMinutes minutes")
+                    Log.d("FemaleHomeFragment", "⏱️ Duration check - totalMinutes: $totalMinutes, isGreaterOrEqual2: ${totalMinutes >= 2}")
                     
                     // Check if total duration >= 2 minutes
                     if (totalMinutes >= 2) {
@@ -732,6 +735,7 @@ class FemaleHomeFragment : BaseFragment() {
 
     private fun checkAndLogTwoMinDuration(userData: UserData) {
         Log.d("FemaleHomeFragment", "🔍 checkAndLogTwoMinDuration called for user ${userData.id}")
+        Log.d("FemaleHomeFragment", "🔍 Function entry - userData.id: ${userData.id}, created_at: ${userData.created_at}")
         
         // Check if account was created after 30 Dec 2025
         val cutoffDate = Calendar.getInstance().apply {
@@ -746,9 +750,10 @@ class FemaleHomeFragment : BaseFragment() {
             val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
             val parsedDate = userData.created_at?.let { dateFormat.parse(it) }
             if (parsedDate == null) {
-                Log.e("FemaleHomeFragment", "❌ created_at is null, returning")
+                Log.e("FemaleHomeFragment", "❌ created_at is null, returning early")
                 return
             }
+            Log.d("FemaleHomeFragment", "✅ Successfully parsed created_at: $parsedDate")
             parsedDate
         } catch (e: Exception) {
             Log.e("FemaleHomeFragment", "❌ Error parsing created_at: ${e.message}", e)
@@ -778,7 +783,9 @@ class FemaleHomeFragment : BaseFragment() {
         
         // Call API via ViewModel to get total talk duration
         Log.d("FemaleHomeFragment", "✅ Calling getFemaleTalkDuration API for user ${userData.id}")
+        Log.d("FemaleHomeFragment", "✅ API call initiated - ViewModel: ${femaleUsersViewModel.javaClass.simpleName}")
         femaleUsersViewModel.getFemaleTalkDuration(userData.id)
+        Log.d("FemaleHomeFragment", "✅ API call completed - waiting for response")
     }
 
     private fun logTwoMinDurationCompleted(userData: UserData, totalMinutes: Int) {

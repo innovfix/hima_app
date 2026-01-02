@@ -83,6 +83,7 @@ import com.gmwapp.hima.retrofit.responses.UpdateRatingPromptResponse
 import com.gmwapp.hima.retrofit.responses.LogAppEventResponse
 import com.gmwapp.hima.retrofit.responses.GetFemaleTalkDurationResponse
 import com.gmwapp.hima.retrofit.responses.InstallReferrerResponse
+import com.gmwapp.hima.retrofit.responses.FirstInstallResponse
 import com.gmwapp.hima.utils.Helper
 import okhttp3.MultipartBody
 import retrofit2.Call
@@ -145,6 +146,17 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<SendOTPResponse> = getApiInterface().sendOTP(mobile, countryCode, otp)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun firstInstall(
+        callback: NetworkCallback<FirstInstallResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<FirstInstallResponse> = getApiInterface().firstInstall()
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1369,6 +1381,8 @@ interface ApiInterface {
         @Field("otp") otp: Int
     ): Call<SendOTPResponse>
 
+    @POST("first_install")
+    fun firstInstall(): Call<FirstInstallResponse>
 
     @FormUrlEncoded
     @POST("appsettings_list")
