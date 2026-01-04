@@ -47,6 +47,7 @@ import com.gmwapp.hima.databinding.ActivityMaleAudioCallingBinding
 import com.gmwapp.hima.media.RtcTokenBuilder2
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
+import com.gmwapp.hima.viewmodels.AgoraViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import io.agora.rtc2.ChannelMediaOptions
@@ -101,8 +102,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
     //check
     private lateinit var binding: ActivityFemaleAudioCallingBinding
-    private val appId = "a41e9245489d44a2ac9af9525f1b508c"
-    private val appCertificate = "9565a122acba4144926a12214064fd57"
+    private var appId: String? = null // Will be received from backend
     private val expirationTimeInSeconds = 3600
     private var token: String? = null
     private val uid = 0
@@ -113,6 +113,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private val userAvatarViewModel: UserAvatarViewModel by viewModels()
     private val fcmNotificationViewModel: FcmNotificationViewModel by viewModels()
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
+    private val agoraViewModel: AgoraViewModel by viewModels()
 
     private var isVideoCallGoing : Boolean = false
     private var remoteSurfaceView: SurfaceView? = null
@@ -216,10 +217,16 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     }
 
     private fun setupAudioSDKEngine() {
+        if (appId == null) {
+            Log.e("AgoraToken", "AppId is null, cannot initialize engine")
+            showMessage("Failed to initialize call. Please try again.")
+            finish()
+            return
+        }
         try {
             val config = RtcEngineConfig()
             config.mContext = baseContext
-            config.mAppId = appId
+            config.mAppId = appId!!
             config.mEventHandler = mRtcEventHandler
             agoraEngine = RtcEngine.create(config)
 
@@ -257,22 +264,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         Log.d("FemaleAudioCallingCheck", "Channel: $channelName, Receiver: $receiverId, callID : $call_Id")
         Log.d("FemaleAudioCallingCheck", "$call_Id")
 
-
-        val tokenBuilder = RtcTokenBuilder2()
-        val timestamp = (System.currentTimeMillis() / 1000 + expirationTimeInSeconds).toInt()
-
-        token = tokenBuilder.buildTokenWithUid(
-            appId, appCertificate,
-            channelName, uid, RtcTokenBuilder2.Role.ROLE_PUBLISHER, timestamp, timestamp
-        )
-
-        if (!checkSelfPermission()) {
-            ActivityCompat.requestPermissions(this, REQUESTED_PERMISSIONS, PERMISSION_REQ_ID)
-        } else {
-            setupAudioSDKEngine()
-            joinChannel(binding.JoinButton)
-
-        }
+        // Get token from backend
+        getAgoraTokenFromBackend()
 
 
         showGreyScreen()
@@ -301,6 +294,50 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         userData?.let { setMyAvatar(it.image, it.name) }
         getBlockWords()
 
+    }
+
+    private fun getAgoraTokenFromBackend() {
+        // Observe token response
+        agoraViewModel.agoraTokenLiveData.observe(this) { response ->
+            if (response != null && response.success == true && !response.token.isNullOrEmpty()) {
+                token = response.token
+                // Get appId from backend response (required)
+                appId = response.app_id
+                if (appId.isNullOrEmpty()) {
+                    Log.e("AgoraToken", "AppId not received from backend")
+                    showMessage("Failed to initialize call. Please try again.")
+                    finish()
+                    return@observe
+                }
+                Log.d("AgoraToken", "Token and AppId received from backend")
+                
+                // Request permissions if not granted
+                if (!checkSelfPermission()) {
+                    ActivityCompat.requestPermissions(
+                        this@FemaleAudioCallingActivity,
+                        REQUESTED_PERMISSIONS,
+                        PERMISSION_REQ_ID
+                    )
+                } else {
+                    setupAudioSDKEngine()
+                    joinChannel(binding.JoinButton)
+                }
+            } else {
+                Log.e("AgoraToken", "Failed to get token: ${response?.message}")
+                showMessage("Failed to initialize call. Please try again.")
+                finish()
+            }
+        }
+
+        // Observe errors
+        agoraViewModel.agoraTokenErrorLiveData.observe(this) { error ->
+            Log.e("AgoraToken", "Error: $error")
+            showMessage(error ?: "Failed to initialize call. Please try again.")
+            finish()
+        }
+
+        // Request token from ViewModel
+        agoraViewModel.getAgoraToken(channelName, uid, "publisher", expirationTimeInSeconds)
     }
 
     private fun getBlockWords(){

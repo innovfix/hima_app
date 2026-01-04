@@ -53,6 +53,7 @@ import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.media.RtcTokenBuilder2
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
+import com.gmwapp.hima.viewmodels.AgoraViewModel
 import com.gmwapp.hima.agora.services.CallingService
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
@@ -111,9 +112,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
     private var videoUid = 0
 
-    private val appId = "a41e9245489d44a2ac9af9525f1b508c"
+    private var appId: String? = null // Will be received from backend
 
-    var appCertificate = "9565a122acba4144926a12214064fd57"
     var expirationTimeInSeconds = 3600
     lateinit var channelName : String
     private var token : String? = null
@@ -138,6 +138,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     private val fcmNotificationViewModel: FcmNotificationViewModel by viewModels()
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
     private val userAvatarViewModel: UserAvatarViewModel by viewModels()
+    private val agoraViewModel: AgoraViewModel by viewModels()
 
 
     private val uid = 0
@@ -249,10 +250,16 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
 
     private fun setupVideoSDKEngine() {
+        if (appId == null) {
+            Log.e("AgoraToken", "AppId is null, cannot initialize engine")
+            showMessage("Failed to initialize call. Please try again.")
+            finish()
+            return
+        }
         try {
             val config = RtcEngineConfig()
             config.mContext = baseContext
-            config.mAppId = appId
+            config.mAppId = appId!!
             config.mEventHandler = mRtcEventHandler
             agoraEngine = RtcEngine.create(config)
             // By default, the video module is disabled, call enableVideo to enable it.
@@ -312,26 +319,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
         Log.d("VideoCallingLog", "Channel: $channelName, Receiver: $receiverId, callId:$callId")
 
-
-        val tokenBuilder = RtcTokenBuilder2()
-        val timestamp = (System.currentTimeMillis() / 1000 + expirationTimeInSeconds).toInt()
-
-        println("UID token")
-        val result = tokenBuilder.buildTokenWithUid(
-            appId, appCertificate,
-            channelName, uid, RtcTokenBuilder2.Role.ROLE_PUBLISHER, timestamp, timestamp
-        )
-
-
-        token = result
-
-        // Request permissions if not granted
-        if (!checkSelfPermission()) {
-            ActivityCompat.requestPermissions(this, REQUESTED_PERMISSIONS, PERMISSION_REQ_ID)
-        } else {
-            setupVideoSDKEngine()
-            joinChannel(binding.JoinButton) // Automatically join the channel
-        }
+        // Get token from backend
+        getAgoraTokenFromBackend()
 
         onAddcoinClicked()
         binding.btnMuteUnmute.setOnClickListener {
@@ -356,6 +345,50 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         handleCallSwitch()
 
         getBlockWords()
+    }
+
+    private fun getAgoraTokenFromBackend() {
+        // Observe token response
+        agoraViewModel.agoraTokenLiveData.observe(this) { response ->
+            if (response != null && response.success == true && !response.token.isNullOrEmpty()) {
+                token = response.token
+                // Get appId from backend response (required)
+                appId = response.app_id
+                if (appId.isNullOrEmpty()) {
+                    Log.e("AgoraToken", "AppId not received from backend")
+                    showMessage("Failed to initialize call. Please try again.")
+                    finish()
+                    return@observe
+                }
+                Log.d("AgoraToken", "Token and AppId received from backend")
+                
+                // Request permissions if not granted
+                if (!checkSelfPermission()) {
+                    ActivityCompat.requestPermissions(
+                        this@MaleVideoCallingActivity,
+                        REQUESTED_PERMISSIONS,
+                        PERMISSION_REQ_ID
+                    )
+                } else {
+                    setupVideoSDKEngine()
+                    joinChannel(binding.JoinButton) // Automatically join the channel
+                }
+            } else {
+                Log.e("AgoraToken", "Failed to get token: ${response?.message}")
+                showMessage("Failed to initialize call. Please try again.")
+                finish()
+            }
+        }
+
+        // Observe errors
+        agoraViewModel.agoraTokenErrorLiveData.observe(this) { error ->
+            Log.e("AgoraToken", "Error: $error")
+            showMessage(error ?: "Failed to initialize call. Please try again.")
+            finish()
+        }
+
+        // Request token from ViewModel
+        agoraViewModel.getAgoraToken(channelName, uid, "publisher", expirationTimeInSeconds)
     }
 
     private fun getBlockWords(){

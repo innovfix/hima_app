@@ -84,6 +84,7 @@ import com.gmwapp.hima.retrofit.responses.LogAppEventResponse
 import com.gmwapp.hima.retrofit.responses.GetFemaleTalkDurationResponse
 import com.gmwapp.hima.retrofit.responses.InstallReferrerResponse
 import com.gmwapp.hima.retrofit.responses.FirstInstallResponse
+import com.gmwapp.hima.retrofit.responses.AgoraTokenResponse
 import com.gmwapp.hima.utils.Helper
 import okhttp3.MultipartBody
 import retrofit2.Call
@@ -1362,6 +1363,26 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
             callback.onNoNetwork()
         }
     }
+
+    fun getAgoraToken(
+        channelName: String,
+        uid: Int,
+        role: String = "publisher",
+        expire: Int = 3600,
+        callback: NetworkCallback<AgoraTokenResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<AgoraTokenResponse> = getApiInterface().getAgoraToken(
+                channelName,
+                uid,
+                role,
+                expire
+            )
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
 }
 
 interface ApiInterface {
@@ -2057,5 +2078,14 @@ interface ApiInterface {
         @Field("app_version") appVersion: String?,
         @Field("os_version") osVersion: String?
     ): Call<InstallReferrerResponse>
+
+    @FormUrlEncoded
+    @POST("agora/token")
+    fun getAgoraToken(
+        @Field("channel_name") channelName: String,
+        @Field("uid") uid: Int,
+        @Field("role") role: String = "publisher",
+        @Field("expire") expire: Int = 3600
+    ): Call<AgoraTokenResponse>
 
 }
