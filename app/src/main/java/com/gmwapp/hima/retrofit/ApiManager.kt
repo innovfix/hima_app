@@ -50,6 +50,7 @@ import com.gmwapp.hima.retrofit.responses.SettingsResponse
 import com.gmwapp.hima.retrofit.responses.SpeechTextResponse
 import com.gmwapp.hima.retrofit.responses.TransactionChargesResponse
 import com.gmwapp.hima.retrofit.responses.TransactionsResponse
+import com.gmwapp.hima.retrofit.responses.FemaleTransactionsResponse
 import com.gmwapp.hima.retrofit.responses.UpdateCallStatusResponse
 import com.gmwapp.hima.retrofit.responses.UpdateConnectedCallResponse
 import com.gmwapp.hima.retrofit.responses.UpdateProfileResponse
@@ -260,6 +261,31 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
             val apiCall: Call<TransactionsResponse> = getApiInterface().getTransactions(userId,offset,limit)
             apiCall.enqueue(callback)
         } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getFemaleTransactions(
+        userId: Int, offset: Int, limit: Int, callback: NetworkCallback<FemaleTransactionsResponse>
+    ) {
+        android.util.Log.d("femaleTrasactionLog", "getFemaleTransactions: Called with userId=$userId, offset=$offset, limit=$limit")
+        android.util.Log.d("femaleTrasactionLog", "getFemaleTransactions: API endpoint = female_transaction")
+        
+        if (Helper.checkNetworkConnection()) {
+            android.util.Log.d("femaleTrasactionLog", "getFemaleTransactions: Network connection available")
+            try {
+                val apiCall: Call<FemaleTransactionsResponse> = getApiInterface().getFemaleTransactions(userId, offset, limit)
+                android.util.Log.d("femaleTrasactionLog", "getFemaleTransactions: API call created, enqueueing...")
+                android.util.Log.d("femaleTrasactionLog", "getFemaleTransactions: Request URL = ${apiCall.request().url}")
+                apiCall.enqueue(callback)
+                android.util.Log.d("femaleTrasactionLog", "getFemaleTransactions: API call enqueued successfully")
+            } catch (e: Exception) {
+                android.util.Log.e("femaleTrasactionLog", "getFemaleTransactions: Exception creating API call", e)
+                android.util.Log.e("femaleTrasactionLog", "getFemaleTransactions: Exception message = ${e.message}")
+                e.printStackTrace()
+            }
+        } else {
+            android.util.Log.e("femaleTrasactionLog", "getFemaleTransactions: No network connection available")
             callback.onNoNetwork()
         }
     }
@@ -1485,6 +1511,14 @@ interface ApiInterface {
 
 
     ): Call<TransactionsResponse>
+
+    @FormUrlEncoded
+    @POST("female_transaction")
+    fun getFemaleTransactions(
+        @Field("user_id") userId: Int,
+        @Field("offset") offset: Int,
+        @Field("limit") limit: Int,
+    ): Call<FemaleTransactionsResponse>
 
     @FormUrlEncoded
     @POST("female_users_list")

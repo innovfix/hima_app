@@ -20,6 +20,7 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.AccountPrivacyActivity
 import com.gmwapp.hima.activities.EarningsActivity
 import com.gmwapp.hima.activities.EditProfileActivity
+import com.gmwapp.hima.activities.FemaleTransactionsActivity
 import com.gmwapp.hima.activities.FriendsListActivity
 import com.gmwapp.hima.activities.HelpAndSupportActivity
 import com.gmwapp.hima.activities.RefundWebViewActivity
@@ -101,6 +102,11 @@ class ProfileFemaleFragment : BaseFragment() {
             val intent = Intent(context, EarningsActivity::class.java)
             startActivity(intent)
         })
+
+        binding.clTransactions.setOnSingleClickListener {
+            val intent = Intent(context, FemaleTransactionsActivity::class.java)
+            startActivity(intent)
+        }
         
         // Edit profile via edit icon badge
         binding.ivEditProfile.setOnSingleClickListener( {

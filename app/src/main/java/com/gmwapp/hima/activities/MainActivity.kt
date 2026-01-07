@@ -1464,12 +1464,78 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             )
             
             Log.d("NewUserPurchase", "✅ new_user_purchase event logged for user $userId (created: ${userData?.created_at})")
+            
+            // Log new_user_first_purchase event - only once per user
+            if (shouldLogFirstPurchase(userId)) {
+                // Firebase Analytics - new_user_first_purchase
+                val firstPurchaseBundle = Bundle().apply {
+                    putString(FirebaseAnalytics.Param.CURRENCY, "INR")
+                    putDouble(FirebaseAnalytics.Param.VALUE, coinAmount)
+                    putString(FirebaseAnalytics.Param.ITEM_ID, coinId)
+                    putString("user_id", "$userId")
+                    putString("created_at", userData?.created_at ?: "")
+                }
+                BaseApplication.firebaseAnalytics.logEvent("new_user_first_purchase", firstPurchaseBundle)
+                
+                // Meta/Facebook Analytics - new_user_first_purchase
+                val firstPurchaseParams = Bundle().apply {
+                    putString(AppEventsConstants.EVENT_PARAM_CURRENCY, "INR")
+                    putDouble(AppEventsConstants.EVENT_PARAM_VALUE_TO_SUM, coinAmount)
+                    putString("user_id", "$userId")
+                    putString("coin_id", "$coinId")
+                    putString("created_at", userData?.created_at ?: "")
+                }
+                AppEventsLogger.newLogger(this).logEvent("new_user_first_purchase", coinAmount, firstPurchaseParams)
+                
+                // Log to backend (only Firebase events)
+                AppEventLogger.logEvent(
+                    context = this,
+                    eventName = "new_user_first_purchase",
+                    platform = "firebase",
+                    userId = userId,
+                    params = AppEventLogger.bundleToMap(firstPurchaseBundle),
+                    value = coinAmount
+                )
+                
+                // Mark first purchase as logged
+                markFirstPurchaseLogged(userId)
+                
+                Log.d("NewUserPurchase", "✅ new_user_first_purchase event logged for user $userId (FIRST PURCHASE)")
+            } else {
+                Log.d("NewUserPurchase", "⏭️ Skipped new_user_first_purchase - Already logged for user $userId")
+            }
         } else {
             Log.d("NewUserPurchase", "⏭️ Skipped new_user_purchase - User not new (created: ${userData?.created_at})")
         }
 
     }
 
+    /**
+     * Check if first purchase event should be logged for this user
+     * Returns true only if first purchase hasn't been logged yet
+     */
+    private fun shouldLogFirstPurchase(userId: Int?): Boolean {
+        if (userId == null || userId == 0) return false
+        
+        val prefs = BaseApplication.getInstance()?.getPrefs()
+        val key = "first_purchase_logged_$userId"
+        val alreadyLogged = prefs?.getString(key)
+        
+        return alreadyLogged == null
+    }
+
+    /**
+     * Mark first purchase as logged for this user
+     */
+    private fun markFirstPurchaseLogged(userId: Int?) {
+        if (userId == null || userId == 0) return
+        
+        val prefs = BaseApplication.getInstance()?.getPrefs()
+        val key = "first_purchase_logged_$userId"
+        prefs?.setString(key, "true")
+        
+        Log.d("NewUserPurchase", "✅ Marked first purchase as logged for user $userId")
+    }
 
     fun logDailyActiveUserIfNeeded() {
         val prefs = BaseApplication.getInstance()?.getPrefs()

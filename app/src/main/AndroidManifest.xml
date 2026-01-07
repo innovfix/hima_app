@@ -205,6 +205,7 @@
             </intent-filter>
         </activity>
         <activity android:name=".activities.TransactionsActivity" />
+        <activity android:name=".activities.FemaleTransactionsActivity" />
         <activity android:name=".activities.AccountPrivacyActivity" />
         <activity android:name=".activities.HelpAndSupportActivity" />
         <activity android:name=".activities.SubqueriesActivity" />

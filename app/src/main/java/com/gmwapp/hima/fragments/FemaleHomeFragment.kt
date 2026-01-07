@@ -737,9 +737,9 @@ class FemaleHomeFragment : BaseFragment() {
         Log.d("FemaleHomeFragment", "🔍 checkAndLogTwoMinDuration called for user ${userData.id}")
         Log.d("FemaleHomeFragment", "🔍 Function entry - userData.id: ${userData.id}, created_at: ${userData.created_at}")
         
-        // Check if account was created after 30 Dec 2025
+        // Check if account was created after 8 Jan 2026
         val cutoffDate = Calendar.getInstance().apply {
-            set(2025, Calendar.DECEMBER, 30, 0, 0, 0)
+            set(2026, Calendar.JANUARY, 8, 0, 0, 0)
             set(Calendar.MILLISECOND, 0)
         }
         
@@ -767,7 +767,7 @@ class FemaleHomeFragment : BaseFragment() {
         Log.d("FemaleHomeFragment", "📅 Parsed user created date: ${userCreatedCalendar.time}")
         Log.d("FemaleHomeFragment", "📅 Is before cutoff? ${userCreatedCalendar.before(cutoffDate)}")
         
-        // Only proceed if account was created after 30 Dec 2025
+        // Only proceed if account was created after 8 Jan 2026
         if (userCreatedCalendar.before(cutoffDate)) {
             Log.d("FemaleHomeFragment", "⏭️ Account created before cutoff date (${userCreatedCalendar.time}), skipping two_min_duration check")
             return

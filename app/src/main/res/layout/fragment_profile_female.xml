@@ -239,7 +239,7 @@
                     </com.google.android.material.card.MaterialCardView>
                 </LinearLayout>
 
-                <!-- Row 2: Privacy -->
+                <!-- Row 2: Transaction & Privacy -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -249,13 +249,63 @@
                     android:clipChildren="false"
                     android:layout_marginBottom="16dp">
 
+                    <!-- Transactions Card with Gradient -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/cl_transactions"
+                        android:layout_width="0dp"
+                        android:layout_height="90dp"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="6dp"
+                        android:layout_marginBottom="4dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="@drawable/ripple_effect"
+                        app:cardCornerRadius="16dp"
+                        app:cardElevation="6dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:background="@drawable/card_gradient_green"
+                            android:gravity="center"
+                            android:orientation="vertical"
+                            android:padding="12dp">
+
+                            <com.google.android.material.card.MaterialCardView
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                app:cardBackgroundColor="#ECFDF5"
+                                app:cardCornerRadius="10dp"
+                                app:cardElevation="0dp">
+
+                                <ImageView
+                                    android:id="@+id/iv_transactions"
+                                    android:layout_width="22dp"
+                                    android:layout_height="22dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_transactions_modern" />
+                            </com.google.android.material.card.MaterialCardView>
+
+                            <TextView
+                                android:id="@+id/tv_transactions"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="6dp"
+                                android:fontFamily="@font/poppins_semibold"
+                                android:text="@string/transactions"
+                                android:textColor="@color/black_light"
+                                android:textSize="12sp"
+                                android:letterSpacing="-0.01" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
                     <!-- Account Privacy Card with Gradient -->
                     <com.google.android.material.card.MaterialCardView
                         android:id="@+id/cl_account_privacy"
                         android:layout_width="0dp"
                         android:layout_height="90dp"
                         android:layout_weight="1"
-                        android:layout_marginEnd="6dp"
+                        android:layout_marginStart="6dp"
                         android:layout_marginBottom="4dp"
                         android:clickable="true"
                         android:focusable="true"
@@ -298,14 +348,6 @@
                                 android:letterSpacing="-0.01" />
                         </LinearLayout>
                     </com.google.android.material.card.MaterialCardView>
-
-                    <!-- Placeholder for symmetry -->
-                    <View
-                        android:layout_width="0dp"
-                        android:layout_height="90dp"
-                        android:layout_weight="1"
-                        android:layout_marginStart="6dp"
-                        android:visibility="invisible" />
                 </LinearLayout>
 
                 <!-- Row 3: My Friends Card -->
@@ -836,13 +878,6 @@
             android:visibility="gone"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <!-- Transactions (hidden for female) -->
-        <View
-            android:id="@+id/cl_transactions"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:visibility="gone"
-            app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
             android:id="@+id/tv_version"
@@ -852,20 +887,6 @@
             android:text="@string/version"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <!-- Hidden view elements for compatibility -->
-        <ImageView
-            android:id="@+id/iv_transactions"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:visibility="gone"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <TextView
-            android:id="@+id/tv_transactions"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:visibility="gone"
-            app:layout_constraintTop_toTopOf="parent" />
 
         <!-- Compatibility view (was cv_profile_options) -->
         <View

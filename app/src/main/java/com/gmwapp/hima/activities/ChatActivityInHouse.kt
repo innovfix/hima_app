@@ -53,6 +53,7 @@ import java.util.*
 import javax.inject.Inject
 import android.content.Intent
 import org.json.JSONObject
+import com.gmwapp.hima.activities.UserProfileDetailActivity
 
 @AndroidEntryPoint
 class ChatActivityInHouse : AppCompatActivity() {
@@ -330,6 +331,27 @@ class ChatActivityInHouse : AppCompatActivity() {
         btnSend.setOnClickListener {
             sendMessage()
         }
+
+        // Profile icon click - open UserProfileDetailActivity
+        ivUser.setOnClickListener {
+            openUserProfile()
+        }
+    }
+
+    private fun openUserProfile() {
+        val intent = Intent(this, UserProfileDetailActivity::class.java).apply {
+            putExtra(DConstants.USER_ID, peerUserId)
+            putExtra("USER_NAME", intent.getStringExtra("USER_NAME") ?: "User")
+            putExtra("USER_IMAGE", intent.getStringExtra("USER_IMAGE") ?: "")
+            // Optional fields - use defaults if not available
+            putExtra("USER_LANGUAGE", "")
+            putExtra("USER_INTERESTS", "")
+            putExtra("USER_ABOUT", "")
+            putExtra("USER_AGE", 0)
+            putExtra("AUDIO_STATUS", peerAudioStatus ?: 0)
+            putExtra("VIDEO_STATUS", peerVideoStatus ?: 0)
+        }
+        startActivity(intent)
     }
 
     private fun connectSocket() {

@@ -192,8 +192,8 @@ class UserProfileDetailActivity : AppCompatActivity() {
             .centerCrop()
             .into(binding.ivProfileImage)
 
-        // Set user name and age
-        binding.tvUserName.text = userName
+        // Set user name and age - remove trailing numbers from username
+        binding.tvUserName.text = extractNameOnly(userName)
         if (userAge > 0) {
             binding.tvUserAge.text = "$userAge years old"
         } else {
@@ -421,6 +421,17 @@ class UserProfileDetailActivity : AppCompatActivity() {
     private fun simulateFriendStatus(status: FriendStatus) {
         currentFriendStatus = status
         updateUIBasedOnFriendStatus()
+    }
+
+    /**
+     * Extracts the name part from username by removing trailing numbers
+     * Examples: "hello12" -> "hello", "john5" -> "john", "user123" -> "user"
+     */
+    private fun extractNameOnly(username: String): String {
+        if (username.isEmpty()) return username
+        
+        // Remove trailing digits
+        return username.replace(Regex("\\d+$"), "").trim()
     }
 }
 

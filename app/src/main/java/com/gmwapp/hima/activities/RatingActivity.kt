@@ -134,7 +134,7 @@ class RatingActivity : BaseActivity() {
         val gender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
         val callType = intent.getStringExtra(DConstants.CALL_TYPE)
         
-        if (gender == "female" && callType == DConstants.VIDEO) {
+        if (gender == "female") {
             val callId = intent.getIntExtra(DConstants.CALL_ID, 0)
             val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
             if (callId != 0 && userId != null) {

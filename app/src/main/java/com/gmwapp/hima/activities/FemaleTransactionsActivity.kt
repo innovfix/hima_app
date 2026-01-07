@@ -1,0 +1,155 @@
+package com.gmwapp.hima.activities
+
+import android.content.Context
+import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.os.Build
+import android.os.Bundle
+import android.util.Log
+import android.view.View
+import android.view.WindowInsetsController
+import androidx.activity.viewModels
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.R
+import com.gmwapp.hima.adapters.FemaleTransactionAdapter
+import com.gmwapp.hima.databinding.ActivityTransactionsBinding
+import com.gmwapp.hima.utils.setOnSingleClickListener
+import com.gmwapp.hima.viewmodels.FemaleTransactionsViewModel
+import dagger.hilt.android.AndroidEntryPoint
+
+@AndroidEntryPoint
+class FemaleTransactionsActivity : BaseActivity() {
+    private lateinit var binding: ActivityTransactionsBinding
+    private val femaleTransactionsViewModel: FemaleTransactionsViewModel by viewModels()
+    private lateinit var transactionAdapter: FemaleTransactionAdapter
+
+    private var isLoading = false
+    private var offset = 0
+    private val limit = 10
+    
+    companion object {
+        private const val TAG = "femaleTrasactionLog"
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        Log.d(TAG, "onCreate: FemaleTransactionsActivity started")
+        binding = ActivityTransactionsBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        // Set status bar color to pink theme
+        window.statusBarColor = resources.getColor(R.color.pink)
+
+        // Make status bar icons light (white) to show on pink background
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.setSystemBarsAppearance(0, WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = window.decorView.systemUiVisibility and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+        }
+
+        initUI()
+    }
+
+    private fun initUI() {
+        binding.cvBack.setOnSingleClickListener { finish() }
+
+        // Initialize RecyclerView and Adapter
+        transactionAdapter = FemaleTransactionAdapter(this, mutableListOf())
+        binding.rvTransactions.layoutManager = LinearLayoutManager(this)
+        binding.rvTransactions.adapter = transactionAdapter
+
+        // Load Initial Transactions
+        if (isInternetAvailable(this)) {
+            Log.d(TAG, "initUI: Internet available, loading transactions")
+            loadTransactions()
+        } else {
+            Log.e(TAG, "initUI: No internet connection available")
+            binding.llNoInternet.visibility = View.VISIBLE
+            binding.rvTransactions.visibility = View.GONE
+        }
+
+        // Scroll Listener for Pagination
+        binding.rvTransactions.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                val layoutManager = recyclerView.layoutManager as LinearLayoutManager
+                val lastVisiblePosition = layoutManager.findLastCompletelyVisibleItemPosition()
+                val itemCount = transactionAdapter.itemCount
+                
+                Log.d(TAG, "onScrolled: lastVisiblePosition=$lastVisiblePosition, itemCount=$itemCount, isLoading=$isLoading")
+                
+                if (!isLoading && lastVisiblePosition == itemCount - 1) {
+                    Log.d(TAG, "onScrolled: Reached end, loading more transactions")
+                    isLoading = true
+                    offset += limit // Load next batch
+                    Log.d(TAG, "onScrolled: New offset = $offset")
+                    loadTransactions()
+                }
+            }
+        })
+
+        // Observe Transactions Data
+        femaleTransactionsViewModel.transactionsResponseLiveData.observe(this) { response ->
+            isLoading = false
+            Log.d(TAG, "onResponse: API response received")
+            Log.d(TAG, "onResponse: response = $response")
+            
+            if (response != null) {
+                Log.d(TAG, "onResponse: success = ${response.success}, message = ${response.message}")
+
+                if (response.success && response.data != null && response.data.isNotEmpty()) {
+                    Log.d(TAG, "onResponse: Adding ${response.data.size} transactions to adapter")
+                    transactionAdapter.addTransactions(response.data)
+                    binding.llNoRecords.visibility = View.GONE
+                    binding.rvTransactions.visibility = View.VISIBLE
+                } else {
+                    Log.w(TAG, "onResponse: No transactions found or empty data. success=${response.success}, data=${response.data}")
+                    if (transactionAdapter.itemCount == 0) {
+                        binding.llNoRecords.visibility = View.VISIBLE
+                        binding.rvTransactions.visibility = View.GONE
+                    }
+                }
+            } else {
+                Log.e(TAG, "onResponse: Response is null!")
+                if (transactionAdapter.itemCount == 0) {
+                    binding.llNoRecords.visibility = View.VISIBLE
+                    binding.rvTransactions.visibility = View.GONE
+                }
+            }
+        }
+
+        // Observe Error Data
+        femaleTransactionsViewModel.transactionsErrorLiveData.observe(this) { error ->
+            isLoading = false
+            Log.e(TAG, "onError: Error received = $error")
+            if (error != null && transactionAdapter.itemCount == 0) {
+                Log.e(TAG, "onError: Showing no records view due to error")
+                binding.llNoRecords.visibility = View.VISIBLE
+                binding.rvTransactions.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun loadTransactions() {
+        BaseApplication.getInstance()?.getPrefs()?.getUserData()?.let { userData ->
+            Log.d(TAG, "loadTransactions: Calling API for user_id = ${userData.id}, offset = $offset, limit = $limit")
+            femaleTransactionsViewModel.getFemaleTransactions(userData.id, offset, limit)
+        } ?: run {
+            Log.e(TAG, "loadTransactions: ERROR - User data is null, cannot load transactions")
+        }
+    }
+
+    private fun isInternetAvailable(context: Context): Boolean {
+        val connectivityManager =
+            context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
+    }
+}
+
