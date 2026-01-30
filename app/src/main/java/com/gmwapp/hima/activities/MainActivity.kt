@@ -168,6 +168,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
     private var lastOrderId: String = ""
     private var isPhonePeInitialized = false
+    private var hasTriggeredFreeCoinsStatus: Boolean = false
 
     private lateinit var activityResultLauncher: ActivityResultLauncher<IntentSenderRequest>
     private lateinit var appUpdateManager: AppUpdateManager
@@ -592,6 +593,19 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
     private fun addObservers() {
         offerViewModel.offerResponseLiveData.observe(this) { response ->
+            // Fallback: if best_offers is false/empty then also call free_coins_status
+            val currentUserData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+            val currentUserId = currentUserData?.id
+            if (!hasTriggeredFreeCoinsStatus &&
+                currentUserId != null &&
+                currentUserData.gender == DConstants.MALE &&
+                (response == null || response.success != true || response.data.isNullOrEmpty())
+            ) {
+                hasTriggeredFreeCoinsStatus = true
+                Log.d("FreeCoinsStatus", "best_offers is false/empty → calling free_coins_status (fallback)")
+                callFreeCoinsStatusApi(currentUserId)
+            }
+
             if (response?.success == true && !response.data.isNullOrEmpty()) {
                 val coin = response.data[0].coins
                 val discountedPrice = response.data[0].price
@@ -633,7 +647,10 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                                 val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
                                 userData?.id?.let { userId ->
                                     Log.d("BottomSheetWelcomeBonus", "📡 Calling free_coins_status API with userId: $userId")
-                                    callFreeCoinsStatusApi(userId)
+                                    if (!hasTriggeredFreeCoinsStatus) {
+                                        hasTriggeredFreeCoinsStatus = true
+                                        callFreeCoinsStatusApi(userId)
+                                    }
                                 }
                             }
                         })
