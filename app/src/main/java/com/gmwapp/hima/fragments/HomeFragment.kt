@@ -1,8 +1,12 @@
 package com.gmwapp.hima.fragments
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.content.Context
 import android.content.Intent
+import android.graphics.Path
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Bundle
@@ -12,7 +16,9 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.AnimationUtils
+import android.widget.ImageView
 import androidx.appcompat.widget.PopupMenu
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
@@ -485,6 +491,135 @@ class HomeFragment : BaseFragment() {
                 Log.e("HomeFragment", "RegisterResponse is null")
             }
         })
+    }
+
+    // Public method to refresh coins from external calls (like after claiming free coins)
+    fun refreshCoinsBalance() {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        userData?.id?.let { 
+            // Show premium coin flying animation first
+            showPremiumCoinFlyingAnimation()
+            
+            // Refresh API after animation starts
+            Handler(Looper.getMainLooper()).postDelayed({
+                profileViewModel.getUsers(it)
+                Log.d("HomeFragment", "Refreshing coins balance after claim")
+            }, 500) // Delay API call slightly for better UX
+        }
+    }
+
+    private fun showPremiumCoinFlyingAnimation() {
+        context?.let { ctx ->
+            // Get the root view to add the flying coin
+            val rootView = activity?.window?.decorView?.findViewById<ViewGroup>(android.R.id.content)
+            rootView?.let { root ->
+                
+                // Create a coin ImageView
+                val flyingCoin = ImageView(ctx).apply {
+                    setImageResource(R.drawable.coin_d)
+                    layoutParams = ViewGroup.LayoutParams(80, 80) // Larger coin for visibility
+                }
+                
+                // Add coin to root view
+                root.addView(flyingCoin)
+                
+                // Get screen center position (where dialog was)
+                val screenWidth = root.width
+                val screenHeight = root.height
+                val startX = (screenWidth / 2 - 40).toFloat() // Center X minus half coin width
+                val startY = (screenHeight / 2 - 40).toFloat() // Center Y minus half coin height
+                
+                // Get target position (cl_coins location)
+                val targetLocation = IntArray(2)
+                binding.clCoins.getLocationOnScreen(targetLocation)
+                val endX = targetLocation[0].toFloat()
+                val endY = targetLocation[1].toFloat()
+                
+                // Set initial position
+                flyingCoin.x = startX
+                flyingCoin.y = startY
+                flyingCoin.alpha = 0f
+                flyingCoin.scaleX = 0.5f
+                flyingCoin.scaleY = 0.5f
+                
+                // Create curved path animation (bezier curve)
+                val controlX = (startX + endX) / 2
+                val controlY = startY - 200 // Arc upward
+                
+                // Create animator set for smooth animation
+                val animatorSet = AnimatorSet()
+                
+                // Fade in
+                val fadeIn = ObjectAnimator.ofFloat(flyingCoin, "alpha", 0f, 1f).apply {
+                    duration = 200
+                }
+                
+                // Scale up
+                val scaleUpX = ObjectAnimator.ofFloat(flyingCoin, "scaleX", 0.5f, 1.2f).apply {
+                    duration = 300
+                }
+                val scaleUpY = ObjectAnimator.ofFloat(flyingCoin, "scaleY", 0.5f, 1.2f).apply {
+                    duration = 300
+                }
+                
+                // Move along curved path
+                val pathX = ObjectAnimator.ofFloat(flyingCoin, "x", startX, controlX, endX).apply {
+                    duration = 800
+                    interpolator = AccelerateDecelerateInterpolator()
+                }
+                
+                val pathY = ObjectAnimator.ofFloat(flyingCoin, "y", startY, controlY, endY).apply {
+                    duration = 800
+                    interpolator = AccelerateDecelerateInterpolator()
+                }
+                
+                // Scale down at end
+                val scaleDownX = ObjectAnimator.ofFloat(flyingCoin, "scaleX", 1.2f, 0.3f).apply {
+                    duration = 300
+                    startDelay = 500
+                }
+                val scaleDownY = ObjectAnimator.ofFloat(flyingCoin, "scaleY", 1.2f, 0.3f).apply {
+                    duration = 300
+                    startDelay = 500
+                }
+                
+                // Fade out at end
+                val fadeOut = ObjectAnimator.ofFloat(flyingCoin, "alpha", 1f, 0f).apply {
+                    duration = 200
+                    startDelay = 600
+                }
+                
+                // Rotation for dynamic effect
+                val rotation = ObjectAnimator.ofFloat(flyingCoin, "rotation", 0f, 720f).apply {
+                    duration = 800
+                }
+                
+                // Play all animations together
+                animatorSet.playTogether(fadeIn, scaleUpX, scaleUpY, pathX, pathY, scaleDownX, scaleDownY, fadeOut, rotation)
+                
+                animatorSet.addListener(object : AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: Animator) {
+                        // Remove flying coin from view
+                        root.removeView(flyingCoin)
+                        
+                        // Animate the cl_coins card
+                        showCoinsAddedAnimation()
+                    }
+                })
+                
+                animatorSet.start()
+            }
+        }
+    }
+
+    private fun showCoinsAddedAnimation() {
+        // Animate the entire coins card with pulse
+        val pulseAnimation = AnimationUtils.loadAnimation(context, R.anim.coins_pulse)
+        binding.clCoins.startAnimation(pulseAnimation)
+        
+        // Animate the coin icon separately for extra effect
+        val coinAnimation = AnimationUtils.loadAnimation(context, R.anim.coin_scale_bounce)
+        binding.ivCoin.startAnimation(coinAnimation)
     }
 
 

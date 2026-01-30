@@ -21,9 +21,14 @@ class BottomSheetWelcomeBonus : BottomSheetDialogFragment() {
         fun onAddCoins(coins: String, id: Int)
     }
 
+    interface OnDismissListener {
+        fun onBottomSheetDismissed()
+    }
+
     private var _binding: BottomSheetWelcomeBonusBinding? = null
     private val binding get() = _binding!!
     private var addCoinsListener: OnAddCoinsListener? = null
+    private var dismissListener: OnDismissListener? = null
 
     // Variables to receive from arguments
     private var coins: Int = 0
@@ -103,6 +108,17 @@ class BottomSheetWelcomeBonus : BottomSheetDialogFragment() {
         }
 
         return binding.root
+    }
+
+    fun setOnDismissListener(listener: OnDismissListener) {
+        this.dismissListener = listener
+    }
+
+    override fun onDismiss(dialog: android.content.DialogInterface) {
+        super.onDismiss(dialog)
+        android.util.Log.d("BottomSheetWelcomeBonus", "onDismiss called - dismissListener is ${if (dismissListener != null) "SET" else "NULL"}")
+        // Notify listener when bottom sheet is dismissed
+        dismissListener?.onBottomSheetDismissed()
     }
 
     override fun onDestroyView() {

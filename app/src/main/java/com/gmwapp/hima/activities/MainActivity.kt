@@ -57,6 +57,7 @@ import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityMainBinding
 import com.gmwapp.hima.dialogs.BottomSheetWelcomeBonus
+import com.gmwapp.hima.dialogs.FreeCoinsWelcomeDialog
 import com.gmwapp.hima.fragments.FemaleHomeFragment
 import com.gmwapp.hima.fragments.HomeFragment
 import com.gmwapp.hima.fragments.ProfileFemaleFragment
@@ -65,6 +66,10 @@ import com.gmwapp.hima.fragments.RecentFragment
 import com.gmwapp.hima.retrofit.responses.CoinsResponseData
 import com.gmwapp.hima.retrofit.responses.NewRazorpayLinkResponse
 import com.gmwapp.hima.retrofit.responses.RazorPayApiResponse
+import com.gmwapp.hima.retrofit.responses.FreeCoinsStatusResponse
+import com.gmwapp.hima.retrofit.responses.InstallReferrerResponse
+import com.gmwapp.hima.retrofit.ApiManager
+import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.utils.RatingPromptHelper
 import com.gmwapp.hima.utils.AppEventLogger
@@ -141,6 +146,9 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     
     @javax.inject.Inject
     lateinit var ratingPromptHelper: RatingPromptHelper
+
+    @javax.inject.Inject
+    lateinit var apiManager: ApiManager
 
 
     private var blockWordDialog: Dialog? = null
@@ -344,6 +352,16 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 //
 //           OneSignal.User.pushSubscription.optIn()
 //        }
+
+        // Call user-install-referrer API if user is logged in, gender is male, and install referrer data exists
+        userData?.id?.let { userId ->
+            if (userData.gender == DConstants.MALE) {
+                val savedResponseData = BaseApplication.getInstance()?.getPrefs()?.getString("install_referrer_response_data")
+                if (!savedResponseData.isNullOrEmpty()) {
+                    callUserInstallReferrerApi(userId, savedResponseData)
+                }
+            }
+        }
 
         billingManager = BillingManager(this)
         accountViewModel.getSettings()
@@ -606,7 +624,22 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                             coinId,
                             total_count
                         )
+                        
+                        // Set dismiss listener to call free_coins_status API
+                        bottomSheet.setOnDismissListener(object : BottomSheetWelcomeBonus.OnDismissListener {
+                            override fun onBottomSheetDismissed() {
+                                Log.d("BottomSheetWelcomeBonus", "✅ Bottom sheet dismissed - calling free_coins_status API")
+                                
+                                val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                                userData?.id?.let { userId ->
+                                    Log.d("BottomSheetWelcomeBonus", "📡 Calling free_coins_status API with userId: $userId")
+                                    callFreeCoinsStatusApi(userId)
+                                }
+                            }
+                        })
+                        
                         bottomSheet.show(supportFragmentManager, "BottomSheetWelcomeBonus")
+                        Log.d("BottomSheetWelcomeBonus", "Bottom sheet shown with dismiss listener set")
                     }
                 }
             }
@@ -1785,6 +1818,161 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         })
     }
 
+    private fun callFreeCoinsStatusApi(userId: Int) {
+        apiManager.getFreeCoinsStatus(userId, object : NetworkCallback<FreeCoinsStatusResponse> {
+            override fun onResponse(
+                call: retrofit2.Call<FreeCoinsStatusResponse>,
+                response: retrofit2.Response<FreeCoinsStatusResponse>
+            ) {
+                if (response.isSuccessful && response.body() != null) {
+                    val freeCoinsStatus = response.body()!!
+                    Log.d("FreeCoinsStatus", "Success: ${freeCoinsStatus.success}, Enabled: ${freeCoinsStatus.enabled}, Value: ${freeCoinsStatus.value}")
+                    Log.d("FreeCoinsStatus", "Success: ${freeCoinsStatus}, Enabled: ${freeCoinsStatus.enabled}, Value: ${freeCoinsStatus.value}")
+                    // Show dialog if enabled is true
+                    if (freeCoinsStatus.enabled) {
+                        val coinsValue = freeCoinsStatus.value ?: 0
+                        val makePayment = freeCoinsStatus.makePayment
+                        val coinId = freeCoinsStatus.coin_id
+                        val price = freeCoinsStatus.price
+                        val badgeText = freeCoinsStatus.badge_text
+                        val title = freeCoinsStatus.title
+                        val subtitle = freeCoinsStatus.subtitle
+                        val description = freeCoinsStatus.description
+                        val buttonText = freeCoinsStatus.button_text
+                        
+                        runOnUiThread {
+                            showFreeCoinsWelcomeDialog(
+                                coinsValue,
+                                makePayment,
+                                coinId,
+                                price,
+                                badgeText,
+                                title,
+                                subtitle,
+                                description,
+                                buttonText
+                            )
+                        }
+                    }
+                } else {
+                    Log.e("FreeCoinsStatus", "API call failed: ${response.code()}")
+                }
+            }
+
+            override fun onFailure(
+                call: retrofit2.Call<FreeCoinsStatusResponse>,
+                t: Throwable
+            ) {
+                Log.e("FreeCoinsStatus", "API call error: ${t.message}")
+            }
+
+            override fun onNoNetwork() {
+                Log.w("FreeCoinsStatus", "No network connection")
+            }
+        })
+    }
+
+    private fun showFreeCoinsWelcomeDialog(
+        coinsValue: Int,
+        makePayment: Int?,
+        coinId: Int?,
+        price: Int?,
+        badgeText: String?,
+        title: String?,
+        subtitle: String?,
+        description: String?,
+        buttonText: String?
+    ) {
+        val existing = supportFragmentManager.findFragmentByTag("FreeCoinsWelcomeDialog")
+        if (existing == null) {
+            val dialog = FreeCoinsWelcomeDialog.newInstance(
+                coinsValue,
+                makePayment,
+                coinId,
+                price,
+                badgeText,
+                title,
+                subtitle,
+                description,
+                buttonText
+            )
+            dialog.setOnCoinsClaimedListener(object : FreeCoinsWelcomeDialog.OnCoinsClaimedListener {
+                override fun onCoinsClaimed(coinsAdded: Int) {
+                    // Refresh coins balance in MainActivity
+                    refreshCoinsBalance()
+                }
+            })
+            dialog.setOnBuyCoinsListener(object : FreeCoinsWelcomeDialog.OnBuyCoinsListener {
+                override fun onBuyCoins(totalAmount: String, coinId: Int) {
+                    onAddCoins(totalAmount, coinId)
+                }
+            })
+            
+            // Set dismiss listener to call API again when dialog is dismissed
+            dialog.setOnDismissListener(object : FreeCoinsWelcomeDialog.OnDismissListener {
+                override fun onDialogDismissed() {
+                    Log.d("FreeCoinsDialog", "✅ onDialogDismissed callback triggered!")
+                    Log.d("FreeCoinsDialog", "Dialog dismissed - calling API again to check")
+                    
+                    // Call API again after dismissal
+                    val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                    if (userData == null) {
+                        Log.e("FreeCoinsDialog", "❌ userData is null, cannot call API")
+                        return
+                    }
+
+                }
+            })
+            
+            Log.d("FreeCoinsDialog", "Dismiss listener set successfully")
+            
+            dialog.show(supportFragmentManager, "FreeCoinsWelcomeDialog")
+        }
+    }
+
+    private fun refreshCoinsBalance() {
+        // Refresh coins in HomeFragment
+        val currentFragment = supportFragmentManager.findFragmentById(R.id.flFragment)
+        if (currentFragment is HomeFragment) {
+            currentFragment.refreshCoinsBalance()
+            Log.d("MainActivity", "Refreshing coins balance in HomeFragment")
+        } else {
+            Log.d("MainActivity", "HomeFragment not currently visible, skipping refresh")
+        }
+    }
+
+    private fun callUserInstallReferrerApi(userId: Int, responseData: String) {
+        apiManager.logUserInstallReferrer(userId, responseData, object : NetworkCallback<InstallReferrerResponse> {
+            override fun onResponse(
+                call: retrofit2.Call<InstallReferrerResponse>,
+                response: retrofit2.Response<InstallReferrerResponse>
+            ) {
+                if (response.isSuccessful && response.body() != null) {
+                    val apiResponse = response.body()!!
+                    if (apiResponse.success) {
+                        Log.d("UserInstallReferrer", "✅ User install referrer logged successfully: ${apiResponse.message}")
+                        // Clear saved data after successful API call
+                        BaseApplication.getInstance()?.getPrefs()?.setString("install_referrer_response_data", "")
+                    } else {
+                        Log.e("UserInstallReferrer", "❌ API returned success=false: ${apiResponse.message}")
+                    }
+                } else {
+                    Log.e("UserInstallReferrer", "❌ API call failed: ${response.code()}")
+                }
+            }
+
+            override fun onFailure(
+                call: retrofit2.Call<InstallReferrerResponse>,
+                t: Throwable
+            ) {
+                Log.e("UserInstallReferrer", "❌ API call error: ${t.message}", t)
+            }
+
+            override fun onNoNetwork() {
+                Log.w("UserInstallReferrer", "⚠️ No network connection")
+            }
+        })
+    }
 
 }
 

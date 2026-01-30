@@ -42,9 +42,14 @@ class CoinAdapter(
             coin.isSelected = true
         }
 
-        if (coin.popular == 1){
+        // Show label if not empty, otherwise show based on popular field
+        if (!coin.label.isNullOrEmpty()) {
             holder.binding.tvPopular.visibility = View.VISIBLE
-        }else{
+            holder.binding.tvPopular.text = coin.label
+        } else if (coin.popular == 1) {
+            holder.binding.tvPopular.visibility = View.VISIBLE
+            holder.binding.tvPopular.text = "★ Popular"
+        } else {
             holder.binding.tvPopular.visibility = View.GONE
         }
 

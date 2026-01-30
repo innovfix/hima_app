@@ -47,6 +47,8 @@ import com.gmwapp.hima.retrofit.responses.FriendListResponse
 import com.gmwapp.hima.retrofit.responses.SendGiftResponse
 import com.gmwapp.hima.retrofit.responses.SendOTPResponse
 import com.gmwapp.hima.retrofit.responses.SettingsResponse
+import com.gmwapp.hima.retrofit.responses.FreeCoinsStatusResponse
+import com.gmwapp.hima.retrofit.responses.ClaimFreeCoinsResponse
 import com.gmwapp.hima.retrofit.responses.SpeechTextResponse
 import com.gmwapp.hima.retrofit.responses.TransactionChargesResponse
 import com.gmwapp.hima.retrofit.responses.TransactionsResponse
@@ -736,6 +738,30 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun getFreeCoinsStatus(
+        userId: Int,
+        callback: NetworkCallback<FreeCoinsStatusResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<FreeCoinsStatusResponse> = getApiInterface().getFreeCoinsStatus(userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun claimFreeCoins(
+        userId: Int,
+        callback: NetworkCallback<ClaimFreeCoinsResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<ClaimFreeCoinsResponse> = getApiInterface().claimFreeCoins(userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun getCategoriesList(
         userId: Int,
         callback: NetworkCallback<CategoriesResponse>
@@ -1375,6 +1401,7 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         deviceInfo: String?,
         appVersion: String?,
         osVersion: String?,
+        userId: Int,
         callback: NetworkCallback<InstallReferrerResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
@@ -1382,7 +1409,24 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
                 responseData,
                 deviceInfo,
                 appVersion,
-                osVersion
+                osVersion,
+                userId
+            )
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun logUserInstallReferrer(
+        userId: Int,
+        responseData: String,
+        callback: NetworkCallback<InstallReferrerResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<InstallReferrerResponse> = getApiInterface().logUserInstallReferrer(
+                userId,
+                responseData
             )
             apiCall.enqueue(callback)
         } else {
@@ -1758,6 +1802,14 @@ interface ApiInterface {
     fun getSettings(): Call<SettingsResponse>
 
     @FormUrlEncoded
+    @POST("free_coins_status")
+    fun getFreeCoinsStatus(@Field("user_id") userId: Int): Call<FreeCoinsStatusResponse>
+
+    @FormUrlEncoded
+    @POST("claim_free_coins")
+    fun claimFreeCoins(@Field("user_id") userId: Int): Call<ClaimFreeCoinsResponse>
+
+    @FormUrlEncoded
     @POST("categories_list")
     fun getCategoriesList(
         @Field("user_id") userId: Int
@@ -2110,7 +2162,15 @@ interface ApiInterface {
         @Field("response_data") responseData: String,
         @Field("device_info") deviceInfo: String?,
         @Field("app_version") appVersion: String?,
-        @Field("os_version") osVersion: String?
+        @Field("os_version") osVersion: String?,
+        @Field("user_id") userId: Int
+    ): Call<InstallReferrerResponse>
+
+    @FormUrlEncoded
+    @POST("user-install-referrer")
+    fun logUserInstallReferrer(
+        @Field("user_id") userId: Int,
+        @Field("response_data") responseData: String
     ): Call<InstallReferrerResponse>
 
     @FormUrlEncoded

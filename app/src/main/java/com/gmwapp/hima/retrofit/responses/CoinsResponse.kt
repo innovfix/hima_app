@@ -14,6 +14,7 @@ data class CoinsResponseData(
     val coins: Int,
     val save: Int?,
     val popular: Int?,
+    val label: String?,
     val updated_at: String?,
     val pg: String?,
     val created_at: String?,

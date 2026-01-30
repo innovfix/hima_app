@@ -86,6 +86,7 @@ class BaseApplication : Application(), Configuration.Provider {
 
 
     var messageCameWhenIsAlive = 0
+    var freeCoinsStatusApiCalled = false
 
     private val lifecycleCallbacks: ActivityLifecycleCallbacks =
         object : ActivityLifecycleCallbacks {
@@ -749,6 +750,14 @@ class BaseApplication : Application(), Configuration.Provider {
     
     private fun sendInstallReferrerToBackend(responseData: Map<String, Any>) {
         try {
+            // Convert responseData to JSON string
+            val gson = com.google.gson.Gson()
+            val responseDataJson = gson.toJson(responseData)
+            
+            // Save response data to SharedPreferences before calling API
+            getPrefs()?.setString("install_referrer_response_data", responseDataJson)
+            Log.d("AppDownloadSoruce", "✅ Install referrer response data saved to SharedPreferences")
+            
             val apiManager = getApiManager()
             if (apiManager == null) {
                 Log.e("AppDownloadSoruce", "ApiManager not available")
@@ -765,15 +774,16 @@ class BaseApplication : Application(), Configuration.Provider {
             }
             val osVersion = "Android ${Build.VERSION.RELEASE}"
             
-            // Convert responseData to JSON string
-            val gson = com.google.gson.Gson()
-            val responseDataJson = gson.toJson(responseData)
+            // Get user_id from preferences, default to 0 if null or empty
+            val userData = getPrefs()?.getUserData()
+            val userId = userData?.id ?: 0
             
             apiManager.logInstallReferrer(
                 responseDataJson,
                 deviceInfo,
                 appVersion,
                 osVersion,
+                userId,
                 object : com.gmwapp.hima.retrofit.callbacks.NetworkCallback<com.gmwapp.hima.retrofit.responses.InstallReferrerResponse> {
                     override fun onResponse(
                         call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.InstallReferrerResponse>,
