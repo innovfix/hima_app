@@ -30,9 +30,20 @@ import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
 import com.google.android.material.chip.Chip
 import dagger.hilt.android.AndroidEntryPoint
+import com.gmwapp.hima.retrofit.ApiManager
+import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
+import com.gmwapp.hima.retrofit.responses.AddFavoriteResponse
+import com.gmwapp.hima.retrofit.responses.CheckFavoriteResponse
+import com.gmwapp.hima.retrofit.responses.RemoveFavoriteResponse
+import retrofit2.Call
+import retrofit2.Response
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class UserProfileDetailActivity : AppCompatActivity() {
+
+    @Inject
+    lateinit var apiManager: ApiManager
 
     private lateinit var binding: ActivityUserProfileDetailBinding
     private val friendRequestViewModel: FriendRequestViewModel by viewModels()
@@ -58,6 +69,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
     
     private var currentFriendStatus: FriendStatus = FriendStatus.NOT_FRIENDS
     private var isRejectInProgress = false
+    private var isFavorite: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -81,6 +93,9 @@ class UserProfileDetailActivity : AppCompatActivity() {
         
         // Check friend request status from API
         checkFriendRequestStatus()
+        
+        // Check if user is already in favorites
+        checkFavoriteStatus()
 
         window.statusBarColor = Color.parseColor("#ffffff") // startColor of your gradient
 
@@ -280,6 +295,11 @@ class UserProfileDetailActivity : AppCompatActivity() {
         binding.btnVideoCall.setOnSingleClickListener {
             startCall("video")
         }
+        
+        // Favourite Toggle
+        binding.cvFavourite.setOnSingleClickListener {
+            toggleFavorite()
+        }
     }
 
     private fun checkFriendRequestStatus() {
@@ -432,6 +452,194 @@ class UserProfileDetailActivity : AppCompatActivity() {
         
         // Remove trailing digits
         return username.replace(Regex("\\d+$"), "").trim()
+    }
+    
+    /**
+     * Check if the current user has already favorited this profile
+     */
+    private fun checkFavoriteStatus() {
+        val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+        
+        if (currentUserId == 0) {
+            Log.e("UserProfileDetail", "Unable to check favorite status - invalid user ID")
+            return
+        }
+        
+        // Only male users can add favorites
+        val userGender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
+        if (userGender != DConstants.MALE) {
+            binding.cvFavourite.visibility = View.GONE
+            return
+        }
+        
+        Log.d("UserProfileDetail", "🔍 Checking favorite status for user: $userId")
+        
+        apiManager.checkFavorite(currentUserId, userId, object : NetworkCallback<CheckFavoriteResponse> {
+            override fun onResponse(call: Call<CheckFavoriteResponse>, response: Response<CheckFavoriteResponse>) {
+                if (response.isSuccessful) {
+                    val result = response.body()
+                    isFavorite = result?.is_favorite ?: false
+                    runOnUiThread {
+                        updateFavoriteUI()
+                    }
+                    Log.d("UserProfileDetail", "✅ Favorite status: $isFavorite")
+                } else {
+                    Log.e("UserProfileDetail", "❌ Failed to check favorite status: ${response.code()}")
+                }
+            }
+
+            override fun onFailure(call: Call<CheckFavoriteResponse>, t: Throwable) {
+                Log.e("UserProfileDetail", "❌ Error checking favorite status: ${t.message}")
+            }
+
+            override fun onNoNetwork() {
+                Log.e("UserProfileDetail", "❌ No network while checking favorite status")
+                runOnUiThread {
+                    Toast.makeText(this@UserProfileDetailActivity, "No internet connection", Toast.LENGTH_SHORT).show()
+                }
+            }
+        })
+    }
+    
+    /**
+     * Toggle favorite status (add or remove from favorites)
+     */
+    private fun toggleFavorite() {
+        val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+        
+        if (currentUserId == 0) {
+            Toast.makeText(this, "Unable to update favorites. Please try again.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        if (isFavorite) {
+            // Remove from favorites
+            removeFromFavorites(currentUserId)
+        } else {
+            // Add to favorites
+            addToFavorites(currentUserId)
+        }
+    }
+    
+    /**
+     * Add user to favorites
+     */
+    private fun addToFavorites(currentUserId: Int) {
+        Log.d("UserProfileDetail", "➕ Adding user $userId to favorites")
+        
+        apiManager.addFavorite(currentUserId, userId, object : NetworkCallback<AddFavoriteResponse> {
+            override fun onResponse(call: Call<AddFavoriteResponse>, response: Response<AddFavoriteResponse>) {
+                if (response.isSuccessful) {
+                    val result = response.body()
+                    if (result?.success == true) {
+                        isFavorite = true
+                        runOnUiThread {
+                            updateFavoriteUI()
+                            Toast.makeText(this@UserProfileDetailActivity, 
+                                result.message ?: "Added to favorites", 
+                                Toast.LENGTH_SHORT).show()
+                        }
+                        Log.d("UserProfileDetail", "✅ Added to favorites successfully")
+                    } else {
+                        runOnUiThread {
+                            Toast.makeText(this@UserProfileDetailActivity, 
+                                result?.message ?: "Failed to add to favorites", 
+                                Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } else {
+                    runOnUiThread {
+                        Toast.makeText(this@UserProfileDetailActivity, 
+                            "Failed to add to favorites", 
+                            Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+
+            override fun onFailure(call: Call<AddFavoriteResponse>, t: Throwable) {
+                Log.e("UserProfileDetail", "❌ Error adding to favorites: ${t.message}")
+                runOnUiThread {
+                    Toast.makeText(this@UserProfileDetailActivity, 
+                        "Network error. Please try again.", 
+                        Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            override fun onNoNetwork() {
+                Log.e("UserProfileDetail", "❌ No network while adding favorite")
+                runOnUiThread {
+                    Toast.makeText(this@UserProfileDetailActivity, "No internet connection", Toast.LENGTH_SHORT).show()
+                }
+            }
+        })
+    }
+    
+    /**
+     * Remove user from favorites
+     */
+    private fun removeFromFavorites(currentUserId: Int) {
+        Log.d("UserProfileDetail", "➖ Removing user $userId from favorites")
+        
+        apiManager.removeFavorite(currentUserId, userId, object : NetworkCallback<RemoveFavoriteResponse> {
+            override fun onResponse(call: Call<RemoveFavoriteResponse>, response: Response<RemoveFavoriteResponse>) {
+                if (response.isSuccessful) {
+                    val result = response.body()
+                    if (result?.success == true) {
+                        isFavorite = false
+                        runOnUiThread {
+                            updateFavoriteUI()
+                            Toast.makeText(this@UserProfileDetailActivity, 
+                                result.message ?: "Removed from favorites", 
+                                Toast.LENGTH_SHORT).show()
+                        }
+                        Log.d("UserProfileDetail", "✅ Removed from favorites successfully")
+                    } else {
+                        runOnUiThread {
+                            Toast.makeText(this@UserProfileDetailActivity, 
+                                result?.message ?: "Failed to remove from favorites", 
+                                Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } else {
+                    runOnUiThread {
+                        Toast.makeText(this@UserProfileDetailActivity, 
+                            "Failed to remove from favorites", 
+                            Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+
+            override fun onFailure(call: Call<RemoveFavoriteResponse>, t: Throwable) {
+                Log.e("UserProfileDetail", "❌ Error removing from favorites: ${t.message}")
+                runOnUiThread {
+                    Toast.makeText(this@UserProfileDetailActivity, 
+                        "Network error. Please try again.", 
+                        Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            override fun onNoNetwork() {
+                Log.e("UserProfileDetail", "❌ No network while removing favorite")
+                runOnUiThread {
+                    Toast.makeText(this@UserProfileDetailActivity, "No internet connection", Toast.LENGTH_SHORT).show()
+                }
+            }
+        })
+    }
+    
+    /**
+     * Update the favorite icon based on current favorite state
+     */
+    private fun updateFavoriteUI() {
+        if (isFavorite) {
+            // Show filled heart
+            binding.ivFavourite.setImageResource(R.drawable.ic_heart_filled)
+            binding.ivFavourite.setColorFilter(resources.getColor(R.color.colorAccent, null))
+        } else {
+            // Show outline heart
+            binding.ivFavourite.setImageResource(R.drawable.ic_heart_outline)
+            binding.ivFavourite.setColorFilter(resources.getColor(R.color.white, null))
+        }
     }
 }
 

@@ -19,7 +19,6 @@ import android.view.ViewGroup
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.AnimationUtils
 import android.widget.ImageView
-import androidx.appcompat.widget.PopupMenu
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -156,8 +155,8 @@ class HomeFragment : BaseFragment() {
 
 
 
-        // Setup filter menu
-        setupFilterMenu()
+        // Setup filter pills
+        setupFilterButtons()
         
         userData?.id?.let {
             if (context?.let { it1 -> isInternetAvailable(it1) } == true) {
@@ -315,60 +314,99 @@ class HomeFragment : BaseFragment() {
         femaleUsersViewModel.getFemaleUsers(userId, filter)
     }
     
-    private fun setupFilterMenu() {
-        // Set initial label - "All" is selected by default
-        binding.tvFilterLabel.text = "All"
+    private fun setupFilterButtons() {
+        Log.d("FilterButtons", "setupFilterButtons called - initial filterType: $filterType")
         
-        // Setup filter card click listener
-        binding.cardFilter.setOnClickListener {
-            showFilterMenu()
+        // Set initial state
+        updateFilterButtonStyles()
+
+        binding.btnFilterAll.setOnClickListener {
+            Log.d("FilterButtons", "All button clicked")
+            applyFilter("all")
         }
-    }
-    
-    private fun showFilterMenu() {
-        val popup = PopupMenu(requireContext(), binding.cardFilter)
-        popup.menuInflater.inflate(R.menu.menu_filter, popup.menu)
+
+        binding.btnFilterNew.setOnClickListener {
+            Log.d("FilterButtons", "New button clicked")
+            applyFilter("new")
+        }
         
-        popup.setOnMenuItemClickListener { menuItem ->
-            when (menuItem.itemId) {
-                R.id.action_filter_all -> {
-                    if (filterType != "all") {
-                        filterType = "all"
-                        binding.tvFilterLabel.text = "All"
-                        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-                        userData?.id?.let {
-                            if (context?.let { it1 -> isInternetAvailable(it1) } == true) {
-                                // Clear existing data
-                                femaleUsersViewModel.femaleUsersResponseLiveData.value?.data?.clear()
-                                (binding.rvProfiles.adapter as? FemaleUserAdapter)?.notifyDataSetChanged()
-                                // Reload with new filter
-                                loadFemaleUsers(it)
-                            }
-                        }
-                    }
-                    true
-                }
-                R.id.action_filter_new -> {
-                    if (filterType != "new") {
-                        filterType = "new"
-                        binding.tvFilterLabel.text = "New"
-                        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-                        userData?.id?.let {
-                            if (context?.let { it1 -> isInternetAvailable(it1) } == true) {
-                                // Clear existing data
-                                femaleUsersViewModel.femaleUsersResponseLiveData.value?.data?.clear()
-                                (binding.rvProfiles.adapter as? FemaleUserAdapter)?.notifyDataSetChanged()
-                                // Reload with new filter
-                                loadFemaleUsers(it)
-                            }
-                        }
-                    }
-                    true
-                }
-                else -> false
+        // Add touch listener to debug if touches are reaching the button
+        binding.btnFilterNew.setOnTouchListener { view, event ->
+            Log.d("FilterButtons", "New button TOUCHED - action: ${event.action}")
+            false // Return false to allow click event to proceed
+        }
+        
+        binding.btnFilterAll.setOnTouchListener { view, event ->
+            Log.d("FilterButtons", "All button TOUCHED - action: ${event.action}")
+            false
+        }
+        
+        Log.d("FilterButtons", "Filter buttons click listeners set up successfully")
+        Log.d("FilterButtons", "btnFilterNew isClickable: ${binding.btnFilterNew.isClickable}, isEnabled: ${binding.btnFilterNew.isEnabled}")
+        Log.d("FilterButtons", "btnFilterAll isClickable: ${binding.btnFilterAll.isClickable}, isEnabled: ${binding.btnFilterAll.isEnabled}")
+    }
+
+    private fun updateFilterButtonStyles() {
+        val strokeWidthPx = (1 * resources.displayMetrics.density).toInt()
+        val pinkColor = resources.getColorStateList(R.color.colorAccent, null)
+        val whiteColor = resources.getColorStateList(R.color.white, null)
+        val greyColor = resources.getColor(R.color.grey_medium, null)
+        val whiteTextColor = resources.getColor(R.color.white, null)
+        val borderColor = resources.getColorStateList(R.color.light_grey, null)
+        
+        if (filterType == "all") {
+            // All button selected - Pink background
+            binding.btnFilterAll.apply {
+                backgroundTintList = pinkColor
+                setTextColor(whiteTextColor)
+                strokeWidth = 0
+                strokeColor = null
+            }
+            // New button unselected - White background with border
+            binding.btnFilterNew.apply {
+                backgroundTintList = whiteColor
+                setTextColor(greyColor)
+                strokeWidth = strokeWidthPx
+                strokeColor = borderColor
+            }
+        } else {
+            // All button unselected - White background with border
+            binding.btnFilterAll.apply {
+                backgroundTintList = whiteColor
+                setTextColor(greyColor)
+                strokeWidth = strokeWidthPx
+                strokeColor = borderColor
+            }
+            // New button selected - Pink background
+            binding.btnFilterNew.apply {
+                backgroundTintList = pinkColor
+                setTextColor(whiteTextColor)
+                strokeWidth = 0
+                strokeColor = null
             }
         }
-        popup.show()
+        
+        Log.d("FilterButtons", "Updated filter styles - filterType: $filterType")
+    }
+
+    private fun applyFilter(selectedFilter: String) {
+        Log.d("FilterButtons", "applyFilter called - current: $filterType, selected: $selectedFilter")
+        if (filterType == selectedFilter) {
+            Log.d("FilterButtons", "Filter already selected, returning")
+            return
+        }
+        filterType = selectedFilter
+        updateFilterButtonStyles()
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        userData?.id?.let {
+            if (context?.let { it1 -> isInternetAvailable(it1) } == true) {
+                // Clear existing data
+                femaleUsersViewModel.femaleUsersResponseLiveData.value?.data?.clear()
+                (binding.rvProfiles.adapter as? FemaleUserAdapter)?.notifyDataSetChanged()
+                // Reload with new filter
+                loadFemaleUsers(it)
+            }
+        }
     }
 
     fun initFab() {
@@ -472,8 +510,8 @@ class HomeFragment : BaseFragment() {
             userData?.let { loadFemaleUsers(it.id) }
         }
         
-        // Update filter label when resuming
-        binding.tvFilterLabel.text = if (filterType == "all") "All" else "New"
+        // Sync selected filter button styles when resuming
+        updateFilterButtonStyles()
 
         checkFemaleStatus()
 

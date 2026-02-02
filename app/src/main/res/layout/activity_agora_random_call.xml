@@ -183,8 +183,8 @@
         <!-- Subtle Pulse Ring -->
         <View
             android:id="@+id/pulse_ring"
-            android:layout_width="130dp"
-            android:layout_height="130dp"
+            android:layout_width="140dp"
+            android:layout_height="140dp"
             android:layout_gravity="center"
             android:background="@drawable/pulse_ring_pink"
             android:alpha="0.3" />

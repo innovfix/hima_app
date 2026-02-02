@@ -345,10 +345,13 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
                         call: Call<VoiceUpdateResponse>, response: Response<VoiceUpdateResponse>
                     ) {
                         voiceUpdateLiveData.postValue(response.body())
+                        Log.d("voiceUpdateLiveData","${response.body()}")
                     }
 
                     override fun onFailure(call: Call<VoiceUpdateResponse>, t: Throwable) {
                         voiceUpdateErrorLiveData.postValue(t.message)
+                        Log.d("voiceUpdateLiveData","${t.message}")
+
                     }
 
                     override fun onNoNetwork() {
