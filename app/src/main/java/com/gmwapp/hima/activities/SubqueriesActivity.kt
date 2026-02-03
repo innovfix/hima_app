@@ -64,7 +64,7 @@ class SubqueriesActivity : BaseActivity() {
     }
 
     private fun initUI() {
-        binding.ivBack.setOnSingleClickListener {
+        binding.cvBack.setOnSingleClickListener {
             finish()
         }
         binding.tvTitle.text = categoryName.ifEmpty { "Subqueries" }

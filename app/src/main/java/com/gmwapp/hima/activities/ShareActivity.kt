@@ -64,7 +64,7 @@ class ShareActivity : AppCompatActivity() {
         userData?.id?.let { profileViewModel.getUsers(it) }
 
 
-        binding.ivBack.setOnSingleClickListener {
+        binding.cvBack.setOnSingleClickListener {
             finish()
         }
 

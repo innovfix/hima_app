@@ -20,6 +20,7 @@ import androidx.lifecycle.Observer
 import androidx.activity.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.cardview.widget.CardView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
@@ -67,6 +68,7 @@ class ChatActivityInHouse : AppCompatActivity() {
     private lateinit var etMessage: EditText
     private lateinit var btnSend: FloatingActionButton
     private lateinit var ivBack: ImageView
+    private lateinit var cvBack: CardView
     private lateinit var ivMore: ImageView
     private lateinit var ivUser: CircleImageView
     private lateinit var tvUserName: TextView
@@ -146,6 +148,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         etMessage = findViewById(R.id.et_message)
         btnSend = findViewById(R.id.btn_send)
         ivBack = findViewById(R.id.iv_back)
+        cvBack = findViewById(R.id.cv_back)
         ivMore = findViewById(R.id.iv_more)
         ivUser = findViewById(R.id.iv_user)
         tvUserName = findViewById(R.id.tv_user_name)
@@ -177,13 +180,13 @@ class ChatActivityInHouse : AppCompatActivity() {
         
         if (isMaleUser) {
             // Hide back button and align avatar from start for male users
-            ivBack.visibility = View.GONE
+            cvBack.visibility = View.GONE
             val layoutParams = ivUser.layoutParams as android.view.ViewGroup.MarginLayoutParams
             layoutParams.marginStart = 0
             ivUser.layoutParams = layoutParams
         } else {
             // Keep back button visible and avatar with margin for female users
-            ivBack.visibility = View.VISIBLE
+            cvBack.visibility = View.VISIBLE
             val layoutParams = ivUser.layoutParams as android.view.ViewGroup.MarginLayoutParams
             // Convert 12dp to pixels
             val marginInPx = (12 * resources.displayMetrics.density).toInt()
@@ -320,7 +323,7 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
-        ivBack.setOnClickListener {
+        cvBack.setOnClickListener {
             onBackPressed()
         }
 

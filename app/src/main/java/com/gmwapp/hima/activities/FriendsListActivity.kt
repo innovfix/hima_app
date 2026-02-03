@@ -41,9 +41,7 @@ class FriendsListActivity : AppCompatActivity() {
 
     private fun setupToolbar() {
         setSupportActionBar(binding.toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        binding.toolbar.setNavigationOnClickListener {
-
+        binding.cvBack.setOnClickListener {
             val messageCameWhenIsAlive = BaseApplication.getInstance()?.messageCameWhenIsAlive ?: 0
 
             if (messageCameWhenIsAlive == 0) {
@@ -54,7 +52,8 @@ class FriendsListActivity : AppCompatActivity() {
                 finish()
             } else {
                 finish()
-            }        }
+            }
+        }
     }
 
     private fun onBackPressedBtn() {

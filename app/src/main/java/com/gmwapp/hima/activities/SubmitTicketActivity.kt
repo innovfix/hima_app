@@ -74,7 +74,7 @@ class SubmitTicketActivity : BaseActivity() {
     }
 
     private fun initUI() {
-        binding.ivBack.setOnSingleClickListener {
+        binding.cvBack.setOnSingleClickListener {
             finish()
         }
 

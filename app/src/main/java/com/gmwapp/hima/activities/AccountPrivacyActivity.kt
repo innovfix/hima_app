@@ -43,7 +43,7 @@ class AccountPrivacyActivity : BaseActivity() {
             val intent = Intent(this, DeleteAccountActivity::class.java)
             startActivity(intent)
         }
-        binding.ivBack.setOnSingleClickListener {
+        binding.cvBack.setOnSingleClickListener {
             finish()
         }
         binding.cvPrivacyPolicy.setOnSingleClickListener {

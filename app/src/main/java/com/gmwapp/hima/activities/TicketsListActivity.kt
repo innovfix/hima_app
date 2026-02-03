@@ -54,7 +54,7 @@ class TicketsListActivity : BaseActivity() {
     }
 
     private fun initUI() {
-        binding.ivBack.setOnSingleClickListener {
+        binding.cvBack.setOnSingleClickListener {
 
             val messageCameWhenIsAlive = BaseApplication.getInstance()?.messageCameWhenIsAlive ?: 0
 

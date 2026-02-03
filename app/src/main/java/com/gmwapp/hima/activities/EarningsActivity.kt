@@ -45,7 +45,7 @@ class EarningsActivity : BaseActivity() {
        // panVerification()
         updateEarnings()
 
-        binding.ivBack.setOnSingleClickListener {
+        binding.cvBack.setOnSingleClickListener {
             finish()
         }
 

@@ -78,7 +78,7 @@ class EditProfileActivity : BaseActivity() {
 
         binding.tvPreferredLanguage.text = userData?.language
         //  binding.btnUpdate.setBackgroundResource(R.drawable.d_button_bg_disabled)
-        binding.ivBack.setOnClickListener(View.OnClickListener {
+        binding.cvBack.setOnClickListener(View.OnClickListener {
             finish()
         })
         window.navigationBarColor = getColor(R.color.black_background)

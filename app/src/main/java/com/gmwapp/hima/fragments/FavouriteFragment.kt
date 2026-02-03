@@ -267,14 +267,13 @@ class FavouriteFragment : BaseFragment() {
     override fun onResume() {
         super.onResume()
 
-        if (FcmUtils.isUserAvailable==0){
-            loadFavouritesList(resetData = true)
-        }
+        // Always refresh favorites list when returning to this screen
+        Log.d("FavouriteFragment", "🔄 onResume - refreshing favourites list")
+        loadFavouritesList(resetData = true)
 
+        // Reset flags if they were set
         if (FcmUtils.shouldRefreshCallList == 1) {
-            Log.d("FavouriteFragment", "Call rejected detected, refreshing favourite list")
-            loadFavouritesList(resetData = true)
-            FcmUtils.shouldRefreshCallList = 0  // Reset flag after refresh
+            FcmUtils.shouldRefreshCallList = 0
         }
 
         // Refresh unread count when returning to this screen

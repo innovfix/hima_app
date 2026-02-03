@@ -56,10 +56,28 @@ class HomeFragment : BaseFragment() {
     ): View {
         binding = FragmentHomeBinding.inflate(layoutInflater)
 
+        setupStatusBarInsets()
         initUI()
         observeLiveUserStatus()
         setupSwipeToRefresh()
         return binding.root
+    }
+
+    private fun setupStatusBarInsets() {
+        binding.appBarLayout.setOnApplyWindowInsetsListener { view, insets ->
+            val statusBarHeight = insets.systemWindowInsetTop
+            // Add status bar height to the existing bottom padding (8dp content + status bar)
+            val contentPaddingTop = (8 * resources.displayMetrics.density).toInt()
+            view.setPadding(
+                view.paddingLeft,
+                statusBarHeight + contentPaddingTop,
+                view.paddingRight,
+                view.paddingBottom
+            )
+            insets
+        }
+        // Request insets to trigger the listener
+        binding.appBarLayout.requestApplyInsets()
     }
 
     private fun initUI() {

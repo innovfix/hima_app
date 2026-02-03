@@ -478,7 +478,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 
 
         val layoutManager = GridLayoutManager(this, 3)
-        binding.ivBack.setOnSingleClickListener {
+        binding.cvBack.setOnSingleClickListener {
             if (fromDeepLink){
                 startActivity(Intent(this@WalletActivity, MainActivity::class.java))
                 finish()

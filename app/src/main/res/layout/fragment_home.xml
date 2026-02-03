@@ -5,6 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:clipToPadding="false"
+    android:fitsSystemWindows="false"
     android:background="@color/grey_extra_light">
 
     <!-- Professional Header with AppBar -->
@@ -14,13 +15,14 @@
         android:layout_height="wrap_content"
         android:background="@color/white"
         android:elevation="2dp"
+        android:fitsSystemWindows="false"
         app:elevation="2dp">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:paddingHorizontal="20dp"
-            android:paddingTop="14dp"
+            android:paddingTop="8dp"
             android:paddingBottom="14dp">
 
             <!-- Logo and App Name Section -->
@@ -182,73 +184,76 @@
         </com.google.android.material.card.MaterialCardView>
     </com.google.android.material.appbar.AppBarLayout>
 
-    <!-- Profiles List -->
-    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-        android:id="@+id/swipeRefreshLayout"
+    <!-- Content Below AppBar -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:orientation="vertical"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv_profiles"
+        <!-- Filter Pills Below AppBar -->
+        <LinearLayout
+            android:id="@+id/filter_pills_container"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:clipToPadding="false"
-            android:paddingHorizontal="12dp"
-            android:paddingTop="55dp"
-            android:paddingBottom="72dp" />
-    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingVertical="8dp"
+            android:background="@color/grey_extra_light">
 
-    <!-- Filter Pills (Separate boxes like reference) - MOVED AFTER SwipeRefreshLayout to receive touches -->
-    <LinearLayout
-        android:id="@+id/filter_pills_container"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="85dp"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:elevation="16dp"
-        android:translationZ="16dp"
-        app:layout_anchor="@id/app_bar_layout"
-        app:layout_anchorGravity="bottom|center">
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_filter_all"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="wrap_content"
+                android:layout_height="44dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:fontFamily="@font/poppins_semibold"
+                android:minWidth="85dp"
+                android:paddingHorizontal="24dp"
+                android:text="All"
+                android:textAllCaps="false"
+                android:textSize="13sp"
+                app:cornerRadius="22dp"
+                app:elevation="2dp" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_filter_all"
-            style="@style/Widget.Material3.Button"
-            android:layout_width="wrap_content"
-            android:layout_height="44dp"
-            android:clickable="true"
-            android:focusable="true"
-            android:fontFamily="@font/poppins_semibold"
-            android:minWidth="85dp"
-            android:paddingHorizontal="24dp"
-            android:text="All"
-            android:textAllCaps="false"
-            android:textSize="13sp"
-            android:translationZ="16dp"
-            app:cornerRadius="22dp"
-            app:elevation="8dp" />
+            <Space
+                android:layout_width="10dp"
+                android:layout_height="match_parent" />
 
-        <Space
-            android:layout_width="10dp"
-            android:layout_height="match_parent" />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_filter_new"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="wrap_content"
+                android:layout_height="44dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:fontFamily="@font/poppins_semibold"
+                android:minWidth="85dp"
+                android:paddingHorizontal="24dp"
+                android:text="New"
+                android:textAllCaps="false"
+                android:textSize="13sp"
+                app:cornerRadius="22dp"
+                app:elevation="2dp" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_filter_new"
-            style="@style/Widget.Material3.Button"
-            android:layout_width="wrap_content"
-            android:layout_height="44dp"
-            android:clickable="true"
-            android:focusable="true"
-            android:fontFamily="@font/poppins_semibold"
-            android:minWidth="85dp"
-            android:paddingHorizontal="24dp"
-            android:text="New"
-            android:textAllCaps="false"
-            android:textSize="13sp"
-            android:translationZ="16dp"
-            app:cornerRadius="22dp"
-            app:elevation="8dp" />
+        </LinearLayout>
+
+        <!-- Profiles List -->
+        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+            android:id="@+id/swipeRefreshLayout"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_profiles"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:paddingHorizontal="12dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="72dp" />
+        </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
     </LinearLayout>
 

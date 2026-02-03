@@ -29,14 +29,24 @@
             android:paddingVertical="10dp"
             android:background="@color/white">
 
-            <ImageView
-                android:id="@+id/iv_back"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:src="@drawable/ic_baseline_arrow_back_ios_24"
-                android:contentDescription="Back"
-                android:padding="4dp"
-                android:tint="#1F2937" />
+            <androidx.cardview.widget.CardView
+                android:id="@+id/cv_back"
+                android:layout_width="42dp"
+                android:layout_height="42dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="1dp"
+                app:cardBackgroundColor="#F8F9FA">
+
+                <ImageView
+                    android:id="@+id/iv_back"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_baseline_arrow_back_ios_24"
+                    android:contentDescription="Back"
+                    app:tint="#374151" />
+
+            </androidx.cardview.widget.CardView>
 
             <de.hdodenhof.circleimageview.CircleImageView
                 android:id="@+id/iv_user"
