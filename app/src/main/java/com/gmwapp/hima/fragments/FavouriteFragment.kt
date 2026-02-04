@@ -269,7 +269,7 @@ class FavouriteFragment : BaseFragment() {
 
         // Always refresh favorites list when returning to this screen
         Log.d("FavouriteFragment", "🔄 onResume - refreshing favourites list")
-        loadFavouritesList(resetData = true)
+            loadFavouritesList(resetData = true)
 
         // Reset flags if they were set
         if (FcmUtils.shouldRefreshCallList == 1) {

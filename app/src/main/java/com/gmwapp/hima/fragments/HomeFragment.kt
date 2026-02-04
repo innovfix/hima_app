@@ -401,8 +401,8 @@ class HomeFragment : BaseFragment() {
                 setTextColor(whiteTextColor)
                 strokeWidth = 0
                 strokeColor = null
-            }
-        }
+                        }
+                    }
         
         Log.d("FilterButtons", "Updated filter styles - filterType: $filterType")
     }
@@ -415,16 +415,16 @@ class HomeFragment : BaseFragment() {
         }
         filterType = selectedFilter
         updateFilterButtonStyles()
-        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        userData?.id?.let {
-            if (context?.let { it1 -> isInternetAvailable(it1) } == true) {
-                // Clear existing data
-                femaleUsersViewModel.femaleUsersResponseLiveData.value?.data?.clear()
-                (binding.rvProfiles.adapter as? FemaleUserAdapter)?.notifyDataSetChanged()
-                // Reload with new filter
-                loadFemaleUsers(it)
-            }
-        }
+                        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                        userData?.id?.let {
+                            if (context?.let { it1 -> isInternetAvailable(it1) } == true) {
+                                // Clear existing data
+                                femaleUsersViewModel.femaleUsersResponseLiveData.value?.data?.clear()
+                                (binding.rvProfiles.adapter as? FemaleUserAdapter)?.notifyDataSetChanged()
+                                // Reload with new filter
+                                loadFemaleUsers(it)
+                            }
+                        }
     }
 
     fun initFab() {

@@ -8,78 +8,46 @@ import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
-import android.view.View
-import android.widget.EditText
-import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.ProgressBar
-import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentActivity
+import androidx.viewpager2.adapter.FragmentStateAdapter
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
-import com.gmwapp.hima.adapters.ChatListAdapter
-import com.gmwapp.hima.models.ChatConversation
+import com.gmwapp.hima.databinding.ActivityChatListBinding
+import com.gmwapp.hima.fragments.FriendsTabFragment
 import com.gmwapp.hima.retrofit.ApiManager
-import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
-import com.gmwapp.hima.retrofit.responses.MyChatResponse
-import com.google.firebase.Timestamp
+import com.google.android.material.tabs.TabLayoutMediator
 import dagger.hilt.android.AndroidEntryPoint
-import retrofit2.Call
-import retrofit2.Response
-import java.text.SimpleDateFormat
-import java.util.Locale
-import java.util.TimeZone
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class ChatListActivity : AppCompatActivity() {
 
-    private lateinit var ivBack: ImageView
-    private lateinit var tvChatCount: TextView
-    private lateinit var rvChatList: RecyclerView
-    private lateinit var swipeRefreshLayout: SwipeRefreshLayout
-    private lateinit var llEmptyState: LinearLayout
-    private lateinit var progressBar: ProgressBar
-    private lateinit var etSearch: EditText
+    private lateinit var binding: ActivityChatListBinding
 
     @Inject
     lateinit var apiManager: ApiManager
 
-    private lateinit var chatListAdapter: ChatListAdapter
-    private val conversations = ArrayList<ChatConversation>()
     private var myUserId: Int = 0
-    
-    // Pagination
-    private var isLoading = false
-    private var offset = 0
-    private val limit = 10 // 10 chats per page
-    
+
     // Debouncing for search
     private val searchHandler = Handler(Looper.getMainLooper())
     private var searchRunnable: Runnable? = null
     private val SEARCH_DEBOUNCE_DELAY = 300L // 300ms delay
-    
-    // Date format for parsing timestamps from API (API returns IST timestamps)
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).apply {
-        timeZone = TimeZone.getTimeZone("Asia/Kolkata")
-    }
-    
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_chat_list)
+        binding = ActivityChatListBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         initializeViews()
         setupUserId()
-        setupRecyclerView()
         setupClickListeners()
         setupSearchListener()
-        setupPagination()
-        loadConversations()
+        setupViewPager()
         onBackPressedBtn()
     }
 
@@ -103,14 +71,6 @@ class ChatListActivity : AppCompatActivity() {
 
 
     private fun initializeViews() {
-        ivBack = findViewById(R.id.iv_back)
-        tvChatCount = findViewById(R.id.tv_chat_count)
-        rvChatList = findViewById(R.id.rv_chat_list)
-        swipeRefreshLayout = findViewById(R.id.swipe_refresh_layout)
-        llEmptyState = findViewById(R.id.ll_empty_state)
-        progressBar = findViewById(R.id.progress_bar)
-        etSearch = findViewById(R.id.et_search)
-
         window.statusBarColor = ContextCompat.getColor(this, R.color.white)
 
         // ✅ SIMPLE: Set status bar icons to LIGHT (white) - works on all devices
@@ -128,32 +88,11 @@ class ChatListActivity : AppCompatActivity() {
 
         if (myUserId == 0) {
             Log.e("ChatListActivity", "User ID is invalid!")
-            showEmptyState()
-            progressBar.visibility = View.GONE
-        }
-    }
-
-    private fun setupRecyclerView() {
-        chatListAdapter = ChatListAdapter(this, conversations) { conversation ->
-            // Open ChatActivityInHouse when conversation is clicked (same as FriendsTabFragment)
-            val intent = Intent(this, ChatActivityInHouse::class.java)
-            // Convert userId back to Int for ChatActivityInHouse
-            val userId = conversation.userId.toIntOrNull() ?: -1
-            intent.putExtra("USER_ID", userId)
-            intent.putExtra("USER_NAME", conversation.userName)
-            intent.putExtra("USER_IMAGE", conversation.userImage)
-            startActivity(intent)
-        }
-
-        rvChatList.apply {
-            layoutManager = LinearLayoutManager(this@ChatListActivity)
-            adapter = chatListAdapter
         }
     }
 
     private fun setupClickListeners() {
-        ivBack.setOnClickListener {
-
+        binding.ivBack.setOnClickListener {
             val messageCameWhenIsAlive = BaseApplication.getInstance()?.messageCameWhenIsAlive ?: 0
 
             if (messageCameWhenIsAlive == 0) {
@@ -165,45 +104,27 @@ class ChatListActivity : AppCompatActivity() {
             } else {
                 finish()
             }
-            }
-
-        swipeRefreshLayout.setOnRefreshListener {
-            val currentSearch = etSearch.text.toString().trim()
-            loadConversations(currentSearch, resetData = true)
         }
-    }
-    
-    private fun setupPagination() {
-        rvChatList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                super.onScrolled(recyclerView, dx, dy)
-
-                val layoutManager = recyclerView.layoutManager as LinearLayoutManager
-                if (!isLoading &&
-                    layoutManager.findLastCompletelyVisibleItemPosition() == chatListAdapter.itemCount - 1
-                ) {
-                    isLoading = true
-                    val currentSearch = etSearch.text.toString().trim()
-                    loadConversations(currentSearch, resetData = false)
-                }
-            }
-        })
     }
 
     private fun setupSearchListener() {
-        etSearch.addTextChangedListener(object : TextWatcher {
+        binding.etSearch.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
 
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 // Cancel previous search runnable
                 searchRunnable?.let { searchHandler.removeCallbacks(it) }
-                
+
                 // Create new search runnable
                 val searchQuery = s?.toString()?.trim() ?: ""
                 searchRunnable = Runnable {
-                    loadConversations(searchQuery, resetData = true)
+                    // Reload the current tab with search query
+                    val currentFragment = supportFragmentManager.findFragmentByTag("f${binding.viewPager.currentItem}")
+                    if (currentFragment is FriendsTabFragment) {
+                        // Search will be handled by the fragment
+                    }
                 }
-                
+
                 // Post delayed search with debouncing
                 searchHandler.postDelayed(searchRunnable!!, SEARCH_DEBOUNCE_DELAY)
             }
@@ -212,171 +133,50 @@ class ChatListActivity : AppCompatActivity() {
         })
     }
 
-    private fun loadConversations(searchQuery: String = "", resetData: Boolean = true) {
-        if (myUserId == 0) {
-            swipeRefreshLayout.isRefreshing = false
-            showEmptyState()
-            return
+    private fun setupViewPager() {
+        val adapter = ChatPagerAdapter(this)
+        binding.viewPager.adapter = adapter
+
+        TabLayoutMediator(binding.tabLayout, binding.viewPager) { tab, position ->
+            tab.text = when (position) {
+                0 -> "Chat"
+                1 -> "Friends"
+                2 -> "My Requests"
+                3 -> "Received"
+                else -> ""
+            }
+        }.attach()
+
+        val targetTab = intent.getIntExtra(
+            "target_tab",
+            FriendsTabFragment.TYPE_CHAT // default
+        )
+
+        val targetIndex = when (targetTab) {
+            FriendsTabFragment.TYPE_FRIENDS -> 1
+            FriendsTabFragment.TYPE_MY_REQUESTS -> 2
+            FriendsTabFragment.TYPE_THEIR_REQUESTS -> 3
+            else -> 0
         }
-
-        if (resetData) {
-            offset = 0
-            isLoading = true
-            if (::chatListAdapter.isInitialized) {
-                chatListAdapter.updateConversations(emptyList())
-            }
-        }
-
-        val searchText = searchQuery.trim()
-        Log.d("ChatListActivity", "Loading chat conversations from API for user: $myUserId, search: $searchText, offset: $offset, limit: $limit")
-        progressBar.visibility = View.VISIBLE
-        llEmptyState.visibility = View.GONE
-        swipeRefreshLayout.isRefreshing = true
-
-        // Call API to get chat list with search query and pagination
-        apiManager.getMyChat(myUserId, if (searchText.isEmpty()) null else searchText, limit, offset, object : NetworkCallback<MyChatResponse> {
-            override fun onResponse(call: Call<MyChatResponse>, response: Response<MyChatResponse>) {
-                swipeRefreshLayout.isRefreshing = false
-                progressBar.visibility = View.GONE
-                isLoading = false
-
-                if (response.isSuccessful) {
-                    val responseBody = response.body()
-                    if (responseBody?.success == true && responseBody.data != null) {
-                        val chats = responseBody.data.chats
-                        Log.d("ChatListActivity", "✅ Received ${chats.size} chats from API (offset: $offset)")
-
-                        // Convert API response to ChatConversation objects
-                        val newConversations = chats.map { chatItem ->
-                            val lastMessage = chatItem.lastMessage
-                            val lastMessageTime = if (lastMessage != null) {
-                                try {
-                                    val date = dateFormat.parse(lastMessage.timestamp)
-                                    if (date != null) {
-                                        Timestamp(date)
-                                    } else {
-                                        null
-                                    }
-                                } catch (e: Exception) {
-                                    Log.e("ChatListActivity", "Error parsing timestamp: ${lastMessage.timestamp}", e)
-                                    null
-                                }
-                            } else {
-                                null
-                            }
-
-                            ChatConversation(
-                                threadId = chatItem.chatId,
-                                userId = chatItem.user.id.toString(),
-                                userName = chatItem.user.name,
-                                userImage = chatItem.user.image ?: "",
-                                lastMessage = lastMessage?.message ?: "",
-                                lastMessageTime = lastMessageTime,
-                                unreadCount = chatItem.unreadCount,
-                                isOnline = false
-                            )
-                        }
-
-                        // Sort by last message time (newest first)
-                        val sortedConversations = newConversations.sortedByDescending {
-                            it.lastMessageTime?.toDate()?.time ?: 0L
-                        }
-
-                        Log.d("ChatListActivity", "✅ Converted to ${sortedConversations.size} conversations")
-                        
-                        // Append to existing list if pagination, replace if reset
-                        if (resetData) {
-                            updateUI(sortedConversations, !searchText.isEmpty())
-                        } else {
-                            // Append new conversations to existing list
-                            val currentList = conversations.toMutableList()
-                            currentList.addAll(sortedConversations)
-                            updateUI(currentList, !searchText.isEmpty())
-                        }
-                        
-                        // Update offset for next page
-                        if (sortedConversations.isNotEmpty()) {
-                            offset += limit
-                        }
-                    } else {
-                        Log.e("ChatListActivity", "❌ API response unsuccessful or data is null")
-                        updateUI(emptyList(), !searchText.isEmpty())
-                    }
-                } else {
-                    Log.e("ChatListActivity", "❌ API call failed: ${response.code()}")
-                    updateUI(emptyList(), !searchText.isEmpty())
-                }
-            }
-
-            override fun onFailure(call: Call<MyChatResponse>, t: Throwable) {
-                swipeRefreshLayout.isRefreshing = false
-                progressBar.visibility = View.GONE
-                isLoading = false
-                Log.e("ChatListActivity", "❌ Error loading chat conversations: ${t.message}", t)
-                if (resetData) {
-                    updateUI(emptyList(), !searchText.isEmpty())
-                }
-            }
-
-            override fun onNoNetwork() {
-                swipeRefreshLayout.isRefreshing = false
-                progressBar.visibility = View.GONE
-                isLoading = false
-                Log.e("ChatListActivity", "❌ No network connection")
-                if (resetData) {
-                    updateUI(emptyList(), !searchText.isEmpty())
-                }
-            }
-        })
+        binding.viewPager.setCurrentItem(targetIndex, false)
     }
 
+    private inner class ChatPagerAdapter(activity: FragmentActivity) :
+        FragmentStateAdapter(activity) {
 
-    private fun updateUI(conversationsList: List<ChatConversation>, isSearching: Boolean = false) {
-        swipeRefreshLayout.isRefreshing = false
-        progressBar.visibility = View.GONE
+        override fun getItemCount(): Int = 4
 
-        // Update the conversations list
-        conversations.clear()
-        conversations.addAll(conversationsList)
-
-        if (conversationsList.isEmpty()) {
-            showEmptyState(isSearching)
-        } else {
-            hideEmptyState()
-            chatListAdapter.updateConversations(conversationsList)
-            
-            // Update conversation count
-            val totalUnread = conversationsList.sumOf { it.unreadCount }
-            tvChatCount.text = if (totalUnread > 0) {
-                "${conversationsList.size} conversations • $totalUnread unread"
-            } else {
-                "${conversationsList.size} conversations"
+        override fun createFragment(position: Int): Fragment {
+            return when (position) {
+                0 -> FriendsTabFragment.newInstance(FriendsTabFragment.TYPE_CHAT)
+                1 -> FriendsTabFragment.newInstance(FriendsTabFragment.TYPE_FRIENDS)
+                2 -> FriendsTabFragment.newInstance(FriendsTabFragment.TYPE_MY_REQUESTS)
+                3 -> FriendsTabFragment.newInstance(FriendsTabFragment.TYPE_THEIR_REQUESTS)
+                else -> FriendsTabFragment.newInstance(FriendsTabFragment.TYPE_CHAT)
             }
         }
     }
 
-    private fun showEmptyState(isSearching: Boolean = false) {
-        rvChatList.visibility = View.GONE
-        llEmptyState.visibility = View.VISIBLE
-        tvChatCount.text = if (isSearching) {
-            "No conversations found"
-        } else {
-            "No conversations yet"
-        }
-    }
-
-    private fun hideEmptyState() {
-        rvChatList.visibility = View.VISIBLE
-        llEmptyState.visibility = View.GONE
-    }
-
-    override fun onResume() {
-        super.onResume()
-        // Refresh conversations when returning to this screen
-        val currentSearch = etSearch.text.toString().trim()
-        loadConversations(currentSearch, resetData = true)
-    }
-    
     override fun onDestroy() {
         super.onDestroy()
         // Clean up search handler
