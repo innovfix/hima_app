@@ -21,23 +21,26 @@ class FriendRequestRepository @Inject constructor(private val apiManager: ApiMan
 
     fun getMyFriendRequests(
         senderId: Int,
+        search: String?,
         callback: NetworkCallback<MyFriendRequestsResponse>
     ) {
-        apiManager.getMyFriendRequests(senderId, callback)
+        apiManager.getMyFriendRequests(senderId, search, callback)
     }
 
     fun getReceivedFriendRequests(
         receiverId: Int,
+        search: String?,
         callback: NetworkCallback<ReceivedFriendRequestsResponse>
     ) {
-        apiManager.getReceivedFriendRequests(receiverId, callback)
+        apiManager.getReceivedFriendRequests(receiverId, search, callback)
     }
 
     fun getFriendsList(
         senderId: Int,
+        search: String?,
         callback: NetworkCallback<FriendListResponse>
     ) {
-        apiManager.getFriendsList(senderId, callback)
+        apiManager.getFriendsList(senderId, search, callback)
     }
 
     fun checkFriendRequest(

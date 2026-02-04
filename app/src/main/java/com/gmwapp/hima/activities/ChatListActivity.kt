@@ -118,11 +118,7 @@ class ChatListActivity : AppCompatActivity() {
                 // Create new search runnable
                 val searchQuery = s?.toString()?.trim() ?: ""
                 searchRunnable = Runnable {
-                    // Reload the current tab with search query
-                    val currentFragment = supportFragmentManager.findFragmentByTag("f${binding.viewPager.currentItem}")
-                    if (currentFragment is FriendsTabFragment) {
-                        // Search will be handled by the fragment
-                    }
+                    performSearch(searchQuery)
                 }
 
                 // Post delayed search with debouncing
@@ -131,6 +127,16 @@ class ChatListActivity : AppCompatActivity() {
 
             override fun afterTextChanged(s: Editable?) {}
         })
+    }
+
+    private fun performSearch(query: String) {
+        Log.d("ChatListActivity", "🔍 Performing search: '$query'")
+        val currentPosition = binding.viewPager.currentItem
+        val currentFragment = supportFragmentManager.findFragmentByTag("f${currentPosition}")
+        
+        if (currentFragment is FriendsTabFragment) {
+            currentFragment.performSearch(query)
+        }
     }
 
     private fun setupViewPager() {

@@ -1125,11 +1125,12 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
 
     fun getMyFriendRequests(
         senderId: Int,
+        search: String?,
         callback: NetworkCallback<MyFriendRequestsResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<MyFriendRequestsResponse> =
-                getApiInterface().getMyFriendRequests(senderId)
+                getApiInterface().getMyFriendRequests(senderId, search)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1138,11 +1139,12 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
 
     fun getReceivedFriendRequests(
         receiverId: Int,
+        search: String?,
         callback: NetworkCallback<ReceivedFriendRequestsResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<ReceivedFriendRequestsResponse> =
-                getApiInterface().getReceivedFriendRequests(receiverId)
+                getApiInterface().getReceivedFriendRequests(receiverId, search)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1151,11 +1153,12 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
 
     fun getFriendsList(
         senderId: Int,
+        search: String?,
         callback: NetworkCallback<FriendListResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<FriendListResponse> =
-                getApiInterface().getFriendsList(senderId)
+                getApiInterface().getFriendsList(senderId, search)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1986,19 +1989,22 @@ interface ApiInterface {
     @FormUrlEncoded
     @POST("my_requests")
     fun getMyFriendRequests(
-        @Field("sender_id") senderId: Int
+        @Field("sender_id") senderId: Int,
+        @Field("search") search: String?
     ): Call<MyFriendRequestsResponse>
 
     @FormUrlEncoded
     @POST("received_requests")
     fun getReceivedFriendRequests(
-        @Field("receiver_id") receiverId: Int
+        @Field("receiver_id") receiverId: Int,
+        @Field("search") search: String?
     ): Call<ReceivedFriendRequestsResponse>
 
     @FormUrlEncoded
     @POST("friend_list")
     fun getFriendsList(
-        @Field("sender_id") senderId: Int
+        @Field("sender_id") senderId: Int,
+        @Field("search") search: String?
     ): Call<FriendListResponse>
 
     @FormUrlEncoded

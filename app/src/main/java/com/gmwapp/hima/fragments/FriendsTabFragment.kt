@@ -63,6 +63,7 @@ class FriendsTabFragment : Fragment() {
     private var requestIdMap = mutableMapOf<Int, Int>() // Maps friend_id to request_id
     private val db by lazy { FirebaseFirestore.getInstance(FirebaseApp.getInstance(), "himadatabase") }
     private val conversationsMap = mutableMapOf<String, ChatConversation>()
+    private var currentSearchQuery: String = ""
     
     // Date format for parsing timestamps from API (API returns IST timestamps)
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).apply {
@@ -101,6 +102,15 @@ class FriendsTabFragment : Fragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         tabType = arguments?.getInt(ARG_TYPE, TYPE_FRIENDS) ?: TYPE_FRIENDS
+    }
+
+    /**
+     * Public method called from ChatListActivity to perform search
+     */
+    fun performSearch(query: String) {
+        currentSearchQuery = query
+        Log.d("FriendsTab", "🔍 performSearch called with query: '$query', tabType: $tabType")
+        loadData()
     }
 
     override fun onCreateView(
@@ -286,8 +296,11 @@ class FriendsTabFragment : Fragment() {
     private fun loadData() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
         
-        Log.d("FriendsTab", "🔄 loadData called for tabType: $tabType")
+        Log.d("FriendsTab", "🔄 loadData called for tabType: $tabType, search: '$currentSearchQuery'")
         binding.swipeRefresh.isRefreshing = true
+        
+        // Convert empty string to null for API
+        val searchParam = if (currentSearchQuery.isEmpty()) null else currentSearchQuery
         
         when (tabType) {
             TYPE_CHAT -> {
@@ -297,17 +310,17 @@ class FriendsTabFragment : Fragment() {
             TYPE_FRIENDS -> {
                 // Clear old data to force fresh fetch
                 friendRequestViewModel.friendsListLiveData.value = null
-                friendRequestViewModel.getFriendsList(userData.id)
+                friendRequestViewModel.getFriendsList(userData.id, searchParam)
             }
             TYPE_MY_REQUESTS -> {
                 // Clear old data to force fresh fetch
                 friendRequestViewModel.myFriendRequestsLiveData.value = null
-                friendRequestViewModel.getMyFriendRequests(userData.id)
+                friendRequestViewModel.getMyFriendRequests(userData.id, searchParam)
             }
             TYPE_THEIR_REQUESTS -> {
                 // Clear old data to force fresh fetch
                 friendRequestViewModel.receivedFriendRequestsLiveData.value = null
-                friendRequestViewModel.getReceivedFriendRequests(userData.id)
+                friendRequestViewModel.getReceivedFriendRequests(userData.id, searchParam)
             }
         }
     }
@@ -454,7 +467,7 @@ class FriendsTabFragment : Fragment() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val myUserId = userData?.id ?: 0
         
-        Log.d("FriendsTab", "🔵 loadChatConversations called. MyUserId: $myUserId")
+        Log.d("FriendsTab", "🔵 loadChatConversations called. MyUserId: $myUserId, Search: '$currentSearchQuery'")
         
         if (myUserId == 0) {
             Log.e("FriendsTab", "❌ User ID is invalid!")
@@ -466,8 +479,11 @@ class FriendsTabFragment : Fragment() {
         Log.d("FriendsTab", "📱 Loading chat conversations from API for user: $myUserId")
         binding.swipeRefresh.isRefreshing = true
         
+        // Pass search query to API (null if empty)
+        val searchParam = if (currentSearchQuery.isEmpty()) null else currentSearchQuery
+        
         // Call API to get chat list
-        apiManager.getMyChat(myUserId, null, 100, 0, object : NetworkCallback<MyChatResponse> {
+        apiManager.getMyChat(myUserId, searchParam, 100, 0, object : NetworkCallback<MyChatResponse> {
             override fun onResponse(call: Call<MyChatResponse>, response: Response<MyChatResponse>) {
                 if (!isAdded) return
                 

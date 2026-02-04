@@ -76,10 +76,10 @@ class FriendRequestViewModel @Inject constructor(
         }
     }
 
-    fun getMyFriendRequests(senderId: Int) {
+    fun getMyFriendRequests(senderId: Int, search: String? = null) {
         loadingLiveData.postValue(true)
         viewModelScope.launch {
-            repository.getMyFriendRequests(senderId, object :
+            repository.getMyFriendRequests(senderId, search, object :
                 NetworkCallback<MyFriendRequestsResponse> {
                 override fun onResponse(
                     call: Call<MyFriendRequestsResponse>,
@@ -116,10 +116,10 @@ class FriendRequestViewModel @Inject constructor(
         }
     }
 
-    fun getReceivedFriendRequests(receiverId: Int) {
+    fun getReceivedFriendRequests(receiverId: Int, search: String? = null) {
         loadingLiveData.postValue(true)
         viewModelScope.launch {
-            repository.getReceivedFriendRequests(receiverId, object :
+            repository.getReceivedFriendRequests(receiverId, search, object :
                 NetworkCallback<ReceivedFriendRequestsResponse> {
                 override fun onResponse(
                     call: Call<ReceivedFriendRequestsResponse>,
@@ -156,10 +156,10 @@ class FriendRequestViewModel @Inject constructor(
         }
     }
 
-    fun getFriendsList(senderId: Int) {
+    fun getFriendsList(senderId: Int, search: String? = null) {
         loadingLiveData.postValue(true)
         viewModelScope.launch {
-            repository.getFriendsList(senderId, object :
+            repository.getFriendsList(senderId, search, object :
                 NetworkCallback<FriendListResponse> {
                 override fun onResponse(
                     call: Call<FriendListResponse>,
