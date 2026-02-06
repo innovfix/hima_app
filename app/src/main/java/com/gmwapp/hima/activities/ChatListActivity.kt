@@ -19,8 +19,12 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.databinding.ActivityChatListBinding
 import com.gmwapp.hima.fragments.FriendsTabFragment
 import com.gmwapp.hima.retrofit.ApiManager
+import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
+import com.gmwapp.hima.retrofit.responses.FriendTabsCountsResponse
 import com.google.android.material.tabs.TabLayoutMediator
 import dagger.hilt.android.AndroidEntryPoint
+import retrofit2.Call
+import retrofit2.Response
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -48,6 +52,7 @@ class ChatListActivity : AppCompatActivity() {
         setupClickListeners()
         setupSearchListener()
         setupViewPager()
+        loadTabCounts()  // Load counts immediately
         onBackPressedBtn()
     }
 
@@ -165,6 +170,66 @@ class ChatListActivity : AppCompatActivity() {
             else -> 0
         }
         binding.viewPager.setCurrentItem(targetIndex, false)
+    }
+
+    private fun loadTabCounts() {
+        if (myUserId == 0) {
+            Log.e("ChatListActivity", "❌ User ID is invalid!")
+            return
+        }
+
+        Log.d("ChatListActivity", "📊 Loading tab counts for user: $myUserId")
+
+        apiManager.getFriendTabsCounts(myUserId, object : NetworkCallback<FriendTabsCountsResponse> {
+            override fun onResponse(
+                call: Call<FriendTabsCountsResponse>,
+                response: Response<FriendTabsCountsResponse>
+            ) {
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val data = response.body()?.data
+                    if (data != null) {
+                        Log.d("ChatListActivity", "✅ Counts loaded: Chat=${data.chats_count}, Friends=${data.friends_count}, My=${data.my_requests_count}, Received=${data.received_requests_count}")
+                        updateTabBadges(
+                            data.chats_count,
+                            data.friends_count,
+                            data.my_requests_count,
+                            data.received_requests_count
+                        )
+                    }
+                } else {
+                    Log.e("ChatListActivity", "❌ Failed to load counts: ${response.code()}")
+                }
+            }
+
+            override fun onFailure(call: Call<FriendTabsCountsResponse>, t: Throwable) {
+                Log.e("ChatListActivity", "❌ Error loading counts: ${t.message}")
+            }
+
+            override fun onNoNetwork() {
+                Log.e("ChatListActivity", "❌ No network connection")
+            }
+        })
+    }
+
+    /**
+     * Public method to refresh tab counts - called from fragments after accepting/rejecting requests
+     */
+    fun refreshTabCounts() {
+        loadTabCounts()
+    }
+
+    private fun updateTabBadges(
+        chatCount: Int,
+        friendsCount: Int,
+        myRequestsCount: Int,
+        receivedRequestsCount: Int
+    ) {
+        runOnUiThread {
+            binding.tabLayout.getTabAt(0)?.text = if (chatCount > 0) "Chat ($chatCount)" else "Chat"
+            binding.tabLayout.getTabAt(1)?.text = if (friendsCount > 0) "Friends ($friendsCount)" else "Friends"
+            binding.tabLayout.getTabAt(2)?.text = if (myRequestsCount > 0) "My Requests ($myRequestsCount)" else "My Requests"
+            binding.tabLayout.getTabAt(3)?.text = if (receivedRequestsCount > 0) "Received ($receivedRequestsCount)" else "Received"
+        }
     }
 
     private inner class ChatPagerAdapter(activity: FragmentActivity) :

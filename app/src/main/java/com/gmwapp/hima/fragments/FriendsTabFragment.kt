@@ -279,6 +279,9 @@ class FriendsTabFragment : Fragment() {
                 // Show loading state
                 binding.swipeRefresh.isRefreshing = true
                 
+                // Refresh tab counts in parent activity
+                refreshParentTabCounts()
+                
                 // Give backend time to process, then reload fresh data
                 binding.root.postDelayed({
                     loadData()
@@ -1030,6 +1033,27 @@ class FriendsTabFragment : Fragment() {
                     Log.e("FriendsTab", "❌ Error checking chat for ${friend.name}: ${e.message}")
                     friend.hasChatHistory = false
                 }
+        }
+    }
+    
+    /**
+     * Refresh tab counts in parent activity (works for both FriendsListActivity and ChatListActivity)
+     */
+    private fun refreshParentTabCounts() {
+        activity?.let { parentActivity ->
+            when (parentActivity) {
+                is com.gmwapp.hima.activities.FriendsListActivity -> {
+                    parentActivity.refreshTabCounts()
+                    Log.d("FriendsTab", "🔄 Refreshing tab counts in FriendsListActivity")
+                }
+                is com.gmwapp.hima.activities.ChatListActivity -> {
+                    parentActivity.refreshTabCounts()
+                    Log.d("FriendsTab", "🔄 Refreshing tab counts in ChatListActivity")
+                }
+                else -> {
+                    Log.w("FriendsTab", "⚠️ Parent activity doesn't support tab count refresh")
+                }
+            }
         }
     }
 }

@@ -232,6 +232,12 @@ class RecentFragment : BaseFragment() {
                     loadCallsList(currentSortType, resetData = true)
                     true
                 }
+                R.id.action_sort_missed -> {
+                    currentSortType = "missed"
+                    binding.tvSortLabel.text = "Missed"
+                    loadCallsList(currentSortType, resetData = true)
+                    true
+                }
                 else -> false
             }
         }

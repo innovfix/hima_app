@@ -529,6 +529,8 @@ class UserProfileDetailActivity : AppCompatActivity() {
         
         apiManager.addFavorite(currentUserId, userId, object : NetworkCallback<AddFavoriteResponse> {
             override fun onResponse(call: Call<AddFavoriteResponse>, response: Response<AddFavoriteResponse>) {
+                Log.d("UserProfileDetail", "➕ ${response.body()}")
+
                 if (response.isSuccessful) {
                     val result = response.body()
                     if (result?.success == true) {

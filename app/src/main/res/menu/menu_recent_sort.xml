@@ -9,6 +9,9 @@
     <item
         android:id="@+id/action_sort_name"
         android:title="Name (A-Z)" />
+    <item
+        android:id="@+id/action_sort_missed"
+        android:title="Missed" />
 </menu>
 
 

@@ -44,6 +44,7 @@ import com.gmwapp.hima.retrofit.responses.FriendRequestResponse
 import com.gmwapp.hima.retrofit.responses.MyFriendRequestsResponse
 import com.gmwapp.hima.retrofit.responses.ReceivedFriendRequestsResponse
 import com.gmwapp.hima.retrofit.responses.FriendListResponse
+import com.gmwapp.hima.retrofit.responses.FriendTabsCountsResponse
 import com.gmwapp.hima.retrofit.responses.SendGiftResponse
 import com.gmwapp.hima.retrofit.responses.SendOTPResponse
 import com.gmwapp.hima.retrofit.responses.SettingsResponse
@@ -1260,6 +1261,19 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun getFriendTabsCounts(
+        userId: Int,
+        callback: NetworkCallback<FriendTabsCountsResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<FriendTabsCountsResponse> =
+                getApiInterface().getFriendTabsCounts(userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun getUserAvatar(
         userId: Int,
         callback: NetworkCallback<UserAvatarResponse>
@@ -2014,6 +2028,12 @@ interface ApiInterface {
         @Field("receiver_id") receiverId: Int,
         @Field("user_id") userId: Int
     ): Call<FriendRequestResponse>
+
+    @FormUrlEncoded
+    @POST("friend_tabs_counts")
+    fun getFriendTabsCounts(
+        @Field("user_id") userId: Int
+    ): Call<FriendTabsCountsResponse>
 
     @GET("chats")
     fun getChats(
