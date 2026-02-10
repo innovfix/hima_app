@@ -199,5 +199,10 @@
         <item name="textAllCaps">false</item>
     </style>
 
+    <style name="ChipTextAppearance" parent="TextAppearance.MaterialComponents.Chip">
+        <item name="android:fontFamily">@font/poppins_medium</item>
+        <item name="android:textSize">13sp</item>
+    </style>
+
 
 </resources>

@@ -27,7 +27,7 @@
                 android:src="@drawable/baseline_close_24"
                 android:tint="@color/white"
                 android:scaleType="centerInside"
-                android:background="@drawable/circle_bg_red"
+                android:background="@drawable/circle_bg_accent"
                 android:layout_gravity="center_horizontal"
                 android:contentDescription="Block icon" />
 
@@ -97,7 +97,7 @@
                     android:textColor="@color/white"
                     android:fontFamily="@font/poppins_semibold"
                     android:textSize="14sp"
-                    app:backgroundTint="#FF6B6B"
+                    app:backgroundTint="@color/colorAccent"
                     app:cornerRadius="8dp" />
 
             </LinearLayout>

@@ -8,6 +8,7 @@ import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
 import com.bumptech.glide.Glide
@@ -34,10 +35,15 @@ import com.gmwapp.hima.retrofit.ApiManager
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.AddFavoriteResponse
 import com.gmwapp.hima.retrofit.responses.CheckFavoriteResponse
+import com.gmwapp.hima.retrofit.responses.FemaleNotificationPreferenceResponse
+import com.gmwapp.hima.retrofit.responses.GetFemaleNotificationPreferenceResponse
 import com.gmwapp.hima.retrofit.responses.RemoveFavoriteResponse
+import com.gmwapp.hima.retrofit.responses.ReportReason
 import retrofit2.Call
 import retrofit2.Response
 import javax.inject.Inject
+import com.gmwapp.hima.viewmodels.BlockUserViewModel
+import com.gmwapp.hima.viewmodels.ReportUserViewModel
 
 @AndroidEntryPoint
 class UserProfileDetailActivity : AppCompatActivity() {
@@ -47,6 +53,8 @@ class UserProfileDetailActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityUserProfileDetailBinding
     private val friendRequestViewModel: FriendRequestViewModel by viewModels()
+    private val blockUserViewModel: BlockUserViewModel by viewModels()
+    private val reportUserViewModel: ReportUserViewModel by viewModels()
     
     // User data from intent
     private var userId: Int = 0
@@ -70,6 +78,11 @@ class UserProfileDetailActivity : AppCompatActivity() {
     private var currentFriendStatus: FriendStatus = FriendStatus.NOT_FRIENDS
     private var isRejectInProgress = false
     private var isFavorite: Boolean = false
+    private var reportReasons: List<ReportReason> = emptyList()
+    private var reportDialog: AlertDialog? = null
+    private var isUserBlocked: Boolean = false
+    private var blockStatusChecked: Boolean = false
+    private var isUpdatingNotifyPreference = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -96,6 +109,15 @@ class UserProfileDetailActivity : AppCompatActivity() {
         
         // Check if user is already in favorites
         checkFavoriteStatus()
+
+        // Load report reasons
+        loadReportReasons()
+
+        // Load notify-me toggle state for male users viewing female profile
+        loadFemaleNotificationPreference()
+        
+        // Check block status (for female users)
+        checkBlockStatus()
 
         window.statusBarColor = Color.parseColor("#ffffff") // startColor of your gradient
 
@@ -172,6 +194,105 @@ class UserProfileDetailActivity : AppCompatActivity() {
             binding.btnSendFriendRequest.isEnabled = !isLoading
             binding.btnAcceptFriendRequest.isEnabled = !isLoading
         })
+
+        reportUserViewModel.reportReasonsLiveData.observe(this, Observer { response ->
+            Log.d("UserProfileDetail", "Report Reasons Response: $response")
+            if (response?.success == true && !response.data.isNullOrEmpty()) {
+                reportReasons = response.data ?: emptyList()
+                Log.d("UserProfileDetail", "✅ Loaded ${reportReasons.size} report reasons")
+            } else {
+                Log.e("UserProfileDetail", "❌ Failed to load report reasons: ${response?.message}")
+            }
+        })
+
+        reportUserViewModel.reportReasonsErrorLiveData.observe(this, Observer { error ->
+            Log.e("UserProfileDetail", "❌ Report reasons error: $error")
+            Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
+        })
+
+        reportUserViewModel.reportUserLiveData.observe(this, Observer { response ->
+            Log.d("UserProfileDetail", "===== REPORT USER OBSERVER =====")
+            Log.d("UserProfileDetail", "Response received: $response")
+            Log.d("UserProfileDetail", "Response is null: ${response == null}")
+            
+            if (response != null) {
+                Log.d("UserProfileDetail", "Response success: ${response.success}")
+                Log.d("UserProfileDetail", "Response message: ${response.message}")
+                Log.d("UserProfileDetail", "Response data: ${response.data}")
+                Log.d("UserProfileDetail", "Response error: ${response.error}")
+                
+                val message = response.message ?: "Report submitted"
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+                reportDialog?.dismiss()
+                Log.d("UserProfileDetail", "✅ Report submitted successfully")
+            } else {
+                Log.e("UserProfileDetail", "❌ Response is NULL")
+            }
+            Log.d("UserProfileDetail", "================================")
+        })
+
+        reportUserViewModel.reportUserErrorLiveData.observe(this, Observer { error ->
+            Log.e("UserProfileDetail", "===== REPORT USER ERROR OBSERVER =====")
+            Log.e("UserProfileDetail", "❌ Report user error: $error")
+            Log.e("UserProfileDetail", "====================================")
+            Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
+        })
+
+        blockUserViewModel.blockUserLiveData.observe(this, Observer { response ->
+            if (response != null) {
+                Toast.makeText(this, response.message, Toast.LENGTH_SHORT).show()
+                // Update UI to show unblock
+                isUserBlocked = true
+                updateBlockButtonUI()
+            }
+        })
+
+        blockUserViewModel.blockUserErrorLiveData.observe(this, Observer { error ->
+            Log.e("UserProfileDetail", "❌ Block user error: $error")
+            Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
+        })
+        
+        // Observe check block status
+        blockUserViewModel.checkBlockStatusLiveData.observe(this, Observer { response ->
+            Log.d("UserProfileDetail", "===== CHECK BLOCK STATUS OBSERVER =====")
+            Log.d("UserProfileDetail", "Response: $response")
+            
+            if (response != null) {
+                blockStatusChecked = true
+                
+                // Check various possible response formats
+                val blockedStatus = response.blockedStatus 
+                    ?: response.data?.blockedStatus 
+                    ?: if (response.isBlocked == true) 2 else 0
+                
+                isUserBlocked = blockedStatus == 2 || response.isBlocked == true
+                
+                Log.d("UserProfileDetail", "Block Status: $blockedStatus, Is Blocked: $isUserBlocked")
+                updateBlockButtonUI()
+            }
+            Log.d("UserProfileDetail", "====================================")
+        })
+        
+        blockUserViewModel.checkBlockStatusErrorLiveData.observe(this, Observer { error ->
+            Log.e("UserProfileDetail", "❌ Check block status error: $error")
+            blockStatusChecked = true
+            // Don't show toast for check errors, just log it
+        })
+        
+        // Observe unblock user
+        blockUserViewModel.unblockUserLiveData.observe(this, Observer { response ->
+            if (response != null) {
+                Toast.makeText(this, response.message, Toast.LENGTH_SHORT).show()
+                // Update UI to show block
+                isUserBlocked = false
+                updateBlockButtonUI()
+            }
+        })
+        
+        blockUserViewModel.unblockUserErrorLiveData.observe(this, Observer { error ->
+            Log.e("UserProfileDetail", "❌ Unblock user error: $error")
+            Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
+        })
     }
 
     private fun getUserDataFromIntent() {
@@ -234,6 +355,21 @@ class UserProfileDetailActivity : AppCompatActivity() {
             binding.tvAbout.text = userAbout
         } else {
             binding.tvAbout.text = "No description available"
+        }
+        
+        // Show report/block section only for female users (creators)
+        val currentUserGender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender?.lowercase()
+        if (currentUserGender == DConstants.FEMALE) {
+            binding.cvReportBlockSection.visibility = View.VISIBLE
+        } else {
+            binding.cvReportBlockSection.visibility = View.GONE
+        }
+
+        // Show online notify UI only for male users (UI only, logic to be added later)
+        if (currentUserGender == DConstants.MALE) {
+            binding.cvOnlineNotifySection.visibility = View.VISIBLE
+        } else {
+            binding.cvOnlineNotifySection.visibility = View.GONE
         }
     }
 
@@ -300,6 +436,338 @@ class UserProfileDetailActivity : AppCompatActivity() {
         binding.cvFavourite.setOnSingleClickListener {
             toggleFavorite()
         }
+
+        binding.llReportUser.setOnSingleClickListener {
+            showReportDialog()
+        }
+
+        binding.llBlockUser.setOnSingleClickListener {
+            if (isUserBlocked) {
+                showUnblockConfirmationDialog()
+            } else {
+                showBlockConfirmationDialog()
+            }
+        }
+
+        binding.swNotifyOnline.setOnCheckedChangeListener { _, isChecked ->
+            if (isUpdatingNotifyPreference) return@setOnCheckedChangeListener
+            updateFemaleNotificationPreference(isChecked)
+        }
+    }
+
+    private fun updateFemaleNotificationPreference(isEnabled: Boolean) {
+        val maleUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+        if (maleUserId == 0 || userId == 0) {
+            Toast.makeText(this, "Unable to update preference. Please try again.", Toast.LENGTH_SHORT).show()
+            rollbackNotifyToggle(!isEnabled)
+            return
+        }
+
+        val status = if (isEnabled) 1 else 0
+        isUpdatingNotifyPreference = true
+        binding.swNotifyOnline.isEnabled = false
+
+        apiManager.setFemaleNotificationPreference(
+            maleUserId = maleUserId,
+            femaleUserId = userId,
+            status = status,
+            callback = object : NetworkCallback<FemaleNotificationPreferenceResponse> {
+                override fun onResponse(
+                    call: Call<FemaleNotificationPreferenceResponse>,
+                    response: Response<FemaleNotificationPreferenceResponse>
+                ) {
+                    binding.swNotifyOnline.isEnabled = true
+
+                    if (response.isSuccessful && response.body()?.success == true) {
+                        Toast.makeText(
+                            this@UserProfileDetailActivity,
+                            response.body()?.message ?: "Preference updated successfully.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        isUpdatingNotifyPreference = false
+                        return
+                    }
+
+                    val errorMessage = extractNotifyPreferenceErrorMessage(response)
+                    Toast.makeText(this@UserProfileDetailActivity, errorMessage, Toast.LENGTH_SHORT).show()
+                    rollbackNotifyToggle(!isEnabled)
+                    isUpdatingNotifyPreference = false
+                }
+
+                override fun onFailure(call: Call<FemaleNotificationPreferenceResponse>, t: Throwable) {
+                    binding.swNotifyOnline.isEnabled = true
+                    rollbackNotifyToggle(!isEnabled)
+                    isUpdatingNotifyPreference = false
+                    Toast.makeText(this@UserProfileDetailActivity, DConstants.LOGIN_ERROR, Toast.LENGTH_SHORT).show()
+                }
+
+                override fun onNoNetwork() {
+                    binding.swNotifyOnline.isEnabled = true
+                    rollbackNotifyToggle(!isEnabled)
+                    isUpdatingNotifyPreference = false
+                    Toast.makeText(this@UserProfileDetailActivity, DConstants.NO_NETWORK, Toast.LENGTH_SHORT).show()
+                }
+            }
+        )
+    }
+
+    private fun loadFemaleNotificationPreference() {
+        val currentUserGender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender?.lowercase()
+        if (currentUserGender != DConstants.MALE) return
+
+        val maleUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+        if (maleUserId == 0 || userId == 0) return
+
+        binding.swNotifyOnline.isEnabled = false
+
+        apiManager.getFemaleNotificationPreference(
+            maleUserId = maleUserId,
+            femaleUserId = userId,
+            callback = object : NetworkCallback<GetFemaleNotificationPreferenceResponse> {
+                override fun onResponse(
+                    call: Call<GetFemaleNotificationPreferenceResponse>,
+                    response: Response<GetFemaleNotificationPreferenceResponse>
+                ) {
+                    binding.swNotifyOnline.isEnabled = true
+
+                    if (response.isSuccessful && response.body()?.success == true) {
+                        val isEnabled = response.body()?.data?.status == 1
+                        isUpdatingNotifyPreference = true
+                        binding.swNotifyOnline.isChecked = isEnabled
+                        isUpdatingNotifyPreference = false
+                    } else {
+                        // Keep default state (off) if API fails
+                        isUpdatingNotifyPreference = true
+                        binding.swNotifyOnline.isChecked = false
+                        isUpdatingNotifyPreference = false
+                    }
+                }
+
+                override fun onFailure(call: Call<GetFemaleNotificationPreferenceResponse>, t: Throwable) {
+                    binding.swNotifyOnline.isEnabled = true
+                    isUpdatingNotifyPreference = true
+                    binding.swNotifyOnline.isChecked = false
+                    isUpdatingNotifyPreference = false
+                }
+
+                override fun onNoNetwork() {
+                    binding.swNotifyOnline.isEnabled = true
+                    isUpdatingNotifyPreference = true
+                    binding.swNotifyOnline.isChecked = false
+                    isUpdatingNotifyPreference = false
+                }
+            }
+        )
+    }
+
+    private fun extractNotifyPreferenceErrorMessage(
+        response: Response<FemaleNotificationPreferenceResponse>
+    ): String {
+        response.body()?.message?.takeIf { it.isNotBlank() }?.let { return it }
+
+        val rawError = response.errorBody()?.string()
+        if (!rawError.isNullOrBlank()) {
+            return try {
+                val parsed = com.google.gson.Gson().fromJson(
+                    rawError,
+                    FemaleNotificationPreferenceResponse::class.java
+                )
+                parsed?.message ?: "Failed to update preference."
+            } catch (_: Exception) {
+                "Failed to update preference."
+            }
+        }
+
+        return "Failed to update preference."
+    }
+
+    private fun rollbackNotifyToggle(previousValue: Boolean) {
+        isUpdatingNotifyPreference = true
+        binding.swNotifyOnline.isChecked = previousValue
+        isUpdatingNotifyPreference = false
+    }
+
+    private fun loadReportReasons() {
+        val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+        if (currentUserId == 0) {
+            Log.e("UserProfileDetail", "Unable to load report reasons - invalid user ID")
+            return
+        }
+        reportUserViewModel.getReportReasons(currentUserId)
+    }
+
+    private fun showReportDialog() {
+        if (reportReasons.isEmpty()) {
+            Toast.makeText(this, "Report reasons not available yet", Toast.LENGTH_SHORT).show()
+            loadReportReasons()
+            return
+        }
+
+        val dialogView = layoutInflater.inflate(R.layout.dialog_report_user, null)
+        val chipGroup = dialogView.findViewById<com.google.android.material.chip.ChipGroup>(R.id.chip_group_reasons)
+        val reasonInputLayout = dialogView.findViewById<com.google.android.material.textfield.TextInputLayout>(R.id.til_reason_text)
+        val reasonEditText = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.et_reason_text)
+
+        var selectedReason: ReportReason? = null
+
+        chipGroup.removeAllViews()
+        reportReasons.forEach { reason ->
+            val chip = com.google.android.material.chip.Chip(this).apply {
+                text = reason.reason
+                isCheckable = true
+                tag = reason
+                
+                // Styling for unselected state
+                chipBackgroundColor = resources.getColorStateList(R.color.chip_background_selector, null)
+                setTextColor(resources.getColorStateList(R.color.chip_text_selector, null))
+                chipStrokeWidth = 3f
+                chipStrokeColor = resources.getColorStateList(R.color.chip_stroke_selector, null)
+                chipCornerRadius = 24f
+                
+                // Typography
+                textSize = 13f
+                setTextAppearance(R.style.ChipTextAppearance)
+            }
+            chipGroup.addView(chip)
+        }
+
+        reasonInputLayout.visibility = View.GONE
+        chipGroup.setOnCheckedStateChangeListener { group, checkedIds ->
+            val selectedId = checkedIds.firstOrNull()
+            selectedReason = selectedId?.let { id ->
+                val chip = group.findViewById<com.google.android.material.chip.Chip>(id)
+                chip.tag as? ReportReason
+            }
+            val requiresText = selectedReason?.requires_text == 1
+            reasonInputLayout.visibility = if (requiresText) View.VISIBLE else View.GONE
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_cancel)
+            .setOnClickListener { dialog.dismiss() }
+
+        dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_submit)
+            .setOnClickListener {
+                val reason = selectedReason
+                if (reason == null) {
+                    Toast.makeText(this, "Please select a reason", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                val reasonText = reasonEditText.text?.toString()?.trim()
+                if (reason.requires_text == 1 && reasonText.isNullOrEmpty()) {
+                    Toast.makeText(this, "Please provide details", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                submitReport(reason.id, reasonText)
+            }
+
+        reportDialog = dialog
+        dialog.show()
+    }
+
+    private fun submitReport(reasonId: Int, reasonText: String?) {
+        val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+        if (currentUserId == 0) {
+            Toast.makeText(this, "Unable to submit report. Please try again.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        reportUserViewModel.reportUser(currentUserId, userId, reasonId, reasonText)
+    }
+
+    private fun showBlockConfirmationDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_block_user_confirmation, null)
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_cancel)
+            .setOnClickListener { dialog.dismiss() }
+
+        dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_block)
+            .setOnClickListener {
+                blockUser()
+                dialog.dismiss()
+            }
+
+        dialog.show()
+    }
+
+    private fun blockUser() {
+        val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+        if (currentUserId == 0) {
+            Toast.makeText(this, "Unable to block user. Please try again.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        blockUserViewModel.blockUser(currentUserId, userId, 1)
+    }
+    
+    private fun unblockUser() {
+        val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+        if (currentUserId == 0) {
+            Toast.makeText(this, "Unable to unblock user. Please try again.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        Log.d("UserProfileDetail", "🔓 Unblocking user $userId")
+        blockUserViewModel.unblockUser(currentUserId, userId)
+    }
+    
+    private fun checkBlockStatus() {
+        // Only check block status for female users
+        val currentUserGender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
+        if (currentUserGender != DConstants.FEMALE) {
+            Log.d("UserProfileDetail", "Skipping block status check - not a female user")
+            return
+        }
+        
+        val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+        if (currentUserId == 0) {
+            Log.e("UserProfileDetail", "Unable to check block status - no current user ID")
+            return
+        }
+        
+        Log.d("UserProfileDetail", "🔍 Checking block status for user $userId")
+        blockUserViewModel.checkBlockStatus(currentUserId, userId)
+    }
+    
+    private fun updateBlockButtonUI() {
+        if (isUserBlocked) {
+            binding.tvBlockUser.text = "Unblock user"
+            Log.d("UserProfileDetail", "✅ Updated UI to show Unblock")
+        } else {
+            binding.tvBlockUser.text = "Block user"
+            Log.d("UserProfileDetail", "✅ Updated UI to show Block")
+        }
+    }
+    
+    private fun showUnblockConfirmationDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_unblock_user_confirmation, null)
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_cancel)
+            .setOnClickListener { dialog.dismiss() }
+
+        dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_unblock)
+            .setOnClickListener {
+                unblockUser()
+                dialog.dismiss()
+            }
+
+        dialog.show()
     }
 
     private fun checkFriendRequestStatus() {

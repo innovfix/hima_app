@@ -346,6 +346,8 @@ class AgoraRandomCallActivity : AppCompatActivity() {
                         startActivity(intent)
                         finish()
                     } else {
+                        Log.d("RandomUsersResponse", "$message")
+
                         Toast.makeText(this@AgoraRandomCallActivity, message, Toast.LENGTH_LONG).show()
                         navigateToMainActivity()
                     }

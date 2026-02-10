@@ -19,7 +19,9 @@ import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.activities.CommunityGuidelineActivity
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.AccountPrivacyActivity
+import com.gmwapp.hima.activities.CreatorWarningsActivity
 import com.gmwapp.hima.activities.EditProfileActivity
+import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.activities.FriendsListActivity
 import com.gmwapp.hima.activities.HelpAndSupportActivity
 import com.gmwapp.hima.activities.RefundWebViewActivity
@@ -84,6 +86,20 @@ class ProfileFragment : BaseFragment() {
         updateValues()
 
         val prefs = BaseApplication.getInstance()?.getPrefs()
+        
+        // Show/Hide warnings card based on user gender (only for female users)
+        val userGender = prefs?.getUserData()?.gender
+        android.util.Log.d("ProfileFragment", "User gender: $userGender")
+        android.util.Log.d("ProfileFragment", "DConstants.FEMALE: ${DConstants.FEMALE}")
+        android.util.Log.d("ProfileFragment", "Comparison result: ${userGender?.equals(DConstants.FEMALE, ignoreCase = true)}")
+        
+        if (userGender?.equals(DConstants.FEMALE, ignoreCase = true) == true) {
+            binding.clWarnings.visibility = View.VISIBLE
+            android.util.Log.d("ProfileFragment", "Warnings card set to VISIBLE")
+        } else {
+            binding.clWarnings.visibility = View.GONE
+            android.util.Log.d("ProfileFragment", "Warnings card set to GONE")
+        }
 
         binding.clWallet.setOnSingleClickListener {
             val intent = Intent(context, WalletActivity::class.java)
@@ -127,6 +143,11 @@ class ProfileFragment : BaseFragment() {
         binding.clMyFriends.setOnSingleClickListener {
             val intent = Intent(context, FriendsListActivity::class.java)
             intent.putExtra("target_tab", FriendsTabFragment.TYPE_CHAT)
+            startActivity(intent)
+        }
+
+        binding.clWarnings.setOnSingleClickListener {
+            val intent = Intent(context, CreatorWarningsActivity::class.java)
             startActivity(intent)
         }
 

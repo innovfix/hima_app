@@ -13,6 +13,8 @@ import com.gmwapp.hima.retrofit.responses.SubqueriesResponse
 import com.gmwapp.hima.retrofit.responses.SubmitTicketResponse
 import com.gmwapp.hima.retrofit.responses.TicketsListResponse
 import com.gmwapp.hima.retrofit.responses.BlockUserResponse
+import com.gmwapp.hima.retrofit.responses.CheckBlockStatusResponse
+import com.gmwapp.hima.retrofit.responses.CreatorWarningsResponse
 import com.gmwapp.hima.retrofit.responses.CallFemaleUserResponse
 import com.gmwapp.hima.retrofit.responses.CallMaleUserResponse
 import com.gmwapp.hima.retrofit.responses.CheckCallAvailabilityResponse
@@ -26,6 +28,8 @@ import com.gmwapp.hima.retrofit.responses.ExplanationVideoResponse
 import com.gmwapp.hima.retrofit.responses.FcmNotificationResponse
 import com.gmwapp.hima.retrofit.responses.FcmTokenResponse
 import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
+import com.gmwapp.hima.retrofit.responses.FemaleNotificationPreferenceRequest
+import com.gmwapp.hima.retrofit.responses.FemaleNotificationPreferenceResponse
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponse
 import com.gmwapp.hima.retrofit.responses.FirstCallUpdateResponse
 import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
@@ -38,6 +42,8 @@ import com.gmwapp.hima.retrofit.responses.PanCardResponse
 import com.gmwapp.hima.retrofit.responses.RandomUsersResponse
 import com.gmwapp.hima.retrofit.responses.RatingResponse
 import com.gmwapp.hima.retrofit.responses.ReferralCodeResponse
+import com.gmwapp.hima.retrofit.responses.ReportReasonsResponse
+import com.gmwapp.hima.retrofit.responses.ReportUserResponse
 import com.gmwapp.hima.retrofit.responses.RegisterResponse
 import com.gmwapp.hima.retrofit.responses.ReportsResponse
 import com.gmwapp.hima.retrofit.responses.FriendRequestResponse
@@ -89,6 +95,8 @@ import com.gmwapp.hima.retrofit.responses.GetFemaleTalkDurationResponse
 import com.gmwapp.hima.retrofit.responses.InstallReferrerResponse
 import com.gmwapp.hima.retrofit.responses.FirstInstallResponse
 import com.gmwapp.hima.retrofit.responses.AgoraTokenResponse
+import com.gmwapp.hima.retrofit.responses.GetFemaleNotificationPreferenceRequest
+import com.gmwapp.hima.retrofit.responses.GetFemaleNotificationPreferenceResponse
 import com.gmwapp.hima.utils.Helper
 import okhttp3.MultipartBody
 import retrofit2.Call
@@ -101,6 +109,7 @@ import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
 import retrofit2.http.Query
+import retrofit2.http.Body
 import javax.inject.Inject
 
 class ApiManager @Inject constructor(private val retrofit: Retrofit) {
@@ -838,6 +847,110 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         if (Helper.checkNetworkConnection()) {
             val call = getApiInterface().blockUser(userId, callUserId, blocked)
             call.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun checkBlockStatus(
+        userId: Int,
+        callUserId: Int,
+        callback: NetworkCallback<CheckBlockStatusResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val call = getApiInterface().checkBlockStatus(userId, callUserId)
+            call.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun unblockUser(
+        userId: Int,
+        callUserId: Int,
+        callback: NetworkCallback<BlockUserResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val call = getApiInterface().unblockUser(userId, callUserId)
+            call.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getReportReasons(userId: Int, callback: NetworkCallback<ReportReasonsResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<ReportReasonsResponse> = getApiInterface().getReportReasons(userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun reportUser(
+        userId: Int,
+        reportUserId: Int,
+        reasonId: Int,
+        reasonText: String,
+        callback: NetworkCallback<ReportUserResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<ReportUserResponse> =
+                getApiInterface().reportUser(userId, reportUserId, reasonId, reasonText)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getCreatorWarnings(
+        userId: Int,
+        callback: NetworkCallback<CreatorWarningsResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<CreatorWarningsResponse> =
+                getApiInterface().getCreatorWarnings(userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun setFemaleNotificationPreference(
+        maleUserId: Int,
+        femaleUserId: Int,
+        status: Int,
+        callback: NetworkCallback<FemaleNotificationPreferenceResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<FemaleNotificationPreferenceResponse> =
+                getApiInterface().setFemaleNotificationPreference(
+                    FemaleNotificationPreferenceRequest(
+                        maleUserId = maleUserId,
+                        femaleUserId = femaleUserId,
+                        status = status
+                    )
+                )
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getFemaleNotificationPreference(
+        maleUserId: Int,
+        femaleUserId: Int,
+        callback: NetworkCallback<GetFemaleNotificationPreferenceResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<GetFemaleNotificationPreferenceResponse> =
+                getApiInterface().getFemaleNotificationPreference(
+                    GetFemaleNotificationPreferenceRequest(
+                        maleUserId = maleUserId,
+                        femaleUserId = femaleUserId
+                    )
+                )
+            apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
         }
@@ -1869,6 +1982,50 @@ interface ApiInterface {
         @Field("blocked") blocked: Int
     ): Call<BlockUserResponse>
 
+    @FormUrlEncoded
+    @POST("check_block_status")
+    fun checkBlockStatus(
+        @Field("user_id") userId: Int,
+        @Field("call_user_id") callUserId: Int
+    ): Call<CheckBlockStatusResponse>
+
+    @FormUrlEncoded
+    @POST("unblock_user")
+    fun unblockUser(
+        @Field("user_id") userId: Int,
+        @Field("call_user_id") callUserId: Int
+    ): Call<BlockUserResponse>
+
+    @FormUrlEncoded
+    @POST("report_reasons")
+    fun getReportReasons(
+        @Field("user_id") userId: Int
+    ): Call<ReportReasonsResponse>
+
+    @FormUrlEncoded
+    @POST("report_user")
+    fun reportUser(
+        @Field("user_id") userId: Int,
+        @Field("report_user_id") reportUserId: Int,
+        @Field("reason_id") reasonId: Int,
+        @Field("reason_text") reasonText: String
+    ): Call<ReportUserResponse>
+
+    @FormUrlEncoded
+    @POST("creator_warnings")
+    fun getCreatorWarnings(
+        @Field("user_id") userId: Int
+    ): Call<CreatorWarningsResponse>
+
+    @POST("set_female_notification_preference")
+    fun setFemaleNotificationPreference(
+        @Body request: FemaleNotificationPreferenceRequest
+    ): Call<FemaleNotificationPreferenceResponse>
+
+    @POST("get_female_notification_preference")
+    fun getFemaleNotificationPreference(
+        @Body request: GetFemaleNotificationPreferenceRequest
+    ): Call<GetFemaleNotificationPreferenceResponse>
 
     @FormUrlEncoded
     @POST("explaination_video_list")

@@ -18,6 +18,7 @@ import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.activities.CommunityGuidelineActivity
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.AccountPrivacyActivity
+import com.gmwapp.hima.activities.CreatorWarningsActivity
 import com.gmwapp.hima.activities.EarningsActivity
 import com.gmwapp.hima.activities.EditProfileActivity
 import com.gmwapp.hima.activities.FemaleTransactionsActivity
@@ -179,6 +180,11 @@ class ProfileFemaleFragment : BaseFragment() {
             if (whataspplink.isNotEmpty() && whataspplink!=null){
                 openWhatsAppGroup(whataspplink)
             }
+        }
+
+        binding.clWarnings.setOnSingleClickListener {
+            val intent = Intent(context, CreatorWarningsActivity::class.java)
+            startActivity(intent)
         }
 
         binding.clHelpSupport.setOnSingleClickListener {

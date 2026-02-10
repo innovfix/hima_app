@@ -181,6 +181,7 @@ class HomeFragment : BaseFragment() {
                 loadFemaleUsers(it)
             } else {
                 binding.tvNointernet.visibility = View.VISIBLE
+                setLoading(false)
             }
         }
         userData?.id?.let { profileViewModel.getUsers(it) }
@@ -282,6 +283,12 @@ class HomeFragment : BaseFragment() {
 
             // Stop the swipe-to-refresh loading animation
             binding.swipeRefreshLayout.isRefreshing = false
+            setLoading(false)
+        })
+
+        femaleUsersViewModel.femaleUsersErrorLiveData.observe(viewLifecycleOwner, Observer {
+            binding.swipeRefreshLayout.isRefreshing = false
+            setLoading(false)
         })
 
         initFab()
@@ -327,9 +334,15 @@ class HomeFragment : BaseFragment() {
 
 
     private fun loadFemaleUsers(userId: Int) {
+        setLoading(true)
         // Only send filter parameter if it's "new", otherwise send null (backward compatible)
         val filter = if (filterType == "new") "new" else null
         femaleUsersViewModel.getFemaleUsers(userId, filter)
+    }
+
+    private fun setLoading(isLoading: Boolean) {
+        val shouldShow = isLoading && !binding.swipeRefreshLayout.isRefreshing
+        binding.progressBar.visibility = if (shouldShow) View.VISIBLE else View.GONE
     }
     
     private fun setupFilterButtons() {

@@ -62,6 +62,7 @@ class TransactionsActivity : BaseActivity() {
         } else {
             binding.llNoInternet.visibility = View.VISIBLE
             binding.rvTransactions.visibility = View.GONE
+            setLoading(false)
         }
 
         // Scroll Listener for Pagination
@@ -80,6 +81,7 @@ class TransactionsActivity : BaseActivity() {
         // Observe Transactions Data
         transactionsViewModel.transactionsResponseLiveData.observe(this) { response ->
             isLoading = false
+            setLoading(false)
             if (response != null && response.success && response.data != null && response.data.isNotEmpty()) {
                 transactionAdapter.addTransactions(response.data)
                 binding.llNoRecords.visibility = View.GONE
@@ -92,9 +94,15 @@ class TransactionsActivity : BaseActivity() {
     }
 
     private fun loadTransactions() {
+        setLoading(true)
         BaseApplication.getInstance()?.getPrefs()?.getUserData()?.let {
             transactionsViewModel.getTransactions(it.id, offset, limit)
         }
+    }
+
+    private fun setLoading(isLoading: Boolean) {
+        val shouldShow = isLoading && offset == 0
+        binding.progressBar.visibility = if (shouldShow) View.VISIBLE else View.GONE
     }
 
     private fun isInternetAvailable(context: Context): Boolean {

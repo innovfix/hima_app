@@ -128,6 +128,7 @@ class FavouriteFragment : BaseFragment() {
         if (resetData) {
             offset = 0
             isLoading = true
+            setLoading(true)
             hasMoreItems = true  // Reset hasMoreItems when refreshing
             if (::recentCallsAdapter.isInitialized) {
                 recentCallsAdapter.clearData()
@@ -142,6 +143,7 @@ class FavouriteFragment : BaseFragment() {
         recentViewModel.callsListLiveData.observe(viewLifecycleOwner, Observer {
             binding.swipeRefreshLayout.isRefreshing = false
             isLoading = false
+            setLoading(false)
 
             if (it != null && it.success && it.data != null && it.data.isNotEmpty()) {
                 binding.tlTitle.visibility = View.GONE
@@ -163,6 +165,22 @@ class FavouriteFragment : BaseFragment() {
                 hasMoreItems = false
             }
         })
+
+        recentViewModel.callsListErrorLiveData.observe(viewLifecycleOwner, Observer {
+            binding.swipeRefreshLayout.isRefreshing = false
+            isLoading = false
+            setLoading(false)
+            if (recentCallsAdapter.itemCount == 0) {
+                binding.tlTitle.visibility = View.VISIBLE
+                binding.rvCalls.visibility = View.GONE
+            }
+            hasMoreItems = false
+        })
+    }
+
+    private fun setLoading(isLoading: Boolean) {
+        val shouldShow = isLoading && !binding.swipeRefreshLayout.isRefreshing
+        binding.progressBar.visibility = if (shouldShow) View.VISIBLE else View.GONE
     }
 
     private fun startMaleCallConnectingActivity(data: CallsListResponseData, callType: String) {

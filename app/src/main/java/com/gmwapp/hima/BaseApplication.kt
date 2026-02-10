@@ -71,7 +71,7 @@ class BaseApplication : Application(), Configuration.Provider {
     private var mediaPlayer: MediaPlayer? = null
     private var endCallUpdatePending: Boolean? = null
     // val ONESIGNAL_APP_ID = "2c7d72ae-8f09-48ea-a3c8-68d9c913c592"
-    val ONESIGNAL_APP_ID = "5cd4154a-1ece-4c3b-b6af-e88bafee64cd"
+    val ONESIGNAL_APP_ID = "50cedb09-a202-455f-8c7b-683f4958df43"
 
     //val testingOneSingalAppId = "b5aee4f0-ef38-4116-a04d-ee279ee1f11f"
     private lateinit var sharedPreferences: SharedPreferences
@@ -316,6 +316,22 @@ class BaseApplication : Application(), Configuration.Provider {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                             putExtra("target_tab", FriendsTabFragment.TYPE_FRIENDS)   // tell the activity which tab to open
 
+                        }
+                        startActivity(intent)
+                    }
+
+                    else if (type == "warning") {
+                        Log.d("OneSignalClick", "✅ App OPEN - Opening TicketsListActivity")
+                        val intent = Intent(applicationContext, com.gmwapp.hima.activities.CreatorWarningsActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        }
+                        startActivity(intent)
+                    }
+
+                    else if (type == "block") {
+                        Log.d("OneSignalClick", "✅ App OPEN - Opening TicketsListActivity")
+                        val intent = Intent(applicationContext, com.gmwapp.hima.activities.CreatorWarningsActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                         }
                         startActivity(intent)
                     }
@@ -862,7 +878,9 @@ class BaseApplication : Application(), Configuration.Provider {
         return currentActivity?.let { current ->
             current::class.java.simpleName == "ChatListActivity" ||
                     current::class.java.simpleName == "FriendsListActivity" ||
-            current::class.java.simpleName == "TicketsListActivity"
+            current::class.java.simpleName == "CreatorWarningsActivity" ||
+            current::class.java.simpleName == "FriendsListActivity"
+
         } ?: false
     }
 

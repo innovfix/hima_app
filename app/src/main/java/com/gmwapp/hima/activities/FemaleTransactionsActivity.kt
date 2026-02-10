@@ -70,6 +70,7 @@ class FemaleTransactionsActivity : BaseActivity() {
             Log.e(TAG, "initUI: No internet connection available")
             binding.llNoInternet.visibility = View.VISIBLE
             binding.rvTransactions.visibility = View.GONE
+            setLoading(false)
         }
 
         // Scroll Listener for Pagination
@@ -95,6 +96,7 @@ class FemaleTransactionsActivity : BaseActivity() {
         // Observe Transactions Data
         femaleTransactionsViewModel.transactionsResponseLiveData.observe(this) { response ->
             isLoading = false
+            setLoading(false)
             Log.d(TAG, "onResponse: API response received")
             Log.d(TAG, "onResponse: response = $response")
             
@@ -125,6 +127,7 @@ class FemaleTransactionsActivity : BaseActivity() {
         // Observe Error Data
         femaleTransactionsViewModel.transactionsErrorLiveData.observe(this) { error ->
             isLoading = false
+            setLoading(false)
             Log.e(TAG, "onError: Error received = $error")
             if (error != null && transactionAdapter.itemCount == 0) {
                 Log.e(TAG, "onError: Showing no records view due to error")
@@ -135,12 +138,18 @@ class FemaleTransactionsActivity : BaseActivity() {
     }
 
     private fun loadTransactions() {
+        setLoading(true)
         BaseApplication.getInstance()?.getPrefs()?.getUserData()?.let { userData ->
             Log.d(TAG, "loadTransactions: Calling API for user_id = ${userData.id}, offset = $offset, limit = $limit")
             femaleTransactionsViewModel.getFemaleTransactions(userData.id, offset, limit)
         } ?: run {
             Log.e(TAG, "loadTransactions: ERROR - User data is null, cannot load transactions")
         }
+    }
+
+    private fun setLoading(isLoading: Boolean) {
+        val shouldShow = isLoading && offset == 0
+        binding.progressBar.visibility = if (shouldShow) View.VISIBLE else View.GONE
     }
 
     private fun isInternetAvailable(context: Context): Boolean {
