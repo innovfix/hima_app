@@ -133,7 +133,6 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     private var remoteSurfaceView: SurfaceView? = null
     private var localPreviewSurface: SurfaceView? = null
-    private var isRemoteGreyScreenActive = false
 
     var switchCallID = 0
     private var isVideoCallGoing: Boolean = false
@@ -786,18 +785,16 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
             if (isVideoCallGoing){
                 runOnUiThread {
+                    val isLocalNoFaceOverlayVisible =
+                        binding.faceDetectionOverlay.root.visibility == View.VISIBLE
                     if (muted){
-                        isRemoteGreyScreenActive = true
                         binding.main.setBackgroundColor(android.graphics.Color.GRAY)
                         remoteSurfaceView?.visibility = View.GONE
                         binding.remoteVideoViewContainer.visibility= View.GONE
 
 
                     }else{
-                        val isLocalNoFaceOverlayVisible =
-                            binding.faceDetectionOverlay.root.visibility == View.VISIBLE
-                        if (isRemoteGreyScreenActive || isLocalNoFaceOverlayVisible) {
-                            // Keep remote hidden while no-face state is active.
+                        if (isLocalNoFaceOverlayVisible) {
                             remoteSurfaceView?.visibility = View.GONE
                             binding.remoteVideoViewContainer.visibility = View.GONE
                         } else {
@@ -1621,16 +1618,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             )
             remoteSurfaceView!!.visibility = View.VISIBLE
 
-            // If remote side is still in no-face state, keep remote hidden after switching to video.
-            if (isRemoteGreyScreenActive) {
-                binding.main.setBackgroundColor(android.graphics.Color.GRAY)
-                remoteSurfaceView?.visibility = View.GONE
-                binding.remoteVideoViewContainer.visibility = View.GONE
-            } else {
-                binding.main.setBackgroundResource(R.drawable.d_call_screen_background)
-                remoteSurfaceView?.visibility = View.VISIBLE
-                binding.remoteVideoViewContainer.visibility = View.VISIBLE
-            }
+            binding.main.setBackgroundResource(R.drawable.d_call_screen_background)
+            remoteSurfaceView?.visibility = View.VISIBLE
+            binding.remoteVideoViewContainer.visibility = View.VISIBLE
 
             startTime =
                 dateFormat.format(Date()) // Set call end time only if startTime is not empty
@@ -2052,9 +2042,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         // While local no-face overlay is active, keep remote feed hidden.
         remoteSurfaceView?.visibility = View.GONE
         binding.remoteVideoViewContainer.visibility = View.GONE
-//        agoraEngine?.muteAllRemoteAudioStreams(true)
-//        agoraEngine?.muteLocalVideoStream(true)
-//        agoraEngine?.muteLocalAudioStream(true)
+        agoraEngine?.muteLocalVideoStream(true)
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val senderId = userData?.id
         if (senderId != null) {
@@ -2108,6 +2096,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 overlay.visibility = View.VISIBLE
                 binding.localCardView.visibility = View.GONE
                 binding.localVideoViewContainer.visibility = View.GONE
+                remoteSurfaceView?.visibility = View.GONE
+                binding.remoteVideoViewContainer.visibility = View.GONE
 
                 // Always restore no-face UI state on every trigger.
                 overlay.setBackgroundColor(android.graphics.Color.parseColor("#66000000"))
@@ -2120,13 +2110,6 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 overlayBinding.personOutlineContainer.bringToFront()
                 overlayBinding.bottomFacePanel.bringToFront()
                 overlayBinding.scanIconHolder.bringToFront()
-
-                // Face-detection callbacks can fire repeatedly; avoid rebuilding preview each time.
-                if (overlayBinding.cameraPreviewContainer.childCount > 0 &&
-                    overlayBinding.cameraPreviewContainer.visibility == View.VISIBLE
-                ) {
-                    return@post
-                }
 
                 val cameraContainer = overlayBinding.cameraPreviewContainer
                 cameraContainer.removeAllViews()
@@ -2144,6 +2127,12 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                     FrameLayout.LayoutParams.MATCH_PARENT
                 )
                 cameraContainer.addView(localPreviewSurface, params)
+
+                // Keep guide/text layers above camera preview.
+                overlayBinding.tvFaceNotDetected.bringToFront()
+                overlayBinding.personOutlineContainer.bringToFront()
+                overlayBinding.bottomFacePanel.bringToFront()
+                overlayBinding.scanIconHolder.bringToFront()
 
                 agoraEngine?.setupLocalVideo(
                     VideoCanvas(localPreviewSurface, VideoCanvas.RENDER_MODE_HIDDEN, 0)
@@ -2216,7 +2205,6 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
         FcmUtils.greyScreenLiveData.observe(this) { msg ->
             if (msg=="greyScreenEnable"){
-                isRemoteGreyScreenActive = true
 
                 binding.main.setBackgroundColor(android.graphics.Color.GRAY)
                 remoteSurfaceView?.visibility = View.GONE
@@ -2225,11 +2213,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
             }
             if (msg=="greyScreenDisable"){
-                isRemoteGreyScreenActive = false
                 val isLocalNoFaceOverlayVisible =
                     binding.faceDetectionOverlay.root.visibility == View.VISIBLE
                 if (isLocalNoFaceOverlayVisible) {
-                    // Do not show remote while local user is still in no-face flow.
                     remoteSurfaceView?.visibility = View.GONE
                     binding.remoteVideoViewContainer.visibility = View.GONE
                 } else {

@@ -1951,9 +1951,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             
             // Keep local blackscreen hidden; face overlay now handles the full-screen UX.
             binding.blackscreen.visibility=View.GONE
-//        agoraEngine?.muteAllRemoteAudioStreams(true)
-//        agoraEngine?.muteLocalVideoStream(true)
-//        agoraEngine?.muteLocalAudioStream(true)
+            agoraEngine?.muteLocalVideoStream(true)
 
             val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
             val senderId = userData?.id

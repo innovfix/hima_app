@@ -1942,9 +1942,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         // While local no-face overlay is active, keep remote feed hidden.
         remoteSurfaceView?.visibility = View.GONE
         binding.remoteVideoViewContainer.visibility = View.GONE
-//        agoraEngine?.muteAllRemoteAudioStreams(true)
-//        agoraEngine?.muteLocalVideoStream(true)
-//        agoraEngine?.muteLocalAudioStream(true)
+        agoraEngine?.muteLocalVideoStream(true)
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val senderId = userData?.id
