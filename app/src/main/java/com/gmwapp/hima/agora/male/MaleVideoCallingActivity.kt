@@ -849,14 +849,11 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
                 runOnUiThread {
                     if (muted){
-                        binding.main.setBackgroundResource(R.drawable.call_blur_placeholder_background)
-                        binding.remoteVideoViewContainer.visibility= View.GONE
+                        showRemoteBlurState()
 
 
                     }else{
-                        // Remove background completely to show video
-                        binding.main.setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                        binding.remoteVideoViewContainer.visibility= View.VISIBLE
+                        hideRemoteBlurState()
                         
                         // Re-setup remote video to ensure it's properly rendered when switching from audio to video
                         binding.remoteVideoViewContainer.removeAllViews()
@@ -2182,20 +2179,48 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         }
     }
 
+    private fun showRemoteBlurState() {
+        binding.main.setBackgroundResource(R.drawable.call_blur_placeholder_background)
+        binding.remoteBlurOverlay.root.visibility = View.VISIBLE
+        remoteSurfaceView?.visibility = View.GONE
+        binding.remoteVideoViewContainer.visibility = View.GONE
+    }
+
+    private fun hideRemoteBlurState() {
+        binding.main.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        binding.remoteBlurOverlay.root.visibility = View.GONE
+        if (remoteSurfaceView == null && videoUid != 0) {
+            setupRemoteVideo(videoUid)
+        } else {
+            remoteSurfaceView?.visibility = View.VISIBLE
+            if (remoteSurfaceView?.parent == null) {
+                binding.remoteVideoViewContainer.removeAllViews()
+                remoteSurfaceView?.let { binding.remoteVideoViewContainer.addView(it) }
+                if (videoUid != 0) {
+                    agoraEngine?.setupRemoteVideo(
+                        VideoCanvas(
+                            remoteSurfaceView,
+                            VideoCanvas.RENDER_MODE_HIDDEN,
+                            videoUid
+                        )
+                    )
+                }
+            }
+        }
+        binding.remoteVideoViewContainer.visibility = View.VISIBLE
+        binding.remoteVideoViewContainer.bringToFront()
+    }
+
 
     fun showGreyScreen(){
 
         FcmUtils.greyScreenLiveData.observe(this) { msg ->
             if (msg=="greyScreenEnable"){
-
-                binding.main.setBackgroundResource(R.drawable.call_blur_placeholder_background)
-                binding.remoteVideoViewContainer.visibility= View.GONE
-
+                showRemoteBlurState()
 
             }
             if (msg=="greyScreenDisable"){
-                binding.main.setBackgroundResource(R.drawable.d_call_screen_background)
-                binding.remoteVideoViewContainer.visibility= View.VISIBLE
+                hideRemoteBlurState()
             }
         }
     }

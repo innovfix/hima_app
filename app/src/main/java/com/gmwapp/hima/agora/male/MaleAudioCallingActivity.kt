@@ -788,20 +788,14 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                     val isLocalNoFaceOverlayVisible =
                         binding.faceDetectionOverlay.root.visibility == View.VISIBLE
                     if (muted){
-                        binding.main.setBackgroundResource(R.drawable.call_blur_placeholder_background)
-                        remoteSurfaceView?.visibility = View.GONE
-                        binding.remoteVideoViewContainer.visibility= View.GONE
+                        showRemoteBlurState()
 
 
                     }else{
                         if (isLocalNoFaceOverlayVisible) {
-                            binding.main.setBackgroundResource(R.drawable.call_blur_placeholder_background)
-                            remoteSurfaceView?.visibility = View.GONE
-                            binding.remoteVideoViewContainer.visibility = View.GONE
+                            showRemoteBlurState()
                         } else {
-                            binding.main.setBackgroundResource(R.drawable.d_call_screen_background)
-                            remoteSurfaceView?.visibility = View.VISIBLE
-                            binding.remoteVideoViewContainer.visibility = View.VISIBLE
+                            hideRemoteBlurState()
                         }
 
                     }
@@ -2202,28 +2196,34 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     }
 
 
+    private fun showRemoteBlurState() {
+        binding.main.setBackgroundResource(R.drawable.call_blur_placeholder_background)
+        binding.remoteBlurOverlay.root.visibility = View.VISIBLE
+        remoteSurfaceView?.visibility = View.GONE
+        binding.remoteVideoViewContainer.visibility = View.GONE
+    }
+
+    private fun hideRemoteBlurState() {
+        binding.main.setBackgroundResource(R.drawable.d_call_screen_background)
+        binding.remoteBlurOverlay.root.visibility = View.GONE
+        remoteSurfaceView?.visibility = View.VISIBLE
+        binding.remoteVideoViewContainer.visibility = View.VISIBLE
+    }
+
     fun showGreyScreen(){
 
         FcmUtils.greyScreenLiveData.observe(this) { msg ->
             if (msg=="greyScreenEnable"){
-
-                binding.main.setBackgroundResource(R.drawable.call_blur_placeholder_background)
-                remoteSurfaceView?.visibility = View.GONE
-                binding.remoteVideoViewContainer.visibility= View.GONE
-
+                showRemoteBlurState()
 
             }
             if (msg=="greyScreenDisable"){
                 val isLocalNoFaceOverlayVisible =
                     binding.faceDetectionOverlay.root.visibility == View.VISIBLE
                 if (isLocalNoFaceOverlayVisible) {
-                    binding.main.setBackgroundResource(R.drawable.call_blur_placeholder_background)
-                    remoteSurfaceView?.visibility = View.GONE
-                    binding.remoteVideoViewContainer.visibility = View.GONE
+                    showRemoteBlurState()
                 } else {
-                    binding.main.setBackgroundResource(R.drawable.d_call_screen_background)
-                    remoteSurfaceView?.visibility = View.VISIBLE
-                    binding.remoteVideoViewContainer.visibility = View.VISIBLE
+                    hideRemoteBlurState()
                 }
             }
         }

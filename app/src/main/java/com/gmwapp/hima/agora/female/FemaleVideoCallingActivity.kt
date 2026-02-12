@@ -836,14 +836,9 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
                 runOnUiThread {
                     if (muted){
-                        binding.main.setBackgroundResource(R.drawable.call_blur_placeholder_background)
-                        remoteSurfaceView?.visibility = View.GONE
-                        binding.remoteVideoViewContainer.visibility = View.GONE
+                        showRemoteBlurState()
                     }else{
-                        // Remove background completely to show video
-                        binding.main.setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                        remoteSurfaceView?.visibility = View.VISIBLE
-                        binding.remoteVideoViewContainer.visibility = View.VISIBLE
+                        hideRemoteBlurState()
                         binding.remoteVideoViewContainer.bringToFront()
                     }
                 }
@@ -2156,26 +2151,34 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         }
     }
 
+    private fun showRemoteBlurState() {
+        binding.main.setBackgroundResource(R.drawable.call_blur_placeholder_background)
+        binding.remoteBlurOverlay.root.visibility = View.VISIBLE
+        remoteSurfaceView?.visibility = View.GONE
+        binding.remoteVideoViewContainer.visibility = View.GONE
+    }
+
+    private fun hideRemoteBlurState() {
+        binding.main.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        binding.remoteBlurOverlay.root.visibility = View.GONE
+        remoteSurfaceView?.visibility = View.VISIBLE
+        binding.remoteVideoViewContainer.visibility = View.VISIBLE
+    }
+
     fun showGreyScreen(){
 
         FcmUtils.greyScreenLiveData.observe(this) { msg ->
             if (msg=="greyScreenEnable"){
-                binding.main.setBackgroundResource(R.drawable.call_blur_placeholder_background)
-                remoteSurfaceView?.visibility = View.GONE
-                binding.remoteVideoViewContainer.visibility = View.GONE
+                showRemoteBlurState()
             }
             if (msg=="greyScreenDisable"){
                 val isLocalNoFaceOverlayVisible =
                     binding.faceDetectionOverlay.root.visibility == View.VISIBLE
                 if (isLocalNoFaceOverlayVisible) {
                     // Keep remote hidden while local user still has no-face overlay active.
-                    binding.main.setBackgroundResource(R.drawable.call_blur_placeholder_background)
-                    remoteSurfaceView?.visibility = View.GONE
-                    binding.remoteVideoViewContainer.visibility = View.GONE
+                    showRemoteBlurState()
                 } else {
-                    binding.main.setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                    remoteSurfaceView?.visibility = View.VISIBLE
-                    binding.remoteVideoViewContainer.visibility = View.VISIBLE
+                    hideRemoteBlurState()
                 }
             }
         }

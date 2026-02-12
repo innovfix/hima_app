@@ -558,6 +558,12 @@
         android:visibility="gone"
         android:contentDescription="Loading"/>
 
+    <include
+        android:id="@+id/remoteBlurOverlay"
+        layout="@layout/overlay_remote_blur_state"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
     <!-- Face Detection Overlay -->
     <include
         android:id="@+id/faceDetectionOverlay"
