@@ -849,7 +849,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
                 runOnUiThread {
                     if (muted){
-                        binding.main.setBackgroundColor(android.graphics.Color.GRAY)
+                        binding.main.setBackgroundResource(R.drawable.call_blur_placeholder_background)
                         binding.remoteVideoViewContainer.visibility= View.GONE
 
 
@@ -2188,7 +2188,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         FcmUtils.greyScreenLiveData.observe(this) { msg ->
             if (msg=="greyScreenEnable"){
 
-                binding.main.setBackgroundColor(android.graphics.Color.GRAY)
+                binding.main.setBackgroundResource(R.drawable.call_blur_placeholder_background)
                 binding.remoteVideoViewContainer.visibility= View.GONE
 
 

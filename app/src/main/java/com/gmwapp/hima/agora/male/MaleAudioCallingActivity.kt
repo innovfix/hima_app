@@ -788,13 +788,14 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                     val isLocalNoFaceOverlayVisible =
                         binding.faceDetectionOverlay.root.visibility == View.VISIBLE
                     if (muted){
-                        binding.main.setBackgroundColor(android.graphics.Color.GRAY)
+                        binding.main.setBackgroundResource(R.drawable.call_blur_placeholder_background)
                         remoteSurfaceView?.visibility = View.GONE
                         binding.remoteVideoViewContainer.visibility= View.GONE
 
 
                     }else{
                         if (isLocalNoFaceOverlayVisible) {
+                            binding.main.setBackgroundResource(R.drawable.call_blur_placeholder_background)
                             remoteSurfaceView?.visibility = View.GONE
                             binding.remoteVideoViewContainer.visibility = View.GONE
                         } else {
@@ -2206,7 +2207,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         FcmUtils.greyScreenLiveData.observe(this) { msg ->
             if (msg=="greyScreenEnable"){
 
-                binding.main.setBackgroundColor(android.graphics.Color.GRAY)
+                binding.main.setBackgroundResource(R.drawable.call_blur_placeholder_background)
                 remoteSurfaceView?.visibility = View.GONE
                 binding.remoteVideoViewContainer.visibility= View.GONE
 
@@ -2216,6 +2217,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 val isLocalNoFaceOverlayVisible =
                     binding.faceDetectionOverlay.root.visibility == View.VISIBLE
                 if (isLocalNoFaceOverlayVisible) {
+                    binding.main.setBackgroundResource(R.drawable.call_blur_placeholder_background)
                     remoteSurfaceView?.visibility = View.GONE
                     binding.remoteVideoViewContainer.visibility = View.GONE
                 } else {

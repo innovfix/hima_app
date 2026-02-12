@@ -737,7 +737,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             if (isVideoCallGoing){
             runOnUiThread {
                 if (muted){
-                    binding.main.setBackgroundColor(android.graphics.Color.GRAY)
+                    binding.main.setBackgroundResource(R.drawable.call_blur_placeholder_background)
                     binding.remoteVideoViewContainer.visibility= View.GONE
 
 
@@ -2108,7 +2108,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         FcmUtils.greyScreenLiveData.observe(this) { msg ->
             if (msg=="greyScreenEnable"){
 
-                binding.main.setBackgroundColor(android.graphics.Color.GRAY)
+                binding.main.setBackgroundResource(R.drawable.call_blur_placeholder_background)
                 remoteSurfaceView?.visibility = View.GONE
                 binding.remoteVideoViewContainer.visibility= View.GONE
 
@@ -2119,6 +2119,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                     binding.faceDetectionOverlay.root.visibility == View.VISIBLE
                 if (isLocalNoFaceOverlayVisible) {
                     // Do not show remote while local user is still in no-face flow.
+                    binding.main.setBackgroundResource(R.drawable.call_blur_placeholder_background)
                     remoteSurfaceView?.visibility = View.GONE
                     binding.remoteVideoViewContainer.visibility = View.GONE
                 } else {
