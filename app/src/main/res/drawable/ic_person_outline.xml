@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="260dp"
+    android:viewportWidth="320"
+    android:viewportHeight="260">
+
+    <!-- Head outline -->
+    <path
+        android:pathData="M160,50 A52,66 0 1,1 159.9,50"
+        android:strokeColor="#D9FFFFFF"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:fillColor="@android:color/transparent"/>
+
+    <!-- Neck -->
+    <path
+        android:pathData="M145,114 L145,140 M175,114 L175,140"
+        android:strokeColor="#D9FFFFFF"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"/>
+
+    <!-- Collar curve -->
+    <path
+        android:pathData="M130,140 C145,164 175,164 190,140"
+        android:strokeColor="#D9FFFFFF"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"/>
+
+    <!-- Left shoulder -->
+    <path
+        android:pathData="M0,180 C42,168 78,154 128,140"
+        android:strokeColor="#D9FFFFFF"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"/>
+
+    <!-- Right shoulder -->
+    <path
+        android:pathData="M320,180 C278,168 242,154 192,140"
+        android:strokeColor="#D9FFFFFF"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"/>
+
+</vector>

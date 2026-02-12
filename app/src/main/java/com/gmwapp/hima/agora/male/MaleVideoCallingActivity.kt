@@ -1,6 +1,7 @@
 package com.gmwapp.hima.agora.male
 
 import android.content.pm.PackageManager
+import android.graphics.PixelFormat
 import android.os.Bundle
 import android.view.SurfaceView
 import android.widget.Toast
@@ -28,6 +29,7 @@ import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.FrameLayout
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
@@ -130,6 +132,17 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
     private var switchDialog: AlertDialog? = null  // Track current dialog
     private var faceDialog: Dialog? = null
+    private var faceDetectedHandler: Handler? = null
+    private var faceDetectedRunnable: Runnable? = null
+    private var localPreviewSurface: SurfaceView? = null
+    private var isShowingFacePreview = false
+
+    private fun cancelFacePreviewTransition() {
+        faceDetectedRunnable?.let { runnable ->
+            faceDetectedHandler?.removeCallbacks(runnable)
+        }
+        faceDetectedRunnable = null
+    }
 
     private var isSwitchingToAudio = false // ✅ Prevent multiple calls
     private var isSwitchingToVideo = false // ✅ Prevent multiple calls
@@ -277,10 +290,10 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         setContentView(binding.root)
         
         // ✅ Restrict screenshots and screen recording
-        window.setFlags(
-            WindowManager.LayoutParams.FLAG_SECURE,
-            WindowManager.LayoutParams.FLAG_SECURE
-        )
+//        window.setFlags(
+//            WindowManager.LayoutParams.FLAG_SECURE,
+//            WindowManager.LayoutParams.FLAG_SECURE
+//        )
         
         // ✅ Set status bar and navigation bar to black with light icons
         window.statusBarColor = android.graphics.Color.BLACK
@@ -717,6 +730,9 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
         stopCallingService()
         cancelTimeoutTracking()
+        cancelFacePreviewTransition()
+        faceDetectedHandler = null
+        faceDetectedRunnable = null
         // Ensure agoraEngine is not null before using it
         agoraEngine?.let {
             it.stopPreview()
@@ -1929,10 +1945,12 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             if (isFinishing || isDestroyed) {
                 return@post
             }
+
+            cancelFacePreviewTransition()
+            isShowingFacePreview = false
             
-            binding.blackscreen.visibility=View.VISIBLE
-            binding.blackscreen.bringToFront()  // ✅ Bring blackscreen to front
-            binding.blackscreen.elevation = 100f  // ✅ Set high elevation to ensure it's on top
+            // Keep local blackscreen hidden; face overlay now handles the full-screen UX.
+            binding.blackscreen.visibility=View.GONE
 //        agoraEngine?.muteAllRemoteAudioStreams(true)
 //        agoraEngine?.muteLocalVideoStream(true)
 //        agoraEngine?.muteLocalAudioStream(true)
@@ -1958,8 +1976,73 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             if (isFinishing || isDestroyed) {
                 return@post
             }
-            
-            binding.blackscreen.visibility=View.GONE
+
+            val overlayVisible = binding.faceDetectionOverlay.root.visibility == View.VISIBLE
+            if (!overlayVisible) {
+                Log.d("FaceDetection", "Male: overlay not active, skipping staged preview")
+                return@post
+            }
+
+            if (isShowingFacePreview) {
+                return@post
+            }
+
+            cancelFacePreviewTransition()
+            isShowingFacePreview = true
+            Log.d("FaceDetection", "Male: face detected, resuming call immediately")
+            resumeCallAfterFaceDetection()
+        }
+    }
+
+    private fun showCameraPreviewOnOverlay() {
+        try {
+            val overlayBinding = binding.faceDetectionOverlay
+            val overlay = overlayBinding.root
+
+            overlay.visibility = View.VISIBLE
+            overlay.bringToFront()
+            overlay.elevation = 9999f
+            overlay.translationZ = 9999f
+
+            overlay.setBackgroundColor(android.graphics.Color.BLACK)
+            overlayBinding.personOutlineContainer.visibility = View.GONE
+            overlayBinding.bottomFacePanel.visibility = View.GONE
+            overlayBinding.scanIconHolder.visibility = View.GONE
+            overlayBinding.tvFaceNotDetected.text = "Face Detected"
+            overlayBinding.tvFaceNotDetected.visibility = View.VISIBLE
+
+            val cameraContainer = overlayBinding.cameraPreviewContainer
+            cameraContainer.removeAllViews()
+            cameraContainer.setBackgroundColor(android.graphics.Color.BLACK)
+
+            localPreviewSurface = SurfaceView(this)
+            localPreviewSurface?.setZOrderOnTop(false)
+            localPreviewSurface?.setZOrderMediaOverlay(false)
+            localPreviewSurface?.holder?.setFormat(PixelFormat.TRANSLUCENT)
+
+            val params = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+            cameraContainer.addView(localPreviewSurface, params)
+            cameraContainer.visibility = View.VISIBLE
+            cameraContainer.bringToFront()
+
+            agoraEngine?.setupLocalVideo(
+                VideoCanvas(localPreviewSurface, VideoCanvas.RENDER_MODE_HIDDEN, 0)
+            )
+            agoraEngine?.startPreview()
+        } catch (e: Exception) {
+            Log.e("MaleVideoCallingActivity", "Error showing face preview on overlay", e)
+            isShowingFacePreview = false
+        }
+    }
+
+    private fun resumeCallAfterFaceDetection() {
+        if (isFinishing || isDestroyed) return
+
+        try {
+            binding.blackscreen.visibility = View.GONE
             agoraEngine?.muteAllRemoteAudioStreams(false)
             agoraEngine?.muteLocalVideoStream(false)
             agoraEngine?.muteLocalAudioStream(false)
@@ -1977,34 +2060,99 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             }
 
             dismissNoFaceDetectedDialog()
+
+            setupLocalVideoInCallView()
+        } catch (e: Exception) {
+            Log.e("MaleVideoCallingActivity", "Error resuming call after face detection", e)
+        }
+    }
+
+    private fun setupLocalVideoInCallView() {
+        try {
+            localPreviewSurface = null
+            binding.faceDetectionOverlay.cameraPreviewContainer.removeAllViews()
+
+            binding.localVideoViewContainer.removeAllViews()
+            val localView = SurfaceView(this)
+            localView.setZOrderMediaOverlay(true)
+            val params = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+            binding.localVideoViewContainer.addView(localView, params)
+
+            agoraEngine?.setupLocalVideo(
+                VideoCanvas(localView, VideoCanvas.RENDER_MODE_HIDDEN, 0)
+            )
+
+            binding.localVideoViewContainer.visibility = View.VISIBLE
+            binding.localCardView.visibility = View.VISIBLE
+        } catch (e: Exception) {
+            Log.e("MaleVideoCallingActivity", "Error setting local video in call view", e)
         }
     }
 
 
     private fun showNoFaceDetectedDialog() {
-        if (faceDialog?.isShowing == true) return  // Already showing
-        
-        // Post to main thread and check activity state
+        // Show full-screen overlay instead of dialog
         Handler(Looper.getMainLooper()).post {
-            // Check if activity is still valid before showing dialog
+            // Check if activity is still valid before showing overlay
             if (isFinishing || isDestroyed) {
                 return@post
             }
             
             try {
-                faceDialog = Dialog(this).apply {
-                    requestWindowFeature(Window.FEATURE_NO_TITLE)
-                    setContentView(R.layout.dialog_show_face)
-                    window?.setLayout(
-                        (resources.displayMetrics.widthPixels * 0.9).toInt(),
-                        WindowManager.LayoutParams.WRAP_CONTENT
-                    )
-                    window?.setBackgroundDrawableResource(android.R.color.transparent)
-                    show()
+                val overlayBinding = binding.faceDetectionOverlay
+                val overlay = overlayBinding.root
+                overlay.bringToFront()
+                overlay.elevation = 1000f
+                overlay.translationZ = 1000f
+                overlay.visibility = View.VISIBLE
+                binding.localCardView.visibility = View.GONE
+                binding.localVideoViewContainer.visibility = View.GONE
+
+                // Always restore no-face UI state on every trigger.
+                overlay.setBackgroundColor(android.graphics.Color.parseColor("#66000000"))
+                overlayBinding.personOutlineContainer.visibility = View.VISIBLE
+                overlayBinding.bottomFacePanel.visibility = View.VISIBLE
+                overlayBinding.scanIconHolder.visibility = View.VISIBLE
+                overlayBinding.tvFaceNotDetected.text = "Face Not Detected"
+                overlayBinding.tvFaceNotDetected.visibility = View.VISIBLE
+                overlayBinding.tvFaceNotDetected.bringToFront()
+                overlayBinding.personOutlineContainer.bringToFront()
+                overlayBinding.bottomFacePanel.bringToFront()
+                overlayBinding.scanIconHolder.bringToFront()
+
+                // Face-detection callbacks can fire repeatedly; avoid rebuilding preview each time.
+                if (overlayBinding.cameraPreviewContainer.childCount > 0 &&
+                    overlayBinding.cameraPreviewContainer.visibility == View.VISIBLE
+                ) {
+                    return@post
                 }
-            } catch (e: WindowManager.BadTokenException) {
-                Log.e("MaleVideoCallingActivity", "Cannot show dialog: activity is not valid", e)
-                faceDialog = null
+
+                val cameraContainer = overlayBinding.cameraPreviewContainer
+                cameraContainer.removeAllViews()
+                cameraContainer.visibility = View.VISIBLE
+                cameraContainer.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+
+                localPreviewSurface = SurfaceView(this@MaleVideoCallingActivity).apply {
+                    setZOrderOnTop(false)
+                    setZOrderMediaOverlay(false)
+                    holder?.setFormat(PixelFormat.TRANSLUCENT)
+                }
+
+                val params = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+                cameraContainer.addView(localPreviewSurface, params)
+
+                agoraEngine?.setupLocalVideo(
+                    VideoCanvas(localPreviewSurface, VideoCanvas.RENDER_MODE_HIDDEN, 0)
+                )
+                agoraEngine?.startPreview()
+            } catch (e: Exception) {
+                Log.e("MaleVideoCallingActivity", "Cannot show face detection overlay", e)
             }
         }
     }
@@ -2012,16 +2160,27 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     private fun dismissNoFaceDetectedDialog() {
         Handler(Looper.getMainLooper()).post {
             if (isFinishing || isDestroyed) {
-                faceDialog = null
                 return@post
             }
             
             try {
-                faceDialog?.dismiss()
+                isShowingFacePreview = false
+                cancelFacePreviewTransition()
+
+                val overlayBinding = binding.faceDetectionOverlay
+                overlayBinding.cameraPreviewContainer.removeAllViews()
+                overlayBinding.cameraPreviewContainer.visibility = View.GONE
+                overlayBinding.root.setBackgroundResource(R.drawable.face_detection_gradient_background)
+                overlayBinding.personOutlineContainer.visibility = View.VISIBLE
+                overlayBinding.bottomFacePanel.visibility = View.VISIBLE
+                overlayBinding.scanIconHolder.visibility = View.VISIBLE
+                overlayBinding.tvFaceNotDetected.text = "Face Not Detected"
+                overlayBinding.root.visibility = View.GONE
+                binding.localVideoViewContainer.visibility = View.VISIBLE
+                binding.localCardView.visibility = View.VISIBLE
             } catch (e: Exception) {
-                Log.e("MaleVideoCallingActivity", "Error dismissing dialog", e)
+                Log.e("MaleVideoCallingActivity", "Error dismissing overlay", e)
             }
-            faceDialog = null
         }
     }
 

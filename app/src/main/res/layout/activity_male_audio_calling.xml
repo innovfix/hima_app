@@ -558,4 +558,11 @@
         android:visibility="gone"
         android:contentDescription="Loading"/>
 
+    <!-- Face Detection Overlay -->
+    <include
+        android:id="@+id/faceDetectionOverlay"
+        layout="@layout/overlay_face_detection"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

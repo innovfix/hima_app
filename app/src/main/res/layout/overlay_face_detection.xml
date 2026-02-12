@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/face_detection_gradient_background"
+    android:clickable="true"
+    android:focusable="true"
+    android:visibility="gone">
+
+    <!-- Camera Preview Container (hidden by default, shown when face detected) -->
+    <FrameLayout
+        android:id="@+id/cameraPreviewContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+    <!-- Top section with "Face Not Detected" text -->
+    <TextView
+        android:id="@+id/tvFaceNotDetected"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="@dimen/_34sdp"
+        android:text="Face Not Detected"
+        android:textColor="@color/white"
+        android:textSize="@dimen/_18sdp"
+        android:fontFamily="@font/poppins_semibold"
+        android:textStyle="bold" />
+
+    <!-- Center section with person outline -->
+    <LinearLayout
+        android:id="@+id/personOutlineContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/tvFaceNotDetected"
+        android:layout_above="@id/bottomFacePanel"
+        android:layout_marginTop="@dimen/_20sdp"
+        android:layout_marginBottom="@dimen/_30sdp"
+        android:orientation="vertical"
+        android:gravity="center">
+
+        <!-- Person outline placeholder -->
+        <com.gmwapp.hima.views.DottedFaceGuideView
+            android:id="@+id/ivPersonOutline"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+    </LinearLayout>
+
+    <!-- Bottom card with instructions -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/bottomFacePanel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        app:cardCornerRadius="@dimen/_18sdp"
+        app:cardElevation="@dimen/_4sdp"
+        android:backgroundTint="@color/white">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="@dimen/_20sdp"
+            android:paddingEnd="@dimen/_20sdp"
+            android:paddingTop="@dimen/_30sdp"
+            android:paddingBottom="@dimen/_20sdp"
+            android:gravity="center">
+
+            <!-- Main instruction text -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Show your face"
+                android:textColor="@color/black"
+                android:textSize="@dimen/_15sdp"
+                android:fontFamily="@font/poppins_semibold"
+                android:textStyle="bold"
+                android:layout_marginBottom="@dimen/_5sdp" />
+
+            <!-- Secondary instruction text -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Your video is blurred. To continue, show your face"
+                android:textColor="@color/grey"
+                android:textSize="@dimen/_11sdp"
+                android:fontFamily="@font/poppins_regular"
+                android:gravity="center"
+                android:textAlignment="center" />
+
+        </LinearLayout>
+
+    </androidx.cardview.widget.CardView>
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/scanIconHolder"
+        android:layout_width="@dimen/_48sdp"
+        android:layout_height="@dimen/_48sdp"
+        android:layout_above="@id/bottomFacePanel"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="-24dp"
+        android:backgroundTint="@color/white"
+        app:cardCornerRadius="@dimen/_10sdp"
+        app:cardElevation="@dimen/_6sdp">
+
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="@dimen/_10sdp"
+            android:src="@drawable/baseline_face_24"
+            android:tint="@color/grey" />
+    </androidx.cardview.widget.CardView>
+
+</RelativeLayout>
