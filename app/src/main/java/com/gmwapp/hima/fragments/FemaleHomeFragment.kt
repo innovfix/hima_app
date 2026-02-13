@@ -538,7 +538,9 @@ class FemaleHomeFragment : BaseFragment() {
             if (it != null && it.success) {
                 prefs.setUserData(it.data)
             } else {
-              //  Toast.makeText(context, it?.message, Toast.LENGTH_SHORT).show()
+                it?.message?.takeIf { msg -> msg.isNotBlank() }?.let { msg ->
+                    Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
+                }
                 // Temporarily disable listeners before reverting switch state
                 binding.sAudio.setOnCheckedChangeListener(null)
                 binding.sVideo.setOnCheckedChangeListener(null)

@@ -107,6 +107,9 @@ class ChatActivityInHouse : AppCompatActivity() {
     private var peerAudioStatus: Int? = null  // 0 or 1
     private var peerVideoStatus: Int? = null   // 0 or 1
     private var isCallBlocked: Boolean = false  // true if male user is blocked by female user (blocked = 1 or 2)
+    private var callStatusAudioSwitch: com.google.android.material.switchmaterial.SwitchMaterial? = null
+    private var callStatusVideoSwitch: com.google.android.material.switchmaterial.SwitchMaterial? = null
+    private var isApplyingCallStatusToggleState = false
     
     // Pagination variables
     private var currentOffset = 0
@@ -1438,20 +1441,16 @@ class ChatActivityInHouse : AppCompatActivity() {
         val switchAudio = popupView.findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.switch_audio)
         val switchVideo = popupView.findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.switch_video)
         val itemBlockUser = popupView.findViewById<TextView>(R.id.item_block_user)
+        callStatusAudioSwitch = switchAudio
+        callStatusVideoSwitch = switchVideo
 
         // Get current user data
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        
-        // Temporarily disable listeners to prevent API calls while setting initial state
-        switchAudio?.setOnCheckedChangeListener(null)
-        switchVideo?.setOnCheckedChangeListener(null)
-        
-        // Set initial switch states
-        switchAudio?.isChecked = userData?.audio_status == 1
-        switchVideo?.isChecked = userData?.video_status == 1
+        syncCallStatusTogglesFromPrefs()
 
         // Audio switch listener
         switchAudio?.setOnCheckedChangeListener { _, isChecked ->
+            if (isApplyingCallStatusToggleState) return@setOnCheckedChangeListener
             if (userData != null) {
                 Log.d("ChatActivityInHouse", "📞 Updating audio status: ${if (isChecked) "ON" else "OFF"}")
                 femaleUsersViewModel.updateCallStatus(
@@ -1464,6 +1463,7 @@ class ChatActivityInHouse : AppCompatActivity() {
 
         // Video switch listener
         switchVideo?.setOnCheckedChangeListener { _, isChecked ->
+            if (isApplyingCallStatusToggleState) return@setOnCheckedChangeListener
             if (userData != null) {
                 Log.d("ChatActivityInHouse", "📹 Updating video status: ${if (isChecked) "ON" else "OFF"}")
                 femaleUsersViewModel.updateCallStatus(
@@ -1505,6 +1505,18 @@ class ChatActivityInHouse : AppCompatActivity() {
 
         // Show popup
         popupWindow.showAtLocation(ivMore, android.view.Gravity.NO_GRAVITY, x, y)
+        popupWindow.setOnDismissListener {
+            callStatusAudioSwitch = null
+            callStatusVideoSwitch = null
+        }
+    }
+
+    private fun syncCallStatusTogglesFromPrefs() {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
+        isApplyingCallStatusToggleState = true
+        callStatusAudioSwitch?.isChecked = userData.audio_status == 1
+        callStatusVideoSwitch?.isChecked = userData.video_status == 1
+        isApplyingCallStatusToggleState = false
     }
 
     private fun showRegularMenu() {
@@ -1715,14 +1727,22 @@ class ChatActivityInHouse : AppCompatActivity() {
             if (response != null && response.success && response.data != null) {
                 // Update user data in preferences
                 BaseApplication.getInstance()?.getPrefs()?.setUserData(response.data)
+                syncCallStatusTogglesFromPrefs()
                 Log.d("ChatActivityInHouse", "✅ Call status updated successfully")
                 Toast.makeText(this, "Call status updated", Toast.LENGTH_SHORT).show()
+            } else if (response != null) {
+                // Revert toggles when API rejects update (toggle should be ON/OFF only on success).
+                syncCallStatusTogglesFromPrefs()
+                response.message.takeIf { it.isNotBlank() }?.let { message ->
+                    Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+                }
             }
         })
 
         // Observe call status update errors
         femaleUsersViewModel.updateCallStatusErrorLiveData.observe(this, Observer { error ->
             if (error != null) {
+                syncCallStatusTogglesFromPrefs()
                 Log.e("ChatActivityInHouse", "❌ Error updating call status: $error")
                 when (error) {
                     DConstants.NO_NETWORK -> {

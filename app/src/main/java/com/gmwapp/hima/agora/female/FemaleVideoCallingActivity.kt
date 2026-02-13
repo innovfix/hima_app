@@ -177,6 +177,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     private var localSurfaceView: SurfaceView? = null
 
     private var remoteSurfaceView: SurfaceView? = null
+    private var isRemoteBlurVisible = false
     private var mRtcEngine: RtcEngine? = null
 
 
@@ -2152,15 +2153,42 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     }
 
     private fun showRemoteBlurState() {
+        if (isRemoteBlurVisible) return
+        isRemoteBlurVisible = true
         binding.main.setBackgroundResource(R.drawable.call_blur_placeholder_background)
-        binding.remoteBlurOverlay.root.visibility = View.VISIBLE
+        val overlay = binding.remoteBlurOverlay.root
+        val card = binding.remoteBlurOverlay.blurMessageCard
+        overlay.bringToFront()
+        overlay.animate().cancel()
+        card.animate().cancel()
+        if (overlay.visibility != View.VISIBLE) {
+            overlay.alpha = 0f
+            overlay.visibility = View.VISIBLE
+        }
+        overlay.animate().alpha(1f).setDuration(220).start()
+        card.scaleX = 0.96f
+        card.scaleY = 0.96f
+        card.alpha = 0f
+        card.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(220).start()
         remoteSurfaceView?.visibility = View.GONE
         binding.remoteVideoViewContainer.visibility = View.GONE
     }
 
     private fun hideRemoteBlurState() {
+        if (!isRemoteBlurVisible) return
+        isRemoteBlurVisible = false
         binding.main.setBackgroundColor(android.graphics.Color.TRANSPARENT)
-        binding.remoteBlurOverlay.root.visibility = View.GONE
+        val overlay = binding.remoteBlurOverlay.root
+        val card = binding.remoteBlurOverlay.blurMessageCard
+        overlay.animate().cancel()
+        card.animate().cancel()
+        if (overlay.visibility == View.VISIBLE) {
+            card.animate().alpha(0f).scaleX(0.98f).scaleY(0.98f).setDuration(120).start()
+            overlay.animate().alpha(0f).setDuration(160).withEndAction {
+                overlay.visibility = View.GONE
+                overlay.alpha = 1f
+            }.start()
+        }
         remoteSurfaceView?.visibility = View.VISIBLE
         binding.remoteVideoViewContainer.visibility = View.VISIBLE
     }
