@@ -164,6 +164,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
     private var remoteSurfaceView: SurfaceView? = null
     private var isRemoteBlurVisible = false
+    private var pendingRemoteBlurHide = false
     private var mRtcEngine: RtcEngine? = null
 
     private var startTime: String = ""
@@ -2174,6 +2175,18 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 overlayBinding.root.visibility = View.GONE
                 binding.localVideoViewContainer.visibility = View.VISIBLE
                 binding.localCardView.visibility = View.VISIBLE
+                
+                // Process any deferred remote unblur
+                if (pendingRemoteBlurHide) {
+                    hideRemoteBlurState()
+                    pendingRemoteBlurHide = false
+                } else {
+                    // Restore remote visibility only if no blur state is active
+                    if (!isRemoteBlurVisible) {
+                        remoteSurfaceView?.visibility = View.VISIBLE
+                        binding.remoteVideoViewContainer.visibility = View.VISIBLE
+                    }
+                }
             } catch (e: Exception) {
                 Log.e("MaleVideoCallingActivity", "Error dismissing overlay", e)
             }
@@ -2248,7 +2261,17 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
             }
             if (msg=="greyScreenDisable"){
-                hideRemoteBlurState()
+                val isLocalNoFaceOverlayVisible =
+                    binding.faceDetectionOverlay.root.visibility == View.VISIBLE
+                if (isLocalNoFaceOverlayVisible) {
+                    // Defer remote unblur until local overlay is dismissed
+                    pendingRemoteBlurHide = true
+                    remoteSurfaceView?.visibility = View.GONE
+                    binding.remoteVideoViewContainer.visibility = View.GONE
+                } else {
+                    hideRemoteBlurState()
+                    pendingRemoteBlurHide = false
+                }
             }
         }
     }

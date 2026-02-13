@@ -134,6 +134,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private var remoteSurfaceView: SurfaceView? = null
     private var localPreviewSurface: SurfaceView? = null
     private var isRemoteBlurVisible = false
+    private var pendingRemoteBlurHide = false
 
     var switchCallID = 0
     private var isVideoCallGoing: Boolean = false
@@ -786,19 +787,20 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
             if (isVideoCallGoing){
                 runOnUiThread {
-                    val isLocalNoFaceOverlayVisible =
-                        binding.faceDetectionOverlay.root.visibility == View.VISIBLE
                     if (muted){
                         showRemoteBlurState()
 
 
                     }else{
+                        val isLocalNoFaceOverlayVisible =
+                            binding.faceDetectionOverlay.root.visibility == View.VISIBLE
                         if (isLocalNoFaceOverlayVisible) {
-                            showRemoteBlurState()
-                        } else {
-                            hideRemoteBlurState()
+                            pendingRemoteBlurHide = true
+                            remoteSurfaceView?.visibility = View.GONE
+                            binding.remoteVideoViewContainer.visibility = View.GONE
+                            return@runOnUiThread
                         }
-
+                        hideRemoteBlurState()
                     }
                 }
             }
@@ -2159,8 +2161,18 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
                 if (isVideoCallGoing) {
                     setupLocalVideoInCallView()
-                    remoteSurfaceView?.visibility = View.VISIBLE
-                    binding.remoteVideoViewContainer.visibility = View.VISIBLE
+                    
+                    // Process any deferred remote unblur
+                    if (pendingRemoteBlurHide) {
+                        hideRemoteBlurState()
+                        pendingRemoteBlurHide = false
+                    } else {
+                        // Restore remote visibility only if no blur state is active
+                        if (!isRemoteBlurVisible) {
+                            remoteSurfaceView?.visibility = View.VISIBLE
+                            binding.remoteVideoViewContainer.visibility = View.VISIBLE
+                        }
+                    }
                 } else {
                     binding.localVideoViewContainer.visibility = View.GONE
                     binding.localCardView.visibility = View.GONE
@@ -2249,9 +2261,13 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 val isLocalNoFaceOverlayVisible =
                     binding.faceDetectionOverlay.root.visibility == View.VISIBLE
                 if (isLocalNoFaceOverlayVisible) {
-                    showRemoteBlurState()
+                    // Defer remote unblur until local overlay is dismissed
+                    pendingRemoteBlurHide = true
+                    remoteSurfaceView?.visibility = View.GONE
+                    binding.remoteVideoViewContainer.visibility = View.GONE
                 } else {
                     hideRemoteBlurState()
+                    pendingRemoteBlurHide = false
                 }
             }
         }
