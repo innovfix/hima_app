@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingLeft="24dp"
+    android:paddingRight="24dp"
+    android:paddingTop="32dp"
+    android:paddingBottom="32dp">
+
+<androidx.cardview.widget.CardView
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="8dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        android:paddingTop="24dp"
+        android:paddingBottom="24dp">
+
+        <!-- Close Button -->
+        <ImageView
+            android:id="@+id/ivClose"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="end"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            android:contentDescription="Close"
+            android:padding="4dp" />
+
+        <!-- Title -->
+        <TextView
+            android:id="@+id/tvTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginTop="8dp"
+            android:text="Please Give Us Rating"
+            android:textColor="@android:color/black"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <!-- Subtitle -->
+        <TextView
+            android:id="@+id/tvSubtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginTop="4dp"
+            android:text="Your feedback helps us improve"
+            android:textColor="@android:color/darker_gray"
+            android:textSize="13sp" />
+
+        <!-- Star Rating -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginTop="16dp"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/star1"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_margin="4dp"
+                android:src="@drawable/ic_star_empty"
+                android:contentDescription="Star 1" />
+
+            <ImageView
+                android:id="@+id/star2"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_margin="4dp"
+                android:src="@drawable/ic_star_empty"
+                android:contentDescription="Star 2" />
+
+            <ImageView
+                android:id="@+id/star3"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_margin="4dp"
+                android:src="@drawable/ic_star_empty"
+                android:contentDescription="Star 3" />
+
+            <ImageView
+                android:id="@+id/star4"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_margin="4dp"
+                android:src="@drawable/ic_star_empty"
+                android:contentDescription="Star 4" />
+
+            <ImageView
+                android:id="@+id/star5"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_margin="4dp"
+                android:src="@drawable/ic_star_empty"
+                android:contentDescription="Star 5" />
+        </LinearLayout>
+
+        <!-- Description Input (for ratings < 4) -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilDescription"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:visibility="gone"
+            app:boxCornerRadiusBottomEnd="8dp"
+            app:boxCornerRadiusBottomStart="8dp"
+            app:boxCornerRadiusTopEnd="8dp"
+            app:boxCornerRadiusTopStart="8dp"
+            app:hintEnabled="true"
+            app:hintTextColor="@android:color/darker_gray"
+            app:boxStrokeColor="@color/colorPrimary"
+            app:boxStrokeWidth="2dp">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etDescription"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Please tell us what went wrong"
+                android:inputType="textMultiLine"
+                android:textColorHint="@android:color/darker_gray"
+                android:textColor="@android:color/black"
+                android:maxLines="4"
+                android:minLines="3"
+                android:gravity="top|start"
+                android:padding="12dp" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Submit Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSubmit"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="24dp"
+            android:text="Submit Rating"
+            android:textAllCaps="false"
+            android:textSize="16sp"
+            android:textColor="@android:color/white"
+            app:backgroundTint="@color/colorPrimary"
+            app:cornerRadius="8dp" />
+
+    </LinearLayout>
+
+</androidx.cardview.widget.CardView>
+
+</FrameLayout>

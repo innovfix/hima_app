@@ -58,6 +58,7 @@ import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityMainBinding
 import com.gmwapp.hima.dialogs.BottomSheetWelcomeBonus
 import com.gmwapp.hima.dialogs.FreeCoinsWelcomeDialog
+import com.gmwapp.hima.dialogs.RatingDialog
 import com.gmwapp.hima.fragments.FemaleHomeFragment
 import com.gmwapp.hima.fragments.HomeFragment
 import com.gmwapp.hima.fragments.ProfileFemaleFragment
@@ -280,6 +281,14 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         AppEventsLogger.newLogger(this).logEvent("TestEventFromApp")
 
         logDailyActiveUserIfNeeded()
+
+        // Check rating eligibility for FEMALE users immediately (they don't have bottom sheet)
+        if (userData?.gender == DConstants.FEMALE) {
+            userData.id?.let { userId ->
+                Log.d("RatingEligibility", "Female user - calling check_rating_eligibility")
+                checkRatingEligibility(userId)
+            }
+        }
 
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -593,7 +602,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
     private fun addObservers() {
         offerViewModel.offerResponseLiveData.observe(this) { response ->
-            // Fallback: if best_offers is false/empty then also call free_coins_status
+            // Fallback: if best_offers is false/empty then also call free_coins_status and rating eligibility
             val currentUserData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
             val currentUserId = currentUserData?.id
             if (!hasTriggeredFreeCoinsStatus &&
@@ -604,6 +613,10 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 hasTriggeredFreeCoinsStatus = true
                 Log.d("FreeCoinsStatus", "best_offers is false/empty → calling free_coins_status (fallback)")
                 callFreeCoinsStatusApi(currentUserId)
+                
+                // Also check rating eligibility when bottom sheet is not shown
+                Log.d("RatingEligibility", "No bottom sheet → calling check_rating_eligibility")
+                checkRatingEligibility(currentUserId)
             }
 
             if (response?.success == true && !response.data.isNullOrEmpty()) {
@@ -639,7 +652,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                             total_count
                         )
                         
-                        // Set dismiss listener to call free_coins_status API
+                        // Set dismiss listener to call free_coins_status API and rating eligibility
                         bottomSheet.setOnDismissListener(object : BottomSheetWelcomeBonus.OnDismissListener {
                             override fun onBottomSheetDismissed() {
                                 Log.d("BottomSheetWelcomeBonus", "✅ Bottom sheet dismissed - calling free_coins_status API")
@@ -651,6 +664,10 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                                         hasTriggeredFreeCoinsStatus = true
                                         callFreeCoinsStatusApi(userId)
                                     }
+                                    
+                                    // Check rating eligibility after bottom sheet is dismissed (for male users)
+                                    Log.d("BottomSheetWelcomeBonus", "📡 Calling check_rating_eligibility API with userId: $userId")
+                                    checkRatingEligibility(userId)
                                 }
                             }
                         })
@@ -1989,6 +2006,82 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 Log.w("UserInstallReferrer", "⚠️ No network connection")
             }
         })
+    }
+
+    private fun checkRatingEligibility(userId: Int) {
+        apiManager.checkRatingEligibility(userId, object : NetworkCallback<com.gmwapp.hima.retrofit.responses.CheckRatingEligibilityResponse> {
+            override fun onResponse(
+                call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.CheckRatingEligibilityResponse>,
+                response: retrofit2.Response<com.gmwapp.hima.retrofit.responses.CheckRatingEligibilityResponse>
+            ) {
+                // Log complete request details
+                Log.d("CheckRatingEligibility", "═══════════════════════════════════════")
+                Log.d("CheckRatingEligibility", "📡 REQUEST URL: ${call.request().url}")
+                Log.d("CheckRatingEligibility", "📤 REQUEST METHOD: ${call.request().method}")
+                Log.d("CheckRatingEligibility", "👤 USER ID: $userId")
+                Log.d("CheckRatingEligibility", "───────────────────────────────────────")
+                Log.d("CheckRatingEligibility", "📥 RESPONSE CODE: ${response.code()}")
+                Log.d("CheckRatingEligibility", "📊 RESPONSE MESSAGE: ${response.message()}")
+                
+                if (response.isSuccessful && response.body() != null) {
+                    val apiResponse = response.body()!!
+                    Log.d("CheckRatingEligibility", "✅ SUCCESS BODY:")
+                    Log.d("CheckRatingEligibility", "   success: ${apiResponse.success}")
+                    Log.d("CheckRatingEligibility", "   eligible: ${apiResponse.eligible}")
+                    Log.d("CheckRatingEligibility", "   message: ${apiResponse.message}")
+                    
+                    if (apiResponse.success && apiResponse.eligible) {
+                        // User is eligible - show beautiful rating dialog
+                        Log.d("CheckRatingEligibility", "🎯 Showing rating dialog")
+                        showRatingDialog(userId)
+                    } else {
+                        // User is not eligible - don't show toast, just log
+                        Log.d("CheckRatingEligibility", "⛔ User is NOT eligible")
+                    }
+                } else {
+                    // API call failed - log complete error response
+                    Log.e("CheckRatingEligibility", "❌ API FAILED:")
+                    try {
+                        val errorBody = response.errorBody()?.string()
+                        Log.e("CheckRatingEligibility", "   ERROR BODY: $errorBody")
+                    } catch (e: Exception) {
+                        Log.e("CheckRatingEligibility", "   Could not read error body: ${e.message}")
+                    }
+                }
+                Log.d("CheckRatingEligibility", "═══════════════════════════════════════")
+            }
+
+            override fun onFailure(
+                call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.CheckRatingEligibilityResponse>,
+                t: Throwable
+            ) {
+                // Don't show toast for errors as per requirement
+                Log.e("CheckRatingEligibility", "═══════════════════════════════════════")
+                Log.e("CheckRatingEligibility", "💥 NETWORK FAILURE:")
+                Log.e("CheckRatingEligibility", "📡 REQUEST URL: ${call.request().url}")
+                Log.e("CheckRatingEligibility", "❌ ERROR: ${t.message}")
+                Log.e("CheckRatingEligibility", "📚 STACK TRACE:", t)
+                Log.e("CheckRatingEligibility", "═══════════════════════════════════════")
+            }
+
+            override fun onNoNetwork() {
+                // Don't show toast for errors as per requirement
+                Log.w("CheckRatingEligibility", "═══════════════════════════════════════")
+                Log.w("CheckRatingEligibility", "⚠️ NO NETWORK CONNECTION")
+                Log.w("CheckRatingEligibility", "═══════════════════════════════════════")
+            }
+        })
+    }
+
+    private fun showRatingDialog(userId: Int) {
+        val ratingDialog = RatingDialog(this, userId, apiManager)
+        ratingDialog.setOnRatingSubmittedListener(object : RatingDialog.OnRatingSubmittedListener {
+            override fun onRatingSubmitted(starCount: Int) {
+                Log.d("MainActivity", "✅ Rating submitted with $starCount stars")
+                // You can add any additional logic here after rating is submitted
+            }
+        })
+        ratingDialog.show()
     }
 
 }

@@ -97,6 +97,8 @@ import com.gmwapp.hima.retrofit.responses.FirstInstallResponse
 import com.gmwapp.hima.retrofit.responses.AgoraTokenResponse
 import com.gmwapp.hima.retrofit.responses.GetFemaleNotificationPreferenceRequest
 import com.gmwapp.hima.retrofit.responses.GetFemaleNotificationPreferenceResponse
+import com.gmwapp.hima.retrofit.responses.CheckRatingEligibilityResponse
+import com.gmwapp.hima.retrofit.responses.SubmitRatingResponse
 import com.gmwapp.hima.utils.Helper
 import okhttp3.MultipartBody
 import retrofit2.Call
@@ -1583,6 +1585,32 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
             callback.onNoNetwork()
         }
     }
+
+    fun checkRatingEligibility(
+        userId: Int,
+        callback: NetworkCallback<CheckRatingEligibilityResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<CheckRatingEligibilityResponse> = getApiInterface().checkRatingEligibility(userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun submitRating(
+        userId: Int,
+        starCount: Int,
+        description: String?,
+        callback: NetworkCallback<SubmitRatingResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<SubmitRatingResponse> = getApiInterface().submitRating(userId, starCount, description)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
 }
 
 interface ApiInterface {
@@ -2364,5 +2392,19 @@ interface ApiInterface {
         @Field("role") role: String = "publisher",
         @Field("expire") expire: Int = 3600
     ): Call<AgoraTokenResponse>
+
+    @FormUrlEncoded
+    @POST("check_rating_eligibility")
+    fun checkRatingEligibility(
+        @Field("user_id") userId: Int
+    ): Call<CheckRatingEligibilityResponse>
+
+    @FormUrlEncoded
+    @POST("submit_rating")
+    fun submitRating(
+        @Field("user_id") userId: Int,
+        @Field("star_count") starCount: Int,
+        @Field("description") description: String?
+    ): Call<SubmitRatingResponse>
 
 }
