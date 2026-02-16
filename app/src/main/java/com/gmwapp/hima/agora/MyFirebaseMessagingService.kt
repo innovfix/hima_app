@@ -280,16 +280,43 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             }
 
             if (message == "userBusy" && gender == "male") {
-                Log.d("FCM", "User is busy. Redirecting to MainActivity.")
-
-                Handler(Looper.getMainLooper()).post {
-                    Toast.makeText(this, "User is busy", Toast.LENGTH_LONG).show()
-
+                Log.d("FCM", "User is busy. Checking current activity.")
+                
+                // Get current activity
+                val currentActivity = BaseApplication.getInstance()?.getCurrentActivity()
+                
+                when {
+                    // Direct call connecting screen - show message and redirect to random call
+                    currentActivity is com.gmwapp.hima.agora.male.MaleCallConnectingActivity -> {
+                        Log.d("FCM", "User is on direct call connecting screen. Showing busy message.")
+                        
+                        // Get callType and receiver name from FCM data
+                        val userName = remoteMessage.data["receiverName"] ?: "User"
+                        
+                        // Notify MaleCallConnectingActivity via FcmUtils
+                        FcmUtils.updateUserBusyStatus(callType ?: "audio", userName)
+                    }
+                    
+                    // Random call connecting screen - silently retry with another user
+                    currentActivity is AgoraRandomCallActivity -> {
+                        Log.d("FCM", "User is on random call connecting screen. Triggering retry.")
+                        
+                        // Get callType from FCM data
+                        val userName = remoteMessage.data["receiverName"] ?: "User"
+                        
+                        // Notify AgoraRandomCallActivity via FcmUtils to retry
+                        FcmUtils.updateUserBusyStatus(callType ?: "audio", userName)
+                    }
+                    
+                    // User is in other activities - ignore
+                    else -> {
+                        Log.d("FCM", "User is not on connecting screen (current: ${currentActivity?.javaClass?.simpleName}). Ignoring userBusy message.")
+                        // User might be in:
+                        // - MaleAudioCallingActivity / MaleVideoCallingActivity (already in a call)
+                        // - MainActivity (already went back)
+                        // In all these cases, do nothing
+                    }
                 }
-                    val mainIntent = Intent(this, MainActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                }
-                startActivity(mainIntent)
             }
 
 

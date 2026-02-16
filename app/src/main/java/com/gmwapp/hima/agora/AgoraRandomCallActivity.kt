@@ -69,13 +69,15 @@ class AgoraRandomCallActivity : AppCompatActivity() {
 
         callType = intent.getStringExtra(DConstants.CALL_TYPE)
 
-
+        // Clear any stale status before starting
+        FcmUtils.clearUserBusyStatus()
 
         getRandomUser()
 
         initUI()
         observeCallAcceptance()
         observeRandomUser()
+        observeUserBusyStatus()
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -488,6 +490,23 @@ class AgoraRandomCallActivity : AppCompatActivity() {
 
                     retryCall()
                 }
+            }
+        })
+    }
+
+    private fun observeUserBusyStatus() {
+        FcmUtils.userBusyStatus.observe(this, Observer { busyData ->
+            if (busyData != null) {
+                Log.d("observeUserBusyStatus", "Random user busy, retrying with another user...")
+                
+                // Clear the status
+                FcmUtils.clearUserBusyStatus()
+                
+                // Clear waiting state
+                isWaitingForAcceptance = false
+                
+                // Treat it like a rejection - retry with another user
+                retryCall()
             }
         })
     }

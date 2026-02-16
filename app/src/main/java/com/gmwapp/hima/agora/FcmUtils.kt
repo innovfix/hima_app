@@ -23,6 +23,9 @@ object FcmUtils {
     private val _updatedCallSwitch = MutableLiveData<Pair<String, Int>?>()
     val updatedCallSwitch: LiveData<Pair<String, Int>?> get() = _updatedCallSwitch
 
+    private val _userBusyStatus = MutableLiveData<Pair<String, String>?>() // (callType, userName)
+    val userBusyStatus: LiveData<Pair<String, String>?> get() = _userBusyStatus
+
     fun updateCallStatus(status: String, channelName: String) {
         _callStatus.postValue(Pair(status, channelName))
         Log.d("FcmUtils", "Call status updated: $status, Channel: $channelName")
@@ -51,6 +54,16 @@ object FcmUtils {
 
     fun clearCallSwitch() {
         _updatedCallSwitch.postValue(null)
+    }
+
+    fun updateUserBusyStatus(callType: String, userName: String) {
+        _userBusyStatus.postValue(Pair(callType, userName))
+        Log.d("FcmUtils", "User busy status updated: callType=$callType, userName=$userName")
+    }
+
+    fun clearUserBusyStatus() {
+        _userBusyStatus.postValue(null)
+        Log.d("FcmUtils", "User busy status cleared")
     }
 
 

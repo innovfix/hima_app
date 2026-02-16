@@ -100,6 +100,7 @@ class MaleCallConnectingActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
              FcmUtils.clearCallStatus()
+             FcmUtils.clearUserBusyStatus()
 
              Log.d("callStatusValueLog", "${FcmUtils.callStatus.value}")
              val callStatusValue = FcmUtils.callStatus.value
@@ -124,6 +125,7 @@ class MaleCallConnectingActivity : AppCompatActivity() {
 
              initUI()
              observeCallAcceptance()
+             observeUserBusyStatus()
 
          }
 
@@ -514,6 +516,42 @@ class MaleCallConnectingActivity : AppCompatActivity() {
         val timestamp = System.currentTimeMillis() // Get current timestamp in milliseconds
         Log.d("ChannelnameCheck","${senderId}_$timestamp")
         return "${senderId}_$timestamp"
+    }
+
+    private fun observeUserBusyStatus() {
+        FcmUtils.userBusyStatus.observe(this, Observer { busyData ->
+            if (busyData != null) {
+                val (callTypeFromBusy, userName) = busyData
+                
+                Log.d("MaleCallConnecting", "User busy: $userName, callType: $callTypeFromBusy")
+                
+                // Stop all ongoing operations
+                isRunning = false
+                cancelTimeoutTracking()
+                
+                // Update UI to show busy message
+                binding.tlWaitTitle.text = "$receiverName just got busy!"
+                binding.tvProgressText.text = "Finding another match..."
+                
+                // Clear the status
+                FcmUtils.clearUserBusyStatus()
+                
+                // Wait 1.5 seconds then redirect to random call
+                Handler(Looper.getMainLooper()).postDelayed({
+                    if (!isFinishing && !isDestroyed) {
+                        val randomCallIntent = Intent(
+                            this@MaleCallConnectingActivity, 
+                            com.gmwapp.hima.agora.AgoraRandomCallActivity::class.java
+                        ).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            putExtra(DConstants.CALL_TYPE, callType) // Use same call type
+                        }
+                        startActivity(randomCallIntent)
+                        finish()
+                    }
+                }, 1500) // 1.5 seconds delay
+            }
+        })
     }
 
         override fun onDestroy() {
