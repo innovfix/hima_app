@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="64dp"
+    android:padding="12dp">
+
+    <!-- Profile Picture -->
+    <ImageView
+        android:id="@+id/profile_image"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:scaleType="centerCrop"
+        android:layout_alignParentStart="true"
+        android:layout_centerVertical="true"
+        android:contentDescription="Caller profile picture" />
+
+    <!-- Caller Name -->
+    <TextView
+        android:id="@+id/caller_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Caller Name"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/white"
+        android:layout_marginStart="12dp"
+        android:layout_toEndOf="@id/profile_image"
+        android:layout_alignTop="@id/profile_image"
+        android:ellipsize="end"
+        android:maxLines="1" />
+
+    <!-- Incoming Call Text -->
+    <TextView
+        android:id="@+id/call_type"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Incoming voice call..."
+        android:textSize="14sp"
+        android:textColor="@android:color/white"
+        android:layout_below="@id/caller_name"
+        android:layout_alignStart="@id/caller_name"
+        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:maxLines="1" />
+
+    <!-- Accept Button -->
+    <ImageView
+        android:id="@+id/btn_accept"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:src="@drawable/accept_audio"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:layout_alignParentEnd="true"
+        android:layout_centerVertical="true"
+        android:padding="4dp"
+        android:contentDescription="Accept call" />
+
+    <!-- Decline Button -->
+    <ImageView
+        android:id="@+id/btn_decline"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:src="@drawable/endcall"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:layout_toStartOf="@id/btn_accept"
+        android:layout_centerVertical="true"
+        android:layout_marginEnd="8dp"
+        android:padding="4dp"
+        android:contentDescription="Decline call" />
+</RelativeLayout>
