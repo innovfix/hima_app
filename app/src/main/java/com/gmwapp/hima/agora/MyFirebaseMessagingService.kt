@@ -37,6 +37,7 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.BankUpdateActivity
 import com.gmwapp.hima.activities.EarningsActivity
 import com.gmwapp.hima.activities.MainActivity
+import com.gmwapp.hima.activities.NewLoginActivity
 import com.gmwapp.hima.agora.female.FemaleAudioCallingActivity
 import com.gmwapp.hima.agora.female.FemaleCallAcceptActivity
 import com.gmwapp.hima.agora.female.FemaleVideoCallingActivity
@@ -45,6 +46,7 @@ import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.FcmNotificationResponse
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import com.onesignal.OneSignal
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlin.system.exitProcess
@@ -76,10 +78,17 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
 
         if (remoteMessage.data.isNotEmpty()) {
+            val type = remoteMessage.data["type"] ?: ""
             val message = remoteMessage.data["message"] ?: ""
             val callType = remoteMessage.data["callType"]
             val senderId = remoteMessage.data["senderId"]?.toIntOrNull() ?: -1
             val channelName = remoteMessage.data["channelName"] ?: "default_channel"
+
+            // Admin/server forced logout/clear session.
+            if (type == "clear_data" || message == "clear_data") {
+                handleClearDataFcm()
+                return
+            }
 
 
             val currentActivity = BaseApplication.getInstance()?.getCurrentActivity()
@@ -583,6 +592,76 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
 
 
+    }
+
+    private fun handleClearDataFcm() {
+        try {
+            Log.w("FCM_ClearData", "Received clear_data. Clearing user session.")
+
+            // Stop any ongoing call UI/notifications/ringtone best-effort.
+            BaseApplication.getInstance()?.clearIncomingCall()
+            BaseApplication.getInstance()?.stopRingtone()
+            cancelIncomingCallNotification()
+
+            // Clear stored login/session data.
+            BaseApplication.getInstance()?.getPrefs()?.clearUserData()
+            try {
+                // Stop receiving/showing OneSignal notifications on login screens
+                OneSignal.logout()
+                OneSignal.User.pushSubscription.optOut()
+            } catch (e: Exception) {
+                Log.e("OneSignalLoginScreen", "Failed to optOut/logout: ${e.message}")
+            }
+
+            // If app is visible, redirect to login; otherwise show a notification that opens login.
+            if (!isAppInBackground(applicationContext)) {
+                val intent = Intent(this, NewLoginActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                }
+                startActivity(intent)
+            } else {
+                Log.e("FCM_ClearData", "Failed to clear session:")
+            }
+        } catch (e: Exception) {
+            Log.e("FCM_ClearData", "Failed to clear session: ${e.message}", e)
+        }
+    }
+
+    private fun showSessionClearedNotification() {
+        createSystemNotificationChannel()
+
+        val intent = Intent(this, NewLoginActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            9901,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
+        )
+
+        val notification = NotificationCompat.Builder(this, "system_events")
+            .setSmallIcon(R.drawable.notification_icon)
+            .setContentTitle("Session cleared")
+            .setContentText("Please login again to continue.")
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .build()
+
+        NotificationManagerCompat.from(this).notify(9901, notification)
+    }
+
+    private fun createSystemNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                "system_events",
+                "System",
+                NotificationManager.IMPORTANCE_DEFAULT
+            )
+            val manager = getSystemService(NotificationManager::class.java)
+            manager?.createNotificationChannel(channel)
+        }
     }
 
 

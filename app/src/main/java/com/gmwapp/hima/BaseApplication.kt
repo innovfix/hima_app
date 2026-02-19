@@ -320,17 +320,31 @@ class BaseApplication : Application(), Configuration.Provider {
                         startActivity(intent)
                     }
 
-                    else if (type == "warning") {
+                    else if (type == "creator_warning") {
+
+                        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                        if (userData == null || userData.id <= 0) {
+                            Log.w("OneSignalClick", "creator_warning click ignored (userData is null/empty)")
+                            return
+                        }
+
                         Log.d("OneSignalClick", "✅ App OPEN - Opening TicketsListActivity")
-                        val intent = Intent(applicationContext, com.gmwapp.hima.activities.CreatorWarningsActivity::class.java).apply {
+                        val intent = Intent(applicationContext, com.gmwapp.hima.activities.MyWarningsActivity::class.java).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                         }
                         startActivity(intent)
                     }
 
                     else if (type == "block") {
+
+                        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                        if (userData == null || userData.id <= 0) {
+                            Log.w("OneSignalClick", "creator_warning click ignored (userData is null/empty)")
+                            return
+                        }
+
                         Log.d("OneSignalClick", "✅ App OPEN - Opening TicketsListActivity")
-                        val intent = Intent(applicationContext, com.gmwapp.hima.activities.CreatorWarningsActivity::class.java).apply {
+                        val intent = Intent(applicationContext, com.gmwapp.hima.activities.MyWarningsActivity::class.java).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                         }
                         startActivity(intent)
@@ -878,7 +892,7 @@ class BaseApplication : Application(), Configuration.Provider {
         return currentActivity?.let { current ->
             current::class.java.simpleName == "ChatListActivity" ||
                     current::class.java.simpleName == "FriendsListActivity" ||
-            current::class.java.simpleName == "CreatorWarningsActivity" ||
+            current::class.java.simpleName == "MyWarningsActivity" ||
             current::class.java.simpleName == "FriendsListActivity"
 
         } ?: false

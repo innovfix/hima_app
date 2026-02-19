@@ -79,6 +79,7 @@ import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.gmwapp.hima.viewmodels.UserAvatarViewModel
+import com.gmwapp.hima.viewmodels.CallDropStatusViewModel
 import com.gmwapp.hima.workers.CallUpdateWorker
 import io.agora.rtc2.IAudioFrameObserver
 import io.agora.rtc2.audio.AudioParams
@@ -115,6 +116,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private val fcmNotificationViewModel: FcmNotificationViewModel by viewModels()
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
     private val agoraViewModel: AgoraViewModel by viewModels()
+    private val callDropStatusViewModel: CallDropStatusViewModel by viewModels()
 
     private var isVideoCallGoing : Boolean = false
     private var remoteSurfaceView: SurfaceView? = null
@@ -1609,6 +1611,21 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         
         btnConfirm.setOnClickListener {
             dialog.dismiss()
+            val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+            if (userId > 0 && receiverId > 0 && call_Id > 0) {
+                // Fire-and-forget; call teardown should not be blocked by network.
+                callDropStatusViewModel.saveCallDropStatus(
+                    userId = userId,
+                    receivedUserId = receiverId,
+                    callId = call_Id,
+                    callDropStatus = 1
+                )
+            } else {
+                Log.w(
+                    "CallDropStatusAPI",
+                    "Skip call_drop_status: userId=$userId receiverId=$receiverId callId=$call_Id"
+                )
+            }
             leaveChannel(binding.LeaveButton)
         }
         

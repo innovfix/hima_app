@@ -75,6 +75,8 @@ import com.gmwapp.hima.retrofit.responses.WithdrawResponse
 import com.gmwapp.hima.retrofit.responses.ZohoMailResponse
 import com.gmwapp.hima.retrofit.responses.DefaultCouponResponse
 import com.gmwapp.hima.retrofit.responses.CallRejectCountResponse
+import com.gmwapp.hima.retrofit.responses.CallDropStatusRequest
+import com.gmwapp.hima.retrofit.responses.CallDropStatusResponse
 import com.gmwapp.hima.retrofit.responses.ChatListResponse
 import com.gmwapp.hima.retrofit.responses.MessageListResponse
 import com.gmwapp.hima.retrofit.responses.SendMessageResponse
@@ -99,6 +101,7 @@ import com.gmwapp.hima.retrofit.responses.GetFemaleNotificationPreferenceRequest
 import com.gmwapp.hima.retrofit.responses.GetFemaleNotificationPreferenceResponse
 import com.gmwapp.hima.retrofit.responses.CheckRatingEligibilityResponse
 import com.gmwapp.hima.retrofit.responses.SubmitRatingResponse
+import com.gmwapp.hima.retrofit.responses.MyWarningsResponse
 import com.gmwapp.hima.utils.Helper
 import okhttp3.MultipartBody
 import retrofit2.Call
@@ -918,6 +921,18 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun getMyWarnings(
+        userId: Int,
+        callback: NetworkCallback<MyWarningsResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<MyWarningsResponse> = getApiInterface().getMyWarnings(userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun setFemaleNotificationPreference(
         maleUserId: Int,
         femaleUserId: Int,
@@ -1586,6 +1601,18 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun callDropStatus(
+        request: CallDropStatusRequest,
+        callback: NetworkCallback<CallDropStatusResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<CallDropStatusResponse> = getApiInterface().callDropStatus(request)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun checkRatingEligibility(
         userId: Int,
         callback: NetworkCallback<CheckRatingEligibilityResponse>
@@ -2045,6 +2072,12 @@ interface ApiInterface {
         @Field("user_id") userId: Int
     ): Call<CreatorWarningsResponse>
 
+    @FormUrlEncoded
+    @POST("my_warnings")
+    fun getMyWarnings(
+        @Field("user_id") userId: Int
+    ): Call<MyWarningsResponse>
+
     @POST("set_female_notification_preference")
     fun setFemaleNotificationPreference(
         @Body request: FemaleNotificationPreferenceRequest
@@ -2398,6 +2431,11 @@ interface ApiInterface {
     fun checkRatingEligibility(
         @Field("user_id") userId: Int
     ): Call<CheckRatingEligibilityResponse>
+
+    @POST("call_drop_status")
+    fun callDropStatus(
+        @Body request: CallDropStatusRequest
+    ): Call<CallDropStatusResponse>
 
     @FormUrlEncoded
     @POST("submit_rating")

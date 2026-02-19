@@ -74,6 +74,7 @@ import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.gmwapp.hima.viewmodels.GiftImageViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.viewmodels.UserAvatarViewModel
+import com.gmwapp.hima.viewmodels.CallDropStatusViewModel
 import com.gmwapp.hima.workers.CallUpdateWorker
 import com.google.firebase.analytics.FirebaseAnalytics
 import dagger.hilt.android.AndroidEntryPoint
@@ -126,6 +127,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     private val userAvatarViewModel: UserAvatarViewModel by viewModels()
     private val agoraViewModel: AgoraViewModel by viewModels()
+    private val callDropStatusViewModel: CallDropStatusViewModel by viewModels()
 
     private var isSwitchingToAudio = false // ✅ Prevent multiple calls
     private var isSwitchingToVideo = false // ✅ Prevent multiple calls
@@ -1253,6 +1255,20 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         
         btnConfirm.setOnClickListener {
             dialog.dismiss()
+            if (maleUserId > 0 && receiverId > 0 && callId > 0) {
+                // Fire-and-forget; call teardown should not be blocked by network.
+                callDropStatusViewModel.saveCallDropStatus(
+                    userId = maleUserId,
+                    receivedUserId = receiverId,
+                    callId = callId,
+                    callDropStatus = 1
+                )
+            } else {
+                Log.w(
+                    "CallDropStatusAPI",
+                    "Skip call_drop_status: userId=$maleUserId receiverId=$receiverId callId=$callId"
+                )
+            }
             leaveChannel(binding.LeaveButton)
         }
         

@@ -19,7 +19,7 @@ import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.activities.CommunityGuidelineActivity
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.AccountPrivacyActivity
-import com.gmwapp.hima.activities.CreatorWarningsActivity
+import com.gmwapp.hima.activities.MyWarningsActivity
 import com.gmwapp.hima.activities.EditProfileActivity
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.activities.FriendsListActivity
@@ -147,7 +147,7 @@ class ProfileFragment : BaseFragment() {
         }
 
         binding.clWarnings.setOnSingleClickListener {
-            val intent = Intent(context, CreatorWarningsActivity::class.java)
+            val intent = Intent(context, MyWarningsActivity::class.java)
             startActivity(intent)
         }
 

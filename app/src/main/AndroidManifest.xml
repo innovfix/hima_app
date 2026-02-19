@@ -208,6 +208,7 @@
         <activity android:name=".activities.FemaleTransactionsActivity" />
         <activity android:name=".activities.AccountPrivacyActivity" />
         <activity android:name=".activities.CreatorWarningsActivity" />
+        <activity android:name=".activities.MyWarningsActivity" />
         <activity android:name=".activities.HelpAndSupportActivity" />
         <activity android:name=".activities.SubqueriesActivity" />
         <activity android:name=".activities.SubqueryDetailActivity" />

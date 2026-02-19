@@ -62,6 +62,7 @@ import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.viewmodels.UserAvatarViewModel
+import com.gmwapp.hima.viewmodels.CallDropStatusViewModel
 import com.gmwapp.hima.workers.CallUpdateWorker
 import dagger.hilt.android.AndroidEntryPoint
 import io.agora.rtc2.ChannelMediaOptions
@@ -152,6 +153,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
     private val userAvatarViewModel: UserAvatarViewModel by viewModels()
     private val agoraViewModel: AgoraViewModel by viewModels()
+    private val callDropStatusViewModel: CallDropStatusViewModel by viewModels()
 
 
     private val uid = 0
@@ -1247,6 +1249,20 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         
         btnConfirm.setOnClickListener {
             dialog.dismiss()
+            if (maleUserId > 0 && receiverId > 0 && callId > 0) {
+                // Fire-and-forget; call teardown should not be blocked by network.
+                callDropStatusViewModel.saveCallDropStatus(
+                    userId = maleUserId,
+                    receivedUserId = receiverId,
+                    callId = callId,
+                    callDropStatus = 1
+                )
+            } else {
+                Log.w(
+                    "CallDropStatusAPI",
+                    "Skip call_drop_status: userId=$maleUserId receiverId=$receiverId callId=$callId"
+                )
+            }
             leaveChannel(binding.LeaveButton)
         }
         
