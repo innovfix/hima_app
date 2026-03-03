@@ -15,6 +15,7 @@ import com.google.android.material.tabs.TabLayoutMediator
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Paint
 import android.os.CountDownTimer
@@ -90,6 +91,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
     private var mobile: String? = null
     private var truecallerCodeVerifier: String? = "0"
     private var timer: CountDownTimer?=null
+    private var sendOtpEnabledTint: ColorStateList? = null
 
     // Colors, images, titles, subtitles for onboarding
     private val colors = listOf(R.color.purple_400, R.color.brown, R.color.green)
@@ -442,6 +444,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         val savedReferCode = DPreferences(this).getReferralCode()
         Log.d("savedReferCode","$savedReferCode")
         checkReferal()
+        sendOtpEnabledTint = binding.btnSendOtp.backgroundTintList
 
         binding.btnSendOtp.setOnClickListener {
             closeKeyboard()
@@ -461,7 +464,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                 binding.tvOtpText.setTextColor(getColor(R.color.text_light_grey))
                 //   binding.cvLogin.setBackgroundResource(R.drawable.card_view_border_error)
                 showSnackbar("Enter a valid 10-digit mobile number")
-                binding.btnSendOtp.isEnabled = true
+                updateSendOtpButtonState()
             } else {
                 // Valid mobile number case
                 val r = Random(System.currentTimeMillis())
@@ -478,13 +481,8 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 //            false
 //        }
         binding.cbTermsAndConditions.setOnCheckedChangeListener { buttonView, isChecked ->
-            if (isChecked) {
-                //  binding.btnSendOtp.setBackgroundResource(R.drawable.d_button_bg_white)
-                binding.btnSendOtp.isEnabled = true
-            } else {
-//binding.btnSendOtp.setBackgroundResource(R.drawable.d_button_bg)
-                binding.btnSendOtp.isEnabled = false
-            }
+            // Keep button state strictly tied to terms + mobile input validity.
+            updateSendOtpButtonState()
         }
         // Filter to allow only digits (no special characters) and max 10 digits
         binding.etMobileNumber.filters = arrayOf(
@@ -504,13 +502,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
             override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
                 window.statusBarColor = resources.getColor(R.color.dark_blue)
-                if (!binding.cbTermsAndConditions.isChecked || TextUtils.isEmpty(s)) {
-                    //     binding.btnSendOtp.setBackgroundResource(R.drawable.d_button_bg)
-                    binding.btnSendOtp.isEnabled = false
-                } else {
-                    //      binding.btnSendOtp.setBackgroundResource(R.drawable.d_button_bg_white)
-                    binding.btnSendOtp.isEnabled = true
-                }
+                updateSendOtpButtonState()
             }
 
             override fun afterTextChanged(s: Editable) {
@@ -519,7 +511,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         loginViewModel.sendOTPResponseLiveData.observe(this, Observer {
             binding.pbSendOtpLoader.visibility = View.GONE
             binding.btnSendOtp.setText(getString(R.string.send_otp))
-            binding.btnSendOtp.isEnabled = true
+            updateSendOtpButtonState()
             
             // ✅ Add null check before accessing properties
             if (it == null) {
@@ -547,13 +539,26 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         loginViewModel.sendOTPErrorLiveData.observe(this, Observer {
             binding.pbSendOtpLoader.visibility = View.GONE
             binding.btnSendOtp.setText(getString(R.string.send_otp))
-            binding.btnSendOtp.isEnabled = true
+            updateSendOtpButtonState()
             binding.tvOtpText.text = getString(R.string.please_try_again_later)
             binding.tvOtpText.setTextColor(getColor(R.color.error))
             // binding.cvLogin.setBackgroundResource(R.drawable.card_view_border_error)
         })
 
         setMessageWithClickableLink()
+        updateSendOtpButtonState()
+    }
+
+    private fun updateSendOtpButtonState() {
+        val hasMobileInput = !TextUtils.isEmpty(binding.etMobileNumber.text)
+        val isTermsChecked = binding.cbTermsAndConditions.isChecked
+        val isEnabled = hasMobileInput && isTermsChecked
+        binding.btnSendOtp.isEnabled = isEnabled
+        binding.btnSendOtp.backgroundTintList = if (!isTermsChecked) {
+            ColorStateList.valueOf(getColor(R.color.grey_medium))
+        } else {
+            sendOtpEnabledTint
+        }
     }
 
     private fun setMessageWithClickableLink() {

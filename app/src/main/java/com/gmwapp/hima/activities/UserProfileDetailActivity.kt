@@ -588,11 +588,14 @@ class UserProfileDetailActivity : AppCompatActivity() {
     }
 
     private fun loadReportReasons() {
-        val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
-        if (currentUserId == 0) {
-            Log.e("UserProfileDetail", "Unable to load report reasons - invalid user ID")
+        val currentUser = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val currentUserId = currentUser?.id ?: 0
+        val currentUserGender = currentUser?.gender?.lowercase()
+
+        if (currentUserId == 0 || currentUserGender != DConstants.FEMALE.lowercase()) {
             return
         }
+
         reportUserViewModel.getReportReasons(currentUserId)
     }
 

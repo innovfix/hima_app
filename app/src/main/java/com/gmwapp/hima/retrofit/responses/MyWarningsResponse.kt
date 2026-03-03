@@ -9,6 +9,9 @@ data class MyWarningsResponse(
     @SerializedName("message")
     val message: String? = null,
 
+    @SerializedName("warning_system_image")
+    val warningSystemImage: String? = null,
+
     @SerializedName("current_level_warning_data")
     val currentLevelWarningData: CurrentLevelWarningData? = null,
 

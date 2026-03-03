@@ -116,8 +116,9 @@
             app:boxCornerRadiusBottomStart="8dp"
             app:boxCornerRadiusTopEnd="8dp"
             app:boxCornerRadiusTopStart="8dp"
-            app:hintEnabled="true"
-            app:hintTextColor="@android:color/darker_gray"
+            app:hintEnabled="false"
+            app:placeholderText="Please tell us what went wrong"
+            app:placeholderTextColor="@android:color/darker_gray"
             app:boxStrokeColor="@color/colorPrimary"
             app:boxStrokeWidth="2dp">
 
@@ -125,9 +126,7 @@
                 android:id="@+id/etDescription"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Please tell us what went wrong"
                 android:inputType="textMultiLine"
-                android:textColorHint="@android:color/darker_gray"
                 android:textColor="@android:color/black"
                 android:maxLines="4"
                 android:minLines="3"

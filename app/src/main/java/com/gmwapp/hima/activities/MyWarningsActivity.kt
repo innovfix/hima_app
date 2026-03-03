@@ -9,6 +9,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.bumptech.glide.Glide
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.adapters.MyWarningsAdapter
 import com.gmwapp.hima.databinding.ActivityMyWarningsBinding
@@ -30,8 +31,8 @@ class MyWarningsActivity : AppCompatActivity() {
         binding = ActivityMyWarningsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        binding.cvBack.setOnClickListener {     val messageCameWhenIsAlive = BaseApplication.getInstance()?.messageCameWhenIsAlive ?: 0
-
+        binding.cvBack.setOnClickListener {
+            val messageCameWhenIsAlive = BaseApplication.getInstance()?.messageCameWhenIsAlive ?: 0
             if (messageCameWhenIsAlive == 0) {
                 val intent = Intent(this@MyWarningsActivity, MainActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -40,8 +41,12 @@ class MyWarningsActivity : AppCompatActivity() {
                 finish()
             } else {
                 finish()
-            } }
+            }
+        }
         binding.ivMore.setOnClickListener {
+            showHistoryBottomSheet(oldWarningsCache)
+        }
+        binding.tvHistoryHint.setOnClickListener {
             showHistoryBottomSheet(oldWarningsCache)
         }
 
@@ -66,7 +71,9 @@ class MyWarningsActivity : AppCompatActivity() {
             }
 
             oldWarningsCache = response.oldWarningData ?: emptyList()
-            binding.ivMore.visibility = if (oldWarningsCache.isNotEmpty()) View.VISIBLE else View.GONE
+            val hasHistory = oldWarningsCache.isNotEmpty()
+            binding.cvMoreBtn.visibility = View.GONE
+            binding.tvHistoryHint.visibility = if (hasHistory) View.VISIBLE else View.GONE
 
             // Current warning data (only)
             val current = response.currentLevelWarningData
@@ -104,8 +111,21 @@ class MyWarningsActivity : AppCompatActivity() {
                 binding.tvCurrentDetails.visibility = View.GONE
             }
 
+            val warningSystemImage = response.warningSystemImage?.trim()
+            if (!warningSystemImage.isNullOrEmpty()) {
+                binding.cvWarningSystemImage.visibility = View.VISIBLE
+                Glide.with(this)
+                    .load(warningSystemImage)
+                    .into(binding.ivWarningSystemImage)
+            } else {
+                binding.cvWarningSystemImage.visibility = View.GONE
+            }
+
             // If current warning is missing, show empty state.
-            val hasCurrent = current?.level != null || !current?.title.isNullOrBlank() || !current?.details.isNullOrBlank()
+            val hasCurrent = current?.level != null ||
+                !current?.title.isNullOrBlank() ||
+                !current?.details.isNullOrBlank() ||
+                !response.warningSystemImage.isNullOrBlank()
             if (!hasCurrent) {
                 showEmpty(showSummary = false)
                 binding.tvEmptyTitle.text =
@@ -139,6 +159,8 @@ class MyWarningsActivity : AppCompatActivity() {
     private fun showEmpty(showSummary: Boolean) {
         binding.llEmptyState.visibility = View.VISIBLE
         binding.cvSummary.visibility = if (showSummary) View.VISIBLE else View.GONE
+        binding.cvWarningSystemImage.visibility = View.GONE
+        binding.cvInfoCard.visibility = View.GONE
         binding.rvWarnings.visibility = View.GONE
     }
 
@@ -151,6 +173,8 @@ class MyWarningsActivity : AppCompatActivity() {
     private fun showCurrentOnly() {
         binding.llEmptyState.visibility = View.GONE
         binding.cvSummary.visibility = View.VISIBLE
+        // Keep image card visibility controlled from observe() based on API field.
+        binding.cvInfoCard.visibility = View.VISIBLE
         binding.rvWarnings.visibility = View.GONE
     }
 

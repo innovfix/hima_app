@@ -7,131 +7,204 @@
     android:layout_height="wrap_content"
     android:layout_marginBottom="12dp"
     app:cardBackgroundColor="@color/white"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="2dp"
-    app:strokeColor="#E5E7EB"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="3dp"
+    app:strokeColor="#F3F4F6"
     app:strokeWidth="1dp">
 
+    <!-- Left accent bar + content -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:orientation="horizontal">
 
-        <!-- Top row: level + restriction chips -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <TextView
-                android:id="@+id/tv_level"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/badge_warning"
-                android:fontFamily="@font/poppins_semibold"
-                android:paddingHorizontal="12dp"
-                android:paddingVertical="4dp"
-                android:text=""
-                android:textAllCaps="true"
-                android:textColor="#D97706"
-                android:textSize="11sp"
-                tools:text="Level 1" />
-
-            <View
-                android:layout_width="0dp"
-                android:layout_height="1dp"
-                android:layout_weight="1" />
-
-            <TextView
-                android:id="@+id/chip_blocked"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:background="@drawable/badge_warning"
-                android:fontFamily="@font/poppins_semibold"
-                android:paddingHorizontal="10dp"
-                android:paddingVertical="4dp"
-                android:text=""
-                android:textAllCaps="true"
-                android:textColor="#D97706"
-                android:textSize="10sp"
-                android:visibility="gone"
-                tools:text="Blocked"
-                tools:visibility="visible" />
-
-            <TextView
-                android:id="@+id/chip_withdraw_disabled"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:background="@drawable/badge_warning"
-                android:fontFamily="@font/poppins_semibold"
-                android:paddingHorizontal="10dp"
-                android:paddingVertical="4dp"
-                android:text=""
-                android:textAllCaps="true"
-                android:textColor="#D97706"
-                android:textSize="10sp"
-                android:visibility="gone"
-                tools:text="Withdrawal disabled"
-                tools:visibility="visible" />
-        </LinearLayout>
-
-        <TextView
-            android:id="@+id/tv_title"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:fontFamily="@font/poppins_semibold"
-            android:text=""
-            android:textColor="#1F2937"
-            android:textSize="15sp"
-            tools:text="Level 1: Warning" />
-
-        <TextView
-            android:id="@+id/tv_details"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:fontFamily="@font/poppins_regular"
-            android:lineSpacingExtra="2dp"
-            android:text=""
-            android:textColor="#6B7280"
-            android:textSize="14sp"
-            android:visibility="gone"
-            tools:text="Do not share contact details on call."
-            tools:visibility="visible" />
-
-        <TextView
-            android:id="@+id/tv_extra"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:fontFamily="@font/poppins_medium"
-            android:textColor="#374151"
-            android:textSize="13sp"
-            android:visibility="gone" />
-
+        <!-- Orange-amber left accent stripe -->
         <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginTop="12dp"
-            android:background="#E5E7EB" />
+            android:layout_width="5dp"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_warning_left_accent" />
 
-        <TextView
-            android:id="@+id/tv_date"
-            android:layout_width="wrap_content"
+        <!-- Card content -->
+        <LinearLayout
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:fontFamily="@font/poppins_regular"
-            android:text=""
-            android:textColor="#9CA3AF"
-            android:textSize="12sp"
-            tools:text="17 Feb 2026 10:00 AM" />
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:paddingStart="14dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="14dp"
+            android:paddingBottom="14dp">
+
+            <!-- ── TOP ROW: level badge + chips ── -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <!-- Level badge -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:cardCornerRadius="6dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="#FFF7ED"
+                    app:strokeColor="#FDBA74"
+                    app:strokeWidth="1dp">
+
+                    <TextView
+                        android:id="@+id/tv_level"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="4dp"
+                        android:fontFamily="@font/poppins_semibold"
+                        android:text=""
+                        android:textAllCaps="true"
+                        android:textColor="#D97706"
+                        android:textSize="10sp"
+                        tools:text="Level 1" />
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
+                <!-- Blocked chip -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_chip_blocked"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:visibility="gone"
+                    app:cardCornerRadius="6dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="#FEE2E2"
+                    app:strokeColor="#FCA5A5"
+                    app:strokeWidth="1dp">
+
+                    <TextView
+                        android:id="@+id/chip_blocked"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="4dp"
+                        android:fontFamily="@font/poppins_semibold"
+                        android:text=""
+                        android:textAllCaps="true"
+                        android:textColor="#DC2626"
+                        android:textSize="10sp"
+                        tools:text="Blocked" />
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Withdraw Disabled chip -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_chip_withdraw"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:visibility="gone"
+                    app:cardCornerRadius="6dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="#FEF3C7"
+                    app:strokeColor="#FDE68A"
+                    app:strokeWidth="1dp">
+
+                    <TextView
+                        android:id="@+id/chip_withdraw_disabled"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="4dp"
+                        android:fontFamily="@font/poppins_semibold"
+                        android:text=""
+                        android:textAllCaps="true"
+                        android:textColor="#B45309"
+                        android:textSize="10sp"
+                        tools:text="Withdrawal Disabled" />
+
+                </com.google.android.material.card.MaterialCardView>
+
+            </LinearLayout>
+
+            <!-- ── Title ── -->
+            <TextView
+                android:id="@+id/tv_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:fontFamily="@font/poppins_semibold"
+                android:lineSpacingExtra="2dp"
+                android:text=""
+                android:textColor="#1F2937"
+                android:textSize="14sp"
+                tools:text="Level 1: Warning" />
+
+            <!-- ── Details ── -->
+            <TextView
+                android:id="@+id/tv_details"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:fontFamily="@font/poppins_regular"
+                android:lineSpacingExtra="3dp"
+                android:text=""
+                android:textColor="#6B7280"
+                android:textSize="13sp"
+                android:visibility="gone"
+                tools:text="Do not share contact details on call."
+                tools:visibility="visible" />
+
+            <!-- Extra text (hidden, for code compat) -->
+            <TextView
+                android:id="@+id/tv_extra"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:fontFamily="@font/poppins_medium"
+                android:textColor="#374151"
+                android:textSize="13sp"
+                android:visibility="gone" />
+
+            <!-- ── Divider ── -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="12dp"
+                android:background="#F3F4F6" />
+
+            <!-- ── Date ── -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="13dp"
+                    android:layout_height="13dp"
+                    android:src="@drawable/ic_clock"
+                    app:tint="#9CA3AF" />
+
+                <TextView
+                    android:id="@+id/tv_date"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:fontFamily="@font/poppins_regular"
+                    android:text=""
+                    android:textColor="#9CA3AF"
+                    android:textSize="11sp"
+                    tools:text="17 Feb 2026 10:00 AM" />
+
+            </LinearLayout>
+
+        </LinearLayout>
 
     </LinearLayout>
 
 </com.google.android.material.card.MaterialCardView>
-

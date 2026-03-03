@@ -69,16 +69,9 @@ class MyWarningsAdapter(
             // Don't hardcode extra policy strings; show only if backend sends details text.
             binding.tvExtra.visibility = View.GONE
 
-            binding.chipBlocked.visibility = if (item.blockEnabled == true) View.VISIBLE else View.GONE
-            if (binding.chipBlocked.visibility == View.VISIBLE && binding.chipBlocked.text.isNullOrBlank()) {
-                binding.chipBlocked.text = "Blocked"
-            }
-
-            binding.chipWithdrawDisabled.visibility =
-                if (item.withdrawalDisabled == true) View.VISIBLE else View.GONE
-            if (binding.chipWithdrawDisabled.visibility == View.VISIBLE && binding.chipWithdrawDisabled.text.isNullOrBlank()) {
-                binding.chipWithdrawDisabled.text = "Withdrawal disabled"
-            }
+            // Keep header clean in history cards: show only the level badge.
+            binding.cardChipBlocked.visibility = View.GONE
+            binding.cardChipWithdraw.visibility = View.GONE
 
             binding.tvDate.text = item.date ?: ""
         }

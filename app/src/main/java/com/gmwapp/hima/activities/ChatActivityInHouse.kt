@@ -183,10 +183,10 @@ class ChatActivityInHouse : AppCompatActivity() {
         
         if (isMaleUser) {
             // Hide back button and align avatar from start for male users
-            cvBack.visibility = View.GONE
-            val layoutParams = ivUser.layoutParams as android.view.ViewGroup.MarginLayoutParams
-            layoutParams.marginStart = 0
-            ivUser.layoutParams = layoutParams
+//            cvBack.visibility = View.GONE
+//            val layoutParams = ivUser.layoutParams as android.view.ViewGroup.MarginLayoutParams
+//            layoutParams.marginStart = 0
+//            ivUser.layoutParams = layoutParams
         } else {
             // Keep back button visible and avatar with margin for female users
             cvBack.visibility = View.VISIBLE
