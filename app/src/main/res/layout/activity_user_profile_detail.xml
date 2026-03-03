@@ -91,8 +91,30 @@
                 android:layout_width="match_parent"
                 android:layout_height="?attr/actionBarSize"
                 app:layout_collapseMode="pin"
-                app:navigationIcon="@drawable/ic_back"
                 app:popupTheme="@style/ThemeOverlay.AppCompat.Light">
+
+                <!-- Custom Back Button with grey box -->
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/cv_back"
+                    android:layout_width="42dp"
+                    android:layout_height="42dp"
+                    android:layout_gravity="start|center_vertical"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="1dp"
+                    app:cardBackgroundColor="#F8F9FA"
+                    app:contentPadding="0dp">
+
+                    <ImageView
+                        android:id="@+id/iv_back"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:padding="11dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_back"
+                        android:contentDescription="Back"
+                        app:tint="#374151" />
+
+                </androidx.cardview.widget.CardView>
 
                 <!-- Favourite Icon -->
                 <com.google.android.material.card.MaterialCardView

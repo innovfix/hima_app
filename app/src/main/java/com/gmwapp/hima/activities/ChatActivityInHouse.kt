@@ -178,24 +178,12 @@ class ChatActivityInHouse : AppCompatActivity() {
         }
 
         // Configure UI based on user gender
-        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        val isMaleUser = userData?.gender?.equals(DConstants.MALE, ignoreCase = true) == true
-        
-        if (isMaleUser) {
-            // Hide back button and align avatar from start for male users
-//            cvBack.visibility = View.GONE
-//            val layoutParams = ivUser.layoutParams as android.view.ViewGroup.MarginLayoutParams
-//            layoutParams.marginStart = 0
-//            ivUser.layoutParams = layoutParams
-        } else {
-            // Keep back button visible and avatar with margin for female users
-            cvBack.visibility = View.VISIBLE
-            val layoutParams = ivUser.layoutParams as android.view.ViewGroup.MarginLayoutParams
-            // Convert 12dp to pixels
-            val marginInPx = (12 * resources.displayMetrics.density).toInt()
-            layoutParams.marginStart = marginInPx
-            ivUser.layoutParams = layoutParams
-        }
+        // Always show back button for all users with consistent avatar margin
+        cvBack.visibility = View.VISIBLE
+        val layoutParams = ivUser.layoutParams as android.view.ViewGroup.MarginLayoutParams
+        val marginInPx = (12 * resources.displayMetrics.density).toInt()
+        layoutParams.marginStart = marginInPx
+        ivUser.layoutParams = layoutParams
 
         window.statusBarColor = ContextCompat.getColor(this, R.color.white)
 

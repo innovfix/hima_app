@@ -311,10 +311,10 @@ class UserProfileDetailActivity : AppCompatActivity() {
 
     private fun setupToolbar() {
         setSupportActionBar(binding.toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.setDisplayHomeAsUpEnabled(false)
         supportActionBar?.setDisplayShowTitleEnabled(false)
-        
-        binding.toolbar.setNavigationOnClickListener {
+
+        binding.cvBack.setOnClickListener {
             finish()
         }
     }
