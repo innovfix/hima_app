@@ -294,10 +294,10 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         setContentView(binding.root)
         
         // ✅ Restrict screenshots and screen recording
-//        window.setFlags(
-//            WindowManager.LayoutParams.FLAG_SECURE,
-//            WindowManager.LayoutParams.FLAG_SECURE
-//        )
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
         
         // ✅ Set status bar and navigation bar to black with light icons
         window.statusBarColor = android.graphics.Color.BLACK

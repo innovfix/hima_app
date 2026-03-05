@@ -11,6 +11,8 @@ import android.util.Log
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.viewpager2.adapter.FragmentStateAdapter
@@ -85,6 +87,20 @@ class ChatListActivity : AppCompatActivity() {
                 android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
             )
         }
+
+        // Match home-screen inset behavior so header stays below status bar on Android 15/16.
+        val baseTopPadding = binding.appBarLayout.paddingTop
+        ViewCompat.setOnApplyWindowInsetsListener(binding.appBarLayout) { view, insets ->
+            val statusBarInset = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
+            view.setPadding(
+                view.paddingLeft,
+                baseTopPadding + statusBarInset,
+                view.paddingRight,
+                view.paddingBottom
+            )
+            insets
+        }
+        ViewCompat.requestApplyInsets(binding.appBarLayout)
     }
 
     private fun setupUserId() {
