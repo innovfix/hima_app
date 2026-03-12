@@ -435,10 +435,10 @@
                 android:textSize="18sp"
                 app:hideLineWhenFilled="true"
                 app:itemCount="6"
-                app:itemHeight="50dp"
+                app:itemHeight="46dp"
                 app:itemRadius="8dp"
-                app:itemSpacing="8dp"
-                app:itemWidth="48dp"
+                app:itemSpacing="4dp"
+                app:itemWidth="42dp"
                 app:lineColor="@color/colorAccent"
                 app:lineWidth="2dp" />
 

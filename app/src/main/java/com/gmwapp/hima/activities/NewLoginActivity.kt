@@ -35,6 +35,7 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.core.view.WindowCompat
 import androidx.core.text.HtmlCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
@@ -317,7 +318,13 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         super.onCreate(savedInstanceState)
         binding = ActivityNewLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        enableEdgeToEdge()
+        // Keep system bars opaque on login for better readability of SDK consent footer.
+        window.statusBarColor = getColor(R.color.pink)
+        window.navigationBarColor = getColor(R.color.pink)
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = false
+            isAppearanceLightNavigationBars = false
+        }
 
         // Add animated background (same as splash screen)
         startBackgroundAnimations()
