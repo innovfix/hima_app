@@ -97,6 +97,7 @@ import com.gmwapp.hima.retrofit.responses.GetFemaleTalkDurationResponse
 import com.gmwapp.hima.retrofit.responses.InstallReferrerResponse
 import com.gmwapp.hima.retrofit.responses.FirstInstallResponse
 import com.gmwapp.hima.retrofit.responses.AgoraTokenResponse
+import com.gmwapp.hima.retrofit.responses.LudoFcmResponse
 import com.gmwapp.hima.retrofit.responses.GetFemaleNotificationPreferenceRequest
 import com.gmwapp.hima.retrofit.responses.GetFemaleNotificationPreferenceResponse
 import com.gmwapp.hima.retrofit.responses.CheckRatingEligibilityResponse
@@ -613,6 +614,28 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<SendGiftResponse> = getApiInterface().sendGift(userId, receiverId, giftId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun sendLudoFcm(
+        action: String,
+        fromUserId: Int? = null,
+        toUserId: Int? = null,
+        inviteId: String? = null,
+        callId: String? = null,
+        callback: NetworkCallback<LudoFcmResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<LudoFcmResponse> = getApiInterface().sendLudoFcm(
+                action = action,
+                fromUserId = fromUserId,
+                toUserId = toUserId,
+                inviteId = inviteId,
+                callId = callId
+            )
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -2111,6 +2134,16 @@ interface ApiInterface {
         @Field("receiver_id") receiverId: Int,
         @Field("gift_id") giftId: Int
     ): Call<SendGiftResponse>
+
+    @FormUrlEncoded
+    @POST("send_ludo_fcm")
+    fun sendLudoFcm(
+        @Field("action") action: String,
+        @Field("from_user_id") fromUserId: Int? = null,
+        @Field("to_user_id") toUserId: Int? = null,
+        @Field("invite_id") inviteId: String? = null,
+        @Field("call_id") callId: String? = null
+    ): Call<LudoFcmResponse>
 
     @POST("createUpigateway")
     @FormUrlEncoded

@@ -54,6 +54,7 @@ import com.appsflyer.AppsFlyerLib
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.PaymentWebViewActivity
 import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.activities.RatingActivity
 import com.gmwapp.hima.activities.WalletActivity
@@ -75,6 +76,7 @@ import com.gmwapp.hima.viewmodels.GiftImageViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.viewmodels.UserAvatarViewModel
 import com.gmwapp.hima.viewmodels.CallDropStatusViewModel
+import com.gmwapp.hima.viewmodels.LudoFcmViewModel
 import com.gmwapp.hima.workers.CallUpdateWorker
 import com.google.firebase.analytics.FirebaseAnalytics
 import dagger.hilt.android.AndroidEntryPoint
@@ -128,6 +130,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private val userAvatarViewModel: UserAvatarViewModel by viewModels()
     private val agoraViewModel: AgoraViewModel by viewModels()
     private val callDropStatusViewModel: CallDropStatusViewModel by viewModels()
+    private val ludoFcmViewModel: LudoFcmViewModel by viewModels()
 
     private var isSwitchingToAudio = false // ✅ Prevent multiple calls
     private var isSwitchingToVideo = false // ✅ Prevent multiple calls
@@ -177,6 +180,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     var isBlockWordDetected : Boolean = false
 
     var callId: Int = 0
+    private var pendingLudoAction: String? = null
+    private var currentLudoInviteId: String? = null
 
 
     private var isRemoteUserJoined = false
@@ -269,10 +274,10 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         setContentView(binding.root)
         
         // ✅ Restrict screenshots and screen recording
-        window.setFlags(
-            WindowManager.LayoutParams.FLAG_SECURE,
-            WindowManager.LayoutParams.FLAG_SECURE
-        )
+//        window.setFlags(
+//            WindowManager.LayoutParams.FLAG_SECURE,
+//            WindowManager.LayoutParams.FLAG_SECURE
+//        )
         
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -330,6 +335,143 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
         giftIconClicked()
         getBlockWords()
+        setupLudoInviteFlow()
+    }
+
+    private fun setupLudoInviteFlow() {
+        binding.ludoButtonCard.setOnSingleClickListener {
+            showLudoInviteConfirmDialog()
+        }
+
+        ludoFcmViewModel.ludoFcmResponseLiveData.observe(this) { response ->
+            val action = pendingLudoAction ?: return@observe
+            pendingLudoAction = null
+
+            if (!response.status) {
+                Toast.makeText(this, response.message, Toast.LENGTH_SHORT).show()
+                return@observe
+            }
+
+            when (action) {
+                "invite" -> {
+                    currentLudoInviteId = response.data?.invite_id
+                    Toast.makeText(this, "Ludo invite sent", Toast.LENGTH_SHORT).show()
+                }
+
+                "accept" -> {
+                    val joinUrl = response.data?.join_url ?: buildLudoUrl(response.data?.room_code)
+                    if (joinUrl.isNullOrBlank()) {
+                        Toast.makeText(this, "Invalid Ludo URL", Toast.LENGTH_SHORT).show()
+                    } else {
+                        openLudoWebView(joinUrl)
+                    }
+                }
+
+                "reject" -> Toast.makeText(this, "Ludo invite rejected", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        ludoFcmViewModel.ludoFcmErrorLiveData.observe(this) {
+            pendingLudoAction = null
+            Toast.makeText(this, it, Toast.LENGTH_SHORT).show()
+        }
+
+        FcmUtils.ludoEvent.observe(this) { event ->
+            if (event == null) return@observe
+
+            when (event.type) {
+                "ludo_invite" -> {
+                    if (event.fromUserId == receiverId) {
+                        showIncomingLudoInviteDialog(event)
+                    }
+                }
+
+                "ludo_invite_accepted" -> {
+                    val joinUrl = event.joinUrl ?: buildLudoUrl(event.roomCode)
+                    if (!joinUrl.isNullOrBlank()) {
+                        openLudoWebView(joinUrl)
+                    }
+                }
+
+                "ludo_invite_rejected" -> {
+                    Toast.makeText(this, "Ludo invite rejected", Toast.LENGTH_SHORT).show()
+                }
+
+                "ludo_invite_expired" -> {
+                    Toast.makeText(this, "Ludo invite expired", Toast.LENGTH_SHORT).show()
+                }
+            }
+            FcmUtils.clearLudoEvent()
+        }
+    }
+
+    private fun showLudoInviteConfirmDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Send Ludo Invite")
+            .setMessage("Do you want to send Ludo invite to this user?")
+            .setNegativeButton("No") { dialog, _ -> dialog.dismiss() }
+            .setPositiveButton("Yes") { _, _ ->
+                if (maleUserId <= 0 || receiverId <= 0) {
+                    Toast.makeText(this, "Unable to send invite", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                pendingLudoAction = "invite"
+                ludoFcmViewModel.sendLudoFcm(
+                    action = "invite",
+                    fromUserId = maleUserId,
+                    toUserId = receiverId,
+                    callId = callId.toString()
+                )
+            }
+            .show()
+    }
+
+    private fun showIncomingLudoInviteDialog(event: FcmUtils.LudoEvent) {
+        val inviteId = event.inviteId ?: return
+        val currentUserId = maleUserId
+        if (currentUserId <= 0) return
+
+        AlertDialog.Builder(this)
+            .setTitle("Ludo Invite")
+            .setMessage("${event.fromUserName ?: "User"} invited you to play Ludo.")
+            .setNegativeButton("Reject") { _, _ ->
+                pendingLudoAction = "reject"
+                ludoFcmViewModel.sendLudoFcm(
+                    action = "reject",
+                    fromUserId = currentUserId,
+                    toUserId = event.fromUserId,
+                    inviteId = inviteId,
+                    callId = callId.toString()
+                )
+            }
+            .setPositiveButton("Accept") { _, _ ->
+                currentLudoInviteId = inviteId
+                pendingLudoAction = "accept"
+                ludoFcmViewModel.sendLudoFcm(
+                    action = "accept",
+                    fromUserId = currentUserId,
+                    toUserId = event.fromUserId,
+                    inviteId = inviteId,
+                    callId = callId.toString()
+                )
+            }
+            .show()
+    }
+
+    private fun buildLudoUrl(roomCode: String?): String? {
+        return if (roomCode.isNullOrBlank()) null else "https://demohima.himaapp.in/ludogame?room=$roomCode"
+    }
+
+    private fun openLudoWebView(url: String) {
+        val intent = PaymentWebViewActivity.createLudoIntent(
+            context = this,
+            url = url,
+            fromUserId = maleUserId,
+            toUserId = receiverId,
+            callId = callId.toString(),
+            inviteId = currentLudoInviteId
+        )
+        startActivity(intent)
     }
 
     private fun getAgoraTokenFromBackend() {

@@ -5,6 +5,15 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 
 object FcmUtils {
+    data class LudoEvent(
+        val type: String,
+        val inviteId: String? = null,
+        val roomCode: String? = null,
+        val fromUserId: Int? = null,
+        val fromUserName: String? = null,
+        val joinUrl: String? = null
+    )
+
     private val _callStatus = MutableLiveData<Pair<String, String>?>()  // Make it nullable
     val callStatus: LiveData<Pair<String, String>?> get() = _callStatus
 
@@ -25,6 +34,9 @@ object FcmUtils {
 
     private val _userBusyStatus = MutableLiveData<Pair<String, String>?>() // (callType, userName)
     val userBusyStatus: LiveData<Pair<String, String>?> get() = _userBusyStatus
+
+    private val _ludoEvent = MutableLiveData<LudoEvent?>()
+    val ludoEvent: LiveData<LudoEvent?> get() = _ludoEvent
 
     fun updateCallStatus(status: String, channelName: String) {
         _callStatus.postValue(Pair(status, channelName))
@@ -64,6 +76,15 @@ object FcmUtils {
     fun clearUserBusyStatus() {
         _userBusyStatus.postValue(null)
         Log.d("FcmUtils", "User busy status cleared")
+    }
+
+    fun updateLudoEvent(event: LudoEvent) {
+        _ludoEvent.postValue(event)
+        Log.d("FcmUtils", "Ludo event updated: type=${event.type}, invite=${event.inviteId}")
+    }
+
+    fun clearLudoEvent() {
+        _ludoEvent.postValue(null)
     }
 
 

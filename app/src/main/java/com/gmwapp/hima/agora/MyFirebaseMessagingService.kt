@@ -90,6 +90,33 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 return
             }
 
+            if (type == "ludo_invite" ||
+                type == "ludo_invite_accepted" ||
+                type == "ludo_invite_rejected" ||
+                type == "ludo_invite_expired" ||
+                type == "game_end" ||
+                message == "game_end"
+            ) {
+                val ludoInviteId = remoteMessage.data["invite_id"]
+                val roomCode = remoteMessage.data["room_code"]
+                val fromUserId = remoteMessage.data["from_user_id"]?.toIntOrNull()
+                    ?: remoteMessage.data["by_user_id"]?.toIntOrNull()
+                val fromUserName = remoteMessage.data["from_user_name"]
+                val joinUrl = remoteMessage.data["join_url"]
+
+                FcmUtils.updateLudoEvent(
+                    FcmUtils.LudoEvent(
+                        type = if (message == "game_end") "game_end" else type,
+                        inviteId = ludoInviteId,
+                        roomCode = roomCode,
+                        fromUserId = fromUserId,
+                        fromUserName = fromUserName,
+                        joinUrl = joinUrl
+                    )
+                )
+                return
+            }
+
 
             val currentActivity = BaseApplication.getInstance()?.getCurrentActivity()
 
