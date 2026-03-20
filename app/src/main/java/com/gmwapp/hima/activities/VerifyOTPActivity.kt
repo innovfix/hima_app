@@ -51,6 +51,9 @@ class VerifyOTPActivity : BaseActivity() {
         binding.tvOtpMobileNumber.text = " $mobileNumber"
         binding.tvOtpMobileNumber.paintFlags =
             binding.tvOtpMobileNumber.paintFlags or Paint.UNDERLINE_TEXT_FLAG
+        binding.ivBack.setOnSingleClickListener {
+            finish()
+        }
         binding.ivEdit.setOnSingleClickListener {
             finish()
         }

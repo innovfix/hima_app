@@ -41,9 +41,16 @@ class RecentCallsAdapter(
     private val callList: ArrayList<CallsListResponseData>,
     val onAudioListener: OnItemSelectionListener<CallsListResponseData>,
     val onVideoListener: OnItemSelectionListener<CallsListResponseData>,
-    val isFavouriteMode: Boolean = false, // Flag to indicate if this is for favorites
-    val apiManager: ApiManager? = null // ApiManager for checking friend status
+    val isFavouriteMode: Boolean = false,
+    val apiManager: ApiManager? = null
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+
+    private var currentFilter: String = "recent"
+
+    fun setFilter(filter: String) {
+        currentFilter = filter
+        notifyDataSetChanged()
+    }
 
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {

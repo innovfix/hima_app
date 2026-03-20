@@ -6,6 +6,7 @@ import com.gmwapp.hima.retrofit.responses.AvatarsListResponse
 import com.gmwapp.hima.retrofit.responses.CallsListResponse
 import com.gmwapp.hima.retrofit.responses.DeleteUserResponse
 import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
+import com.gmwapp.hima.retrofit.responses.MissedCallCountResponse
 import com.gmwapp.hima.retrofit.responses.RegisterResponse
 import com.gmwapp.hima.retrofit.responses.SpeechTextResponse
 import com.gmwapp.hima.retrofit.responses.UpdateProfileResponse
@@ -22,6 +23,14 @@ class ProfileRepositories @Inject constructor(private val apiManager: ApiManager
 
     fun getCallsList(userId: Int, gender: String, limit: Int, currentOffset: Int, type: String, search: String?, fav: Int? = null, callback: NetworkCallback<CallsListResponse>) {
         apiManager.getCallsList(userId, gender, limit, currentOffset, type, search, fav, callback)
+    }
+
+    fun getMissedCallCount(
+        userId: Int,
+        seen: Int,
+        callback: NetworkCallback<MissedCallCountResponse>
+    ) {
+        apiManager.getMissedCallCount(userId, seen, callback)
     }
 
     fun register(

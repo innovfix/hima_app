@@ -39,11 +39,13 @@ import com.gmwapp.hima.retrofit.responses.FemaleNotificationPreferenceResponse
 import com.gmwapp.hima.retrofit.responses.GetFemaleNotificationPreferenceResponse
 import com.gmwapp.hima.retrofit.responses.RemoveFavoriteResponse
 import com.gmwapp.hima.retrofit.responses.ReportReason
+import com.google.android.material.appbar.AppBarLayout
 import retrofit2.Call
 import retrofit2.Response
 import javax.inject.Inject
 import com.gmwapp.hima.viewmodels.BlockUserViewModel
 import com.gmwapp.hima.viewmodels.ReportUserViewModel
+import kotlin.math.abs
 
 @AndroidEntryPoint
 class UserProfileDetailActivity : AppCompatActivity() {
@@ -83,6 +85,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
     private var isUserBlocked: Boolean = false
     private var blockStatusChecked: Boolean = false
     private var isUpdatingNotifyPreference = false
+    private var displayedUserName: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -97,6 +100,9 @@ class UserProfileDetailActivity : AppCompatActivity() {
         
         // Populate UI
         populateUserData()
+
+        // Show profile name in the top bar after collapsing
+        setupToolbarTitleOnScroll()
         
         // Setup click listeners
         setupClickListeners()
@@ -319,7 +325,21 @@ class UserProfileDetailActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupToolbarTitleOnScroll() {
+        binding.tvToolbarUserName.text = displayedUserName
+        binding.tvToolbarUserName.visibility = View.GONE
+
+        binding.appBarLayout.addOnOffsetChangedListener(
+            AppBarLayout.OnOffsetChangedListener { appBarLayout, verticalOffset ->
+                val isCollapsed = abs(verticalOffset) >= appBarLayout.totalScrollRange
+                binding.tvToolbarUserName.visibility = if (isCollapsed) View.VISIBLE else View.GONE
+            }
+        )
+    }
+
     private fun populateUserData() {
+        displayedUserName = extractNameOnly(userName).ifBlank { userName }
+
         // Set user image
         Glide.with(this)
             .load(userImage)
@@ -329,7 +349,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
             .into(binding.ivProfileImage)
 
         // Set user name and age - remove trailing numbers from username
-        binding.tvUserName.text = extractNameOnly(userName)
+        binding.tvUserName.text = displayedUserName
         if (userAge > 0) {
             binding.tvUserAge.text = "$userAge years old"
         } else {

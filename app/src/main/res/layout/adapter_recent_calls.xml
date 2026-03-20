@@ -137,27 +137,35 @@
                 android:textSize="17sp"
                 android:letterSpacing="-0.01" />
 
-            <com.google.android.material.card.MaterialCardView
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="5dp"
-                app:cardBackgroundColor="@color/grey_extra_light"
-                app:cardCornerRadius="6dp"
-                app:cardElevation="0dp"
-                app:strokeWidth="0dp">
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
 
-                <TextView
-                    android:id="@+id/tv_time"
+                <com.google.android.material.card.MaterialCardView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:fontFamily="@font/poppins_medium"
-                    android:maxLines="1"
-                    android:paddingHorizontal="10dp"
-                    android:paddingVertical="3dp"
-                    android:text="Today 08:16 PM"
-                    android:textColor="@color/grey_medium"
-                    android:textSize="10sp" />
-            </com.google.android.material.card.MaterialCardView>
+                    app:cardBackgroundColor="@color/grey_extra_light"
+                    app:cardCornerRadius="6dp"
+                    app:cardElevation="0dp"
+                    app:strokeWidth="0dp">
+
+                    <TextView
+                        android:id="@+id/tv_time"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/poppins_medium"
+                        android:maxLines="1"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="3dp"
+                        android:text="Today 08:16 PM"
+                        android:textColor="@color/grey_medium"
+                        android:textSize="10sp" />
+                </com.google.android.material.card.MaterialCardView>
+
+            </LinearLayout>
         </LinearLayout>
 
         <!-- Right Side Container - Buttons and Amount -->

@@ -5,8 +5,10 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Observer
@@ -53,12 +55,19 @@ class SelectLanguageActivity : BaseActivity() {
         val layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
         binding.rvLanguages.layoutManager = layoutManager
         binding.ivBack.setOnSingleClickListener {
-            finish()
+            handleBackPress()
         }
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                this@SelectLanguageActivity.handleBackPress()
+            }
+        })
         profileViewModel.registerErrorLiveData.observe(this, Observer {
+            setContinueLoading(false)
             Toast.makeText(this@SelectLanguageActivity, it, Toast.LENGTH_LONG).show()
         })
         profileViewModel.registerLiveData.observe(this, Observer {
+            setContinueLoading(false)
             if (it!=null && it.success) {
                 BaseApplication.getInstance()?.getPrefs()?.setUserData(it.data)
                 BaseApplication.getInstance()?.getPrefs()?.setAuthenticationToken(it.token)
@@ -140,6 +149,11 @@ class SelectLanguageActivity : BaseActivity() {
             }
         })
         binding.btnContinue.setOnSingleClickListener {
+            if (selectedLanguage.isNullOrEmpty()) {
+                Toast.makeText(this, "Please select a language", Toast.LENGTH_SHORT).show()
+                return@setOnSingleClickListener
+            }
+            setContinueLoading(true)
             val gender = intent.getStringExtra(DConstants.GENDER).toString()
             val savedReferCode = DPreferences(this).getReferralCode()
             Log.d("savedReferCode","$savedReferCode")
@@ -167,12 +181,12 @@ class SelectLanguageActivity : BaseActivity() {
             }
         }
         val interestsListAdapter = LanguageAdapter(this, arrayListOf(
-            Language(getString(R.string.hindi), R.drawable.hindi, false),
+            Language(getString(R.string.tamil), R.drawable.tamil, false),
             Language(getString(R.string.telugu), R.drawable.telugu, false),
             Language(getString(R.string.malayalam), R.drawable.malayalam, false),
             Language(getString(R.string.kannada), R.drawable.kannada, false),
+            Language(getString(R.string.hindi), R.drawable.hindi, false),
             Language(getString(R.string.punjabi), R.drawable.punjabi, false),
-            Language(getString(R.string.tamil), R.drawable.tamil, false),
             Language(getString(R.string.marathi), R.drawable.marathi, false),
             Language(getString(R.string.bengali), R.drawable.bengali, false),
             Language(getString(R.string.assamese), R.drawable.assamese, false),
@@ -180,8 +194,8 @@ class SelectLanguageActivity : BaseActivity() {
             Language(getString(R.string.gujarati), R.drawable.gujarati, false),
         ), object : OnItemSelectionListener<Language> {
             override fun onItemSelected(language: Language) {
-                binding.btnContinue.isEnabled = true
                 selectedLanguage = language.name
+                updateContinueButtonState()
           //      binding.btnContinue.setBackgroundResource(R.drawable.d_button_bg_white)
             }
 
@@ -189,6 +203,58 @@ class SelectLanguageActivity : BaseActivity() {
 
         )
         binding.rvLanguages.setAdapter(interestsListAdapter)
+        updateContinueButtonState()
+    }
+
+    private fun setContinueLoading(isLoading: Boolean) {
+        binding.pbContinueLoader.visibility = if (isLoading) View.VISIBLE else View.GONE
+        binding.btnContinue.text = if (isLoading) "" else getString(R.string.continue_text)
+        if (isLoading) {
+            binding.btnContinue.isEnabled = false
+        } else {
+            // Keep button clickable to show toast when no language is selected.
+            binding.btnContinue.isEnabled = true
+            updateContinueButtonState()
+        }
+    }
+
+    private fun updateContinueButtonState() {
+        val hasSelection = !selectedLanguage.isNullOrEmpty()
+        // Keep button clickable so users get toast feedback when no language is selected.
+        binding.btnContinue.isEnabled = true
+        binding.btnContinue.backgroundTintList = if (hasSelection) {
+            resources.getColorStateList(R.color.colorAccent, null)
+        } else {
+            resources.getColorStateList(R.color.kyc_button_disabled, null)
+        }
+    }
+
+    private fun hasUnsavedInput(): Boolean {
+        return !selectedLanguage.isNullOrEmpty()
+    }
+
+    private fun handleBackPress() {
+        if (!hasUnsavedInput()) {
+            finish()
+            return
+        }
+
+        val dialogView = layoutInflater.inflate(R.layout.dialog_discard_changes, null)
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        dialogView.findViewById<View>(R.id.btn_keep_editing).setOnClickListener {
+            dialog.dismiss()
+        }
+        dialogView.findViewById<View>(R.id.btn_go_back).setOnClickListener {
+            dialog.dismiss()
+            finish()
+        }
+
+        dialog.show()
     }
 
 }

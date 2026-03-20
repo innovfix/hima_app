@@ -76,33 +76,40 @@ android:background="@color/white">
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <ImageView
-            android:id="@+id/iv_logo"
-            android:layout_width="@dimen/_28sdp"
-            android:layout_height="@dimen/_28sdp"
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cv_logo_icon"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
             android:layout_marginStart="24dp"
-            android:contentDescription="@string/edit"
-            android:scaleType="fitXY"
-            android:src="@drawable/logo"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
+            app:cardBackgroundColor="@color/colorAccent"
+            app:cardCornerRadius="10dp"
+            app:cardElevation="0dp"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:tint="@color/colorPrimary"
-            tools:ignore="MissingConstraints" />
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <ImageView
+                android:id="@+id/iv_logo"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:contentDescription="@string/edit"
+                android:src="@drawable/logo"
+                app:tint="@color/white" />
+        </com.google.android.material.card.MaterialCardView>
 
         <TextView
             android:id="@+id/tv_logo"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="8dp"
-            android:fontFamily="@font/poppins_semibold"
+            android:layout_marginStart="12dp"
+            android:fontFamily="@font/poppins_bold"
             android:text="@string/app_name"
-            android:textColor="@color/colorPrimary"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            app:layout_constraintBottom_toBottomOf="@+id/iv_logo"
-            app:layout_constraintStart_toEndOf="@+id/iv_logo"
-            app:layout_constraintTop_toTopOf="@+id/iv_logo" />
+            android:textColor="@color/black_light"
+            android:textSize="19sp"
+            app:layout_constraintBottom_toBottomOf="@+id/cv_logo_icon"
+            app:layout_constraintStart_toEndOf="@+id/cv_logo_icon"
+            app:layout_constraintTop_toTopOf="@+id/cv_logo_icon" />
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/cl_coins"

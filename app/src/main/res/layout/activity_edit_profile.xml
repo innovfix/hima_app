@@ -117,24 +117,32 @@
                             android:overScrollMode="never" />
 
                         <!-- Left Arrow Indicator -->
-                        <View
+                        <ImageView
+                            android:id="@+id/iv_avatar_left"
                             android:layout_width="32dp"
                             android:layout_height="32dp"
                             android:layout_alignParentStart="true"
                             android:layout_centerVertical="true"
                             android:layout_marginStart="16dp"
                             android:alpha="0.6"
-                            android:background="@drawable/swipe_indicator_left" />
+                            android:background="@drawable/swipe_indicator_left"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:contentDescription="@string/previous_avatar" />
 
                         <!-- Right Arrow Indicator -->
-                        <View
+                        <ImageView
+                            android:id="@+id/iv_avatar_right"
                             android:layout_width="32dp"
                             android:layout_height="32dp"
                             android:layout_alignParentEnd="true"
                             android:layout_centerVertical="true"
                             android:layout_marginEnd="16dp"
                             android:alpha="0.6"
-                            android:background="@drawable/swipe_indicator_right" />
+                            android:background="@drawable/swipe_indicator_right"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:contentDescription="@string/next_avatar" />
 
                     </RelativeLayout>
 

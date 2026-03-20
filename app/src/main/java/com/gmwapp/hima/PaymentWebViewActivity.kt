@@ -1,16 +1,20 @@
 package com.gmwapp.hima
 
 import android.annotation.SuppressLint
+import android.app.Dialog
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.view.ViewGroup
+import android.view.Window
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
@@ -142,14 +146,25 @@ class PaymentWebViewActivity : AppCompatActivity() {
     }
 
     private fun showEndLudoDialog() {
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("End Ludo Game")
-            .setMessage("Are you sure you want to end Ludo game?")
-            .setNegativeButton("No") { dialog, _ -> dialog.dismiss() }
-            .setPositiveButton("Yes") { _, _ ->
-                sendGameEndAndExit()
-            }
-            .show()
+        val dialog = Dialog(this)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        val view = layoutInflater.inflate(R.layout.dialog_ludo_end_game, null)
+        dialog.setContentView(view)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.window?.setLayout(
+            (resources.displayMetrics.widthPixels * 0.88).toInt(),
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        dialog.setCancelable(true)
+
+        view.findViewById<TextView>(R.id.btn_keep_playing).setOnClickListener {
+            dialog.dismiss()
+        }
+        view.findViewById<TextView>(R.id.btn_end_game).setOnClickListener {
+            dialog.dismiss()
+            sendGameEndAndExit()
+        }
+        dialog.show()
     }
 
     private fun sendGameEndAndExit() {

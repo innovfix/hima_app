@@ -86,60 +86,89 @@
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
 
-            <!-- Subtitle and Filter Row -->
-            <LinearLayout
+            <!-- Filter Chips Row -->
+            <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
+                android:layout_marginTop="12dp"
+                android:scrollbars="none"
+                android:clipToPadding="false"
+                android:paddingEnd="8dp">
 
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:fontFamily="@font/poppins_regular"
-                    android:text="Track your call activities"
-                    android:textColor="@color/grey_medium"
-                    android:textSize="13sp" />
-
-                <!-- Sort Button (Aligned with subtitle) -->
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/card_sort"
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/chip_group_filter"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="0dp"
-                    app:strokeWidth="1dp"
-                    app:strokeColor="@color/grey_light"
-                    app:cardBackgroundColor="@color/white">
+                    app:singleSelection="true"
+                    app:selectionRequired="true">
 
-                    <LinearLayout
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_all"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:paddingHorizontal="12dp"
-                        android:paddingVertical="8dp">
+                        android:layout_height="36dp"
+                        android:checked="true"
+                        android:fontFamily="@font/poppins_medium"
+                        android:text="All"
+                        android:textSize="13sp"
+                        app:chipBackgroundColor="@color/chip_bg_selector"
+                        app:chipStrokeColor="@color/chip_stroke_selector"
+                        app:chipStrokeWidth="1.2dp"
+                        app:chipCornerRadius="18dp"
+                        app:checkedIconVisible="false"
+                        android:textColor="@color/chip_text_selector" />
 
-                        <ImageView
-                            android:layout_width="18dp"
-                            android:layout_height="18dp"
-                            android:src="@drawable/ic_sort"
-                            app:tint="@color/grey_dark" />
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_missed"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="36dp"
+                        android:fontFamily="@font/poppins_medium"
+                        android:text="Missed"
+                        android:textSize="13sp"
+                        app:chipBackgroundColor="@color/chip_bg_selector"
+                        app:chipStrokeColor="@color/chip_stroke_selector"
+                        app:chipStrokeWidth="1.2dp"
+                        app:chipCornerRadius="18dp"
+                        app:checkedIconVisible="false"
+                        app:chipIcon="@drawable/ic_missed_call"
+                        app:chipIconVisible="true"
+                        app:chipIconSize="16dp"
+                        app:chipIconTint="@color/chip_missed_icon_selector"
+                        android:textColor="@color/chip_text_selector" />
 
-                        <TextView
-                            android:id="@+id/tv_sort_label"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="6dp"
-                            android:fontFamily="@font/poppins_medium"
-                            android:text="Recent"
-                            android:textColor="@color/grey_dark"
-                            android:textSize="12sp" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-            </LinearLayout>
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_talk_time"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="36dp"
+                        android:fontFamily="@font/poppins_medium"
+                        android:text="⏱ Talk Time"
+                        android:textSize="13sp"
+                        app:chipBackgroundColor="@color/chip_bg_selector"
+                        app:chipStrokeColor="@color/chip_stroke_selector"
+                        app:chipStrokeWidth="1.2dp"
+                        app:chipCornerRadius="18dp"
+                        app:checkedIconVisible="false"
+                        android:textColor="@color/chip_text_selector" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_a_z"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="36dp"
+                        android:fontFamily="@font/poppins_medium"
+                        android:text="A → Z"
+                        android:textSize="13sp"
+                        app:chipBackgroundColor="@color/chip_bg_selector"
+                        app:chipStrokeColor="@color/chip_stroke_selector"
+                        app:chipStrokeWidth="1.2dp"
+                        app:chipCornerRadius="18dp"
+                        app:checkedIconVisible="false"
+                        android:textColor="@color/chip_text_selector" />
+
+                </com.google.android.material.chip.ChipGroup>
+            </HorizontalScrollView>
 
             <!-- Search Bar -->
             <com.google.android.material.card.MaterialCardView

@@ -7,8 +7,11 @@ import android.text.TextUtils
 import android.text.TextWatcher
 import android.view.View
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.GridLayoutManager
 import com.gmwapp.hima.BaseApplication
@@ -40,14 +43,32 @@ class FemaleAboutActivity : BaseActivity() {
     private var interestsListAdapter: FemaleInterestsListAdapter? = null
     private var selectedInterests: ArrayList<String> = ArrayList()
     private var isValidAge = false;
+    private var isContinueLoading = false
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityFemaleAboutBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        WindowCompat.getInsetsController(window, window.decorView)?.isAppearanceLightStatusBars = true
         initUI()
     }
 
+    override fun onResume() {
+        super.onResume()
+        setContinueLoading(false)
+    }
+
     private fun initUI() {
+        binding.ivBack.setOnClickListener {
+            handleBackPress()
+        }
+
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                this@FemaleAboutActivity.handleBackPress()
+            }
+        })
+
       //  binding.cvEnterYourAge.setBackgroundResource(R.drawable.card_view_border)
   //      binding.cvSummary.setBackgroundResource(R.drawable.card_view_border)
 
@@ -115,13 +136,25 @@ class FemaleAboutActivity : BaseActivity() {
             val age = binding.etEnterYourAge.text.toString()
             val interests = selectedInterests.toString()
             val summary = binding.etSummary.text.toString().trim().replace("\\s+".toRegex(), " ")
-            
-            // ✅ Validation: Check minimum 15 letters
+
+            if (age.isEmpty()) {
+                Toast.makeText(this, "Please enter your age", Toast.LENGTH_SHORT).show()
+                return@setOnSingleClickListener
+            }
+            if (!isValidAge) {
+                Toast.makeText(this, "Please enter a valid age", Toast.LENGTH_SHORT).show()
+                return@setOnSingleClickListener
+            }
+            if (selectedInterests.isEmpty()) {
+                Toast.makeText(this, "Please select at least 1 interest", Toast.LENGTH_SHORT).show()
+                return@setOnSingleClickListener
+            }
             if (summary.length < 15) {
                 Toast.makeText(this, "Minimum 15 letters required", Toast.LENGTH_SHORT).show()
                 return@setOnSingleClickListener
             }
-            
+
+            setContinueLoading(true)
             val intent = Intent(this, SelectLanguageActivity::class.java)
             intent.putExtra(DConstants.AVATAR_ID, getIntent().getIntExtra(DConstants.AVATAR_ID,0))
             intent.putExtra(
@@ -192,14 +225,57 @@ class FemaleAboutActivity : BaseActivity() {
 
     }
 
+    private fun hasUnsavedInput(): Boolean {
+        val hasAge = binding.etEnterYourAge.text?.toString()?.trim()?.isNotEmpty() == true
+        val hasSummary = binding.etSummary.text?.toString()?.trim()?.isNotEmpty() == true
+        val hasInterests = selectedInterests.isNotEmpty()
+        return hasAge || hasSummary || hasInterests
+    }
+
+    private fun handleBackPress() {
+        if (!hasUnsavedInput()) {
+            finish()
+            return
+        }
+
+        val dialogView = layoutInflater.inflate(R.layout.dialog_discard_changes, null)
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        dialogView.findViewById<View>(R.id.btn_keep_editing).setOnClickListener {
+            dialog.dismiss()
+        }
+        dialogView.findViewById<View>(R.id.btn_go_back).setOnClickListener {
+            dialog.dismiss()
+            finish()
+        }
+
+        dialog.show()
+    }
+
     private fun updateButton() {
+        if (isContinueLoading) {
+            binding.btnContinue.isEnabled = false
+            return
+        }
+        // Keep button clickable to show validation toasts even when form is incomplete.
+        binding.btnContinue.isEnabled = true
         if (isValidAge && selectedInterests.size > 0 && binding.etSummary.text.length >= 15) {
-            binding.btnContinue.isEnabled = true
             binding.btnContinue.backgroundTintList = ContextCompat.getColorStateList(this, R.color.colorAccent)
         } else {
-            binding.btnContinue.isEnabled = false
             binding.btnContinue.backgroundTintList = ContextCompat.getColorStateList(this, R.color.kyc_button_disabled)
         }
+    }
+
+    private fun setContinueLoading(isLoading: Boolean) {
+        isContinueLoading = isLoading
+        binding.pbContinueLoader.visibility = if (isLoading) View.VISIBLE else View.GONE
+        binding.btnContinue.text = if (isLoading) "" else getString(R.string.continue_text)
+        updateButton()
     }
 
 }

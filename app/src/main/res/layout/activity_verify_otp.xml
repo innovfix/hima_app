@@ -28,6 +28,19 @@
         app:layout_constraintGuide_begin="20dp"
         app:layout_constraintGuide_percent="0.08" />
 
+    <ImageView
+        android:id="@+id/iv_back"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:padding="8dp"
+        android:src="@drawable/ic_back"
+        android:contentDescription="Back"
+        android:clickable="true"
+        android:focusable="true"
+        app:tint="@color/white"
+        app:layout_constraintStart_toStartOf="@+id/gl_left_margin"
+        app:layout_constraintTop_toTopOf="@+id/gl_top_margin" />
+
     <TextView
         android:id="@+id/tl_title"
         android:layout_width="wrap_content"
@@ -36,9 +49,9 @@
         android:textColor="@color/white"
         android:fontFamily="@font/poppins_regular"
         android:textSize="26sp"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="12dp"
         app:layout_constraintStart_toStartOf="@+id/gl_left_margin"
-        app:layout_constraintTop_toTopOf="@+id/gl_top_margin" />
+        app:layout_constraintTop_toBottomOf="@+id/iv_back" />
 
     <TextView
         android:id="@+id/tv_otp_mobile_number_title"

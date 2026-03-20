@@ -29,6 +29,8 @@ import com.zoho.salesiqembed.ZohoSalesIQ
 class BottomSheetLogout : BottomSheetDialogFragment() {
     lateinit var binding: BottomSheetLogoutBinding
     private val fcmTokenViewModel: FcmTokenViewModel by activityViewModels()
+    private var hasHandledLogoutNavigation = false
+    private var isLogoutInProgress = false
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -45,10 +47,12 @@ class BottomSheetLogout : BottomSheetDialogFragment() {
     private fun initUI() {
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        observeTokenResponse()
 
 
         binding.btnLogout.setOnSingleClickListener {
-
+            hasHandledLogoutNavigation = false
+            isLogoutInProgress = true
             updateFcmToken(userData?.id)
             Log.d("LogoutBtn", "Clicked")
 
@@ -64,24 +68,17 @@ class BottomSheetLogout : BottomSheetDialogFragment() {
 
     fun updateFcmToken(userId: Int?) {
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-
             userId?.let { fcmTokenViewModel.sendToken(it, "0") }
-            observeTokenResponse()
         }
     }
 
     fun observeTokenResponse() {
-        fcmTokenViewModel.tokenResponseLiveData.observe(this) { response ->
+        fcmTokenViewModel.tokenResponseLiveData.observe(viewLifecycleOwner) { response ->
+            if (!isLogoutInProgress) return@observe
             Log.d("FCMToken", "$response")
 
-            if (response==null){
-                val prefs = BaseApplication.getInstance()?.getPrefs()
-                prefs?.clearUserData()
-                val intent = Intent(context, NewLoginActivity::class.java)
-                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                startActivity(intent)
-
-            }
+            // Ignore null/intermediate emissions; only handle terminal states once.
+            if (response == null) return@observe
             response?.let {
                 if (it.success) {
                     Log.d("FCMToken", "Token updated successfully!")
@@ -97,11 +94,7 @@ class BottomSheetLogout : BottomSheetDialogFragment() {
                     OneSignal.logout()
                     OneSignal.User.pushSubscription.optOut()
                     // ZegoUIKitPrebuiltCallService.unInit()
-                    val prefs = BaseApplication.getInstance()?.getPrefs()
-                    prefs?.clearUserData()
-                    val intent = Intent(context, NewLoginActivity::class.java)
-                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                    startActivity(intent)
+                    performLogoutAndNavigate()
 
 
                 } else {
@@ -122,15 +115,28 @@ class BottomSheetLogout : BottomSheetDialogFragment() {
 
 
                     //ZegoUIKitPrebuiltCallService.unInit()
-                    val prefs = BaseApplication.getInstance()?.getPrefs()
-                    prefs?.clearUserData()
-                    val intent = Intent(context, NewLoginActivity::class.java)
-                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                    startActivity(intent)
+                    performLogoutAndNavigate()
 
                 }
             }
         }
 
+    }
+
+    private fun performLogoutAndNavigate() {
+        if (hasHandledLogoutNavigation) return
+        hasHandledLogoutNavigation = true
+        isLogoutInProgress = false
+
+        val prefs = BaseApplication.getInstance()?.getPrefs()
+        prefs?.clearUserData()
+        val hostActivity = activity ?: return
+        val intent = Intent(hostActivity, NewLoginActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+        }
+        dismissAllowingStateLoss()
+        startActivity(intent)
+        hostActivity.overridePendingTransition(0, 0)
     }
 }

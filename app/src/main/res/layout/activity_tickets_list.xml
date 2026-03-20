@@ -69,6 +69,7 @@
         android:background="@android:color/white"
         android:elevation="2dp"
         app:tabIndicatorColor="#F8BBD0"
+        app:tabRippleColor="@android:color/transparent"
         app:tabSelectedTextColor="#E91E63"
         app:tabTextColor="#757575"
         app:tabMode="fixed"

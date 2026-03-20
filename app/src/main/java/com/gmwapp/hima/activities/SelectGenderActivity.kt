@@ -25,6 +25,7 @@ class SelectGenderActivity : BaseActivity() {
     lateinit var binding: ActivitySelectGenderBinding
     private val profileViewModel: ProfileViewModel by viewModels()
     private var selectedGender = "male"
+    private var avatarsListAdapter: AvatarsListAdapter? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySelectGenderBinding.inflate(layoutInflater)
@@ -38,6 +39,11 @@ class SelectGenderActivity : BaseActivity() {
         initUI()
     }
 
+    override fun onResume() {
+        super.onResume()
+        setContinueLoading(false)
+    }
+
     private fun initUI() {
         val snapHelper = PagerSnapHelper()
         snapHelper.attachToRecyclerView(binding.rvAvatars)
@@ -48,6 +54,7 @@ class SelectGenderActivity : BaseActivity() {
         }
         
         binding.btnContinue.setOnSingleClickListener {
+            setContinueLoading(true)
             var intent:Intent? = null
             if (selectedGender == DConstants.MALE) {
                 intent = Intent(this, SelectLanguageActivity::class.java)
@@ -85,16 +92,41 @@ class SelectGenderActivity : BaseActivity() {
         profileViewModel.getAvatarsList("male")
         profileViewModel.avatarsListLiveData.observe(this, Observer {
             if (it?.data != null) {
-                val avatarsListAdapter = AvatarsListAdapter(
+                avatarsListAdapter = AvatarsListAdapter(
                     this, it.data
                 )
                 binding.rvAvatars.setAdapter(avatarsListAdapter)
                 binding.rvAvatars.smoothScrollToPosition(0)
+                binding.rvAvatars.post {
+                    avatarsListAdapter?.setSelectedPosition(0)
+                }
+            }
+        })
+
+        binding.rvAvatars.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
+            override fun onScrollStateChanged(recyclerView: androidx.recyclerview.widget.RecyclerView, newState: Int) {
+                super.onScrollStateChanged(recyclerView, newState)
+                if (newState == androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_IDLE) {
+                    val layoutManager = recyclerView.layoutManager as? CenterLayoutManager ?: return
+                    var selectedPos = layoutManager.findFirstCompletelyVisibleItemPosition()
+                    if (selectedPos == androidx.recyclerview.widget.RecyclerView.NO_POSITION) {
+                        selectedPos = layoutManager.findFirstVisibleItemPosition()
+                    }
+                    if (selectedPos >= 0) {
+                        avatarsListAdapter?.setSelectedPosition(selectedPos)
+                    }
+                }
             }
         })
         
         // Set initial male selection
         updateGenderSelection(true)
+    }
+
+    private fun setContinueLoading(isLoading: Boolean) {
+        binding.pbContinueLoader.visibility = if (isLoading) View.VISIBLE else View.GONE
+        binding.btnContinue.text = if (isLoading) "" else getString(R.string.continue_text)
+        binding.btnContinue.isEnabled = !isLoading
     }
     
     private fun updateGenderSelection(isMale: Boolean) {

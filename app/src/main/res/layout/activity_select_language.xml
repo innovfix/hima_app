@@ -41,7 +41,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="24dp"
-                android:layout_marginTop="50dp"
+                android:layout_marginTop="16dp"
                 android:layout_marginEnd="24dp"
                 android:layout_marginBottom="24dp"
                 android:orientation="vertical"
@@ -94,20 +94,35 @@
     </LinearLayout>
 
     <!-- Continue Button -->
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btn_continue"
+    <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="54dp"
         android:layout_gravity="bottom"
-        android:layout_margin="20dp"
-        android:backgroundTint="@color/colorAccent"
-        android:enabled="false"
-        android:fontFamily="@font/poppins_semibold"
-        android:text="@string/continue_text"
-        android:textAllCaps="false"
-        android:textColor="@color/white"
-        android:textSize="15sp"
-        app:cornerRadius="12dp"
-        app:elevation="6dp" />
+        android:layout_margin="20dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_continue"
+            android:layout_width="match_parent"
+            android:layout_height="54dp"
+            android:backgroundTint="@color/colorAccent"
+            android:enabled="false"
+            android:fontFamily="@font/poppins_semibold"
+            android:text="@string/continue_text"
+            android:textAllCaps="false"
+            android:textColor="@color/white"
+            android:textSize="15sp"
+            app:cornerRadius="12dp"
+            app:elevation="6dp" />
+
+        <ProgressBar
+            android:id="@+id/pb_continue_loader"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_centerInParent="true"
+            android:indeterminate="true"
+            android:indeterminateTint="@color/white"
+            android:visibility="gone" />
+
+    </RelativeLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

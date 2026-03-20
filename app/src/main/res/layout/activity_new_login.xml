@@ -59,6 +59,31 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal" />
 
+    <!-- Back button shown only on OTP step, top-left over the gradient -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cv_otp_back"
+        android:layout_width="42dp"
+        android:layout_height="42dp"
+        android:layout_margin="16dp"
+        android:visibility="gone"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="1dp"
+        app:cardBackgroundColor="#F8F9FA"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:id="@+id/iv_otp_back"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center"
+            android:contentDescription="Back"
+            android:src="@drawable/right_arrow"
+            android:rotation="180"
+            app:tint="#374151" />
+
+    </androidx.cardview.widget.CardView>
+
     <!-- Logo and Welcome Section with animated design -->
     <LinearLayout
         android:id="@+id/ll_logo_section"
@@ -108,7 +133,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Welcome to Hima"
+            android:text="Welcome to HI ma"
             android:textSize="28sp"
             android:textColor="@color/white"
             android:fontFamily="@font/poppins_bold"
@@ -227,6 +252,8 @@
                     android:background="@android:color/transparent"
                     android:textCursorDrawable="@drawable/color_cursor"
                     android:textColor="@color/black_light"
+                    android:hint="Enter number"
+                    android:textColorHint="@color/grey_medium"
                     android:textSize="15sp"
                     android:imeOptions="actionDone"
                     android:inputType="phone"
@@ -276,16 +303,32 @@
                     android:fontFamily="@font/poppins_medium"
                     android:background="@android:color/transparent"
                     android:imeOptions="actionDone" />
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/applyReferral"
+                <RelativeLayout
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Apply"
-                    android:textSize="13sp"
-                    android:textColor="@color/white"
-                    android:fontFamily="@font/poppins_semibold"
-                    app:cornerRadius="6dp"
-                    app:backgroundTint="@color/colorAccent" />
+                    android:layout_height="wrap_content">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/applyReferral"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Apply"
+                        android:textSize="13sp"
+                        android:textColor="@color/white"
+                        android:fontFamily="@font/poppins_semibold"
+                        app:cornerRadius="6dp"
+                        app:backgroundTint="@color/colorAccent" />
+
+                    <ProgressBar
+                        android:id="@+id/pb_apply_referral_loader"
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:elevation="8dp"
+                        android:indeterminate="true"
+                        android:visibility="gone"
+                        android:indeterminateTint="@color/white"
+                        android:layout_centerInParent="true" />
+
+                </RelativeLayout>
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
@@ -346,14 +389,14 @@
                 android:focusable="false"
                 android:minWidth="0dp"
                 android:minHeight="0dp"
-                android:padding="0dp" />
+                android:padding="0dp"
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/tv_terms_and_conditions"
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
                 android:layout_gravity="center_vertical"
                 android:fontFamily="@font/poppins_regular"
                 android:text="@string/terms_and_conditions_text"
@@ -483,7 +526,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Didn't receive OTP? "
+                    android:text="Didn't receive the OTP? "
                     android:textSize="13sp"
                     android:textColor="@color/grey_medium"
                     android:fontFamily="@font/poppins_regular"/>

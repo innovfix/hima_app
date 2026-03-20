@@ -103,6 +103,7 @@ import com.gmwapp.hima.retrofit.responses.GetFemaleNotificationPreferenceRespons
 import com.gmwapp.hima.retrofit.responses.CheckRatingEligibilityResponse
 import com.gmwapp.hima.retrofit.responses.SubmitRatingResponse
 import com.gmwapp.hima.retrofit.responses.MyWarningsResponse
+import com.gmwapp.hima.retrofit.responses.MissedCallCountResponse
 import com.gmwapp.hima.utils.Helper
 import okhttp3.MultipartBody
 import retrofit2.Call
@@ -950,6 +951,19 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<MyWarningsResponse> = getApiInterface().getMyWarnings(userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getMissedCallCount(
+        userId: Int,
+        seen: Int,
+        callback: NetworkCallback<MissedCallCountResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<MissedCallCountResponse> = getApiInterface().getMissedCallCount(userId, seen)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -2100,6 +2114,13 @@ interface ApiInterface {
     fun getMyWarnings(
         @Field("user_id") userId: Int
     ): Call<MyWarningsResponse>
+
+    @FormUrlEncoded
+    @POST("missed_call_count")
+    fun getMissedCallCount(
+        @Field("user_id") userId: Int,
+        @Field("seen") seen: Int
+    ): Call<MissedCallCountResponse>
 
     @POST("set_female_notification_preference")
     fun setFemaleNotificationPreference(

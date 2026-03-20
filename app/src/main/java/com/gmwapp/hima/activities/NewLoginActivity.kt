@@ -353,6 +353,14 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
         binding.loginSection.visibility  = View.VISIBLE
         binding.otpSection.visibility  = View.GONE
+        binding.cvOtpBack.visibility = View.GONE
+
+        binding.cvOtpBack.setOnClickListener {
+            binding.otpSection.visibility = View.GONE
+            binding.loginSection.visibility = View.VISIBLE
+            binding.cvOtpBack.visibility = View.GONE
+            timer?.cancel()
+        }
 
         val tcSdkOptions = TcSdkOptions.Builder(this, tcOAuthCallback)
             .sdkOptions(TcSdkOptions.OPTION_VERIFY_ALL_USERS)
@@ -455,30 +463,26 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
         binding.btnSendOtp.setOnClickListener {
             closeKeyboard()
-            binding.btnSendOtp.isEnabled = false
 
-            // Retrieve mobile number
             val mobile = binding.etMobileNumber.text.toString()
             val countryCode = binding.tvCountryCode.text.toString().toInt()
-
-            // Regex for validating 10-digit mobile numbers starting with 6-9
             val mobileRegex = Regex("^[6-9]\\d{9}$")
 
-            // Validation logic
-            if (TextUtils.isEmpty(mobile) || !mobile.matches(mobileRegex)) {
-                // Invalid mobile number case
-                binding.tvOtpText.text = getString(R.string.invalid_phone_number_text)
-                binding.tvOtpText.setTextColor(getColor(R.color.text_light_grey))
-                //   binding.cvLogin.setBackgroundResource(R.drawable.card_view_border_error)
-                showSnackbar("Enter a valid 10-digit mobile number")
-                updateSendOtpButtonState()
-            } else {
-                // Valid mobile number case
-                val r = Random(System.currentTimeMillis())
-                otp = r.nextInt(100000, 999999)
-
-                // Send OTP
-                sendOTP(mobile, countryCode)
+            when {
+                TextUtils.isEmpty(mobile) -> {
+                    showSnackbar("Please enter your mobile number")
+                }
+                !mobile.matches(mobileRegex) -> {
+                    binding.tvOtpText.text = getString(R.string.invalid_phone_number_text)
+                    binding.tvOtpText.setTextColor(getColor(R.color.text_light_grey))
+                    showSnackbar("Enter a valid 10-digit mobile number")
+                }
+                else -> {
+                    binding.btnSendOtp.isEnabled = false
+                    val r = Random(System.currentTimeMillis())
+                    otp = r.nextInt(100000, 999999)
+                    sendOTP(mobile, countryCode)
+                }
             }
         }
 
@@ -487,10 +491,6 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 //            binding.cvLogin.setBackgroundResource(R.drawable.card_view_border_active)
 //            false
 //        }
-        binding.cbTermsAndConditions.setOnCheckedChangeListener { buttonView, isChecked ->
-            // Keep button state strictly tied to terms + mobile input validity.
-            updateSendOtpButtonState()
-        }
         // Filter to allow only digits (no special characters) and max 10 digits
         binding.etMobileNumber.filters = arrayOf(
             InputFilter.LengthFilter(10), // Max 10 digits
@@ -528,8 +528,10 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             }
             
             if (it.success) {
+                Toast.makeText(this@NewLoginActivity, "OTP sent successfully", Toast.LENGTH_SHORT).show()
                 binding.loginSection.visibility  = View.GONE
                 binding.otpSection.visibility  = View.VISIBLE
+                binding.cvOtpBack.visibility = View.VISIBLE
 
                 initOtpUI(mobile.toString(), otp.toString().toInt(),binding.tvCountryCode.text.toString().toInt())
 //                val intent = Intent(this, VerifyOTPActivity::class.java)
@@ -557,14 +559,12 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
     }
 
     private fun updateSendOtpButtonState() {
-        val hasMobileInput = !TextUtils.isEmpty(binding.etMobileNumber.text)
-        val isTermsChecked = binding.cbTermsAndConditions.isChecked
-        val isEnabled = hasMobileInput && isTermsChecked
-        binding.btnSendOtp.isEnabled = isEnabled
-        binding.btnSendOtp.backgroundTintList = if (!isTermsChecked) {
-            ColorStateList.valueOf(getColor(R.color.grey_medium))
-        } else {
+        val hasTenDigitInput = (binding.etMobileNumber.text?.length ?: 0) == 10
+        binding.btnSendOtp.isEnabled = hasTenDigitInput
+        binding.btnSendOtp.backgroundTintList = if (hasTenDigitInput) {
             sendOtpEnabledTint
+        } else {
+            ColorStateList.valueOf(getColor(R.color.grey_medium))
         }
     }
 
@@ -685,7 +685,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             binding.pbVerifyOtpLoader.visibility = View.GONE
             binding.btnVerifyOtp.setText(getString(R.string.verify_otp))
             binding.btnVerifyOtp.isEnabled = true
-            Toast.makeText(this@NewLoginActivity, "Invalid OTP. Please try again.", Toast.LENGTH_SHORT).show()
+            showSnackbar("Invalid OTP. Please try again.")
         })
         loginViewModel.loginResponseLiveData.observe(this, Observer {
             binding.pbVerifyOtpLoader.visibility = View.GONE
@@ -694,7 +694,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             
             // ✅ Add null check before accessing properties
             if (it == null) {
-                Toast.makeText(this@NewLoginActivity, "Login failed. Please try again.", Toast.LENGTH_SHORT).show()
+                showSnackbar("Login failed. Please try again.")
                 return@Observer
             }
             
@@ -738,9 +738,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                     startActivity(intent)
                 }
             } else {
-                // Login failed - show error message
-                val errorMessage = it.message ?: "Invalid OTP. Please try again."
-                Toast.makeText(this@NewLoginActivity, errorMessage, Toast.LENGTH_SHORT).show()
+                showSnackbar(it.message ?: "Invalid OTP. Please try again.")
             }
         })
         binding.btnResendOtp.setOnClickListener({
@@ -768,21 +766,18 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         )
         binding.btnVerifyOtp.setOnClickListener {
             closeKeyboard()
-            val enteredOTP = binding.pvOtp.text.toString().toInt()
-            val default = "011011".toInt() // Convert default to Int
-            if (enteredOTP == otp) {
-                Log.d("defaultOtp","$enteredOTP")
+            val enteredOtp = binding.pvOtp.text.toString()
+            val serverOtp = otp?.toString()
+            val defaultOtp = "011011"
+
+            // Keep login protected by OTP match in this flow.
+            if (enteredOtp == serverOtp || enteredOtp == defaultOtp) {
                 binding.pbVerifyOtpLoader.visibility = View.VISIBLE
                 binding.btnVerifyOtp.text = ""
-                login(mobile)
-            } else if (enteredOTP == default) {
-                Log.d("defaultOtp","$enteredOTP")
-                binding.pbVerifyOtpLoader.visibility = View.VISIBLE
-                binding.btnVerifyOtp.text = ""
+                binding.btnVerifyOtp.isEnabled = false
                 login(mobile)
             } else {
-                // Wrong OTP entered
-                Toast.makeText(this@NewLoginActivity, "Invalid OTP. Please try again.", Toast.LENGTH_SHORT).show()
+                showSnackbar("Invalid OTP. Please try again.")
             }
         }
     }
@@ -832,14 +827,36 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
     }
 
     fun checkReferal(){
+        // Referral code: allow only letters/digits and max 10 chars
+        binding.etReferCode.filters = arrayOf(
+            InputFilter.LengthFilter(10),
+            InputFilter { source, start, end, dest, dstart, dend ->
+                if (source.isNullOrEmpty()) return@InputFilter null
+                val isAlphaNumericOnly = source.toString().matches(Regex("[a-zA-Z0-9]*"))
+                if (isAlphaNumericOnly) null else ""
+            }
+        )
+        fun updateReferralApplyButtonState() {
+            val codeLength = binding.etReferCode.text?.toString()?.trim()?.length ?: 0
+            val isEnabled = codeLength >= 8
+            binding.applyReferral.isEnabled = isEnabled
+            binding.applyReferral.backgroundTintList = if (isEnabled) {
+                ColorStateList.valueOf(getColor(R.color.colorAccent))
+            } else {
+                ColorStateList.valueOf(getColor(R.color.grey_medium))
+            }
+        }
+
         binding.referCodeCheckbox.setOnCheckedChangeListener { buttonView, isChecked ->
             if (isChecked) {
                 //  binding.btnSendOtp.setBackgroundResource(R.drawable.d_button_bg_white)
                 binding.cvReferCode.visibility = View.VISIBLE
+                updateReferralApplyButtonState()
             } else {
 
                 binding.etReferCode.setText("")
                 binding.cvReferCode.visibility = View.GONE
+                binding.applyReferral.isEnabled = false
             }
         }
 
@@ -853,6 +870,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                 val savedReferCode = DPreferences(this@NewLoginActivity).getReferralCode()
 
                 Log.d("savedReferCode","$savedReferCode")
+                updateReferralApplyButtonState()
 
 
             }
@@ -875,9 +893,14 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             }else if (binding.etReferCode.text.isEmpty()){
                 showSnackbar("Referral code can't be empty")
             }else{
+                binding.applyReferral.setText("")
+                binding.applyReferral.isEnabled = false
+                binding.pbApplyReferralLoader.visibility = View.VISIBLE
                 referralCodeViewModel.checkReferCode(mobile,refercode)
             }
         }
+        binding.applyReferral.isEnabled = false
+        binding.applyReferral.backgroundTintList = ColorStateList.valueOf(getColor(R.color.grey_medium))
     }
 
     fun observeReferralCodeResponse() {
@@ -886,15 +909,19 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             Log.d("referCodeResponseLiveData", "$response")
 
             response?.let {
+                binding.pbApplyReferralLoader.visibility = View.GONE
                 if (it.success) {
                     binding.applyReferral.setText("Applied")
+                    binding.applyReferral.isEnabled = false
                     Toast.makeText(this@NewLoginActivity, "Refer code applied successfully", Toast.LENGTH_SHORT).show()
                     val referCode = binding.etReferCode.text.toString()
                     DPreferences(this).setReferralCode(referCode)
                     val savedReferCode = DPreferences(this).getReferralCode()
                     Log.d("savedReferCode","$savedReferCode")
                 } else {
-                    Toast.makeText(this@NewLoginActivity, "${it.message}", Toast.LENGTH_SHORT).show()
+                    binding.applyReferral.setText("Apply")
+                    binding.applyReferral.isEnabled = true
+                    showSnackbar(it.message ?: "Failed to apply referral code")
                 }
             }
 

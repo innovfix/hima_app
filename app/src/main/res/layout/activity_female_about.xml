@@ -8,30 +8,70 @@
     android:background="#FAFBFC"
     tools:context=".activities.LoginActivity">
 
-    <!-- Top App Bar -->
-    <com.google.android.material.appbar.MaterialToolbar
+    <!-- Gradient Header (aligned with onboarding theme) -->
+    <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/white"
+        android:background="@drawable/bg_gradiend"
         android:elevation="0dp"
-        android:minHeight="?attr/actionBarSize"
+        app:elevation="0dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <ImageView
-            android:id="@+id/iv_back"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/account_privacy"
-            android:padding="8dp"
-            android:rotation="180"
-            android:src="@drawable/right_arrow"
-            app:tint="#111827" />
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="22dp">
 
-    </com.google.android.material.appbar.MaterialToolbar>
+            <ImageView
+                android:id="@+id/iv_back"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_margin="16dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/account_privacy"
+                android:padding="8dp"
+                android:rotation="180"
+                android:src="@drawable/right_arrow"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:tint="@color/white" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginEnd="24dp"
+                android:layout_marginBottom="14dp"
+                android:orientation="vertical"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/iv_back">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/poppins_bold"
+                    android:text="@string/tell_us_about_yourself"
+                    android:textColor="@color/white"
+                    android:textSize="26sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:fontFamily="@font/poppins_regular"
+                    android:text="@string/tell_us_about_yourself_hint"
+                    android:textColor="@color/pink_extra_light"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </com.google.android.material.appbar.AppBarLayout>
 
     <!-- Main Content ScrollView -->
     <ScrollView
@@ -58,10 +98,11 @@
             android:paddingEnd="20dp"
             android:paddingBottom="24dp">
 
-            <!-- Enhanced Header Section -->
+            <!-- Header moved to gradient AppBar -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:visibility="gone"
                 app:cardBackgroundColor="@color/white"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="1dp"
@@ -103,7 +144,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="28dp"
+                android:layout_marginTop="12dp"
                 android:orientation="vertical">
 
                 <LinearLayout
@@ -158,12 +199,11 @@
                         android:paddingEnd="18dp"
                         android:paddingBottom="4dp">
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:fontFamily="@font/poppins_regular"
-                            android:text="🎂"
-                            android:textSize="22dp" />
+                        <ImageView
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:src="@drawable/ic_age_outline"
+                            tools:ignore="ContentDescription" />
 
                         <EditText
                             android:id="@+id/et_enter_your_age"
@@ -420,6 +460,7 @@
         android:elevation="6dp"
         android:enabled="false"
         android:fontFamily="@font/poppins_semibold"
+        android:backgroundTint="@color/colorAccent"
         android:text="@string/continue_text"
         android:textAllCaps="false"
         android:textColor="@color/white"
@@ -428,5 +469,17 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
+
+    <ProgressBar
+        android:id="@+id/pb_continue_loader"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:indeterminate="true"
+        android:indeterminateTint="@color/white"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@id/btn_continue"
+        app:layout_constraintEnd_toEndOf="@id/btn_continue"
+        app:layout_constraintStart_toStartOf="@id/btn_continue"
+        app:layout_constraintTop_toTopOf="@id/btn_continue" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

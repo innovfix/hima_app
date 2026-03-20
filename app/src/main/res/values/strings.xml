@@ -40,6 +40,8 @@
     <string name="CommunityGuidelines">Community Guidelines &amp; Moderation Policy</string>
     <string name="JoinWhatsapp">Join WhatsApp Channel For More Updates</string>
     <string name="account_privacy">Account Privacy</string>
+    <string name="previous_avatar">Previous Avatar</string>
+    <string name="next_avatar">Next Avatar</string>
     <string name="logout">Logout</string>
     <string name="need_help">Need Help? Please contact </string>
     <string name="version">version 1.0.0</string>
@@ -151,7 +153,7 @@
     <string name="voice_identification">Voice Identification</string>
     <string name="voice_identification_hint">To confirm your identity, please record yourself saying the following sentence</string>
     <string name="tap_and_hold_to_speak">Tap and hold to speak</string>
-    <string name="summary_hint_text">Ex:\"I like moview, my favourite one is DDLJ\"</string>
+    <string name="summary_hint_text">Ex:\"I like movie, my favourite one is DDLJ\"</string>
     <string name="you_must_be_at_least_18_years_old">You must be at least 18 years old</string>
     <string name="you_must_be_below_100_years_old">You must be below 100 years old</string>
     <string name="play_to_listen">Play to Listen</string>

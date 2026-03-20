@@ -204,7 +204,7 @@ class SplashScreenActivity : BaseActivity() {
         val dots = listOf(binding.loadingDot1, binding.loadingDot2, binding.loadingDot3)
         
         dots.forEachIndexed { index, dot ->
-            val bounceAnimation = ObjectAnimator.ofFloat(dot, "translationY", 0f, -20f, 0f).apply {
+            val bounceAnimation = ObjectAnimator.ofFloat(dot, "translationY", 0f, -14f, 0f).apply {
                 duration = 600
                 repeatCount = ObjectAnimator.INFINITE
                 startDelay = (index * 150).toLong()

@@ -10,7 +10,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
-import androidx.appcompat.widget.PopupMenu
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -49,6 +48,7 @@ class RecentFragment : BaseFragment() {
     private val limit = 10
     private var currentSortType = "recent"  // Default: recent
     private var currentSearchQuery = ""  // Current search query
+    private var currentMissedCount = 0
     
     // Debouncing for search
     private val searchHandler = Handler(Looper.getMainLooper())
@@ -61,7 +61,7 @@ class RecentFragment : BaseFragment() {
         binding = FragmentRecentBinding.inflate(inflater, container, false)
         initUI()
         observeViewModel()
-        setupSortOptions()
+        setupFilterChips()
         return binding.root
     }
 
@@ -106,6 +106,7 @@ class RecentFragment : BaseFragment() {
         binding.rvCalls.adapter = recentCallsAdapter
 
         // Initial call with default type (after adapter is initialized)
+        recentCallsAdapter.setFilter(currentSortType)
         loadCallsList(currentSortType, resetData = true)
 
         // Pagination
@@ -191,6 +192,20 @@ class RecentFragment : BaseFragment() {
                 binding.rvCalls.visibility = View.GONE
             }
         })
+
+        recentViewModel.missedCallCountLiveData.observe(viewLifecycleOwner, Observer { count ->
+            Log.d("missed_call_data", "ui_count=${count ?: 0}")
+            updateMissedChipCount(count ?: 0)
+            // When Missed tab is opened (seen=1 flow), refresh bottom nav badge in MainActivity
+            // so it reflects latest value immediately.
+            if (currentSortType == "missed") {
+                (activity as? com.gmwapp.hima.activities.MainActivity)?.refreshRecentMissedCountBadge()
+            }
+        })
+
+        recentViewModel.missedCallCountErrorLiveData.observe(viewLifecycleOwner, Observer { error ->
+            Log.e("missed_call_data", "ui_error=$error")
+        })
     }
 
     private fun setLoading(isLoading: Boolean) {
@@ -221,44 +236,37 @@ class RecentFragment : BaseFragment() {
         startActivity(intent)
     }
 
-    private fun setupSortOptions() {
-        binding.cardSort.setOnClickListener { showSortMenu() }
-    }
-
-    private fun showSortMenu() {
-        val popup = PopupMenu(requireContext(), binding.cardSort)
-        popup.menuInflater.inflate(R.menu.menu_recent_sort, popup.menu)
-        
-        popup.setOnMenuItemClickListener { menuItem ->
-            when (menuItem.itemId) {
-                R.id.action_sort_recent -> {
-                    currentSortType = "recent"
-                    binding.tvSortLabel.text = "Recent"
-                    loadCallsList(currentSortType, resetData = true)
-                    true
+    private fun setupFilterChips() {
+        binding.chipGroupFilter.setOnCheckedStateChangeListener { _, checkedIds ->
+            val sortType = when (checkedIds.firstOrNull()) {
+                R.id.chip_missed    -> "missed"
+                R.id.chip_talk_time -> "talk_time"
+                R.id.chip_a_z       -> "a_z"
+                else                -> "recent"
+            }
+            if (sortType != currentSortType) {
+                currentSortType = sortType
+                recentCallsAdapter.setFilter(currentSortType)
+                loadCallsList(currentSortType, resetData = true)
+                if (currentSortType == "missed") {
+                    loadMissedCallCount(seen = 1)
                 }
-                R.id.action_sort_talk_time -> {
-                    currentSortType = "talk_time"
-                    binding.tvSortLabel.text = "Talk Time"
-                    loadCallsList(currentSortType, resetData = true)
-                    true
-                }
-                R.id.action_sort_name -> {
-                    currentSortType = "a_z"
-                    binding.tvSortLabel.text = "A-Z"
-                    loadCallsList(currentSortType, resetData = true)
-                    true
-                }
-                R.id.action_sort_missed -> {
-                    currentSortType = "missed"
-                    binding.tvSortLabel.text = "Missed"
-                    loadCallsList(currentSortType, resetData = true)
-                    true
-                }
-                else -> false
             }
         }
-        popup.show()
+    }
+
+    private fun loadMissedCallCount(seen: Int = 0) {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
+        recentViewModel.getMissedCallCount(userData.id, seen)
+    }
+
+    private fun updateMissedChipCount(count: Int) {
+        currentMissedCount = count.coerceAtLeast(0)
+        binding.chipMissed.text = if (currentMissedCount > 0) {
+            "Missed ($currentMissedCount)"
+        } else {
+            "Missed"
+        }
     }
 
     private fun setupChatIconClickListener() {
@@ -354,6 +362,7 @@ class RecentFragment : BaseFragment() {
         // Refresh unread count when returning to this screen
         Log.d("RecentFragment", "🔄 onResume - reloading unread count")
         loadUnreadMessageCount()
+        loadMissedCallCount(seen = 0)
     }
     
     override fun onDestroyView() {

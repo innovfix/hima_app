@@ -2,9 +2,12 @@ package com.gmwapp.hima.adapters
 
 import android.app.Activity
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.gmwapp.hima.R
 import com.gmwapp.hima.databinding.AdapterAvatarBinding
 import com.gmwapp.hima.retrofit.responses.AvatarsListData
 
@@ -12,31 +15,47 @@ import com.gmwapp.hima.retrofit.responses.AvatarsListData
 class AvatarsListAdapter(
     private val activity: Activity,
     private val avatarsListData: ArrayList<AvatarsListData?>,
-) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+) : RecyclerView.Adapter<AvatarsListAdapter.ItemHolder>() {
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
-        val itemHolder = ItemHolder(
+    private var selectedPosition: Int = 0
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ItemHolder {
+        return ItemHolder(
             AdapterAvatarBinding.inflate(
                 LayoutInflater.from(parent.context), parent, false
             )
         )
-        return itemHolder
     }
 
-    override fun onBindViewHolder(holderParent: RecyclerView.ViewHolder, position: Int) {
-        val holder: ItemHolder = holderParent as ItemHolder
+    override fun onBindViewHolder(holder: ItemHolder, position: Int) {
         val avatarsListData: AvatarsListData? = avatarsListData[position]
 
         Glide.with(activity)
             .load(avatarsListData?.image)
             .centerCrop()
             .into(holder.binding.ivAvatar)
+
+        val isSelected = position == selectedPosition
+        holder.binding.ivAvatarSelected.visibility = if (isSelected) View.VISIBLE else View.GONE
+        holder.binding.cardAvatar.strokeWidth = if (isSelected) 3 else 2
+        holder.binding.cardAvatar.strokeColor = ContextCompat.getColor(
+            activity,
+            if (isSelected) R.color.colorAccent else R.color.divider
+        )
     }
 
     override fun getItemCount(): Int {
         return avatarsListData.size
     }
 
-    internal class ItemHolder(val binding: AdapterAvatarBinding) :
+    fun setSelectedPosition(position: Int) {
+        if (position !in 0 until itemCount || position == selectedPosition) return
+        val oldPosition = selectedPosition
+        selectedPosition = position
+        notifyItemChanged(oldPosition)
+        notifyItemChanged(selectedPosition)
+    }
+
+    class ItemHolder(val binding: AdapterAvatarBinding) :
         RecyclerView.ViewHolder(binding.root)
 }

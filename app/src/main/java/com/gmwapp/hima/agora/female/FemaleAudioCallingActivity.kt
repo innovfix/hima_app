@@ -377,24 +377,35 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
     private fun showLudoInviteConfirmDialog() {
         val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
-        AlertDialog.Builder(this)
-            .setTitle("Send Ludo Invite")
-            .setMessage("Do you want to send Ludo invite to this user?")
-            .setNegativeButton("No") { dialog, _ -> dialog.dismiss() }
-            .setPositiveButton("Yes") { _, _ ->
-                if (currentUserId <= 0 || receiverId <= 0) {
-                    Toast.makeText(this, "Unable to send invite", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
-                pendingLudoAction = "invite"
-                ludoFcmViewModel.sendLudoFcm(
-                    action = "invite",
-                    fromUserId = currentUserId,
-                    toUserId = receiverId,
-                    callId = call_Id.toString()
-                )
+        val dialog = Dialog(this)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        val view = layoutInflater.inflate(R.layout.dialog_ludo_send_invite, null)
+        dialog.setContentView(view)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.window?.setLayout(
+            (resources.displayMetrics.widthPixels * 0.88).toInt(),
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        dialog.setCancelable(true)
+
+        view.findViewById<TextView>(R.id.btn_cancel).setOnClickListener {
+            dialog.dismiss()
+        }
+        view.findViewById<TextView>(R.id.btn_send_invite).setOnClickListener {
+            dialog.dismiss()
+            if (currentUserId <= 0 || receiverId <= 0) {
+                Toast.makeText(this, "Unable to send invite", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
             }
-            .show()
+            pendingLudoAction = "invite"
+            ludoFcmViewModel.sendLudoFcm(
+                action = "invite",
+                fromUserId = currentUserId,
+                toUserId = receiverId,
+                callId = call_Id.toString()
+            )
+        }
+        dialog.show()
     }
 
     private fun showIncomingLudoInviteDialog(event: FcmUtils.LudoEvent) {
@@ -402,31 +413,45 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
         if (currentUserId <= 0) return
 
-        AlertDialog.Builder(this)
-            .setTitle("Ludo Invite")
-            .setMessage("${event.fromUserName ?: "User"} invited you to play Ludo.")
-            .setNegativeButton("Reject") { _, _ ->
-                pendingLudoAction = "reject"
-                ludoFcmViewModel.sendLudoFcm(
-                    action = "reject",
-                    fromUserId = currentUserId,
-                    toUserId = event.fromUserId,
-                    inviteId = inviteId,
-                    callId = call_Id.toString()
-                )
-            }
-            .setPositiveButton("Accept") { _, _ ->
-                currentLudoInviteId = inviteId
-                pendingLudoAction = "accept"
-                ludoFcmViewModel.sendLudoFcm(
-                    action = "accept",
-                    fromUserId = currentUserId,
-                    toUserId = event.fromUserId,
-                    inviteId = inviteId,
-                    callId = call_Id.toString()
-                )
-            }
-            .show()
+        val dialog = Dialog(this)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        val view = layoutInflater.inflate(R.layout.dialog_ludo_receive_invite, null)
+        dialog.setContentView(view)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.window?.setLayout(
+            (resources.displayMetrics.widthPixels * 0.88).toInt(),
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        dialog.setCancelable(false)
+
+        val name = event.fromUserName?.takeIf { it.isNotBlank() } ?: "Someone"
+        view.findViewById<TextView>(R.id.tv_invite_message).text =
+            "$name wants to play Ludo with you. Accept the challenge!"
+
+        view.findViewById<TextView>(R.id.btn_decline).setOnClickListener {
+            dialog.dismiss()
+            pendingLudoAction = "reject"
+            ludoFcmViewModel.sendLudoFcm(
+                action = "reject",
+                fromUserId = currentUserId,
+                toUserId = event.fromUserId,
+                inviteId = inviteId,
+                callId = call_Id.toString()
+            )
+        }
+        view.findViewById<TextView>(R.id.btn_accept).setOnClickListener {
+            dialog.dismiss()
+            currentLudoInviteId = inviteId
+            pendingLudoAction = "accept"
+            ludoFcmViewModel.sendLudoFcm(
+                action = "accept",
+                fromUserId = currentUserId,
+                toUserId = event.fromUserId,
+                inviteId = inviteId,
+                callId = call_Id.toString()
+            )
+        }
+        dialog.show()
     }
 
     private fun buildLudoUrl(roomCode: String?): String? {

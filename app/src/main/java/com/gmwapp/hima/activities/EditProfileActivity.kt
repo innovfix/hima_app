@@ -196,8 +196,30 @@ class EditProfileActivity : BaseActivity() {
 
 
         binding.rvAvatars.setOnScrollChangeListener(View.OnScrollChangeListener { view: View, i: Int, i1: Int, i2: Int, i3: Int ->
+            val layoutManager = binding.rvAvatars.layoutManager as? CenterLayoutManager
+            val selectedPos = layoutManager?.findFirstCompletelyVisibleItemPosition()
+            if (selectedPos != null && selectedPos >= 0) {
+                avatarsListAdapter?.setSelectedPosition(selectedPos)
+            }
             updateButton()
         })
+
+        binding.ivAvatarRight.setOnClickListener {
+            val layoutManager = binding.rvAvatars.layoutManager as CenterLayoutManager
+            val current = layoutManager.findFirstCompletelyVisibleItemPosition()
+            val total = avatarsListAdapter?.itemCount ?: 0
+            if (current < total - 1) {
+                binding.rvAvatars.smoothScrollToPosition(current + 1)
+            }
+        }
+
+        binding.ivAvatarLeft.setOnClickListener {
+            val layoutManager = binding.rvAvatars.layoutManager as CenterLayoutManager
+            val current = layoutManager.findFirstCompletelyVisibleItemPosition()
+            if (current > 0) {
+                binding.rvAvatars.smoothScrollToPosition(current - 1)
+            }
+        }
         binding.btnUpdate.setOnClickListener(View.OnClickListener {
             val layoutManager = binding.rvAvatars.layoutManager as CenterLayoutManager
             val visiblePosition = layoutManager.findFirstCompletelyVisibleItemPosition()
@@ -336,6 +358,9 @@ class EditProfileActivity : BaseActivity() {
                 it.data.remove(index)
                 it.data.add(0, index)
                 binding.rvAvatars.smoothScrollToPosition(0)
+                binding.rvAvatars.post {
+                    avatarsListAdapter?.setSelectedPosition(0)
+                }
             }
         })
     }

@@ -12,14 +12,18 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.LayoutInflater
+import android.view.Gravity
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.FrameLayout
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import android.graphics.drawable.GradientDrawable
 import androidx.activity.addCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultLauncher
@@ -69,6 +73,7 @@ import com.gmwapp.hima.retrofit.responses.NewRazorpayLinkResponse
 import com.gmwapp.hima.retrofit.responses.RazorPayApiResponse
 import com.gmwapp.hima.retrofit.responses.FreeCoinsStatusResponse
 import com.gmwapp.hima.retrofit.responses.InstallReferrerResponse
+import com.gmwapp.hima.retrofit.responses.MissedCallCountResponse
 import com.gmwapp.hima.retrofit.ApiManager
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.utils.DPreferences
@@ -177,6 +182,10 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     private val cfEnvironment = CFSession.Environment.PRODUCTION
 
     private var cashfreeLastOrderId: String = ""
+    private var recentMissedCount: Int = 0
+    private var recentUnreadCount: Int = 0
+    private val recentMissedDotTag = "recent_missed_dot"
+    private val recentUnreadDotTag = "recent_unread_dot"
 
     var fromApplication = false
 
@@ -1209,6 +1218,183 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         userData?.id?.let { userId ->
             ratingPromptHelper.checkAndShowRatingPrompt(this, userId)
         }
+
+        // Refresh bottom nav badge for missed calls
+        loadRecentMissedCountBadge()
+        loadRecentUnreadCountBadge()
+    }
+
+    fun refreshRecentMissedCountBadge() {
+        loadRecentMissedCountBadge()
+    }
+
+    private fun loadRecentMissedCountBadge() {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
+        apiManager.getMissedCallCount(userData.id, 0, object : NetworkCallback<MissedCallCountResponse> {
+            override fun onResponse(
+                call: Call<MissedCallCountResponse>,
+                response: retrofit2.Response<MissedCallCountResponse>
+            ) {
+                val count = if (response.isSuccessful && response.body()?.success == true) {
+                    response.body()?.data?.missed_call_count ?: 0
+                } else {
+                    0
+                }
+                recentMissedCount = count
+                updateRecentBadge()
+            }
+
+            override fun onFailure(call: Call<MissedCallCountResponse>, t: Throwable) {
+                recentMissedCount = 0
+                updateRecentBadge()
+            }
+
+            override fun onNoNetwork() {
+                recentMissedCount = 0
+                updateRecentBadge()
+            }
+        })
+    }
+
+    private fun loadRecentUnreadCountBadge() {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
+        apiManager.getMyChat(userData.id, null, 100, 0, object : NetworkCallback<com.gmwapp.hima.retrofit.responses.MyChatResponse> {
+            override fun onResponse(
+                call: Call<com.gmwapp.hima.retrofit.responses.MyChatResponse>,
+                response: retrofit2.Response<com.gmwapp.hima.retrofit.responses.MyChatResponse>
+            ) {
+                val unread = if (response.isSuccessful &&
+                    response.body()?.success == true &&
+                    response.body()?.data != null
+                ) {
+                    response.body()?.data?.chats?.sumOf { it.unreadCount } ?: 0
+                } else {
+                    0
+                }
+                recentUnreadCount = unread
+                updateRecentBadge()
+            }
+
+            override fun onFailure(call: Call<com.gmwapp.hima.retrofit.responses.MyChatResponse>, t: Throwable) {
+                recentUnreadCount = 0
+                updateRecentBadge()
+            }
+
+            override fun onNoNetwork() {
+                recentUnreadCount = 0
+                updateRecentBadge()
+            }
+        })
+    }
+
+    private fun updateRecentBadge() {
+        val safeMissed = recentMissedCount.coerceAtLeast(0)
+        val safeUnread = recentUnreadCount.coerceAtLeast(0)
+
+        // Always remove native Material badge — we use our own positioning for both dots
+        // so they are anchored identically and sit at exactly the same height.
+        binding.bottomNavigationView.removeBadge(R.id.recent)
+
+        if (safeMissed > 0 || safeUnread > 0) {
+            placeRecentBadges(safeMissed, safeUnread)
+        } else {
+            hideBadge(recentMissedDotTag)
+            hideBadge(recentUnreadDotTag)
+        }
+    }
+
+    private fun getRecentBottomNavItemView(): BottomNavigationItemView? {
+        val menuView = binding.bottomNavigationView.getChildAt(0) as? BottomNavigationMenuView ?: return null
+        for (i in 0 until menuView.childCount) {
+            val item = menuView.getChildAt(i)
+            if (item is BottomNavigationItemView && item.itemData?.itemId == R.id.recent) {
+                return item
+            }
+        }
+        return null
+    }
+
+    private fun makeBadgeDot(tag: String): TextView {
+        val dp = resources.displayMetrics.density
+        val dotSize = (18 * dp).toInt()
+        val rootView = window.decorView.findViewById<ViewGroup>(android.R.id.content)
+        return TextView(this).apply {
+            this.tag = tag
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.white))
+            textSize = 9f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            gravity = Gravity.CENTER
+            includeFontPadding = false
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(ContextCompat.getColor(this@MainActivity, R.color.colorAccent))
+            }
+            rootView.addView(this, FrameLayout.LayoutParams(dotSize, dotSize))
+        }
+    }
+
+    // Both badges live in the root FrameLayout and are positioned via getLocationInWindow
+    // so they use identical coordinate space — guaranteed same vertical alignment.
+    private fun placeRecentBadges(missedCount: Int, unreadCount: Int) {
+        val rootView = window.decorView.findViewById<ViewGroup>(android.R.id.content)
+        val dp = resources.displayMetrics.density
+        val dotSize = (18 * dp).toInt()
+
+        val missedDot = rootView.findViewWithTag<TextView>(recentMissedDotTag)
+            ?: makeBadgeDot(recentMissedDotTag)
+        val unreadDot = rootView.findViewWithTag<TextView>(recentUnreadDotTag)
+            ?: makeBadgeDot(recentUnreadDotTag)
+
+        if (missedCount > 0) {
+            missedDot.text = missedCount.coerceAtMost(99).toString()
+            missedDot.visibility = View.VISIBLE
+        } else {
+            missedDot.visibility = View.GONE
+        }
+
+        // Unread badge is always shown when count > 0, independent of missed count.
+        if (unreadCount > 0) {
+            unreadDot.text = unreadCount.coerceAtMost(99).toString()
+            unreadDot.visibility = View.VISIBLE
+        } else {
+            unreadDot.visibility = View.GONE
+        }
+
+        binding.bottomNavigationView.post {
+            val itemView = getRecentBottomNavItemView() ?: return@post
+            val iconView = itemView.findViewById<View>(
+                com.google.android.material.R.id.navigation_bar_item_icon_view
+            ) ?: return@post
+
+            val iconPos = IntArray(2)
+            iconView.getLocationInWindow(iconPos)
+            val rootPos = IntArray(2)
+            rootView.getLocationInWindow(rootPos)
+
+            val iconLeft  = iconPos[0] - rootPos[0]
+            val iconRight = iconLeft + iconView.width
+            val iconTop   = iconPos[1] - rootPos[1]
+            val topMargin = iconTop - dotSize / 2
+
+            // Missed always on top-right.
+            (missedDot.layoutParams as? FrameLayout.LayoutParams)?.let {
+                it.leftMargin = iconRight - dotSize / 2
+                it.topMargin  = topMargin
+                missedDot.layoutParams = it
+            }
+            // Unread: top-left when both visible, top-right when only unread visible.
+            (unreadDot.layoutParams as? FrameLayout.LayoutParams)?.let {
+                it.leftMargin = if (missedCount > 0) iconLeft - dotSize / 2
+                                else iconRight - dotSize / 2
+                it.topMargin  = topMargin
+                unreadDot.layoutParams = it
+            }
+        }
+    }
+
+    private fun hideBadge(tag: String) {
+        val rootView = window.decorView.findViewById<ViewGroup>(android.R.id.content)
+        rootView.findViewWithTag<TextView>(tag)?.visibility = View.GONE
     }
 
     fun getSkuListID() {
