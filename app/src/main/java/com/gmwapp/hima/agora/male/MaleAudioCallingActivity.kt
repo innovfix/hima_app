@@ -381,9 +381,10 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
             when (event.type) {
                 "ludo_invite" -> {
-                    if (event.fromUserId == receiverId) {
-                        showIncomingLudoInviteDialog(event)
-                    }
+                    // Temporarily disabled: do not show incoming Ludo invite accept dialog.
+//                    if (event.fromUserId == receiverId) {
+//                        showIncomingLudoInviteDialog(event)
+//                    }
                 }
 
                 "ludo_invite_accepted" -> {
