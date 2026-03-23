@@ -26,6 +26,7 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class VerifyOTPActivity : BaseActivity() {
     private var timer: CountDownTimer?=null
+    private var isVerifyingOtp = false
     lateinit var binding: ActivityVerifyOtpBinding
     private val loginViewModel: LoginViewModel by viewModels()
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,14 +67,16 @@ class VerifyOTPActivity : BaseActivity() {
         })
 
         loginViewModel.loginErrorLiveData.observe(this, Observer {
+            isVerifyingOtp = false
             binding.pbVerifyOtpLoader.visibility = View.GONE
             binding.btnVerifyOtp.setText(getString(R.string.verify_otp))
-            binding.btnVerifyOtp.isEnabled = true
+            updateVerifyOtpButtonState()
         })
         loginViewModel.loginResponseLiveData.observe(this, Observer {
+            isVerifyingOtp = false
             binding.pbVerifyOtpLoader.visibility = View.GONE
             binding.btnVerifyOtp.setText(getString(R.string.verify_otp))
-            binding.btnVerifyOtp.isEnabled = true
+            updateVerifyOtpButtonState()
             if (it!=null && it.success) {
                 if (it.registered) {
                     it.data?.let { it1 ->
@@ -127,17 +130,11 @@ class VerifyOTPActivity : BaseActivity() {
             }
 
             override fun afterTextChanged(s: Editable) {
-                if(s.toString().length==6){
-                 //   binding.btnVerifyOtp.setBackgroundResource(R.drawable.d_button_bg_white)
-                    binding.btnVerifyOtp.isEnabled = true
-                    binding.btnVerifyOtp.isClickable = true
-                }else{
-                //    binding.btnVerifyOtp.setBackgroundResource(R.drawable.d_button_bg)
-                    binding.btnVerifyOtp.isEnabled = false
-                }
+                updateVerifyOtpButtonState()
             }
         }
         )
+        updateVerifyOtpButtonState()
         binding.btnVerifyOtp.setOnSingleClickListener {
             Log.d("VerifyOTP", "Verify button clicked")
             val enteredOTP = binding.pvOtp.text.toString()
@@ -145,8 +142,10 @@ class VerifyOTPActivity : BaseActivity() {
                 Log.d("VerifyOTP", "OTP entered: $enteredOTP")
                 if (enteredOTP == otp.toString() || enteredOTP == "011011") {
                     Log.d("VerifyOTP", "OTP matched, calling login()")
+                    isVerifyingOtp = true
                     binding.pbVerifyOtpLoader.visibility = View.VISIBLE
                     binding.btnVerifyOtp.text = ""
+                    updateVerifyOtpButtonState()
                     login(mobileNumber)
                 } else {
                     Log.d("VerifyOTP", "OTP did not match")
@@ -176,5 +175,12 @@ class VerifyOTPActivity : BaseActivity() {
         Log.d("VerifyOTP", "Calling login function now")
 
         loginViewModel.login(mobile,"0","0")
+    }
+
+    private fun updateVerifyOtpButtonState() {
+        val isOtpComplete = binding.pvOtp.text?.toString()?.length == 6
+        val shouldEnable = isOtpComplete && !isVerifyingOtp
+        binding.btnVerifyOtp.isEnabled = shouldEnable
+        binding.btnVerifyOtp.isClickable = shouldEnable
     }
 }

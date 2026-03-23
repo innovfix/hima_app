@@ -93,6 +93,8 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
     private var truecallerCodeVerifier: String? = "0"
     private var timer: CountDownTimer?=null
     private var sendOtpEnabledTint: ColorStateList? = null
+    private var verifyOtpEnabledTint: ColorStateList? = null
+    private var isVerifyingOtp = false
 
     // Colors, images, titles, subtitles for onboarding
     private val colors = listOf(R.color.purple_400, R.color.brown, R.color.green)
@@ -219,8 +221,10 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                             binding.pvOtp.setText(it)
                             Log.d("OtpExtract","$it")
                             if (it.toIntOrNull() == otp) { // your default OTP
+                                isVerifyingOtp = true
                                 binding.pbVerifyOtpLoader.visibility = View.VISIBLE
                                 binding.btnVerifyOtp.text = ""
+                                updateVerifyOtpButtonState()
                                 login(mobile ?: "")
                             }else{
                                 Log.d("OtpExtract","null")
@@ -666,6 +670,9 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
     private fun initOtpUI(mobile: String, otp: Int, countryCode: Int) {
         window.statusBarColor = resources.getColor(R.color.dark_blue)
+        if (verifyOtpEnabledTint == null) {
+            verifyOtpEnabledTint = binding.btnVerifyOtp.backgroundTintList
+        }
         binding.tvOtpMobileNumber.text = " $mobile"
         binding.tvOtpMobileNumber.paintFlags =
             binding.tvOtpMobileNumber.paintFlags or Paint.UNDERLINE_TEXT_FLAG
@@ -682,15 +689,17 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         })
 
         loginViewModel.loginErrorLiveData.observe(this, Observer {
+            isVerifyingOtp = false
             binding.pbVerifyOtpLoader.visibility = View.GONE
             binding.btnVerifyOtp.setText(getString(R.string.verify_otp))
-            binding.btnVerifyOtp.isEnabled = true
+            updateVerifyOtpButtonState()
             showSnackbar("Invalid OTP. Please try again.")
         })
         loginViewModel.loginResponseLiveData.observe(this, Observer {
+            isVerifyingOtp = false
             binding.pbVerifyOtpLoader.visibility = View.GONE
             binding.btnVerifyOtp.setText(getString(R.string.verify_otp))
-            binding.btnVerifyOtp.isEnabled = true
+            updateVerifyOtpButtonState()
             
             // ✅ Add null check before accessing properties
             if (it == null) {
@@ -754,16 +763,11 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             }
 
             override fun afterTextChanged(s: Editable) {
-                if(s.toString().length==6){
-                    //   binding.btnVerifyOtp.setBackgroundResource(R.drawable.d_button_bg_white)
-                    binding.btnVerifyOtp.isEnabled = true
-                }else{
-                    //    binding.btnVerifyOtp.setBackgroundResource(R.drawable.d_button_bg)
-                    binding.btnVerifyOtp.isEnabled = false
-                }
+                updateVerifyOtpButtonState()
             }
         }
         )
+        updateVerifyOtpButtonState()
         binding.btnVerifyOtp.setOnClickListener {
             closeKeyboard()
             val enteredOtp = binding.pvOtp.text.toString()
@@ -772,9 +776,10 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
             // Keep login protected by OTP match in this flow.
             if (enteredOtp == serverOtp || enteredOtp == defaultOtp) {
+                isVerifyingOtp = true
                 binding.pbVerifyOtpLoader.visibility = View.VISIBLE
                 binding.btnVerifyOtp.text = ""
-                binding.btnVerifyOtp.isEnabled = false
+                updateVerifyOtpButtonState()
                 login(mobile)
             } else {
                 showSnackbar("Invalid OTP. Please try again.")
@@ -814,6 +819,17 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
             loginViewModel.login(mobile,"0","0")
 
+        }
+    }
+
+    private fun updateVerifyOtpButtonState() {
+        val hasCompleteOtp = (binding.pvOtp.text?.length ?: 0) == 6
+        val isEnabled = hasCompleteOtp && !isVerifyingOtp
+        binding.btnVerifyOtp.isEnabled = isEnabled
+        binding.btnVerifyOtp.backgroundTintList = if (isEnabled) {
+            verifyOtpEnabledTint
+        } else {
+            ColorStateList.valueOf(getColor(R.color.grey_medium))
         }
     }
 
