@@ -101,6 +101,7 @@ import java.io.IOException
 import java.io.InputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
+import kotlin.math.abs
 
 @AndroidEntryPoint
 class MaleAudioCallingActivity : AppCompatActivity() {
@@ -138,6 +139,13 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     private var remoteSurfaceView: SurfaceView? = null
     private var localPreviewSurface: SurfaceView? = null
+    private var localPreviewOffsetX = Float.NaN
+    private var localPreviewOffsetY = Float.NaN
+    private var localPreviewTouchOffsetX = 0f
+    private var localPreviewTouchOffsetY = 0f
+    private var localPreviewDragStartX = 0f
+    private var localPreviewDragStartY = 0f
+    private var isDraggingLocalPreview = false
     private var isRemoteBlurVisible = false
     private var pendingRemoteBlurHide = false
 
@@ -332,10 +340,84 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         handleCallSwitch()
 
         observeCallSwitchRequest()
+        setupLocalPreviewDrag()
 
         giftIconClicked()
         getBlockWords()
         setupLudoInviteFlow()
+    }
+
+    private fun setupLocalPreviewDrag() {
+        binding.localCardView.setOnTouchListener { view, event ->
+            val parent = binding.main
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    if (parent.width == 0 || parent.height == 0) {
+                        return@setOnTouchListener false
+                    }
+                    localPreviewDragStartX = event.rawX
+                    localPreviewDragStartY = event.rawY
+                    localPreviewTouchOffsetX = event.rawX - view.x
+                    localPreviewTouchOffsetY = event.rawY - view.y
+                    isDraggingLocalPreview = false
+                    true
+                }
+
+                MotionEvent.ACTION_MOVE -> {
+                    val nextX = event.rawX - localPreviewTouchOffsetX
+                    val nextY = event.rawY - localPreviewTouchOffsetY
+                    val clampedX = clampLocalPreviewX(nextX)
+                    val clampedY = clampLocalPreviewY(nextY)
+
+                    view.x = clampedX
+                    view.y = clampedY
+                    localPreviewOffsetX = clampedX
+                    localPreviewOffsetY = clampedY
+
+                    val dragDistance = abs(event.rawX - localPreviewDragStartX) + abs(event.rawY - localPreviewDragStartY)
+                    if (dragDistance > 8f) {
+                        isDraggingLocalPreview = true
+                    }
+                    true
+                }
+
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    if (!isDraggingLocalPreview) {
+                        view.performClick()
+                    }
+                    true
+                }
+
+                else -> false
+            }
+        }
+    }
+
+    private fun clampLocalPreviewX(targetX: Float): Float {
+        val parent = binding.main
+        val minX = parent.paddingLeft.toFloat()
+        val maxX = (parent.width - parent.paddingRight - binding.localCardView.width).toFloat()
+        return targetX.coerceIn(minX, maxX.coerceAtLeast(minX))
+    }
+
+    private fun clampLocalPreviewY(targetY: Float): Float {
+        val parent = binding.main
+        val minY = parent.paddingTop.toFloat()
+        val maxY = (parent.height - parent.paddingBottom - binding.localCardView.height).toFloat()
+        return targetY.coerceIn(minY, maxY.coerceAtLeast(minY))
+    }
+
+    private fun applySavedLocalPreviewPosition() {
+        binding.localCardView.post {
+            if (!localPreviewOffsetX.isNaN() && !localPreviewOffsetY.isNaN()) {
+                val clampedX = clampLocalPreviewX(localPreviewOffsetX)
+                val clampedY = clampLocalPreviewY(localPreviewOffsetY)
+                binding.localCardView.x = clampedX
+                binding.localCardView.y = clampedY
+                localPreviewOffsetX = clampedX
+                localPreviewOffsetY = clampedY
+            }
+        }
     }
 
     private fun setupLudoInviteFlow() {
@@ -1783,6 +1865,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             binding.localVideoViewContainer.visibility = View.VISIBLE
             binding.localCardView.visibility = View.VISIBLE
             binding.remoteVideoViewContainer.visibility = View.VISIBLE
+            applySavedLocalPreviewPosition()
 
             // Notify remote user to switch to video (if required)
 
@@ -2386,6 +2469,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
             binding.localVideoViewContainer.visibility = View.VISIBLE
             binding.localCardView.visibility = View.VISIBLE
+            applySavedLocalPreviewPosition()
         } catch (e: Exception) {
             Log.e("MaleAudioCallingActivity", "Error setting local video in call view", e)
         }
