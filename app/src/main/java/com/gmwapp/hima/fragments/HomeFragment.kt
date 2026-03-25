@@ -25,7 +25,9 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.BaseApplication.Companion.getInstance
 import com.gmwapp.hima.agora.male.MaleCallConnectingActivity
+import com.gmwapp.hima.BuildConfig
 import com.gmwapp.hima.R
+import com.gmwapp.hima.activities.WhyHimaActivity
 import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.adapters.FemaleUserAdapter
 import com.gmwapp.hima.agora.AgoraRandomCallActivity
@@ -291,7 +293,24 @@ class HomeFragment : BaseFragment() {
             setLoading(false)
         })
 
+        setupDebugOnboardingEntry()
         initFab()
+    }
+
+    /** Visible only in debug builds: open post-registration onboarding for QA testing. */
+    private fun setupDebugOnboardingEntry() {
+        if (!BuildConfig.DEBUG) return
+        binding.tvDebugOnboarding.visibility = View.VISIBLE
+        binding.tvDebugOnboarding.setOnSingleClickListener {
+            val user = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return@setOnSingleClickListener
+            startActivity(
+                Intent(requireContext(), WhyHimaActivity::class.java).apply {
+                    putExtra(DConstants.AVATAR_ID, user.avatar_id)
+                    putExtra(DConstants.LANGUAGE, user.language)
+                    putExtra(DConstants.GENDER, DConstants.MALE)
+                }
+            )
+        }
     }
 
 //    private fun setupSwipeToRefresh() {

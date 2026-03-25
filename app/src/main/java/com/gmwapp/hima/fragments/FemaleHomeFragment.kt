@@ -25,8 +25,10 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.BaseApplication.Companion.getInstance
+import com.gmwapp.hima.BuildConfig
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.EarningsActivity
+import com.gmwapp.hima.activities.WhyHimaActivity
 import com.gmwapp.hima.activities.GrantPermissionsActivity
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentFemaleHomeBinding
@@ -604,8 +606,25 @@ class FemaleHomeFragment : BaseFragment() {
             }
         })
         
+        setupDebugOnboardingEntry()
         // Set up switch listeners once at the end of initUI
         setupSwitchListeners(userData)
+    }
+
+    /** Visible only in debug builds: open post-registration onboarding for QA testing. */
+    private fun setupDebugOnboardingEntry() {
+        if (!BuildConfig.DEBUG) return
+        binding.tvDebugOnboarding.visibility = View.VISIBLE
+        binding.tvDebugOnboarding.setOnSingleClickListener {
+            val u = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return@setOnSingleClickListener
+            startActivity(
+                Intent(requireContext(), WhyHimaActivity::class.java).apply {
+                    putExtra(DConstants.AVATAR_ID, u.avatar_id)
+                    putExtra(DConstants.LANGUAGE, u.language)
+                    putExtra(DConstants.GENDER, DConstants.FEMALE)
+                }
+            )
+        }
     }
 
     private fun setupSwitchListeners(userData: UserData?) {

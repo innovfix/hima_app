@@ -33,4 +33,9 @@ object DConstants {
     const val CALL_USER_ID = "call_user_id"
     const val NEED_TO_FINISH = "need_to_finish"
     const val REMAINING_TIME = "remaining_time"
+    const val WHY_HIMA_CHOICE = "why_hima_choice"
+    const val AUTO_PAY_COIN_ID = "auto_pay_coin_id"
+    const val AUTO_PAY_AMOUNT = "auto_pay_amount"
+    const val AUTO_PAY_COINS = "auto_pay_coins"
+    const val AUTO_PAY_SAVE = "auto_pay_save"
 }

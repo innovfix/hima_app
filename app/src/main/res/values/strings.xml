@@ -271,4 +271,30 @@
 
     <string name="clientID">8avjby8rduvi2o3kgk6eorcdq457spxayqyse-luibo</string>
     <!--    <string name="clientID">mrx9s3lgullvwpqilpta9ruvkcy_yryvht6vawcien0</string>-->
+
+    <!-- Why Hima Screen -->
+    <string name="why_hima_title">What brings you to Hima?</string>
+    <string name="why_hima_subtitle">Help us personalize your experience</string>
+    <string name="choice_lonely">I feel lonely and need someone to talk to</string>
+    <string name="choice_breakup">Going through a breakup</string>
+    <string name="choice_friends">I want to make new friends</string>
+    <string name="choice_fun">Just want to have fun conversations</string>
+    <string name="choice_understand">Looking for someone who understands me</string>
+
+    <!-- Hima For You Screen -->
+    <string name="hima_for_you_title_lonely">You are not alone!</string>
+    <string name="hima_for_you_body_lonely">Thousands of warm people are here to talk with you. Start a conversation and feel the connection.</string>
+    <string name="hima_for_you_title_breakup">You will get through this!</string>
+    <string name="hima_for_you_body_breakup">Breakups are tough, but you are stronger. Talk to caring people who understand your feelings.</string>
+    <string name="hima_for_you_title_friends">Great choice!</string>
+    <string name="hima_for_you_body_friends">Hima is full of amazing people waiting to become your friend. Say hi and start connecting!</string>
+    <string name="hima_for_you_title_fun">You are in the right place!</string>
+    <string name="hima_for_you_body_fun">Endless fun conversations await you. Jump in and enjoy talking with interesting people.</string>
+    <string name="hima_for_you_title_understand">Everyone deserves to be heard</string>
+    <string name="hima_for_you_body_understand">Connect with people who truly understand you. Your feelings matter and someone is here to listen.</string>
+    <string name="people_waiting">People waiting to talk with you</string>
+    <string name="offer_title">Start talking for just \u20B925!</string>
+    <string name="offer_subtitle">Connect instantly with anyone on this list</string>
+    <string name="pay_25">Pay \u20B925</string>
+    <string name="skip_for_now">Skip for now</string>
 </resources>

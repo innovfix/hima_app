@@ -398,6 +398,18 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         addObservers()
         intializePhonpe()
 
+        val autoPayCoinId = intent.getStringExtra(DConstants.AUTO_PAY_COIN_ID)
+        val autoPayAmount = intent.getStringExtra(DConstants.AUTO_PAY_AMOUNT)
+        Log.d("AutoPay", "extras: coinId=$autoPayCoinId, amount=$autoPayAmount")
+        if (!autoPayCoinId.isNullOrEmpty() && !autoPayAmount.isNullOrEmpty()) {
+            val coinIdInt = autoPayCoinId.toIntOrNull()
+            if (coinIdInt != null) {
+                scheduleAutoPay(autoPayAmount, coinIdInt)
+            } else {
+                Log.e("AutoPay", "invalid coinId string: $autoPayCoinId")
+            }
+        }
+
         updateFcmToken(userData?.id)
 
         userName = userData?.name
@@ -810,7 +822,43 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     }
 
 
+    private var autoPayFired = false
 
+    private fun scheduleAutoPay(amount: String, coinId: Int) {
+        autoPayFired = false
+        Log.d("AutoPay", "waiting for paymentGateway to resolve...")
+
+        loginViewModel.loginResponseLiveData.observe(this, Observer { response ->
+            if (autoPayFired) return@Observer
+            if (response == null || !response.success) return@Observer
+            val pg = response.data?.payment_type
+            if (pg.isNullOrEmpty()) return@Observer
+
+            autoPayFired = true
+            Log.d("AutoPay", "gateway resolved: $pg, firing onAddCoins($amount, $coinId)")
+            binding.root.post {
+                try {
+                    onAddCoins(amount, coinId)
+                } catch (e: Exception) {
+                    Log.e("AutoPay", "onAddCoins crashed", e)
+                }
+            }
+        })
+
+        binding.root.postDelayed({
+            if (!autoPayFired && paymentGateway.isNotEmpty()) {
+                autoPayFired = true
+                Log.d("AutoPay", "fallback: gateway=$paymentGateway, firing onAddCoins($amount, $coinId)")
+                try {
+                    onAddCoins(amount, coinId)
+                } catch (e: Exception) {
+                    Log.e("AutoPay", "onAddCoins crashed (fallback)", e)
+                }
+            } else if (!autoPayFired) {
+                Log.w("AutoPay", "timeout: paymentGateway still empty after 5s")
+            }
+        }, 5000)
+    }
 
     override fun onAddCoins(amount: String, id: Int) {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()

@@ -80,6 +80,22 @@
                 </LinearLayout>
             </LinearLayout>
 
+            <TextView
+                android:id="@+id/tv_debug_onboarding"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:fontFamily="@font/poppins_medium"
+                android:padding="6dp"
+                android:text="QA"
+                android:textColor="@color/pink"
+                android:textSize="11sp"
+                android:visibility="gone"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/cl_coins"
+                app:layout_constraintTop_toTopOf="parent" />
+
             <!-- Wallet Balance Card -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cl_coins"

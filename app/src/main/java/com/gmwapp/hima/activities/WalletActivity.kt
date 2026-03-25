@@ -31,6 +31,7 @@ import com.cashfree.pg.ui.api.upi.intent.CFUPIIntentCheckoutPayment
 import com.facebook.appevents.AppEventsConstants
 import com.facebook.appevents.AppEventsLogger
 import com.gmwapp.hima.BaseApplication
+
 import com.gmwapp.hima.BillingManager.BillingManager
 import com.gmwapp.hima.R
 import com.gmwapp.hima.TokenGenerator
@@ -156,22 +157,14 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         binding = ActivityWalletBinding.inflate(layoutInflater)
         enableEdgeToEdge()
         setContentView(binding.root)
-        
-        // Set status bar colors
-       // window.statusBarColor = resources.getColor(R.color.white, null)
 
-//        window.statusBarColor = Color.parseColor("#2193b0") // startColor of your gradient
-
-        window.statusBarColor = Color.parseColor("#ffffff") // startColor of your gradient
-
-        // Make status bar icons light (white) so they're visible on black background
+        window.statusBarColor = Color.parseColor("#ffffff")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             window.insetsController?.setSystemBarsAppearance(
                 android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
                 android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
             )
         }
-
         window.navigationBarColor = resources.getColor(android.R.color.white, null)
 
         fromDeepLink = intent.getBooleanExtra("from_deeplink", false)
@@ -207,9 +200,6 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         } catch (e: CFException) {
             e.printStackTrace()
         }
-
-
-
     }
 
     override fun onResume() {

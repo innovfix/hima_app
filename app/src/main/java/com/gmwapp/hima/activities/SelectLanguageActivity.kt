@@ -76,14 +76,8 @@ class SelectLanguageActivity : BaseActivity() {
                 Log.d("SocketIOCheck", "✅ Registration successful - Socket.IO will connect when chat opens")
 
                 if (it.data?.gender == DConstants.MALE) {
-                    val intent = Intent(this, MainActivity::class.java)
-                    intent.putExtra(
-                        DConstants.AVATAR_ID, getIntent().getIntExtra(DConstants.AVATAR_ID, 0)
-                    )
-
-
                     val registrationEvent = HashMap<String, Any>()
-                    registrationEvent["user_id"] = "${it.data.id}"  // Optional custom parameter
+                    registrationEvent["user_id"] = "${it.data.id}"
 
                     AppsFlyerLib.getInstance().logEvent(
                         this,
@@ -91,19 +85,16 @@ class SelectLanguageActivity : BaseActivity() {
                         registrationEvent
                     )
 
-
-
                     val params = Bundle()
-                    params.putString("user_id", "${it.data.id}") // optional
+                    params.putString("user_id", "${it.data.id}")
                     AppEventsLogger.newLogger(this).logEvent(AppEventsConstants.EVENT_NAME_COMPLETED_REGISTRATION, params)
 
                     val bundle = Bundle().apply {
-                        putString("user_id", "${it.data.id}") // optional: useful for debugging
+                        putString("user_id", "${it.data.id}")
                     }
 
                     BaseApplication.firebaseAnalytics.logEvent(FirebaseAnalytics.Event.SIGN_UP, bundle)
 
-                    // Log to backend (only Firebase events)
                     AppEventLogger.logEvent(
                         context = this,
                         eventName = "sign_up",
@@ -112,18 +103,19 @@ class SelectLanguageActivity : BaseActivity() {
                         params = AppEventLogger.bundleToMap(bundle)
                     )
 
-
+                    val intent = Intent(this, WhyHimaActivity::class.java)
+                    intent.putExtra(DConstants.AVATAR_ID, getIntent().getIntExtra(DConstants.AVATAR_ID, 0))
                     intent.putExtra(DConstants.LANGUAGE, selectedLanguage)
+                    intent.putExtra(DConstants.GENDER, DConstants.MALE)
                     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                     startActivity(intent)
                     finish()
                 } else {
                     if(it.data?.status == 2){
-                        val intent = Intent(this, MainActivity::class.java)
-                        intent.putExtra(
-                            DConstants.AVATAR_ID, getIntent().getIntExtra(DConstants.AVATAR_ID, 0)
-                        )
+                        val intent = Intent(this, WhyHimaActivity::class.java)
+                        intent.putExtra(DConstants.AVATAR_ID, getIntent().getIntExtra(DConstants.AVATAR_ID, 0))
                         intent.putExtra(DConstants.LANGUAGE, selectedLanguage)
+                        intent.putExtra(DConstants.GENDER, DConstants.FEMALE)
                         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                         startActivity(intent)
                         finish()
