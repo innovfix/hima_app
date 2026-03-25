@@ -259,8 +259,14 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             config.mEventHandler = mRtcEventHandler
             agoraEngine = RtcEngine.create(config)
 
-            // Enable only audio module (Disable video)
             agoraEngine!!.enableAudio()
+            Log.d("AudioFlow", "MaleAudio: enableAudio() called")
+
+            agoraEngine!!.setAudioProfile(Constants.AUDIO_PROFILE_SPEECH_STANDARD, Constants.AUDIO_SCENARIO_DEFAULT)
+            Log.d("AudioFlow", "MaleAudio: setAudioProfile(SPEECH_STANDARD, DEFAULT) called")
+
+            agoraEngine!!.setDefaultAudioRoutetoSpeakerphone(true)
+            Log.d("AudioFlow", "MaleAudio: setDefaultAudioRoutetoSpeakerphone(true) called")
         } catch (e: Exception) {
             showMessage(e.toString())
         }
@@ -890,15 +896,14 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private val mRtcEventHandler: IRtcEngineEventHandler = object : IRtcEngineEventHandler() {
         override fun onJoinChannelSuccess(channel: String, uid: Int, elapsed: Int) {
             isJoined = true
-         //   showMessage("Joined Channel $channel")
             startTimeoutTracking()
+            Log.d("AudioFlow", "MaleAudio: onJoinChannelSuccess channel=$channel uid=$uid elapsed=${elapsed}ms")
         }
 
         override fun onUserOffline(uid: Int, reason: Int) {
 
             updateCallEndDetails()
             stopCountdown()
-          //  showMessage("Remote user left")
 
             val intent = Intent(this@MaleAudioCallingActivity, MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -916,9 +921,10 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             startCallingService()
             getRemainingTime()
             initVosk()
-            agoraEngine?.setAudioProfile(Constants.AUDIO_PROFILE_SPEECH_STANDARD, Constants.AUDIO_SCENARIO_DEFAULT)
 
 //            agoraEngine?.registerAudioFrameObserver(audioFrameObserver)
+
+            Log.d("AudioFlow", "MaleAudio: onUserJoined uid=$uid, elapsed=$elapsed")
 
             val bundle = Bundle().apply {
                 putString("user_id", "${maleUserId}")
@@ -950,6 +956,29 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
             agoraEngine?.enableAudioVolumeIndication(200, 3, true)
 
+        }
+
+        override fun onRemoteAudioStateChanged(uid: Int, state: Int, reason: Int, elapsed: Int) {
+            val stateName = when (state) {
+                0 -> "STOPPED"
+                1 -> "STARTING"
+                2 -> "DECODING"
+                3 -> "FROZEN"
+                4 -> "FAILED"
+                else -> "UNKNOWN($state)"
+            }
+            val reasonName = when (reason) {
+                0 -> "INTERNAL"
+                1 -> "NETWORK_CONGESTION"
+                2 -> "NETWORK_RECOVERY"
+                3 -> "LOCAL_MUTED"
+                4 -> "LOCAL_UNMUTED"
+                5 -> "REMOTE_MUTED"
+                6 -> "REMOTE_UNMUTED"
+                7 -> "REMOTE_OFFLINE"
+                else -> "UNKNOWN($reason)"
+            }
+            Log.d("AudioFlow", "MaleAudio: onRemoteAudioStateChanged uid=$uid state=$stateName reason=$reasonName elapsed=$elapsed")
         }
 
         override fun onUserMuteVideo(uid: Int, muted: Boolean) {
@@ -1081,8 +1110,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             options.autoSubscribeAudio = true
             options.autoSubscribeVideo = true  // ✅ Ensure video is OFF
 
+            Log.d("AudioFlow", "MaleAudio: joinChannel() calling with channel=$channelName uid=$uid autoSubscribeAudio=true")
             agoraEngine!!.joinChannel(token, channelName, uid, options)
-            Log.d("AgoraTag", "Joined channel: $channelName with token: $token")
+            Log.d("AudioFlow", "MaleAudio: joinChannel() returned")
 
         } else {
             Toast.makeText(applicationContext, "Permissions were not granted", Toast.LENGTH_SHORT)
@@ -1386,15 +1416,16 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     private fun toggleMute() {
         isMuted = !isMuted
-        agoraEngine?.muteLocalAudioStream(isMuted)  // Mute or unmute audio
+        agoraEngine?.muteLocalAudioStream(isMuted)
+        Log.d("AudioFlow", "MaleAudio: toggleMute isMuted=$isMuted")
         val muteIcon = if (isMuted) R.drawable.mute_img else R.drawable.unmute_img
         binding.btnMuteUnmute.setImageResource(muteIcon)
     }
 
-    // Function to toggle speaker on/off
     private fun toggleSpeaker() {
         isSpeakerOn = !isSpeakerOn
-        agoraEngine?.setEnableSpeakerphone(isSpeakerOn)  // Enable or disable speakerphone
+        agoraEngine?.setEnableSpeakerphone(isSpeakerOn)
+        Log.d("AudioFlow", "MaleAudio: toggleSpeaker isSpeakerOn=$isSpeakerOn")
         val speakerIcon = if (isSpeakerOn) R.drawable.speakeron_img else R.drawable.speakeroff_img
         binding.btnSpeaker.setImageResource(speakerIcon)
     }
@@ -2243,7 +2274,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         binding.blackscreen.visibility=View.GONE
         agoraEngine?.muteAllRemoteAudioStreams(false)
         agoraEngine?.muteLocalVideoStream(false)
-        agoraEngine?.muteLocalAudioStream(false)
+        agoraEngine?.muteLocalAudioStream(isMuted)
+        Log.d("AudioFlow", "MaleAudio: enableVideo() muteLocalAudio=$isMuted")
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val senderId = userData?.id

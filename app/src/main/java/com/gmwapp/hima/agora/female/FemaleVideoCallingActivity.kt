@@ -263,8 +263,18 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             config.mAppId = appId!!
             config.mEventHandler = mRtcEventHandler
             agoraEngine = RtcEngine.create(config)
-            // By default, the video module is disabled, call enableVideo to enable it.
+
+            agoraEngine!!.enableAudio()
+            Log.d("AudioFlow", "FemaleVideo: enableAudio() called")
+
             agoraEngine!!.enableVideo()
+            Log.d("AudioFlow", "FemaleVideo: enableVideo() called")
+
+            agoraEngine!!.setAudioProfile(Constants.AUDIO_PROFILE_SPEECH_STANDARD, Constants.AUDIO_SCENARIO_DEFAULT)
+            Log.d("AudioFlow", "FemaleVideo: setAudioProfile(SPEECH_STANDARD, DEFAULT) called")
+
+            agoraEngine!!.setDefaultAudioRoutetoSpeakerphone(true)
+            Log.d("AudioFlow", "FemaleVideo: setDefaultAudioRoutetoSpeakerphone(true) called")
         } catch (e: Exception) {
             showMessage(e.toString())
         }
@@ -802,21 +812,39 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
 
             initVosk()
-            agoraEngine?.setAudioProfile(Constants.AUDIO_PROFILE_SPEECH_STANDARD, Constants.AUDIO_SCENARIO_DEFAULT)
 
 //            agoraEngine?.registerAudioFrameObserver(audioFrameObserver)
 
+            Log.d("AudioFlow", "FemaleVideo: onUserJoined uid=$uid, elapsed=$elapsed")
+        }
 
-
+        override fun onRemoteAudioStateChanged(uid: Int, state: Int, reason: Int, elapsed: Int) {
+            val stateName = when (state) {
+                0 -> "STOPPED"
+                1 -> "STARTING"
+                2 -> "DECODING"
+                3 -> "FROZEN"
+                4 -> "FAILED"
+                else -> "UNKNOWN($state)"
+            }
+            val reasonName = when (reason) {
+                0 -> "INTERNAL"
+                1 -> "NETWORK_CONGESTION"
+                2 -> "NETWORK_RECOVERY"
+                3 -> "LOCAL_MUTED"
+                4 -> "LOCAL_UNMUTED"
+                5 -> "REMOTE_MUTED"
+                6 -> "REMOTE_UNMUTED"
+                7 -> "REMOTE_OFFLINE"
+                else -> "UNKNOWN($reason)"
+            }
+            Log.d("AudioFlow", "FemaleVideo: onRemoteAudioStateChanged uid=$uid state=$stateName reason=$reasonName elapsed=$elapsed")
         }
 
         override fun onJoinChannelSuccess(channel: String, uid: Int, elapsed: Int) {
             isJoined = true
-
             startTimeoutTracking()
-            Log.d("JoinedSuccessFully","$channel")
-        //    showMessage("Joined Channel $channel")
-
+            Log.d("AudioFlow", "FemaleVideo: onJoinChannelSuccess channel=$channel uid=$uid elapsed=${elapsed}ms")
         }
 
         override fun onUserOffline(uid: Int, reason: Int) {
@@ -930,13 +958,13 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         if (checkSelfPermission()) {
             val options = ChannelMediaOptions()
 
-            Log.d("AgoraDebug", "Joining channel: $channelName, Token: $token")
-
             options.channelProfile = Constants.CHANNEL_PROFILE_COMMUNICATION
             options.clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
+            options.autoSubscribeAudio = true
             setupLocalVideo()
             localSurfaceView!!.visibility = View.VISIBLE
             agoraEngine!!.startPreview()
+            Log.d("AudioFlow", "FemaleVideo: joinChannel() calling with channel=$channelName uid=$uid autoSubscribeAudio=true")
             val result = agoraEngine!!.joinChannel(token, channelName, uid, options)
             if (result == 0) {
                 Log.d("AgorajoinChannel", "joinChannel: Success $result")
@@ -1184,15 +1212,16 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     private fun toggleMute() {
         isMuted = !isMuted
-        agoraEngine?.muteLocalAudioStream(isMuted)  // Mute or unmute audio
+        agoraEngine?.muteLocalAudioStream(isMuted)
+        Log.d("AudioFlow", "FemaleVideo: toggleMute isMuted=$isMuted")
         val muteIcon = if (isMuted) R.drawable.mute_img else R.drawable.unmute_img
         binding.btnMuteUnmute.setImageResource(muteIcon)
     }
 
-    // Function to toggle speaker on/off
     private fun toggleSpeaker() {
         isSpeakerOn = !isSpeakerOn
-        agoraEngine?.setEnableSpeakerphone(isSpeakerOn)  // Enable or disable speakerphone
+        agoraEngine?.setEnableSpeakerphone(isSpeakerOn)
+        Log.d("AudioFlow", "FemaleVideo: toggleSpeaker isSpeakerOn=$isSpeakerOn")
         val speakerIcon = if (isSpeakerOn) R.drawable.speakeron_img else R.drawable.speakeroff_img
         binding.btnSpeaker.setImageResource(speakerIcon)
     }
@@ -1994,15 +2023,15 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         if (isFinishing || isDestroyed) {
             return
         }
-        
+
         try {
             Log.d("FaceDetection", "Resuming call after face detection")
-            
-            // Unmute streams
+
             binding.blackscreen.visibility = View.GONE
             agoraEngine?.muteAllRemoteAudioStreams(false)
             agoraEngine?.muteLocalVideoStream(false)
-            agoraEngine?.muteLocalAudioStream(false)
+            agoraEngine?.muteLocalAudioStream(isMuted)
+            Log.d("AudioFlow", "FemaleVideo: resumeCallAfterFaceDetection muteLocalAudio=$isMuted")
 
             val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
             val senderId = userData?.id
