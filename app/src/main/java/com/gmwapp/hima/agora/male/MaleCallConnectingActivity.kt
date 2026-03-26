@@ -191,7 +191,8 @@ class MaleCallConnectingActivity : AppCompatActivity() {
     fun initUI(){
         progressBar = findViewById(R.id.progressBar)
         if (receiverName != null) {
-            binding.tlWaitTitle.setText("Connecting with $receiverName")
+            val displayName = receiverName!!.trimEnd { it.isDigit() }
+            binding.tlWaitTitle.setText("Connecting with $displayName")
         }
         startProgressLoop()
         if (callType=="audio"){
@@ -530,7 +531,7 @@ class MaleCallConnectingActivity : AppCompatActivity() {
                 cancelTimeoutTracking()
                 
                 // Update UI to show busy message
-                binding.tlWaitTitle.text = "$receiverName just got busy!"
+                binding.tlWaitTitle.text = "${receiverName?.trimEnd { it.isDigit() }} just got busy!"
                 binding.tvProgressText.text = "Finding another match..."
                 
                 // Clear the status

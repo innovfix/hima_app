@@ -461,6 +461,64 @@
 
     </androidx.cardview.widget.CardView>
 
+    <!-- Gift Button -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/gift_button_card"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="8dp"
+        app:cardCornerRadius="28dp"
+        app:cardElevation="12dp"
+        app:cardBackgroundColor="#E91E63"
+        app:layout_constraintBottom_toTopOf="@id/controls_container"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/users_container"
+        app:layout_constraintVertical_bias="0.75">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingStart="18dp"
+            android:paddingEnd="18dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp">
+
+            <ImageView
+                android:id="@+id/iv_gift"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:src="@drawable/gift_png"
+                android:layout_marginEnd="8dp"
+                android:contentDescription="Send Gift"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Send Gift"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.02"/>
+
+        </LinearLayout>
+
+    </androidx.cardview.widget.CardView>
+
+    <ImageView
+        android:id="@+id/iv_gift_image"
+        android:layout_width="@dimen/_95sdp"
+        android:layout_height="95dp"
+        android:src="@drawable/gift_png"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        android:contentDescription="Gift Animation"/>
+
     <!-- Debug Buttons (Hidden in production) -->
     <Button
         android:id="@+id/JoinButton"

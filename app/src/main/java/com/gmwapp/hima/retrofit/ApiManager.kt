@@ -196,10 +196,19 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     }
 
     fun getCallsList(
-        userId: Int, gender: String, limit: Int, currentOffset: Int, type: String, search: String?, fav: Int? = null, callback: NetworkCallback<CallsListResponse>
+        userId: Int,
+        gender: String,
+        limit: Int,
+        currentOffset: Int,
+        type: String,
+        search: String?,
+        fav: Int? = null,
+        days: Int = 0,
+        callback: NetworkCallback<CallsListResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<CallsListResponse> = getApiInterface().getCallsList(userId, gender, currentOffset, limit, type, search, fav)
+            val apiCall: Call<CallsListResponse> =
+                getApiInterface().getCallsList(userId, gender, currentOffset, limit, type, search, fav, days)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1722,7 +1731,8 @@ interface ApiInterface {
         @Field("limit") limit: Int,
         @Field("type") type: String,
         @Field("search") search: String?,
-        @Field("fav") fav: Int? = null
+        @Field("fav") fav: Int? = null,
+        @Field("days") days: Int = 0
     ): Call<CallsListResponse>
 
     @FormUrlEncoded

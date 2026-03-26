@@ -53,6 +53,8 @@ import com.gmwapp.hima.utils.AppEventLogger
 import com.gmwapp.hima.activities.RatingActivity
 import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.agora.FcmUtils
+import com.gmwapp.hima.agora.GiftBottomSheetFragment
+import com.gmwapp.hima.viewmodels.GiftImageViewModel
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.media.RtcTokenBuilder2
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
@@ -159,6 +161,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     private val agoraViewModel: AgoraViewModel by viewModels()
     private val callDropStatusViewModel: CallDropStatusViewModel by viewModels()
     private val ludoFcmViewModel: LudoFcmViewModel by viewModels()
+    private val giftImageViewModel: GiftImageViewModel by viewModels()
 
 
     private val uid = 0
@@ -378,6 +381,70 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
         getBlockWords()
         setupLudoInviteFlow()
+        giftIconClicked()
+    }
+
+    private fun giftIconClicked() {
+        binding.giftButtonCard.setOnClickListener {
+            val bottomSheet = GiftBottomSheetFragment("video", receiverId)
+            bottomSheet.show(supportFragmentManager, "BottomSheetGift")
+        }
+    }
+
+    fun animateGift(image: String) {
+        val giftImage = binding.ivGiftImage
+        giftImage.alpha = 1f
+        giftImage.visibility = View.VISIBLE
+
+        BaseApplication.getInstance()?.playSendGiftSound()
+        com.bumptech.glide.Glide.with(this)
+            .load(image)
+            .into(giftImage)
+
+        giftImage.post {
+            val startX = giftImage.x
+            val startY = giftImage.y
+
+            val remoteContainer = binding.remoteVideoViewContainer
+            val giftLocation = IntArray(2)
+            val remoteLocation = IntArray(2)
+            giftImage.getLocationOnScreen(giftLocation)
+            remoteContainer.getLocationOnScreen(remoteLocation)
+
+            val targetX = giftImage.x + (remoteLocation[0] - giftLocation[0]) + (remoteContainer.width / 2f - giftImage.width / 2f)
+            val targetY = giftImage.y + (remoteLocation[1] - giftLocation[1]) + (remoteContainer.height / 2f - giftImage.height / 2f)
+
+            giftImage.animate()
+                .x(targetX)
+                .y(targetY)
+                .setDuration(2000)
+                .withEndAction {
+                    giftImage.animate()
+                        .alpha(0f)
+                        .setDuration(1000)
+                        .withEndAction {
+                            giftImage.visibility = View.INVISIBLE
+                            giftImage.x = startX
+                            giftImage.y = startY
+                        }
+                        .start()
+                }
+                .start()
+        }
+    }
+
+    fun sendGiftSentNotification(giftIcon: String) {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val senderId = userData?.id
+        if (senderId != null) {
+            fcmNotificationViewModel.sendNotification(
+                senderId = senderId,
+                receiverId = receiverId,
+                callType = giftIcon,
+                channelName = channelName,
+                message = "giftSent"
+            )
+        }
     }
 
     private fun getAgoraTokenFromBackend() {
@@ -1040,6 +1107,10 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
     private fun setupLudoInviteFlow() {
         binding.ludoButtonCard.setOnSingleClickListener {
+            if (!isRemoteUserJoined) {
+                Toast.makeText(this, "Please wait for the call to connect", Toast.LENGTH_SHORT).show()
+                return@setOnSingleClickListener
+            }
             showLudoInviteConfirmDialog()
         }
 

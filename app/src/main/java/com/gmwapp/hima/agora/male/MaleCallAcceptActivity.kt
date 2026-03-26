@@ -109,7 +109,7 @@ class MaleCallAcceptActivity : AppCompatActivity() {
             BaseApplication.getInstance()?.playIncomingCallSound()
         }
 
-        binding.callerName.setText(callerName)
+        binding.callerName.setText(callerName.trimEnd { it.isDigit() })
         Glide.with(this)
             .load(callerImage)
             .apply(RequestOptions.circleCropTransform())
@@ -223,7 +223,7 @@ class MaleCallAcceptActivity : AppCompatActivity() {
                 callerName = response.data?.name.toString()
                 Log.d("MaleCallAccept_UserAvatar", "Image URL: $imageUrl")
 
-                binding.callerName.setText(callerName)
+                binding.callerName.setText(callerName.trimEnd { it.isDigit() })
                 Glide.with(this)
                     .load(imageUrl)
                     .apply(RequestOptions.circleCropTransform())

@@ -6,18 +6,16 @@ import android.os.Handler
 import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.EditText
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import android.util.Log
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
-import com.gmwapp.hima.activities.RandomUserActivity
 import com.gmwapp.hima.adapters.RecentCallsAdapter
 import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.agora.male.MaleCallConnectingActivity
@@ -29,6 +27,7 @@ import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.CallsListResponseData
 import com.gmwapp.hima.retrofit.responses.MyChatResponse
 import com.gmwapp.hima.viewmodels.RecentViewModel
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
 import retrofit2.Call
 import retrofit2.Response
@@ -48,7 +47,10 @@ class RecentFragment : BaseFragment() {
     private val limit = 10
     private var currentSortType = "recent"  // Default: recent
     private var currentSearchQuery = ""  // Current search query
+    private var currentDaysFilter = 0
     private var currentMissedCount = 0
+    private var isProgrammaticChipSelection = false
+    private var isTalkTimeDialogOpen = false
     
     // Debouncing for search
     private val searchHandler = Handler(Looper.getMainLooper())
@@ -121,7 +123,16 @@ class RecentFragment : BaseFragment() {
                     isLoading = true
                     offset += limit
                     userData.let {
-                        recentViewModel.getCallsList(it.id, it.gender, limit, offset, currentSortType, if (currentSearchQuery.isEmpty()) null else currentSearchQuery)
+                        val days = if (currentSortType == "talk_time") currentDaysFilter else 0
+                        recentViewModel.getCallsList(
+                            it.id,
+                            it.gender,
+                            limit,
+                            offset,
+                            currentSortType,
+                            if (currentSearchQuery.isEmpty()) null else currentSearchQuery,
+                            days = days
+                        )
                     }
                 }
             }
@@ -130,7 +141,14 @@ class RecentFragment : BaseFragment() {
 
     private fun loadCallsList(sortType: String, resetData: Boolean, searchQuery: String = "") {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
-        
+        val days = if (sortType == "talk_time") currentDaysFilter else 0
+        if (sortType == "talk_time" && days <= 0) {
+            binding.swipeRefreshLayout.isRefreshing = false
+            isLoading = false
+            setLoading(false)
+            return
+        }
+
         if (resetData) {
             offset = 0
             isLoading = true
@@ -142,7 +160,15 @@ class RecentFragment : BaseFragment() {
         
         val search = searchQuery.trim()
         currentSearchQuery = search
-        recentViewModel.getCallsList(userData.id, userData.gender, limit, offset, sortType, if (search.isEmpty()) null else search)
+        recentViewModel.getCallsList(
+            userData.id,
+            userData.gender,
+            limit,
+            offset,
+            sortType,
+            if (search.isEmpty()) null else search,
+            days = days
+        )
     }
     
     private fun setupSearchListener() {
@@ -237,22 +263,101 @@ class RecentFragment : BaseFragment() {
     }
 
     private fun setupFilterChips() {
+        binding.chipTalkTime.setOnClickListener {
+            if (currentSortType == "talk_time") {
+                showTalkTimeDaysDialog(
+                    onDaySelected = { selectedDays ->
+                        currentDaysFilter = selectedDays
+                        recentCallsAdapter.setFilter(currentSortType)
+                        // Re-apply filter even when same day is selected again.
+                        loadCallsList(currentSortType, resetData = true)
+                    },
+                    onDismissWithoutSelection = {}
+                )
+            }
+        }
+
         binding.chipGroupFilter.setOnCheckedStateChangeListener { _, checkedIds ->
+            if (isProgrammaticChipSelection) return@setOnCheckedStateChangeListener
+            val selectedChipId = checkedIds.firstOrNull() ?: return@setOnCheckedStateChangeListener
             val sortType = when (checkedIds.firstOrNull()) {
                 R.id.chip_missed    -> "missed"
                 R.id.chip_talk_time -> "talk_time"
                 R.id.chip_a_z       -> "a_z"
                 else                -> "recent"
             }
-            if (sortType != currentSortType) {
-                currentSortType = sortType
-                recentCallsAdapter.setFilter(currentSortType)
+            if (selectedChipId == R.id.chip_talk_time) {
+                val previousSortType = currentSortType
+                showTalkTimeDaysDialog(
+                    onDaySelected = { selectedDays ->
+                        val changed = currentSortType != "talk_time" || currentDaysFilter != selectedDays
+                        currentSortType = "talk_time"
+                        currentDaysFilter = selectedDays
+                        recentCallsAdapter.setFilter(currentSortType)
+                        if (changed) {
+                            loadCallsList(currentSortType, resetData = true)
+                        }
+                    },
+                    onDismissWithoutSelection = {
+                        restoreChipSelection(previousSortType)
+                    }
+                )
+                return@setOnCheckedStateChangeListener
+            }
+
+            val changed = currentSortType != sortType || currentDaysFilter != 0
+            currentSortType = sortType
+            currentDaysFilter = 0
+            recentCallsAdapter.setFilter(currentSortType)
+            if (changed) {
                 loadCallsList(currentSortType, resetData = true)
-                if (currentSortType == "missed") {
-                    loadMissedCallCount(seen = 1)
-                }
+            }
+            if (currentSortType == "missed") {
+                loadMissedCallCount(seen = 1)
             }
         }
+    }
+
+    private fun showTalkTimeDaysDialog(
+        onDaySelected: (Int) -> Unit,
+        onDismissWithoutSelection: () -> Unit
+    ) {
+        if (isTalkTimeDialogOpen) return
+        isTalkTimeDialogOpen = true
+
+        val dayOptions = arrayOf("Last 7 days", "Last 15 days", "Last 30 days")
+        val dayValues = intArrayOf(7, 15, 30)
+        var hasSelection = false
+
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle("Select Talk Time Range")
+            .setItems(dayOptions) { dialog, which ->
+                hasSelection = true
+                onDaySelected(dayValues[which])
+                dialog.dismiss()
+            }
+            .setOnCancelListener {
+                isTalkTimeDialogOpen = false
+                if (!hasSelection) {
+                    onDismissWithoutSelection()
+                }
+            }
+            .setOnDismissListener {
+                isTalkTimeDialogOpen = false
+            }
+            .show()
+    }
+
+    private fun restoreChipSelection(sortType: String) {
+        val chipId = when (sortType) {
+            "missed" -> R.id.chip_missed
+            "talk_time" -> R.id.chip_talk_time
+            "a_z" -> R.id.chip_a_z
+            else -> R.id.chip_all
+        }
+        isProgrammaticChipSelection = true
+        binding.chipGroupFilter.check(chipId)
+        isProgrammaticChipSelection = false
     }
 
     private fun loadMissedCallCount(seen: Int = 0) {

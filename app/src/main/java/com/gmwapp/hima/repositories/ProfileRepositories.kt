@@ -21,8 +21,18 @@ class ProfileRepositories @Inject constructor(private val apiManager: ApiManager
         apiManager.getAvatarsList(gender, callback)
     }
 
-    fun getCallsList(userId: Int, gender: String, limit: Int, currentOffset: Int, type: String, search: String?, fav: Int? = null, callback: NetworkCallback<CallsListResponse>) {
-        apiManager.getCallsList(userId, gender, limit, currentOffset, type, search, fav, callback)
+    fun getCallsList(
+        userId: Int,
+        gender: String,
+        limit: Int,
+        currentOffset: Int,
+        type: String,
+        search: String?,
+        fav: Int? = null,
+        days: Int = 0,
+        callback: NetworkCallback<CallsListResponse>
+    ) {
+        apiManager.getCallsList(userId, gender, limit, currentOffset, type, search, fav, days, callback)
     }
 
     fun getMissedCallCount(

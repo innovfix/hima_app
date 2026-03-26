@@ -280,8 +280,14 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 //            ZohoSalesIQ.showLauncher(true)
 //        }
 
-        CoroutineScope(Dispatchers.IO).launch {
-            OneSignal.Notifications.requestPermission(false)
+        val notifPrefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+        val lastAskedTime = notifPrefs.getLong("notif_permission_last_asked", 0L)
+        val oneDayMillis = 24 * 60 * 60 * 1000L
+        if (System.currentTimeMillis() - lastAskedTime >= oneDayMillis) {
+            notifPrefs.edit().putLong("notif_permission_last_asked", System.currentTimeMillis()).apply()
+            CoroutineScope(Dispatchers.IO).launch {
+                OneSignal.Notifications.requestPermission(false)
+            }
         }
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
@@ -302,7 +308,9 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                if (System.currentTimeMillis() - lastAskedTime >= oneDayMillis) {
+                    requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
             }
         }
 

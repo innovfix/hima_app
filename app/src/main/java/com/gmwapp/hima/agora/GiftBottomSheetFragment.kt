@@ -21,6 +21,7 @@ import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.GiftAdapter
 import com.gmwapp.hima.agora.male.MaleAudioCallingActivity
+import com.gmwapp.hima.agora.male.MaleVideoCallingActivity
 import com.gmwapp.hima.databinding.BottomSheetGiftsLayoutBinding
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
@@ -195,16 +196,23 @@ class GiftBottomSheetFragment(var callType: String, var femaleId:Int) : BottomSh
             Log.d("userAvatarLiveData", "Image URL: $response")
 
             if (response != null && response.success) {
-                if (count==1){
-                Toast.makeText(requireContext(), "Gift Sent Successfully!", Toast.LENGTH_SHORT).show()
+                if (count == 1) {
+                    Toast.makeText(requireContext(), "Gift Sent Successfully!", Toast.LENGTH_SHORT).show()
                     count++
-                    response.data?.let { (activity as? MaleAudioCallingActivity)?.sendGiftSentNotification(it.gift_icon) }
-                    (activity as? MaleAudioCallingActivity)?.newRemainingTime()
-                    response.data?.let { (activity as? MaleAudioCallingActivity)?.animateGift(it.gift_icon) }
+                    when (val host = activity) {
+                        is MaleAudioCallingActivity -> {
+                            response.data?.let { host.sendGiftSentNotification(it.gift_icon) }
+                            host.newRemainingTime()
+                            response.data?.let { host.animateGift(it.gift_icon) }
+                        }
+                        is MaleVideoCallingActivity -> {
+                            response.data?.let { host.sendGiftSentNotification(it.gift_icon) }
+                            response.data?.let { host.animateGift(it.gift_icon) }
+                        }
+                    }
                     dismiss()
-
-
-                }}
+                }
+            }
         }
 
         giftViewModel.giftErrorLiveData.observe(this) { errorMessage ->

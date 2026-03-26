@@ -194,8 +194,13 @@ class FemaleHomeFragment : BaseFragment() {
                 val intent = Intent(context, GrantPermissionsActivity::class.java)
                 startActivity(intent)
             } else {
-                // Only initial request
-                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                // Only initial request — once per day
+                val notifPrefs = requireContext().getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+                val lastAsked = notifPrefs.getLong("notif_permission_last_asked", 0L)
+                if (System.currentTimeMillis() - lastAsked >= 24 * 60 * 60 * 1000L) {
+                    notifPrefs.edit().putLong("notif_permission_last_asked", System.currentTimeMillis()).apply()
+                    requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
             }
         } else {
             askNotificationsEnabled()
@@ -364,8 +369,13 @@ class FemaleHomeFragment : BaseFragment() {
                 // 4. Re-subscribe and assign external ID
                 OneSignal.User.pushSubscription.optIn()
 
-                // 5. Prompt notification permission (Android 13+)
-                OneSignal.Notifications.requestPermission(true)
+                // 5. Prompt notification permission (Android 13+) — once per day only
+                val notifPrefs = requireContext().getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+                val lastAsked = notifPrefs.getLong("notif_permission_last_asked", 0L)
+                if (System.currentTimeMillis() - lastAsked >= 24 * 60 * 60 * 1000L) {
+                    notifPrefs.edit().putLong("notif_permission_last_asked", System.currentTimeMillis()).apply()
+                    OneSignal.Notifications.requestPermission(true)
+                }
 
                 OneSignal.User.addTag("gender", "female")
                 language?.let {

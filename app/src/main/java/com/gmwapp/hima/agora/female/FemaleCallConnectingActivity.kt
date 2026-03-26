@@ -173,7 +173,8 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
     fun initUI(){
         progressBar = findViewById(R.id.progressBar)
         if (receiverName != null) {
-            binding.tlWaitTitle.setText("Connecting with $receiverName")
+            val displayName = receiverName!!.trimEnd { it.isDigit() }
+            binding.tlWaitTitle.setText("Connecting with $displayName")
         }
         startProgressLoop()
         if (callType=="audio"){
@@ -398,7 +399,7 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                     FcmUtils.shouldRefreshCallList = 1
                     Toast.makeText(
                         this@FemaleCallConnectingActivity,
-                        "$receiverName is busy",
+                        "${receiverName?.trimEnd { it.isDigit() }} is busy",
                         Toast.LENGTH_SHORT
                     ).show()
                     val intent = Intent(this@FemaleCallConnectingActivity, MainActivity::class.java)
