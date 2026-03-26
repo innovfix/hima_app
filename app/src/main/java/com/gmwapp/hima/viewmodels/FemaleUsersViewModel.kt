@@ -75,9 +75,9 @@ class FemaleUsersViewModel @Inject constructor(private val femaleUsersRepositori
         }
     }
 
-    fun getRandomUser(userId: Int, callType: String) {
+    fun getRandomUser(userId: Int, callType: String, filter: String? = null) {
         viewModelScope.launch {
-            femaleUsersRepositories.getRandomUser(userId,callType, object:NetworkCallback<RandomUsersResponse> {
+            femaleUsersRepositories.getRandomUser(userId,callType,filter, object:NetworkCallback<RandomUsersResponse> {
                 override fun onResponse(
                     call: Call<RandomUsersResponse>,
                     response: Response<RandomUsersResponse>

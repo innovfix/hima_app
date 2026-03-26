@@ -216,6 +216,7 @@ class HomeFragment : BaseFragment() {
         binding.fabAudio.setOnSingleClickListener {
             val intent = Intent(context, AgoraRandomCallActivity::class.java)
             intent.putExtra(DConstants.CALL_TYPE, "audio")
+            intent.putExtra("RANDOM_FILTER", filterType)
             intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             startActivity(intent)
         }
@@ -223,6 +224,7 @@ class HomeFragment : BaseFragment() {
         binding.fabVideo.setOnSingleClickListener {
             val intent = Intent(context, AgoraRandomCallActivity::class.java)
             intent.putExtra(DConstants.CALL_TYPE, "video")
+            intent.putExtra("RANDOM_FILTER", filterType)
             startActivity(intent)
         }
 
@@ -281,7 +283,8 @@ class HomeFragment : BaseFragment() {
                                 FcmUtils.isUserAvailable=1
                                 startActivity(intent)
                             }
-                        })
+                        }
+                    )
                 }
                 binding.rvProfiles.adapter = transactionAdapter
             }
@@ -340,8 +343,11 @@ class HomeFragment : BaseFragment() {
 
     private fun loadFemaleUsers(userId: Int) {
         setLoading(true)
-        // Only send filter parameter if it's "new", otherwise send null (backward compatible)
-        val filter = if (filterType == "new") "new" else null
+        val filter = when (filterType) {
+            "new"  -> "new"
+            "star" -> "star"
+            else   -> null
+        }
         femaleUsersViewModel.getFemaleUsers(userId, filter)
     }
 
@@ -356,73 +362,46 @@ class HomeFragment : BaseFragment() {
         // Set initial state
         updateFilterButtonStyles()
 
-        binding.btnFilterAll.setOnClickListener {
-            Log.d("FilterButtons", "All button clicked")
-            applyFilter("all")
-        }
-
-        binding.btnFilterNew.setOnClickListener {
-            Log.d("FilterButtons", "New button clicked")
-            applyFilter("new")
-        }
-        
-        // Add touch listener to debug if touches are reaching the button
-        binding.btnFilterNew.setOnTouchListener { view, event ->
-            Log.d("FilterButtons", "New button TOUCHED - action: ${event.action}")
-            false // Return false to allow click event to proceed
-        }
-        
-        binding.btnFilterAll.setOnTouchListener { view, event ->
-            Log.d("FilterButtons", "All button TOUCHED - action: ${event.action}")
-            false
-        }
-        
-        Log.d("FilterButtons", "Filter buttons click listeners set up successfully")
-        Log.d("FilterButtons", "btnFilterNew isClickable: ${binding.btnFilterNew.isClickable}, isEnabled: ${binding.btnFilterNew.isEnabled}")
-        Log.d("FilterButtons", "btnFilterAll isClickable: ${binding.btnFilterAll.isClickable}, isEnabled: ${binding.btnFilterAll.isEnabled}")
+        binding.btnFilterAll.setOnClickListener { applyFilter("all") }
+        binding.btnFilterNew.setOnClickListener { applyFilter("new") }
+        binding.btnFilterStar.setOnClickListener { applyFilter("star") }
     }
 
     private fun updateFilterButtonStyles() {
         val strokeWidthPx = (1 * resources.displayMetrics.density).toInt()
-        val pinkColor = resources.getColorStateList(R.color.colorAccent, null)
-        val whiteColor = resources.getColorStateList(R.color.white, null)
-        val greyColor = resources.getColor(R.color.grey_medium, null)
-        val whiteTextColor = resources.getColor(R.color.white, null)
+        val pinkColor   = resources.getColorStateList(R.color.colorAccent, null)
+        val goldColor   = android.content.res.ColorStateList.valueOf(0xFFFFC107.toInt())
+        val whiteColor  = resources.getColorStateList(R.color.white, null)
+        val greyColor   = resources.getColor(R.color.grey_medium, null)
+        val whiteText   = resources.getColor(R.color.white, null)
         val borderColor = resources.getColorStateList(R.color.light_grey, null)
-        
-        if (filterType == "all") {
-            // All button selected - Pink background
-            binding.btnFilterAll.apply {
+
+        // Reset all to unselected state first
+        listOf(binding.btnFilterAll, binding.btnFilterNew, binding.btnFilterStar).forEach {
+            it.backgroundTintList = whiteColor
+            it.setTextColor(greyColor)
+            it.strokeWidth = strokeWidthPx
+            it.strokeColor = borderColor
+        }
+
+        // Highlight selected
+        when (filterType) {
+            "all" -> binding.btnFilterAll.apply {
                 backgroundTintList = pinkColor
-                setTextColor(whiteTextColor)
+                setTextColor(whiteText)
                 strokeWidth = 0
-                strokeColor = null
             }
-            // New button unselected - White background with border
-            binding.btnFilterNew.apply {
-                backgroundTintList = whiteColor
-                setTextColor(greyColor)
-                strokeWidth = strokeWidthPx
-                strokeColor = borderColor
-            }
-        } else {
-            // All button unselected - White background with border
-            binding.btnFilterAll.apply {
-                backgroundTintList = whiteColor
-                setTextColor(greyColor)
-                strokeWidth = strokeWidthPx
-                strokeColor = borderColor
-            }
-            // New button selected - Pink background
-            binding.btnFilterNew.apply {
+            "new" -> binding.btnFilterNew.apply {
                 backgroundTintList = pinkColor
-                setTextColor(whiteTextColor)
+                setTextColor(whiteText)
                 strokeWidth = 0
-                strokeColor = null
-                        }
-                    }
-        
-        Log.d("FilterButtons", "Updated filter styles - filterType: $filterType")
+            }
+            "star" -> binding.btnFilterStar.apply {
+                backgroundTintList = goldColor
+                setTextColor(whiteText)
+                strokeWidth = 0
+            }
+        }
     }
 
     private fun applyFilter(selectedFilter: String) {

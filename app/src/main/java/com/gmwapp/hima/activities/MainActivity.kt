@@ -74,6 +74,7 @@ import com.gmwapp.hima.retrofit.responses.RazorPayApiResponse
 import com.gmwapp.hima.retrofit.responses.FreeCoinsStatusResponse
 import com.gmwapp.hima.retrofit.responses.InstallReferrerResponse
 import com.gmwapp.hima.retrofit.responses.MissedCallCountResponse
+import com.gmwapp.hima.retrofit.responses.TrackingInfoResponse
 import com.gmwapp.hima.retrofit.ApiManager
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.utils.DPreferences
@@ -387,6 +388,16 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 if (!savedResponseData.isNullOrEmpty()) {
                     callUserInstallReferrerApi(userId, savedResponseData)
                 }
+            }
+        }
+
+        // Call tracking_info with saved_address + user_id
+        userData?.id?.let { userId ->
+            val prefs = BaseApplication.getInstance()?.getPrefs()
+            val savedAddress = prefs?.getString("saved_address")
+            Log.d("saved_address","$savedAddress")
+            if (!savedAddress.isNullOrBlank()) {
+                callTrackingInfoApi(userId, savedAddress)
             }
         }
 
@@ -2198,6 +2209,30 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
             override fun onNoNetwork() {
                 Log.w("UserInstallReferrer", "⚠️ No network connection")
+            }
+        })
+    }
+
+    private fun callTrackingInfoApi(userId: Int, savedAddress: String) {
+        apiManager.trackingInfo(savedAddress, userId, object : NetworkCallback<TrackingInfoResponse> {
+            override fun onResponse(
+                call: retrofit2.Call<TrackingInfoResponse>,
+                response: retrofit2.Response<TrackingInfoResponse>
+            ) {
+                if (response.isSuccessful && response.body() != null) {
+                    val apiResponse = response.body()!!
+                    Log.d("TrackingInfo", "Tracking info API response: ${apiResponse.message}")
+                } else {
+                    Log.e("TrackingInfo", "Tracking info API failed: ${response.code()}")
+                }
+            }
+
+            override fun onFailure(call: retrofit2.Call<TrackingInfoResponse>, t: Throwable) {
+                Log.e("TrackingInfo", "Tracking info API error: ${t.message}", t)
+            }
+
+            override fun onNoNetwork() {
+                Log.w("TrackingInfo", "No network for tracking_info API")
             }
         })
     }

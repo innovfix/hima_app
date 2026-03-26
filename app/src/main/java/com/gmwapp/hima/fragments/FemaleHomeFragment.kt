@@ -483,10 +483,26 @@ class FemaleHomeFragment : BaseFragment() {
 
         binding.tvCoins.text = "₹" + userData?.balance.toString()
 
+        // Star Creator banner
+        binding.clStarCreatorBanner.visibility =
+            if (userData?.star == 1) View.VISIBLE else View.GONE
+
         Log.d("femaleuserdata", "${userData?.name} , ${userData?.language}")
 
         femaleUsersViewModel.getReports(userData?.id!!)
+        femaleUsersViewModel.getFemaleUsers(userData.id)
 
+        femaleUsersViewModel.femaleUsersResponseLiveData.observe(viewLifecycleOwner, Observer { response ->
+            if (response != null && response.success) {
+                val firstUser = response.data?.firstOrNull()
+                firstUser?.coin_per_min_audio?.let { rate ->
+                    binding.tvAudioRateValue.text = "1 min = ₹$rate"
+                }
+                firstUser?.coin_per_min_video?.let { rate ->
+                    binding.tvVideoRateValue.text = "1 min = ₹$rate"
+                }
+            }
+        })
 
         femaleUsersViewModel.reportResponseLiveData.observe(viewLifecycleOwner, Observer {
             if (it != null && it.success) {
@@ -646,6 +662,10 @@ class FemaleHomeFragment : BaseFragment() {
             val prefs = BaseApplication.getInstance()?.getPrefs()
             prefs?.setUserData(it?.data)
             binding.tvCoins.text = "₹" + it?.data?.balance.toString()
+
+            // Refresh Star Creator banner from latest API data
+            binding.clStarCreatorBanner.visibility =
+                if (it?.data?.star == 1) View.VISIBLE else View.GONE
 
             if (it?.data != null) {
                 // Temporarily remove listeners to avoid triggering API calls when updating UI

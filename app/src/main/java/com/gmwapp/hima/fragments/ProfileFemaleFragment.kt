@@ -24,6 +24,7 @@ import com.gmwapp.hima.activities.EditProfileActivity
 import com.gmwapp.hima.activities.FemaleTransactionsActivity
 import com.gmwapp.hima.activities.FriendsListActivity
 import com.gmwapp.hima.activities.HelpAndSupportActivity
+import com.gmwapp.hima.activities.StarCreatorApplicationActivity
 import com.gmwapp.hima.activities.RefundWebViewActivity
 import com.gmwapp.hima.activities.ShareActivity
 import com.gmwapp.hima.activities.TermConditionWebViewActivity
@@ -155,6 +156,16 @@ class ProfileFemaleFragment : BaseFragment() {
         binding.clMyFriends.setOnSingleClickListener {
             val intent = Intent(context, FriendsListActivity::class.java)
             intent.putExtra("target_tab", FriendsTabFragment.TYPE_CHAT)
+            startActivity(intent)
+        }
+
+        // Hide "Become Star Creator" for users who are already a star
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        binding.clStarCreatorApply.visibility =
+            if (userData?.star == 1) View.GONE else View.VISIBLE
+
+        binding.clStarCreatorApply.setOnSingleClickListener {
+            val intent = Intent(context, StarCreatorApplicationActivity::class.java)
             startActivity(intent)
         }
 

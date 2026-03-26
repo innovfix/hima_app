@@ -269,6 +269,79 @@
     <string name="blockwords_disclamair">We ended the call because abusive words were detected. Please speak respectfully to ensure a safe and friendly experience for everyone.</string>
     <string name="blockwords_disclamair2">Call Disconnected Due to Abusive Language</string>
 
+    <string name="back">Back</string>
+    <string name="selected_file">Selected file</string>
+
+    <string name="become_star_creator_title">Become star creator</string>
+    <string name="become_star_creator_subtitle">Apply now and earn more</string>
+
+    <string name="star_creator_form_title">Become star creator and earn more</string>
+    <string name="star_creator_form_subtitle">Fill this form to apply. Our team will review your profile.</string>
+    <string name="star_creator_experience_hint" translatable="false"></string>
+    <string name="star_creator_call_preference_hint" translatable="false"></string>
+    <string name="star_creator_both_option">Both</string>
+    <string name="star_creator_speech_title">Speech text to record</string>
+    <string name="star_creator_audio_instruction_title">Please read this and upload audio</string>
+    <string name="star_creator_video_instruction_title">Please read this and upload video</string>
+    <string name="star_creator_both_instruction_title">Please upload only video for both calls</string>
+    <string name="star_creator_both_instruction_text">For both option, upload only one video after reading this text:\n\n%s</string>
+    <string name="star_creator_dummy_speech_text" translatable="false"></string>
+    <string name="star_creator_upload_audio">Record/Upload Audio</string>
+    <string name="star_creator_upload_video">Record/Upload Video</string>
+    <string name="star_creator_choose_audio">Choose audio file</string>
+    <string name="star_creator_choose_video">Choose video file</string>
+    <string name="star_creator_audio_uploaded">Audio uploaded: %s</string>
+    <string name="star_creator_video_uploaded">Video uploaded: %s</string>
+    <string name="star_creator_error_experience">Please enter your experience</string>
+    <string name="star_creator_error_call_preference">Please select call preference</string>
+    <string name="star_creator_error_audio_upload">Please upload your audio recording</string>
+    <string name="star_creator_error_video_upload">Please upload your video recording</string>
+    <string name="star_creator_pick_file_again">Please select the recorded file to continue</string>
+
+    <!-- Step labels -->
+    <string name="star_creator_exp_label" translatable="false"></string>
+    <string name="star_creator_exp_sublabel" translatable="false"></string>
+    <string name="star_creator_exp_answer_hint">Write your answer here…</string>
+    <string name="star_creator_pref_label" translatable="false"></string>
+    <string name="star_creator_pref_sublabel" translatable="false"></string>
+    <string name="star_creator_video_recorded_success">Video recorded successfully!</string>
+    <string name="star_creator_upload_btn">Upload</string>
+
+    <!-- Audio step -->
+    <string name="star_creator_audio_step_sub">Read the text below, then tap the mic to record</string>
+    <string name="star_creator_tap_record">Tap mic to start recording</string>
+    <string name="star_creator_tap_to_stop">Tap again to stop recording</string>
+    <string name="star_creator_recording_done">Recording saved! Listen before submitting</string>
+    <string name="star_creator_audio_too_short">Recording must be at least 3 seconds</string>
+
+    <!-- Video step -->
+    <string name="star_creator_video_step_sub">Read the text, then record a short video</string>
+    <string name="star_creator_record_video_btn">Tap to Record Video</string>
+    <string name="star_creator_record_again">Record Again</string>
+    <string name="star_creator_video_ready">Video ready!</string>
+
+    <!-- Video recorder screen -->
+    <string name="star_creator_record_video_title">Record Your Video</string>
+    <string name="star_creator_flip_camera">Flip Camera</string>
+    <string name="star_creator_tap_to_record_video">Tap the button to start recording</string>
+    <string name="star_creator_tap_stop">Tap to stop recording</string>
+    <string name="star_creator_retake">Retake</string>
+    <string name="star_creator_use_video">Use Video</string>
+
+    <!-- Permissions -->
+    <string name="star_creator_perm_audio">Microphone permission is required to record audio</string>
+    <string name="star_creator_perm_camera">Camera and microphone permissions are required to record video</string>
+
+    <!-- Applied screen -->
+    <string name="star_creator_applied_title">Thanks for Applying!</string>
+    <string name="star_creator_applied_subtitle">Our team will carefully review your request. You will be notified very soon about the status of your application.</string>
+    <string name="star_creator_submit">Submit Application</string>
+    <string name="star_creator_submitting">Submitting…</string>
+    <string name="star_creator_done">Back to Profile</string>
+    <string name="star_creator_info1">Profile under review</string>
+    <string name="star_creator_info2">Response within 24 hrs</string>
+    <string name="star_creator_info3">Earn more on approval</string>
+
     <string name="clientID">8avjby8rduvi2o3kgk6eorcdq457spxayqyse-luibo</string>
     <!--    <string name="clientID">mrx9s3lgullvwpqilpta9ruvkcy_yryvht6vawcien0</string>-->
 </resources>

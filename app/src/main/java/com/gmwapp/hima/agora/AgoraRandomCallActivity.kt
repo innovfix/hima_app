@@ -34,6 +34,7 @@ class AgoraRandomCallActivity : AppCompatActivity() {
     private val fcmNotificationViewModel: FcmNotificationViewModel by viewModels()
     private lateinit var binding : ActivityAgoraRandomCallBinding
     var callType: String? = null
+    var randomFilter: String? = null
     var receiverId: Int = -1
     var userId: Int? = null
     private var callId = 0
@@ -68,6 +69,9 @@ class AgoraRandomCallActivity : AppCompatActivity() {
         userData?.id?.let { userId = userData?.id}
 
         callType = intent.getStringExtra(DConstants.CALL_TYPE)
+        randomFilter = intent.getStringExtra("RANDOM_FILTER")?.takeIf {
+            it == "all" || it == "new" || it == "star"
+        } ?: "all"
 
         // Clear any stale status before starting
         FcmUtils.clearUserBusyStatus()
@@ -278,7 +282,7 @@ class AgoraRandomCallActivity : AppCompatActivity() {
         userId?.let { userId ->
             callType?.let { callType ->
                 Log.d("getRandomUser", "Attempt: $callAttempts")
-                femaleUsersViewModel.getRandomUser(userId, callType)
+                femaleUsersViewModel.getRandomUser(userId, callType, randomFilter)
             }
         }
     }

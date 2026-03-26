@@ -213,6 +213,11 @@
         <activity android:name=".activities.SubqueriesActivity" />
         <activity android:name=".activities.SubqueryDetailActivity" />
         <activity android:name=".activities.SubmitTicketActivity" />
+        <activity android:name=".activities.StarCreatorAppliedActivity" />
+        <activity android:name=".activities.StarCreatorApplicationActivity" />
+        <activity android:name=".activities.StarCreatorVideoRecordActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
         <activity android:name=".activities.TicketsListActivity" />
         <activity android:name=".activities.DeleteAccountActivity" />
         <activity android:name=".activities.EditProfileActivity" />

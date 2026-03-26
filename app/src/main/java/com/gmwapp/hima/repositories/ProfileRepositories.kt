@@ -9,6 +9,8 @@ import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
 import com.gmwapp.hima.retrofit.responses.MissedCallCountResponse
 import com.gmwapp.hima.retrofit.responses.RegisterResponse
 import com.gmwapp.hima.retrofit.responses.SpeechTextResponse
+import com.gmwapp.hima.retrofit.responses.StarCreatorSpeechResponse
+import com.gmwapp.hima.retrofit.responses.StarCreatorSubmitResponse
 import com.gmwapp.hima.retrofit.responses.UpdateProfileResponse
 import com.gmwapp.hima.retrofit.responses.UserValidationResponse
 import com.gmwapp.hima.retrofit.responses.VoiceUpdateResponse
@@ -116,6 +118,25 @@ class ProfileRepositories @Inject constructor(private val apiManager: ApiManager
         userId: Int, language: String, callback: NetworkCallback<SpeechTextResponse>
     ) {
         apiManager.getSpeechText(userId, language, callback)
+    }
+
+    fun getStarCreatorSpeechText(
+        userId: Int, callback: NetworkCallback<StarCreatorSpeechResponse>
+    ) {
+        apiManager.getStarCreatorSpeechText(userId, callback)
+    }
+
+    fun submitStarCreatorApplication(
+        userId: Int,
+        experienceAnswer: String,
+        callPreference: String,
+        audioRecording: MultipartBody.Part?,
+        videoRecording: MultipartBody.Part?,
+        callback: NetworkCallback<StarCreatorSubmitResponse>
+    ) {
+        apiManager.submitStarCreatorApplication(
+            userId, experienceAnswer, callPreference, audioRecording, videoRecording, callback
+        )
     }
 
     fun updateVoice(

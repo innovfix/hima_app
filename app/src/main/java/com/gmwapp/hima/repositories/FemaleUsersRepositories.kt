@@ -20,8 +20,13 @@ class FemaleUsersRepositories @Inject constructor(private val apiManager: ApiMan
         apiManager.getFemaleUsers(userId, filter, callback)
     }
 
-    fun getRandomUser(userId: Int,callType: String, callback: NetworkCallback<RandomUsersResponse>) {
-        apiManager.getRandomUser(userId,callType, callback)
+    fun getRandomUser(
+        userId: Int,
+        callType: String,
+        filter: String? = null,
+        callback: NetworkCallback<RandomUsersResponse>
+    ) {
+        apiManager.getRandomUser(userId,callType,filter, callback)
     }
 
   fun getCalldetailsUser(userId: Int, callback: NetworkCallback<ReportsResponse>) {

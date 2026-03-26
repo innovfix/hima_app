@@ -18,4 +18,8 @@ data class FemaleUsersResponseData(
     val describe_yourself: String,
     val created_at: String,
     val verified_datetime: String?,
+    val coin_per_min_audio: Int?,
+    val coin_per_min_video: Int?,
+    val is_star: Int?,
+    val star: Int?,
 )

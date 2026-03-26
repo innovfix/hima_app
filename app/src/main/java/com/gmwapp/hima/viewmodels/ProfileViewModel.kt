@@ -12,6 +12,8 @@ import com.gmwapp.hima.retrofit.responses.DeleteUserResponse
 import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
 import com.gmwapp.hima.retrofit.responses.RegisterResponse
 import com.gmwapp.hima.retrofit.responses.SpeechTextResponse
+import com.gmwapp.hima.retrofit.responses.StarCreatorSpeechResponse
+import com.gmwapp.hima.retrofit.responses.StarCreatorSubmitResponse
 import com.gmwapp.hima.retrofit.responses.UpdateProfileResponse
 import com.gmwapp.hima.retrofit.responses.UserValidationResponse
 import com.gmwapp.hima.retrofit.responses.VoiceUpdateResponse
@@ -40,6 +42,10 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
     val userValidationErrorLiveData = MutableLiveData<String>()
     val speechTextLiveData = MutableLiveData<SpeechTextResponse>()
     val speechTextErrorLiveData = MutableLiveData<String>()
+    val starCreatorSpeechLiveData = MutableLiveData<StarCreatorSpeechResponse?>()
+    val starCreatorSpeechErrorLiveData = MutableLiveData<String>()
+    val starCreatorSubmitLiveData = MutableLiveData<StarCreatorSubmitResponse>()
+    val starCreatorSubmitErrorLiveData = MutableLiveData<String>()
     val voiceUpdateLiveData = MutableLiveData<VoiceUpdateResponse>()
     val voiceUpdateErrorLiveData = MutableLiveData<String>()
     val remainingTimeLiveData = MutableLiveData<GetRemainingTimeResponse>()
@@ -327,6 +333,68 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
 
                     override fun onNoNetwork() {
                         speechTextErrorLiveData.postValue(DConstants.NO_NETWORK)
+                    }
+                })
+        }
+    }
+
+    fun getStarCreatorSpeechText(userId: Int) {
+        viewModelScope.launch {
+            profileRepositories.getStarCreatorSpeechText(
+                userId,
+                object : NetworkCallback<StarCreatorSpeechResponse> {
+                    override fun onResponse(
+                        call: Call<StarCreatorSpeechResponse>,
+                        response: Response<StarCreatorSpeechResponse>
+                    ) {
+                        val body = response.body()
+                        if (body?.success == true) {
+                            starCreatorSpeechLiveData.postValue(body)
+                        } else {
+                            starCreatorSpeechErrorLiveData.postValue(body?.message ?: "Unknown error")
+                        }
+                    }
+
+                    override fun onFailure(call: Call<StarCreatorSpeechResponse>, t: Throwable) {
+                        starCreatorSpeechErrorLiveData.postValue(t.message)
+                    }
+
+                    override fun onNoNetwork() {
+                        starCreatorSpeechErrorLiveData.postValue(DConstants.NO_NETWORK)
+                    }
+                })
+        }
+    }
+
+    fun submitStarCreatorApplication(
+        userId: Int,
+        experienceAnswer: String,
+        callPreference: String,
+        audioRecording: MultipartBody.Part?,
+        videoRecording: MultipartBody.Part?
+    ) {
+        viewModelScope.launch {
+            profileRepositories.submitStarCreatorApplication(
+                userId, experienceAnswer, callPreference, audioRecording, videoRecording,
+                object : NetworkCallback<StarCreatorSubmitResponse> {
+                    override fun onResponse(
+                        call: Call<StarCreatorSubmitResponse>,
+                        response: Response<StarCreatorSubmitResponse>
+                    ) {
+                        val body = response.body()
+                        if (body?.success == true) {
+                            starCreatorSubmitLiveData.postValue(body)
+                        } else {
+                            starCreatorSubmitErrorLiveData.postValue(body?.message ?: "Something went wrong")
+                        }
+                    }
+
+                    override fun onFailure(call: Call<StarCreatorSubmitResponse>, t: Throwable) {
+                        starCreatorSubmitErrorLiveData.postValue(t.message ?: "Network error")
+                    }
+
+                    override fun onNoNetwork() {
+                        starCreatorSubmitErrorLiveData.postValue(DConstants.NO_NETWORK)
                     }
                 })
         }

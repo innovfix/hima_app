@@ -355,6 +355,11 @@ class SplashScreenActivity : BaseActivity() {
         viewModel.firstInstallResponseLiveData.observe(this) { response ->
             if (response != null) {
                 Log.d("FirstInstall", "First install tracked: ${response.message}")
+                Log.d("FirstInstall", "First install ip_address: ${response.ip_address}")
+                response.ip_address?.takeIf { it.isNotBlank() }?.let { ipAddress ->
+                    BaseApplication.getInstance()?.getPrefs()?.setString("saved_address", ipAddress)
+                    Log.d("FirstInstall", "Saved address stored from first_install ip_address: $ipAddress")
+                }
             }
         }
 
@@ -429,8 +434,6 @@ class SplashScreenActivity : BaseActivity() {
         val networkCapabilities = connectivityManager.getNetworkCapabilities(network)
         return networkCapabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
     }
-
-    
 
     private fun showUpdateDialog(link: String, description: String) {
         val bottomSheetDialog = BottomSheetDialog(this)

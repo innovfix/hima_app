@@ -70,6 +70,10 @@ class FemaleUserAdapter(
             holder.binding.newUser.visibility = View.GONE
         }
 
+        // Show star badge only for users marked as star by API
+        holder.binding.starBadge.visibility =
+            if (femaleUser.is_star == 1 || femaleUser.star == 1) View.VISIBLE else View.GONE
+
         val audioStatus = femaleUser.audio_status
         val videoStatus = femaleUser.video_status
 
@@ -118,6 +122,10 @@ class FemaleUserAdapter(
             holder.binding.cvVideo.isClickable = false
             holder.binding.cvVideo.alpha = 0.7f
         }
+
+        // Set per-user audio/video rates
+        holder.binding.tvIvAudio.text = "${femaleUser.coin_per_min_audio ?: 10}/min"
+        holder.binding.tvVideo.text = "${femaleUser.coin_per_min_video ?: 60}/min"
 
         // Remove numbers from name - show only alphabets
         val nameWithoutNumbers = femaleUser.name.replace(Regex("[0-9]"), "")

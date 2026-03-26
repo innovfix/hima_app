@@ -102,6 +102,31 @@
                 android:letterSpacing="0.08" />
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Star Creator Badge -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/starBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="6dp"
+            android:visibility="gone"
+            app:cardBackgroundColor="#FFC107"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="3dp"
+            app:layout_constraintEnd_toEndOf="@id/card_profile"
+            app:layout_constraintTop_toTopOf="@id/card_profile">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_bold"
+                android:paddingHorizontal="7dp"
+                android:paddingVertical="2dp"
+                android:text="⭐ STAR"
+                android:textColor="@color/white"
+                android:textSize="8sp"
+                android:letterSpacing="0.08" />
+        </com.google.android.material.card.MaterialCardView>
+
         <!-- Online Indicator Badge (Right Side) -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/onlineIndicator"

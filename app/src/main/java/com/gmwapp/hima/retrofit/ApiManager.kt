@@ -96,6 +96,7 @@ import com.gmwapp.hima.retrofit.responses.LogAppEventResponse
 import com.gmwapp.hima.retrofit.responses.GetFemaleTalkDurationResponse
 import com.gmwapp.hima.retrofit.responses.InstallReferrerResponse
 import com.gmwapp.hima.retrofit.responses.FirstInstallResponse
+import com.gmwapp.hima.retrofit.responses.TrackingInfoResponse
 import com.gmwapp.hima.retrofit.responses.AgoraTokenResponse
 import com.gmwapp.hima.retrofit.responses.LudoFcmResponse
 import com.gmwapp.hima.retrofit.responses.GetFemaleNotificationPreferenceRequest
@@ -104,8 +105,13 @@ import com.gmwapp.hima.retrofit.responses.CheckRatingEligibilityResponse
 import com.gmwapp.hima.retrofit.responses.SubmitRatingResponse
 import com.gmwapp.hima.retrofit.responses.MyWarningsResponse
 import com.gmwapp.hima.retrofit.responses.MissedCallCountResponse
+import com.gmwapp.hima.retrofit.responses.StarCreatorSpeechResponse
+import com.gmwapp.hima.retrofit.responses.StarCreatorSubmitResponse
 import com.gmwapp.hima.utils.Helper
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.Call
 import retrofit2.Response
 import retrofit2.Retrofit
@@ -178,6 +184,19 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<FirstInstallResponse> = getApiInterface().firstInstall()
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun trackingInfo(
+        savedAddress: String,
+        userId: Int,
+        callback: NetworkCallback<TrackingInfoResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<TrackingInfoResponse> = getApiInterface().trackingInfo(savedAddress, userId)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -330,10 +349,13 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     }
 
     fun getRandomUser(
-        userId: Int,callType: String, callback: NetworkCallback<RandomUsersResponse>
+        userId: Int,
+        callType: String,
+        filter: String? = null,
+        callback: NetworkCallback<RandomUsersResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<RandomUsersResponse> = getApiInterface().getRandomUser(userId, callType)
+            val apiCall: Call<RandomUsersResponse> = getApiInterface().getRandomUser(userId, callType, filter)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1476,6 +1498,42 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun getStarCreatorSpeechText(
+        userId: Int, callback: NetworkCallback<StarCreatorSpeechResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<StarCreatorSpeechResponse> =
+                getApiInterface().getStarCreatorSpeechText(userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun submitStarCreatorApplication(
+        userId: Int,
+        experienceAnswer: String,
+        callPreference: String,
+        audioRecording: MultipartBody.Part?,
+        videoRecording: MultipartBody.Part?,
+        callback: NetworkCallback<StarCreatorSubmitResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val plain = "text/plain".toMediaTypeOrNull()
+            val apiCall: Call<StarCreatorSubmitResponse> =
+                getApiInterface().submitStarCreatorApplication(
+                    userId.toString().toRequestBody(plain),
+                    experienceAnswer.toRequestBody(plain),
+                    callPreference.toRequestBody(plain),
+                    audioRecording,
+                    videoRecording
+                )
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun updateVoice(
         userId: Int, voice: MultipartBody.Part, callback: NetworkCallback<VoiceUpdateResponse>
     ) {
@@ -1707,6 +1765,13 @@ interface ApiInterface {
     fun firstInstall(): Call<FirstInstallResponse>
 
     @FormUrlEncoded
+    @POST("tracking_info")
+    fun trackingInfo(
+        @Field("saved_address") savedAddress: String,
+        @Field("user_id") userId: Int
+    ): Call<TrackingInfoResponse>
+
+    @FormUrlEncoded
     @POST("appsettings_list")
     fun appUpdate(@Field("user_id") userId: Int):Call<AppUpdateResponse>
 
@@ -1805,7 +1870,11 @@ interface ApiInterface {
 
     @FormUrlEncoded
     @POST("random_user")
-    fun getRandomUser(@Field("user_id") userId: Int,@Field("call_type") callType: String): Call<RandomUsersResponse>
+    fun getRandomUser(
+        @Field("user_id") userId: Int,
+        @Field("call_type") callType: String,
+        @Field("filter") filter: String?
+    ): Call<RandomUsersResponse>
 
 
     @FormUrlEncoded
@@ -2010,6 +2079,22 @@ interface ApiInterface {
     fun getSpeechText(
         @Field("user_id") userId: Int, @Field("language") language: String
     ): Call<SpeechTextResponse>
+
+    @FormUrlEncoded
+    @POST("star_creator_speech_text")
+    fun getStarCreatorSpeechText(
+        @Field("user_id") userId: Int
+    ): Call<StarCreatorSpeechResponse>
+
+    @Multipart
+    @POST("submit_star_creator_application")
+    fun submitStarCreatorApplication(
+        @Part("user_id") userId: RequestBody,
+        @Part("experience_answer") experienceAnswer: RequestBody,
+        @Part("call_preference") callPreference: RequestBody,
+        @Part audioRecording: MultipartBody.Part?,
+        @Part videoRecording: MultipartBody.Part?
+    ): Call<StarCreatorSubmitResponse>
 
     @FormUrlEncoded
     @POST("call_reject_count")
