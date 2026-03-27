@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -53,7 +55,7 @@ class SubqueriesActivity : BaseActivity() {
         categoryName = intent.getStringExtra("category_name") ?: ""
         
         if (categoryId == -1) {
-            Toast.makeText(this, "Invalid category", Toast.LENGTH_SHORT).show()
+            showAppToast("Invalid category", Toast.LENGTH_SHORT)
             finish()
             return
         }
@@ -88,13 +90,14 @@ class SubqueriesActivity : BaseActivity() {
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val userId = userData?.id ?: 0
-        
+        val language = userData?.language.orEmpty()
+
         if (userId > 0) {
-            accountViewModel.getSubqueriesList(userId, categoryId)
+            accountViewModel.getSubqueriesList(userId, categoryId, language)
         } else {
             binding.progressBar.visibility = android.view.View.GONE
             showEmptyState()
-            Toast.makeText(this, "User not logged in", Toast.LENGTH_SHORT).show()
+            showAppToast("User not logged in", Toast.LENGTH_SHORT)
         }
 
         accountViewModel.subqueriesLiveData.observe(this, Observer { response ->
@@ -116,14 +119,14 @@ class SubqueriesActivity : BaseActivity() {
                 }
             } else {
                 showEmptyState()
-              //  Toast.makeText(this, response?.message ?: "Failed to load subqueries", Toast.LENGTH_SHORT).show()
+              //  showAppToast(response?.message ?: "Failed to load subqueries", Toast.LENGTH_SHORT)
             }
         })
 
         accountViewModel.subqueriesErrorLiveData.observe(this, Observer { error ->
             binding.progressBar.visibility = android.view.View.GONE
             showEmptyState()
-           // Toast.makeText(this, error ?: "An error occurred", Toast.LENGTH_SHORT).show()
+           // showAppToast(error ?: "An error occurred", Toast.LENGTH_SHORT)
             Log.e("SubqueriesActivity", "Error loading subqueries: $error")
         })
     }

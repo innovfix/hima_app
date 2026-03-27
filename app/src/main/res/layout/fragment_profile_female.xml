@@ -6,9 +6,8 @@
     android:layout_height="match_parent"
     android:fillViewport="true"
     android:paddingTop="24dp"
-    android:paddingBottom="72dp"
     android:clipToPadding="false"
-    android:background="@drawable/background_gradient">
+    android:background="@color/white">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
@@ -112,7 +111,7 @@
             android:background="@drawable/profile_curve_bottom"
             android:paddingTop="24dp"
             android:paddingHorizontal="16dp"
-            android:paddingBottom="16dp"
+            android:paddingBottom="88dp"
             android:clipToPadding="false"
             android:clipChildren="false"
             app:layout_constraintTop_toBottomOf="@id/profile_content">

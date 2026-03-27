@@ -76,23 +76,18 @@ class CoinAdapter(
 
         // Set coin details
         holder.binding.tvCoins.text = coin.coins.toString()
-        if (coin.save == null) {
-            holder.binding.tvDiscountPrice.visibility = View.GONE
-        } else {
-            holder.binding.tvDiscountPrice.visibility = View.VISIBLE
-            holder.binding.tvDiscountPrice.text = "Save ${coin.save} %"
-        }
         holder.binding.tvPrice.text = activity.getString(R.string.rupee_text, coin.price)
-        if (coin.save==0){
-            holder.binding.tvDiscountPrice.visibility = View.INVISIBLE
-        }else{
-//            val layoutParamsOriginal = holder.binding.originalPrice.layoutParams as ViewGroup.MarginLayoutParams
-//            val layoutParamsDiscount = holder.binding.originalPrice.layoutParams as ViewGroup.MarginLayoutParams
-//            layoutParamsOriginal.topMargin = 38 // Hardcoded margin value in pixels
-//            layoutParamsDiscount.topMargin = 38 // Hardcoded margin value in pixels
-//            holder.binding.originalPrice.layoutParams = layoutParamsOriginal
-//            holder.binding.tvPrice.layoutParams = layoutParamsDiscount
-
+        when {
+            coin.save == null -> {
+                holder.binding.tvDiscountPrice.visibility = View.GONE
+            }
+            coin.save == 0 -> {
+                holder.binding.tvDiscountPrice.visibility = View.INVISIBLE
+            }
+            else -> {
+                holder.binding.tvDiscountPrice.visibility = View.VISIBLE
+                holder.binding.tvDiscountPrice.text = "Save ${coin.save} %"
+            }
         }
 
 

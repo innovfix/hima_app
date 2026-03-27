@@ -21,6 +21,7 @@ import com.gmwapp.hima.databinding.AdapterFemaleUserBinding
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponse
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponseData
 import com.gmwapp.hima.retrofit.responses.Interests
+import com.gmwapp.hima.utils.CallUnavailableFeedback
 import com.gmwapp.hima.utils.Helper
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.google.android.flexbox.AlignItems
@@ -100,8 +101,11 @@ class FemaleUserAdapter(
             audioButton?.setBackgroundResource(R.drawable.button_inactive_premium)
             holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
             holder.binding.tvIvAudio.setTextColor(ContextCompat.getColor(activity, R.color.grey_medium))
-            holder.binding.cvAudio.isClickable = false
+            holder.binding.cvAudio.isClickable = true
             holder.binding.cvAudio.alpha = 0.7f
+            holder.binding.cvAudio.setOnSingleClickListener {
+                CallUnavailableFeedback.show(activity, holder.binding.root, forAudio = true)
+            }
         }
 
         // Configure Video Call Button with Gradient
@@ -119,8 +123,11 @@ class FemaleUserAdapter(
             videoButton?.setBackgroundResource(R.drawable.button_inactive_premium)
             holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
             holder.binding.tvVideo.setTextColor(ContextCompat.getColor(activity, R.color.grey_medium))
-            holder.binding.cvVideo.isClickable = false
+            holder.binding.cvVideo.isClickable = true
             holder.binding.cvVideo.alpha = 0.7f
+            holder.binding.cvVideo.setOnSingleClickListener {
+                CallUnavailableFeedback.show(activity, holder.binding.root, forAudio = false)
+            }
         }
 
         // Set per-user audio/video rates

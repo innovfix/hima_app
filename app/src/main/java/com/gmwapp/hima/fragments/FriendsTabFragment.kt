@@ -1,5 +1,7 @@
 package com.gmwapp.hima.fragments
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
@@ -264,7 +266,7 @@ class FriendsTabFragment : Fragment() {
         // Observe accept/reject response
         friendRequestViewModel.sendFriendRequestLiveData.observe(viewLifecycleOwner, Observer { response ->
             if (response != null && response.success) {
-                Toast.makeText(context, response.message, Toast.LENGTH_SHORT).show()
+                requireContext().showAppToast(response.message, Toast.LENGTH_SHORT)
                 
                 // Clear the LiveData to prevent re-triggering with old data
                 friendRequestViewModel.sendFriendRequestLiveData.value = null
@@ -292,7 +294,7 @@ class FriendsTabFragment : Fragment() {
         // Observe errors
         friendRequestViewModel.friendRequestErrorLiveData.observe(viewLifecycleOwner, Observer { error ->
             binding.swipeRefresh.isRefreshing = false
-            Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+            requireContext().showAppToast(error, Toast.LENGTH_SHORT)
         })
     }
 
@@ -391,7 +393,7 @@ class FriendsTabFragment : Fragment() {
                         rejectFriendRequest(friend)
                     }
                     else -> {
-                        Toast.makeText(context, "Removed ${friend.name}", Toast.LENGTH_SHORT).show()
+                        requireContext().showAppToast("Removed ${friend.name}", Toast.LENGTH_SHORT)
                         // TODO: Call API to remove friend
                         removeFriend(friend)
                     }

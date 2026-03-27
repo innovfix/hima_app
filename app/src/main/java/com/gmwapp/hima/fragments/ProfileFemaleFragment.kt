@@ -1,5 +1,7 @@
 package com.gmwapp.hima.fragments
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.app.Activity
 import android.content.Intent
 import android.graphics.Paint
@@ -28,6 +30,7 @@ import com.gmwapp.hima.activities.StarCreatorApplicationActivity
 import com.gmwapp.hima.activities.RefundWebViewActivity
 import com.gmwapp.hima.activities.ShareActivity
 import com.gmwapp.hima.activities.TermConditionWebViewActivity
+import com.gmwapp.hima.callbacks.NetworkRetryable
 import com.gmwapp.hima.fragments.FriendsTabFragment
 import com.gmwapp.hima.databinding.FragmentProfileFemaleBinding
 import com.gmwapp.hima.dialogs.BottomSheetLogout
@@ -38,7 +41,7 @@ import com.gmwapp.hima.viewmodels.WhatsappLinkViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
-class ProfileFemaleFragment : BaseFragment() {
+class ProfileFemaleFragment : BaseFragment(), NetworkRetryable {
     lateinit var binding: FragmentProfileFemaleBinding
     private val EDIT_PROFILE_REQUEST_CODE = 1
     private val accountViewModel: AccountViewModel by viewModels()
@@ -148,7 +151,7 @@ class ProfileFemaleFragment : BaseFragment() {
             if (isPanVerified){
                 startActivity(intent)
             }else{
-                Toast.makeText(requireContext(), "Please Complete Kyc", Toast.LENGTH_SHORT).show()
+                requireContext().showAppToast("Please Complete Kyc", Toast.LENGTH_SHORT)
 
             }
         }
@@ -273,6 +276,10 @@ class ProfileFemaleFragment : BaseFragment() {
         }
     }
 
+    override fun onNetworkRetry() {
+        updateValues()
+    }
+
     private fun openWhatsAppGroup(groupLink: String) {
         try {
             val intent = Intent(Intent.ACTION_VIEW)
@@ -281,7 +288,7 @@ class ProfileFemaleFragment : BaseFragment() {
             startActivity(intent)
         } catch (e: Exception) {
             e.printStackTrace()
-//            Toast.makeText(this, "WhatsApp is not installed", Toast.LENGTH_SHORT).show()
+//            showAppToast("WhatsApp is not installed", Toast.LENGTH_SHORT)
         }
     }
     override fun onResume() {

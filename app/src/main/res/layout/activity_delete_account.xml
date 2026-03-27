@@ -15,6 +15,7 @@
         app:elevation="2dp">
 
         <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/toolbar_inner"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:paddingStart="16dp"
@@ -54,6 +55,7 @@
         android:id="@+id/sv_details"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:clipToPadding="false"
         android:fillViewport="true"
         android:overScrollMode="never"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
@@ -63,7 +65,7 @@
             android:layout_height="wrap_content"
             android:paddingStart="20dp"
             android:paddingEnd="20dp"
-            android:paddingBottom="120dp">
+            android:paddingBottom="200dp">
 
             <!-- Warning Card -->
             <com.google.android.material.card.MaterialCardView
@@ -89,13 +91,12 @@
                     <!-- Warning Icon -->
                     <ImageView
                         android:id="@+id/iv_delete_account"
-                        android:layout_width="56dp"
-                        android:layout_height="56dp"
+                        android:layout_width="96dp"
+                        android:layout_height="96dp"
                         android:layout_gravity="center_horizontal"
-                        android:layout_marginBottom="4dp"
+                        android:layout_marginBottom="8dp"
                         android:contentDescription="@string/edit"
-                        android:src="@drawable/warning_png"
-                        app:tint="#F57C00" />
+                        android:src="@drawable/ic_warning_delete_account_amber" />
 
                     <!-- Warning Title -->
                     <TextView
@@ -376,8 +377,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
+                android:layout_marginBottom="12dp"
+                android:clipChildren="false"
                 android:clipToPadding="false"
                 android:nestedScrollingEnabled="false"
+                android:overScrollMode="never"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/tl_reasons_title" />
@@ -411,37 +415,49 @@
                 app:strokeColor="#E0E0E0"
                 app:strokeWidth="1dp">
 
-                <EditText
-                    android:id="@+id/et_description"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="@android:color/transparent"
-                    android:fontFamily="@font/poppins_regular"
-                    android:gravity="top"
-                    android:hint="@string/tell_us_about_your_issue"
-                    android:importantForAutofill="no"
-                    android:inputType="textMultiLine|textCapSentences"
-                    android:maxLength="250"
-                    android:minHeight="120dp"
-                    android:padding="16dp"
-                    android:textColor="#212121"
-                    android:textColorHint="#9E9E9E"
-                    android:textSize="14sp" />
+                    android:orientation="vertical">
+
+                    <EditText
+                        android:id="@+id/et_description"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@android:color/transparent"
+                        android:fontFamily="@font/poppins_regular"
+                        android:gravity="top"
+                        android:hint="@string/tell_us_about_your_issue"
+                        android:importantForAutofill="no"
+                        android:inputType="textMultiLine|textCapSentences"
+                        android:maxLength="250"
+                        android:minHeight="120dp"
+                        android:paddingStart="16dp"
+                        android:paddingTop="16dp"
+                        android:paddingEnd="16dp"
+                        android:paddingBottom="8dp"
+                        android:textColor="#212121"
+                        android:textColorHint="#9E9E9E"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:id="@+id/tv_remaining_text"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="end"
+                        android:layout_marginTop="2dp"
+                        android:layout_marginEnd="16dp"
+                        android:layout_marginBottom="12dp"
+                        android:fontFamily="@font/poppins_regular"
+                        android:paddingBottom="4dp"
+                        android:text="@string/description_remaining_text"
+                        android:textColor="#757575"
+                        android:textSize="12sp"
+                        android:visibility="gone" />
+
+                </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
-
-            <TextView
-                android:id="@+id/tv_remaining_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:fontFamily="@font/poppins_regular"
-                android:text="@string/description_remaining_text"
-                android:textColor="#757575"
-                android:textSize="12sp"
-                android:visibility="gone"
-                app:layout_constraintEnd_toEndOf="@id/cv_description"
-                app:layout_constraintTop_toBottomOf="@+id/cv_description" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -496,20 +512,20 @@
                 android:textSize="12sp" />
         </LinearLayout>
 
-        <!-- Delete Button -->
-        <com.google.android.material.button.MaterialButton
+        <!-- Delete Button: custom bg so disabled state shows white pill + border (Material tint hides white on white) -->
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btn_delete_account"
             android:layout_width="match_parent"
             android:layout_height="56dp"
-            android:backgroundTint="@color/button_background_tint"
+            android:background="@drawable/delete_account_button_background"
             android:enabled="false"
             android:fontFamily="@font/poppins_semibold"
             android:text="@string/delete_account"
             android:textAllCaps="false"
-            android:textColor="@color/button_text_color"
+            android:textColor="@color/delete_account_button_text_color"
             android:textSize="16sp"
-            app:cornerRadius="@dimen/_18sdp"
-            app:elevation="0dp" />
+            android:stateListAnimator="@null"
+            android:elevation="0dp" />
 
     </LinearLayout>
 

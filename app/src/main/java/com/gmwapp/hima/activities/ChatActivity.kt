@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.os.Bundle
 import android.util.Log
 import android.view.WindowManager
@@ -242,7 +244,7 @@ class ChatActivity : AppCompatActivity() {
 
         if (myUserId.isEmpty() || peerUserId == "-1") {
             Log.e("checkPagiantion", "❌ Invalid user data - finishing activity")
-            Toast.makeText(this, "Error: Invalid user data", Toast.LENGTH_SHORT).show()
+            showAppToast("Error: Invalid user data", Toast.LENGTH_SHORT)
             finish()
         }
     }
@@ -589,7 +591,7 @@ class ChatActivity : AppCompatActivity() {
                         }
                         else -> "Error loading messages: ${error.message}"
                     }
-                    Toast.makeText(this, errorMsg, Toast.LENGTH_LONG).show()
+                    showAppToast(errorMsg, Toast.LENGTH_LONG)
                     isLoadingMoreMessages = false
                     return@addSnapshotListener
                 }
@@ -878,12 +880,12 @@ class ChatActivity : AppCompatActivity() {
 
         // ✅ Quick validation checks (lightweight, no network calls)
         if (myUserId.isEmpty() || peerUserId.isEmpty() || peerUserId == "-1") {
-            Toast.makeText(this, "Error: Invalid user data", Toast.LENGTH_SHORT).show()
+            showAppToast("Error: Invalid user data", Toast.LENGTH_SHORT)
             return
         }
 
         if (isPeerBlocked) {
-            Toast.makeText(this, "Please unblock to send message", Toast.LENGTH_SHORT).show()
+            showAppToast("Please unblock to send message", Toast.LENGTH_SHORT)
             return
         }
 
@@ -993,7 +995,7 @@ class ChatActivity : AppCompatActivity() {
                     // ✅ CRITICAL: Don't update UI if activity is finishing
                     if (isFinishing || isDestroyed) return@post
                     
-                    Toast.makeText(this@ChatActivity, "No internet connection", Toast.LENGTH_SHORT).show()
+                    showAppToast("No internet connection", Toast.LENGTH_SHORT)
                     // Remove temp message if no internet
                     val tempIndex = messages.indexOfFirst { it.id == tempId }
                     if (tempIndex != -1) {
@@ -1191,7 +1193,7 @@ class ChatActivity : AppCompatActivity() {
                                     "No internet connection"
                                 else -> "Failed: ${e.message}"
                             }
-                            Toast.makeText(this@ChatActivity, errorMsg, Toast.LENGTH_LONG).show()
+                            showAppToast(errorMsg, Toast.LENGTH_LONG)
                         }
                         
                         // Mark message sending as complete and process next message in queue
@@ -1234,7 +1236,7 @@ class ChatActivity : AppCompatActivity() {
                         }
                     }
 
-                    Toast.makeText(this@ChatActivity, "Failed to create chat thread", Toast.LENGTH_SHORT).show()
+                    showAppToast("Failed to create chat thread", Toast.LENGTH_SHORT)
                 }
                 
                 // Mark message sending as complete and process next message in queue
@@ -1625,14 +1627,14 @@ class ChatActivity : AppCompatActivity() {
             .addOnSuccessListener {
                 isPeerBlocked = true
                 blockTimestamp = currentTimestamp
-                Toast.makeText(this, "User blocked successfully", Toast.LENGTH_SHORT).show()
+                showAppToast("User blocked successfully", Toast.LENGTH_SHORT)
                 Log.d("ChatActivity", "✅ User blocked successfully")
 
                 // Refresh Firestore listener to filter blocked user's messages
                 setupFirestoreListener()
             }
             .addOnFailureListener { e ->
-                Toast.makeText(this, "Failed to block user", Toast.LENGTH_SHORT).show()
+                showAppToast("Failed to block user", Toast.LENGTH_SHORT)
                 Log.e("ChatActivity", "❌ Failed to block user", e)
             }
     }
@@ -1676,14 +1678,14 @@ class ChatActivity : AppCompatActivity() {
             .addOnSuccessListener {
                 isPeerBlocked = false
                 blockTimestamp = null
-                Toast.makeText(this, "User unblocked successfully", Toast.LENGTH_SHORT).show()
+                showAppToast("User unblocked successfully", Toast.LENGTH_SHORT)
                 Log.d("ChatActivity", "✅ User unblocked successfully")
 
                 // Refresh Firestore listener to show all messages
                 setupFirestoreListener()
             }
             .addOnFailureListener { e ->
-                Toast.makeText(this, "Failed to unblock user", Toast.LENGTH_SHORT).show()
+                showAppToast("Failed to unblock user", Toast.LENGTH_SHORT)
                 Log.e("ChatActivity", "❌ Failed to unblock user", e)
             }
     }

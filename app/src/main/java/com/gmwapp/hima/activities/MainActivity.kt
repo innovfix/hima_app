@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Dialog
@@ -57,12 +59,14 @@ import com.gmwapp.hima.adapters.CoinAdapter
 import com.gmwapp.hima.adapters.GiftAdapter
 import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.agora.ZohoHelper
+import com.gmwapp.hima.callbacks.NetworkRetryable
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityMainBinding
 import com.gmwapp.hima.dialogs.BottomSheetWelcomeBonus
 import com.gmwapp.hima.dialogs.FreeCoinsWelcomeDialog
 import com.gmwapp.hima.dialogs.RatingDialog
+import com.gmwapp.hima.fragments.FavouriteFragment
 import com.gmwapp.hima.fragments.FemaleHomeFragment
 import com.gmwapp.hima.fragments.HomeFragment
 import com.gmwapp.hima.fragments.ProfileFemaleFragment
@@ -216,9 +220,9 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         }
 
         if (statusCode == RESULT_OK) {
-            // Toast.makeText(this, "Payment Successful", Toast.LENGTH_LONG).show()
+            // showAppToast("Payment Successful", Toast.LENGTH_LONG)
         } else {
-            //  Toast.makeText(this, "Payment Failed or Cancelled", Toast.LENGTH_LONG).show()
+            //  showAppToast("Payment Failed or Cancelled", Toast.LENGTH_LONG)
         }
     }
 
@@ -425,11 +429,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             if (isBackPressedAlready) {
                 finish()
             } else {
-                Toast.makeText(
-                    this@MainActivity,
-                    getString(R.string.press_back_again_to_exit),
-                    Toast.LENGTH_SHORT
-                ).show()
+                showAppToast(getString(R.string.press_back_again_to_exit), Toast.LENGTH_SHORT)
                 isBackPressedAlready = true
                 Handler().postDelayed({
                     isBackPressedAlready = false
@@ -470,11 +470,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                     startActivity(intent)
                 } else {
                     Log.e("UPI Payment Error", "Payment URL is null or empty")
-                    Toast.makeText(this, "Payment URL not found. Please try again later.", Toast.LENGTH_LONG).show()
+                    showAppToast("Payment URL not found. Please try again later.", Toast.LENGTH_LONG)
                 }
             } else {
                 Log.e("UPI Payment Error", "Invalid response: ${response?.data}")
-                Toast.makeText(this, "Payment failed. Please check your internet or payment details.", Toast.LENGTH_LONG).show()
+                showAppToast("Payment failed. Please check your internet or payment details.", Toast.LENGTH_LONG)
             }
         })
 
@@ -493,7 +493,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                             Log.d("paymentGateway","$paymentGateway")
                         } ?: run {
                             // Show Toast if payment_gateway_type is null
-                            Toast.makeText(this, "Please try again later", Toast.LENGTH_SHORT).show()
+                            showAppToast("Please try again later", Toast.LENGTH_SHORT)
                         }
                     }
                 }
@@ -716,30 +716,47 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         removeShiftMode()
     }
 
+    /**
+     * Avoids stacking multiple async [androidx.fragment.app.FragmentTransaction.replace] + [commit]
+     * calls, which can leave [R.id.flFragment] empty when tabs are tapped very quickly.
+     */
+    private fun isAlreadyShowingTab(itemId: Int): Boolean {
+        val current = supportFragmentManager.findFragmentById(R.id.flFragment) ?: return false
+        return when (itemId) {
+            R.id.home -> current is HomeFragment || current is FemaleHomeFragment
+            R.id.recent -> current is RecentFragment
+            R.id.favourite -> current is FavouriteFragment
+            R.id.profile -> current is ProfileFragment || current is ProfileFemaleFragment
+            else -> false
+        }
+    }
+
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
-        // Add vibration feedback for better UX
+        supportFragmentManager.executePendingTransactions()
+        if (isAlreadyShowingTab(item.itemId)) {
+            return true
+        }
+
         val vibrator = getSystemService(VIBRATOR_SERVICE) as android.os.Vibrator
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             vibrator.vibrate(android.os.VibrationEffect.createOneShot(30, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
         } else {
             vibrator.vibrate(30)
         }
-        
-        // Animate the selected bottom navigation item
+
         animateBottomNavItem(item)
-        
-        // Smooth fragment transition with animations
+
         val transaction = supportFragmentManager.beginTransaction()
+        transaction.setReorderingAllowed(true)
         transaction.setCustomAnimations(
             android.R.anim.fade_in,
             android.R.anim.fade_out
         )
-        
+
         when (item.itemId) {
             R.id.home -> {
-                // Set status bar to pink
                 window.statusBarColor = ContextCompat.getColor(this, R.color.white)
-                
+
                 val homeFragment = if (BaseApplication.getInstance()?.getPrefs()
                         ?.getUserData()?.gender == DConstants.FEMALE
                 ) FemaleHomeFragment() else HomeFragment()
@@ -748,25 +765,22 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             }
 
             R.id.recent -> {
-                // Set status bar to pink
                 window.statusBarColor = ContextCompat.getColor(this, R.color.white)
-                
+
                 transaction.replace(R.id.flFragment, RecentFragment()).commit()
                 return true
             }
 
             R.id.favourite -> {
-                // Set status bar to pink
                 window.statusBarColor = ContextCompat.getColor(this, R.color.white)
-                
-                transaction.replace(R.id.flFragment, com.gmwapp.hima.fragments.FavouriteFragment()).commit()
+
+                transaction.replace(R.id.flFragment, FavouriteFragment()).commit()
                 return true
             }
 
             R.id.profile -> {
-                // Set status bar to pink
                 window.statusBarColor = ContextCompat.getColor(this, R.color.grey_extra_light)
-                
+
                 if (BaseApplication.getInstance()?.getPrefs()
                         ?.getUserData()?.gender == DConstants.MALE
                 ) {
@@ -817,14 +831,21 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     fun removeShiftMode() {
         binding.bottomNavigationView.labelVisibilityMode =
             NavigationBarView.LABEL_VISIBILITY_LABELED
-        val menuView = binding.bottomNavigationView.getChildAt(0) as BottomNavigationMenuView
-        for (i in 0 until menuView.childCount) {
-            val item = menuView.getChildAt(i) as BottomNavigationItemView
-            item.setShifting(false)
-            item.setLabelVisibilityMode(NavigationBarView.LABEL_VISIBILITY_LABELED)
+        val bottomNav = binding.bottomNavigationView
+        // Post so this runs after Material binds menu items (tooltip can be re-applied earlier)
+        bottomNav.post {
+            val menuView = bottomNav.getChildAt(0) as BottomNavigationMenuView
+            for (i in 0 until menuView.childCount) {
+                val item = menuView.getChildAt(i) as BottomNavigationItemView
+                item.setShifting(false)
+                item.setLabelVisibilityMode(NavigationBarView.LABEL_VISIBILITY_LABELED)
+                ViewCompat.setTooltipText(item, null)
 
-            // set once again checked value, so view will be updated
-            item.setChecked(item.itemData!!.isChecked)
+                // set once again checked value, so view will be updated
+                item.setChecked(item.itemData!!.isChecked)
+                // After Material updates state, consume long-press so tab title tooltip never shows
+                item.setOnLongClickListener { true }
+            }
         }
     }
 
@@ -961,15 +982,15 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 //                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(paymentUrl))
 //                                startActivity(intent)
                                         } else {
-                                            Toast.makeText(this@MainActivity, "Failed to get payment link", Toast.LENGTH_SHORT).show()
+                                            showAppToast("Failed to get payment link", Toast.LENGTH_SHORT)
                                         }
                                     } else {
-                                        Toast.makeText(this@MainActivity, "Error: ${response.errorBody()?.string()}", Toast.LENGTH_SHORT).show()
+                                        showAppToast("Error: ${response.errorBody()?.string()}", Toast.LENGTH_SHORT)
                                     }
                                 }
 
                                 override fun onFailure(call: retrofit2.Call<NewRazorpayLinkResponse>, t: Throwable) {
-                                    Toast.makeText(this@MainActivity, "Failed: ${t.message}", Toast.LENGTH_SHORT).show()
+                                    showAppToast("Failed: ${t.message}", Toast.LENGTH_SHORT)
                                 }
                             })
                         }
@@ -998,8 +1019,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
 
                         else -> {
-                            Toast.makeText(this, "Invalid Payment Gateway", Toast.LENGTH_SHORT)
-                                .show()
+                            showAppToast("Invalid Payment Gateway", Toast.LENGTH_SHORT)
                         }
 
 
@@ -1007,7 +1027,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 }
             }
         } else {
-            Toast.makeText(this, "Invalid input data", Toast.LENGTH_SHORT).show()
+            showAppToast("Invalid input data", Toast.LENGTH_SHORT)
         }
     }
 
@@ -1056,17 +1076,17 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 ////                        val intent = Intent(this@MainActivity, LauncherActivity::class.java)
 ////                        intent.setData(Uri.parse(response.body()?.longurl))
 ////                        startActivity(intent)
-////                        //  Toast.makeText(this@WalletActivity, response.body()?.message ?: "Error", Toast.LENGTH_SHORT).show()
+////                        //  showAppToast(response.body()?.message ?: "Error", Toast.LENGTH_SHORT)
 ////                    }
 ////                }
 ////
 ////                override fun onFailure(call: retrofit2.Call<ApiResponse>, t: Throwable) {
-////                    Toast.makeText(this@MainActivity, "Failed: ${t.message}", Toast.LENGTH_SHORT)
+////                    showAppToast("Failed: ${t.message}", Toast.LENGTH_SHORT)
 ////                        .show()
 ////                }
 ////            })
 //        } else {
-//            Toast.makeText(this, "Invalid input data", Toast.LENGTH_SHORT).show()
+//            showAppToast("Invalid input data", Toast.LENGTH_SHORT)
 //        }
 //    }
 
@@ -1456,7 +1476,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             isPhonePeInitialized = true
         } else {
             Log.e("PhonePe", "SDK Initialization Failed")
-            Toast.makeText(this, "PhonePe SDK init failed", Toast.LENGTH_SHORT).show()
+            showAppToast("PhonePe SDK init failed", Toast.LENGTH_SHORT)
         }
     }
 
@@ -1480,7 +1500,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
                 runOnUiThread {
-                    Toast.makeText(this@MainActivity, "API Failure: ${e.message}", Toast.LENGTH_SHORT).show()
+                    showAppToast("API Failure: ${e.message}", Toast.LENGTH_SHORT)
                 }
             }
 
@@ -1501,7 +1521,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
                 } catch (e: Exception) {
                     runOnUiThread {
-                        Toast.makeText(this@MainActivity, "Invalid server response", Toast.LENGTH_SHORT).show()
+                        showAppToast("Invalid server response", Toast.LENGTH_SHORT)
                         Log.d("PhonpeException","$e")
                     }
                 }
@@ -1511,7 +1531,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
     private fun startPhonePeCheckout(orderId: String, token: String) {
         if (!isAnyUPIAppInstalled()) {
-            Toast.makeText(this, "No UPI app installed", Toast.LENGTH_LONG).show()
+            showAppToast("No UPI app installed", Toast.LENGTH_LONG)
             return
         }
 
@@ -1524,7 +1544,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             )
         } catch (e: PhonePeInitException) {
             Log.e("PhonePe", "Checkout Failed: ${e.message}")
-            Toast.makeText(this, "Could not start payment", Toast.LENGTH_SHORT).show()
+            showAppToast("Could not start payment", Toast.LENGTH_SHORT)
         }
     }
 
@@ -1546,7 +1566,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
                 runOnUiThread {
-                    Toast.makeText(this@MainActivity, "Status check failed", Toast.LENGTH_SHORT).show()
+                    showAppToast("Status check failed", Toast.LENGTH_SHORT)
                 }
             }
 
@@ -1565,7 +1585,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
                 if (state=="COMPLETED"){
                     runOnUiThread{
-                        Toast.makeText(this@MainActivity, "Payment Successful", Toast.LENGTH_LONG).show()
+                        showAppToast("Payment Successful", Toast.LENGTH_LONG)
                         user_id?.let { WalletViewModel.addCoins(it, coin_id, 1, order_id, "Coins purchased") }
                         observeAddCoins()
                         updatePurchaseOnMeta()
@@ -1573,7 +1593,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
                 }else{
                     runOnUiThread{
-                        Toast.makeText(this@MainActivity, "Payment Failed", Toast.LENGTH_LONG).show()
+                        showAppToast("Payment Failed", Toast.LENGTH_LONG)
                     }
                 }
 
@@ -1889,7 +1909,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
         } catch (e: CFException) {
             Log.e("CashfreeUPI", "Error starting UPI intent: ${e.message}")
-            Toast.makeText(this, "Cashfree error: ${e.message}", Toast.LENGTH_SHORT).show()
+            showAppToast("Cashfree error: ${e.message}", Toast.LENGTH_SHORT)
         }
     }
     fun cashfreeCheckout(paymentSessionID:String,orderID:String){
@@ -1949,7 +1969,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
                 runOnUiThread {
-                    Toast.makeText(this@MainActivity, "Order creation failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                    showAppToast("Order creation failed: ${e.message}", Toast.LENGTH_SHORT)
                 }
             }
 
@@ -1974,12 +1994,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                     } else {
                         runOnUiThread {
                             val errorMsg = json.optJSONObject("errors")?.toString() ?: "Order creation failed"
-                            Toast.makeText(this@MainActivity, errorMsg, Toast.LENGTH_SHORT).show()
+                            showAppToast(errorMsg, Toast.LENGTH_SHORT)
                         }
                     }
                 } catch (e: Exception) {
                     runOnUiThread {
-                        Toast.makeText(this@MainActivity, "Invalid server response", Toast.LENGTH_SHORT).show()
+                        showAppToast("Invalid server response", Toast.LENGTH_SHORT)
                     }
                 }
             }
@@ -2000,7 +2020,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
                 runOnUiThread {
-                    Toast.makeText(this@MainActivity, "Status check failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                    showAppToast("Status check failed: ${e.message}", Toast.LENGTH_SHORT)
                 }
             }
 
@@ -2020,19 +2040,19 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
                     if (paymentStatus.equals("PAID", ignoreCase = true)) {
                         runOnUiThread {
-                            Toast.makeText(this@MainActivity, "Payment Successful", Toast.LENGTH_LONG).show()
+                            showAppToast("Payment Successful", Toast.LENGTH_LONG)
                             user_id?.let { WalletViewModel.add_coins_cashfree(it, coin_id, 1, order_id, "Coins purchased") }
                             observeAddCoins()
                             updatePurchaseOnMeta()
                         }
                     } else {
                         runOnUiThread {
-                            Toast.makeText(this@MainActivity, "Payment Failed", Toast.LENGTH_LONG).show()
+                            showAppToast("Payment Failed", Toast.LENGTH_LONG)
                         }
                     }
                 } catch (e: Exception) {
                     runOnUiThread {
-                        Toast.makeText(this@MainActivity, "Invalid response", Toast.LENGTH_SHORT).show()
+                        showAppToast("Invalid response", Toast.LENGTH_SHORT)
                     }
                 }
             }
@@ -2177,6 +2197,16 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             Log.d("MainActivity", "Refreshing coins balance in HomeFragment")
         } else {
             Log.d("MainActivity", "HomeFragment not currently visible, skipping refresh")
+        }
+    }
+
+    override fun onNetworkRetry() {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
+        profileViewModel.getUsers(userData.id)
+        WalletViewModel.getCoins(userData.id)
+        when (val f = supportFragmentManager.findFragmentById(R.id.flFragment)) {
+            is NetworkRetryable -> f.onNetworkRetry()
+            else -> { }
         }
     }
 

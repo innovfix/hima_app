@@ -1,8 +1,11 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.animation.ObjectAnimator
 import android.content.BroadcastReceiver
 import android.content.Context
+import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.animation.AccelerateDecelerateInterpolator
@@ -41,6 +44,7 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
 import com.gmwapp.hima.AppSignatureHashHelper
 import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.BuildConfig
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityNewLoginBinding
@@ -127,7 +131,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             val code = tcOAuthData.authorizationCode
             val state = tcOAuthData.state
             val scopes = tcOAuthData.scopesGranted
-            // Toast.makeText(this@NewLoginActivity, "Success! Code: $code", Toast.LENGTH_LONG).show()
+            // showAppToast("Success! Code: $code", Toast.LENGTH_LONG)
             Log.d("truecallerCodeVerifier","$code ")
             Log.d("truecallerCodeVerifier","$truecallerCodeVerifier ")
             truecallerCodeVerifier?.let { loginViewModel.login("0",code, it) }
@@ -143,8 +147,15 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
 
         override fun onFailure(tcOAuthError: TcOAuthError) {
-            // Handle login failure
-            Toast.makeText(this@NewLoginActivity, "Error: ${tcOAuthError.errorMessage}", Toast.LENGTH_LONG).show()
+            val msg = tcOAuthError.errorMessage.orEmpty()
+            Log.e("Truecaller", "OAuth onFailure: $msg")
+            if (msg.contains("fingerprint", ignoreCase = true)) {
+                logSigningCertSha256ForTruecallerConsole()
+                showAppToast(R.string.truecaller_fingerprint_fallback, Toast.LENGTH_LONG)
+            } else {
+                showAppToast(getString(R.string.truecaller_generic_error, msg.ifEmpty { getString(R.string.please_try_again_later) }), Toast.LENGTH_LONG)
+            }
+            promptManualPhoneLoginAfterTruecallerFailure()
         }
     }
 
@@ -183,7 +194,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                     Log.d("verificationCallback", "Verification complete, token: $token")
 
                     // TODO: Send this access token to your server for validation
-                    Toast.makeText(this@NewLoginActivity, "Verified!", Toast.LENGTH_SHORT).show()
+                    showAppToast("Verified!", Toast.LENGTH_SHORT)
                 }
 
                 VerificationCallback.TYPE_PROFILE_VERIFIED_BEFORE -> {
@@ -191,14 +202,14 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                     Log.d("verificationCallback", "Already verified before, token: $token")
 
                     // TODO: Use token if needed
-                    Toast.makeText(this@NewLoginActivity, "Already Verified", Toast.LENGTH_SHORT).show()
+                    showAppToast("Already Verified", Toast.LENGTH_SHORT)
                 }
             }
         }
 
         override fun onRequestFailure(callbackType: Int, e: TrueException) {
             Log.e("Truecaller", "Verification failed: ${e.exceptionMessage}")
-            Toast.makeText(this@NewLoginActivity, "Verification failed: ${e.exceptionMessage}", Toast.LENGTH_SHORT).show()
+            showAppToast("Verification failed: ${e.exceptionMessage}", Toast.LENGTH_SHORT)
         }
     }
 
@@ -392,7 +403,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
                     TcSdk.getInstance().getAuthorizationCode(this@NewLoginActivity)
                 } else {
-                    Toast.makeText(this@NewLoginActivity, "Truecaller not usable", Toast.LENGTH_SHORT).show()
+                    showAppToast("Truecaller not usable", Toast.LENGTH_SHORT)
                 }
             }
         }
@@ -406,7 +417,56 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
 
     private fun showPhoneInputDialogForTruecallerFallback() {
+        promptManualPhoneLoginAfterTruecallerFailure()
+    }
 
+    /**
+     * Truecaller OAuth failed (e.g. invalid fingerprint). Same signing SHA-256 must be added in
+     * Truecaller developer console for this package + Client ID — cannot be bypassed in code.
+     */
+    private fun logSigningCertSha256ForTruecallerConsole() {
+        try {
+            val pm = packageManager
+            val pkg = packageName
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val info = pm.getPackageInfo(pkg, PackageManager.GET_SIGNING_CERTIFICATES)
+                val signers = info.signingInfo?.apkContentsSigners ?: return
+                for (sig in signers) {
+                    val digest = MessageDigest.getInstance("SHA-256").digest(sig.toByteArray())
+                    val hex = digest.joinToString(":") { b -> "%02X".format(b) }
+                    Log.e(
+                        "TruecallerDev",
+                        "Add this SHA-256 in Truecaller console (package=$pkg, debug=${BuildConfig.DEBUG}): $hex"
+                    )
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                val info = pm.getPackageInfo(pkg, PackageManager.GET_SIGNATURES)
+                @Suppress("DEPRECATION")
+                val signatures = info.signatures ?: return
+                for (sig in signatures) {
+                    val digest = MessageDigest.getInstance("SHA-256").digest(sig.toByteArray())
+                    val hex = digest.joinToString(":") { b -> "%02X".format(b) }
+                    Log.e(
+                        "TruecallerDev",
+                        "Add this SHA-256 in Truecaller console (package=$pkg): $hex"
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("TruecallerDev", "Could not read signing certificate: ${e.message}")
+        }
+    }
+
+    private fun promptManualPhoneLoginAfterTruecallerFailure() {
+        binding.loginSection.visibility = View.VISIBLE
+        binding.otpSection.visibility = View.GONE
+        binding.cvOtpBack.visibility = View.GONE
+        binding.etMobileNumber.post {
+            binding.etMobileNumber.requestFocus()
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(binding.etMobileNumber, InputMethodManager.SHOW_IMPLICIT)
+        }
     }
 
 
@@ -532,7 +592,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             }
             
             if (it.success) {
-                Toast.makeText(this@NewLoginActivity, "OTP sent successfully", Toast.LENGTH_SHORT).show()
+                showAppToast("OTP sent successfully", Toast.LENGTH_SHORT)
                 binding.loginSection.visibility  = View.GONE
                 binding.otpSection.visibility  = View.VISIBLE
                 binding.cvOtpBack.visibility = View.VISIBLE
@@ -929,7 +989,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                 if (it.success) {
                     binding.applyReferral.setText("Applied")
                     binding.applyReferral.isEnabled = false
-                    Toast.makeText(this@NewLoginActivity, "Refer code applied successfully", Toast.LENGTH_SHORT).show()
+                    showAppToast("Refer code applied successfully", Toast.LENGTH_SHORT)
                     val referCode = binding.etReferCode.text.toString()
                     DPreferences(this).setReferralCode(referCode)
                     val savedReferCode = DPreferences(this).getReferralCode()
@@ -1011,9 +1071,9 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 //
 //        if (requestCode == 1001) {
 //            if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-//                Toast.makeText(this, "Permissions granted", Toast.LENGTH_SHORT).show()
+//                showAppToast("Permissions granted", Toast.LENGTH_SHORT)
 //            } else {
-//                Toast.makeText(this, "Permissions denied. Verification may not work.", Toast.LENGTH_LONG).show()
+//                showAppToast("Permissions denied. Verification may not work.", Toast.LENGTH_LONG)
 //            }
 //        }
 //    }

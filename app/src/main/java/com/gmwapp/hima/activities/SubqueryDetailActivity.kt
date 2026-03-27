@@ -14,6 +14,7 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.databinding.ActivitySubqueryDetailBinding
 import com.gmwapp.hima.retrofit.responses.SubqueryData
 import com.gmwapp.hima.utils.setOnSingleClickListener
+import com.gmwapp.hima.utils.unescapeHelpContent
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener
@@ -149,7 +150,7 @@ class SubqueryDetailActivity : BaseActivity() {
         // Set description (hide if empty)
         if (!subquery.description.isNullOrEmpty()) {
             binding.cardDescription.visibility = View.VISIBLE
-            binding.tvDescription.text = subquery.description
+            binding.tvDescription.text = subquery.description.unescapeHelpContent()
             
             // Show Watch Video button if video is available (top right of description card)
             if (videoId != null) {

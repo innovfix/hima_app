@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -65,8 +67,7 @@ class MyWarningsActivity : AppCompatActivity() {
 
             if (response?.success != true) {
                 showEmpty(showSummary = false)
-                Toast.makeText(this, response?.message ?: "Failed to load warnings", Toast.LENGTH_SHORT)
-                    .show()
+                showAppToast(response?.message ?: "Failed to load warnings", Toast.LENGTH_SHORT)
                 return@observe
             }
 
@@ -140,7 +141,7 @@ class MyWarningsActivity : AppCompatActivity() {
             binding.progressBar.visibility = View.GONE
             Log.e("MyWarningsUI", "my_warnings error: $err")
             showEmpty(showSummary = false)
-            Toast.makeText(this, err ?: "Something went wrong", Toast.LENGTH_SHORT).show()
+            showAppToast(err ?: "Something went wrong", Toast.LENGTH_SHORT)
         }
     }
 
@@ -148,7 +149,7 @@ class MyWarningsActivity : AppCompatActivity() {
         val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
         if (userId <= 0) {
             showEmpty(showSummary = false)
-            Toast.makeText(this, "User not found. Please login again.", Toast.LENGTH_SHORT).show()
+            showAppToast("User not found. Please login again.", Toast.LENGTH_SHORT)
             return
         }
 

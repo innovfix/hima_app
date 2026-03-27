@@ -30,10 +30,12 @@ import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.adapters.FemaleUserAdapter
 import com.gmwapp.hima.agora.AgoraRandomCallActivity
 import com.gmwapp.hima.agora.FcmUtils
+import com.gmwapp.hima.callbacks.NetworkRetryable
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentHomeBinding
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponseData
+import com.gmwapp.hima.utils.Helper
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.onesignal.OneSignal
@@ -45,7 +47,7 @@ import kotlinx.coroutines.launch
 
 
 @AndroidEntryPoint
-class HomeFragment : BaseFragment() {
+class HomeFragment : BaseFragment(), NetworkRetryable {
     private var isAllFabVisible: Boolean = false
     private var filterType: String = "all" // Default filter is "all"
     lateinit var binding: FragmentHomeBinding
@@ -292,14 +294,42 @@ class HomeFragment : BaseFragment() {
             // Stop the swipe-to-refresh loading animation
             binding.swipeRefreshLayout.isRefreshing = false
             setLoading(false)
+            refreshMaleHomeNetworkPlaceholder()
         })
 
         femaleUsersViewModel.femaleUsersErrorLiveData.observe(viewLifecycleOwner, Observer {
             binding.swipeRefreshLayout.isRefreshing = false
             setLoading(false)
+            refreshMaleHomeNetworkPlaceholder()
         })
 
+        binding.btnRetryNoNetworkHome.setOnClickListener {
+            if (!Helper.checkNetworkConnection()) return@setOnClickListener
+            binding.tvNointernet.visibility = View.GONE
+            BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let { loadFemaleUsers(it) }
+        }
+
+        BaseApplication.getInstance()?.networkConnectedLiveData?.observe(viewLifecycleOwner) {
+            refreshMaleHomeNetworkPlaceholder()
+        }
+        refreshMaleHomeNetworkPlaceholder()
+
         initFab()
+    }
+
+    private fun refreshMaleHomeNetworkPlaceholder() {
+        val online = when (val v = BaseApplication.getInstance()?.networkConnectedLiveData?.value) {
+            null -> Helper.checkNetworkConnection()
+            else -> v
+        }
+        val count = binding.rvProfiles.adapter?.itemCount ?: 0
+        if (!online && count == 0) {
+            binding.tvNointernet.visibility = View.VISIBLE
+            binding.rvProfiles.visibility = View.GONE
+        } else {
+            binding.tvNointernet.visibility = View.GONE
+            binding.rvProfiles.visibility = View.VISIBLE
+        }
     }
 
 //    private fun setupSwipeToRefresh() {
@@ -533,17 +563,9 @@ class HomeFragment : BaseFragment() {
     }
 
     fun observeCoins() {
-        profileViewModel.getUserLiveData.observe(this, Observer { response ->
-            if (response != null) {  // Check if response is null
-                response.data?.let { userData ->
-                    BaseApplication.getInstance()?.getPrefs()?.setUserData(userData)
-                    Log.d("coinsUpdated_", "$${userData.coins}") // Avoid unnecessary .toString()
-                    binding.tvCoins.text = userData.coins.toString()
-                }
-            } else {
-                Log.e("HomeFragment", "RegisterResponse is null")
-            }
-        })
+        BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
+            profileViewModel.getUsers(it)
+        }
     }
 
     // Public method to refresh coins from external calls (like after claiming free coins)
@@ -559,6 +581,11 @@ class HomeFragment : BaseFragment() {
                 Log.d("HomeFragment", "Refreshing coins balance after claim")
             }, 500) // Delay API call slightly for better UX
         }
+    }
+
+    override fun onNetworkRetry() {
+        binding.tvNointernet.visibility = View.GONE
+        BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let { loadFemaleUsers(it) }
     }
 
     private fun showPremiumCoinFlyingAnimation() {

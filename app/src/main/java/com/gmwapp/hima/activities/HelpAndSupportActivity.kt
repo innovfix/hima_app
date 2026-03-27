@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -138,14 +140,15 @@ class HelpAndSupportActivity : BaseActivity() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val userId = userData?.id ?: 0
         val gender = userData?.gender
-        
+        val language = userData?.language.orEmpty()
+
         if (userId > 0) {
             // Load tickets first (for both male and female)
             accountViewModel.getTicketsList(userId)
             
             // Only load categories for female users
             if (gender?.equals(DConstants.MALE, ignoreCase = true) != true) {
-                accountViewModel.getCategoriesList(userId)
+                accountViewModel.getCategoriesList(userId, language)
             } else {
                 // For male users, hide progress bar after tickets load
                 binding.progressBar.visibility = android.view.View.GONE
@@ -153,7 +156,7 @@ class HelpAndSupportActivity : BaseActivity() {
         } else {
             binding.progressBar.visibility = android.view.View.GONE
             showEmptyState()
-            Toast.makeText(this, "User not logged in", Toast.LENGTH_SHORT).show()
+            showAppToast("User not logged in", Toast.LENGTH_SHORT)
         }
 
         // Observe tickets list
@@ -301,7 +304,7 @@ class HelpAndSupportActivity : BaseActivity() {
         accountViewModel.categoriesErrorLiveData.observe(this, Observer { error ->
             binding.progressBar.visibility = android.view.View.GONE
             showEmptyState()
-            Toast.makeText(this, error ?: "An error occurred", Toast.LENGTH_SHORT).show()
+            showAppToast(error ?: "An error occurred", Toast.LENGTH_SHORT)
             Log.e("HelpAndSupportActivity", "Error loading categories: $error")
         })
     }

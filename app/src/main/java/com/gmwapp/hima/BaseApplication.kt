@@ -15,6 +15,8 @@ import android.content.pm.PackageManager
 import android.content.pm.PackageInfo
 import android.media.AudioAttributes
 import android.media.RingtoneManager
+import android.net.ConnectivityManager
+import android.net.Network
 import android.net.Uri
 import android.os.Build
 import android.util.Base64
@@ -23,6 +25,7 @@ import java.net.URLDecoder
 import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
 import android.view.WindowManager
+import androidx.lifecycle.MutableLiveData
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.android.installreferrer.api.InstallReferrerClient
@@ -33,6 +36,7 @@ import com.facebook.appevents.AppEventsLogger
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.repositories.FcmNotificationRepository
 import com.gmwapp.hima.utils.DPreferences
+import com.gmwapp.hima.utils.Helper
 import com.google.firebase.FirebaseApp
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.firestore.FirebaseFirestore
@@ -50,11 +54,14 @@ import javax.inject.Inject
 
 import com.appsflyer.AppsFlyerLib;
 import com.appsflyer.AppsFlyerConversionListener;
+import com.gmwapp.hima.activities.ChatActivityInHouse
+import com.gmwapp.hima.activities.ChatListActivity
 import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.fragments.FriendsTabFragment
 import com.gmwapp.hima.socket.SocketManager
 import com.onesignal.notifications.INotificationClickEvent
 import com.onesignal.notifications.INotificationClickListener
+import org.json.JSONObject
 
 
 @HiltAndroidApp
@@ -70,6 +77,10 @@ class BaseApplication : Application(), Configuration.Provider {
     private var roomId: String? = null
     private var mediaPlayer: MediaPlayer? = null
     private var endCallUpdatePending: Boolean? = null
+
+    val networkConnectedLiveData = MutableLiveData<Boolean>()
+    private var appConnectivityManager: ConnectivityManager? = null
+    private var appNetworkCallback: ConnectivityManager.NetworkCallback? = null
     // val ONESIGNAL_APP_ID = "2c7d72ae-8f09-48ea-a3c8-68d9c913c592"
     val ONESIGNAL_APP_ID = "5cd4154a-1ece-4c3b-b6af-e88bafee64cd"
 
@@ -166,6 +177,7 @@ class BaseApplication : Application(), Configuration.Provider {
         
         mInstance = this
         mPreferences = DPreferences(this)
+        registerAppNetworkConnectivity()
         FirebaseApp.initializeApp(this)
         
         // ✅ Connect to "himadatabase" explicitly with offline persistence
@@ -295,11 +307,34 @@ class BaseApplication : Application(), Configuration.Provider {
                 if (data != null) {
                     val type = data.optString("type", "")
                     if (type == "message") {
-                        Log.d("OneSignalClick", "✅ App OPEN - Opening ChatListActivity")
-                        val intent = Intent(applicationContext, com.gmwapp.hima.activities.ChatListActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        val peerUserId = parseMessageNotificationPeerUserId(data)
+                        if (peerUserId > 0) {
+                            val displayName = parseMessageNotificationOptionalString(
+                                data,
+                                "user_name", "sender_name", "name", "username", "title"
+                            ) ?: "User"
+                            val imageUrl = parseMessageNotificationOptionalString(
+                                data,
+                                "user_image", "image", "image_url", "profile_image", "sender_image", "avatar"
+                            ).orEmpty()
+                            Log.d("OneSignalClick", "✅ Opening ChatActivityInHouse for peerUserId=$peerUserId")
+                            val intent = Intent(applicationContext, ChatActivityInHouse::class.java).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                                putExtra("USER_ID", peerUserId)
+                                putExtra("USER_NAME", displayName)
+                                putExtra("USER_IMAGE", imageUrl)
+                            }
+                            startActivity(intent)
+                        } else {
+                            Log.w(
+                                "OneSignalClick",
+                                "message notification missing peer user id in additionalData — opening ChatListActivity. Payload: $data"
+                            )
+                            val intent = Intent(applicationContext, ChatListActivity::class.java).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            }
+                            startActivity(intent)
                         }
-                        startActivity(intent)
                     }
                    else if (type == "friend_request") {
                         Log.d("OneSignalClick", "✅ App OPEN - Opening ChatListActivity")
@@ -432,6 +467,29 @@ class BaseApplication : Application(), Configuration.Provider {
         return currentActivity
     }
 
+    /**
+     * OneSignal `additionalData` keys vary by backend; try common names for the **other** user's id.
+     */
+    private fun parseMessageNotificationPeerUserId(data: JSONObject): Int {
+        val keys = arrayOf("user_id", "sender_id", "from_user_id", "senderId", "sender_user_id")
+        for (key in keys) {
+            if (!data.has(key) || data.isNull(key)) continue
+            val id = when (val raw = data.opt(key)) {
+                is Number -> raw.toInt()
+                else -> data.optString(key, "").trim().toIntOrNull() ?: 0
+            }
+            if (id > 0) return id
+        }
+        return -1
+    }
+
+    private fun parseMessageNotificationOptionalString(data: JSONObject, vararg keys: String): String? {
+        for (key in keys) {
+            val s = data.optString(key, "").trim()
+            if (s.isNotEmpty()) return s
+        }
+        return null
+    }
 
     fun playIncomingCallSound() {
         // Stop any previous ringtone first
@@ -600,6 +658,32 @@ class BaseApplication : Application(), Configuration.Provider {
 
     fun isEndCallUpdatePending(): Boolean? {
         return this.endCallUpdatePending
+    }
+
+    private fun registerAppNetworkConnectivity() {
+        networkConnectedLiveData.postValue(Helper.checkNetworkConnection())
+        appConnectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        appNetworkCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                networkConnectedLiveData.postValue(true)
+                handleEndCallOnNetworkReturn()
+            }
+
+            override fun onLost(network: Network) {
+                networkConnectedLiveData.postValue(false)
+            }
+        }
+        try {
+            appConnectivityManager?.registerDefaultNetworkCallback(appNetworkCallback!!)
+        } catch (e: Exception) {
+            Log.e("BaseApplication", "registerDefaultNetworkCallback failed: ${e.message}", e)
+        }
+    }
+
+    private fun handleEndCallOnNetworkReturn() {
+        if (Helper.checkNetworkConnection() && isEndCallUpdatePending() == true) {
+            setEndCallUpdatePending(null)
+        }
     }
 
     fun saveSenderId(senderId: Int) {

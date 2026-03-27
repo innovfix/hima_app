@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -106,9 +108,9 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         }
 
         if (statusCode == RESULT_OK) {
-            // Toast.makeText(this, "Payment Successful", Toast.LENGTH_LONG).show()
+            // showAppToast("Payment Successful", Toast.LENGTH_LONG)
         } else {
-            //  Toast.makeText(this, "Payment Failed or Cancelled", Toast.LENGTH_LONG).show()
+            //  showAppToast("Payment Failed or Cancelled", Toast.LENGTH_LONG)
         }
     }
 
@@ -513,12 +515,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
                                 WalletViewModel.navigateToMain.observe(this, Observer { shouldNavigate ->
 
                                     if (shouldNavigate) {
-                                        Toast.makeText(
-                                            this,
-                                            "Coin purchased successfully",
-                                            Toast.LENGTH_SHORT
-                                        )
-                                            .show()
+                                        showAppToast("Coin purchased successfully", Toast.LENGTH_SHORT)
                                         userData?.id?.let { profileViewModel.getUsers(it) }
 
                                         updatePurchaseOnMeta()
@@ -570,15 +567,15 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
     //                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(paymentUrl))
     //                                startActivity(intent)
                                             } else {
-                                                Toast.makeText(this@PaymentActivity, "Failed to get payment link", Toast.LENGTH_SHORT).show()
+                                                showAppToast("Failed to get payment link", Toast.LENGTH_SHORT)
                                             }
                                         } else {
-                                            Toast.makeText(this@PaymentActivity, "Error: ${response.errorBody()?.string()}", Toast.LENGTH_SHORT).show()
+                                            showAppToast("Error: ${response.errorBody()?.string()}", Toast.LENGTH_SHORT)
                                         }
                                     }
 
                                     override fun onFailure(call: retrofit2.Call<NewRazorpayLinkResponse>, t: Throwable) {
-                                        Toast.makeText(this@PaymentActivity, "Failed: ${t.message}", Toast.LENGTH_SHORT).show()
+                                        showAppToast("Failed: ${t.message}", Toast.LENGTH_SHORT)
                                     }
                                 })
                             }
@@ -616,8 +613,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
 
 
                             else -> {
-                                Toast.makeText(this, "Invalid Payment Gateway", Toast.LENGTH_SHORT)
-                                    .show()
+                                showAppToast("Invalid Payment Gateway", Toast.LENGTH_SHORT)
                             }
 
 
@@ -625,7 +621,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
                     }
                 }
             } else {
-                Toast.makeText(this, "Invalid input data", Toast.LENGTH_SHORT).show()
+                showAppToast("Invalid input data", Toast.LENGTH_SHORT)
             }
         }
     }}
@@ -672,7 +668,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
                 runOnUiThread {
-                    Toast.makeText(this@PaymentActivity, "Status check failed", Toast.LENGTH_SHORT).show()
+                    showAppToast("Status check failed", Toast.LENGTH_SHORT)
                 }
             }
 
@@ -687,7 +683,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
                     if (!json.has("phonepe_status")) {
                         Log.e("PhonePeError", "phonepe_status not found in response. Response: $resultStr")
                         runOnUiThread {
-                            Toast.makeText(this@PaymentActivity, "Invalid response: missing phonepe_status", Toast.LENGTH_SHORT).show()
+                            showAppToast("Invalid response: missing phonepe_status", Toast.LENGTH_SHORT)
                         }
                         return
                     }
@@ -699,7 +695,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
                     if (!json.has("local_record") || json.isNull("local_record")) {
                         Log.e("PhonePeError", "local_record not found or null in response. Response: $resultStr")
                         runOnUiThread {
-                            Toast.makeText(this@PaymentActivity, "Invalid response: missing local_record", Toast.LENGTH_SHORT).show()
+                            showAppToast("Invalid response: missing local_record", Toast.LENGTH_SHORT)
                         }
                         return
                     }
@@ -713,25 +709,25 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
 
                     if (state == "COMPLETED") {
                         runOnUiThread {
-                            Toast.makeText(this@PaymentActivity, "Payment Successful", Toast.LENGTH_LONG).show()
+                            showAppToast("Payment Successful", Toast.LENGTH_LONG)
                             if (coin_id.isNotEmpty() && order_id.isNotEmpty()) {
                                 user_id?.let { WalletViewModel.addCoins(it, coin_id, 1, order_id, "Coins purchased") }
                                 observeAddCoins()
                                 updatePurchaseOnMeta()
                             } else {
                                 Log.e("PhonePeError", "Missing coin_id or order_id. coin_id=$coin_id, order_id=$order_id")
-                                Toast.makeText(this@PaymentActivity, "Error: Missing coin_id or order_id", Toast.LENGTH_SHORT).show()
+                                showAppToast("Error: Missing coin_id or order_id", Toast.LENGTH_SHORT)
                             }
                         }
                     } else {
                         runOnUiThread {
-                            Toast.makeText(this@PaymentActivity, "Payment Failed", Toast.LENGTH_LONG).show()
+                            showAppToast("Payment Failed", Toast.LENGTH_LONG)
                         }
                     }
                 } catch (e: Exception) {
                     Log.e("PhonePeException", "Error parsing response: ${e.message}\nResponse: $resultStr")
                     runOnUiThread {
-                        Toast.makeText(this@PaymentActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                        showAppToast("Error: ${e.message}", Toast.LENGTH_SHORT)
                     }
                 }
             }
@@ -755,7 +751,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
             isPhonePeInitialized = true
         } else {
             Log.e("PhonePe", "SDK Initialization Failed")
-            Toast.makeText(this, "PhonePe SDK init failed", Toast.LENGTH_SHORT).show()
+            showAppToast("PhonePe SDK init failed", Toast.LENGTH_SHORT)
         }
     }
 
@@ -787,7 +783,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
                 runOnUiThread {
-                    Toast.makeText(this@PaymentActivity, "API Failure: ${e.message}", Toast.LENGTH_SHORT).show()
+                    showAppToast("API Failure: ${e.message}", Toast.LENGTH_SHORT)
                 }
             }
 
@@ -808,7 +804,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
 
                 } catch (e: Exception) {
                     runOnUiThread {
-                        Toast.makeText(this@PaymentActivity, "Invalid server response", Toast.LENGTH_SHORT).show()
+                        showAppToast("Invalid server response", Toast.LENGTH_SHORT)
                         Log.d("PhonpeException","$e")
                     }
                 }
@@ -817,7 +813,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
     }
     private fun startPhonePeCheckout(orderId: String, token: String) {
         if (!isAnyUPIAppInstalled()) {
-            Toast.makeText(this, "No UPI app installed", Toast.LENGTH_LONG).show()
+            showAppToast("No UPI app installed", Toast.LENGTH_LONG)
             return
         }
 
@@ -830,7 +826,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
             )
         } catch (e: PhonePeInitException) {
             Log.e("PhonePe", "Checkout Failed: ${e.message}")
-            Toast.makeText(this, "Could not start payment", Toast.LENGTH_SHORT).show()
+            showAppToast("Could not start payment", Toast.LENGTH_SHORT)
         }
     }
 
@@ -849,12 +845,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         WalletViewModel.navigateToMain.observe(this, Observer { shouldNavigate ->
 
             if (shouldNavigate) {
-                Toast.makeText(
-                    this,
-                    "Coin purchased successfully",
-                    Toast.LENGTH_SHORT
-                )
-                    .show()
+                showAppToast("Coin purchased successfully", Toast.LENGTH_SHORT)
                 userData?.id?.let { profileViewModel.getUsers(it) }
 
                 profileViewModel.getUserLiveData.observe(this, Observer {
@@ -891,7 +882,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
     override fun onPaymentFailure(cfErrorResponse: CFErrorResponse?, orderID: String?) {
         Log.e("WebCheckout", "Payment failed for $orderID: ${cfErrorResponse?.getMessage()}")
         runOnUiThread {
-            Toast.makeText(this, "Payment Failed: ${cfErrorResponse?.getMessage()}", Toast.LENGTH_LONG).show()
+            showAppToast("Payment Failed: ${cfErrorResponse?.getMessage()}", Toast.LENGTH_LONG)
         }
     }
 
@@ -925,7 +916,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
 
         } catch (e: CFException) {
             Log.e("CashfreeUPI", "Error starting UPI intent: ${e.message}")
-            Toast.makeText(this, "Cashfree error: ${e.message}", Toast.LENGTH_SHORT).show()
+            showAppToast("Cashfree error: ${e.message}", Toast.LENGTH_SHORT)
         }
     }
 
@@ -947,7 +938,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
 
         } catch (e: CFException) {
             e.printStackTrace()
-            Toast.makeText(this, "Cashfree checkout failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            showAppToast("Cashfree checkout failed: ${e.message}", Toast.LENGTH_SHORT)
         }
     }
 
@@ -981,7 +972,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
                 runOnUiThread {
-                    Toast.makeText(this@PaymentActivity, "Order creation failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                    showAppToast("Order creation failed: ${e.message}", Toast.LENGTH_SHORT)
                 }
             }
 
@@ -1006,12 +997,12 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
                     } else {
                         runOnUiThread {
                             val errorMsg = json.optJSONObject("errors")?.toString() ?: "Order creation failed"
-                            Toast.makeText(this@PaymentActivity, errorMsg, Toast.LENGTH_SHORT).show()
+                            showAppToast(errorMsg, Toast.LENGTH_SHORT)
                         }
                     }
                 } catch (e: Exception) {
                     runOnUiThread {
-                        Toast.makeText(this@PaymentActivity, "Invalid server response", Toast.LENGTH_SHORT).show()
+                        showAppToast("Invalid server response", Toast.LENGTH_SHORT)
                     }
                 }
             }
@@ -1032,7 +1023,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
                 runOnUiThread {
-                    Toast.makeText(this@PaymentActivity, "Status check failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                    showAppToast("Status check failed: ${e.message}", Toast.LENGTH_SHORT)
                 }
             }
 
@@ -1051,19 +1042,19 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
 
                     if (paymentStatus.equals("PAID", ignoreCase = true)) {
                         runOnUiThread {
-                            Toast.makeText(this@PaymentActivity, "Payment Successful", Toast.LENGTH_LONG).show()
+                            showAppToast("Payment Successful", Toast.LENGTH_LONG)
                             user_id?.let { WalletViewModel.add_coins_cashfree(it, coin_id, 1, order_id, "Coins purchased") }
                             observeAddCoins()
                             updatePurchaseOnMeta()
                         }
                     } else {
                         runOnUiThread {
-                            Toast.makeText(this@PaymentActivity, "Payment Failed", Toast.LENGTH_LONG).show()
+                            showAppToast("Payment Failed", Toast.LENGTH_LONG)
                         }
                     }
                 } catch (e: Exception) {
                     runOnUiThread {
-                        Toast.makeText(this@PaymentActivity, "Invalid response", Toast.LENGTH_SHORT).show()
+                        showAppToast("Invalid response", Toast.LENGTH_SHORT)
                     }
                 }
             }

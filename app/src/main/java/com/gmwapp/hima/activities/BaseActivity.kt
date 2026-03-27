@@ -1,11 +1,11 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.graphics.Rect
-import android.net.ConnectivityManager
-import android.net.Network
 import android.os.Bundle
 import android.os.PowerManager
 import android.util.AttributeSet
@@ -41,6 +41,7 @@ import com.gmwapp.hima.utils.Helper
 import com.gmwapp.hima.utils.UsersImage
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.widgets.CustomCallView
+import com.google.android.material.snackbar.Snackbar
 import com.gmwapp.hima.workers.CallUpdateWorker
 //import com.tencent.mmkv.MMKV
 //import com.zegocloud.uikit.ZegoUIKit
@@ -88,8 +89,8 @@ open class BaseActivity : AppCompatActivity() {
     private val dateFormat = SimpleDateFormat("HH:mm:ss").apply {
         timeZone = TimeZone.getTimeZone("Asia/Kolkata") // Set to IST time zone
     }
-    private var networkCallback: ConnectivityManager.NetworkCallback? = null
-    private var connectivityManager: ConnectivityManager? = null
+    private var offlineSnackbar: Snackbar? = null
+    private var appNetworkObserverRegistered = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -99,25 +100,44 @@ open class BaseActivity : AppCompatActivity() {
             // Activity is not fullscreen (multi-window, PiP, etc.), skip orientation
             Log.w("BaseActivity", "Cannot set orientation in non-fullscreen mode: ${e.message}")
         }
+    }
 
-        connectivityManager =
-            getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        networkCallback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                val app = BaseApplication.getInstance()
-                if (Helper.checkNetworkConnection() && app?.isEndCallUpdatePending() == true) {
-                   // ZegoUIKitPrebuiltCallService.endCall()
-                    app.setEndCallUpdatePending(null)
+    override fun onStart() {
+        super.onStart()
+        if (!appNetworkObserverRegistered) {
+            appNetworkObserverRegistered = true
+            BaseApplication.getInstance()?.networkConnectedLiveData?.observe(this) { connected ->
+                window.decorView.post {
+                    if (connected == false) showOfflineSnackbar() else dismissOfflineSnackbar()
                 }
             }
         }
-        try {
-            connectivityManager?.registerDefaultNetworkCallback(networkCallback!!)
-        } catch (e: Exception) {
-            // Handle TooManyRequestsException or other exceptions gracefully
-            Log.e("BaseActivity", "Failed to register network callback: ${e.message}")
-        }
     }
+
+    private fun showOfflineSnackbar() {
+        if (isFinishing) return
+        val root = findViewById<View>(android.R.id.content) ?: return
+        if (offlineSnackbar?.isShown == true) return
+        offlineSnackbar = Snackbar.make(root, getString(R.string.no_internet_connection), Snackbar.LENGTH_INDEFINITE)
+            .setAction(R.string.retry) { onNetworkRetryClicked() }
+        offlineSnackbar?.show()
+    }
+
+    private fun dismissOfflineSnackbar() {
+        offlineSnackbar?.dismiss()
+        offlineSnackbar = null
+    }
+
+    private fun onNetworkRetryClicked() {
+        if (!Helper.checkNetworkConnection()) {
+            showAppToast(R.string.no_internet_connection, Toast.LENGTH_SHORT)
+            return
+        }
+        dismissOfflineSnackbar()
+        onNetworkRetry()
+    }
+
+    protected open fun onNetworkRetry() {}
 
 //    override fun onStart() {
 //        super.onStart()
@@ -247,17 +267,8 @@ open class BaseActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        dismissOfflineSnackbar()
         super.onDestroy()
-        // Unregister the network callback to prevent TooManyRequestsException
-        networkCallback?.let { callback ->
-            try {
-                connectivityManager?.unregisterNetworkCallback(callback)
-            } catch (e: Exception) {
-                Log.e("BaseActivity", "Failed to unregister network callback: ${e.message}")
-            }
-        }
-        networkCallback = null
-        connectivityManager = null
     }
 
     fun showErrorMessage(message: String) {
@@ -270,13 +281,9 @@ open class BaseActivity : AppCompatActivity() {
         }
         
         if (message == DConstants.NO_NETWORK) {
-            Toast.makeText(
-                this@BaseActivity, getString(R.string.please_try_again_later), Toast.LENGTH_LONG
-            ).show()
+            showAppToast(getString(R.string.please_try_again_later), Toast.LENGTH_LONG)
         } else {
-            Toast.makeText(
-                this@BaseActivity, message, Toast.LENGTH_LONG
-            ).show()
+            showAppToast(message, Toast.LENGTH_LONG)
         }
     }
 

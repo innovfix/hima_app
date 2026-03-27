@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
@@ -56,7 +58,7 @@ import com.gmwapp.hima.viewmodels.WalletViewModel
 import com.gmwapp.hima.retrofit.ApiManager
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.CheckReferralOfferResponse
-import retrofit2. Call
+import retrofit2.Call
 import retrofit2.Response
 import com.google.androidbrowserhelper.trusted.LauncherActivity
 import com.google.firebase.analytics.FirebaseAnalytics
@@ -119,6 +121,9 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 
     private var billingManager: BillingManager? = null
 
+    /** Login response for payment type must be observed once; onResume only re-fetches login. */
+    private var paymentTypeLoginObserverRegistered = false
+
     private val viewModel: UpiViewModel by viewModels()
     var amount = ""
     var pointsId = ""
@@ -145,9 +150,9 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         }
 
         if (statusCode == RESULT_OK) {
-            // Toast.makeText(this, "Payment Successful", Toast.LENGTH_LONG).show()
+            // showAppToast("Payment Successful", Toast.LENGTH_LONG)
         } else {
-            //  Toast.makeText(this, "Payment Failed or Cancelled", Toast.LENGTH_LONG).show()
+            //  showAppToast("Payment Failed or Cancelled", Toast.LENGTH_LONG)
         }
     }
 
@@ -176,6 +181,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 
         fromDeepLink = intent.getBooleanExtra("from_deeplink", false)
 
+        setupPaymentTypeLoginObserverOnce()
         checkIndividualPaymentType()
         initUI()
         observeCoins()
@@ -244,7 +250,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
             isPhonePeInitialized = true
         } else {
             Log.e("PhonePe", "SDK Initialization Failed")
-            Toast.makeText(this, "PhonePe SDK init failed", Toast.LENGTH_SHORT).show()
+            showAppToast("PhonePe SDK init failed", Toast.LENGTH_SHORT)
         }
     }
 
@@ -268,7 +274,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
                 runOnUiThread {
-                    Toast.makeText(this@WalletActivity, "API Failure: ${e.message}", Toast.LENGTH_SHORT).show()
+                    showAppToast("API Failure: ${e.message}", Toast.LENGTH_SHORT)
                 }
             }
 
@@ -289,7 +295,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 
                 } catch (e: Exception) {
                     runOnUiThread {
-                        Toast.makeText(this@WalletActivity, "Invalid server response", Toast.LENGTH_SHORT).show()
+                        showAppToast("Invalid server response", Toast.LENGTH_SHORT)
                         Log.d("PhonpeException","$e")
                     }
                 }
@@ -299,7 +305,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 
     private fun startPhonePeCheckout(orderId: String, token: String) {
         if (!isAnyUPIAppInstalled()) {
-            Toast.makeText(this, "No UPI app installed", Toast.LENGTH_LONG).show()
+            showAppToast("No UPI app installed", Toast.LENGTH_LONG)
             return
         }
 
@@ -312,7 +318,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
             )
         } catch (e: PhonePeInitException) {
             Log.e("PhonePe", "Checkout Failed: ${e.message}")
-            Toast.makeText(this, "Could not start payment", Toast.LENGTH_SHORT).show()
+            showAppToast("Could not start payment", Toast.LENGTH_SHORT)
         }
     }
 
@@ -334,7 +340,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
                 runOnUiThread {
-                    Toast.makeText(this@WalletActivity, "Status check failed", Toast.LENGTH_SHORT).show()
+                    showAppToast("Status check failed", Toast.LENGTH_SHORT)
                 }
             }
 
@@ -354,7 +360,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 
                 if (state=="COMPLETED"){
                     runOnUiThread{
-                        Toast.makeText(this@WalletActivity, "Payment Successful", Toast.LENGTH_LONG).show()
+                        showAppToast("Payment Successful", Toast.LENGTH_LONG)
                         user_id?.let { WalletViewModel.addCoins(it, coin_id, 1, order_id, "Coins purchased") }
                         observeAddCoins()
                         updatePurchaseOnMeta()
@@ -362,7 +368,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 
                 }else{
                     runOnUiThread{
-                        Toast.makeText(this@WalletActivity, "Payment Failed", Toast.LENGTH_LONG).show()
+                        showAppToast("Payment Failed", Toast.LENGTH_LONG)
                     }
                 }
 
@@ -384,30 +390,25 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         WalletViewModel.navigateToMain.observe(this, Observer { shouldNavigate ->
 
             if (shouldNavigate) {
-                Toast.makeText(
-                    this,
-                    "Coin purchased successfully",
-                    Toast.LENGTH_SHORT
-                )
-                    .show()
+                showAppToast("Coin purchased successfully", Toast.LENGTH_SHORT)
                 userData?.id?.let { profileViewModel.getUsers(it) }
 
                 profileViewModel.getUserLiveData.observe(this, Observer {
-                    it.data?.let { it1 ->
+                    it?.data?.let { it1 ->
                         BaseApplication.getInstance()?.getPrefs()
                             ?.setUserData(it1)
                     }
-                    binding.tvCoins.text = it.data?.coins.toString()
+                    binding.tvCoins.text = it?.data?.coins.toString()
                     WalletViewModel._navigateToMain.postValue(false)
                 })
             } else {
 
                 profileViewModel.getUserLiveData.observe(this, Observer {
-                    it.data?.let { it1 ->
+                    it?.data?.let { it1 ->
                         BaseApplication.getInstance()?.getPrefs()
                             ?.setUserData(it1)
                     }
-                    binding.tvCoins.text = it.data?.coins.toString()
+                    binding.tvCoins.text = it?.data?.coins.toString()
 
                 })
             }
@@ -417,11 +418,11 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 
     fun observeCoins(){
         profileViewModel.getUserLiveData.observe(this, Observer {
-            it.data?.let { it1 ->
+            it?.data?.let { it1 ->
                 BaseApplication.getInstance()?.getPrefs()?.setUserData(it1)
             }
-            Log.d("coinsUpdated_","$${it.data?.coins.toString()}")
-            binding.tvCoins.text = it.data?.coins.toString()
+            Log.d("coinsUpdated_","$${it?.data?.coins.toString()}")
+            binding.tvCoins.text = it?.data?.coins.toString()
         })
     }
 
@@ -439,11 +440,11 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                     startActivity(intent)
                 } else {
                     Log.e("UPI Payment Error", "Payment URL is null or empty")
-                    Toast.makeText(this, "Payment URL not found. Please try again later.", Toast.LENGTH_LONG).show()
+                    showAppToast("Payment URL not found. Please try again later.", Toast.LENGTH_LONG)
                 }
             } else {
                 Log.e("UPI Payment Error", "Invalid response: ${response?.data}")
-                Toast.makeText(this, "Payment failed. Please check your internet or payment details.", Toast.LENGTH_LONG).show()
+                showAppToast("Payment failed. Please check your internet or payment details.", Toast.LENGTH_LONG)
             }
         })
 
@@ -459,7 +460,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                             Log.d("paymentGateway","$paymentGateway")
                         } ?: run {
                             // Show Toast if payment_gateway_type is null
-                            Toast.makeText(this, "Please try again later", Toast.LENGTH_SHORT).show()
+                            showAppToast("Please try again later", Toast.LENGTH_SHORT)
                         }
                     }
                 }
@@ -506,10 +507,10 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
             }
 
             if(it.success){
-                //  Toast.makeText(this, it.message, Toast.LENGTH_SHORT).show()
+                //  showAppToast(it.message, Toast.LENGTH_SHORT)
             }
             else{
-                Toast.makeText(this, it.message, Toast.LENGTH_SHORT).show()
+                showAppToast(it.message, Toast.LENGTH_SHORT)
             }
 
             if (it.success && it.data != null) {
@@ -623,7 +624,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 ////                startActivity(intent)
 //
 //            } else {
-//                Toast.makeText(this, "Invalid input data", Toast.LENGTH_SHORT).show()
+//                showAppToast("Invalid input data", Toast.LENGTH_SHORT)
 //            }
 //        }
 //    }
@@ -633,11 +634,11 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 //        viewModel.addpointResponseLiveData.observe(this, Observer {
 //            if (it != null && it.success) {
 //
-//                Toast.makeText(this, it.message, Toast.LENGTH_SHORT).show()
+//                showAppToast(it.message, Toast.LENGTH_SHORT)
 //
 //            }
 //            else{
-//                Toast.makeText(this, it.message, Toast.LENGTH_SHORT).show()
+//                showAppToast(it.message, Toast.LENGTH_SHORT)
 //            }
 //        })
 //
@@ -651,11 +652,11 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 //                    startActivity(intent)
 //                } else {
 //                    Log.e("UPI Payment Error", "Payment URL is null or empty")
-//                    Toast.makeText(this, "Payment URL not found. Please try again later.", Toast.LENGTH_LONG).show()
+//                    showAppToast("Payment URL not found. Please try again later.", Toast.LENGTH_LONG)
 //                }
 //            } else {
 //                Log.e("UPI Payment Error", "Invalid response: ${response?.data}")
-//                Toast.makeText(this, "Payment failed. Please check your internet or payment details.", Toast.LENGTH_LONG).show()
+//                showAppToast("Payment failed. Please check your internet or payment details.", Toast.LENGTH_LONG)
 //            }
 //        })
 //
@@ -672,7 +673,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 //                            handlePaymentGateway(paymentGatewayType)
 //                        } ?: run {
 //                            // Show Toast if payment_gateway_type is null
-//                            Toast.makeText(this, "Please try again later", Toast.LENGTH_SHORT).show()
+//                            showAppToast("Please try again later", Toast.LENGTH_SHORT)
 //                        }
 //                    }
 //                }
@@ -709,15 +710,15 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 ////                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(paymentUrl))
 ////                                startActivity(intent)
 //                            } else {
-//                                Toast.makeText(this@WalletActivity, "Failed to get payment link", Toast.LENGTH_SHORT).show()
+//                                showAppToast("Failed to get payment link", Toast.LENGTH_SHORT)
 //                            }
 //                        } else {
-//                            Toast.makeText(this@WalletActivity, "Error: ${response.errorBody()?.string()}", Toast.LENGTH_SHORT).show()
+//                            showAppToast("Error: ${response.errorBody()?.string()}", Toast.LENGTH_SHORT)
 //                        }
 //                    }
 //
 //                    override fun onFailure(call: retrofit2.Call<RazorPayApiResponse>, t: Throwable) {
-//                        Toast.makeText(this@WalletActivity, "Failed: ${t.message}", Toast.LENGTH_SHORT).show()
+//                        showAppToast("Failed: ${t.message}", Toast.LENGTH_SHORT)
 //                    }
 //                })
 //
@@ -749,7 +750,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 //                call.enqueue(object : retrofit2.Callback<ApiResponse> {
 //                    override fun onResponse(call: retrofit2.Call<ApiResponse>, response: retrofit2.Response<ApiResponse>) {
 //                        if (response.isSuccessful && response.body()?.success == true) {
-//                            Toast.makeText(this@WalletActivity, response.body()?.message, Toast.LENGTH_SHORT).show()
+//                            showAppToast(response.body()?.message, Toast.LENGTH_SHORT)
 //                        } else {
 //                            // println("Long URL: ${it.longurl}") // Print to the terminal
 //                            //Toast.makeText(mContext, it.longurl, Toast.LENGTH_SHORT).show()
@@ -760,12 +761,12 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 //                            Log.d("WalletResponse","${response.body()?.longurl}")
 //                            startActivity(intent)
 //                            finish()// Directly starting the intent without launcher
-//                            //  Toast.makeText(this@WalletActivity, response.body()?.message ?: "Error", Toast.LENGTH_SHORT).show()
+//                            //  showAppToast(response.body()?.message ?: "Error", Toast.LENGTH_SHORT)
 //                        }
 //                    }
 //
 //                    override fun onFailure(call: retrofit2.Call<ApiResponse>, t: Throwable) {
-//                        Toast.makeText(this@WalletActivity, "Failed: ${t.message}", Toast.LENGTH_SHORT).show()
+//                        showAppToast("Failed: ${t.message}", Toast.LENGTH_SHORT)
 //                    }
 //                })
 //
@@ -774,7 +775,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 //
 //            }
 //            else -> {
-//                Toast.makeText(this, "Invalid Payment Gateway", Toast.LENGTH_SHORT).show()
+//                showAppToast("Invalid Payment Gateway", Toast.LENGTH_SHORT)
 //            }
 //        }
 //
@@ -1035,7 +1036,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 
         } catch (e: CFException) {
             Log.e("CashfreeUPI", "Error starting UPI intent: ${e.message}")
-            Toast.makeText(this, "Cashfree error: ${e.message}", Toast.LENGTH_SHORT).show()
+            showAppToast("Cashfree error: ${e.message}", Toast.LENGTH_SHORT)
         }
     }
 
@@ -1097,7 +1098,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
                 runOnUiThread {
-                    Toast.makeText(this@WalletActivity, "Order creation failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                    showAppToast("Order creation failed: ${e.message}", Toast.LENGTH_SHORT)
                 }
             }
 
@@ -1122,12 +1123,12 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                     } else {
                         runOnUiThread {
                             val errorMsg = json.optJSONObject("errors")?.toString() ?: "Order creation failed"
-                            Toast.makeText(this@WalletActivity, errorMsg, Toast.LENGTH_SHORT).show()
+                            showAppToast(errorMsg, Toast.LENGTH_SHORT)
                         }
                     }
                 } catch (e: Exception) {
                     runOnUiThread {
-                        Toast.makeText(this@WalletActivity, "Invalid server response", Toast.LENGTH_SHORT).show()
+                        showAppToast("Invalid server response", Toast.LENGTH_SHORT)
                     }
                 }
             }
@@ -1148,7 +1149,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
                 runOnUiThread {
-                    Toast.makeText(this@WalletActivity, "Status check failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                    showAppToast("Status check failed: ${e.message}", Toast.LENGTH_SHORT)
                 }
             }
 
@@ -1168,19 +1169,19 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 
                     if (paymentStatus.equals("PAID", ignoreCase = true)) {
                         runOnUiThread {
-                            Toast.makeText(this@WalletActivity, "Payment Successful", Toast.LENGTH_LONG).show()
+                            showAppToast("Payment Successful", Toast.LENGTH_LONG)
                             user_id?.let { WalletViewModel.add_coins_cashfree(it, coin_id, 1, order_id, "Coins purchased") }
                             observeAddCoins()
                             updatePurchaseOnMeta()
                         }
                     } else {
                         runOnUiThread {
-                            Toast.makeText(this@WalletActivity, "Payment Failed", Toast.LENGTH_LONG).show()
+                            showAppToast("Payment Failed", Toast.LENGTH_LONG)
                         }
                     }
                 } catch (e: Exception) {
                     runOnUiThread {
-                        Toast.makeText(this@WalletActivity, "Invalid response", Toast.LENGTH_SHORT).show()
+                        showAppToast("Invalid response", Toast.LENGTH_SHORT)
                     }
                 }
             }
@@ -1188,20 +1189,22 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
     }
 
 
-    fun checkIndividualPaymentType(){
-        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        userData?.let { loginViewModel.login(it.mobile,"0","0") }
-        loginViewModel.loginResponseLiveData.observe(this, Observer {
-
-            if (it.success) {
-                if (!it.data?.payment_type.isNullOrEmpty()){
-                   paymentGateway = it.data?.payment_type.toString()
+    private fun setupPaymentTypeLoginObserverOnce() {
+        if (paymentTypeLoginObserverRegistered) return
+        paymentTypeLoginObserverRegistered = true
+        loginViewModel.loginResponseLiveData.observe(this, Observer { response ->
+            if (response?.success == true) {
+                response.data?.payment_type?.let { pg ->
+                    if (pg.isNotEmpty()) paymentGateway = pg.toString()
                 }
-
-
-
             }
         })
+    }
+
+    /** Fetches payment gateway type from backend (safe to call from onResume). */
+    fun checkIndividualPaymentType() {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        userData?.let { loginViewModel.login(it.mobile, "0", "0") }
     }
 
     private fun checkReferralOffer() {
@@ -1353,6 +1356,10 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                         }
 
                         "gpay" -> {
+                            val bm = billingManager
+                            if (bm == null) {
+                                showAppToast("Google Play billing is still loading. Please wait and try again.", Toast.LENGTH_SHORT)
+                            } else {
                             val random4Digit = (1000..9999).random()
                             val preferences = DPreferences(this)
                             preferences.clearSelectedOrderId()
@@ -1360,34 +1367,31 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                             preferences.setSelectedPlanId(java.lang.String.valueOf(pointsIdInt))
                             preferences.setSelectedOrderId(java.lang.String.valueOf(random4Digit))
                             WalletViewModel.tryCoins(userId, pointsIdInt, 0, random4Digit, "try")
-                            billingManager!!.purchaseProduct(pointsId)
+                            bm.purchaseProduct(pointsId)
                             WalletViewModel.navigateToMain.observe(this, Observer { shouldNavigate ->
                                 if (shouldNavigate) {
-                                    Toast.makeText(
-                                        this,
-                                        "Coin purchased successfully",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    showAppToast("Coin purchased successfully", Toast.LENGTH_SHORT)
                                     userData?.id?.let { profileViewModel.getUsers(it) }
                                     updatePurchaseOnMeta()
                                     profileViewModel.getUserLiveData.observe(this, Observer {
-                                        it.data?.let { it1 ->
+                                        it?.data?.let { it1 ->
                                             BaseApplication.getInstance()?.getPrefs()
                                                 ?.setUserData(it1)
                                         }
-                                        binding.tvCoins.text = it.data?.coins.toString()
+                                        binding.tvCoins.text = it?.data?.coins.toString()
                                         WalletViewModel._navigateToMain.postValue(false)
                                     })
                                 } else {
                                     profileViewModel.getUserLiveData.observe(this, Observer {
-                                        it.data?.let { it1 ->
+                                        it?.data?.let { it1 ->
                                             BaseApplication.getInstance()?.getPrefs()
                                                 ?.setUserData(it1)
                                         }
-                                        binding.tvCoins.text = it.data?.coins.toString()
+                                        binding.tvCoins.text = it?.data?.coins.toString()
                                     })
                                 }
                             })
+                            }
                         }
 
                         "razorpay" -> {
@@ -1404,15 +1408,15 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                                             Log.d("paymentUrlRazorPay", "$paymentUrl")
                                             startActivity(intent)
                                         } else {
-                                            Toast.makeText(this@WalletActivity, "Failed to get payment link", Toast.LENGTH_SHORT).show()
+                                            showAppToast("Failed to get payment link", Toast.LENGTH_SHORT)
                                         }
                                     } else {
-                                        Toast.makeText(this@WalletActivity, "Error: ${response.errorBody()?.string()}", Toast.LENGTH_SHORT).show()
+                                        showAppToast("Error: ${response.errorBody()?.string()}", Toast.LENGTH_SHORT)
                                     }
                                 }
 
                                 override fun onFailure(call: retrofit2.Call<NewRazorpayLinkResponse>, t: Throwable) {
-                                    Toast.makeText(this@WalletActivity, "Failed: ${t.message}", Toast.LENGTH_SHORT).show()
+                                    showAppToast("Failed: ${t.message}", Toast.LENGTH_SHORT)
                                 }
                             })
                         }
@@ -1439,13 +1443,13 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                         }
 
                         else -> {
-                            Toast.makeText(this, "Invalid Payment Gateway", Toast.LENGTH_SHORT).show()
+                            showAppToast("Invalid Payment Gateway", Toast.LENGTH_SHORT)
                         }
                     }
                 }
             }
         } else {
-            Toast.makeText(this, "Invalid input data", Toast.LENGTH_SHORT).show()
+            showAppToast("Invalid input data", Toast.LENGTH_SHORT)
         }
     }
 

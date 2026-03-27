@@ -15,6 +15,11 @@ class DPreferences(context: Context) {
     private val mPrefsWrite: SharedPreferences.Editor = mPrefsRead.edit()
 
     fun setUserData(userData: UserData?) {
+        if (userData == null) {
+            // Never persist null — Gson would store "null" and getUserData() would read a logged-out user.
+            // Use clearUserData() for explicit logout.
+            return
+        }
         try {
             mPrefsWrite.putString(
                 USER_DATA, Gson().toJson(userData)
@@ -36,7 +41,11 @@ class DPreferences(context: Context) {
 
     fun getUserData(): UserData? {
         try {
-            return Gson().fromJson(mPrefsRead.getString(USER_DATA, ""), UserData::class.java)
+            val raw = mPrefsRead.getString(USER_DATA, null) ?: return null
+            if (raw.isBlank() || raw == "null") {
+                return null
+            }
+            return Gson().fromJson(raw, UserData::class.java)
         } catch (e: Exception) {
             return null
         }

@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -64,7 +66,7 @@ class SelectLanguageActivity : BaseActivity() {
         })
         profileViewModel.registerErrorLiveData.observe(this, Observer {
             setContinueLoading(false)
-            Toast.makeText(this@SelectLanguageActivity, it, Toast.LENGTH_LONG).show()
+            showAppToast(it, Toast.LENGTH_LONG)
         })
         profileViewModel.registerLiveData.observe(this, Observer {
             setContinueLoading(false)
@@ -141,16 +143,12 @@ class SelectLanguageActivity : BaseActivity() {
                     }
                 }
             } else {
-                Toast.makeText(
-                    this@SelectLanguageActivity,
-                    it?.message ?: "An unknown error occurred",
-                    Toast.LENGTH_LONG
-                ).show()
+                showAppToast(it?.message ?: "An unknown error occurred", Toast.LENGTH_LONG)
             }
         })
         binding.btnContinue.setOnSingleClickListener {
             if (selectedLanguage.isNullOrEmpty()) {
-                Toast.makeText(this, "Please select a language", Toast.LENGTH_SHORT).show()
+                showAppToast("Please select a language", Toast.LENGTH_SHORT)
                 return@setOnSingleClickListener
             }
             setContinueLoading(true)

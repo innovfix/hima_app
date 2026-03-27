@@ -318,7 +318,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/poppins_semibold"
-                android:text="No Internet"
+                android:text="@string/no_internet_connection"
                 android:textColor="@color/colorAccent"
                 android:textSize="18sp" />
 
@@ -327,9 +327,21 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:fontFamily="@font/poppins_regular"
-                android:text="Check your connection"
+                android:text="@string/check_connection_retry_hint"
                 android:textColor="@color/grey_medium"
-                android:textSize="13sp" />
+                android:textSize="13sp"
+                android:gravity="center" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_retry_no_network_home"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="@string/retry"
+                android:textAllCaps="false"
+                app:cornerRadius="22dp"
+                app:strokeColor="@color/colorAccent" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 

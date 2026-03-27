@@ -60,51 +60,60 @@ class AccountViewModel @Inject constructor(private val accountRepositories: Acco
         }
     }
 
-    fun getCategoriesList(userId: Int) {
+    fun getCategoriesList(userId: Int, language: String) {
         viewModelScope.launch {
-            accountRepositories.getCategoriesList(userId, object: NetworkCallback<CategoriesResponse> {
-                override fun onResponse(
-                    call: Call<CategoriesResponse>,
-                    response: Response<CategoriesResponse>
-                ) {
-                    categoriesLiveData.postValue(response.body())
-                    Log.d("CategoriesResponse", "Request URL: ${call.request().url}")
-                    Log.d("CategoriesResponse", "Response: ${response.body()}")
-                }
+            accountRepositories.getCategoriesList(
+                userId,
+                language,
+                object : NetworkCallback<CategoriesResponse> {
+                    override fun onResponse(
+                        call: Call<CategoriesResponse>,
+                        response: Response<CategoriesResponse>
+                    ) {
+                        categoriesLiveData.postValue(response.body())
+                        Log.d("CategoriesResponse", "Request URL: ${call.request().url}")
+                        Log.d("CategoriesResponse", "Response: ${response.body()}")
+                    }
 
-                override fun onFailure(call: Call<CategoriesResponse>, t: Throwable) {
-                    categoriesErrorLiveData.postValue(t.message ?: "Unknown error")
-                    Log.e("CategoriesResponse", "Error: ${t.message}", t)
-                }
+                    override fun onFailure(call: Call<CategoriesResponse>, t: Throwable) {
+                        categoriesErrorLiveData.postValue(t.message ?: "Unknown error")
+                        Log.e("CategoriesResponse", "Error: ${t.message}", t)
+                    }
 
-                override fun onNoNetwork() {
-                    categoriesErrorLiveData.postValue("No network connection")
+                    override fun onNoNetwork() {
+                        categoriesErrorLiveData.postValue("No network connection")
+                    }
                 }
-            })
+            )
         }
     }
 
-    fun getSubqueriesList(userId: Int, categoryId: Int) {
+    fun getSubqueriesList(userId: Int, categoryId: Int, language: String) {
         viewModelScope.launch {
-            accountRepositories.getSubqueriesList(userId, categoryId, object: NetworkCallback<SubqueriesResponse> {
-                override fun onResponse(
-                    call: Call<SubqueriesResponse>,
-                    response: Response<SubqueriesResponse>
-                ) {
-                    subqueriesLiveData.postValue(response.body())
-                    Log.d("SubqueriesResponse", "Request URL: ${call.request().url}")
-                    Log.d("SubqueriesResponse", "Response: ${response.body()}")
-                }
+            accountRepositories.getSubqueriesList(
+                userId,
+                categoryId,
+                language,
+                object : NetworkCallback<SubqueriesResponse> {
+                    override fun onResponse(
+                        call: Call<SubqueriesResponse>,
+                        response: Response<SubqueriesResponse>
+                    ) {
+                        subqueriesLiveData.postValue(response.body())
+                        Log.d("SubqueriesResponse", "Request URL: ${call.request().url}")
+                        Log.d("SubqueriesResponse", "Response: ${response.body()}")
+                    }
 
-                override fun onFailure(call: Call<SubqueriesResponse>, t: Throwable) {
-                    subqueriesErrorLiveData.postValue(t.message ?: "Unknown error")
-                    Log.e("SubqueriesResponse", "Error: ${t.message}", t)
-                }
+                    override fun onFailure(call: Call<SubqueriesResponse>, t: Throwable) {
+                        subqueriesErrorLiveData.postValue(t.message ?: "Unknown error")
+                        Log.e("SubqueriesResponse", "Error: ${t.message}", t)
+                    }
 
-                override fun onNoNetwork() {
-                    subqueriesErrorLiveData.postValue("No network connection")
+                    override fun onNoNetwork() {
+                        subqueriesErrorLiveData.postValue("No network connection")
+                    }
                 }
-            })
+            )
         }
     }
 

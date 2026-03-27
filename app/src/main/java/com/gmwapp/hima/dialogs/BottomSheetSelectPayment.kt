@@ -1,5 +1,7 @@
 package com.gmwapp.hima.dialogs
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.app.Dialog
 import android.content.Intent
 import android.os.Bundle
@@ -106,7 +108,7 @@ class BottomSheetSelectPayment : BottomSheetDialogFragment() {
             }
 
             if (selectedOption == null) {
-                Toast.makeText(requireContext(), "Please select any one", Toast.LENGTH_SHORT).show()
+                requireContext().showAppToast("Please select any one", Toast.LENGTH_SHORT)
                 // Do not dismiss if nothing is selected
             } else {
                 val intent = Intent(requireContext(), WithdrawActivity::class.java)

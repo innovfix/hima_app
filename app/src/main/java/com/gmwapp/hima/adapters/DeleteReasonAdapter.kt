@@ -42,6 +42,9 @@ class DeleteReasonAdapter(
             reason.isSelected = reason.isSelected == null || reason.isSelected == false
             reasons[position] = reason
             notifyDataSetChanged()
+            (holder.binding.root.parent as? RecyclerView)?.post {
+                it.requestLayout()
+            }
         }
         if (isOther) {
             if (reason.name == "Other") {

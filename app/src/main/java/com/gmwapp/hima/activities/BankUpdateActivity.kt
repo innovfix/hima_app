@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -294,7 +296,7 @@ class BankUpdateActivity : BaseActivity() {
 
 
     private fun showToast(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        showAppToast(message, Toast.LENGTH_SHORT)
     }
 
 

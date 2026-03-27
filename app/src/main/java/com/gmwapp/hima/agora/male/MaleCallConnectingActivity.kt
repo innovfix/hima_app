@@ -1,5 +1,7 @@
 package com.gmwapp.hima.agora.male
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
@@ -106,7 +108,7 @@ class MaleCallConnectingActivity : AppCompatActivity() {
              val callStatusValue = FcmUtils.callStatus.value
              if (callStatusValue?.first == "accepted") {
 
-               //  Toast.makeText(this, "Try again", Toast.LENGTH_LONG).show()
+               //  showAppToast("Try again", Toast.LENGTH_LONG)
                  Log.d("NavigationDebug", "Redirecting to MainActivity due to call accepted.")
 
                  val intent = Intent(this@MaleCallConnectingActivity, MainActivity::class.java)
@@ -340,9 +342,7 @@ class MaleCallConnectingActivity : AppCompatActivity() {
 
                 if (!shouldSendNotification) {
                     Log.d("Notification", "Not sending notification because callType=$callType has status=0")
-                    Toast.makeText(
-                        this@MaleCallConnectingActivity, "User is offline", Toast.LENGTH_LONG
-                    ).show()
+                    showAppToast("User is offline", Toast.LENGTH_LONG)
                     navigateToMain()
                     return@Observer
                 }
@@ -363,11 +363,11 @@ class MaleCallConnectingActivity : AppCompatActivity() {
                 it?.message?.let { message ->
                     if (message.startsWith("Insufficient coins")) {
                         val intent = Intent(this@MaleCallConnectingActivity, WalletActivity::class.java)
-                        Toast.makeText(this@MaleCallConnectingActivity, message, Toast.LENGTH_LONG).show()
+                        showAppToast(message, Toast.LENGTH_LONG)
                         startActivity(intent)
                         finish()
                     } else {
-                        Toast.makeText(this@MaleCallConnectingActivity, message, Toast.LENGTH_LONG).show()
+                        showAppToast(message, Toast.LENGTH_LONG)
                         // Return to ChatActivityInHouse if call was initiated from chat
                         if (fromChat && chatPeerUserId != -1) {
                             val intent = Intent(this@MaleCallConnectingActivity, com.gmwapp.hima.activities.ChatActivityInHouse::class.java).apply {

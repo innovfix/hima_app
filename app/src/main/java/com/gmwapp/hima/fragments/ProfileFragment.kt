@@ -1,5 +1,7 @@
 package com.gmwapp.hima.fragments
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -29,6 +31,7 @@ import com.gmwapp.hima.activities.ShareActivity
 import com.gmwapp.hima.activities.TermConditionWebViewActivity
 import com.gmwapp.hima.activities.TransactionsActivity
 import com.gmwapp.hima.activities.WalletActivity
+import com.gmwapp.hima.callbacks.NetworkRetryable
 import com.gmwapp.hima.fragments.FriendsTabFragment
 import com.gmwapp.hima.databinding.FragmentProfileBinding
 import com.gmwapp.hima.dialogs.BottomSheetLogout
@@ -37,7 +40,7 @@ import com.gmwapp.hima.viewmodels.AccountViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
-class ProfileFragment : BaseFragment() {
+class ProfileFragment : BaseFragment(), NetworkRetryable {
     lateinit var binding: FragmentProfileBinding
     private val EDIT_PROFILE_REQUEST_CODE = 1
     private val accountViewModel: AccountViewModel by viewModels()
@@ -111,7 +114,7 @@ class ProfileFragment : BaseFragment() {
                 val intent = Intent(context, EditProfileActivity::class.java)
                 startActivityForResult(intent, EDIT_PROFILE_REQUEST_CODE)
             } else {
-                Toast.makeText(context, "No internet connection", Toast.LENGTH_SHORT).show()
+                requireContext().showAppToast("No internet connection", Toast.LENGTH_SHORT)
             }
         }
         
@@ -120,7 +123,7 @@ class ProfileFragment : BaseFragment() {
                 val intent = Intent(context, EditProfileActivity::class.java)
                 startActivityForResult(intent, EDIT_PROFILE_REQUEST_CODE)
             } else {
-                Toast.makeText(context, "No internet connection", Toast.LENGTH_SHORT).show()
+                requireContext().showAppToast("No internet connection", Toast.LENGTH_SHORT)
             }
         }
 
@@ -204,6 +207,10 @@ class ProfileFragment : BaseFragment() {
                 binding.tvSupportMail.paintFlags = binding.tvSupportMail.paintFlags or Paint.UNDERLINE_TEXT_FLAG
             }
         })
+    }
+
+    override fun onNetworkRetry() {
+        updateValues()
     }
 
     private fun isInternetAvailable(): Boolean {

@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.Manifest
 import android.app.Activity
 import android.content.Context
@@ -133,11 +135,11 @@ class ReviewActivity : BaseActivity() {
 
         viewModel.ratingResponseLiveData.observe(this, Observer {
             if (it.success) {
-                Toast.makeText(this, "Rating submitted successfully", Toast.LENGTH_SHORT).show()
+                showAppToast("Rating submitted successfully", Toast.LENGTH_SHORT)
                 finish()
             }
             else{
-                Toast.makeText(this, "Rating submission failed", Toast.LENGTH_SHORT).show()
+                showAppToast("Rating submission failed", Toast.LENGTH_SHORT)
             }
         })
 

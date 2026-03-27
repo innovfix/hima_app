@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
@@ -139,7 +141,7 @@ class CreatorWarningsActivity : AppCompatActivity() {
     }
 
     private fun showError(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        showAppToast(message, Toast.LENGTH_SHORT)
         showEmptyState()
     }
 }

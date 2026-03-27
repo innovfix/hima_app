@@ -1,5 +1,7 @@
 package com.gmwapp.hima
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.content.Context
 import android.os.Bundle
 import android.view.View
@@ -92,13 +94,13 @@ class AddUpiActivity : AppCompatActivity() {
 
             val upiId = etUpiId.text?.toString()?.trim().orEmpty()
             if (!isValidUpiId(upiId)) {
-                Toast.makeText(this, "Invalid UPI ID", Toast.LENGTH_SHORT).show()
+                showAppToast("Invalid UPI ID", Toast.LENGTH_SHORT)
                 return@setOnClickListener
             }
 
             val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
             if (userId == null) {
-                Toast.makeText(this, "User not found", Toast.LENGTH_SHORT).show()
+                showAppToast("User not found", Toast.LENGTH_SHORT)
                 return@setOnClickListener
             }
 
@@ -124,7 +126,7 @@ class AddUpiActivity : AppCompatActivity() {
                 // optional: finish this screen after success
                 // finish()
 
-                Toast.makeText(this,"${response.message}", Toast.LENGTH_SHORT).show()
+                showAppToast("${response.message}", Toast.LENGTH_SHORT)
 
                 // also clear field
                 etUpiId.setText("")

@@ -6,6 +6,7 @@
         android:icon="@drawable/nav_home"
         android:iconTint="@color/white"
         android:title="@string/home"
+        android:tooltipText="@null"
         app:showAsAction="always" />
     <item
         android:id="@+id/recent"
@@ -13,6 +14,7 @@
         android:icon="@drawable/recent"
         android:iconTint="@color/white"
         android:title="@string/recent"
+        android:tooltipText="@null"
         app:showAsAction="always" />
     <item
         android:id="@+id/favourite"
@@ -20,6 +22,7 @@
         android:icon="@drawable/nav_favourite"
         android:iconTint="@color/white"
         android:title="@string/favourite"
+        android:tooltipText="@null"
         app:showAsAction="always" />
     <item
         android:id="@+id/profile"
@@ -27,5 +30,6 @@
         android:icon="@drawable/nav_profile"
         android:iconTint="@color/white"
         android:title="@string/profile"
+        android:tooltipText="@null"
         app:showAsAction="always" />
 </menu>

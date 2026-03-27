@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -75,7 +77,7 @@ class ShareActivity : AppCompatActivity() {
                 val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 val clip = ClipData.newPlainText("Invite Code", inviteCode)
                 clipboard.setPrimaryClip(clip)
-                Toast.makeText(this, "Invite code copied!", Toast.LENGTH_SHORT).show()
+                showAppToast("Invite code copied!", Toast.LENGTH_SHORT)
             }
         }
 
@@ -97,9 +99,9 @@ class ShareActivity : AppCompatActivity() {
             binding.tvGetFreeCoin.text = "Get Money"
             binding.tvShare.text = "Share & Get Money"
             userData?.let { loginViewModel.login(it.mobile,"0","0") }
-            binding.coinH.setImageResource(R.drawable.ruppee_2)
-            binding.ivCoin.setImageResource(R.drawable.ruppee_1)
-            binding.ivCoin2.setImageResource(R.drawable.ruppee_1)
+            binding.coinH.setImageResource(R.drawable.ruppee_coin)
+            binding.ivCoin.setImageResource(R.drawable.ruppee_coin)
+            binding.ivCoin2.setImageResource(R.drawable.ruppee_coin)
 
             panVerificationObserver()
         }
@@ -161,10 +163,10 @@ class ShareActivity : AppCompatActivity() {
                     try {
                         startActivity(intent)
                     } catch (e: ActivityNotFoundException) {
-                        Toast.makeText(this, "WhatsApp not installed", Toast.LENGTH_SHORT).show()
+                        showAppToast("WhatsApp not installed", Toast.LENGTH_SHORT)
                     }
                 }else{
-                    Toast.makeText(this, "Please Complete KYC", Toast.LENGTH_SHORT).show()
+                    showAppToast("Please Complete KYC", Toast.LENGTH_SHORT)
 
                 }
             }else{
@@ -182,7 +184,7 @@ class ShareActivity : AppCompatActivity() {
                 try {
                     startActivity(intent)
                 } catch (e: ActivityNotFoundException) {
-                    Toast.makeText(this, "WhatsApp not installed", Toast.LENGTH_SHORT).show()
+                    showAppToast("WhatsApp not installed", Toast.LENGTH_SHORT)
                 }
             }
 

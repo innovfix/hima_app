@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.content.Intent
 import android.graphics.Paint
 import android.net.Uri
@@ -13,6 +15,8 @@ import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Observer
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.BuildConfig
@@ -25,12 +29,8 @@ import com.gmwapp.hima.dialogs.BottomSheetDeleteAccount
 import com.gmwapp.hima.retrofit.responses.Reason
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.ProfileViewModel
-import com.google.android.flexbox.AlignItems
-import com.google.android.flexbox.FlexDirection
-import com.google.android.flexbox.FlexWrap
-import com.google.android.flexbox.FlexboxItemDecoration
-import com.google.android.flexbox.FlexboxLayoutManager
-import com.google.android.flexbox.JustifyContent
+import com.gmwapp.hima.widgets.GridSpacingItemDecoration
+import androidx.recyclerview.widget.GridLayoutManager
 //import com.tencent.mmkv.MMKV
 //import com.zegocloud.uikit.prebuilt.call.ZegoUIKitPrebuiltCallService
 import dagger.hilt.android.AndroidEntryPoint
@@ -47,7 +47,17 @@ class DeleteAccountActivity : BaseActivity(), OnButtonClickListener {
         super.onCreate(savedInstanceState)
         binding = ActivityDeleteAccountBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        applyStatusBarPaddingForToolbar()
         initUI()
+    }
+
+    private fun applyStatusBarPaddingForToolbar() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.appbarLayout) { v, windowInsets ->
+            val top = windowInsets.getInsets(WindowInsetsCompat.Type.statusBars()).top
+            v.setPadding(v.paddingLeft, top, v.paddingRight, v.paddingBottom)
+            windowInsets
+        }
+        ViewCompat.requestApplyInsets(binding.appbarLayout)
     }
 
     override fun onButtonClick() {
@@ -108,7 +118,7 @@ class DeleteAccountActivity : BaseActivity(), OnButtonClickListener {
             )
         })
         profileViewModel.deleteUserErrorLiveData.observe(this, Observer {
-            Toast.makeText(this@DeleteAccountActivity, getString(R.string.please_try_again_later), Toast.LENGTH_LONG).show()
+            showAppToast(getString(R.string.please_try_again_later), Toast.LENGTH_LONG)
         })
         profileViewModel.deleteUserLiveData.observe(this, Observer {
             if (it!=null && it.success) {
@@ -120,27 +130,13 @@ class DeleteAccountActivity : BaseActivity(), OnButtonClickListener {
                 intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                 startActivity(intent)
             } else {
-                Toast.makeText(
-                    this@DeleteAccountActivity, it?.message, Toast.LENGTH_LONG
-                ).show()
+                showAppToast(it?.message, Toast.LENGTH_LONG)
             }
         })
-        val staggeredGridLayoutManager = FlexboxLayoutManager(this).apply {
-            flexWrap = FlexWrap.WRAP
-            alignItems = AlignItems.FLEX_START
-            flexDirection = FlexDirection.ROW
-            justifyContent = JustifyContent.FLEX_START
-        }
-        val itemDecoration = FlexboxItemDecoration(this).apply {
-            setDrawable(
-                ContextCompat.getDrawable(
-                    this@DeleteAccountActivity, R.drawable.bg_divider
-                )
-            )
-            setOrientation(FlexboxItemDecoration.VERTICAL)
-        }
-        binding.rvReasons.addItemDecoration(itemDecoration)
-        binding.rvReasons.setLayoutManager(staggeredGridLayoutManager)
+        val spanCount = 2
+        binding.rvReasons.layoutManager = GridLayoutManager(this, spanCount)
+        val gap = (8 * resources.displayMetrics.density).toInt()
+        binding.rvReasons.addItemDecoration(GridSpacingItemDecoration(gap, includeEdge = true))
 
         binding.etDescription.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) {

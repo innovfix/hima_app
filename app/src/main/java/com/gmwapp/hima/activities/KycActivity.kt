@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -120,7 +122,7 @@ class KycActivity : AppCompatActivity() {
 
                 hideLoading()
                 val data = response.data
-                Toast.makeText(this, response.message, Toast.LENGTH_SHORT).show()
+                showAppToast(response.message, Toast.LENGTH_SHORT)
                 val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
 
                 userData?.let { loginViewModel.login(it.mobile,"0","0") }

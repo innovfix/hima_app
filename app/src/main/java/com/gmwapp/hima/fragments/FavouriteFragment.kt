@@ -20,6 +20,7 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.RecentCallsAdapter
 import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.agora.male.MaleCallConnectingActivity
+import com.gmwapp.hima.callbacks.NetworkRetryable
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentFavouriteBinding
@@ -34,7 +35,7 @@ import retrofit2.Response
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class FavouriteFragment : BaseFragment() {
+class FavouriteFragment : BaseFragment(), NetworkRetryable {
 
     @Inject
     lateinit var apiManager: ApiManager
@@ -100,8 +101,7 @@ class FavouriteFragment : BaseFragment() {
         )
         binding.rvCalls.adapter = recentCallsAdapter
 
-        // Initial call to load favorites
-        loadFavouritesList(resetData = true)
+        // Load favourites in onResume only (initUI + onResume both used to fire two requests and duplicate rows)
 
         // Pagination
         binding.rvCalls.addOnScrollListener(object : RecyclerView.OnScrollListener() {
@@ -181,6 +181,11 @@ class FavouriteFragment : BaseFragment() {
     private fun setLoading(isLoading: Boolean) {
         val shouldShow = isLoading && !binding.swipeRefreshLayout.isRefreshing
         binding.progressBar.visibility = if (shouldShow) View.VISIBLE else View.GONE
+    }
+
+    override fun onNetworkRetry() {
+        loadFavouritesList(resetData = true)
+        loadUnreadMessageCount()
     }
 
     private fun startMaleCallConnectingActivity(data: CallsListResponseData, callType: String) {

@@ -1,5 +1,7 @@
 package com.gmwapp.hima.dialogs
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.app.Dialog
 import android.content.Context
 import android.graphics.Color
@@ -110,7 +112,7 @@ class RatingDialog(
 
         binding.btnSubmit.setOnClickListener {
             if (selectedStarCount == 0) {
-                Toast.makeText(context, "Please select a rating", Toast.LENGTH_SHORT).show()
+                context.showAppToast("Please select a rating", Toast.LENGTH_SHORT)
                 return@setOnClickListener
             }
 
@@ -118,7 +120,7 @@ class RatingDialog(
             if (selectedStarCount < 4) {
                 val description = binding.etDescription.text.toString().trim()
                 if (description.isEmpty()) {
-                    Toast.makeText(context, "Please tell us what went wrong", Toast.LENGTH_SHORT).show()
+                    context.showAppToast("Please tell us what went wrong", Toast.LENGTH_SHORT)
                     return@setOnClickListener
                 }
                 submitRating(description)
@@ -160,7 +162,7 @@ class RatingDialog(
                     Log.d("SubmitRating", "   data: ${apiResponse.data}")
                     
                     if (apiResponse.success) {
-                        Toast.makeText(context, apiResponse.message, Toast.LENGTH_SHORT).show()
+                        context.showAppToast(apiResponse.message, Toast.LENGTH_SHORT)
                         onRatingSubmittedListener?.onRatingSubmitted(selectedStarCount)
                         dialog?.dismiss()
                     }
