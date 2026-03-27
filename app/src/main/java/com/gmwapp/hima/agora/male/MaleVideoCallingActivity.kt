@@ -1364,7 +1364,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         countDownTimer = null
     }
 
-    private fun newRemainingTime(){
+    fun newRemainingTime(){
 
         if (isAudioCallGoing){
 

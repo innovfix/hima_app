@@ -481,6 +481,18 @@
 
     </androidx.cardview.widget.CardView>
 
+    <ImageView
+        android:id="@+id/iv_gift_image"
+        android:layout_width="@dimen/_95sdp"
+        android:layout_height="95dp"
+        android:src="@drawable/gift_png"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        android:contentDescription="Gift Animation"/>
+
     <!-- Debug Buttons (Hidden in production) -->
     <Button
         android:id="@+id/JoinButton"

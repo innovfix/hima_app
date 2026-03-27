@@ -334,6 +334,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         getAgoraTokenFromBackend()
 
         observeRemainingTimeUpdated()
+        observeGiftReceived()
         onAddcoinClicked()
         binding.btnMuteUnmute.setOnClickListener {
             toggleMute()
@@ -1413,6 +1414,61 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
             }
         })
+    }
+
+    fun observeGiftReceived() {
+        FcmUtils.giftReceived.observe(this, androidx.lifecycle.Observer { giftReceived ->
+            if (giftReceived != null) {
+                animateGift(giftReceived)
+            }
+            FcmUtils.cleargiftReceived()
+        })
+    }
+
+    fun animateGift(image: String) {
+        val giftImage = binding.ivGiftImage
+        val femaleImage = binding.ivFemaleUser
+
+        Toast.makeText(this, "Gift Received", Toast.LENGTH_SHORT).show()
+
+        giftImage.alpha = 1f
+        giftImage.visibility = View.VISIBLE
+
+        BaseApplication.getInstance()?.playSendGiftSound()
+
+        Glide.with(this)
+            .load(image)
+            .into(giftImage)
+
+        giftImage.post {
+            val startX = giftImage.translationX
+            val startY = giftImage.translationY
+
+            val giftLocation = IntArray(2)
+            val femaleLocation = IntArray(2)
+            giftImage.getLocationOnScreen(giftLocation)
+            femaleImage.getLocationOnScreen(femaleLocation)
+
+            val femaleCenterX = (femaleLocation[0] - giftLocation[0] + (femaleImage.width / 2f - giftImage.width / 2f))
+            val femaleCenterY = (femaleLocation[1] - giftLocation[1] + (femaleImage.height / 2f - giftImage.height / 2f))
+
+            giftImage.animate()
+                .translationX(femaleCenterX)
+                .translationY(femaleCenterY)
+                .setDuration(2000)
+                .withEndAction {
+                    giftImage.animate()
+                        .alpha(0f)
+                        .setDuration(1000)
+                        .withEndAction {
+                            giftImage.visibility = View.INVISIBLE
+                            giftImage.translationX = startX
+                            giftImage.translationY = startY
+                        }
+                        .start()
+                }
+                .start()
+        }
     }
 
     override fun onResume() {

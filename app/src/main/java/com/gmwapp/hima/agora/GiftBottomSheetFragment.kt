@@ -207,6 +207,7 @@ class GiftBottomSheetFragment(var callType: String, var femaleId:Int) : BottomSh
                         }
                         is MaleVideoCallingActivity -> {
                             response.data?.let { host.sendGiftSentNotification(it.gift_icon) }
+                            host.newRemainingTime()
                             response.data?.let { host.animateGift(it.gift_icon) }
                         }
                     }
