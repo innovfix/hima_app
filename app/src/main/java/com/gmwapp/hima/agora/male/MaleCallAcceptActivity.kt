@@ -1,7 +1,5 @@
 package com.gmwapp.hima.agora.male
 
-import com.gmwapp.hima.utils.showAppToast
-
 import android.app.KeyguardManager
 import android.app.NotificationManager
 import android.content.Intent
@@ -142,7 +140,11 @@ class MaleCallAcceptActivity : AppCompatActivity() {
                     BaseApplication.getInstance()?.stopRingtone()
                     
                     // Show toast message
-                    showAppToast("You don't have enough coins to attend the call. Recharge now!", Toast.LENGTH_LONG)
+                    Toast.makeText(
+                        this,
+                        "You don't have enough coins to attend the call. Recharge now!",
+                        Toast.LENGTH_LONG
+                    ).show()
                     
                     // Redirect to MainActivity
                     val intent = Intent(this@MaleCallAcceptActivity, MainActivity::class.java)

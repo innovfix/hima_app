@@ -1,7 +1,5 @@
 package com.gmwapp.hima.agora.female
 
-import com.gmwapp.hima.utils.showAppToast
-
 import android.Manifest
 import android.animation.AnimatorListenerAdapter
 import android.app.Dialog
@@ -186,7 +184,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             if (elapsedTime >=10) { // 20 seconds timeout
                 if (isRemoteUserJoined==false){
                     Log.d("isUserJoinedTimer","Leave Button")
-                    showAppToast("User did not join", Toast.LENGTH_LONG)
+                    Toast.makeText(this@FemaleAudioCallingActivity,"User did not join", Toast.LENGTH_LONG).show()
 
                     cancelTimeoutTracking()
                     leaveChannel(binding.LeaveButton)
@@ -233,7 +231,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
     private fun showMessage(message: String?) {
         runOnUiThread {
-            applicationContext.showAppToast(message, Toast.LENGTH_SHORT)
+            Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -402,32 +400,32 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             pendingLudoAction = null
 
             if (!response.status) {
-                showAppToast(response.message, Toast.LENGTH_SHORT)
+                Toast.makeText(this, response.message, Toast.LENGTH_SHORT).show()
                 return@observe
             }
 
             when (action) {
                 "invite" -> {
                     currentLudoInviteId = response.data?.invite_id
-                    showAppToast("Ludo invite sent", Toast.LENGTH_SHORT)
+                    Toast.makeText(this, "Ludo invite sent", Toast.LENGTH_SHORT).show()
                 }
 
                 "accept" -> {
                     val joinUrl = response.data?.join_url ?: buildLudoUrl(response.data?.room_code)
                     if (joinUrl.isNullOrBlank()) {
-                        showAppToast("Invalid Ludo URL", Toast.LENGTH_SHORT)
+                        Toast.makeText(this, "Invalid Ludo URL", Toast.LENGTH_SHORT).show()
                     } else {
                         openLudoWebView(joinUrl)
                     }
                 }
 
-                "reject" -> showAppToast("Ludo invite rejected", Toast.LENGTH_SHORT)
+                "reject" -> Toast.makeText(this, "Ludo invite rejected", Toast.LENGTH_SHORT).show()
             }
         }
 
         ludoFcmViewModel.ludoFcmErrorLiveData.observe(this) {
             pendingLudoAction = null
-            showAppToast(it, Toast.LENGTH_SHORT)
+            Toast.makeText(this, it, Toast.LENGTH_SHORT).show()
         }
 
         FcmUtils.ludoEvent.observe(this) { event ->
@@ -435,10 +433,9 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
             when (event.type) {
                 "ludo_invite" -> {
-                    // Temporarily disabled: do not show incoming Ludo invite accept dialog.
-//                    if (event.fromUserId == receiverId) {
-//                        showIncomingLudoInviteDialog(event)
-//                    }
+                    if (event.fromUserId == receiverId) {
+                        showIncomingLudoInviteDialog(event)
+                    }
                 }
 
                 "ludo_invite_accepted" -> {
@@ -449,11 +446,11 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                 }
 
                 "ludo_invite_rejected" -> {
-                    showAppToast("Ludo invite rejected", Toast.LENGTH_SHORT)
+                    Toast.makeText(this, "Ludo invite rejected", Toast.LENGTH_SHORT).show()
                 }
 
                 "ludo_invite_expired" -> {
-                    showAppToast("Ludo invite expired", Toast.LENGTH_SHORT)
+                    Toast.makeText(this, "Ludo invite expired", Toast.LENGTH_SHORT).show()
                 }
             }
             FcmUtils.clearLudoEvent()
@@ -479,7 +476,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         view.findViewById<TextView>(R.id.btn_send_invite).setOnClickListener {
             dialog.dismiss()
             if (currentUserId <= 0 || receiverId <= 0) {
-                showAppToast("Unable to send invite", Toast.LENGTH_SHORT)
+                Toast.makeText(this, "Unable to send invite", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             pendingLudoAction = "invite"
@@ -1124,7 +1121,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             Log.d("AgoraTag", "Joined channel: $channelName with token: $token")
 
         } else {
-            applicationContext.showAppToast("Permissions were not granted", Toast.LENGTH_SHORT)
+            Toast.makeText(applicationContext, "Permissions were not granted", Toast.LENGTH_SHORT)
+                .show()
         }
     }
 
@@ -1363,7 +1361,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         val giftImage = binding.ivGiftImage
         val femaleImage = binding.ivFemaleUser
 
-        showAppToast("Gift Received", Toast.LENGTH_SHORT)
+        Toast.makeText(this, "Gift Received", Toast.LENGTH_SHORT).show()
 
         // Reset visibility and alpha
         giftImage.alpha = 1f
@@ -1428,10 +1426,10 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                     // If button image is VIDEO, switch
                     switchToVideo()
                 } else {
-                    showAppToast("Error: Unknown state", Toast.LENGTH_SHORT)
+                    Toast.makeText(this, "Error: Unknown state", Toast.LENGTH_SHORT).show()
                 }
             }else{
-                showAppToast("Already Request Sent", Toast.LENGTH_SHORT)
+                Toast.makeText(this,"Already Request Sent", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -1448,7 +1446,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         val remainingTime = binding.tvRemainingTime?.text.toString().trim()
         if (remainingTime.isEmpty() || !remainingTime.contains(":")) {
             Log.e("switchToVideo", "Invalid remaining time format: $remainingTime")
-            showAppToast("Error: Invalid remaining time", Toast.LENGTH_SHORT)
+            Toast.makeText(this, "Error: Invalid remaining time", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -1531,12 +1529,12 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                         val totalSeconds = (hours * 3600) + (minutes * 60) + seconds
 
                         if (totalSeconds>360){
-                            showAppToast("Accepted", Toast.LENGTH_SHORT)
+                            Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
                             stopCountdown()
                             FcmUtils.clearCallSwitch()
                             enableVideoCall()
                         }else{
-                            showAppToast("You don't have enough coins for video call", Toast.LENGTH_SHORT)
+                            Toast.makeText(this, "You don't have enough coins for video call", Toast.LENGTH_SHORT).show()
                             FcmUtils.clearCallSwitch()
                             updateCallEndDetails()
 
@@ -1549,7 +1547,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                 if (switchType == "AudioAccepted" && receiverId == this.receiverId) {
 
                     isSwitchRequestPending=false
-                    showAppToast("Accepted", Toast.LENGTH_SHORT)
+                    Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
                     stopCountdown()
                     FcmUtils.clearCallSwitch()
                     enableAudioCall()
@@ -1559,7 +1557,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
                     isSwitchRequestPending=false
                     FcmUtils.clearCallSwitch()
-                    showAppToast("Request is rejected", Toast.LENGTH_SHORT)
+                    Toast.makeText(this, "Request is rejected", Toast.LENGTH_SHORT).show()
                 }
 
             }
@@ -1634,7 +1632,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                         .setPositiveButton("Confirm") { _, _ ->
 
                                     if (userid != null && switchCallID !=0) {
-                                        showAppToast("Accepted", Toast.LENGTH_SHORT)
+                                        Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
 
                                         sendCallAcceptNotification(userid,receiverId,"audio","AudioAccepted")
                                         FcmUtils.clearCallSwitch()
@@ -1906,16 +1904,16 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             dialog.dismiss()
             if (totalSeconds > 360) {
                 if (switchCallID == 0) {
-                    showAppToast("Try Again", Toast.LENGTH_SHORT)
+                    Toast.makeText(this, "Try Again", Toast.LENGTH_SHORT).show()
                 } else {
                     if (userid != null) {
                         Log.d("SwitchCallIdWhileSending","$switchCallID")
                         sendSwitchCallRequestNotification(userid, receiverId, "video", "switchToVideo $switchCallID")
                     }
-                    showAppToast("Video session request sent", Toast.LENGTH_SHORT)
+                    Toast.makeText(this, "Video session request sent", Toast.LENGTH_SHORT).show()
                 }
             } else {
-                showAppToast("$receiverName don't have enough coins", Toast.LENGTH_SHORT)
+                Toast.makeText(this, "$receiverName don't have enough coins", Toast.LENGTH_SHORT).show()
             }
         }
         
@@ -1965,7 +1963,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                 
                 if (totalSeconds > 360) {
                     if (userid != null && switchCallID != 0) {
-                        showAppToast("Accepted", Toast.LENGTH_SHORT)
+                        Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
                         sendCallAcceptNotification(
                             userid,
                             receiverId,
@@ -1978,7 +1976,11 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                         enableVideoCall()
                     }
                 } else {
-                    showAppToast("$requesterName don't have enough coins", Toast.LENGTH_SHORT)
+                    Toast.makeText(
+                        this,
+                        "$requesterName don't have enough coins",
+                        Toast.LENGTH_SHORT
+                    ).show()
                     FcmUtils.clearCallSwitch()
                 }
             }
@@ -2125,7 +2127,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             .setTitle("Want to Switch to Audio Call?")
             .setPositiveButton("Yes") { _, _ ->
                 if (isAudioCallIdReceived == false) {
-                    showAppToast("Try Again", Toast.LENGTH_SHORT)
+                    Toast.makeText(this, "Try Again", Toast.LENGTH_SHORT).show()
 
                 } else {
                     if (userid != null) {
@@ -2136,7 +2138,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                             "switchToAudio $switchCallID"
                         )
                     }
-                    showAppToast("Audio call request sent", Toast.LENGTH_SHORT)
+                    Toast.makeText(this, "Audio call request sent", Toast.LENGTH_SHORT)
+                        .show()
                 }
             }
             .setNegativeButton("No") { dialog, _ ->
