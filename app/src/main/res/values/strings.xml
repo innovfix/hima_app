@@ -4,6 +4,8 @@
     <string name="login_to_get_started">Login to get started</string>
     <string name="you_will_receive_an_otp_on_this_number">You will receive an OTP on this number.</string>
     <string name="send_otp">Send OTP</string>
+    <string name="truecaller_fingerprint_fallback">Truecaller isn’t available for this install. Enter your mobile number and tap Send OTP to continue.</string>
+    <string name="truecaller_generic_error">Sign-in error: %1$s</string>
     <string name="terms_and_conditions_text">
     <![CDATA[I accept <b>terms & conditions</b>, and <b>community guidelines & moderation policy</b> of HI ma.]]>
 </string>
@@ -28,6 +30,9 @@
     <string name="video">Video</string>
     <string name="video_text">Video 60/mins</string>
     <string name="audio_text">Audio 10/mins</string>
+    <string name="peer_unavailable_audio">This user is not available for audio calls right now.</string>
+    <string name="peer_unavailable_video">This user is not available for video calls right now.</string>
+    <string name="peer_calls_blocked">You can\'t call this user.</string>
     <string name="no_sessions_yet">No Sessions yet</string>
     <string name="your_past_sessions_will_be_displayed_here">Your past sessions will be displayed here.</string>
     <string name="connect_with_a_hima">Connect with a %s</string>
@@ -120,6 +125,9 @@
     <string name="malaysia">Malaysia (+60)</string>
     <string name="search_for_country">Search for Country</string>
     <string name="retry_in">Retry in (%s)</string>
+    <string name="no_internet_connection">No internet connection</string>
+    <string name="retry">Retry</string>
+    <string name="check_connection_retry_hint">Check your connection and tap Retry.</string>
     <string name="delete_warning_1">Information related to account will be kept for 30 days and will be completely purged after no activity for continuous 30 days</string>
     <string name="delete_warning_2">"After the account is deleted, you will no longer be able to log in or use the account, and the account cannot be recovered. "</string>
     <string name="view_more">View more</string>
@@ -271,4 +279,9 @@
 
     <string name="clientID">8avjby8rduvi2o3kgk6eorcdq457spxayqyse-luibo</string>
     <!--    <string name="clientID">mrx9s3lgullvwpqilpta9ruvkcy_yryvht6vawcien0</string>-->
+
+    <string name="loading_report_reasons">Loading report options…</string>
+    <string name="report_reasons_unavailable_title">Couldn\'t load report options</string>
+    <string name="report_reasons_unavailable_message">Check your connection and try again.</string>
+    <string name="report_unable_to_identify_user">Unable to submit report. Please try again.</string>
 </resources>

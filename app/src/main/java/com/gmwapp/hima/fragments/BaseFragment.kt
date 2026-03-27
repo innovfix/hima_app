@@ -1,5 +1,7 @@
 package com.gmwapp.hima.fragments
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.app.KeyguardManager
 import android.app.Notification
 import android.app.PendingIntent
@@ -183,13 +185,9 @@ open class BaseFragment : Fragment() {
         }
         
         if (message == DConstants.NO_NETWORK) {
-            Toast.makeText(
-                context, getString(R.string.please_try_again_later), Toast.LENGTH_LONG
-            ).show()
+            requireContext().showAppToast(getString(R.string.please_try_again_later), Toast.LENGTH_LONG)
         } else {
-            Toast.makeText(
-                context, message, Toast.LENGTH_LONG
-            ).show()
+            requireContext().showAppToast(message, Toast.LENGTH_LONG)
         }
     }
 

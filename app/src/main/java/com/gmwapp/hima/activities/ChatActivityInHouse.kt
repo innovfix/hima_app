@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -51,10 +53,12 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import android.content.Intent
 import org.json.JSONObject
 import com.gmwapp.hima.activities.UserProfileDetailActivity
+import com.gmwapp.hima.utils.CallUnavailableFeedback
 
 @AndroidEntryPoint
 class ChatActivityInHouse : AppCompatActivity() {
@@ -116,6 +120,15 @@ class ChatActivityInHouse : AppCompatActivity() {
     private var isLoadingMore = false
     private var hasMoreMessages = true
     private val MESSAGES_PER_PAGE = 10
+
+    /** Latest wins for overlapping [getChatHistory] calls so an older response cannot replace a newer list. */
+    private val historyLoadRequestId = AtomicInteger(0)
+
+    /**
+     * Skip one history reload on the first [onResume] after [onCreate] ([loadMessages] already runs there).
+     * Later resumes (returning from another screen / app background) refresh history so messages reappear.
+     */
+    private var suppressNextResumeHistoryReload = true
     
     // API returns timestamps in IST format: "2025-11-18 19:10:31"
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).apply {
@@ -134,6 +147,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         setupUserIds()
         setupClickListeners()
         connectSocket()
+        suppressNextResumeHistoryReload = true
         loadMessages()
         observeSocketEvents()
         setupCallStatusObservers()
@@ -254,7 +268,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         Log.d("ChatActivityInHouse", "MyUserId: $myUserId, PeerUserId: $peerUserId, ChatId: $chatId")
 
         if (myUserId == 0 || peerUserId == -1) {
-            Toast.makeText(this, "Error: Invalid user data", Toast.LENGTH_SHORT).show()
+            showAppToast("Error: Invalid user data", Toast.LENGTH_SHORT)
             finish()
         }
     }
@@ -517,13 +531,15 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun loadMessages() {
+        val requestId = historyLoadRequestId.incrementAndGet()
+
         // Reset pagination state
         currentOffset = 0
         hasMoreMessages = true
         isLoadingMore = false
         
         Log.d("ChatPagination", "═══════════════════════════════════════")
-        Log.d("ChatPagination", "🔄 INITIAL LOAD - Requesting chat history")
+        Log.d("ChatPagination", "🔄 INITIAL LOAD - Requesting chat history (requestId=$requestId)")
         Log.d("ChatPagination", "User ID: $myUserId, Receiver ID: $peerUserId")
         Log.d("ChatPagination", "Limit: $MESSAGES_PER_PAGE, Offset: $currentOffset")
         Log.d("ChatPagination", "═══════════════════════════════════════")
@@ -535,6 +551,10 @@ class ChatActivityInHouse : AppCompatActivity() {
             offset = currentOffset,
             object : NetworkCallback<ChatHistoryResponse> {
                 override fun onResponse(call: Call<ChatHistoryResponse>, response: Response<ChatHistoryResponse>) {
+                    if (requestId != historyLoadRequestId.get()) {
+                        Log.d("ChatPagination", "Ignoring stale chat history response (requestId=$requestId, latest=${historyLoadRequestId.get()})")
+                        return
+                    }
                     if (response.isSuccessful) {
                         val responseBody = response.body()
                         
@@ -696,23 +716,31 @@ class ChatActivityInHouse : AppCompatActivity() {
                         Log.e("ChatPagination", "❌ Error loading messages: ${response.code()}")
                         Log.e("chathisoryapi", "❌ ERROR: HTTP ${response.code()}")
                         Log.e("chathisoryapi", "Error Body: ${response.errorBody()?.string()}")
-                        Toast.makeText(this@ChatActivityInHouse, "Failed to load messages", Toast.LENGTH_SHORT).show()
+                        showAppToast("Failed to load messages", Toast.LENGTH_SHORT)
                     }
                     isLoadingMore = false
                 }
 
                 override fun onFailure(call: Call<ChatHistoryResponse>, t: Throwable) {
+                    if (requestId != historyLoadRequestId.get()) {
+                        Log.d("ChatPagination", "Ignoring stale chat history failure (requestId=$requestId)")
+                        return
+                    }
                     Log.e("ChatPagination", "❌ Error loading messages: ${t.message}", t)
                     Log.e("chathisoryapi", "❌ NETWORK ERROR: ${t.message}")
                     Log.e("chathisoryapi", "Request URL: ${call.request().url}")
-                    Toast.makeText(this@ChatActivityInHouse, "Error: ${t.message}", Toast.LENGTH_SHORT).show()
+                    showAppToast("Error: ${t.message}", Toast.LENGTH_SHORT)
                     isLoadingMore = false
                 }
 
                 override fun onNoNetwork() {
+                    if (requestId != historyLoadRequestId.get()) {
+                        Log.d("ChatPagination", "Ignoring stale chat history no-network (requestId=$requestId)")
+                        return
+                    }
                     Log.e("ChatPagination", "❌ No network connection")
                     Log.e("chathisoryapi", "❌ NO NETWORK CONNECTION")
-                    Toast.makeText(this@ChatActivityInHouse, "No internet connection", Toast.LENGTH_SHORT).show()
+                    showAppToast("No internet connection", Toast.LENGTH_SHORT)
                     isLoadingMore = false
                 }
             }
@@ -874,7 +902,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                 override fun onNoNetwork() {
                     Log.e("ChatPagination", "❌ No network connection")
                     Log.e("chathisoryapi", "❌ PAGINATION - NO NETWORK CONNECTION")
-                    Toast.makeText(this@ChatActivityInHouse, "No internet connection", Toast.LENGTH_SHORT).show()
+                    showAppToast("No internet connection", Toast.LENGTH_SHORT)
                     isLoadingMore = false
                 }
             }
@@ -884,7 +912,7 @@ class ChatActivityInHouse : AppCompatActivity() {
     private fun sendMessage() {
         // Check if user is blocked
         if (iHaveBlockedThisUser) {
-            Toast.makeText(this, "Please unblock to send message", Toast.LENGTH_SHORT).show()
+            showAppToast("Please unblock to send message", Toast.LENGTH_SHORT)
             return
         }
         
@@ -1336,6 +1364,16 @@ class ChatActivityInHouse : AppCompatActivity() {
         
         // Log status report
         logSocketIOStatus()
+
+        // Re-fetch history when returning to this screen (fixes missing messages after tab / background).
+        // Skip once: onCreate already called loadMessages(); first onResume would duplicate the request.
+        if (suppressNextResumeHistoryReload) {
+            suppressNextResumeHistoryReload = false
+            Log.d("ChatPagination", "Skipping duplicate history reload (first resume after onCreate)")
+        } else {
+            Log.d("ChatPagination", "onResume — refreshing chat history from server")
+            loadMessages()
+        }
     }
 
     override fun onPause() {
@@ -1650,25 +1688,25 @@ class ChatActivityInHouse : AppCompatActivity() {
                     if (response.isSuccessful) {
                         val responseBody = response.body()
                         if (responseBody?.success == true) {
-                            Toast.makeText(this@ChatActivityInHouse, responseBody.message, Toast.LENGTH_SHORT).show()
+                            showAppToast(responseBody.message, Toast.LENGTH_SHORT)
                             Log.d("ChatActivityInHouse", "✅ User blocked successfully")
                             // Reload chat history to update blocked status
                             loadMessages()
                         } else {
-                            Toast.makeText(this@ChatActivityInHouse, "Failed to block user", Toast.LENGTH_SHORT).show()
+                            showAppToast("Failed to block user", Toast.LENGTH_SHORT)
                         }
                     } else {
-                        Toast.makeText(this@ChatActivityInHouse, "Failed to block user: ${response.code()}", Toast.LENGTH_SHORT).show()
+                        showAppToast("Failed to block user: ${response.code()}", Toast.LENGTH_SHORT)
                     }
                 }
 
                 override fun onFailure(call: Call<BlockUserResponse>, t: Throwable) {
                     Log.e("ChatActivityInHouse", "❌ Error blocking user: ${t.message}", t)
-                    Toast.makeText(this@ChatActivityInHouse, "Failed to block user: ${t.message}", Toast.LENGTH_SHORT).show()
+                    showAppToast("Failed to block user: ${t.message}", Toast.LENGTH_SHORT)
                 }
 
                 override fun onNoNetwork() {
-                    Toast.makeText(this@ChatActivityInHouse, "No internet connection", Toast.LENGTH_SHORT).show()
+                    showAppToast("No internet connection", Toast.LENGTH_SHORT)
                 }
             }
         )
@@ -1685,25 +1723,25 @@ class ChatActivityInHouse : AppCompatActivity() {
                     if (response.isSuccessful) {
                         val responseBody = response.body()
                         if (responseBody?.success == true) {
-                            Toast.makeText(this@ChatActivityInHouse, responseBody.message, Toast.LENGTH_SHORT).show()
+                            showAppToast(responseBody.message, Toast.LENGTH_SHORT)
                             Log.d("ChatActivityInHouse", "✅ User unblocked successfully")
                             // Reload chat history to update blocked status
                             loadMessages()
                         } else {
-                            Toast.makeText(this@ChatActivityInHouse, "Failed to unblock user", Toast.LENGTH_SHORT).show()
+                            showAppToast("Failed to unblock user", Toast.LENGTH_SHORT)
                         }
                     } else {
-                        Toast.makeText(this@ChatActivityInHouse, "Failed to unblock user: ${response.code()}", Toast.LENGTH_SHORT).show()
+                        showAppToast("Failed to unblock user: ${response.code()}", Toast.LENGTH_SHORT)
                     }
                 }
 
                 override fun onFailure(call: Call<BlockUserResponse>, t: Throwable) {
                     Log.e("ChatActivityInHouse", "❌ Error unblocking user: ${t.message}", t)
-                    Toast.makeText(this@ChatActivityInHouse, "Failed to unblock user: ${t.message}", Toast.LENGTH_SHORT).show()
+                    showAppToast("Failed to unblock user: ${t.message}", Toast.LENGTH_SHORT)
                 }
 
                 override fun onNoNetwork() {
-                    Toast.makeText(this@ChatActivityInHouse, "No internet connection", Toast.LENGTH_SHORT).show()
+                    showAppToast("No internet connection", Toast.LENGTH_SHORT)
                 }
             }
         )
@@ -1717,12 +1755,12 @@ class ChatActivityInHouse : AppCompatActivity() {
                 BaseApplication.getInstance()?.getPrefs()?.setUserData(response.data)
                 syncCallStatusTogglesFromPrefs()
                 Log.d("ChatActivityInHouse", "✅ Call status updated successfully")
-                Toast.makeText(this, "Call status updated", Toast.LENGTH_SHORT).show()
+                showAppToast("Call status updated", Toast.LENGTH_SHORT)
             } else if (response != null) {
                 // Revert toggles when API rejects update (toggle should be ON/OFF only on success).
                 syncCallStatusTogglesFromPrefs()
                 response.message.takeIf { it.isNotBlank() }?.let { message ->
-                    Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+                    showAppToast(message, Toast.LENGTH_SHORT)
                 }
             }
         })
@@ -1734,10 +1772,10 @@ class ChatActivityInHouse : AppCompatActivity() {
                 Log.e("ChatActivityInHouse", "❌ Error updating call status: $error")
                 when (error) {
                     DConstants.NO_NETWORK -> {
-                        Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show()
+                        showAppToast("No internet connection", Toast.LENGTH_SHORT)
                     }
                     else -> {
-                        Toast.makeText(this, "Failed to update call status", Toast.LENGTH_SHORT).show()
+                        showAppToast("Failed to update call status", Toast.LENGTH_SHORT)
                     }
                 }
             }
@@ -1871,10 +1909,14 @@ class ChatActivityInHouse : AppCompatActivity() {
         cvAudioCall.setOnClickListener {
             when {
                 isCallBlocked -> {
-                    Toast.makeText(this, "You are blocked by this user", Toast.LENGTH_SHORT).show()
+                    showAppToast("You are blocked by this user", Toast.LENGTH_SHORT)
                 }
                 peerAudioStatus != 1 -> {
-                    Toast.makeText(this, "Audio calls are disabled for this user", Toast.LENGTH_SHORT).show()
+                    CallUnavailableFeedback.show(
+                        this,
+                        findViewById(android.R.id.content),
+                        forAudio = true
+                    )
                 }
                 else -> {
                     initiateCall("audio")
@@ -1885,10 +1927,14 @@ class ChatActivityInHouse : AppCompatActivity() {
         cvVideoCall.setOnClickListener {
             when {
                 isCallBlocked -> {
-                    Toast.makeText(this, "You are blocked by this user", Toast.LENGTH_SHORT).show()
+                    showAppToast("You are blocked by this user", Toast.LENGTH_SHORT)
                 }
                 peerVideoStatus != 1 -> {
-                    Toast.makeText(this, "Video calls are disabled for this user", Toast.LENGTH_SHORT).show()
+                    CallUnavailableFeedback.show(
+                        this,
+                        findViewById(android.R.id.content),
+                        forAudio = false
+                    )
                 }
                 else -> {
                     initiateCall("video")

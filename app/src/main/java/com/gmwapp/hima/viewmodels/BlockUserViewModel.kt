@@ -34,9 +34,14 @@ class BlockUserViewModel @Inject constructor(private val repository: BlockUserRe
                     call: Call<BlockUserResponse>,
                     response: Response<BlockUserResponse>
                 ) {
-                    if (response.isSuccessful) {
-                        blockUserLiveData.postValue(response.body())
-                        Log.d("BlockUserAPI", "✅ Block user success: ${response.body()}")
+                    val body = response.body()
+                    if (response.isSuccessful && body != null && body.success != false) {
+                        blockUserLiveData.postValue(body)
+                        Log.d("BlockUserAPI", "✅ Block user success: $body")
+                    } else if (response.isSuccessful && (body == null || body.success == false)) {
+                        val msg = body?.message?.takeIf { it.isNotBlank() } ?: "Failed to block user"
+                        blockUserErrorLiveData.postValue(msg)
+                        Log.e("BlockUserAPI", "❌ Block user rejected: $body")
                     } else {
                         val errorBody = response.errorBody()?.string()
                         Log.e("BlockUserAPI", "❌ Block user failed: $errorBody")
@@ -118,28 +123,33 @@ class BlockUserViewModel @Inject constructor(private val repository: BlockUserRe
                     Log.d("BlockUserAPI", "===== UNBLOCK USER RESPONSE =====")
                     Log.d("BlockUserAPI", "HTTP Status: ${response.code()}")
                     Log.d("BlockUserAPI", "Response Body: ${response.body()}")
-                    
-                    if (response.isSuccessful) {
-                        unblockUserLiveData.postValue(response.body())
+
+                    val body = response.body()
+                    if (response.isSuccessful && body != null && body.success != false) {
+                        unblockUserLiveData.postValue(body)
                         Log.d("BlockUserAPI", "✅ Unblock user success")
+                    } else if (response.isSuccessful && (body == null || body.success == false)) {
+                        val msg = body?.message?.takeIf { it.isNotBlank() } ?: "Failed to unblock user"
+                        Log.e("BlockUserAPI", "❌ Unblock rejected by API: $body — trying blocked=0 fallback")
+                        unblockViaBlockedZeroFallback(userId, callUserId, msg)
                     } else {
                         val errorBody = response.errorBody()?.string()
-                        Log.e("BlockUserAPI", "Error Body: $errorBody")
+                        Log.e("BlockUserAPI", "Error Body: $errorBody — trying blocked=0 fallback")
                         try {
                             val gson = com.google.gson.Gson()
                             val errorResponse = gson.fromJson(errorBody, BlockUserResponse::class.java)
                             val errorMessage = errorResponse.message ?: "Failed to unblock user"
-                            unblockUserErrorLiveData.postValue(errorMessage)
+                            unblockViaBlockedZeroFallback(userId, callUserId, errorMessage)
                         } catch (e: Exception) {
-                            unblockUserErrorLiveData.postValue("Failed to unblock user")
+                            unblockViaBlockedZeroFallback(userId, callUserId, "Failed to unblock user")
                         }
                     }
                     Log.d("BlockUserAPI", "======================================")
                 }
 
                 override fun onFailure(call: Call<BlockUserResponse>, t: Throwable) {
-                    unblockUserErrorLiveData.postValue(DConstants.LOGIN_ERROR)
-                    Log.e("BlockUserAPI", "❌ Unblock user error: ${t.message}", t)
+                    Log.e("BlockUserAPI", "❌ Unblock user error: ${t.message} — trying blocked=0 fallback", t)
+                    unblockViaBlockedZeroFallback(userId, callUserId, DConstants.LOGIN_ERROR)
                 }
 
                 override fun onNoNetwork() {
@@ -147,5 +157,33 @@ class BlockUserViewModel @Inject constructor(private val repository: BlockUserRe
                 }
             })
         }
+    }
+
+    /** Some backends clear blocks via `blocked_user` with blocked=0 instead of `unblock_user`. */
+    private fun unblockViaBlockedZeroFallback(userId: Int, callUserId: Int, primaryError: String) {
+        repository.blockUser(userId, callUserId, 0, object : NetworkCallback<BlockUserResponse> {
+            override fun onResponse(
+                call: Call<BlockUserResponse>,
+                response: Response<BlockUserResponse>
+            ) {
+                val body = response.body()
+                if (response.isSuccessful && body != null && body.success != false) {
+                    unblockUserLiveData.postValue(body)
+                    Log.d("BlockUserAPI", "✅ Unblock via blocked=0 succeeded")
+                } else {
+                    unblockUserErrorLiveData.postValue(primaryError)
+                    Log.e("BlockUserAPI", "❌ Unblock fallback blocked=0 also failed: $body")
+                }
+            }
+
+            override fun onFailure(call: Call<BlockUserResponse>, t: Throwable) {
+                unblockUserErrorLiveData.postValue(primaryError)
+                Log.e("BlockUserAPI", "❌ Unblock fallback network error: ${t.message}", t)
+            }
+
+            override fun onNoNetwork() {
+                unblockUserErrorLiveData.postValue(DConstants.NO_NETWORK)
+            }
+        })
     }
 }

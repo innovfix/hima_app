@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -100,7 +102,7 @@ class TicketsListActivity : BaseActivity() {
             binding.progressBar.visibility = android.view.View.VISIBLE
             accountViewModel.getTicketsList(userId)
         } else {
-            Toast.makeText(this, "User not logged in", Toast.LENGTH_SHORT).show()
+            showAppToast("User not logged in", Toast.LENGTH_SHORT)
         }
     }
 
@@ -122,13 +124,13 @@ class TicketsListActivity : BaseActivity() {
                 val resolvedCount = tickets.count { it.status == 1 }
                 Log.d("TicketsListActivity", "Active: $activeCount, Resolved: $resolvedCount")
             } else {
-                Toast.makeText(this, response?.message ?: "Failed to load tickets", Toast.LENGTH_SHORT).show()
+                showAppToast(response?.message ?: "Failed to load tickets", Toast.LENGTH_SHORT)
             }
         })
 
         accountViewModel.ticketsListErrorLiveData.observe(this, Observer { error ->
             binding.progressBar.visibility = android.view.View.GONE
-            Toast.makeText(this, error ?: "An error occurred", Toast.LENGTH_SHORT).show()
+            showAppToast(error ?: "An error occurred", Toast.LENGTH_SHORT)
             Log.e("TicketsListActivity", "Error loading tickets: $error")
         })
     }

@@ -78,33 +78,42 @@
             </com.google.android.material.card.MaterialCardView>
         </androidx.constraintlayout.widget.ConstraintLayout>
 
-        <!-- Duration Below Profile -->
+        <!-- Duration: align to card padding start; wide text must not spill past rounded card edge -->
         <LinearLayout
             android:id="@+id/ll_duration"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:gravity="center"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginBottom="2dp"
+            android:baselineAligned="false"
+            android:gravity="center_vertical"
             android:orientation="horizontal"
-            app:layout_constraintEnd_toEndOf="@id/profile_container"
-            app:layout_constraintStart_toStartOf="@id/profile_container"
+            app:layout_constraintEnd_toStartOf="@id/buttons_container"
+            app:layout_constraintHorizontal_bias="0"
+            app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/profile_container">
 
             <ImageView
-                android:layout_width="12dp"
-                android:layout_height="12dp"
-                android:src="@drawable/ic_clock"
-                android:contentDescription="Duration"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
                 android:layout_gravity="center_vertical"
+                android:contentDescription="Duration"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_clock"
                 app:tint="@color/colorAccent" />
 
             <TextView
                 android:id="@+id/tv_duration"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
                 android:layout_marginStart="4dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
                 android:fontFamily="@font/poppins_semibold"
-                android:maxLines="1"
+                android:includeFontPadding="false"
+                android:maxLines="2"
                 android:text="1 min"
                 android:textColor="@color/colorAccent"
                 android:textSize="11sp" />

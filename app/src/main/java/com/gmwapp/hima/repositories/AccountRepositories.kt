@@ -15,12 +15,21 @@ class AccountRepositories @Inject constructor(private val apiManager: ApiManager
         apiManager.getSettings(callback)
     }
 
-    fun getCategoriesList(userId: Int, callback: NetworkCallback<CategoriesResponse>) {
-        apiManager.getCategoriesList(userId, callback)
+    fun getCategoriesList(
+        userId: Int,
+        language: String,
+        callback: NetworkCallback<CategoriesResponse>
+    ) {
+        apiManager.getCategoriesList(userId, language, callback)
     }
 
-    fun getSubqueriesList(userId: Int, categoryId: Int, callback: NetworkCallback<SubqueriesResponse>) {
-        apiManager.getSubqueriesList(userId, categoryId, callback)
+    fun getSubqueriesList(
+        userId: Int,
+        categoryId: Int,
+        language: String,
+        callback: NetworkCallback<SubqueriesResponse>
+    ) {
+        apiManager.getSubqueriesList(userId, categoryId, language, callback)
     }
 
     fun submitTicket(userId: Int, message: String, screenshots: List<okhttp3.MultipartBody.Part>, callback: NetworkCallback<SubmitTicketResponse>) {

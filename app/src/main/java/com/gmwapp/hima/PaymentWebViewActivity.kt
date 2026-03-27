@@ -1,5 +1,7 @@
 package com.gmwapp.hima
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.annotation.SuppressLint
 import android.app.Dialog
 import android.content.ActivityNotFoundException
@@ -103,7 +105,7 @@ class PaymentWebViewActivity : AppCompatActivity() {
                         startActivity(intent)
                         true // Prevent WebView from loading the UPI link
                     } catch (e: ActivityNotFoundException) {
-                        Toast.makeText(this@PaymentWebViewActivity, "No UPI app found", Toast.LENGTH_SHORT).show()
+                        showAppToast("No UPI app found", Toast.LENGTH_SHORT)
                         true
                     } catch (e: Exception) {
                         e.printStackTrace()
@@ -130,7 +132,7 @@ class PaymentWebViewActivity : AppCompatActivity() {
         FcmUtils.ludoEvent.observe(this) { event ->
             if (event == null) return@observe
             if (isLudoGameScreen && event.type == "game_end") {
-                Toast.makeText(this, "Ludo game ended", Toast.LENGTH_SHORT).show()
+                showAppToast("Ludo game ended", Toast.LENGTH_SHORT)
                 FcmUtils.clearLudoEvent()
                 finish()
             }
@@ -140,7 +142,7 @@ class PaymentWebViewActivity : AppCompatActivity() {
         if (url.isNotEmpty() && url.startsWith("http")) {
             webView.loadUrl(url)
         } else {
-            Toast.makeText(this, "Invalid URL", Toast.LENGTH_SHORT).show()
+            showAppToast("Invalid URL", Toast.LENGTH_SHORT)
             finish()
         }
     }

@@ -5,6 +5,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.gmwapp.hima.databinding.ItemSubqueryBinding
 import com.gmwapp.hima.retrofit.responses.SubqueryData
+import com.gmwapp.hima.utils.unescapeHelpContent
 
 class SubqueriesAdapter(
     private val subqueries: MutableList<SubqueryData>,
@@ -30,7 +31,7 @@ class SubqueriesAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(subquery: SubqueryData) {
-            binding.tvSubqueryTitle.text = subquery.title
+            binding.tvSubqueryTitle.text = subquery.title.unescapeHelpContent()
             binding.root.setOnClickListener {
                 onItemClick(subquery)
             }

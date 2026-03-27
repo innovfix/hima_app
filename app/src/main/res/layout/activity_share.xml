@@ -133,7 +133,10 @@
                     android:id="@+id/ivCoin"
                     android:layout_width="22dp"
                     android:layout_height="22dp"
-                    android:src="@drawable/coin_img" />
+                    android:adjustViewBounds="true"
+                    android:contentDescription="@null"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/coin_d" />
 
                 <TextView
                     android:id="@+id/coinPerInvite"
@@ -194,9 +197,12 @@
 
                 <ImageView
                     android:id="@+id/ivCoin2"
-                    android:layout_width="30dp"
-                    android:layout_height="30dp"
-                    android:src="@drawable/coin_img" />
+                    android:layout_width="34dp"
+                    android:layout_height="34dp"
+                    android:adjustViewBounds="true"
+                    android:contentDescription="@null"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/coin_d" />
 
                 <TextView
                     android:id="@+id/tv_coinEarned"
@@ -285,13 +291,15 @@
 
         </LinearLayout>
 
-        <!-- How to Get Coins Section -->
+        <!-- How to Get Coins Section (same horizontal inset as cards above) -->
         <LinearLayout
             android:id="@+id/how_to_get_section"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
             android:layout_marginTop="24dp"
-            android:gravity="center_vertical"
+            android:layout_marginEnd="16dp"
+            android:gravity="center"
             android:orientation="horizontal"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -320,34 +328,37 @@
 
         </LinearLayout>
 
-        <!-- Disclaimer -->
+        <!-- Disclaimer: centered copy + same 16dp side margins as invite / stats cards -->
         <TextView
             android:id="@+id/tv_disclamair"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="20dp"
+            android:layout_marginStart="16dp"
             android:layout_marginTop="12dp"
-            android:layout_marginEnd="20dp"
+            android:layout_marginEnd="16dp"
             android:background="@drawable/bg_stats_card"
             android:fontFamily="@font/poppins_regular"
-            android:lineSpacingExtra="2dp"
-            android:padding="12dp"
+            android:gravity="center"
+            android:lineSpacingExtra="4dp"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="14dp"
             android:text="Disclaimer: You will get money only when the referred user completes their KYC."
+            android:textAlignment="center"
             android:textColor="#616161"
-            android:textSize="10sp"
+            android:textSize="11sp"
             android:visibility="gone"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/how_to_get_section" />
 
-        <!-- Steps Container -->
+        <!-- Steps Container: align with cards / disclaimer (16dp horizontal) -->
         <LinearLayout
             android:id="@+id/steps_container"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="40dp"
+            android:layout_marginStart="16dp"
             android:layout_marginTop="18dp"
-            android:layout_marginEnd="40dp"
+            android:layout_marginEnd="16dp"
             android:gravity="center"
             android:orientation="horizontal"
             app:layout_constraintEnd_toEndOf="parent"
@@ -427,11 +438,13 @@
 
                     <ImageView
                         android:id="@+id/coinH"
-                        android:layout_width="30dp"
-                        android:layout_height="30dp"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
                         android:layout_gravity="center"
+                        android:adjustViewBounds="true"
                         android:contentDescription="Coin"
-                        android:src="@drawable/coin_big" />
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/coin_d" />
 
                 </FrameLayout>
 

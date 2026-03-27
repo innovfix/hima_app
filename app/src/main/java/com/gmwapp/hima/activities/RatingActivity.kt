@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
@@ -156,11 +158,11 @@ class RatingActivity : BaseActivity() {
         viewModel.ratingResponseLiveData.observe(this, Observer { response ->
             if (response != null && response.success) {
                 // Handle successful rating submission
-                Toast.makeText(this, "Rating submitted successfully", Toast.LENGTH_SHORT).show()
+                showAppToast("Rating submitted successfully", Toast.LENGTH_SHORT)
                 isRatingApiCompleted = true
             } else {
                 // Handle failure
-                //    Toast.makeText(this, "Rating submission failed", Toast.LENGTH_SHORT).show()
+                //    showAppToast("Rating submission failed", Toast.LENGTH_SHORT)
                 isRatingApiCompleted = true
             }
             
@@ -243,7 +245,7 @@ class RatingActivity : BaseActivity() {
             validatebtn()
 
             // Uncomment this to show a Toast inside the Activity with the selected rating count
-            // Toast.makeText(this, "Selected Rating: $rating", Toast.LENGTH_SHORT).show()
+            // showAppToast("Selected Rating: $rating", Toast.LENGTH_SHORT)
         }
 
         binding.rvRating.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
@@ -334,7 +336,7 @@ class RatingActivity : BaseActivity() {
                     selectedReviewPosition = position
 
                     // Show a toast with the selected item's text
-//                    Toast.makeText(context, "Selected: ${reviews[position]}", Toast.LENGTH_SHORT).show()
+//                    context.showAppToast("Selected: ${reviews[position]}", Toast.LENGTH_SHORT)
                     discription = reviews[position]
 
                     // Validate button on review selection
@@ -444,14 +446,14 @@ class RatingActivity : BaseActivity() {
 
     fun observeBlockuser(){
         blockUserViewModel.blockUserLiveData.observe(this) {
-            Toast.makeText(this, it.message, Toast.LENGTH_SHORT).show()
+            showAppToast(it.message, Toast.LENGTH_SHORT)
             if (selectedRating == 0) {
                 finish()
             }
         }
 
         blockUserViewModel.blockUserErrorLiveData.observe(this) {
-            Toast.makeText(this, it, Toast.LENGTH_SHORT).show()
+            showAppToast(it, Toast.LENGTH_SHORT)
             if (selectedRating == 0) {
                 finish()
             }
@@ -464,14 +466,14 @@ class RatingActivity : BaseActivity() {
                 if (response.isSuccessful && response.body() != null) {
                     val result = response.body()
                     if (result?.success == true) {
-                        Toast.makeText(this@RatingActivity, result.message ?: "Added to favorites", Toast.LENGTH_SHORT).show()
+                        showAppToast(result.message ?: "Added to favorites", Toast.LENGTH_SHORT)
                         isFavoriteApiCompleted = true
                     } else {
-                        Toast.makeText(this@RatingActivity, result?.message ?: "Failed to add to favorites", Toast.LENGTH_SHORT).show()
+                        showAppToast(result?.message ?: "Failed to add to favorites", Toast.LENGTH_SHORT)
                         isFavoriteApiCompleted = true
                     }
                 } else {
-                    Toast.makeText(this@RatingActivity, "Failed to add to favorites", Toast.LENGTH_SHORT).show()
+                    showAppToast("Failed to add to favorites", Toast.LENGTH_SHORT)
                     isFavoriteApiCompleted = true
                 }
                 
@@ -481,7 +483,7 @@ class RatingActivity : BaseActivity() {
 
             override fun onFailure(call: Call<AddFavoriteResponse>, t: Throwable) {
                 isFavoriteApiCompleted = true
-                Toast.makeText(this@RatingActivity, "Error: ${t.message}", Toast.LENGTH_SHORT).show()
+                showAppToast("Error: ${t.message}", Toast.LENGTH_SHORT)
                 
                 // Check if we can close the activity now
                 checkAndCloseActivity()
@@ -489,7 +491,7 @@ class RatingActivity : BaseActivity() {
 
             override fun onNoNetwork() {
                 isFavoriteApiCompleted = true
-                Toast.makeText(this@RatingActivity, "No network connection", Toast.LENGTH_SHORT).show()
+                showAppToast("No network connection", Toast.LENGTH_SHORT)
                 
                 // Check if we can close the activity now
                 checkAndCloseActivity()

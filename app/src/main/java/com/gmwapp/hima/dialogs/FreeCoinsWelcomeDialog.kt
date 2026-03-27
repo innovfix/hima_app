@@ -1,5 +1,7 @@
 package com.gmwapp.hima.dialogs
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.app.Dialog
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
@@ -153,7 +155,7 @@ class FreeCoinsWelcomeDialog : DialogFragment() {
         val userId = userData?.id
 
         if (userId == null) {
-            Toast.makeText(context, "User not found", Toast.LENGTH_SHORT).show()
+            requireContext().showAppToast("User not found", Toast.LENGTH_SHORT)
             return
         }
 
@@ -172,12 +174,12 @@ class FreeCoinsWelcomeDialog : DialogFragment() {
                         // Show success animation
                         showSuccessAnimation(claimResponse)
                     } else {
-                        Toast.makeText(context, claimResponse.message, Toast.LENGTH_SHORT).show()
+                        requireContext().showAppToast(claimResponse.message, Toast.LENGTH_SHORT)
                         binding.btnClaimFreeMinute.isEnabled = true
                         binding.btnClaimFreeMinute.text = buttonText
                     }
                 } else {
-                    Toast.makeText(context, "Failed to claim coins", Toast.LENGTH_SHORT).show()
+                    requireContext().showAppToast("Failed to claim coins", Toast.LENGTH_SHORT)
                     binding.btnClaimFreeMinute.isEnabled = true
                     binding.btnClaimFreeMinute.text = buttonText
                 }
@@ -188,13 +190,13 @@ class FreeCoinsWelcomeDialog : DialogFragment() {
                 t: Throwable
             ) {
                 Log.e("FreeCoinsWelcomeDialog", "API call error: ${t.message}")
-                Toast.makeText(context, "Network error. Please try again.", Toast.LENGTH_SHORT).show()
+                requireContext().showAppToast("Network error. Please try again.", Toast.LENGTH_SHORT)
                 binding.btnClaimFreeMinute.isEnabled = true
                 binding.btnClaimFreeMinute.text = buttonText
             }
 
             override fun onNoNetwork() {
-                Toast.makeText(context, "No network connection", Toast.LENGTH_SHORT).show()
+                requireContext().showAppToast("No network connection", Toast.LENGTH_SHORT)
                 binding.btnClaimFreeMinute.isEnabled = true
                 binding.btnClaimFreeMinute.text = buttonText
             }
@@ -203,7 +205,7 @@ class FreeCoinsWelcomeDialog : DialogFragment() {
 
     private fun startPaymentFlow() {
         if (coinId <= 0 || price <= 0) {
-            Toast.makeText(context, "Payment info not available", Toast.LENGTH_SHORT).show()
+            requireContext().showAppToast("Payment info not available", Toast.LENGTH_SHORT)
             return
         }
 
@@ -264,11 +266,7 @@ class FreeCoinsWelcomeDialog : DialogFragment() {
             binding.ivGiftBox.startAnimation(bounceAnimation)
             
             // Show success message
-            Toast.makeText(
-                context,
-                "Success! ${data.coins_added} coins added to your wallet",
-                Toast.LENGTH_SHORT
-            ).show()
+            requireContext().showAppToast("Success! ${data.coins_added} coins added to your wallet", Toast.LENGTH_SHORT)
             
             // Notify listener to refresh coins in MainActivity
             val coinsAdded = data.coins_added

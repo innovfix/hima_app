@@ -2,6 +2,7 @@ package com.gmwapp.hima.adapters
 
 import android.app.Activity
 import android.content.Intent
+import android.widget.Toast
 import android.graphics.Paint
 import android.util.Log
 import android.view.LayoutInflater
@@ -27,6 +28,8 @@ import com.gmwapp.hima.retrofit.responses.CoinsResponseData
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponseData
 import com.gmwapp.hima.retrofit.responses.FriendRequestResponse
 import com.gmwapp.hima.retrofit.responses.TransactionsResponseData
+import com.gmwapp.hima.utils.CallUnavailableFeedback
+import com.gmwapp.hima.utils.showAppToast
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import kotlinx.coroutines.withContext
 import retrofit2.Call
@@ -107,6 +110,9 @@ class RecentCallsAdapter(
                 holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
                 holder.binding.ivAudio.isEnabled = false
                 holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
+                holder.binding.ivAudioCircle.setOnSingleClickListener {
+                    CallUnavailableFeedback.show(activity, holder.binding.root, forAudio = true)
+                }
             }else{
                 holder.binding.ivAudioCircle.setOnSingleClickListener{
                     onAudioListener.onItemSelected(call)
@@ -121,6 +127,9 @@ class RecentCallsAdapter(
                 holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
                 holder.binding.ivVideo.isEnabled = false
                 holder.binding.ivVideo.setImageResource(R.drawable.ic_video_modern)
+                holder.binding.ivVideoCircle.setOnSingleClickListener {
+                    CallUnavailableFeedback.show(activity, holder.binding.root, forAudio = false)
+                }
             }else{
                 holder.binding.ivVideoCircle.setOnSingleClickListener{ onVideoListener.onItemSelected(call) }
                 holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.green))
@@ -242,12 +251,12 @@ class RecentCallsAdapter(
             holder.binding.ivAudio.isEnabled = false
             holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
             
-            holder.binding.ivAudioCircle.setOnSingleClickListener{
-                Log.d("ivAudioCircle","ivAudioCircle")
+            holder.binding.ivAudioCircle.setOnSingleClickListener {
+                CallUnavailableFeedback.showBlocked(activity, holder.binding.root)
             }
 
-            holder.binding.ivVideoCircle.setOnSingleClickListener{
-                Log.d("ivAudioCircle","ivAudioCircle")
+            holder.binding.ivVideoCircle.setOnSingleClickListener {
+                CallUnavailableFeedback.showBlocked(activity, holder.binding.root)
             }
 
         }
@@ -279,9 +288,17 @@ class RecentCallsAdapter(
 
 
     fun addData(newData: List<CallsListResponseData>) {
+        if (isFavouriteMode) {
+            // Merge and de-dupe by id: fixes (1) duplicates inside one API payload, (2) overlapping responses / races
+            val merged = (callList + newData).distinctBy { it.id }
+            if (merged.size == callList.size) return
+            callList.clear()
+            callList.addAll(merged)
+            notifyDataSetChanged()
+            return
+        }
         val start = callList.size
         callList.addAll(newData)
-
         notifyItemRangeInserted(start, newData.size)
     }
 
@@ -378,7 +395,7 @@ class RecentCallsAdapter(
         val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
         
         if (currentUserId == 0) {
-            android.widget.Toast.makeText(activity, "Unable to load user data", android.widget.Toast.LENGTH_SHORT).show()
+            activity.showAppToast("Unable to load user data", Toast.LENGTH_SHORT)
             return
         }
         
@@ -439,7 +456,7 @@ class RecentCallsAdapter(
                 }
                 
                 override fun onNoNetwork() {
-                    android.widget.Toast.makeText(activity, "No internet connection", android.widget.Toast.LENGTH_SHORT).show()
+                    activity.showAppToast("No internet connection", Toast.LENGTH_SHORT)
                 }
             }
         )

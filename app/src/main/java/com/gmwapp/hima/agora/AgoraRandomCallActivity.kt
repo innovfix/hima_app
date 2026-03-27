@@ -1,5 +1,7 @@
 package com.gmwapp.hima.agora
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
@@ -338,19 +340,19 @@ class AgoraRandomCallActivity : AppCompatActivity() {
                 }
             }else{
 
-//                Toast.makeText(this, "${response.message}", Toast.LENGTH_LONG).show()
+//                showAppToast("${response.message}", Toast.LENGTH_LONG)
 //                navigateToMainActivity()
 
                 response?.message?.let { message ->
                     if (message.startsWith("Insufficient coins")) {
                         val intent = Intent(this@AgoraRandomCallActivity, WalletActivity::class.java)
-                        Toast.makeText(this@AgoraRandomCallActivity, message, Toast.LENGTH_LONG).show()
+                        showAppToast(message, Toast.LENGTH_LONG)
                         startActivity(intent)
                         finish()
                     } else {
                         Log.d("RandomUsersResponse", "$message")
 
-                        Toast.makeText(this@AgoraRandomCallActivity, message, Toast.LENGTH_LONG).show()
+                        showAppToast(message, Toast.LENGTH_LONG)
                         navigateToMainActivity()
                     }
                 }

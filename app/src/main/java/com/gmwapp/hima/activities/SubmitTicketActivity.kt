@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -45,7 +47,7 @@ class SubmitTicketActivity : BaseActivity() {
                 selectedImages.add(it)
                 updateImageRecyclerView()
             } else {
-                Toast.makeText(this, "You can attach up to 3 images", Toast.LENGTH_SHORT).show()
+                showAppToast("You can attach up to 3 images", Toast.LENGTH_SHORT)
             }
         }
     }
@@ -86,7 +88,7 @@ class SubmitTicketActivity : BaseActivity() {
             if (selectedImages.size < 3) {
                 imagePickerLauncher.launch("image/*")
             } else {
-                Toast.makeText(this, "You can attach up to 3 images", Toast.LENGTH_SHORT).show()
+                showAppToast("You can attach up to 3 images", Toast.LENGTH_SHORT)
             }
         }
 
@@ -140,12 +142,12 @@ class SubmitTicketActivity : BaseActivity() {
         val message = binding.etDescription.text.toString().trim()
 
         if (TextUtils.isEmpty(message)) {
-            Toast.makeText(this, "Please describe your issue", Toast.LENGTH_SHORT).show()
+            showAppToast("Please describe your issue", Toast.LENGTH_SHORT)
             return
         }
 
         if (message.length < 15) {
-            Toast.makeText(this, "Please provide more details (at least 15 characters)", Toast.LENGTH_SHORT).show()
+            showAppToast("Please provide more details (at least 15 characters)", Toast.LENGTH_SHORT)
             return
         }
 
@@ -153,7 +155,7 @@ class SubmitTicketActivity : BaseActivity() {
         val userId = userData?.id ?: 0
 
         if (userId <= 0) {
-            Toast.makeText(this, "User not logged in", Toast.LENGTH_SHORT).show()
+            showAppToast("User not logged in", Toast.LENGTH_SHORT)
             return
         }
 
@@ -182,20 +184,20 @@ class SubmitTicketActivity : BaseActivity() {
             binding.progressBar.visibility = android.view.View.GONE
             binding.btnSubmit.isEnabled = true
             if (response != null && response.success) {
-                Toast.makeText(this, response.message ?: "Ticket submitted successfully", Toast.LENGTH_SHORT).show()
+                showAppToast(response.message ?: "Ticket submitted successfully", Toast.LENGTH_SHORT)
                 binding.etDescription.text?.clear()
                 selectedImages.clear()
                 updateImageRecyclerView()
                 finish()
             } else {
-                Toast.makeText(this, response?.message ?: "Failed to submit ticket", Toast.LENGTH_SHORT).show()
+                showAppToast(response?.message ?: "Failed to submit ticket", Toast.LENGTH_SHORT)
             }
         })
 
         accountViewModel.submitTicketErrorLiveData.observe(this, Observer { error ->
             binding.progressBar.visibility = android.view.View.GONE
             binding.btnSubmit.isEnabled = true
-            Toast.makeText(this, error ?: "An error occurred", Toast.LENGTH_SHORT).show()
+            showAppToast(error ?: "An error occurred", Toast.LENGTH_SHORT)
             Log.e("SubmitTicketActivity", "Error submitting ticket: $error")
         })
     }

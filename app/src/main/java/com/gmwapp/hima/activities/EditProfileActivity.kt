@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -188,7 +190,7 @@ class EditProfileActivity : BaseActivity() {
                     selectedInterests.add(interest.name)
                 }
                 interestsListAdapter?.updateLimitReached(selectedInterests.size == 5)
-           //     Toast.makeText(this@EditProfileActivity, selectedInterests.size.toString(), Toast.LENGTH_LONG).show()
+           //     showAppToast(selectedInterests.size.toString(), Toast.LENGTH_LONG)
                 updateButton()
             }
         })
@@ -284,7 +286,7 @@ class EditProfileActivity : BaseActivity() {
                 binding.tvUserNameHint.visibility = View.VISIBLE
                 
                 // Also show Toast to ensure user sees the error
-                Toast.makeText(this@EditProfileActivity, errorMessage, Toast.LENGTH_LONG).show()
+                showAppToast(errorMessage, Toast.LENGTH_LONG)
                 
                 Log.d("EditProfile", "Error message displayed - TextView text: ${binding.tvUserNameHint.text}, visibility: ${binding.tvUserNameHint.visibility}")
             }
@@ -313,11 +315,7 @@ class EditProfileActivity : BaseActivity() {
             binding.pbUpdateLoader.visibility = View.GONE
             binding.btnUpdate.text = getString(R.string.update)
             binding.btnUpdate.isEnabled = true
-            Toast.makeText(
-                this@EditProfileActivity,
-                getString(R.string.please_try_again_later),
-                Toast.LENGTH_LONG
-            ).show()
+            showAppToast(getString(R.string.please_try_again_later), Toast.LENGTH_LONG)
         })
         profileViewModel.updateProfileLiveData.observe(this, Observer {
             binding.pbUpdateLoader.visibility = View.GONE
@@ -332,9 +330,7 @@ class EditProfileActivity : BaseActivity() {
                     sharedPreferences.edit().putBoolean("hasChangedName", true).apply()
                 }
                 
-                Toast.makeText(
-                    this@EditProfileActivity, getString(R.string.profile_updated), Toast.LENGTH_LONG
-                ).show()
+                showAppToast(getString(R.string.profile_updated), Toast.LENGTH_LONG)
 
                 BaseApplication.getInstance()?.getPrefs()?.setUserData(it.data)
                 
@@ -345,7 +341,7 @@ class EditProfileActivity : BaseActivity() {
                 finish()
             } else {
                 // Show error message from backend (e.g., "You can change your name only once.")
-                Toast.makeText(this@EditProfileActivity, it.message ?: getString(R.string.please_try_again_later), Toast.LENGTH_LONG).show()
+                showAppToast(it.message ?: getString(R.string.please_try_again_later), Toast.LENGTH_LONG)
             }
         })
         profileViewModel.avatarsListLiveData.observe(this, Observer {
@@ -390,10 +386,10 @@ class EditProfileActivity : BaseActivity() {
 
         if (isValidUserName && (usernameChanged || interestsChanged || avatarChanged)) {
             binding.btnUpdate.isEnabled = true
-//            Toast.makeText(this@EditProfileActivity, "1".toString(), Toast.LENGTH_LONG).show()
+//            showAppToast("1".toString(), Toast.LENGTH_LONG)
             //   binding.btnUpdate.setBackgroundResource(R.drawable.d_button_bg_white)
         } else {
-//            Toast.makeText(this@EditProfileActivity, "2", Toast.LENGTH_LONG).show()
+//            showAppToast("2", Toast.LENGTH_LONG)
             binding.btnUpdate.isEnabled = false
             //   binding.btnUpdate.setBackgroundResource(R.drawable.d_button_bg_disabled)
         }

@@ -7,9 +7,11 @@ import androidx.lifecycle.viewModelScope
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.repositories.ReportUserRepository
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
+import com.gmwapp.hima.retrofit.responses.ReportReason
 import com.gmwapp.hima.retrofit.responses.ReportReasonsResponse
 import com.gmwapp.hima.retrofit.responses.ReportUserResponse
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import retrofit2.Call
 import retrofit2.Response
@@ -25,7 +27,18 @@ class ReportUserViewModel @Inject constructor(
     val reportUserLiveData = MutableLiveData<ReportUserResponse>()
     val reportUserErrorLiveData = MutableLiveData<String>()
 
-    fun getReportReasons(userId: Int) {
+    fun getReportReasons(
+        userId: Int,
+        completion: ((List<ReportReason>?) -> Unit)? = null
+    ) {
+        fun dispatchCompletion(list: List<ReportReason>?) {
+            if (completion != null) {
+                viewModelScope.launch(Dispatchers.Main) {
+                    completion.invoke(list)
+                }
+            }
+        }
+
         viewModelScope.launch {
             repository.getReportReasons(userId, object : NetworkCallback<ReportReasonsResponse> {
                 override fun onResponse(
@@ -43,7 +56,6 @@ class ReportUserViewModel @Inject constructor(
                         val errorBodyString = response.errorBody()?.string()
                         Log.e("ReportUserAPI", "Error Body: $errorBodyString")
                         
-                        // Parse error body JSON to extract the message
                         try {
                             if (!errorBodyString.isNullOrEmpty()) {
                                 val gson = com.google.gson.Gson()
@@ -58,8 +70,16 @@ class ReportUserViewModel @Inject constructor(
                             Log.e("ReportUserAPI", "Failed to parse error body", e)
                             reportReasonsErrorLiveData.postValue("Failed to load report reasons")
                         }
+                        dispatchCompletion(null)
                     } else {
-                        reportReasonsLiveData.postValue(response.body())
+                        val body = response.body()
+                        reportReasonsLiveData.postValue(body)
+                        val list = if (body?.success == true && !body.data.isNullOrEmpty()) {
+                            body.data
+                        } else {
+                            null
+                        }
+                        dispatchCompletion(list)
                     }
                     
                     Log.d("ReportUserAPI", "Response Headers: ${response.headers()}")
@@ -75,11 +95,13 @@ class ReportUserViewModel @Inject constructor(
                     Log.e("ReportUserAPI", "======================================")
                     
                     reportReasonsErrorLiveData.postValue(DConstants.LOGIN_ERROR)
+                    dispatchCompletion(null)
                 }
 
                 override fun onNoNetwork() {
                     Log.w("ReportUserAPI", "No network connection for getReportReasons")
                     reportReasonsErrorLiveData.postValue(DConstants.NO_NETWORK)
+                    dispatchCompletion(null)
                 }
             })
         }

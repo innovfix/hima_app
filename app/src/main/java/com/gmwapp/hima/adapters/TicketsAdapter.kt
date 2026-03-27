@@ -6,23 +6,9 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.gmwapp.hima.databinding.ItemTicketBinding
 import com.gmwapp.hima.retrofit.responses.TicketDataResponse
+import com.gmwapp.hima.utils.unescapeHelpContent
 import java.text.SimpleDateFormat
 import java.util.Locale
-
-/**
- * Helper function to unescape common escape sequences in text
- * Handles: \n, \', \u0027, HTML entities, etc.
- */
-private fun String.unescapeText(): String {
-    return this
-        .replace("\\n", "\n")  // Newlines
-        .replace("\\'", "'")   // Escaped apostrophes
-        .replace("\\u0027", "'")  // Unicode apostrophe
-        .replace("&#39;", "'")  // HTML entity apostrophe
-        .replace("&apos;", "'")  // HTML entity apostrophe (XML)
-        .replace("&quot;", "\"")  // HTML entity quote
-        .replace("\\\\", "\\")  // Double backslashes
-}
 
 class TicketsAdapter(
     private val tickets: MutableList<TicketDataResponse>,
@@ -66,7 +52,7 @@ class TicketsAdapter(
             
             // Message - unescape common escape sequences
             val messageText = ticket.message ?: ""
-            binding.tvMessage.text = messageText.unescapeText()
+            binding.tvMessage.text = messageText.unescapeHelpContent()
             
             // Created date - format from "2025-11-05 12:11:14" to "5 Nov 2025"
             try {
@@ -82,7 +68,7 @@ class TicketsAdapter(
             val replyText = ticket.reply ?: ""
             if (replyText.isNotEmpty()) {
                 binding.llReplySection.visibility = View.VISIBLE
-                binding.tvReply.text = replyText.unescapeText()
+                binding.tvReply.text = replyText.unescapeHelpContent()
             } else {
                 binding.llReplySection.visibility = View.GONE
             }

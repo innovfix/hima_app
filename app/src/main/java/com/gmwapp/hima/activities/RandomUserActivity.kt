@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
@@ -294,7 +296,7 @@ class RandomUserActivity : BaseActivity(), OnButtonClickListener {
 //        // Observe API response
 //        giftViewModel.giftResponseLiveData.observe(this) { response ->
 //            if (response != null) {
-//                Toast.makeText(this, "Gift sent successfully!", Toast.LENGTH_SHORT).show()
+//                showAppToast("Gift sent successfully!", Toast.LENGTH_SHORT)
 //                getRemainingTime()
 //
 //                Log.d("GiftAPI", "Response: $response")
@@ -303,7 +305,7 @@ class RandomUserActivity : BaseActivity(), OnButtonClickListener {
 //
 //        // Observe API failure
 //        giftViewModel.giftErrorLiveData.observe(this) { error ->
-//            Toast.makeText(this, "Error: $error", Toast.LENGTH_SHORT).show()
+//            showAppToast("Error: $error", Toast.LENGTH_SHORT)
 //            Log.e("GiftAPI", "Error: $error")
 //        }
 //
@@ -596,7 +598,7 @@ class RandomUserActivity : BaseActivity(), OnButtonClickListener {
 //        when (type) {
 //            "audio" -> receiverId?.let { StartVoiceCall(it, receiverName, callId) }
 //            "video" -> receiverId?.let { StartVideoCall(it, receiverName, callId) }
-//            else -> Toast.makeText(this, "Invalid call type", Toast.LENGTH_SHORT).show()
+//            else -> showAppToast("Invalid call type", Toast.LENGTH_SHORT)
 //        }
 //
 //    }

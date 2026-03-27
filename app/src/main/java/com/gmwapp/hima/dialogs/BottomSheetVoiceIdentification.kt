@@ -1,5 +1,7 @@
 package com.gmwapp.hima.dialogs
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.app.Dialog
 import android.content.Context
 import android.media.MediaPlayer
@@ -109,11 +111,11 @@ class BottomSheetVoiceIdentification : BottomSheetDialogFragment() {
                     val durationInSeconds = ceil(durationInMillis / 1000.0).toInt()
 
                     if (durationInSeconds < 3) {
-                        Toast.makeText(context, "Recording must be above 3 seconds", Toast.LENGTH_SHORT).show()
+                        requireContext().showAppToast("Recording must be above 3 seconds", Toast.LENGTH_SHORT)
                         audiofile?.delete() // Delete short recording
                         return@OnTouchListener true
                     }else if (durationInSeconds < 1){
-                        Toast.makeText(context, "Recording must be above 3 seconds", Toast.LENGTH_SHORT).show()
+                        requireContext().showAppToast("Recording must be above 3 seconds", Toast.LENGTH_SHORT)
 
                     }
 
@@ -248,7 +250,7 @@ class BottomSheetVoiceIdentification : BottomSheetDialogFragment() {
 
             val durationInSeconds = ceil((mediaPlayer?.duration ?: 0) / 1000.0).toInt()
             if (durationInSeconds < 3) {
-                Toast.makeText(context, "Recording must be above 3 seconds", Toast.LENGTH_SHORT).show()
+                requireContext().showAppToast("Recording must be above 3 seconds", Toast.LENGTH_SHORT)
                 audiofile?.delete()
             } else {
                 binding.tvPlayToListen.visibility = View.VISIBLE

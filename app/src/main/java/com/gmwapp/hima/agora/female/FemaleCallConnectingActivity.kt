@@ -1,5 +1,7 @@
 package com.gmwapp.hima.agora.female
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
@@ -101,7 +103,7 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
             initUI()
             // Simulate preview for 2 seconds, then return to main
             handler.postDelayed({
-                Toast.makeText(this, "Design preview only", Toast.LENGTH_SHORT).show()
+                showAppToast("Design preview only", Toast.LENGTH_SHORT)
                 val intent = Intent(this@FemaleCallConnectingActivity, MainActivity::class.java)
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 startActivity(intent)
@@ -347,7 +349,7 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
         fcmNotificationViewModel.notificationErrorLiveData.observe(this) { error ->
             error?.let {
                 Log.e("FCMNotification", "Notification error: $it")
-                Toast.makeText(this, "Failed to connect: $it", Toast.LENGTH_SHORT).show()
+                showAppToast("Failed to connect: $it", Toast.LENGTH_SHORT)
             }
         }
     }
@@ -396,11 +398,7 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                     isRunning = false
                     FcmUtils.clearCallStatus()
                     FcmUtils.shouldRefreshCallList = 1
-                    Toast.makeText(
-                        this@FemaleCallConnectingActivity,
-                        "$receiverName is busy",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    showAppToast("$receiverName is busy", Toast.LENGTH_SHORT)
                     val intent = Intent(this@FemaleCallConnectingActivity, MainActivity::class.java)
                     intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                     startActivity(intent)
@@ -421,7 +419,7 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
     private fun disconnectCall() {
         isRunning = false
         cancelTimeoutTracking()
-     //   Toast.makeText(this, "$receiverName is not responding", Toast.LENGTH_SHORT).show()
+     //   showAppToast("$receiverName is not responding", Toast.LENGTH_SHORT)
         if (!designOnly && userId != null && callType != null) {
             sendCallNotification(userId!!, receiverId, callType!!, "callDeclined")
             FcmUtils.clearCallStatus()

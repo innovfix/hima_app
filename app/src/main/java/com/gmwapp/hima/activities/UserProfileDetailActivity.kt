@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.content.Intent
 import android.graphics.Color
 import android.os.Build
@@ -81,6 +83,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
     private var isRejectInProgress = false
     private var isFavorite: Boolean = false
     private var reportReasons: List<ReportReason> = emptyList()
+    private var reportReasonsLoadingDialog: AlertDialog? = null
     private var reportDialog: AlertDialog? = null
     private var isUserBlocked: Boolean = false
     private var blockStatusChecked: Boolean = false
@@ -121,9 +124,8 @@ class UserProfileDetailActivity : AppCompatActivity() {
 
         // Load notify-me toggle state for male users viewing female profile
         loadFemaleNotificationPreference()
-        
-        // Check block status (for female users)
-        checkBlockStatus()
+
+        // Block status: onResume -> checkBlockStatus()
 
         window.statusBarColor = Color.parseColor("#ffffff") // startColor of your gradient
 
@@ -138,6 +140,11 @@ class UserProfileDetailActivity : AppCompatActivity() {
         // Debug: Verify button visibility
         Log.d("UserProfileDetail", "Send Friend Request button visibility: ${binding.btnSendFriendRequest.visibility}")
         Log.d("UserProfileDetail", "Action buttons layout visibility: ${binding.llAcceptRejectButtons.visibility}")
+    }
+
+    override fun onResume() {
+        super.onResume()
+        checkBlockStatus()
     }
 
     private fun setupObservers() {
@@ -172,7 +179,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
                 Log.d("UserProfileDetail", "✅ Friend request action successful: ${response.message}")
                 
                 // Show success message
-                Toast.makeText(this, response.message, Toast.LENGTH_SHORT).show()
+                showAppToast(response.message, Toast.LENGTH_SHORT)
                 
                 // If reject was successful, hide both button and message card
                 if (isRejectInProgress) {
@@ -191,7 +198,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
         // Observe friend request errors
         friendRequestViewModel.friendRequestErrorLiveData.observe(this, Observer { error ->
             Log.e("UserProfileDetail", "❌ Friend request error: $error")
-            Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
+            showAppToast(error, Toast.LENGTH_SHORT)
         })
 
         // Observe loading state
@@ -212,8 +219,8 @@ class UserProfileDetailActivity : AppCompatActivity() {
         })
 
         reportUserViewModel.reportReasonsErrorLiveData.observe(this, Observer { error ->
+            if (error.isNullOrBlank()) return@Observer
             Log.e("UserProfileDetail", "❌ Report reasons error: $error")
-            Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
         })
 
         reportUserViewModel.reportUserLiveData.observe(this, Observer { response ->
@@ -228,7 +235,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
                 Log.d("UserProfileDetail", "Response error: ${response.error}")
                 
                 val message = response.message ?: "Report submitted"
-                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+                showAppToast(message, Toast.LENGTH_SHORT)
                 reportDialog?.dismiss()
                 Log.d("UserProfileDetail", "✅ Report submitted successfully")
             } else {
@@ -241,21 +248,21 @@ class UserProfileDetailActivity : AppCompatActivity() {
             Log.e("UserProfileDetail", "===== REPORT USER ERROR OBSERVER =====")
             Log.e("UserProfileDetail", "❌ Report user error: $error")
             Log.e("UserProfileDetail", "====================================")
-            Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
+            showAppToast(error, Toast.LENGTH_SHORT)
         })
 
         blockUserViewModel.blockUserLiveData.observe(this, Observer { response ->
             if (response != null) {
-                Toast.makeText(this, response.message, Toast.LENGTH_SHORT).show()
-                // Update UI to show unblock
+                showAppToast(response.message, Toast.LENGTH_SHORT)
                 isUserBlocked = true
                 updateBlockButtonUI()
+                checkBlockStatus()
             }
         })
 
         blockUserViewModel.blockUserErrorLiveData.observe(this, Observer { error ->
             Log.e("UserProfileDetail", "❌ Block user error: $error")
-            Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
+            showAppToast(error, Toast.LENGTH_SHORT)
         })
         
         // Observe check block status
@@ -265,15 +272,19 @@ class UserProfileDetailActivity : AppCompatActivity() {
             
             if (response != null) {
                 blockStatusChecked = true
-                
-                // Check various possible response formats
-                val blockedStatus = response.blockedStatus 
-                    ?: response.data?.blockedStatus 
-                    ?: if (response.isBlocked == true) 2 else 0
-                
-                isUserBlocked = blockedStatus == 2 || response.isBlocked == true
-                
-                Log.d("UserProfileDetail", "Block Status: $blockedStatus, Is Blocked: $isUserBlocked")
+
+                val statusFromPayload =
+                    response.data?.blockedStatus ?: response.blockedStatus
+                val isBlockedBool =
+                    response.isBlocked == true || response.data?.isBlocked == true
+                // API may return 1 or 2 for "blocked" after POST uses blocked=1; treat any non‑zero as blocked
+                isUserBlocked = isBlockedBool ||
+                    (statusFromPayload != null && statusFromPayload != 0)
+
+                Log.d(
+                    "UserProfileDetail",
+                    "blockedStatus=$statusFromPayload isBlockedBool=$isBlockedBool => isUserBlocked=$isUserBlocked"
+                )
                 updateBlockButtonUI()
             }
             Log.d("UserProfileDetail", "====================================")
@@ -288,16 +299,16 @@ class UserProfileDetailActivity : AppCompatActivity() {
         // Observe unblock user
         blockUserViewModel.unblockUserLiveData.observe(this, Observer { response ->
             if (response != null) {
-                Toast.makeText(this, response.message, Toast.LENGTH_SHORT).show()
-                // Update UI to show block
+                showAppToast(response.message, Toast.LENGTH_SHORT)
                 isUserBlocked = false
                 updateBlockButtonUI()
+                checkBlockStatus()
             }
         })
-        
+
         blockUserViewModel.unblockUserErrorLiveData.observe(this, Observer { error ->
             Log.e("UserProfileDetail", "❌ Unblock user error: $error")
-            Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
+            showAppToast(error, Toast.LENGTH_SHORT)
         })
     }
 
@@ -478,7 +489,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
     private fun updateFemaleNotificationPreference(isEnabled: Boolean) {
         val maleUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
         if (maleUserId == 0 || userId == 0) {
-            Toast.makeText(this, "Unable to update preference. Please try again.", Toast.LENGTH_SHORT).show()
+            showAppToast("Unable to update preference. Please try again.", Toast.LENGTH_SHORT)
             rollbackNotifyToggle(!isEnabled)
             return
         }
@@ -499,17 +510,13 @@ class UserProfileDetailActivity : AppCompatActivity() {
                     binding.swNotifyOnline.isEnabled = true
 
                     if (response.isSuccessful && response.body()?.success == true) {
-                        Toast.makeText(
-                            this@UserProfileDetailActivity,
-                            response.body()?.message ?: "Preference updated successfully.",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        showAppToast(response.body()?.message ?: "Preference updated successfully.", Toast.LENGTH_SHORT)
                         isUpdatingNotifyPreference = false
                         return
                     }
 
                     val errorMessage = extractNotifyPreferenceErrorMessage(response)
-                    Toast.makeText(this@UserProfileDetailActivity, errorMessage, Toast.LENGTH_SHORT).show()
+                    showAppToast(errorMessage, Toast.LENGTH_SHORT)
                     rollbackNotifyToggle(!isEnabled)
                     isUpdatingNotifyPreference = false
                 }
@@ -518,14 +525,14 @@ class UserProfileDetailActivity : AppCompatActivity() {
                     binding.swNotifyOnline.isEnabled = true
                     rollbackNotifyToggle(!isEnabled)
                     isUpdatingNotifyPreference = false
-                    Toast.makeText(this@UserProfileDetailActivity, DConstants.LOGIN_ERROR, Toast.LENGTH_SHORT).show()
+                    showAppToast(DConstants.LOGIN_ERROR, Toast.LENGTH_SHORT)
                 }
 
                 override fun onNoNetwork() {
                     binding.swNotifyOnline.isEnabled = true
                     rollbackNotifyToggle(!isEnabled)
                     isUpdatingNotifyPreference = false
-                    Toast.makeText(this@UserProfileDetailActivity, DConstants.NO_NETWORK, Toast.LENGTH_SHORT).show()
+                    showAppToast(DConstants.NO_NETWORK, Toast.LENGTH_SHORT)
                 }
             }
         )
@@ -608,24 +615,55 @@ class UserProfileDetailActivity : AppCompatActivity() {
     }
 
     private fun loadReportReasons() {
-        val currentUser = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        val currentUserId = currentUser?.id ?: 0
-        val currentUserGender = currentUser?.gender?.lowercase()
-
-        if (currentUserId == 0 || currentUserGender != DConstants.FEMALE.lowercase()) {
+        val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+        if (currentUserId == 0) {
             return
         }
-
         reportUserViewModel.getReportReasons(currentUserId)
     }
 
     private fun showReportDialog() {
-        if (reportReasons.isEmpty()) {
-            Toast.makeText(this, "Report reasons not available yet", Toast.LENGTH_SHORT).show()
-            loadReportReasons()
+        if (reportReasons.isNotEmpty()) {
+            showReportReasonPickerDialog()
+            return
+        }
+        if (reportReasonsLoadingDialog?.isShowing == true) {
             return
         }
 
+        val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+        if (currentUserId == 0) {
+            showAppToast(R.string.report_unable_to_identify_user, Toast.LENGTH_SHORT)
+            return
+        }
+
+        reportReasonsLoadingDialog = AlertDialog.Builder(this)
+            .setMessage(R.string.loading_report_reasons)
+            .setCancelable(true)
+            .setOnDismissListener {
+                reportReasonsLoadingDialog = null
+            }
+            .create()
+        reportReasonsLoadingDialog?.show()
+
+        reportUserViewModel.getReportReasons(currentUserId) { reasons ->
+            reportReasonsLoadingDialog?.dismiss()
+            reportReasonsLoadingDialog = null
+            if (!reasons.isNullOrEmpty()) {
+                reportReasons = reasons
+                showReportReasonPickerDialog()
+            } else {
+                AlertDialog.Builder(this)
+                    .setTitle(R.string.report_reasons_unavailable_title)
+                    .setMessage(R.string.report_reasons_unavailable_message)
+                    .setPositiveButton(R.string.retry) { _, _ -> showReportDialog() }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
+            }
+        }
+    }
+
+    private fun showReportReasonPickerDialog() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_report_user, null)
         val chipGroup = dialogView.findViewById<com.google.android.material.chip.ChipGroup>(R.id.chip_group_reasons)
         val reasonInputLayout = dialogView.findViewById<com.google.android.material.textfield.TextInputLayout>(R.id.til_reason_text)
@@ -678,12 +716,12 @@ class UserProfileDetailActivity : AppCompatActivity() {
             .setOnClickListener {
                 val reason = selectedReason
                 if (reason == null) {
-                    Toast.makeText(this, "Please select a reason", Toast.LENGTH_SHORT).show()
+                    showAppToast("Please select a reason", Toast.LENGTH_SHORT)
                     return@setOnClickListener
                 }
                 val reasonText = reasonEditText.text?.toString()?.trim()
                 if (reason.requires_text == 1 && reasonText.isNullOrEmpty()) {
-                    Toast.makeText(this, "Please provide details", Toast.LENGTH_SHORT).show()
+                    showAppToast("Please provide details", Toast.LENGTH_SHORT)
                     return@setOnClickListener
                 }
                 submitReport(reason.id, reasonText)
@@ -696,7 +734,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
     private fun submitReport(reasonId: Int, reasonText: String?) {
         val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
         if (currentUserId == 0) {
-            Toast.makeText(this, "Unable to submit report. Please try again.", Toast.LENGTH_SHORT).show()
+            showAppToast("Unable to submit report. Please try again.", Toast.LENGTH_SHORT)
             return
         }
         reportUserViewModel.reportUser(currentUserId, userId, reasonId, reasonText)
@@ -727,7 +765,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
     private fun blockUser() {
         val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
         if (currentUserId == 0) {
-            Toast.makeText(this, "Unable to block user. Please try again.", Toast.LENGTH_SHORT).show()
+            showAppToast("Unable to block user. Please try again.", Toast.LENGTH_SHORT)
             return
         }
         blockUserViewModel.blockUser(currentUserId, userId, 1)
@@ -736,7 +774,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
     private fun unblockUser() {
         val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
         if (currentUserId == 0) {
-            Toast.makeText(this, "Unable to unblock user. Please try again.", Toast.LENGTH_SHORT).show()
+            showAppToast("Unable to unblock user. Please try again.", Toast.LENGTH_SHORT)
             return
         }
         Log.d("UserProfileDetail", "🔓 Unblocking user $userId")
@@ -744,19 +782,19 @@ class UserProfileDetailActivity : AppCompatActivity() {
     }
     
     private fun checkBlockStatus() {
-        // Only check block status for female users
-        val currentUserGender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
+        val currentUserGender =
+            BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender?.lowercase()
         if (currentUserGender != DConstants.FEMALE) {
             Log.d("UserProfileDetail", "Skipping block status check - not a female user")
             return
         }
-        
+
         val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
         if (currentUserId == 0) {
             Log.e("UserProfileDetail", "Unable to check block status - no current user ID")
             return
         }
-        
+
         Log.d("UserProfileDetail", "🔍 Checking block status for user $userId")
         blockUserViewModel.checkBlockStatus(currentUserId, userId)
     }
@@ -798,7 +836,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
         val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
         
         if (currentUserId == 0) {
-            Toast.makeText(this, "Unable to load user data. Please try again.", Toast.LENGTH_SHORT).show()
+            showAppToast("Unable to load user data. Please try again.", Toast.LENGTH_SHORT)
             return
         }
         
@@ -817,7 +855,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
         val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
         
         if (currentUserId == 0) {
-            Toast.makeText(this, "Unable to send friend request. Please try again.", Toast.LENGTH_SHORT).show()
+            showAppToast("Unable to send friend request. Please try again.", Toast.LENGTH_SHORT)
             return
         }
         
@@ -836,7 +874,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
         val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
         
         if (currentUserId == 0) {
-            Toast.makeText(this, "Unable to accept friend request. Please try again.", Toast.LENGTH_SHORT).show()
+            showAppToast("Unable to accept friend request. Please try again.", Toast.LENGTH_SHORT)
             return
         }
         
@@ -855,7 +893,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
         val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
         
         if (currentUserId == 0) {
-            Toast.makeText(this, "Unable to reject friend request. Please try again.", Toast.LENGTH_SHORT).show()
+            showAppToast("Unable to reject friend request. Please try again.", Toast.LENGTH_SHORT)
             return
         }
         
@@ -873,7 +911,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
 
     private fun startCall(callType: String) {
         if (currentFriendStatus != FriendStatus.FRIENDS) {
-            android.widget.Toast.makeText(this, "You must be friends to make a call", android.widget.Toast.LENGTH_SHORT).show()
+            showAppToast("You must be friends to make a call", Toast.LENGTH_SHORT)
             return
         }
 
@@ -926,6 +964,14 @@ class UserProfileDetailActivity : AppCompatActivity() {
                 binding.tvFriendStatus.text = "You are friends"
             }
         }
+
+        // Collapse this row when every child is GONE — otherwise empty margins stack above Report/Block.
+        val showActionButtonsSection =
+            binding.btnSendFriendRequest.visibility == View.VISIBLE ||
+                binding.llAcceptRejectButtons.visibility == View.VISIBLE ||
+                binding.llCallButtons.visibility == View.VISIBLE
+        binding.llActionButtons.visibility =
+            if (showActionButtonsSection) View.VISIBLE else View.GONE
     }
 
     // For testing purposes - simulate different friend statuses
@@ -986,7 +1032,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
             override fun onNoNetwork() {
                 Log.e("UserProfileDetail", "❌ No network while checking favorite status")
                 runOnUiThread {
-                    Toast.makeText(this@UserProfileDetailActivity, "No internet connection", Toast.LENGTH_SHORT).show()
+                    showAppToast("No internet connection", Toast.LENGTH_SHORT)
                 }
             }
         })
@@ -999,7 +1045,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
         val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
         
         if (currentUserId == 0) {
-            Toast.makeText(this, "Unable to update favorites. Please try again.", Toast.LENGTH_SHORT).show()
+            showAppToast("Unable to update favorites. Please try again.", Toast.LENGTH_SHORT)
             return
         }
         
@@ -1028,23 +1074,17 @@ class UserProfileDetailActivity : AppCompatActivity() {
                         isFavorite = true
                         runOnUiThread {
                             updateFavoriteUI()
-                            Toast.makeText(this@UserProfileDetailActivity, 
-                                result.message ?: "Added to favorites", 
-                                Toast.LENGTH_SHORT).show()
+                            showAppToast(result.message ?: "Added to favorites", Toast.LENGTH_SHORT)
                         }
                         Log.d("UserProfileDetail", "✅ Added to favorites successfully")
                     } else {
                         runOnUiThread {
-                            Toast.makeText(this@UserProfileDetailActivity, 
-                                result?.message ?: "Failed to add to favorites", 
-                                Toast.LENGTH_SHORT).show()
+                            showAppToast(result?.message ?: "Failed to add to favorites", Toast.LENGTH_SHORT)
                         }
                     }
                 } else {
                     runOnUiThread {
-                        Toast.makeText(this@UserProfileDetailActivity, 
-                            "Failed to add to favorites", 
-                            Toast.LENGTH_SHORT).show()
+                        showAppToast("Failed to add to favorites", Toast.LENGTH_SHORT)
                     }
                 }
             }
@@ -1052,16 +1092,14 @@ class UserProfileDetailActivity : AppCompatActivity() {
             override fun onFailure(call: Call<AddFavoriteResponse>, t: Throwable) {
                 Log.e("UserProfileDetail", "❌ Error adding to favorites: ${t.message}")
                 runOnUiThread {
-                    Toast.makeText(this@UserProfileDetailActivity, 
-                        "Network error. Please try again.", 
-                        Toast.LENGTH_SHORT).show()
+                    showAppToast("Network error. Please try again.", Toast.LENGTH_SHORT)
                 }
             }
 
             override fun onNoNetwork() {
                 Log.e("UserProfileDetail", "❌ No network while adding favorite")
                 runOnUiThread {
-                    Toast.makeText(this@UserProfileDetailActivity, "No internet connection", Toast.LENGTH_SHORT).show()
+                    showAppToast("No internet connection", Toast.LENGTH_SHORT)
                 }
             }
         })
@@ -1081,23 +1119,17 @@ class UserProfileDetailActivity : AppCompatActivity() {
                         isFavorite = false
                         runOnUiThread {
                             updateFavoriteUI()
-                            Toast.makeText(this@UserProfileDetailActivity, 
-                                result.message ?: "Removed from favorites", 
-                                Toast.LENGTH_SHORT).show()
+                            showAppToast(result.message ?: "Removed from favorites", Toast.LENGTH_SHORT)
                         }
                         Log.d("UserProfileDetail", "✅ Removed from favorites successfully")
                     } else {
                         runOnUiThread {
-                            Toast.makeText(this@UserProfileDetailActivity, 
-                                result?.message ?: "Failed to remove from favorites", 
-                                Toast.LENGTH_SHORT).show()
+                            showAppToast(result?.message ?: "Failed to remove from favorites", Toast.LENGTH_SHORT)
                         }
                     }
                 } else {
                     runOnUiThread {
-                        Toast.makeText(this@UserProfileDetailActivity, 
-                            "Failed to remove from favorites", 
-                            Toast.LENGTH_SHORT).show()
+                        showAppToast("Failed to remove from favorites", Toast.LENGTH_SHORT)
                     }
                 }
             }
@@ -1105,16 +1137,14 @@ class UserProfileDetailActivity : AppCompatActivity() {
             override fun onFailure(call: Call<RemoveFavoriteResponse>, t: Throwable) {
                 Log.e("UserProfileDetail", "❌ Error removing from favorites: ${t.message}")
                 runOnUiThread {
-                    Toast.makeText(this@UserProfileDetailActivity, 
-                        "Network error. Please try again.", 
-                        Toast.LENGTH_SHORT).show()
+                    showAppToast("Network error. Please try again.", Toast.LENGTH_SHORT)
                 }
             }
 
             override fun onNoNetwork() {
                 Log.e("UserProfileDetail", "❌ No network while removing favorite")
                 runOnUiThread {
-                    Toast.makeText(this@UserProfileDetailActivity, "No internet connection", Toast.LENGTH_SHORT).show()
+                    showAppToast("No internet connection", Toast.LENGTH_SHORT)
                 }
             }
         })

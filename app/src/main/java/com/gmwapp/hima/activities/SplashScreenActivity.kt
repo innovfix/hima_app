@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
@@ -217,7 +219,7 @@ class SplashScreenActivity : BaseActivity() {
     private fun initUI() {
         // Check for network connectivity
         if (!isNetworkAvailable()) {
-            Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show()
+            showAppToast("No internet connection", Toast.LENGTH_SHORT)
             return
         }
 
@@ -289,8 +291,8 @@ class SplashScreenActivity : BaseActivity() {
 
 
         profileViewModel.getUserLiveData.observe(this, Observer {
-            prefs?.setUserData(it?.data)
-            userData = it?.data
+            it?.data?.let { fresh -> prefs?.setUserData(fresh) }
+            userData = it?.data ?: prefs?.getUserData()
 
             intent = when {
                 userData?.status == 2 -> {
@@ -336,20 +338,26 @@ class SplashScreenActivity : BaseActivity() {
 //        })
 
         individualAppUpdateViewModel.individualUpdateLiveData.observe(this) { response ->
+            val savedUser = prefs?.getUserData()
             if (response != null && response.success) {
                 val data = response.data
-                val link = response.data.link
-                val description = response.data.description
+                val link = data.link
+                val description = data.description
                 if (data.current_version.toInt() < data.minimum_version.toInt() &&
                     data.update_type == "mandatory") {
-                    // 🔒 Force user to update
-                    showUpdateDialog(link,description)
-
+                    showUpdateDialog(link, description)
                 } else {
-                    GotoActivity(userData)
-
+                    GotoActivity(savedUser)
                 }
+            } else {
+                Log.w("SplashScreen", "App version check missing or failed; continuing with cached session")
+                GotoActivity(savedUser)
             }
+        }
+
+        individualAppUpdateViewModel.individualUpdateErrorLiveData.observe(this) { err ->
+            Log.w("SplashScreen", "App version check error: $err — continuing with cached session")
+            GotoActivity(prefs?.getUserData())
         }
 
         viewModel.firstInstallResponseLiveData.observe(this) { response ->
@@ -395,9 +403,9 @@ class SplashScreenActivity : BaseActivity() {
     fun GotoActivity(
         userData: UserData?,
     ) {
-//            Toast.makeText(this, "1", Toast.LENGTH_SHORT).show()
+//            showAppToast("1", Toast.LENGTH_SHORT)
             if (userData == null) {
-//                Toast.makeText(this, "2", Toast.LENGTH_SHORT).show()
+//                showAppToast("2", Toast.LENGTH_SHORT)
 
 //                intent = Intent(this@SplashScreenActivity, NewLoginActivity::class.java)
                 val intent = Intent(this@SplashScreenActivity, NewLoginActivity::class.java)
@@ -405,12 +413,12 @@ class SplashScreenActivity : BaseActivity() {
 
             } else {
                 if (userData?.gender == DConstants.MALE) {
-//                    Toast.makeText(this, "3", Toast.LENGTH_SHORT).show()
+//                    showAppToast("3", Toast.LENGTH_SHORT)
                   //  intent = Intent(this@SplashScreenActivity, MainActivity::class.java)
                     val intent = Intent(this@SplashScreenActivity, MainActivity::class.java)
                     navigateWithMinimumDelay(intent)
                 } else {
-//                    Toast.makeText(this, "4", Toast.LENGTH_SHORT).show()
+//                    showAppToast("4", Toast.LENGTH_SHORT)
                     BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
                         profileViewModel.getUsers(it)
                     }

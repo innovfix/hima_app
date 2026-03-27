@@ -1,5 +1,7 @@
 package com.gmwapp.hima.agora
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.app.Dialog
 import android.os.Bundle
 import android.util.Log
@@ -54,14 +56,14 @@ class GiftBottomSheetFragment(var callType: String, var femaleId:Int) : BottomSh
         binding = BottomSheetGiftsLayoutBinding.inflate(inflater, container, false)
 
         val recyclerView: RecyclerView = binding.rvGifts
-        recyclerView.layoutManager = GridLayoutManager(context, 4) // 4 items per row
+        recyclerView.layoutManager = GridLayoutManager(requireContext(), 4) // 4 items per row
 
 
         giftAdapter = GiftAdapter(requireContext()) { giftData ->
             getRemainingTime(callType) { availableCoins ->
 
                 if (availableCoins >= giftData.coins) {
-                    //Toast.makeText(requireContext(), "✅ You can gift!", Toast.LENGTH_SHORT).show()
+                    //requireContext().showAppToast("✅ You can gift!", Toast.LENGTH_SHORT)
                     count=1
                     val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
                     val maleUserId = userData?.id
@@ -70,7 +72,7 @@ class GiftBottomSheetFragment(var callType: String, var femaleId:Int) : BottomSh
                     giftObservers()
 
                 } else {
-                    Toast.makeText(requireContext(), "You don't have enough coins to send this gift!", Toast.LENGTH_SHORT).show()
+                    requireContext().showAppToast("You don't have enough coins to send this gift!", Toast.LENGTH_SHORT)
                 }
 
             }
@@ -86,7 +88,7 @@ class GiftBottomSheetFragment(var callType: String, var femaleId:Int) : BottomSh
 
         giftImageViewModel.giftErrorLiveData.observe(viewLifecycleOwner, Observer { errorMessage ->
             errorMessage?.let {
-                Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+                requireContext().showAppToast(it, Toast.LENGTH_SHORT)
             }
         })
 
@@ -180,7 +182,7 @@ class GiftBottomSheetFragment(var callType: String, var femaleId:Int) : BottomSh
 //                    maleUserId?.let { it1 -> giftViewModel.sendGift(it1,femaleId,selectedGiftData.id) }
 //                    giftObservers()
 //                } else {
-//                    Toast.makeText(requireContext(), "You don't have enough coins now!", Toast.LENGTH_SHORT).show()
+//                    requireContext().showAppToast("You don't have enough coins now!", Toast.LENGTH_SHORT)
 //                }
 //                dialog.dismiss()
 //            }
@@ -196,7 +198,7 @@ class GiftBottomSheetFragment(var callType: String, var femaleId:Int) : BottomSh
 
             if (response != null && response.success) {
                 if (count==1){
-                Toast.makeText(requireContext(), "Gift Sent Successfully!", Toast.LENGTH_SHORT).show()
+                requireContext().showAppToast("Gift Sent Successfully!", Toast.LENGTH_SHORT)
                     count++
                     response.data?.let { (activity as? MaleAudioCallingActivity)?.sendGiftSentNotification(it.gift_icon) }
                     (activity as? MaleAudioCallingActivity)?.newRemainingTime()

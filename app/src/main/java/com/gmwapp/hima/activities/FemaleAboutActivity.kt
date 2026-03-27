@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
@@ -138,19 +140,19 @@ class FemaleAboutActivity : BaseActivity() {
             val summary = binding.etSummary.text.toString().trim().replace("\\s+".toRegex(), " ")
 
             if (age.isEmpty()) {
-                Toast.makeText(this, "Please enter your age", Toast.LENGTH_SHORT).show()
+                showAppToast("Please enter your age", Toast.LENGTH_SHORT)
                 return@setOnSingleClickListener
             }
             if (!isValidAge) {
-                Toast.makeText(this, "Please enter a valid age", Toast.LENGTH_SHORT).show()
+                showAppToast("Please enter a valid age", Toast.LENGTH_SHORT)
                 return@setOnSingleClickListener
             }
             if (selectedInterests.isEmpty()) {
-                Toast.makeText(this, "Please select at least 1 interest", Toast.LENGTH_SHORT).show()
+                showAppToast("Please select at least 1 interest", Toast.LENGTH_SHORT)
                 return@setOnSingleClickListener
             }
             if (summary.length < 15) {
-                Toast.makeText(this, "Minimum 15 letters required", Toast.LENGTH_SHORT).show()
+                showAppToast("Minimum 15 letters required", Toast.LENGTH_SHORT)
                 return@setOnSingleClickListener
             }
 

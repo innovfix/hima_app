@@ -1,5 +1,7 @@
 package com.gmwapp.hima.widgets
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
@@ -272,7 +274,7 @@ class CustomCallView{
 //        if (coinLeft > giftCoin) {
 //            showGiftConfirmationDialog(giftCoin,giftId)
 //        } else {
-//            Toast.makeText(context, "Not enough coins to send this gift!", Toast.LENGTH_SHORT).show()
+//            context.showAppToast("Not enough coins to send this gift!", Toast.LENGTH_SHORT)
 //        }
 //    }
 //
@@ -282,7 +284,7 @@ class CustomCallView{
 //            .setTitle("Send Gift")
 //            .setMessage("Want to send a gift worth $giftCoin coins ?")
 //            .setPositiveButton("Yes") { _, _ ->
-//              //  Toast.makeText(context, "Gift Sent Successfully", Toast.LENGTH_SHORT).show()
+//              //  context.showAppToast("Gift Sent Successfully", Toast.LENGTH_SHORT)
 //              //  giftViewModel.sendGift(userId, receiverId, giftId)
 //                GiftViewModelProvider.giftViewModel.sendGift(userId, receiverId, giftId)
 //
@@ -310,7 +312,7 @@ class CustomCallView{
 //
 //                if (coinLeft < giftCoin) {
 //                    giftDialog?.dismiss()  // Close the dialog
-//                    Toast.makeText(context, "Not enough coins to send this gift!", Toast.LENGTH_SHORT).show()
+//                    context.showAppToast("Not enough coins to send this gift!", Toast.LENGTH_SHORT)
 //                } else {
 //                    handler.postDelayed(this, 1000)  // Check again after 1 second
 //                }

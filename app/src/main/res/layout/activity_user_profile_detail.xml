@@ -4,7 +4,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/background_gradient">
+    android:background="@drawable/background_gradient"
+    android:clipChildren="false">
 
     <!-- App Bar with Parallax Effect -->
     <com.google.android.material.appbar.AppBarLayout
@@ -163,6 +164,7 @@
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:clipChildren="false"
         android:clipToPadding="false"
         android:fillViewport="false"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
@@ -170,6 +172,7 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:clipChildren="false"
             android:orientation="vertical"
             android:padding="16dp"
             android:paddingBottom="140dp">
@@ -473,7 +476,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:layout_marginTop="8dp"
-                android:layout_marginBottom="24dp">
+                android:layout_marginBottom="0dp">
 
                 <!-- Send Friend Request Button -->
                 <com.google.android.material.card.MaterialCardView
@@ -700,22 +703,23 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Report & Block Section -->
-            <com.google.android.material.card.MaterialCardView
+            <!-- Report & Block Section (separate cards to match Languages / Interests rhythm) -->
+            <LinearLayout
                 android:id="@+id/cv_report_block_section"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                app:cardBackgroundColor="@color/white"
-                app:cardCornerRadius="18dp"
-                app:cardElevation="4dp"
-                app:strokeColor="#F0F0F0"
-                app:strokeWidth="1dp">
+                android:clipChildren="false"
+                android:orientation="vertical">
 
-                <LinearLayout
+                <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical">
+                    android:layout_marginBottom="12dp"
+                    app:cardBackgroundColor="@color/white"
+                    app:cardCornerRadius="18dp"
+                    app:cardElevation="4dp"
+                    app:strokeColor="#F0F0F0"
+                    app:strokeWidth="1dp">
 
                     <LinearLayout
                         android:id="@+id/ll_report_user"
@@ -743,11 +747,17 @@
                             android:textColor="#111827"
                             android:textSize="14sp" />
                     </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
 
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:background="#F3F4F6" />
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    app:cardBackgroundColor="@color/white"
+                    app:cardCornerRadius="18dp"
+                    app:cardElevation="4dp"
+                    app:strokeColor="#F0F0F0"
+                    app:strokeWidth="1dp">
 
                     <LinearLayout
                         android:id="@+id/ll_block_user"
@@ -776,9 +786,8 @@
                             android:textColor="#111827"
                             android:textSize="14sp" />
                     </LinearLayout>
-
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

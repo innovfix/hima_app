@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.content.Context
@@ -136,14 +138,14 @@ class WithdrawActivity : BaseActivity() {
 
         transactionChargesViewModel.chargesErrorLiveData.observe(this) { error ->
             // Handle errors
-            Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
+            showAppToast(error, Toast.LENGTH_SHORT)
         }
 
         binding.ivTxInfo.setOnClickListener {
             if (chargesList.isNotEmpty()) {
                 showTransactionChargesDialog(chargesList)
             } else {
-                Toast.makeText(this, "Data not available", Toast.LENGTH_SHORT).show()
+                showAppToast("Data not available", Toast.LENGTH_SHORT)
             }
 
 
@@ -183,7 +185,7 @@ class WithdrawActivity : BaseActivity() {
                 binding.ivAddUpi.rotation = 0f
             } else {
                 // Set a different background drawable for invalid UPI ID
-                Toast.makeText(this, "Invalid UPI ID", Toast.LENGTH_SHORT).show()
+                showAppToast("Invalid UPI ID", Toast.LENGTH_SHORT)
             }
 
 
@@ -268,7 +270,7 @@ class WithdrawActivity : BaseActivity() {
 //                rotateImage(addUpiImage, 45f, 0f)
 //            }
         }else{
-                Toast.makeText(this,"Please complete kyc", Toast.LENGTH_SHORT).show()
+                showAppToast("Please complete kyc", Toast.LENGTH_SHORT)
             }
         }
 
@@ -287,7 +289,7 @@ class WithdrawActivity : BaseActivity() {
                 val intent = Intent(this, BankUpdateActivity::class.java)
                 startActivity(intent)
             }else{
-                Toast.makeText(this,"Please complete kyc", Toast.LENGTH_SHORT).show()
+                showAppToast("Please complete kyc", Toast.LENGTH_SHORT)
             }
         }
 
@@ -300,7 +302,7 @@ class WithdrawActivity : BaseActivity() {
         binding.btnWithdraw.setOnClickListener {
 
             if (!isNetworkAvailable(this)) {
-                Toast.makeText(this, "No Internet connection. Please try again.", Toast.LENGTH_SHORT).show()
+                showAppToast("No Internet connection. Please try again.", Toast.LENGTH_SHORT)
                 return@setOnClickListener  //
             }
 
@@ -333,13 +335,13 @@ class WithdrawActivity : BaseActivity() {
             if (it != null && it.success) {
                 Log.d("paymentMethod","bankResposne")
 
-                Toast.makeText(this, it.message, Toast.LENGTH_SHORT).show()
+                showAppToast(it.message, Toast.LENGTH_SHORT)
                 val intent = Intent(this, PaymentInitiatedActivity::class.java)
                 startActivity(intent)
                 finish()
             }
             else {
-                Toast.makeText(this, it.message, Toast.LENGTH_SHORT).show()
+                showAppToast(it.message, Toast.LENGTH_SHORT)
             }
         })
 
@@ -347,7 +349,7 @@ class WithdrawActivity : BaseActivity() {
             if (it != null) {
                 Log.d("paymentMethod","UpiResposne $it")
 
-                Toast.makeText(this, it.message, Toast.LENGTH_SHORT).show()
+                showAppToast(it.message, Toast.LENGTH_SHORT)
                 val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
                 userData?.let { profileViewModel.getUsers(it.id) }
                 if (it.success==true){
@@ -356,7 +358,7 @@ class WithdrawActivity : BaseActivity() {
 
             }
             else {
-                Toast.makeText(this, "Please try again", Toast.LENGTH_SHORT).show()
+                showAppToast("Please try again", Toast.LENGTH_SHORT)
             }
         })
 
@@ -364,14 +366,14 @@ class WithdrawActivity : BaseActivity() {
 
 //        upiViewModel.upiResponseLiveData.observe(this, Observer {
 //            if (it != null && it.success) {
-//                Toast.makeText(this, it.message, Toast.LENGTH_SHORT).show()
+//                showAppToast(it.message, Toast.LENGTH_SHORT)
 //                BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
 //                    profileViewModel.getUsers(it)
 //                }
 //                binding.etUpiId.setText("")
 //            }
 //            else {
-//                Toast.makeText(this, it.message, Toast.LENGTH_SHORT).show()
+//                showAppToast(it.message, Toast.LENGTH_SHORT)
 //            }
 //        })
 
@@ -380,16 +382,16 @@ class WithdrawActivity : BaseActivity() {
 
             if (response != null) {
                 if (response.success) {
-                    Toast.makeText(this, response.message ?: "Success", Toast.LENGTH_SHORT).show()
+                    showAppToast(response.message ?: "Success", Toast.LENGTH_SHORT)
                     BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
                         profileViewModel.getUsers(it)
                     }
                     binding.etUpiId.setText("")
                 } else {
-                    Toast.makeText(this, response.message ?: "Something went wrong", Toast.LENGTH_SHORT).show()
+                    showAppToast(response.message ?: "Something went wrong", Toast.LENGTH_SHORT)
                 }
             } else {
-                Toast.makeText(this, "Invalid Upi Id", Toast.LENGTH_SHORT).show()
+                showAppToast("Invalid Upi Id", Toast.LENGTH_SHORT)
             }
         })
 

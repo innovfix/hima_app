@@ -803,10 +803,12 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
 
     fun getCategoriesList(
         userId: Int,
+        language: String,
         callback: NetworkCallback<CategoriesResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<CategoriesResponse> = getApiInterface().getCategoriesList(userId)
+            val apiCall: Call<CategoriesResponse> =
+                getApiInterface().getCategoriesList(userId, language)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -816,10 +818,12 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     fun getSubqueriesList(
         userId: Int,
         categoryId: Int,
+        language: String,
         callback: NetworkCallback<SubqueriesResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<SubqueriesResponse> = getApiInterface().getSubqueriesList(userId, categoryId)
+            val apiCall: Call<SubqueriesResponse> =
+                getApiInterface().getSubqueriesList(userId, categoryId, language)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -2034,14 +2038,16 @@ interface ApiInterface {
     @FormUrlEncoded
     @POST("categories_list")
     fun getCategoriesList(
-        @Field("user_id") userId: Int
+        @Field("user_id") userId: Int,
+        @Field("language") language: String
     ): Call<CategoriesResponse>
 
     @FormUrlEncoded
     @POST("subqueries_list")
     fun getSubqueriesList(
         @Field("user_id") userId: Int,
-        @Field("category_id") categoryId: Int
+        @Field("category_id") categoryId: Int,
+        @Field("language") language: String
     ): Call<SubqueriesResponse>
 
     @Multipart

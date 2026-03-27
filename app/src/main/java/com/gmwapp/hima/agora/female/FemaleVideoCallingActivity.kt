@@ -1,5 +1,7 @@
 package com.gmwapp.hima.agora.female
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.Manifest
 import android.app.Dialog
 import android.content.Intent
@@ -195,7 +197,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             if (elapsedTime >=10) { // 20 seconds timeout
                 if (isRemoteUserJoined==false){
                     Log.d("isUserJoinedTimer","Leave Button")
-                    Toast.makeText(this@FemaleVideoCallingActivity,"User did not join", Toast.LENGTH_LONG).show()
+                    showAppToast("User did not join", Toast.LENGTH_LONG)
 
                     cancelTimeoutTracking()
                     leaveChannel(binding.LeaveButton)
@@ -241,11 +243,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     fun showMessage(message: String?) {
         runOnUiThread {
-            Toast.makeText(
-                applicationContext,
-                message,
-                Toast.LENGTH_SHORT
-            ).show()
+            applicationContext.showAppToast(message, Toast.LENGTH_SHORT)
         }
     }
 
@@ -949,8 +947,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                 showMessage("Join channel failed: $result")
 
             }} else {
-            Toast.makeText(applicationContext, "Permissions was not granted", Toast.LENGTH_SHORT)
-                .show()
+            applicationContext.showAppToast("Permissions was not granted", Toast.LENGTH_SHORT)
         }
     }
 
@@ -1299,10 +1296,10 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                     // If button image is VIDEO, switch
                     switchToVideo()
                 } else {
-                    Toast.makeText(this, "Error: Unknown state", Toast.LENGTH_SHORT).show()
+                    showAppToast("Error: Unknown state", Toast.LENGTH_SHORT)
                 }
             }else{
-                Toast.makeText(this,"Already Request Sent", Toast.LENGTH_SHORT).show()
+                showAppToast("Already Request Sent", Toast.LENGTH_SHORT)
             }
         }
 
@@ -1319,7 +1316,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         val remainingTime = binding.tvRemainingTime?.text.toString().trim()
         if (remainingTime.isEmpty() || !remainingTime.contains(":")) {
             Log.e("switchToVideo", "Invalid remaining time format: $remainingTime")
-            Toast.makeText(this, "Error: Invalid remaining time", Toast.LENGTH_SHORT).show()
+            showAppToast("Error: Invalid remaining time", Toast.LENGTH_SHORT)
             return
         }
 
@@ -1341,18 +1338,18 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                     // Show toast message
                     if (totalSeconds>360){
                         if (switchCallID==0){
-                            Toast.makeText(this, "Try Again", Toast.LENGTH_SHORT).show()
+                            showAppToast("Try Again", Toast.LENGTH_SHORT)
 
                         }else{
                             if (userid != null) {
                                 Log.d("SwitchCallIdWhileSending","$switchCallID")
                                 sendSwitchCallRequestNotification(userid, receiverId, "video", "switchToVideo $switchCallID")
                             }
-                            Toast.makeText(this, "Video call request sent", Toast.LENGTH_SHORT).show()
+                            showAppToast("Video call request sent", Toast.LENGTH_SHORT)
                         }
 
                     }else{
-                        Toast.makeText(this, "$receiverName don’t have enough coins", Toast.LENGTH_SHORT).show()
+                        showAppToast("$receiverName don’t have enough coins", Toast.LENGTH_SHORT)
 
                     }
 
@@ -1428,12 +1425,12 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                         val totalSeconds = (hours * 3600) + (minutes * 60) + seconds
 
                         if (totalSeconds>360){
-                          //  Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
+                          //  showAppToast("Accepted", Toast.LENGTH_SHORT)
                             stopCountdown()
                             FcmUtils.clearCallSwitch()
                             enableVideoCall()
                         }else{
-                            Toast.makeText(this, "You don't have enough coins for video call", Toast.LENGTH_SHORT).show()
+                            showAppToast("You don't have enough coins for video call", Toast.LENGTH_SHORT)
                             FcmUtils.clearCallSwitch()
                             updateCallEndDetails()
 
@@ -1446,7 +1443,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                 if (switchType == "AudioAccepted" && receiverId == this.receiverId) {
                     isSwitchRequestPending=false
 
-                  //  Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
+                  //  showAppToast("Accepted", Toast.LENGTH_SHORT)
                     stopCountdown()
                     FcmUtils.clearCallSwitch()
                     enableAudioCall()
@@ -1456,7 +1453,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
                     isSwitchRequestPending=false
                     FcmUtils.clearCallSwitch()
-                    Toast.makeText(this, "Request is rejected", Toast.LENGTH_SHORT).show()
+                    showAppToast("Request is rejected", Toast.LENGTH_SHORT)
                 }
 
             }
@@ -1533,7 +1530,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
                                 if (totalSeconds>360){
                                     if (userid != null && switchCallID !=0) {
-                                        Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
+                                        showAppToast("Accepted", Toast.LENGTH_SHORT)
 
                                         sendCallAcceptNotification(userid,receiverId,"video","VideoAccepted")
                                         FcmUtils.clearCallSwitch()
@@ -1544,7 +1541,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                                         enableVideoCall()
                                     }
                                 }else{
-                                    Toast.makeText(this, "$receiverName don't have enough coins", Toast.LENGTH_SHORT).show()
+                                    showAppToast("$receiverName don't have enough coins", Toast.LENGTH_SHORT)
                                     FcmUtils.clearCallSwitch()
 
                                 }
@@ -1592,7 +1589,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                         .setPositiveButton("Confirm") { _, _ ->
 
                             if (userid != null && switchCallID !=0) {
-                                Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
+                                showAppToast("Accepted", Toast.LENGTH_SHORT)
 
                                 sendCallAcceptNotification(userid,receiverId,"audio","AudioAccepted")
                                 FcmUtils.clearCallSwitch()
@@ -1844,7 +1841,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             .setTitle("Want to Switch to Audio Call?")
             .setPositiveButton("Yes") { _, _ ->
                 if (isAudioCallIdReceived == false) {
-                    Toast.makeText(this, "Try Again", Toast.LENGTH_SHORT).show()
+                    showAppToast("Try Again", Toast.LENGTH_SHORT)
 
                 } else {
                     if (userid != null) {
@@ -1855,8 +1852,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                             "switchToAudio $switchCallID"
                         )
                     }
-                    Toast.makeText(this, "Audio call request sent", Toast.LENGTH_SHORT)
-                        .show()
+                    showAppToast("Audio call request sent", Toast.LENGTH_SHORT)
                 }
             }
             .setNegativeButton("No") { dialog, _ ->

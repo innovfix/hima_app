@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.Manifest.permission.RECORD_AUDIO
 import android.Manifest.permission.WRITE_EXTERNAL_STORAGE
 import android.content.Intent
@@ -47,8 +49,7 @@ class VoiceIdentificationActivity : BaseActivity(), OnItemSelectionListener<Stri
                 if (permissionToRecord) {
                     openVoiceIdentificationPopup()
                 } else {
-                    Toast.makeText(applicationContext, "Permission Denied", Toast.LENGTH_LONG)
-                        .show()
+                    applicationContext.showAppToast("Permission Denied", Toast.LENGTH_LONG)
                     requestPermissions()
                 }
             }
@@ -75,17 +76,11 @@ class VoiceIdentificationActivity : BaseActivity(), OnItemSelectionListener<Stri
                     supportFragmentManager, "BottomSheetVoiceIdentification"
                 )
             } else {
-                Toast.makeText(
-                    this@VoiceIdentificationActivity, it?.message, Toast.LENGTH_LONG
-                ).show()
+                showAppToast(it?.message, Toast.LENGTH_LONG)
             }
         })
         profileViewModel.speechTextErrorLiveData.observe(this, Observer {
-            Toast.makeText(
-                this@VoiceIdentificationActivity,
-                getString(R.string.please_try_again_later),
-                Toast.LENGTH_LONG
-            ).show()
+            showAppToast(getString(R.string.please_try_again_later), Toast.LENGTH_LONG)
         })
     }
 
@@ -118,9 +113,7 @@ class VoiceIdentificationActivity : BaseActivity(), OnItemSelectionListener<Stri
                     finish()
                 }
             } else {
-                Toast.makeText(
-                    this@VoiceIdentificationActivity, it?.message, Toast.LENGTH_LONG
-                ).show()
+                showAppToast(it?.message, Toast.LENGTH_LONG)
             }
         })
     }

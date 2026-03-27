@@ -10,7 +10,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
-import androidx.fragment.app.viewModels
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -21,6 +21,7 @@ import com.gmwapp.hima.activities.RandomUserActivity
 import com.gmwapp.hima.adapters.RecentCallsAdapter
 import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.agora.male.MaleCallConnectingActivity
+import com.gmwapp.hima.callbacks.NetworkRetryable
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentRecentBinding
@@ -28,6 +29,7 @@ import com.gmwapp.hima.retrofit.ApiManager
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.CallsListResponseData
 import com.gmwapp.hima.retrofit.responses.MyChatResponse
+import com.gmwapp.hima.utils.Helper
 import com.gmwapp.hima.viewmodels.RecentViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import retrofit2.Call
@@ -35,21 +37,26 @@ import retrofit2.Response
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class RecentFragment : BaseFragment() {
+class RecentFragment : BaseFragment(), NetworkRetryable {
 
     @Inject
     lateinit var apiManager: ApiManager
 
     private lateinit var binding: FragmentRecentBinding
-    private val recentViewModel: RecentViewModel by viewModels()
+    /** Activity scope: list survives bottom-nav tab switches so we don't clear + race on every visit. */
+    private val recentViewModel: RecentViewModel by activityViewModels()
     private lateinit var recentCallsAdapter: RecentCallsAdapter
+    /** When true, next successful calls-list response replaces the first page (clear then add). */
+    private var pendingFullListReplace = false
     private var isLoading = false
     private var offset = 0
     private val limit = 10
     private var currentSortType = "recent"  // Default: recent
     private var currentSearchQuery = ""  // Current search query
     private var currentMissedCount = 0
-    
+    /** True from dispatching getCallsList until success/error/null response handled. */
+    private var listRequestInFlight = false
+
     // Debouncing for search
     private val searchHandler = Handler(Looper.getMainLooper())
     private var searchRunnable: Runnable? = null
@@ -65,11 +72,21 @@ class RecentFragment : BaseFragment() {
         return binding.root
     }
 
+
     private fun initUI() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         if (userData == null) {
             binding.tlTitle.visibility = View.VISIBLE
             return
+        }
+
+        binding.btnRetryNoNetwork.setOnClickListener {
+            if (!Helper.checkNetworkConnection()) return@setOnClickListener
+            onNetworkRetry()
+        }
+
+        BaseApplication.getInstance()?.networkConnectedLiveData?.observe(viewLifecycleOwner) {
+            refreshRecentPlaceholderState()
         }
 
         // Setup chat icon click listener
@@ -105,7 +122,7 @@ class RecentFragment : BaseFragment() {
         )
         binding.rvCalls.adapter = recentCallsAdapter
 
-        // Initial call with default type (after adapter is initialized)
+        // Initial load (LiveData may only hold the last page chunk — always refresh for a full list)
         recentCallsAdapter.setFilter(currentSortType)
         loadCallsList(currentSortType, resetData = true)
 
@@ -120,29 +137,70 @@ class RecentFragment : BaseFragment() {
                 ) {
                     isLoading = true
                     offset += limit
+                    listRequestInFlight = true
                     userData.let {
                         recentViewModel.getCallsList(it.id, it.gender, limit, offset, currentSortType, if (currentSearchQuery.isEmpty()) null else currentSearchQuery)
                     }
                 }
             }
         })
+
+        refreshRecentPlaceholderState()
     }
 
     private fun loadCallsList(sortType: String, resetData: Boolean, searchQuery: String = "") {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
-        
+        listRequestInFlight = true
+
         if (resetData) {
             offset = 0
             isLoading = true
             setLoading(true)
-            if (::recentCallsAdapter.isInitialized) {
-                recentCallsAdapter.clearData()
-            }
+            pendingFullListReplace = true
         }
-        
+
         val search = searchQuery.trim()
         currentSearchQuery = search
         recentViewModel.getCallsList(userData.id, userData.gender, limit, offset, sortType, if (search.isEmpty()) null else search)
+    }
+
+    private fun isNetworkConnectedNow(): Boolean {
+        return when (val v = BaseApplication.getInstance()?.networkConnectedLiveData?.value) {
+            null -> Helper.checkNetworkConnection()
+            else -> v
+        }
+    }
+
+    private fun refreshRecentPlaceholderState() {
+        if (!::binding.isInitialized || !::recentCallsAdapter.isInitialized) return
+
+        val online = isNetworkConnectedNow()
+        val empty = recentCallsAdapter.itemCount == 0
+        val loading =
+            listRequestInFlight || binding.swipeRefreshLayout.isRefreshing || (binding.progressBar.visibility == View.VISIBLE)
+
+        if (!online && empty) {
+            binding.layoutNoInternet.visibility = View.VISIBLE
+            binding.tlTitle.visibility = View.GONE
+            binding.rvCalls.visibility = View.GONE
+            return
+        }
+
+        binding.layoutNoInternet.visibility = View.GONE
+
+        if (!empty) {
+            binding.tlTitle.visibility = View.GONE
+            binding.rvCalls.visibility = View.VISIBLE
+            return
+        }
+
+        if (loading) {
+            binding.tlTitle.visibility = View.GONE
+            binding.rvCalls.visibility = View.GONE
+        } else {
+            binding.tlTitle.visibility = View.VISIBLE
+            binding.rvCalls.visibility = View.GONE
+        }
     }
     
     private fun setupSearchListener() {
@@ -172,25 +230,41 @@ class RecentFragment : BaseFragment() {
             binding.swipeRefreshLayout.isRefreshing = false
             isLoading = false
             setLoading(false)
+            listRequestInFlight = false
 
-            if (it != null && it.success && it.data != null && it.data.isNotEmpty()) {
-                binding.tlTitle.visibility = View.GONE
-                binding.rvCalls.visibility = View.VISIBLE
-                recentCallsAdapter.addData(it.data)
-            } else if (recentCallsAdapter.itemCount == 0) {
-                binding.tlTitle.visibility = View.VISIBLE
-                binding.rvCalls.visibility = View.GONE
+            val response = it
+            if (response == null) {
+                pendingFullListReplace = false
+                refreshRecentPlaceholderState()
+                return@Observer
             }
+
+            if (response.success && response.data != null) {
+                if (response.data.isNotEmpty()) {
+                    if (pendingFullListReplace) {
+                        recentCallsAdapter.clearData()
+                        pendingFullListReplace = false
+                    }
+                    recentCallsAdapter.addData(response.data)
+                } else {
+                    if (pendingFullListReplace) {
+                        recentCallsAdapter.clearData()
+                        pendingFullListReplace = false
+                    }
+                }
+            } else {
+                pendingFullListReplace = false
+            }
+            refreshRecentPlaceholderState()
         })
 
         recentViewModel.callsListErrorLiveData.observe(viewLifecycleOwner, Observer {
             binding.swipeRefreshLayout.isRefreshing = false
             isLoading = false
             setLoading(false)
-            if (recentCallsAdapter.itemCount == 0) {
-                binding.tlTitle.visibility = View.VISIBLE
-                binding.rvCalls.visibility = View.GONE
-            }
+            pendingFullListReplace = false
+            listRequestInFlight = false
+            refreshRecentPlaceholderState()
         })
 
         recentViewModel.missedCallCountLiveData.observe(viewLifecycleOwner, Observer { count ->
@@ -211,6 +285,7 @@ class RecentFragment : BaseFragment() {
     private fun setLoading(isLoading: Boolean) {
         val shouldShow = isLoading && !binding.swipeRefreshLayout.isRefreshing
         binding.progressBar.visibility = if (shouldShow) View.VISIBLE else View.GONE
+        refreshRecentPlaceholderState()
     }
 
     private fun startMaleCallConnectingActivity(data: CallsListResponseData, callType: String) {
@@ -325,6 +400,12 @@ class RecentFragment : BaseFragment() {
                 updateUnreadBadge(0)
             }
         })
+    }
+
+    override fun onNetworkRetry() {
+        loadCallsList(currentSortType, resetData = true, searchQuery = currentSearchQuery)
+        loadUnreadMessageCount()
+        loadMissedCallCount(seen = 0)
     }
 
     private fun updateUnreadBadge(count: Int) {

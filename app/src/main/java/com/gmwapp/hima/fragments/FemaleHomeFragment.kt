@@ -1,5 +1,7 @@
 package com.gmwapp.hima.fragments
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.Manifest
 import android.app.ActivityManager
 import android.content.Context
@@ -28,7 +30,9 @@ import com.gmwapp.hima.BaseApplication.Companion.getInstance
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.EarningsActivity
 import com.gmwapp.hima.activities.GrantPermissionsActivity
+import com.gmwapp.hima.callbacks.NetworkRetryable
 import com.gmwapp.hima.constants.DConstants
+import com.gmwapp.hima.utils.Helper
 import com.gmwapp.hima.databinding.FragmentFemaleHomeBinding
 import com.gmwapp.hima.retrofit.responses.BadgeData
 import com.gmwapp.hima.retrofit.responses.UserData
@@ -66,7 +70,7 @@ import java.util.TimeZone
 
 
 @AndroidEntryPoint
-class FemaleHomeFragment : BaseFragment() {
+class FemaleHomeFragment : BaseFragment(), NetworkRetryable {
     private val OVERLAY_REQUEST_CODE: Int = 2
     private var mContext: Context? = null
     private val CALL_PERMISSIONS_REQUEST_CODE = 1
@@ -94,11 +98,7 @@ class FemaleHomeFragment : BaseFragment() {
         if (isGranted) {
             initializeCall()
         } else {
-            Toast.makeText(
-                requireContext(),
-                "Notification permission denied. Enable it in Settings.",
-                Toast.LENGTH_LONG
-            ).show()
+            requireContext().showAppToast("Notification permission denied. Enable it in Settings.", Toast.LENGTH_LONG)
 
             val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                 data = Uri.fromParts("package", requireContext().packageName, null)
@@ -171,7 +171,7 @@ class FemaleHomeFragment : BaseFragment() {
 //                try {
 //                    val settingsIntent: Intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
 //                        .putExtra(Settings.EXTRA_APP_PACKAGE, mContext?.packageName)
-//                    Toast.makeText(context, getString(R.string.enable_notification), Toast.LENGTH_SHORT).show()
+//                    context.showAppToast(getString(R.string.enable_notification), Toast.LENGTH_SHORT)
 //                    startActivityForResult(settingsIntent, NOTIFICATIONS_ENABLED_REQUEST_CODE)
 //                } catch (e: Exception) {
 //                    initializeCall()
@@ -530,16 +530,16 @@ class FemaleHomeFragment : BaseFragment() {
                 }
 
             } else {
-                //  Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show()
+                //  context.showAppToast(it.message, Toast.LENGTH_SHORT)
             }
         })
 
         femaleUsersViewModel.updateCallStatusResponseLiveData.observe(viewLifecycleOwner, Observer {
             if (it != null && it.success) {
-                prefs.setUserData(it.data)
+                it.data?.let { updated -> prefs.setUserData(updated) }
             } else {
                 it?.message?.takeIf { msg -> msg.isNotBlank() }?.let { msg ->
-                    Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
+                    requireContext().showAppToast(msg, Toast.LENGTH_SHORT)
                 }
                 // Temporarily disable listeners before reverting switch state
                 binding.sAudio.setOnCheckedChangeListener(null)
@@ -604,8 +604,47 @@ class FemaleHomeFragment : BaseFragment() {
             }
         })
         
+        profileViewModel.getUserLiveData.observe(viewLifecycleOwner, Observer { response ->
+            response?.data?.let { fresh ->
+                prefs?.setUserData(fresh)
+                binding.tvCoins.text = "₹" + fresh.balance.toString()
+                binding.sAudio.setOnCheckedChangeListener(null)
+                binding.sVideo.setOnCheckedChangeListener(null)
+                binding.sAudio.isChecked = fresh.audio_status == 1
+                binding.sVideo.isChecked = fresh.video_status == 1
+                setupSwitchListeners(fresh)
+            }
+        })
+
+        observeFemaleHomeNetworkState()
+
         // Set up switch listeners once at the end of initUI
         setupSwitchListeners(userData)
+    }
+
+    private fun observeFemaleHomeNetworkState() {
+        BaseApplication.getInstance()?.networkConnectedLiveData?.observe(viewLifecycleOwner) {
+            refreshFemaleHomeNetworkOverlay()
+        }
+        binding.btnRetryNoNetworkFemaleHome.setOnClickListener {
+            if (!Helper.checkNetworkConnection()) {
+                requireContext().showAppToast(R.string.no_internet_connection, Toast.LENGTH_SHORT)
+                return@setOnClickListener
+            }
+            val ud = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return@setOnClickListener
+            femaleUsersViewModel.getReports(ud.id)
+            updateEarnings()
+            refreshFemaleHomeNetworkOverlay()
+        }
+        refreshFemaleHomeNetworkOverlay()
+    }
+
+    private fun refreshFemaleHomeNetworkOverlay() {
+        val online = when (val v = BaseApplication.getInstance()?.networkConnectedLiveData?.value) {
+            null -> Helper.checkNetworkConnection()
+            else -> v
+        }
+        binding.layoutNoInternet.visibility = if (online) View.GONE else View.VISIBLE
     }
 
     private fun setupSwitchListeners(userData: UserData?) {
@@ -627,30 +666,10 @@ class FemaleHomeFragment : BaseFragment() {
         }
     }
 
-    fun updateEarnings(){
+    fun updateEarnings() {
         BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
             profileViewModel.getUsers(it)
         }
-
-        profileViewModel.getUserLiveData.observe(this, Observer {
-            val prefs = BaseApplication.getInstance()?.getPrefs()
-            prefs?.setUserData(it?.data)
-            binding.tvCoins.text = "₹" + it?.data?.balance.toString()
-
-            if (it?.data != null) {
-                // Temporarily remove listeners to avoid triggering API calls when updating UI
-                binding.sAudio.setOnCheckedChangeListener(null)
-                binding.sVideo.setOnCheckedChangeListener(null)
-                
-                // Update switch states from fresh API data
-                binding.sAudio.isChecked = it.data.audio_status == 1
-                binding.sVideo.isChecked = it.data.video_status == 1
-                
-                // Re-attach listeners after UI update
-                val userData = prefs?.getUserData()
-                setupSwitchListeners(userData)
-            }
-        })
     }
 
     override fun onResume() {
@@ -676,6 +695,12 @@ class FemaleHomeFragment : BaseFragment() {
 
 //        femaleUsersViewModel.getReports(userData?.id!!)
 //        updateEarnings()
+    }
+
+    override fun onNetworkRetry() {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
+        femaleUsersViewModel.getReports(userData.id)
+        updateEarnings()
     }
 
     private fun checkAndLogVoiceVerified(userData: UserData) {
@@ -842,7 +867,7 @@ class FemaleHomeFragment : BaseFragment() {
             startActivity(intent)
         } catch (e: Exception) {
             e.printStackTrace()
-//            Toast.makeText(this, "WhatsApp is not installed", Toast.LENGTH_SHORT).show()
+//            showAppToast("WhatsApp is not installed", Toast.LENGTH_SHORT)
         }
     }
 

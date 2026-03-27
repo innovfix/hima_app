@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.showAppToast
+
 import android.content.Intent
 import android.os.Bundle
 import android.speech.RecognitionListener
@@ -56,7 +58,7 @@ class DemoActivity : AppCompatActivity() {
                 matches?.let {
                     val spokenText = it[0].lowercase(Locale.getDefault())
                     Log.d("spokenText","$spokenText")
-                    Toast.makeText(this@DemoActivity, "$spokenText", Toast.LENGTH_LONG).show()
+                    showAppToast("$spokenText", Toast.LENGTH_LONG)
 
                     if (abusiveWords.any { word -> spokenText.contains(word) }) {
                         disconnectAgoraCall()
@@ -90,7 +92,7 @@ class DemoActivity : AppCompatActivity() {
 
     private fun disconnectAgoraCall() {
 
-        Toast.makeText(this, "Call disconnected due to abusive language", Toast.LENGTH_LONG).show()
+        showAppToast("Call disconnected due to abusive language", Toast.LENGTH_LONG)
     }
 
 

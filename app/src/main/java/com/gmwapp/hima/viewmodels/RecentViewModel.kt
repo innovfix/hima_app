@@ -13,6 +13,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import retrofit2.Call
 import retrofit2.Response
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 
 
@@ -24,7 +25,19 @@ class RecentViewModel @Inject constructor(private val profileRepositories: Profi
     val callsListLiveData = MutableLiveData<CallsListResponse>()
     val missedCallCountLiveData = MutableLiveData<Int>()
     val missedCallCountErrorLiveData = MutableLiveData<String>()
+
+    /**
+     * Bumps only on full reload ([currentOffset] == 0). Pagination reuses the current id so
+     * in-flight pages stay valid, but a new reload invalidates older responses (tab / swipe spam).
+     */
+    private val callsListRequestId = AtomicInteger(0)
+
     fun getCallsList(userId: Int, gender: String, limit: Int, currentOffset: Int, type: String, search: String? = null, fav: Int? = null) {
+        val requestId = if (currentOffset == 0) {
+            callsListRequestId.incrementAndGet()
+        } else {
+            callsListRequestId.get()
+        }
         viewModelScope.launch {
             profileRepositories.getCallsList(
                 userId,
@@ -38,17 +51,28 @@ class RecentViewModel @Inject constructor(private val profileRepositories: Profi
                     override fun onResponse(
                         call: Call<CallsListResponse>, response: Response<CallsListResponse>
                     ) {
+                        if (requestId != callsListRequestId.get()) {
+                            Log.d("RecentViewModel", "Ignoring stale calls list response (id=$requestId, latest=${callsListRequestId.get()}, offset=$currentOffset)")
+                            return
+                        }
                         callsListLiveData.postValue(response.body())
-                        Log.d("callsListLiveData","${response.body()}")
+                        Log.d("callsListLiveData", "${response.body()}")
                     }
 
                     override fun onFailure(call: Call<CallsListResponse>, t: Throwable) {
+                        if (requestId != callsListRequestId.get()) {
+                            Log.d("RecentViewModel", "Ignoring stale calls list failure (id=$requestId)")
+                            return
+                        }
                         callsListErrorLiveData.postValue(t.message)
-                        Log.d("callsListFailed","${t.message}")
-
+                        Log.d("callsListFailed", "${t.message}")
                     }
 
                     override fun onNoNetwork() {
+                        if (requestId != callsListRequestId.get()) {
+                            Log.d("RecentViewModel", "Ignoring stale calls list no-network (id=$requestId)")
+                            return
+                        }
                         callsListErrorLiveData.postValue(DConstants.NO_NETWORK)
                     }
                 })
