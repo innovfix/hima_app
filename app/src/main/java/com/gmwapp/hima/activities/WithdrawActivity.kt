@@ -335,6 +335,8 @@ class WithdrawActivity : BaseActivity() {
             if (it != null && it.success) {
                 Log.d("paymentMethod","bankResposne")
 
+                Log.d("paymentMethod","$it")
+
                 showAppToast(it.message, Toast.LENGTH_SHORT)
                 val intent = Intent(this, PaymentInitiatedActivity::class.java)
                 startActivity(intent)

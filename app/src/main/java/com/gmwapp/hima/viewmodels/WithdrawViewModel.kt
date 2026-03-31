@@ -1,5 +1,6 @@
 package com.gmwapp.hima.viewmodels
 
+import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -33,10 +34,14 @@ class WithdrawViewModel @Inject constructor(private val withdrawRepository: With
                     call: Call<WithdrawResponse>,
                     response: Response<WithdrawResponse>
                 ) {
+                    Log.d("withdrawResponseLiveData","${response.body()}")
+
                     withdrawResponseLiveData.postValue(response.body())
                 }
 
                 override fun onFailure(call: Call<WithdrawResponse>, t: Throwable) {
+                    Log.d("withdrawResponseLiveData","${t}")
+
                     withdrawErrorLiveData.postValue(DConstants.LOGIN_ERROR)
                 }
 
