@@ -75,6 +75,7 @@ import com.gmwapp.hima.agora.FaceDetectVideoFrameObserver
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
 import com.gmwapp.hima.agora.services.CallingService
+import com.gmwapp.hima.retrofit.responses.IcebreakerQuestionsResponse
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
@@ -86,6 +87,7 @@ import com.gmwapp.hima.workers.CallUpdateWorker
 import io.agora.rtc2.IAudioFrameObserver
 import io.agora.rtc2.audio.AudioParams
 import io.agora.rtc2.video.VideoCanvas
+import com.google.gson.JsonElement
 import org.json.JSONObject
 //import org.vosk.Model
 //import org.vosk.Recognizer
@@ -313,8 +315,145 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
         userData?.let { setMyAvatar(it.image, it.name) }
         getBlockWords()
+        setupIcebreakerIfFemale()
         setupLudoInviteFlow()
 
+    }
+
+    private fun setupIcebreakerIfFemale() {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
+        if (!userData.gender.equals("female", ignoreCase = true)) {
+            binding.icebreakerHintButton.visibility = View.GONE
+            return
+        }
+        binding.icebreakerHintButton.visibility = View.VISIBLE
+        binding.icebreakerHintButton.setOnSingleClickListener {
+            requestAndShowIcebreakerQuestions(userData.id)
+        }
+    }
+
+    private fun requestAndShowIcebreakerQuestions(userId: Int) {
+        profileViewModel.getIcebreakerQuestions(
+            userId = userId,
+            callback = object : NetworkCallback<IcebreakerQuestionsResponse> {
+                override fun onResponse(
+                    call: Call<IcebreakerQuestionsResponse>,
+                    response: Response<IcebreakerQuestionsResponse>
+                ) {
+                    Log.e("IcebreakerQuestions", "${response.body()}")
+
+                    val body = response.body()
+                    if (body?.success == true) {
+                        val questions = parseIcebreakerQuestions(body.data)
+                        if (questions.isEmpty()) {
+                            Toast.makeText(
+                                this@FemaleAudioCallingActivity,
+                                "No icebreaker questions available",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        } else {
+                            showIcebreakerDialog(questions)
+                        }
+                    } else {
+                        Toast.makeText(
+                            this@FemaleAudioCallingActivity,
+                            body?.message ?: "Unable to load questions",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+
+                override fun onFailure(call: Call<IcebreakerQuestionsResponse>, t: Throwable) {
+                    Log.e("IcebreakerQuestions", "API failed: ${t.message}")
+                    Toast.makeText(
+                        this@FemaleAudioCallingActivity,
+                        "Failed to load questions",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+
+                override fun onNoNetwork() {
+                    Toast.makeText(
+                        this@FemaleAudioCallingActivity,
+                        "No internet connection",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        )
+    }
+
+    private fun showIcebreakerDialog(questions: List<String>) {
+        val message = buildString {
+            questions.forEachIndexed { index, question ->
+                append("\u2022 ")
+                append(question)
+                if (index != questions.lastIndex) append("\n\n")
+            }
+        }
+        val dialogView = layoutInflater.inflate(R.layout.dialog_icebreaker_questions, null)
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        val tvMessage = dialogView.findViewById<TextView>(R.id.tv_icebreaker_dialog_message)
+        val btnClose = dialogView.findViewById<com.google.android.material.button.MaterialButton>(
+            R.id.btn_close_icebreaker_dialog
+        )
+        tvMessage.text = message
+        btnClose.setOnClickListener { dialog.dismiss() }
+        dialog.show()
+    }
+
+    private fun parseIcebreakerQuestions(data: JsonElement?): List<String> {
+        if (data == null || data.isJsonNull) return emptyList()
+        val result = mutableListOf<String>()
+
+        fun addQuestion(raw: String?) {
+            val cleaned = raw?.trim().orEmpty()
+            if (cleaned.isNotEmpty()) {
+                result.add(cleaned)
+            }
+        }
+
+        fun parseElement(element: JsonElement?) {
+            if (element == null || element.isJsonNull) return
+
+            when {
+                element.isJsonPrimitive -> addQuestion(element.asString)
+
+                element.isJsonArray -> {
+                    element.asJsonArray.forEach { parseElement(it) }
+                }
+
+                element.isJsonObject -> {
+                    val obj = element.asJsonObject
+                    val candidateKeys = listOf("question", "text", "title", "prompt")
+                    var consumed = false
+
+                    for (key in candidateKeys) {
+                        if (obj.has(key)) {
+                            parseElement(obj.get(key))
+                            consumed = true
+                        }
+                    }
+
+                    if (!consumed) {
+                        if (obj.has("questions")) {
+                            parseElement(obj.get("questions"))
+                        } else if (obj.has("data")) {
+                            parseElement(obj.get("data"))
+                        }
+                    }
+                }
+            }
+        }
+
+        parseElement(data)
+        return result.distinct()
     }
 
     private fun setupLocalPreviewDrag() {

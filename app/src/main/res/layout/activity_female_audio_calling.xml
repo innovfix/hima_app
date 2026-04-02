@@ -477,6 +477,34 @@
     </LinearLayout>
 
     <androidx.cardview.widget.CardView
+        android:id="@+id/icebreakerHintButton"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginEnd="20dp"
+        android:visibility="gone"
+        app:cardBackgroundColor="@android:color/transparent"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="10dp"
+        app:layout_constraintBottom_toBottomOf="@id/ludo_button_card"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/ludo_button_card">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/icebreaker_circle_button_bg">
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_gravity="center"
+                android:contentDescription="Icebreaker Questions"
+                android:src="@drawable/ic_help"
+                app:tint="#FFFFFFFF" />
+        </FrameLayout>
+    </androidx.cardview.widget.CardView>
+
+    <androidx.cardview.widget.CardView
         android:id="@+id/ludo_button_card"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

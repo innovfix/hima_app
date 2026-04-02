@@ -30,6 +30,7 @@ import com.gmwapp.hima.retrofit.responses.FcmTokenResponse
 import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
 import com.gmwapp.hima.retrofit.responses.FemaleNotificationPreferenceRequest
 import com.gmwapp.hima.retrofit.responses.FemaleNotificationPreferenceResponse
+import com.gmwapp.hima.retrofit.responses.FemaleDiscoveryResponse
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponse
 import com.gmwapp.hima.retrofit.responses.FirstCallUpdateResponse
 import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
@@ -98,6 +99,7 @@ import com.gmwapp.hima.retrofit.responses.InstallReferrerResponse
 import com.gmwapp.hima.retrofit.responses.FirstInstallResponse
 import com.gmwapp.hima.retrofit.responses.TrackingInfoResponse
 import com.gmwapp.hima.retrofit.responses.AgoraTokenResponse
+import com.gmwapp.hima.retrofit.responses.IcebreakerQuestionsResponse
 import com.gmwapp.hima.retrofit.responses.LudoFcmResponse
 import com.gmwapp.hima.retrofit.responses.GetFemaleNotificationPreferenceRequest
 import com.gmwapp.hima.retrofit.responses.GetFemaleNotificationPreferenceResponse
@@ -112,6 +114,7 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.ResponseBody
 import retrofit2.Call
 import retrofit2.Response
 import retrofit2.Retrofit
@@ -197,6 +200,19 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<TrackingInfoResponse> = getApiInterface().trackingInfo(savedAddress, userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun trackingInfoRaw(
+        savedAddress: String,
+        userId: Int,
+        callback: NetworkCallback<ResponseBody>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<ResponseBody> = getApiInterface().trackingInfoRaw(savedAddress, userId)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -342,6 +358,18 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<FemaleUsersResponse> = getApiInterface().getFemaleUsers(userId, filter)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getFemaleDiscovery(
+        userId: Int,
+        callback: NetworkCallback<FemaleDiscoveryResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<FemaleDiscoveryResponse> = getApiInterface().getFemaleDiscovery(userId)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1560,6 +1588,18 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun getIcebreakerQuestions(
+        userId: Int,
+        callback: NetworkCallback<IcebreakerQuestionsResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<IcebreakerQuestionsResponse> = getApiInterface().getIcebreakerQuestions(userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun callRejectCount(
         maleUserId: Int,
         femaleUserId: Int,
@@ -1776,6 +1816,13 @@ interface ApiInterface {
     ): Call<TrackingInfoResponse>
 
     @FormUrlEncoded
+    @POST("tracking_info")
+    fun trackingInfoRaw(
+        @Field("saved_address") savedAddress: String,
+        @Field("user_id") userId: Int
+    ): Call<ResponseBody>
+
+    @FormUrlEncoded
     @POST("appsettings_list")
     fun appUpdate(@Field("user_id") userId: Int):Call<AppUpdateResponse>
 
@@ -1871,6 +1918,12 @@ interface ApiInterface {
         @Field("user_id") userId: Int,
         @Field("filter") filter: String?
     ): Call<FemaleUsersResponse>
+
+    @FormUrlEncoded
+    @POST("female_discovery")
+    fun getFemaleDiscovery(
+        @Field("user_id") userId: Int
+    ): Call<FemaleDiscoveryResponse>
 
     @FormUrlEncoded
     @POST("random_user")
@@ -2118,6 +2171,12 @@ interface ApiInterface {
     fun getRemainingTime(
         @Field("user_id") userId: Int, @Field("call_type") callType:String
     ): Call<GetRemainingTimeResponse>
+
+    @FormUrlEncoded
+    @POST("icebreaker_questions")
+    fun getIcebreakerQuestions(
+        @Field("user_id") userId: Int
+    ): Call<IcebreakerQuestionsResponse>
 
     @POST("settings_list")
     fun getSettings(): Call<SettingsResponse>

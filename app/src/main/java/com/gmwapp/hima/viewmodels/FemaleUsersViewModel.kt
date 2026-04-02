@@ -12,6 +12,7 @@ import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.CallFemaleUserResponse
 import com.gmwapp.hima.retrofit.responses.CallMaleUserResponse
 import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
+import com.gmwapp.hima.retrofit.responses.FemaleDiscoveryResponse
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponse
 import com.gmwapp.hima.retrofit.responses.RandomUsersResponse
 import com.gmwapp.hima.retrofit.responses.ReportsResponse
@@ -31,6 +32,8 @@ class FemaleUsersViewModel @Inject constructor(private val femaleUsersRepositori
 
     val femaleUsersResponseLiveData = MutableLiveData<FemaleUsersResponse>()
     val femaleUsersErrorLiveData = MutableLiveData<String>()
+    val femaleDiscoveryResponseLiveData = MutableLiveData<FemaleDiscoveryResponse>()
+    val femaleDiscoveryErrorLiveData = MutableLiveData<String>()
 
     val randomUsersResponseLiveData = MutableLiveData<RandomUsersResponse>()
     val randomUsersErrorLiveData = MutableLiveData<String>()
@@ -70,6 +73,34 @@ class FemaleUsersViewModel @Inject constructor(private val femaleUsersRepositori
 
                 override fun onNoNetwork() {
                     femaleUsersErrorLiveData.postValue(DConstants.NO_NETWORK);
+                }
+            })
+        }
+    }
+
+    fun getFemaleDiscovery(userId: Int) {
+        viewModelScope.launch {
+            Log.d("apicheck", "female_discovery request started for user_id=$userId")
+            femaleUsersRepositories.getFemaleDiscovery(userId, object : NetworkCallback<FemaleDiscoveryResponse> {
+                override fun onResponse(
+                    call: Call<FemaleDiscoveryResponse>,
+                    response: Response<FemaleDiscoveryResponse>
+                ) {
+                    Log.d(
+                        "apicheck",
+                        "female_discovery onResponse code=${response.code()} body=${response.body()}"
+                    )
+                    femaleDiscoveryResponseLiveData.postValue(response.body())
+                }
+
+                override fun onFailure(call: Call<FemaleDiscoveryResponse>, t: Throwable) {
+                    Log.e("apicheck", "female_discovery onFailure: ${t.message}", t)
+                    femaleDiscoveryErrorLiveData.postValue(DConstants.LOGIN_ERROR)
+                }
+
+                override fun onNoNetwork() {
+                    Log.e("apicheck", "female_discovery onNoNetwork")
+                    femaleDiscoveryErrorLiveData.postValue(DConstants.NO_NETWORK)
                 }
             })
         }

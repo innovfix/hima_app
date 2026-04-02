@@ -16,6 +16,8 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TableRow
 import android.widget.TextView
 import android.widget.Toast
@@ -63,6 +65,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
+import kotlin.random.Random
 
 
 @AndroidEntryPoint
@@ -491,6 +494,7 @@ class FemaleHomeFragment : BaseFragment() {
 
         femaleUsersViewModel.getReports(userData?.id!!)
         femaleUsersViewModel.getFemaleUsers(userData.id)
+        femaleUsersViewModel.getFemaleDiscovery(userData.id)
 
         femaleUsersViewModel.femaleUsersResponseLiveData.observe(viewLifecycleOwner, Observer { response ->
             if (response != null && response.success) {
@@ -502,6 +506,24 @@ class FemaleHomeFragment : BaseFragment() {
                     binding.tvVideoRateValue.text = "1 min = ₹$rate"
                 }
             }
+        })
+
+        femaleUsersViewModel.femaleDiscoveryResponseLiveData.observe(viewLifecycleOwner, Observer { response ->
+            if (response != null && response.success) {
+                val creators = response.data.orEmpty()
+                binding.tvOnlineCount.text = "${response.online_count ?: 0} online"
+                renderDiscoveryCreators(creators.mapNotNull { creator ->
+                    val name = creator.name?.trim().orEmpty()
+                    val avatar = creator.avatar?.trim()
+                    if (name.isBlank()) null else name to avatar
+                })
+            } else {
+                binding.cvFemaleDiscovery.visibility = View.GONE
+            }
+        })
+
+        femaleUsersViewModel.femaleDiscoveryErrorLiveData.observe(viewLifecycleOwner, Observer {
+            binding.cvFemaleDiscovery.visibility = View.GONE
         })
 
         femaleUsersViewModel.reportResponseLiveData.observe(viewLifecycleOwner, Observer {
@@ -634,6 +656,50 @@ class FemaleHomeFragment : BaseFragment() {
         setupSwitchListeners(userData)
     }
 
+    private fun renderDiscoveryCreators(creators: List<Pair<String, String?>>) {
+        if (creators.isEmpty()) {
+            binding.cvFemaleDiscovery.visibility = View.GONE
+            return
+        }
+
+        binding.cvFemaleDiscovery.visibility = View.VISIBLE
+        binding.llDiscoveryCreators.removeAllViews()
+        val displayCreators = creators.take(12)
+        val sortedMinutes = List(displayCreators.size) { Random.nextInt(1, 10) }.sorted()
+
+        displayCreators.forEachIndexed { index, (name, avatar) ->
+            val itemView = layoutInflater.inflate(
+                R.layout.item_female_discovery_creator,
+                binding.llDiscoveryCreators,
+                false
+            )
+            val ivAvatar = itemView.findViewById<ImageView>(R.id.iv_creator_avatar)
+            val tvName = itemView.findViewById<TextView>(R.id.tv_creator_name)
+            val tvTime = itemView.findViewById<TextView>(R.id.tv_joined_time)
+
+            tvName.text = name
+            tvTime.text = "${sortedMinutes[index]} min ago"
+
+            if (avatar.isNullOrBlank()) {
+                ivAvatar.setBackgroundResource(R.drawable.circle_bg_grey)
+                ivAvatar.setImageResource(R.drawable.ic_user_add)
+                ivAvatar.setColorFilter(ContextCompat.getColor(requireContext(), R.color.colorAccent))
+                ivAvatar.scaleType = ImageView.ScaleType.CENTER_INSIDE
+                ivAvatar.setPadding(14, 14, 14, 14)
+            } else {
+                ivAvatar.setBackgroundResource(0)
+                ivAvatar.clearColorFilter()
+                ivAvatar.setPadding(0, 0, 0, 0)
+                ivAvatar.scaleType = ImageView.ScaleType.CENTER_CROP
+                Glide.with(this)
+                    .load(avatar)
+                    .into(ivAvatar)
+            }
+
+            binding.llDiscoveryCreators.addView(itemView)
+        }
+    }
+
     private fun setupSwitchListeners(userData: UserData?) {
         if (userData != null) {
             binding.sAudio.setOnCheckedChangeListener({ buttonView, isChecked ->
@@ -699,6 +765,7 @@ class FemaleHomeFragment : BaseFragment() {
             checkAndLogTwoMinDuration(userData)
             
             femaleUsersViewModel.getReports(userData.id)
+            femaleUsersViewModel.getFemaleDiscovery(userData.id)
             updateEarnings()
         } else {
             Log.e("FemaleHomeFragment", "UserData is null, skipping getReports()")

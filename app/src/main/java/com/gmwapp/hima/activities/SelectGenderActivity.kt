@@ -11,13 +11,19 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.PagerSnapHelper
 import com.gmwapp.hima.R
+import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.adapters.AvatarsListAdapter
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivitySelectGenderBinding
+import com.gmwapp.hima.retrofit.ApiManager
+import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.onesignal.OneSignal
 import dagger.hilt.android.AndroidEntryPoint
+import okhttp3.ResponseBody
+import retrofit2.Call
+import retrofit2.Response
 
 
 @AndroidEntryPoint
@@ -26,6 +32,10 @@ class SelectGenderActivity : BaseActivity() {
     private val profileViewModel: ProfileViewModel by viewModels()
     private var selectedGender = "male"
     private var avatarsListAdapter: AvatarsListAdapter? = null
+
+    @javax.inject.Inject
+    lateinit var apiManager: ApiManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySelectGenderBinding.inflate(layoutInflater)
@@ -36,6 +46,7 @@ class SelectGenderActivity : BaseActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+        callTrackingInfoFromSavedAddress()
         initUI()
     }
 
@@ -170,6 +181,41 @@ class SelectGenderActivity : BaseActivity() {
             binding.iconMale.setBackgroundResource(R.drawable.circle_bg_grey)
             binding.iconMale.setTextColor(greyColor)
         }
+    }
+
+    private fun callTrackingInfoFromSavedAddress() {
+        val prefs = BaseApplication.getInstance()?.getPrefs()
+        val savedAddress = prefs?.getString("saved_address")
+
+        if (savedAddress.isNullOrBlank()) {
+            android.util.Log.d("SelectGenderTracking", "saved_address is empty, skipping tracking_info")
+            return
+        }
+
+        apiManager.trackingInfoRaw(savedAddress, 0, object : NetworkCallback<ResponseBody> {
+            override fun onResponse(
+                call: Call<ResponseBody>,
+                response: Response<ResponseBody>
+            ) {
+                val rawBody = try {
+                    response.body()?.string()
+                } catch (e: Exception) {
+                    null
+                }
+                android.util.Log.d(
+                    "SelectGenderTracking",
+                    "tracking_info success code=${response.code()} raw=$rawBody"
+                )
+            }
+
+            override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
+                android.util.Log.e("SelectGenderTracking", "tracking_info failure: ${t.message}", t)
+            }
+
+            override fun onNoNetwork() {
+                android.util.Log.e("SelectGenderTracking", "tracking_info no network")
+            }
+        })
     }
 
 }
