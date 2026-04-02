@@ -356,6 +356,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
         avatarObservers()
         userData?.let { setMyAvatar(it.image, it.name) }
+        setupIplTeamBadges()
 
         observeCallSwitchRequest()
 
@@ -618,7 +619,31 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             .load(image)
             .apply(RequestOptions.circleCropTransform())
             .into(binding.ivMaleUser)
+    }
 
+    private fun setupIplTeamBadges() {
+        val prefs = BaseApplication.getInstance()?.getPrefs()
+        val savedTeamName = prefs?.getSelectedIplTeam()
+        val team = savedTeamName?.let { name ->
+            com.gmwapp.hima.models.IplTeam.values().find { it.name == name }
+        }
+        if (team != null) {
+            binding.maleIplBadge.visibility = View.VISIBLE
+            binding.tvMaleIplTeam.text = team.abbreviation
+            val maleDot = binding.maleIplDot.background.mutate() as android.graphics.drawable.GradientDrawable
+            maleDot.setColor(android.graphics.Color.parseColor(team.primaryColor))
+            binding.maleTeamRing.visibility = View.VISIBLE
+            val maleRing = binding.maleTeamRing.background.mutate() as android.graphics.drawable.GradientDrawable
+            maleRing.setColor(android.graphics.Color.parseColor(team.primaryColor))
+        }
+        val demoTeam = com.gmwapp.hima.models.IplTeam.values().random()
+        binding.femaleIplBadge.visibility = View.VISIBLE
+        binding.tvFemaleIplTeam.text = demoTeam.abbreviation
+        val femaleDot = binding.femaleIplDot.background.mutate() as android.graphics.drawable.GradientDrawable
+        femaleDot.setColor(android.graphics.Color.parseColor(demoTeam.primaryColor))
+        binding.femaleTeamRing.visibility = View.VISIBLE
+        val femaleRing = binding.femaleTeamRing.background.mutate() as android.graphics.drawable.GradientDrawable
+        femaleRing.setColor(android.graphics.Color.parseColor(demoTeam.primaryColor))
     }
 
     private fun avatarObservers() {
