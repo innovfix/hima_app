@@ -64,6 +64,7 @@ import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityMainBinding
 import com.gmwapp.hima.dialogs.BottomSheetWelcomeBonus
+import com.gmwapp.hima.dialogs.BottomSheetInsufficientCoinsPaywall
 import com.gmwapp.hima.dialogs.FreeCoinsWelcomeDialog
 import com.gmwapp.hima.dialogs.RatingDialog
 import com.gmwapp.hima.fragments.FavouriteFragment
@@ -74,9 +75,11 @@ import com.gmwapp.hima.fragments.ProfileFragment
 import com.gmwapp.hima.fragments.RecentFragment
 import com.gmwapp.hima.retrofit.responses.CoinsResponseData
 import com.gmwapp.hima.retrofit.responses.NewRazorpayLinkResponse
+import com.gmwapp.hima.retrofit.responses.PaywallVideoContentResponse
 import com.gmwapp.hima.retrofit.responses.RazorPayApiResponse
 import com.gmwapp.hima.retrofit.responses.FreeCoinsStatusResponse
 import com.gmwapp.hima.retrofit.responses.InstallReferrerResponse
+import com.gmwapp.hima.retrofit.responses.LoginResponse
 import com.gmwapp.hima.retrofit.responses.MissedCallCountResponse
 import com.gmwapp.hima.retrofit.responses.TrackingInfoResponse
 import com.gmwapp.hima.retrofit.ApiManager
@@ -113,6 +116,7 @@ import com.onesignal.OneSignal
 import com.phonepe.intent.sdk.api.PhonePeInitException
 import com.phonepe.intent.sdk.api.PhonePeKt
 import com.phonepe.intent.sdk.api.models.PhonePeEnvironment
+import com.google.gson.Gson
 import com.zoho.salesiqembed.ZohoSalesIQ
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -133,7 +137,9 @@ import kotlin.math.round
 
 @AndroidEntryPoint
 class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelectedListener,
-    BottomSheetWelcomeBonus.OnAddCoinsListener, CFCheckoutResponseCallback {
+    BottomSheetWelcomeBonus.OnAddCoinsListener,
+    BottomSheetInsufficientCoinsPaywall.OnPaywallAddCoinsListener,
+    CFCheckoutResponseCallback {
     lateinit var binding: ActivityMainBinding
     var isBackPressedAlready = false
     var userName: String? = null
@@ -191,6 +197,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     private var recentUnreadCount: Int = 0
     private val recentMissedDotTag = "recent_missed_dot"
     private val recentUnreadDotTag = "recent_unread_dot"
+    private val paywallVideoContentPrefsKey = "paywall_video_content_response"
+    private val showPaywallInsufficientIntentKey = "show_paywall_insufficient"
 
     var fromApplication = false
 
@@ -296,7 +304,6 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         }
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-
 
         AppEventsLogger.newLogger(this).logEvent("TestEventFromApp")
 
@@ -913,121 +920,139 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             setString("last_coin_amount", amount.toString())
         }
 
-        if (userId != null && pointsId.isNotEmpty()) {
-            if (pointsIdInt != null) {
-
-                if (paymentGateway.isNotEmpty()) {
-
-                    when (paymentGateway) {
-
-                        "phonepe"->{
-
-                            if (isPhonePeInitialized){
-                                fetchOrderFromBackend(pointsId)
-                            }
-                        }
-
-                        "gpay" -> {
-
-                            val random4Digit = (1000..9999).random()
-
-                            // ✅ Save userId and pointsIdInt BEFORE launching billing
-                            val preferences = DPreferences(this)
-                            preferences.clearSelectedOrderId()
-                            preferences.setSelectedUserId(userId.toString())
-                            preferences.setSelectedPlanId(java.lang.String.valueOf(pointsIdInt))
-                            preferences.setSelectedOrderId(java.lang.String.valueOf(random4Digit))
-                            WalletViewModel.tryCoins(userId, pointsIdInt, 0, random4Digit, "try")
-                            billingManager!!.purchaseProduct(
-                              //  "coin_14",
-                               pointsId,
-                            )
-                            WalletViewModel.navigateToMain.observe(
-                                this,
-                                Observer { shouldNavigate ->
-                                    Log.d("shouldNavigateFromMain","$shouldNavigate")
-                                    if (shouldNavigate){
-                                        updatePurchaseOnMeta()
-                                    val intent = Intent(this, MainActivity::class.java)
-                                    intent.flags =
-                                        Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                                    startActivity(intent)
-                                    finish() // ✅ Now this works because we are in an Activity
-                                }})
-
-                        }
-
-                        "razorpay" -> {
-
-                            callNewRazorPay = apiService.callNewRazorPay(userId,pointsId)
-
-
-                            callNewRazorPay.enqueue(object : retrofit2.Callback<NewRazorpayLinkResponse> {
-                                override fun onResponse(call: retrofit2.Call<NewRazorpayLinkResponse>, response: retrofit2.Response<NewRazorpayLinkResponse>) {
-                                    if (response.isSuccessful && response.body() != null) {
-                                        val apiResponse = response.body()
-
-                                        // Extract the Razorpay payment link
-                                        val paymentUrl = apiResponse?.data?.short_url
-
-                                        Log.d("paymentUrlRazorPay","$paymentUrl")
-
-                                        if (!paymentUrl.isNullOrEmpty()) {
-
-                                            val intent =Intent(this@MainActivity, LauncherActivity::class.java)
-                                            intent.setData(Uri.parse(paymentUrl))
-                                            Log.d("paymentUrlRazorPay","$paymentUrl")
-                                            startActivity(intent)
-
-//                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(paymentUrl))
-//                                startActivity(intent)
-                                        } else {
-                                            showAppToast("Failed to get payment link", Toast.LENGTH_SHORT)
-                                        }
-                                    } else {
-                                        showAppToast("Error: ${response.errorBody()?.string()}", Toast.LENGTH_SHORT)
-                                    }
-                                }
-
-                                override fun onFailure(call: retrofit2.Call<NewRazorpayLinkResponse>, t: Throwable) {
-                                    showAppToast("Failed: ${t.message}", Toast.LENGTH_SHORT)
-                                }
-                            })
-                        }
-
-                        "cashfree"->{
-
-
-                            fetchOrderOfCashfree(pointsId)
-                        }
-
-
-
-                        "upigateway" -> {
-
-                            val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-                            var userid = userData?.id
-                            userid?.let {
-                                val clientTxnId = generateRandomTxnId(
-                                    it,
-                                    id.toString()
-                                )  // Generate a new transaction ID
-                                upiPaymentViewModel.createUpiPayment(it, clientTxnId, total_amount)
-                            }
-
-                        }
-
-
-                        else -> {
-                            showAppToast("Invalid Payment Gateway", Toast.LENGTH_SHORT)
-                        }
-
-
-                    }
-                }
+        if (userId != null && pointsId.isNotEmpty() && pointsIdInt != null) {
+            if (paymentGateway.isNotEmpty()) {
+                startAddCoinsPaymentFlow(userId, pointsId, pointsIdInt, id)
+            } else {
+                fetchPaymentGatewayAndStart(
+                    mobile = userData?.mobile,
+                    userId = userId,
+                    pointsId = pointsId,
+                    pointsIdInt = pointsIdInt,
+                    selectedCoinId = id
+                )
             }
         } else {
             showAppToast("Invalid input data", Toast.LENGTH_SHORT)
+        }
+    }
+
+    private fun fetchPaymentGatewayAndStart(
+        mobile: String?,
+        userId: Int,
+        pointsId: String,
+        pointsIdInt: Int,
+        selectedCoinId: Int
+    ) {
+        if (mobile.isNullOrBlank()) {
+            showAppToast("Please try again later", Toast.LENGTH_SHORT)
+            return
+        }
+
+        showAppToast("Please wait...", Toast.LENGTH_SHORT)
+
+        val observer = object : Observer<LoginResponse> {
+            override fun onChanged(response: LoginResponse) {
+                loginViewModel.loginResponseLiveData.removeObserver(this)
+
+                val gateway = response.data?.payment_type
+                if (response.success && !gateway.isNullOrBlank()) {
+                    paymentGateway = gateway
+                    startAddCoinsPaymentFlow(userId, pointsId, pointsIdInt, selectedCoinId)
+                } else {
+                    showAppToast("Payment gateway not available", Toast.LENGTH_SHORT)
+                }
+            }
+        }
+
+        loginViewModel.loginResponseLiveData.observe(this, observer)
+        loginViewModel.login(mobile, "0", "0")
+    }
+
+    private fun startAddCoinsPaymentFlow(
+        userId: Int,
+        pointsId: String,
+        pointsIdInt: Int,
+        selectedCoinId: Int
+    ) {
+        when (paymentGateway) {
+            "phonepe" -> {
+                if (isPhonePeInitialized) {
+                    fetchOrderFromBackend(pointsId)
+                } else {
+                    showAppToast("Please try again later", Toast.LENGTH_SHORT)
+                }
+            }
+
+            "gpay" -> {
+                val random4Digit = (1000..9999).random()
+
+                val preferences = DPreferences(this)
+                preferences.clearSelectedOrderId()
+                preferences.setSelectedUserId(userId.toString())
+                preferences.setSelectedPlanId(java.lang.String.valueOf(pointsIdInt))
+                preferences.setSelectedOrderId(java.lang.String.valueOf(random4Digit))
+                WalletViewModel.tryCoins(userId, pointsIdInt, 0, random4Digit, "try")
+                billingManager!!.purchaseProduct(pointsId)
+                WalletViewModel.navigateToMain.observe(
+                    this,
+                    Observer { shouldNavigate ->
+                        Log.d("shouldNavigateFromMain", "$shouldNavigate")
+                        if (shouldNavigate) {
+                            updatePurchaseOnMeta()
+                            val intent = Intent(this, MainActivity::class.java)
+                            intent.flags =
+                                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                            startActivity(intent)
+                            finish()
+                        }
+                    })
+            }
+
+            "razorpay" -> {
+                callNewRazorPay = apiService.callNewRazorPay(userId, pointsId)
+                callNewRazorPay.enqueue(object : retrofit2.Callback<NewRazorpayLinkResponse> {
+                    override fun onResponse(
+                        call: retrofit2.Call<NewRazorpayLinkResponse>,
+                        response: retrofit2.Response<NewRazorpayLinkResponse>
+                    ) {
+                        if (response.isSuccessful && response.body() != null) {
+                            val paymentUrl = response.body()?.data?.short_url
+                            Log.d("paymentUrlRazorPay", "$paymentUrl")
+
+                            if (!paymentUrl.isNullOrEmpty()) {
+                                val intent = Intent(this@MainActivity, LauncherActivity::class.java)
+                                intent.data = Uri.parse(paymentUrl)
+                                startActivity(intent)
+                            } else {
+                                showAppToast("Failed to get payment link", Toast.LENGTH_SHORT)
+                            }
+                        } else {
+                            showAppToast("Error: ${response.errorBody()?.string()}", Toast.LENGTH_SHORT)
+                        }
+                    }
+
+                    override fun onFailure(call: retrofit2.Call<NewRazorpayLinkResponse>, t: Throwable) {
+                        showAppToast("Failed: ${t.message}", Toast.LENGTH_SHORT)
+                    }
+                })
+            }
+
+            "cashfree" -> {
+                fetchOrderOfCashfree(pointsId)
+            }
+
+            "upigateway" -> {
+                val currentUserData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                currentUserData?.id?.let {
+                    val clientTxnId = generateRandomTxnId(it, selectedCoinId.toString())
+                    upiPaymentViewModel.createUpiPayment(it, clientTxnId, total_amount)
+                }
+            }
+
+            else -> {
+                showAppToast("Invalid Payment Gateway", Toast.LENGTH_SHORT)
+            }
         }
     }
 
@@ -1231,9 +1256,13 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         super.onResume()
 
         checkIndividualPaymentType()
+        handleInsufficientCoinPaywallIntent()
 
         val prefs = BaseApplication.getInstance()?.getPrefs()
         val userData = prefs?.getUserData()
+        userData?.id?.let { userId ->
+            callPaywallVideoContentApi(userId)
+        }
         if (userData?.gender=="female") {
             ZohoHelper.initZohoWithUser(userData, zohoMailViewModel)
         }
@@ -1261,6 +1290,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         // Refresh bottom nav badge for missed calls
         loadRecentMissedCountBadge()
         loadRecentUnreadCountBadge()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
     }
 
     fun refreshRecentMissedCountBadge() {
@@ -1867,7 +1901,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     }
 
     fun getDiscountedPriceFromTotal(totalAmountStr: String): Int {
-        val totalAmount = totalAmountStr.toInt()
+        val totalAmount = totalAmountStr.toDoubleOrNull()?.let { Math.round(it).toInt() } ?: 0
+        if (totalAmount <= 0) {
+            Log.w("PriceCalc", "Invalid totalAmountStr=$totalAmountStr, defaulting discounted price to 0")
+            return 0
+        }
 
         for (price in 0..totalAmount) {
             val extra = Math.round(price * 0.02).toInt()
@@ -1876,7 +1914,10 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             }
         }
 
-        throw IllegalArgumentException("Error")
+        // Some paywall amounts are already final amounts (not price+2% shaped).
+        // Return totalAmount as a safe fallback to avoid checkout crash.
+        Log.w("PriceCalc", "Could not reverse-calc 2% price for total=$totalAmount. Using fallback.")
+        return totalAmount
     }
 
     private fun cashfreeUPIIntentPayment(paymentSessionID: String, orderID: String) {
@@ -2265,6 +2306,69 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 Log.w("TrackingInfo", "No network for tracking_info API")
             }
         })
+    }
+
+    private fun callPaywallVideoContentApi(userId: Int) {
+        apiManager.getPaywallVideoContent(userId, object : NetworkCallback<PaywallVideoContentResponse> {
+            override fun onResponse(
+                call: retrofit2.Call<PaywallVideoContentResponse>,
+                response: retrofit2.Response<PaywallVideoContentResponse>
+            ) {
+                val prefs = BaseApplication.getInstance()?.getPrefs()
+                val body = response.body()
+
+                if (body != null) {
+                    prefs?.setString(paywallVideoContentPrefsKey, Gson().toJson(body))
+                    Log.d("PaywallVideoContent", "Saved latest response: ${body.message}")
+                } else {
+                    val fallback = PaywallVideoContentResponse(
+                        success = false,
+                        message = "HTTP ${response.code()}: ${response.message()}"
+                    )
+                    prefs?.setString(paywallVideoContentPrefsKey, Gson().toJson(fallback))
+                    Log.e("PaywallVideoContent", "Empty response body. Saved fallback for code ${response.code()}")
+                }
+            }
+
+            override fun onFailure(call: retrofit2.Call<PaywallVideoContentResponse>, t: Throwable) {
+                Log.e("PaywallVideoContent", "API call failed: ${t.message}", t)
+            }
+
+            override fun onNoNetwork() {
+                Log.w("PaywallVideoContent", "No network for paywall_video_content API")
+            }
+        })
+    }
+
+    private fun handleInsufficientCoinPaywallIntent() {
+        if (!intent.getBooleanExtra(showPaywallInsufficientIntentKey, false)) return
+
+        intent.removeExtra(showPaywallInsufficientIntentKey)
+        val prefs = BaseApplication.getInstance()?.getPrefs()
+        val cachedJson = prefs?.getString(paywallVideoContentPrefsKey).orEmpty()
+        if (cachedJson.isBlank()) return
+
+        try {
+            val cachedResponse = Gson().fromJson(cachedJson, PaywallVideoContentResponse::class.java)
+            val data = cachedResponse?.data ?: return
+
+            if (data.coin_id == null || data.coin_amount == null || data.coin_amount <= 0) return
+            val coinValueForButton = data.coin_value ?: data.coin ?: data.coin_amount
+
+            val existing = supportFragmentManager.findFragmentByTag("InsufficientCoinsPaywall")
+            if (existing != null) return
+
+            BottomSheetInsufficientCoinsPaywall.newInstance(
+                titleText = data.text_one,
+                subtitleText = data.text_three,
+                youtubeVideoLink = data.youtube_video_link,
+                coinId = data.coin_id,
+                coinAmount = data.coin_amount,
+                coinValue = coinValueForButton
+            ).show(supportFragmentManager, "InsufficientCoinsPaywall")
+        } catch (e: Exception) {
+            Log.e("PaywallVideoContent", "Failed to parse cached paywall response", e)
+        }
     }
 
     private fun checkRatingEligibility(userId: Int) {

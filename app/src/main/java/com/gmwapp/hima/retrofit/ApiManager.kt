@@ -107,6 +107,7 @@ import com.gmwapp.hima.retrofit.responses.CheckRatingEligibilityResponse
 import com.gmwapp.hima.retrofit.responses.SubmitRatingResponse
 import com.gmwapp.hima.retrofit.responses.MyWarningsResponse
 import com.gmwapp.hima.retrofit.responses.MissedCallCountResponse
+import com.gmwapp.hima.retrofit.responses.PaywallVideoContentResponse
 import com.gmwapp.hima.retrofit.responses.StarCreatorSpeechResponse
 import com.gmwapp.hima.retrofit.responses.StarCreatorSubmitResponse
 import com.gmwapp.hima.utils.Helper
@@ -200,6 +201,18 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<TrackingInfoResponse> = getApiInterface().trackingInfo(savedAddress, userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getPaywallVideoContent(
+        userId: Int,
+        callback: NetworkCallback<PaywallVideoContentResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<PaywallVideoContentResponse> = getApiInterface().getPaywallVideoContent(userId)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1814,6 +1827,12 @@ interface ApiInterface {
         @Field("saved_address") savedAddress: String,
         @Field("user_id") userId: Int
     ): Call<TrackingInfoResponse>
+
+    @FormUrlEncoded
+    @POST("paywall_video_content")
+    fun getPaywallVideoContent(
+        @Field("user_id") userId: Int
+    ): Call<PaywallVideoContentResponse>
 
     @FormUrlEncoded
     @POST("tracking_info")
