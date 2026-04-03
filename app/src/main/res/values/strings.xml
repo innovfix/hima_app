@@ -297,4 +297,25 @@
     <string name="offer_subtitle">Connect instantly with anyone on this list</string>
     <string name="pay_25">Pay \u20B925</string>
     <string name="skip_for_now">Skip for now</string>
+
+    <!-- Hima AI Conversation Screen -->
+    <string name="hima_ai">Hima AI ✨</string>
+    <string name="hima_ai_intro">Hi! I am Hima AI ✨ I help connect real soulful people who can help with your issues.</string>
+    <string name="hima_ai_breakup_q">I\'m really sorry to hear about your breakup 💔 Can you tell me more about it?</string>
+    <string name="hima_ai_lonely_q">I can see you\'re feeling lonely 😔 You\'re not alone here. Can you tell me what\'s making you feel this way?</string>
+    <string name="hima_ai_friends_q">It\'s great that you want to make new friends 🤝 What kind of people would you like to connect with?</string>
+    <string name="hima_ai_fun_q">Looking for some fun conversations 🎉 Tell me what kind of things you enjoy!</string>
+    <string name="hima_ai_understand_q">Everyone deserves to be understood 🫶 Can you tell me what\'s on your mind?</string>
+    <string name="hima_ai_response_breakup_name">I understand that %1$s has left you. Don\'t worry, we have amazing people who will cheer you up and make you feel better! 🤗</string>
+    <string name="hima_ai_response_breakup_noname">I understand how painful this breakup is. Don\'t worry, we have amazing people who will cheer you up and make you feel better! 🤗</string>
+    <string name="hima_ai_response_lonely_name">I hear you. %1$s might not be around, but we have amazing people who will make you feel connected! 🤗</string>
+    <string name="hima_ai_response_lonely_noname">I hear you. Don\'t worry, we have amazing people who will make you feel connected and less alone! 🤗</string>
+    <string name="hima_ai_response_friends">That sounds wonderful! We have amazing people who share similar interests and would love to be your friend! 🤗</string>
+    <string name="hima_ai_response_fun">That\'s the spirit! We have amazing, fun people who will make your day so much better! 🤗</string>
+    <string name="hima_ai_response_understand">Your feelings are completely valid. We have amazing, empathetic people who will truly understand you! 🤗</string>
+    <string name="hima_ai_finding">Let me find the best people for you. I\'ll send messages to 10 creators right now! ✨</string>
+    <string name="hima_ai_sending">Sending messages to creators…</string>
+    <string name="hima_ai_sent">Messages sent! 🎉</string>
+    <string name="hima_ai_people_label">People who can help you</string>
+    <string name="type_your_message">Type your message…</string>
 </resources>
