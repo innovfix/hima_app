@@ -90,7 +90,6 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
-                android:layout_marginBottom="16dp"
                 android:fontFamily="@font/poppins_bold"
                 android:text="Username"
                 android:textColor="@color/white"
@@ -100,6 +99,43 @@
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/avatar_container" />
+
+            <!-- IPL Team Badge -->
+            <LinearLayout
+                android:id="@+id/ipl_team_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="16dp"
+                android:background="@drawable/bg_ipl_team_profile_badge"
+                android:clickable="true"
+                android:focusable="true"
+                android:elevation="2dp"
+                android:foreground="?attr/selectableItemBackgroundBorderless"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/tv_name">
+
+                <View
+                    android:id="@+id/ipl_badge_team_dot"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:background="@drawable/bg_team_circle"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/tv_ipl_badge_team_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:fontFamily="@font/poppins_semibold"
+                    android:text="@string/choose_team"
+                    android:textColor="@color/white"
+                    android:textSize="12sp" />
+
+            </LinearLayout>
         </androidx.constraintlayout.widget.ConstraintLayout>
 
         <!-- Curved White Container for Menu Items -->

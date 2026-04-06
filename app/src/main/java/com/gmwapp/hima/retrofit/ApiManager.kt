@@ -13,6 +13,14 @@ import com.gmwapp.hima.retrofit.responses.SubqueriesResponse
 import com.gmwapp.hima.retrofit.responses.SubmitTicketResponse
 import com.gmwapp.hima.retrofit.responses.TicketsListResponse
 import com.gmwapp.hima.retrofit.responses.BlockUserResponse
+import com.gmwapp.hima.retrofit.responses.IplRoomsListResponse
+import com.gmwapp.hima.retrofit.responses.IplRoomCreateResponse
+import com.gmwapp.hima.retrofit.responses.IplRoomJoinResponse
+import com.gmwapp.hima.retrofit.responses.IplRoomLeaveResponse
+import com.gmwapp.hima.retrofit.responses.IplRoomDetailResponse
+import com.gmwapp.hima.retrofit.responses.IplRoomReactionResponse
+import com.gmwapp.hima.retrofit.responses.IplRoomMuteResponse
+import com.gmwapp.hima.retrofit.responses.IplMatchSuggestionsResponse
 import com.gmwapp.hima.retrofit.responses.CheckBlockStatusResponse
 import com.gmwapp.hima.retrofit.responses.CreatorWarningsResponse
 import com.gmwapp.hima.retrofit.responses.CallFemaleUserResponse
@@ -1799,6 +1807,80 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
             callback.onNoNetwork()
         }
     }
+
+    // ===== IPL Rooms =====
+
+    fun getIplRooms(userId: Int, callback: NetworkCallback<IplRoomsListResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().getIplRooms(userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun createIplRoom(userId: Int, roomName: String, teamA: String, teamB: String, callback: NetworkCallback<IplRoomCreateResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().createIplRoom(userId, roomName, teamA, teamB)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun joinIplRoom(userId: Int, roomId: Int, callback: NetworkCallback<IplRoomJoinResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().joinIplRoom(userId, roomId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun leaveIplRoom(userId: Int, roomId: Int, callback: NetworkCallback<IplRoomLeaveResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().leaveIplRoom(userId, roomId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getIplRoomDetails(roomId: Int, callback: NetworkCallback<IplRoomDetailResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().getIplRoomDetails(roomId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun sendIplReaction(userId: Int, roomId: Int, reactionType: String, callback: NetworkCallback<IplRoomReactionResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().sendIplReaction(userId, roomId, reactionType)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun toggleIplMute(userId: Int, roomId: Int, isMuted: Int, callback: NetworkCallback<IplRoomMuteResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().toggleIplMute(userId, roomId, isMuted)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getIplMatchSuggestions(callback: NetworkCallback<IplMatchSuggestionsResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().getIplMatchSuggestions()
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
 }
 
 interface ApiInterface {
@@ -2677,5 +2759,61 @@ interface ApiInterface {
         @Field("star_count") starCount: Int,
         @Field("description") description: String?
     ): Call<SubmitRatingResponse>
+
+    // ===== IPL Rooms =====
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-list")
+    fun getIplRooms(
+        @Field("user_id") userId: Int
+    ): Call<IplRoomsListResponse>
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-create")
+    fun createIplRoom(
+        @Field("user_id") userId: Int,
+        @Field("room_name") roomName: String,
+        @Field("team_a") teamA: String,
+        @Field("team_b") teamB: String
+    ): Call<IplRoomCreateResponse>
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-join")
+    fun joinIplRoom(
+        @Field("user_id") userId: Int,
+        @Field("room_id") roomId: Int
+    ): Call<IplRoomJoinResponse>
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-leave")
+    fun leaveIplRoom(
+        @Field("user_id") userId: Int,
+        @Field("room_id") roomId: Int
+    ): Call<IplRoomLeaveResponse>
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-details")
+    fun getIplRoomDetails(
+        @Field("room_id") roomId: Int
+    ): Call<IplRoomDetailResponse>
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-reaction")
+    fun sendIplReaction(
+        @Field("user_id") userId: Int,
+        @Field("room_id") roomId: Int,
+        @Field("reaction_type") reactionType: String
+    ): Call<IplRoomReactionResponse>
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-mute")
+    fun toggleIplMute(
+        @Field("user_id") userId: Int,
+        @Field("room_id") roomId: Int,
+        @Field("is_muted") isMuted: Int
+    ): Call<IplRoomMuteResponse>
+
+    @POST("ipl-rooms-matches")
+    fun getIplMatchSuggestions(): Call<IplMatchSuggestionsResponse>
 
 }

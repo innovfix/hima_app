@@ -23,6 +23,7 @@ import com.gmwapp.hima.retrofit.responses.FemaleUsersResponseData
 import com.gmwapp.hima.retrofit.responses.Interests
 import com.gmwapp.hima.utils.CallUnavailableFeedback
 import com.gmwapp.hima.utils.Helper
+import com.gmwapp.hima.models.IplTeam
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.google.android.flexbox.AlignItems
 import com.google.android.flexbox.FlexDirection
@@ -180,6 +181,14 @@ class FemaleUserAdapter(
             }
             activity.startActivity(intent)
         }
+
+        // IPL Team Badge - Demo: assign teams based on position for visual demo
+        val demoTeams = IplTeam.values()
+        val assignedTeam = demoTeams[position % demoTeams.size]
+        holder.binding.iplTeamBadgeCard.visibility = View.VISIBLE
+        holder.binding.tvIplTeamAbbr.text = assignedTeam.abbreviation
+        val teamDot = holder.binding.iplTeamDot.background.mutate() as android.graphics.drawable.GradientDrawable
+        teamDot.setColor(android.graphics.Color.parseColor(assignedTeam.primaryColor))
     }
 
     override fun getItemCount(): Int {

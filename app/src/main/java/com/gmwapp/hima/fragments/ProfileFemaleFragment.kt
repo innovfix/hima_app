@@ -34,10 +34,14 @@ import com.gmwapp.hima.callbacks.NetworkRetryable
 import com.gmwapp.hima.fragments.FriendsTabFragment
 import com.gmwapp.hima.databinding.FragmentProfileFemaleBinding
 import com.gmwapp.hima.dialogs.BottomSheetLogout
+import com.gmwapp.hima.dialogs.BottomSheetSelectIplTeam
+import com.gmwapp.hima.models.IplTeam
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.viewmodels.WhatsappLinkViewModel
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -73,6 +77,40 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable {
         }
     }
 
+    private fun updateIplBadge() {
+        val prefs = BaseApplication.getInstance()?.getPrefs()
+        val savedTeamName = prefs?.getSelectedIplTeam()
+        val team = savedTeamName?.let { name ->
+            IplTeam.values().find { it.name == name }
+        }
+
+        if (team != null) {
+            binding.iplBadgeTeamDot.visibility = View.VISIBLE
+            val dotDrawable = binding.iplBadgeTeamDot.background.mutate() as GradientDrawable
+            dotDrawable.setColor(Color.parseColor(team.primaryColor))
+            binding.tvIplBadgeTeamName.text = "${team.abbreviation} - ${team.teamName}"
+            binding.iplTeamBadge.setBackgroundResource(R.drawable.bg_ipl_team_profile_badge)
+        } else {
+            binding.iplBadgeTeamDot.visibility = View.GONE
+            binding.tvIplBadgeTeamName.text = getString(R.string.choose_team)
+            binding.iplTeamBadge.setBackgroundResource(R.drawable.bg_ipl_no_team_badge)
+        }
+    }
+
+    private fun showIplTeamPicker() {
+        val prefs = BaseApplication.getInstance()?.getPrefs()
+        val savedTeamName = prefs?.getSelectedIplTeam()
+        val currentTeam = savedTeamName?.let { name ->
+            IplTeam.values().find { it.name == name }
+        }
+
+        val bottomSheet = BottomSheetSelectIplTeam(currentTeam) { selectedTeam ->
+            prefs?.setSelectedIplTeam(selectedTeam?.name)
+            updateIplBadge()
+        }
+        parentFragmentManager.let { bottomSheet.show(it, "IplTeamPicker") }
+    }
+
     private fun updateValues(){
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val prefs = BaseApplication.getInstance()?.getPrefs()
@@ -100,6 +138,12 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable {
     private fun initUI(){
 
         updateValues()
+        updateIplBadge()
+
+        binding.iplTeamBadge.setOnSingleClickListener {
+            showIplTeamPicker()
+        }
+
         val prefs = BaseApplication.getInstance()?.getPrefs()
 
 

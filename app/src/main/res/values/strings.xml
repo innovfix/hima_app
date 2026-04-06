@@ -33,6 +33,12 @@
     <string name="peer_unavailable_audio">This user is not available for audio calls right now.</string>
     <string name="peer_unavailable_video">This user is not available for video calls right now.</string>
     <string name="peer_calls_blocked">You can\'t call this user.</string>
+
+    <!-- IPL Team Badge -->
+    <string name="choose_your_ipl_team">Choose Your IPL Team</string>
+    <string name="ipl_team_subtitle">Show your support on your profile!</string>
+    <string name="choose_team">+ Choose Team</string>
+    <string name="remove_team_badge">Remove Team Badge</string>
     <string name="no_sessions_yet">No Sessions yet</string>
     <string name="your_past_sessions_will_be_displayed_here">Your past sessions will be displayed here.</string>
     <string name="connect_with_a_hima">Connect with a %s</string>
@@ -361,4 +367,37 @@
     <string name="report_reasons_unavailable_title">Couldn\'t load report options</string>
     <string name="report_reasons_unavailable_message">Check your connection and try again.</string>
     <string name="report_unable_to_identify_user">Unable to submit report. Please try again.</string>
+
+    <!-- IPL Room Calls -->
+    <string name="ipl_rooms">IPL Rooms</string>
+    <string name="ipl_room_calls">IPL Room Calls</string>
+    <string name="ipl_room_subtitle">Join the cricket conversation!</string>
+    <string name="create_room">Create Room</string>
+    <string name="join_room">Join</string>
+    <string name="live_label">LIVE</string>
+    <string name="members_count_format">%d/%d</string>
+    <string name="waiting_for_player">Waiting for player…</string>
+    <string name="room_name_hint">Room Name</string>
+    <string name="select_team_a">Select Team A</string>
+    <string name="select_team_b">Select Team B</string>
+    <string name="create_ipl_room">Create IPL Room</string>
+    <string name="leave_room">Leave</string>
+    <string name="ipl_enter_rooms">Enter IPL Rooms</string>
+    <string name="vs_label">VS</string>
+    <string name="created_by">Created by %s</string>
+    <string name="room_full">Full</string>
+    <string name="join_to_speak">Join to Speak</string>
+    <string name="user_joined">%s joined</string>
+    <string name="you_joined">You joined the room</string>
+    <string name="reaction_four">Four!</string>
+    <string name="reaction_six">Six!</string>
+    <string name="reaction_wicket">Wicket!</string>
+    <string name="reaction_great">Great!</string>
+
+    <!-- Fantasy IPL -->
+    <string name="fantasy_ipl_title">Fantasy Cricket</string>
+    <string name="fantasy_ipl_subtitle">Pick your team. Join the battle.</string>
+    <string name="fantasy_live_rooms">Live Rooms</string>
+    <string name="fantasy_no_rooms">No Live Matches</string>
+    <string name="fantasy_no_rooms_sub">Start a room and rally your squad!</string>
 </resources>

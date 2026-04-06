@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="16dp"
+    android:layout_marginBottom="12dp"
+    app:cardBackgroundColor="@android:color/transparent"
+    app:cardCornerRadius="18dp"
+    app:cardElevation="6dp"
+    app:strokeWidth="0dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_fantasy_room_card"
+        android:padding="16dp">
+
+        <!-- Team A Circle (Large) -->
+        <FrameLayout
+            android:id="@+id/fl_team_a"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <View
+                android:id="@+id/view_team_a_bg"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="@drawable/bg_team_circle"/>
+
+            <TextView
+                android:id="@+id/tv_team_a_abbr"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:textColor="@color/white"
+                android:textSize="13sp"
+                android:fontFamily="@font/poppins_bold"
+                tools:text="MI"/>
+        </FrameLayout>
+
+        <!-- VS Badge -->
+        <FrameLayout
+            android:id="@+id/fl_vs"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginStart="8dp"
+            app:layout_constraintStart_toEndOf="@id/fl_team_a"
+            app:layout_constraintTop_toTopOf="@id/fl_team_a"
+            app:layout_constraintBottom_toBottomOf="@id/fl_team_a">
+
+            <View
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:background="@drawable/bg_fantasy_vs_divider" />
+
+            <TextView
+                android:id="@+id/tv_vs"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="@string/vs_label"
+                android:textColor="#CCFFFFFF"
+                android:textSize="8sp"
+                android:fontFamily="@font/poppins_bold"/>
+        </FrameLayout>
+
+        <!-- Team B Circle (Large) -->
+        <FrameLayout
+            android:id="@+id/fl_team_b"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="8dp"
+            app:layout_constraintStart_toEndOf="@id/fl_vs"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <View
+                android:id="@+id/view_team_b_bg"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="@drawable/bg_team_circle"/>
+
+            <TextView
+                android:id="@+id/tv_team_b_abbr"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:textColor="@color/white"
+                android:textSize="13sp"
+                android:fontFamily="@font/poppins_bold"
+                tools:text="CSK"/>
+        </FrameLayout>
+
+        <!-- Join Button -->
+        <TextView
+            android:id="@+id/btn_join"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:background="@drawable/bg_fantasy_join_btn"
+            android:gravity="center"
+            android:minWidth="80dp"
+            android:paddingHorizontal="18dp"
+            android:text="@string/join_room"
+            android:textColor="@color/white"
+            android:textSize="12sp"
+            android:fontFamily="@font/poppins_bold"
+            android:textAllCaps="false"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="@id/fl_team_a"/>
+
+        <!-- Room Name -->
+        <TextView
+            android:id="@+id/tv_room_name"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:fontFamily="@font/poppins_semibold"
+            android:textColor="#F0FFFFFF"
+            android:textSize="15sp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/fl_team_a"
+            tools:text="MI vs CSK - Match Day Talk"/>
+
+        <!-- Bottom Row: Creator + Live + Members -->
+        <LinearLayout
+            android:id="@+id/ll_badges"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_room_name">
+
+            <!-- Creator info -->
+            <TextView
+                android:id="@+id/tv_room_info"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:fontFamily="@font/poppins_regular"
+                android:textColor="#70FFFFFF"
+                android:textSize="11sp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                tools:text="Created by Rohit Fan"/>
+
+            <!-- LIVE Badge -->
+            <TextView
+                android:id="@+id/tv_live_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_fantasy_live_pulse"
+                android:text="@string/live_label"
+                android:textColor="@color/white"
+                android:textSize="8sp"
+                android:fontFamily="@font/poppins_bold"
+                android:letterSpacing="0.08"
+                android:visibility="visible"/>
+
+            <!-- Member Count -->
+            <TextView
+                android:id="@+id/tv_member_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_fantasy_member_count"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="2dp"
+                android:textColor="#90FFFFFF"
+                android:textSize="10sp"
+                android:fontFamily="@font/poppins_semibold"
+                tools:text="3/4"/>
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</com.google.android.material.card.MaterialCardView>

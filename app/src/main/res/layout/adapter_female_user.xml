@@ -77,6 +77,45 @@
             </FrameLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- IPL Team Badge (Bottom-Left of Profile Image) -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/ipl_team_badge_card"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:layout_marginBottom="28dp"
+            android:visibility="gone"
+            app:cardBackgroundColor="@android:color/transparent"
+            app:cardCornerRadius="10dp"
+            app:cardElevation="4dp"
+            app:layout_constraintBottom_toBottomOf="@id/card_profile"
+            app:layout_constraintStart_toStartOf="@id/card_profile">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_ipl_team_badge_small"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:id="@+id/ipl_team_dot"
+                    android:layout_width="12dp"
+                    android:layout_height="12dp"
+                    android:background="@drawable/bg_team_circle" />
+
+                <TextView
+                    android:id="@+id/tv_ipl_team_abbr"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:textColor="@color/white"
+                    android:textSize="8sp"
+                    android:text="MI" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
         <!-- New User Badge -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/newUser"

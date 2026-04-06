@@ -1,0 +1,248 @@
+package com.gmwapp.hima.viewmodels
+
+import android.util.Log
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.gmwapp.hima.models.IplRoom
+import com.gmwapp.hima.models.IplTeam
+import com.gmwapp.hima.models.RoomMember
+import com.gmwapp.hima.repositories.IplRoomRepository
+import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
+import com.gmwapp.hima.retrofit.responses.*
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.launch
+import retrofit2.Call
+import retrofit2.Response
+import javax.inject.Inject
+
+@HiltViewModel
+class IplRoomViewModel @Inject constructor(
+    private val repository: IplRoomRepository
+) : ViewModel() {
+
+    private val TAG = "IplRoomViewModel"
+
+    // Room list
+    private val _rooms = MutableLiveData<MutableList<IplRoom>>()
+    val rooms: LiveData<MutableList<IplRoom>> = _rooms
+
+    // Create room result
+    val createRoomLiveData = MutableLiveData<IplRoomCreateResponse>()
+
+    // Join room result
+    val joinRoomLiveData = MutableLiveData<IplRoomJoinResponse>()
+
+    // Room details (for polling)
+    val roomDetailLiveData = MutableLiveData<IplRoomDetailResponse>()
+
+    // Leave result
+    val leaveRoomLiveData = MutableLiveData<IplRoomLeaveResponse>()
+
+    // Match suggestions
+    val matchSuggestionsLiveData = MutableLiveData<List<String>>()
+
+    // Error + loading
+    val errorLiveData = MutableLiveData<String>()
+    val isLoading = MutableLiveData<Boolean>()
+
+    fun getRooms(userId: Int) {
+        isLoading.postValue(true)
+        viewModelScope.launch {
+            repository.getIplRooms(userId, object : NetworkCallback<IplRoomsListResponse> {
+                override fun onResponse(call: Call<IplRoomsListResponse>, response: Response<IplRoomsListResponse>) {
+                    isLoading.postValue(false)
+                    val body = response.body()
+                    if (body != null && body.success && body.data != null) {
+                        val mapped = body.data.map { it.toIplRoom() }.toMutableList()
+                        _rooms.postValue(mapped)
+                    } else {
+                        errorLiveData.postValue(body?.message ?: "Failed to load rooms")
+                    }
+                }
+
+                override fun onFailure(call: Call<IplRoomsListResponse>, t: Throwable) {
+                    isLoading.postValue(false)
+                    Log.e(TAG, "getRooms failed: ${t.message}")
+                    errorLiveData.postValue(t.message ?: "Network error")
+                }
+
+                override fun onNoNetwork() {
+                    isLoading.postValue(false)
+                    errorLiveData.postValue("No internet connection")
+                }
+            })
+        }
+    }
+
+    fun createRoom(userId: Int, roomName: String, teamA: String, teamB: String) {
+        isLoading.postValue(true)
+        viewModelScope.launch {
+            repository.createIplRoom(userId, roomName, teamA, teamB, object : NetworkCallback<IplRoomCreateResponse> {
+                override fun onResponse(call: Call<IplRoomCreateResponse>, response: Response<IplRoomCreateResponse>) {
+                    isLoading.postValue(false)
+                    val body = response.body()
+                    if (body != null && body.success) {
+                        createRoomLiveData.postValue(body)
+                        // Add to local list
+                        body.data?.let { roomData ->
+                            val current = _rooms.value ?: mutableListOf()
+                            current.add(0, roomData.toIplRoom())
+                            _rooms.postValue(current)
+                        }
+                    } else {
+                        errorLiveData.postValue(body?.message ?: "Failed to create room")
+                    }
+                }
+
+                override fun onFailure(call: Call<IplRoomCreateResponse>, t: Throwable) {
+                    isLoading.postValue(false)
+                    errorLiveData.postValue(t.message ?: "Network error")
+                }
+
+                override fun onNoNetwork() {
+                    isLoading.postValue(false)
+                    errorLiveData.postValue("No internet connection")
+                }
+            })
+        }
+    }
+
+    fun joinRoom(userId: Int, roomId: Int) {
+        viewModelScope.launch {
+            repository.joinIplRoom(userId, roomId, object : NetworkCallback<IplRoomJoinResponse> {
+                override fun onResponse(call: Call<IplRoomJoinResponse>, response: Response<IplRoomJoinResponse>) {
+                    joinRoomLiveData.postValue(response.body())
+                }
+
+                override fun onFailure(call: Call<IplRoomJoinResponse>, t: Throwable) {
+                    errorLiveData.postValue(t.message ?: "Failed to join room")
+                }
+
+                override fun onNoNetwork() {
+                    errorLiveData.postValue("No internet connection")
+                }
+            })
+        }
+    }
+
+    fun leaveRoom(userId: Int, roomId: Int) {
+        viewModelScope.launch {
+            repository.leaveIplRoom(userId, roomId, object : NetworkCallback<IplRoomLeaveResponse> {
+                override fun onResponse(call: Call<IplRoomLeaveResponse>, response: Response<IplRoomLeaveResponse>) {
+                    leaveRoomLiveData.postValue(response.body())
+                }
+
+                override fun onFailure(call: Call<IplRoomLeaveResponse>, t: Throwable) {
+                    Log.e(TAG, "leaveRoom failed: ${t.message}")
+                }
+
+                override fun onNoNetwork() {
+                    Log.e(TAG, "leaveRoom: no network")
+                }
+            })
+        }
+    }
+
+    fun getRoomDetails(roomId: Int) {
+        viewModelScope.launch {
+            repository.getIplRoomDetails(roomId, object : NetworkCallback<IplRoomDetailResponse> {
+                override fun onResponse(call: Call<IplRoomDetailResponse>, response: Response<IplRoomDetailResponse>) {
+                    roomDetailLiveData.postValue(response.body())
+                }
+
+                override fun onFailure(call: Call<IplRoomDetailResponse>, t: Throwable) {
+                    Log.e(TAG, "getRoomDetails failed: ${t.message}")
+                }
+
+                override fun onNoNetwork() {}
+            })
+        }
+    }
+
+    fun sendReaction(userId: Int, roomId: Int, reactionType: String) {
+        viewModelScope.launch {
+            repository.sendIplReaction(userId, roomId, reactionType, object : NetworkCallback<IplRoomReactionResponse> {
+                override fun onResponse(call: Call<IplRoomReactionResponse>, response: Response<IplRoomReactionResponse>) {
+                    Log.d(TAG, "Reaction sent: $reactionType")
+                }
+
+                override fun onFailure(call: Call<IplRoomReactionResponse>, t: Throwable) {
+                    Log.e(TAG, "sendReaction failed: ${t.message}")
+                }
+
+                override fun onNoNetwork() {}
+            })
+        }
+    }
+
+    fun toggleMute(userId: Int, roomId: Int, isMuted: Boolean) {
+        viewModelScope.launch {
+            repository.toggleIplMute(userId, roomId, if (isMuted) 1 else 0, object : NetworkCallback<IplRoomMuteResponse> {
+                override fun onResponse(call: Call<IplRoomMuteResponse>, response: Response<IplRoomMuteResponse>) {
+                    Log.d(TAG, "Mute toggled: $isMuted")
+                }
+
+                override fun onFailure(call: Call<IplRoomMuteResponse>, t: Throwable) {
+                    Log.e(TAG, "toggleMute failed: ${t.message}")
+                }
+
+                override fun onNoNetwork() {}
+            })
+        }
+    }
+
+    fun getMatchSuggestions() {
+        viewModelScope.launch {
+            repository.getIplMatchSuggestions(object : NetworkCallback<IplMatchSuggestionsResponse> {
+                override fun onResponse(call: Call<IplMatchSuggestionsResponse>, response: Response<IplMatchSuggestionsResponse>) {
+                    val body = response.body()
+                    if (body != null && body.success && body.data != null) {
+                        matchSuggestionsLiveData.postValue(body.data)
+                    } else {
+                        errorLiveData.postValue(body?.message ?: "Failed to load matches")
+                    }
+                }
+
+                override fun onFailure(call: Call<IplMatchSuggestionsResponse>, t: Throwable) {
+                    Log.e(TAG, "getMatchSuggestions failed: ${t.message}")
+                }
+
+                override fun onNoNetwork() {
+                    errorLiveData.postValue("No internet connection")
+                }
+            })
+        }
+    }
+}
+
+// Extension: map API response to local model
+fun IplRoomData.toIplRoom(): IplRoom {
+    val teamAEnum = IplTeam.values().find { it.abbreviation == teamA } ?: IplTeam.MI
+    val teamBEnum = IplTeam.values().find { it.abbreviation == teamB } ?: IplTeam.CSK
+    return IplRoom(
+        id = id,
+        name = name,
+        teamA = teamAEnum,
+        teamB = teamBEnum,
+        creatorName = creatorName,
+        members = emptyList(),
+        memberCount = memberCount,
+        maxMembers = maxMembers,
+        isLive = isLive
+    )
+}
+
+fun IplMemberData.toRoomMember(): RoomMember {
+    return RoomMember(
+        id = id,
+        name = name,
+        avatarUrl = avatarUrl ?: "",
+        isMuted = isMuted,
+        isSpeaking = isSpeaking ?: false,
+        isCreator = isCreator,
+        elapsedMinutes = elapsedMinutes ?: 0,
+        remainingMinutes = remainingMinutes ?: 0
+    )
+}

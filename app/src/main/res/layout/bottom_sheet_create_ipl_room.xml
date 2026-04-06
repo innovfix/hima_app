@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#0F172A"
+    android:paddingBottom="32dp">
+
+    <!-- Drag Handle -->
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="12dp"
+        android:background="#2A3A52"/>
+
+    <!-- Header with cricket ball -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="20dp"
+        android:layout_marginTop="20dp">
+
+        <ImageView
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginEnd="10dp"
+            android:src="@drawable/ic_cricket_ball"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/create_ipl_room"
+            android:textColor="#F0FFFFFF"
+            android:textSize="20sp"
+            android:fontFamily="@font/poppins_bold"/>
+    </LinearLayout>
+
+    <!-- Match Suggestions -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="18dp"
+        android:text="Pick a match"
+        android:textColor="#70FFFFFF"
+        android:textSize="13sp"
+        android:fontFamily="@font/poppins_medium"/>
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:scrollbars="none"
+        android:paddingHorizontal="20dp"
+        android:clipToPadding="false">
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chip_group_matches"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:singleSelection="true"
+            app:chipSpacingHorizontal="8dp"/>
+    </HorizontalScrollView>
+
+    <!-- Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginHorizontal="20dp"
+        android:background="#1AFFFFFF"/>
+
+    <!-- Or choose teams manually -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="16dp"
+        android:text="Or choose teams"
+        android:textColor="#70FFFFFF"
+        android:textSize="13sp"
+        android:fontFamily="@font/poppins_medium"/>
+
+    <!-- Team Selection Row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="12dp"
+        android:layout_marginHorizontal="20dp"
+        android:gravity="center_vertical">
+
+        <!-- Team A Spinner -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="0dp"
+            app:strokeColor="#2A3A52"
+            app:strokeWidth="1dp"
+            app:cardBackgroundColor="#1A2640">
+
+            <Spinner
+                android:id="@+id/spinner_team_a"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:paddingHorizontal="12dp"
+                android:prompt="@string/select_team_a"/>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- VS Badge -->
+        <FrameLayout
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginHorizontal="10dp">
+
+            <View
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:background="@drawable/bg_fantasy_vs_divider" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="@string/vs_label"
+                android:textColor="#AAFFFFFF"
+                android:textSize="9sp"
+                android:fontFamily="@font/poppins_bold"/>
+        </FrameLayout>
+
+        <!-- Team B Spinner -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="0dp"
+            app:strokeColor="#2A3A52"
+            app:strokeWidth="1dp"
+            app:cardBackgroundColor="#1A2640">
+
+            <Spinner
+                android:id="@+id/spinner_team_b"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:paddingHorizontal="12dp"
+                android:prompt="@string/select_team_b"/>
+        </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
+
+    <!-- Create Button (Fantasy Orange Gradient) -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_create_room"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginHorizontal="20dp"
+        android:layout_marginTop="28dp"
+        android:background="@drawable/bg_fantasy_create_btn"
+        android:text="@string/create_ipl_room"
+        android:textColor="@color/white"
+        android:textSize="15sp"
+        android:fontFamily="@font/poppins_bold"
+        android:textAllCaps="false"
+        app:backgroundTint="@null"
+        app:cornerRadius="26dp"
+        app:icon="@drawable/ic_cricket_ball"
+        app:iconSize="22dp"
+        app:iconGravity="textStart"
+        app:iconTint="@color/white"/>
+
+</LinearLayout>

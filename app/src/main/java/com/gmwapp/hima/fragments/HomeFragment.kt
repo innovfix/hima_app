@@ -26,6 +26,7 @@ import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.BaseApplication.Companion.getInstance
 import com.gmwapp.hima.agora.male.MaleCallConnectingActivity
 import com.gmwapp.hima.R
+import com.gmwapp.hima.activities.IplRoomsActivity
 import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.adapters.FemaleUserAdapter
 import com.gmwapp.hima.agora.AgoraRandomCallActivity
@@ -86,6 +87,11 @@ class HomeFragment : BaseFragment(), NetworkRetryable {
         binding.clCoins.setOnSingleClickListener {
             val intent = Intent(context, WalletActivity::class.java)
             startActivity(intent)
+        }
+
+        // IPL Room Calls banner
+        binding.cardIplRooms.setOnClickListener {
+            startActivity(Intent(requireContext(), IplRoomsActivity::class.java))
         }
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()

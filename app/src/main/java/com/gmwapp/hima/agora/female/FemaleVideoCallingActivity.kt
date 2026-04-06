@@ -362,6 +362,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
 
         userData?.let { setMyAvatar(it.image, it.name) }
+        setupIplTeamBadges()
 
         getBlockWords()
         setupIcebreakerIfFemale()
@@ -802,7 +803,31 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             .load(image)
             .apply(RequestOptions.circleCropTransform())
             .into(binding.ivFemaleUser)
+    }
 
+    private fun setupIplTeamBadges() {
+        val prefs = BaseApplication.getInstance()?.getPrefs()
+        val savedTeamName = prefs?.getSelectedIplTeam()
+        val team = savedTeamName?.let { name ->
+            com.gmwapp.hima.models.IplTeam.values().find { it.name == name }
+        }
+        if (team != null) {
+            binding.femaleIplBadge.visibility = View.VISIBLE
+            binding.tvFemaleIplTeam.text = team.abbreviation
+            val femaleDot = binding.femaleIplDot.background.mutate() as android.graphics.drawable.GradientDrawable
+            femaleDot.setColor(android.graphics.Color.parseColor(team.primaryColor))
+            binding.femaleTeamRing.visibility = View.VISIBLE
+            val ringDrawable = binding.femaleTeamRing.background.mutate() as android.graphics.drawable.GradientDrawable
+            ringDrawable.setColor(android.graphics.Color.parseColor(team.primaryColor))
+        }
+        val demoTeam = com.gmwapp.hima.models.IplTeam.values().random()
+        binding.maleIplBadge.visibility = View.VISIBLE
+        binding.tvMaleIplTeam.text = demoTeam.abbreviation
+        val maleDot = binding.maleIplDot.background.mutate() as android.graphics.drawable.GradientDrawable
+        maleDot.setColor(android.graphics.Color.parseColor(demoTeam.primaryColor))
+        binding.maleTeamRing.visibility = View.VISIBLE
+        val maleRing = binding.maleTeamRing.background.mutate() as android.graphics.drawable.GradientDrawable
+        maleRing.setColor(android.graphics.Color.parseColor(demoTeam.primaryColor))
     }
 
     private fun avatarObservers() {

@@ -241,10 +241,24 @@ class DPreferences(context: Context) {
 
 
 
+    fun setSelectedIplTeam(teamName: String?) {
+        if (teamName == null) {
+            mPrefsWrite.remove(SELECTED_IPL_TEAM)
+        } else {
+            mPrefsWrite.putString(SELECTED_IPL_TEAM, teamName)
+        }
+        mPrefsWrite.apply()
+    }
+
+    fun getSelectedIplTeam(): String? {
+        return mPrefsRead.getString(SELECTED_IPL_TEAM, null)
+    }
+
     companion object {
         private const val AUTHENTICATION_TOKEN: String = "authentication_token"
         private const val SETTINGS_DATA: String = "settings_data"
         private const val USER_DATA = "user_data"
         private const val PREFS = "Hima"
+        private const val SELECTED_IPL_TEAM = "selected_ipl_team"
     }
 }
