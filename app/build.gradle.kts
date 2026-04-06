@@ -26,8 +26,8 @@ android {
         applicationId = "com.gmwapp.hima"
         minSdk = 26
         targetSdk = 35
-        versionCode = 53
-        versionName = "53"
+        versionCode = 1063
+        versionName = "1063"
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -215,6 +215,9 @@ dependencies {
 
     //Install referer
     implementation ("com.android.installreferrer:installreferrer:2.2")
+
+    //Snapchat SDK - Install Tracking (App Ads Kit)
+    implementation("com.snap.appadskit:appadskit:2.1.0")
 
 
     //Cashfree

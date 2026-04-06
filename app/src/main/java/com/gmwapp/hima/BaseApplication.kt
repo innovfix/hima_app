@@ -202,6 +202,10 @@ class BaseApplication : Application(), Configuration.Provider {
         FacebookSdk.sdkInitialize(applicationContext)
         AppEventsLogger.activateApp(this)
 
+        // Snapchat App Ads Kit - Install Tracking
+        SnapInitHelper.init(this, listOf(getString(R.string.snap_app_id)))
+        Log.d("SnapchatSDK", "Snapchat App Ads Kit initialized for install tracking")
+
         // ========== GET DEBUG KEY HASH FOR META ==========
         try {
             val info: PackageInfo = packageManager.getPackageInfo(

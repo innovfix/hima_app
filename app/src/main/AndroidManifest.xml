@@ -82,6 +82,14 @@
             android:name="com.facebook.sdk.ClientToken"
             android:value="@string/facebook_client_token" />
 
+        <!-- Snapchat App Ads Kit - Install Tracking -->
+        <meta-data
+            android:name="com.snap.appadskit.appId"
+            android:value="@string/snap_app_id" />
+        <meta-data
+            android:name="com.snap.appadskit.pixelId"
+            android:value="@string/snap_pixel_id" />
+
         <activity
             android:name="com.android.billingclient.api.ProxyBillingActivity"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar"

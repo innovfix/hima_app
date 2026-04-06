@@ -28,6 +28,10 @@ dependencyResolutionManagement {
         maven {
             url = uri("https://phonepe.mycloudrepo.io/public/repositories/phonepe-intentsdk-android")
         }
+
+        // Snap App Ads Kit
+        maven { url = uri("https://storage.googleapis.com/snap-kit-production/maven/") }
+
         mavenCentral()
 
 //        maven {

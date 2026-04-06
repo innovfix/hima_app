@@ -265,6 +265,10 @@
     <string name="facebook_app_id">866451756064625</string>
     <string name="facebook_client_token">6d5e012186e28f4668987be088cda8ce</string>
 
+    <!-- Snapchat SDK - Replace with your actual credentials from Snap Ads Manager -->
+    <string name="snap_app_id">YOUR_SNAP_APP_ID</string>
+    <string name="snap_pixel_id">YOUR_SNAP_PIXEL_ID</string>
+
 
     <string name="juspay_sdk_"> Juspay SDK Integration Demo </string>
     <string name="home_screen"> Home Screen</string>
