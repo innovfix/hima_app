@@ -26,7 +26,6 @@ import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
 import android.view.WindowManager
 import androidx.lifecycle.MutableLiveData
-import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.android.installreferrer.api.InstallReferrerClient
 import com.android.installreferrer.api.InstallReferrerStateListener
@@ -142,9 +141,6 @@ class BaseApplication : Application(), Configuration.Provider {
             }
 
         }
-
-    @Inject
-    lateinit var workerFactory: HiltWorkerFactory
 
     @Inject
     lateinit var fcmNotificationRepository: FcmNotificationRepository
@@ -700,7 +696,7 @@ class BaseApplication : Application(), Configuration.Provider {
 
 
     override val workManagerConfiguration: Configuration
-        get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
+        get() = Configuration.Builder().build()
 
 
     fun setIncomingCall(senderId: Int, callType: String, channelName: String, callId: Int) {

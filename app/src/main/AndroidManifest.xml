@@ -45,6 +45,12 @@
         android:usesCleartextTraffic="true"
         tools:replace="android:dataExtractionRules,android:fullBackupContent"
         tools:targetApi="31">
+
+        <!-- Disable default WorkManager init so Hilt's HiltWorkerFactory is used -->
+        <provider
+            android:name="androidx.work.impl.WorkManagerInitializer"
+            android:authorities="${applicationId}.workmanager-init"
+            tools:node="remove" />
         <activity
             android:name=".activities.IplRoomsActivity"
             android:exported="false" />
