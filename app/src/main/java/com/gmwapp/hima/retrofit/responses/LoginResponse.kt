@@ -55,5 +55,7 @@ data class UserData (
     val name_changed:Int?,
     val star: Int?,
     val ipl_team: String? = null,
-    val ipl_rooms_enabled: Int? = 0
+    val ipl_rooms_enabled: Int? = 0,
+    val dnd_enabled: Int? = 0,
+    val dnd_until: String? = null
 )

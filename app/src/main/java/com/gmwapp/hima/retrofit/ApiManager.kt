@@ -1610,6 +1610,20 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun toggleDnd(
+        userId: Int,
+        enabled: Int,
+        durationHours: Int,
+        callback: NetworkCallback<com.gmwapp.hima.retrofit.responses.ToggleDndResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().toggleDnd(userId, enabled, durationHours)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun trackRandomCallFailure(userId: Int, callType: String) {
         if (!Helper.checkNetworkConnection()) return
         val apiCall = getApiInterface().trackRandomCallFailure(userId, callType)
@@ -2329,6 +2343,14 @@ interface ApiInterface {
         @Field("user_id") userId: Int,
         @Field("call_type") callType: String
     ): Call<okhttp3.ResponseBody>
+
+    @FormUrlEncoded
+    @POST("toggle_dnd")
+    fun toggleDnd(
+        @Field("user_id") userId: Int,
+        @Field("enabled") enabled: Int,
+        @Field("duration_hours") durationHours: Int
+    ): Call<com.gmwapp.hima.retrofit.responses.ToggleDndResponse>
 
     @FormUrlEncoded
     @POST("icebreaker_questions")

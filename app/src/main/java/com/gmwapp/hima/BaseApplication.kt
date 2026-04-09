@@ -159,6 +159,23 @@ class BaseApplication : Application(), Configuration.Provider {
         lateinit var firebaseAnalytics: FirebaseAnalytics
             private set
 
+        /**
+         * DND check that can be called from notification listeners (FCM + OneSignal).
+         */
+        fun isDndActiveStatic(userData: com.gmwapp.hima.retrofit.responses.UserData?): Boolean {
+            if (userData == null) return false
+            if ((userData.dnd_enabled ?: 0) != 1) return false
+            val until = userData.dnd_until ?: return false
+            return try {
+                val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", java.util.Locale.US)
+                val expiry = sdf.parse(until) ?: return false
+                expiry.time > System.currentTimeMillis()
+            } catch (e: Exception) {
+                Log.e("DND", "Failed to parse dnd_until=$until: ${e.message}")
+                false
+            }
+        }
+
 
 
 
@@ -240,6 +257,18 @@ class BaseApplication : Application(), Configuration.Provider {
 
         // OneSignal Initialization
         OneSignal.initWithContext(this, ONESIGNAL_APP_ID)
+
+        // ====== DND: suppress OneSignal notifications when DND is active ======
+        OneSignal.Notifications.addForegroundLifecycleListener(object : com.onesignal.notifications.INotificationLifecycleListener {
+            override fun onWillDisplay(event: com.onesignal.notifications.INotificationWillDisplayEvent) {
+                val userData = getInstance()?.getPrefs()?.getUserData()
+                if (isDndActiveStatic(userData)) {
+                    Log.d("OneSignal_DND", "DND is active — suppressing OneSignal notification")
+                    // preventDefault() stops OneSignal from displaying the notification
+                    event.preventDefault()
+                }
+            }
+        })
 
         // Create the same channel ID as your OneSignal dashboard
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

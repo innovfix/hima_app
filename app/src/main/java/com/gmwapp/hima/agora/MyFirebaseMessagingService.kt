@@ -70,6 +70,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         Log.d("FCM_Data_Complete", "From: ${remoteMessage.data}")
         Log.d("FCM_Message", "Message data payload: ${remoteMessage.data["message"]}")
 
+        // DND check: drop ALL incoming notifications when DND is active and not yet expired
+        if (BaseApplication.isDndActiveStatic(userData)) {
+            Log.d("FCM", "DND is active, dropping notification.")
+            return
+        }
+
         if (remoteMessage.getPriority() == RemoteMessage.PRIORITY_HIGH) {
             Log.d("FCM_Message", "🔥 High-priority notification received!");
         } else {
@@ -964,7 +970,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         }
     }
     // ========== END MALE INCOMING CALL NOTIFICATION ==========
-
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

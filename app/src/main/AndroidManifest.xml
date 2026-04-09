@@ -46,6 +46,13 @@
         tools:replace="android:dataExtractionRules,android:fullBackupContent"
         tools:targetApi="31">
 
+        <!-- OneSignal Notification Service Extension for DND suppression
+             Runs even when app process is killed; called BEFORE the notification
+             is displayed so we can preventDefault() when DND is active. -->
+        <meta-data
+            android:name="com.onesignal.NotificationServiceExtension"
+            android:value="com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension" />
+
         <!-- Disable default WorkManager init so Hilt's HiltWorkerFactory is used -->
         <provider
             android:name="androidx.work.impl.WorkManagerInitializer"

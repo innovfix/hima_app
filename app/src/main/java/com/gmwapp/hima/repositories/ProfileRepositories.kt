@@ -152,6 +152,15 @@ class ProfileRepositories @Inject constructor(private val apiManager: ApiManager
         apiManager.getRemainingTime(userId, callType, callback)
     }
 
+    fun toggleDnd(
+        userId: Int,
+        enabled: Int,
+        durationHours: Int,
+        callback: NetworkCallback<com.gmwapp.hima.retrofit.responses.ToggleDndResponse>
+    ) {
+        apiManager.toggleDnd(userId, enabled, durationHours, callback)
+    }
+
     fun getIcebreakerQuestions(
         userId: Int,
         callback: NetworkCallback<IcebreakerQuestionsResponse>
