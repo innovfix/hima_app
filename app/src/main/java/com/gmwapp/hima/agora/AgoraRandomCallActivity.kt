@@ -31,6 +31,10 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class AgoraRandomCallActivity : AppCompatActivity() {
+
+    @javax.inject.Inject
+    lateinit var apiManager: com.gmwapp.hima.retrofit.ApiManager
+
     private val fcmNotificationViewModel: FcmNotificationViewModel by viewModels()
     private lateinit var binding : ActivityAgoraRandomCallBinding
     var callType: String? = null
@@ -409,6 +413,13 @@ class AgoraRandomCallActivity : AppCompatActivity() {
             Handler(mainLooper).postDelayed({ getRandomUser() }, 3000L) // Add 3 seconds delay before retrying
         } else {
             Log.d("RandomCall", "Max retries reached, stopping calls.")
+
+            // Track this failed cycle on the backend (audio/video, language inferred server-side from user)
+            val uid = userId
+            val ct = callType
+            if (uid != null && uid > 0 && !ct.isNullOrEmpty()) {
+                apiManager.trackRandomCallFailure(uid, ct)
+            }
 
             val intent = Intent(this@AgoraRandomCallActivity, MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)

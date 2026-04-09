@@ -1610,6 +1610,19 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun trackRandomCallFailure(userId: Int, callType: String) {
+        if (!Helper.checkNetworkConnection()) return
+        val apiCall = getApiInterface().trackRandomCallFailure(userId, callType)
+        apiCall.enqueue(object : retrofit2.Callback<okhttp3.ResponseBody> {
+            override fun onResponse(call: Call<okhttp3.ResponseBody>, response: retrofit2.Response<okhttp3.ResponseBody>) {
+                android.util.Log.d("RandomCallFailure", "Tracked: code=${response.code()}")
+            }
+            override fun onFailure(call: Call<okhttp3.ResponseBody>, t: Throwable) {
+                android.util.Log.e("RandomCallFailure", "Track failed: ${t.message}")
+            }
+        })
+    }
+
     fun getIcebreakerQuestions(
         userId: Int,
         callback: NetworkCallback<IcebreakerQuestionsResponse>
@@ -2309,6 +2322,13 @@ interface ApiInterface {
     fun getRemainingTime(
         @Field("user_id") userId: Int, @Field("call_type") callType:String
     ): Call<GetRemainingTimeResponse>
+
+    @FormUrlEncoded
+    @POST("track_random_call_failure")
+    fun trackRandomCallFailure(
+        @Field("user_id") userId: Int,
+        @Field("call_type") callType: String
+    ): Call<okhttp3.ResponseBody>
 
     @FormUrlEncoded
     @POST("icebreaker_questions")
