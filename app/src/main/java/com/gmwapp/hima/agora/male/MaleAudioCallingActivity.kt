@@ -1871,6 +1871,10 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         binding.ivMaleUser.visibility = View.GONE
         binding.tvFemaleName.visibility = View.GONE
         binding.tvMaleName.visibility = View.GONE
+        // Hide the parent avatars container too — the surrounding CardView
+        // / FrameLayout still showed a residual rounded shape on the left
+        // (female side) after switching to video.
+        binding.usersContainer.visibility = View.GONE
 
 
         runOnUiThread {
@@ -2165,6 +2169,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         binding.ivMaleUser.visibility = View.VISIBLE
         binding.tvFemaleName.visibility = View.VISIBLE
         binding.tvMaleName.visibility = View.VISIBLE
+        // Re-show parent container that we hid when switching to video.
+        binding.usersContainer.visibility = View.VISIBLE
 
 
         runOnUiThread {

@@ -2083,6 +2083,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         binding.ivMaleUser.visibility = View.VISIBLE
         binding.tvFemaleName.visibility = View.VISIBLE
         binding.tvMaleName.visibility = View.VISIBLE
+        // Re-show parent container that we hid when switching to video.
+        binding.usersContainer.visibility = View.VISIBLE
 
 
         runOnUiThread {
@@ -2138,6 +2140,9 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         binding.ivMaleUser.visibility = View.GONE
         binding.tvFemaleName.visibility = View.GONE
         binding.tvMaleName.visibility = View.GONE
+        // Hide parent avatars container — individual ImageViews being GONE
+        // still left a residual rounded shape on the left side after switch.
+        binding.usersContainer.visibility = View.GONE
 
 
         runOnUiThread {
