@@ -98,6 +98,10 @@ class BaseApplication : Application(), Configuration.Provider {
     var messageCameWhenIsAlive = 0
     var freeCoinsStatusApiCalled = false
 
+    // Tracks how many activities are currently in the started state.
+    // Used to detect when the app moves between background and foreground.
+    private var startedActivityCount = 0
+
     private val lifecycleCallbacks: ActivityLifecycleCallbacks =
         object : ActivityLifecycleCallbacks {
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
@@ -113,6 +117,14 @@ class BaseApplication : Application(), Configuration.Provider {
             override fun onActivityStarted(activity: Activity) {
                 currentActivity = activity
                 Log.d("myCurrentActivity","$currentActivity")
+
+                // App entered foreground (count went 0 -> 1).
+                // If a push notification was received in the last 5 min and not yet
+                // counted, record an "open" conversion.
+                if (startedActivityCount == 0) {
+                    checkAndTrackNotificationOpen()
+                }
+                startedActivityCount++
             }
 
             override fun onActivityResumed(activity: Activity) {
@@ -129,6 +141,9 @@ class BaseApplication : Application(), Configuration.Provider {
             }
 
             override fun onActivityStopped(p0: Activity) {
+                if (startedActivityCount > 0) {
+                    startedActivityCount--
+                }
             }
 
             override fun onActivitySaveInstanceState(p0: Activity, p1: Bundle) {
@@ -322,6 +337,17 @@ class BaseApplication : Application(), Configuration.Provider {
             override fun onClick(event: INotificationClickEvent) {
                 // Parsed additionalData
                 val data = event.notification.additionalData
+
+                // Track notification tap conversion (fire-and-forget)
+                try {
+                    val notifId = data?.optInt("notification_id", 0) ?: 0
+                    if (notifId > 0) {
+                        trackNotificationConversion(notifId, "click")
+                    }
+                } catch (e: Exception) {
+                    Log.e("NotifConversion", "click tracking failed: ${e.message}")
+                }
+
                 if (data != null) {
                     val user_id = data.optInt("user_id")
                     val prefs = getSharedPreferences("my_app_prefs", Context.MODE_PRIVATE)
@@ -518,6 +544,94 @@ class BaseApplication : Application(), Configuration.Provider {
             if (s.isNotEmpty()) return s
         }
         return null
+    }
+
+    /**
+     * Fire-and-forget POST to /api/notification-conversions to record that the user
+     * either tapped a push notification (action="click") or opened the app within the
+     * conversion window after receiving one (action="open").
+     *
+     * Marks the notification as counted in SharedPreferences so we don't double-count.
+     */
+    fun trackNotificationConversion(notificationId: Int, action: String) {
+        if (notificationId <= 0) return
+
+        // Avoid double counting: if we already posted a conversion for this notif, skip.
+        val trackPrefs = applicationContext.getSharedPreferences("notif_track", Context.MODE_PRIVATE)
+        val lastNotifId = trackPrefs.getInt("last_notif_id", 0)
+        val alreadyCounted = trackPrefs.getBoolean("last_notif_counted", false)
+        if (lastNotifId == notificationId && alreadyCounted) {
+            Log.d("NotifConversion", "Skip notif=$notificationId — already counted")
+            return
+        }
+        trackPrefs.edit().putBoolean("last_notif_counted", true).apply()
+
+        val userId = try {
+            getPrefs()?.getUserData()?.id ?: 0
+        } catch (e: Exception) {
+            0
+        }
+
+        Thread {
+            try {
+                val client = okhttp3.OkHttpClient.Builder()
+                    .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+                    .readTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+                    .build()
+
+                val formBuilder = okhttp3.FormBody.Builder()
+                    .add("notification_id", notificationId.toString())
+                    .add("action", action)
+                if (userId > 0) {
+                    formBuilder.add("user_id", userId.toString())
+                }
+
+                // BuildConfig.BASE_URL points at "<host>/api/auth/" — strip the auth/
+                // suffix so this endpoint also works correctly on demo + prod builds.
+                val apiRoot = BuildConfig.BASE_URL.removeSuffix("auth/")
+                val request = okhttp3.Request.Builder()
+                    .url("${apiRoot}notification-conversions")
+                    .post(formBuilder.build())
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    Log.d(
+                        "NotifConversion",
+                        "Posted notif=$notificationId action=$action user=$userId -> HTTP ${response.code} url=${request.url}"
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e("NotifConversion", "Failed to post conversion: ${e.message}")
+                // On failure, allow retry on next foreground.
+                trackPrefs.edit().putBoolean("last_notif_counted", false).apply()
+            }
+        }.start()
+    }
+
+    /**
+     * Called from ActivityLifecycleCallbacks when the app comes to foreground.
+     * If a push notification was received in the last 5 minutes and the user
+     * opened the app directly (without tapping the notification), record an
+     * "open" conversion so it shows up in the dashboard tracker.
+     */
+    private fun checkAndTrackNotificationOpen() {
+        try {
+            val prefs = applicationContext.getSharedPreferences("notif_track", Context.MODE_PRIVATE)
+            val notifId = prefs.getInt("last_notif_id", 0)
+            val notifTime = prefs.getLong("last_notif_time", 0L)
+            val counted = prefs.getBoolean("last_notif_counted", false)
+
+            if (notifId <= 0 || notifTime <= 0L || counted) return
+
+            val ageMs = System.currentTimeMillis() - notifTime
+            val windowMs = 5 * 60 * 1000L // 5 minutes
+            if (ageMs in 0..windowMs) {
+                Log.d("NotifConversion", "App foregrounded ${ageMs}ms after notif=$notifId — recording open")
+                trackNotificationConversion(notifId, "open")
+            }
+        } catch (e: Exception) {
+            Log.e("NotifConversion", "checkAndTrackNotificationOpen failed: ${e.message}")
+        }
     }
 
     fun playIncomingCallSound() {

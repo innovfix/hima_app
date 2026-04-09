@@ -30,6 +30,22 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
                 event.preventDefault()
                 return
             }
+
+            // Save notification_id + receive timestamp for conversion tracking.
+            // Used later when user opens the app directly (without tapping the notification).
+            try {
+                val notifId = event.notification.additionalData?.optInt("notification_id", 0) ?: 0
+                if (notifId > 0) {
+                    context.getSharedPreferences("notif_track", Context.MODE_PRIVATE).edit()
+                        .putInt("last_notif_id", notifId)
+                        .putLong("last_notif_time", System.currentTimeMillis())
+                        .putBoolean("last_notif_counted", false)
+                        .apply()
+                    Log.d(TAG, "Saved last_notif_id=$notifId for conversion tracking")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to save last_notif_id: ${e.message}")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "DND check failed: ${e.message}")
             // On error, fall through and let the notification show normally
