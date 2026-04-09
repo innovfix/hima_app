@@ -17,6 +17,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 
 class BottomSheetSelectIplTeam(
     private val currentTeam: IplTeam? = null,
+    private val availableTeams: Array<IplTeam>? = null,
     private val onTeamSelected: (IplTeam?) -> Unit
 ) : BottomSheetDialogFragment() {
 
@@ -33,13 +34,15 @@ class BottomSheetSelectIplTeam(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
         binding = BottomSheetSelectIplTeamBinding.inflate(inflater, container, false)
-        setupTeamsGrid()
+        val teams = if (availableTeams != null && availableTeams.isNotEmpty()) availableTeams else IplTeam.values()
+        setupTeamsGrid(teams)
         setupRemoveButton()
         return binding.root
     }
 
-    private fun setupTeamsGrid() {
+    private fun setupTeamsGrid(teams: Array<IplTeam>) {
         adapter = IplTeamSelectorAdapter(
+            teams = teams,
             selectedTeam = currentTeam,
             onTeamSelected = { team ->
                 onTeamSelected(team)

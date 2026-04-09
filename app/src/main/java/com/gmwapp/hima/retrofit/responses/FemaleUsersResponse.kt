@@ -22,4 +22,5 @@ data class FemaleUsersResponseData(
     val coin_per_min_video: Int?,
     val is_star: Int?,
     val star: Int?,
+    val ipl_team: String? = null,
 )

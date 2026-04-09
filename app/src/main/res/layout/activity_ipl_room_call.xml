@@ -146,6 +146,45 @@
             </FrameLayout>
         </LinearLayout>
 
+        <!-- ===== INVITE CODE (visible for creator) ===== -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="6dp"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tv_invite_code"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_participant_card"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="6dp"
+                android:textColor="#A5D6A7"
+                android:textSize="13sp"
+                android:fontFamily="@font/poppins_bold"
+                android:visibility="gone"
+                tools:text="Code: AB3X9K"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_share_code"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginStart="8dp"
+                android:text="Share"
+                android:textColor="#A5D6A7"
+                android:textSize="12sp"
+                android:fontFamily="@font/poppins_semibold"
+                android:visibility="gone"
+                app:icon="@drawable/baseline_arrow_forward_24"
+                app:iconSize="16dp"
+                app:iconTint="#A5D6A7"
+                app:iconGravity="end"/>
+        </LinearLayout>
+
         <!-- ===== JOIN NOTIFICATION ===== -->
         <TextView
             android:id="@+id/tv_join_notification"

@@ -20,6 +20,7 @@ import com.gmwapp.hima.retrofit.responses.IplRoomLeaveResponse
 import com.gmwapp.hima.retrofit.responses.IplRoomDetailResponse
 import com.gmwapp.hima.retrofit.responses.IplRoomReactionResponse
 import com.gmwapp.hima.retrofit.responses.IplRoomMuteResponse
+import com.gmwapp.hima.retrofit.responses.UpdateIplTeamResponse
 import com.gmwapp.hima.retrofit.responses.IplMatchSuggestionsResponse
 import com.gmwapp.hima.retrofit.responses.CheckBlockStatusResponse
 import com.gmwapp.hima.retrofit.responses.CreatorWarningsResponse
@@ -1819,9 +1820,9 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
-    fun createIplRoom(userId: Int, roomName: String, teamA: String, teamB: String, callback: NetworkCallback<IplRoomCreateResponse>) {
+    fun createIplRoom(userId: Int, roomName: String, teamA: String, teamB: String, creatorTeam: String, callback: NetworkCallback<IplRoomCreateResponse>) {
         if (Helper.checkNetworkConnection()) {
-            val apiCall = getApiInterface().createIplRoom(userId, roomName, teamA, teamB)
+            val apiCall = getApiInterface().createIplRoom(userId, roomName, teamA, teamB, creatorTeam)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1876,6 +1877,42 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     fun getIplMatchSuggestions(callback: NetworkCallback<IplMatchSuggestionsResponse>) {
         if (Helper.checkNetworkConnection()) {
             val apiCall = getApiInterface().getIplMatchSuggestions()
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun joinIplRoomByCode(userId: Int, inviteCode: String, callback: NetworkCallback<IplRoomJoinResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().joinIplRoomByCode(userId, inviteCode)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun joinIplRoomRandom(userId: Int, callback: NetworkCallback<IplRoomJoinResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().joinIplRoomRandom(userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun closeIplRoom(userId: Int, roomId: Int, callback: NetworkCallback<IplRoomLeaveResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().closeIplRoom(userId, roomId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun updateIplTeam(userId: Int, iplTeam: String, callback: NetworkCallback<UpdateIplTeamResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().updateIplTeam(userId, iplTeam)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -2774,7 +2811,8 @@ interface ApiInterface {
         @Field("user_id") userId: Int,
         @Field("room_name") roomName: String,
         @Field("team_a") teamA: String,
-        @Field("team_b") teamB: String
+        @Field("team_b") teamB: String,
+        @Field("creator_team") creatorTeam: String
     ): Call<IplRoomCreateResponse>
 
     @FormUrlEncoded
@@ -2815,5 +2853,32 @@ interface ApiInterface {
 
     @POST("ipl-rooms-matches")
     fun getIplMatchSuggestions(): Call<IplMatchSuggestionsResponse>
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-join-by-code")
+    fun joinIplRoomByCode(
+        @Field("user_id") userId: Int,
+        @Field("invite_code") inviteCode: String
+    ): Call<IplRoomJoinResponse>
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-join-random")
+    fun joinIplRoomRandom(
+        @Field("user_id") userId: Int
+    ): Call<IplRoomJoinResponse>
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-close")
+    fun closeIplRoom(
+        @Field("user_id") userId: Int,
+        @Field("room_id") roomId: Int
+    ): Call<IplRoomLeaveResponse>
+
+    @FormUrlEncoded
+    @POST("update_ipl_team")
+    fun updateIplTeam(
+        @Field("user_id") userId: Int,
+        @Field("ipl_team") iplTeam: String
+    ): Call<UpdateIplTeamResponse>
 
 }

@@ -41,7 +41,14 @@ class IplRoomViewModel @Inject constructor(
     val leaveRoomLiveData = MutableLiveData<IplRoomLeaveResponse>()
 
     // Match suggestions
-    val matchSuggestionsLiveData = MutableLiveData<List<String>>()
+    val matchSuggestionsLiveData = MutableLiveData<List<IplMatchData>>()
+
+    // Join by code / random
+    val joinByCodeLiveData = MutableLiveData<IplRoomJoinResponse>()
+    val joinRandomLiveData = MutableLiveData<IplRoomJoinResponse>()
+
+    // Close room
+    val closeRoomLiveData = MutableLiveData<IplRoomLeaveResponse>()
 
     // Error + loading
     val errorLiveData = MutableLiveData<String>()
@@ -76,10 +83,10 @@ class IplRoomViewModel @Inject constructor(
         }
     }
 
-    fun createRoom(userId: Int, roomName: String, teamA: String, teamB: String) {
+    fun createRoom(userId: Int, roomName: String, teamA: String, teamB: String, creatorTeam: String = "") {
         isLoading.postValue(true)
         viewModelScope.launch {
-            repository.createIplRoom(userId, roomName, teamA, teamB, object : NetworkCallback<IplRoomCreateResponse> {
+            repository.createIplRoom(userId, roomName, teamA, teamB, creatorTeam, object : NetworkCallback<IplRoomCreateResponse> {
                 override fun onResponse(call: Call<IplRoomCreateResponse>, response: Response<IplRoomCreateResponse>) {
                     isLoading.postValue(false)
                     val body = response.body()
@@ -215,6 +222,100 @@ class IplRoomViewModel @Inject constructor(
             })
         }
     }
+
+    fun joinRoomByCode(userId: Int, inviteCode: String) {
+        isLoading.postValue(true)
+        Log.d(TAG, "joinRoomByCode: userId=$userId, code=$inviteCode")
+        viewModelScope.launch {
+            repository.joinIplRoomByCode(userId, inviteCode, object : NetworkCallback<IplRoomJoinResponse> {
+                override fun onResponse(call: Call<IplRoomJoinResponse>, response: Response<IplRoomJoinResponse>) {
+                    isLoading.postValue(false)
+                    Log.d(TAG, "joinRoomByCode response: code=${response.code()}, body=${response.body()}, errorBody=${response.errorBody()?.string()}")
+                    if (response.isSuccessful) {
+                        joinByCodeLiveData.postValue(response.body())
+                    } else {
+                        errorLiveData.postValue("Server error: ${response.code()}")
+                    }
+                }
+
+                override fun onFailure(call: Call<IplRoomJoinResponse>, t: Throwable) {
+                    isLoading.postValue(false)
+                    Log.e(TAG, "joinRoomByCode failed", t)
+                    errorLiveData.postValue(t.message ?: "Failed to join room")
+                }
+
+                override fun onNoNetwork() {
+                    isLoading.postValue(false)
+                    errorLiveData.postValue("No internet connection")
+                }
+            })
+        }
+    }
+
+    fun joinRoomRandom(userId: Int) {
+        isLoading.postValue(true)
+        Log.d(TAG, "joinRoomRandom: userId=$userId")
+        viewModelScope.launch {
+            repository.joinIplRoomRandom(userId, object : NetworkCallback<IplRoomJoinResponse> {
+                override fun onResponse(call: Call<IplRoomJoinResponse>, response: Response<IplRoomJoinResponse>) {
+                    isLoading.postValue(false)
+                    Log.d(TAG, "joinRoomRandom response: code=${response.code()}, body=${response.body()}, errorBody=${response.errorBody()?.string()}")
+                    if (response.isSuccessful) {
+                        joinRandomLiveData.postValue(response.body())
+                    } else {
+                        errorLiveData.postValue("Server error: ${response.code()}")
+                    }
+                }
+
+                override fun onFailure(call: Call<IplRoomJoinResponse>, t: Throwable) {
+                    isLoading.postValue(false)
+                    Log.e(TAG, "joinRoomRandom failed", t)
+                    errorLiveData.postValue(t.message ?: "Failed to join room")
+                }
+
+                override fun onNoNetwork() {
+                    isLoading.postValue(false)
+                    errorLiveData.postValue("No internet connection")
+                }
+            })
+        }
+    }
+
+    fun closeRoom(userId: Int, roomId: Int) {
+        viewModelScope.launch {
+            repository.closeIplRoom(userId, roomId, object : NetworkCallback<IplRoomLeaveResponse> {
+                override fun onResponse(call: Call<IplRoomLeaveResponse>, response: Response<IplRoomLeaveResponse>) {
+                    closeRoomLiveData.postValue(response.body())
+                }
+
+                override fun onFailure(call: Call<IplRoomLeaveResponse>, t: Throwable) {
+                    Log.e(TAG, "closeRoom failed: ${t.message}")
+                }
+
+                override fun onNoNetwork() {
+                    Log.e(TAG, "closeRoom: no network")
+                }
+            })
+        }
+    }
+
+    fun updateIplTeam(userId: Int, iplTeam: String) {
+        viewModelScope.launch {
+            repository.updateIplTeam(userId, iplTeam, object : NetworkCallback<UpdateIplTeamResponse> {
+                override fun onResponse(call: Call<UpdateIplTeamResponse>, response: Response<UpdateIplTeamResponse>) {
+                    Log.d(TAG, "IPL team updated: $iplTeam")
+                }
+
+                override fun onFailure(call: Call<UpdateIplTeamResponse>, t: Throwable) {
+                    Log.e(TAG, "updateIplTeam failed: ${t.message}")
+                }
+
+                override fun onNoNetwork() {
+                    Log.e(TAG, "updateIplTeam: no network")
+                }
+            })
+        }
+    }
 }
 
 // Extension: map API response to local model
@@ -230,7 +331,8 @@ fun IplRoomData.toIplRoom(): IplRoom {
         members = emptyList(),
         memberCount = memberCount,
         maxMembers = maxMembers,
-        isLive = isLive
+        isLive = isLive,
+        inviteCode = inviteCode
     )
 }
 
@@ -243,6 +345,9 @@ fun IplMemberData.toRoomMember(): RoomMember {
         isSpeaking = isSpeaking ?: false,
         isCreator = isCreator,
         elapsedMinutes = elapsedMinutes ?: 0,
-        remainingMinutes = remainingMinutes ?: 0
+        elapsedSeconds = elapsedSeconds ?: 0,
+        remainingMinutes = remainingMinutes ?: 0,
+        remainingSeconds = remainingSeconds ?: 0,
+        iplTeam = iplTeam
     )
 }

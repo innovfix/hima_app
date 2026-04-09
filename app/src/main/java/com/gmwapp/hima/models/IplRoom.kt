@@ -9,7 +9,8 @@ data class IplRoom(
     val members: List<RoomMember>,
     val memberCount: Int = 0,
     val maxMembers: Int = 4,
-    val isLive: Boolean = true
+    val isLive: Boolean = true,
+    val inviteCode: String? = null
 )
 
 data class RoomMember(
@@ -20,7 +21,10 @@ data class RoomMember(
     val isSpeaking: Boolean = false,
     val isCreator: Boolean = false,
     val elapsedMinutes: Int = 0,
-    val remainingMinutes: Int = 0
+    val elapsedSeconds: Int = 0,
+    val remainingMinutes: Int = 0,
+    val remainingSeconds: Int = 0,
+    val iplTeam: String? = null
 )
 
 enum class IplTeam(

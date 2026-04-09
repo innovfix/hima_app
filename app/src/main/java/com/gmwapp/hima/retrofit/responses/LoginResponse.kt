@@ -53,5 +53,7 @@ data class UserData (
     val payment_type:String?,
     @SerializedName("name_changed")
     val name_changed:Int?,
-    val star: Int?
+    val star: Int?,
+    val ipl_team: String? = null,
+    val ipl_rooms_enabled: Int? = 0
 )

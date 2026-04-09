@@ -48,6 +48,7 @@ class ProfileFragment : BaseFragment(), NetworkRetryable {
     lateinit var binding: FragmentProfileBinding
     private val EDIT_PROFILE_REQUEST_CODE = 1
     private val accountViewModel: AccountViewModel by viewModels()
+    private val iplRoomViewModel: com.gmwapp.hima.viewmodels.IplRoomViewModel by viewModels()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -67,10 +68,20 @@ class ProfileFragment : BaseFragment(), NetworkRetryable {
     }
 
     private fun updateIplBadge() {
-        val prefs = BaseApplication.getInstance()?.getPrefs()
-        val savedTeamName = prefs?.getSelectedIplTeam()
-        val team = savedTeamName?.let { name ->
-            IplTeam.values().find { it.name == name }
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val iplEnabled = (userData?.ipl_rooms_enabled ?: 0) == 1
+
+        // Hide badge entirely if IPL rooms are disabled by admin
+        if (!iplEnabled) {
+            binding.iplTeamBadge.visibility = View.GONE
+            return
+        }
+        binding.iplTeamBadge.visibility = View.VISIBLE
+
+        // Read team from server (userdata.ipl_team), not from local prefs
+        val savedTeamAbbr = userData?.ipl_team
+        val team = savedTeamAbbr?.let { abbr ->
+            IplTeam.values().find { it.abbreviation == abbr }
         }
 
         if (team != null) {
@@ -87,14 +98,42 @@ class ProfileFragment : BaseFragment(), NetworkRetryable {
     }
 
     private fun showIplTeamPicker() {
+        // Always fetch fresh match data every time the picker opens
+        iplRoomViewModel.getMatchSuggestions()
+
+        // Observe one-time for fresh response
+        iplRoomViewModel.matchSuggestionsLiveData.observe(viewLifecycleOwner) { matches ->
+            iplRoomViewModel.matchSuggestionsLiveData.removeObservers(viewLifecycleOwner)
+            openTeamPickerSheet(matches)
+        }
+    }
+
+    private fun openTeamPickerSheet(matches: List<com.gmwapp.hima.retrofit.responses.IplMatchData>?) {
         val prefs = BaseApplication.getInstance()?.getPrefs()
-        val savedTeamName = prefs?.getSelectedIplTeam()
-        val currentTeam = savedTeamName?.let { name ->
-            IplTeam.values().find { it.name == name }
+        val userData = prefs?.getUserData()
+        // Read current team from server data, not local prefs
+        val currentTeam = userData?.ipl_team?.let { abbr ->
+            IplTeam.values().find { it.abbreviation == abbr }
         }
 
-        val bottomSheet = BottomSheetSelectIplTeam(currentTeam) { selectedTeam ->
-            prefs?.setSelectedIplTeam(selectedTeam?.name)
+        val playingTeams = if (matches != null && matches.isNotEmpty()) {
+            val abbrs = matches.flatMap { listOf(it.teamA, it.teamB) }.distinct()
+            IplTeam.values().filter { it.abbreviation in abbrs }.toTypedArray()
+        } else null
+
+        if (playingTeams == null || playingTeams.isEmpty()) {
+            android.widget.Toast.makeText(requireContext(), "No matches available today", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val bottomSheet = BottomSheetSelectIplTeam(currentTeam, playingTeams) { selectedTeam ->
+            val userId = userData?.id ?: return@BottomSheetSelectIplTeam
+            val teamAbbr = selectedTeam?.abbreviation ?: ""
+            // Save to server
+            iplRoomViewModel.updateIplTeam(userId, teamAbbr)
+            // Update local userData copy so badge refreshes immediately
+            val updated = userData.copy(ipl_team = selectedTeam?.abbreviation)
+            prefs.setUserData(updated)
             updateIplBadge()
         }
         parentFragmentManager.let { bottomSheet.show(it, "IplTeamPicker") }
@@ -126,6 +165,17 @@ class ProfileFragment : BaseFragment(), NetworkRetryable {
     private fun initUI() {
         updateValues()
         updateIplBadge()
+        iplRoomViewModel.getMatchSuggestions() // Fetch today's matches for team picker
+
+        // Refresh user data from server (handles auto-clear of expired ipl_team)
+        val refreshUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
+        refreshUserId?.let { profileViewModel.getUsers(it) }
+        profileViewModel.getUserLiveData.observe(viewLifecycleOwner) { response ->
+            response?.data?.let { fresh ->
+                BaseApplication.getInstance()?.getPrefs()?.setUserData(fresh)
+                updateIplBadge()
+            }
+        }
 
         binding.iplTeamBadge.setOnSingleClickListener {
             showIplTeamPicker()

@@ -3,6 +3,7 @@ package com.gmwapp.hima.activities
 import android.Manifest
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
@@ -19,6 +20,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -47,6 +49,7 @@ class IplRoomCallActivity : AppCompatActivity() {
     private lateinit var binding: ActivityIplRoomCallBinding
     private val viewModel: IplRoomViewModel by viewModels()
     private val agoraViewModel: AgoraViewModel by viewModels()
+    private val profileViewModel: com.gmwapp.hima.viewmodels.ProfileViewModel by viewModels()
 
     // Agora
     private var agoraEngine: RtcEngine? = null
@@ -65,21 +68,15 @@ class IplRoomCallActivity : AppCompatActivity() {
     private var isSpeakerOn = true
     private var hasJoinedToSpeak = false
     private var isCreator = false
+    private var inviteCode: String = ""
+    private var creatorUserId: Int = -1
     private var timerSeconds = 0
     private val handler = Handler(Looper.getMainLooper())
     private var roomId = 0
     private val userId: Int
         get() = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
 
-    // Poll room details every 5 seconds
-    private val pollRunnable = object : Runnable {
-        override fun run() {
-            if (roomId > 0) {
-                viewModel.getRoomDetails(roomId)
-            }
-            handler.postDelayed(this, 5000)
-        }
-    }
+    // No polling — room details fetched once on entry; countdown is local-only.
 
     private lateinit var participantViews: List<ParticipantSlot>
     private var members = mutableListOf<RoomMember>()
@@ -100,7 +97,10 @@ class IplRoomCallActivity : AppCompatActivity() {
         val speakingRing: View,
         val emptyCricketBall: ImageView,
         val emptyLabel: TextView,
-        val remainingMinutes: TextView
+        val remainingMinutes: TextView,
+        val flTeamBadge: FrameLayout,
+        val teamBadgeBg: View,
+        val teamBadgeAbbr: TextView
     )
 
     // ===== AGORA EVENT HANDLER =====
@@ -109,9 +109,6 @@ class IplRoomCallActivity : AppCompatActivity() {
         override fun onJoinChannelSuccess(channel: String, uid: Int, elapsed: Int) {
             Log.d(TAG, "Agora: Joined channel $channel, uid=$uid")
             isAgoraJoined = true
-            runOnUiThread {
-                showNotification(getString(R.string.you_joined))
-            }
         }
 
         override fun onUserJoined(uid: Int, elapsed: Int) {
@@ -122,14 +119,24 @@ class IplRoomCallActivity : AppCompatActivity() {
                 if (unmappedIndex >= 0) {
                     uidToMemberIndex[uid] = unmappedIndex
                 }
-                showNotification("A user joined the room")
+                // Re-fetch room details so the slot updates with the new member
+                if (roomId > 0) viewModel.getRoomDetails(roomId)
             }
         }
 
         override fun onUserOffline(uid: Int, reason: Int) {
             Log.d(TAG, "Agora: Remote user offline uid=$uid, reason=$reason")
             uidToMemberIndex.remove(uid)
-            // Room details polling will update the member list
+            runOnUiThread {
+                // If the host (creator) just left, end the call for everyone immediately
+                if (creatorUserId > 0 && uid == creatorUserId && !isCreator) {
+                    Toast.makeText(this@IplRoomCallActivity, "Host ended the room", Toast.LENGTH_SHORT).show()
+                    leaveAndFinish()
+                    return@runOnUiThread
+                }
+                // Otherwise just refresh slots
+                if (roomId > 0) viewModel.getRoomDetails(roomId)
+            }
         }
 
         override fun onUserMuteAudio(uid: Int, muted: Boolean) {
@@ -199,6 +206,7 @@ class IplRoomCallActivity : AppCompatActivity() {
 
         roomId = intent.getIntExtra("room_id", 0)
         channelName = "ipl_room_$roomId"
+        inviteCode = intent.getStringExtra("invite_code") ?: ""
 
         handleNavBarInsets()
         setupRoomInfo()
@@ -210,18 +218,70 @@ class IplRoomCallActivity : AppCompatActivity() {
         observeRoomDetails()
         observeAgoraToken()
 
-        // Fetch room details immediately, then poll every 5 seconds
+        // Check if user is creator from intent
+        val userGender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender ?: ""
+        val isFemaleUser = userGender.equals("female", ignoreCase = true)
+        if (isFemaleUser) {
+            // Female created the room — she's the creator, auto-join immediately
+            isCreator = true
+            hasJoinedToSpeak = true
+            binding.btnJoinToSpeak.visibility = View.GONE
+            setControlsEnabled(true)
+            requestAgoraToken()
+        } else {
+            // Male joining — also auto-join immediately (already joined via API)
+            hasJoinedToSpeak = true
+            binding.btnJoinToSpeak.visibility = View.GONE
+            setControlsEnabled(true)
+            requestAgoraToken()
+        }
+
+        // Fetch room details ONCE on entry — no polling.
+        // The first response delivers remaining_seconds; the local countdown takes over from there.
         if (roomId > 0) {
             viewModel.getRoomDetails(roomId)
         }
-        handler.postDelayed(pollRunnable, 5000)
 
-        // Start with controls hidden until user joins to speak
-        setControlsEnabled(false)
+        // For male, fetch remaining time via the existing get_remaining_time API (call_type=audio)
+        if (!isFemaleUser) {
+            fetchRemainingTimeAndStart()
+        }
+    }
+
+    private fun fetchRemainingTimeAndStart() {
+        val uid = userId
+        if (uid <= 0) return
+        profileViewModel.getRemainingTime(uid, "audio", object : com.gmwapp.hima.retrofit.callbacks.NetworkCallback<com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse> {
+            override fun onResponse(call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse>, response: retrofit2.Response<com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse>) {
+                val body = response.body()
+                if (body?.success == true && body.data?.remaining_time != null) {
+                    // remaining_time is in "M:SS" format
+                    val parts = body.data.remaining_time.split(":")
+                    val mins = parts.getOrNull(0)?.toIntOrNull() ?: 0
+                    val secs = parts.getOrNull(1)?.toIntOrNull() ?: 0
+                    val totalSeconds = mins * 60 + secs
+                    runOnUiThread {
+                        if (totalSeconds > 0) {
+                            startMaleCountdown(totalSeconds)
+                        } else {
+                            Toast.makeText(this@IplRoomCallActivity, "No time remaining", Toast.LENGTH_LONG).show()
+                            leaveAndFinish()
+                        }
+                    }
+                }
+            }
+
+            override fun onFailure(call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse>, t: Throwable) {
+                Log.e(TAG, "getRemainingTime failed: ${t.message}")
+            }
+
+            override fun onNoNetwork() {
+                Log.e(TAG, "getRemainingTime: no network")
+            }
+        })
     }
 
     override fun onDestroy() {
-        handler.removeCallbacks(pollRunnable)
         handler.removeCallbacksAndMessages(null)
         leaveAgoraChannel()
         super.onDestroy()
@@ -382,7 +442,10 @@ class IplRoomCallActivity : AppCompatActivity() {
             speakingRing = view.findViewById(R.id.view_speaking_ring),
             emptyCricketBall = view.findViewById(R.id.iv_empty_cricket_ball),
             emptyLabel = view.findViewById(R.id.tv_empty_label),
-            remainingMinutes = view.findViewById(R.id.tv_remaining_minutes)
+            remainingMinutes = view.findViewById(R.id.tv_remaining_minutes),
+            flTeamBadge = view.findViewById(R.id.fl_team_badge),
+            teamBadgeBg = view.findViewById(R.id.view_team_badge_bg),
+            teamBadgeAbbr = view.findViewById(R.id.tv_team_badge_abbr)
         )
     }
 
@@ -396,6 +459,9 @@ class IplRoomCallActivity : AppCompatActivity() {
                     finish()
                     return@observe
                 }
+
+                // Capture the room creator's user id so we can detect when they leave
+                creatorUserId = response.data.creatorId
 
                 if (response.data.members != null) {
                     members = response.data.members.map { it.toRoomMember() }.toMutableList()
@@ -425,10 +491,6 @@ class IplRoomCallActivity : AppCompatActivity() {
                         return@observe
                     }
 
-                    // Low coins warning: show notification when 2 or fewer minutes remaining
-                    if (hasJoinedToSpeak && self != null && !self.isCreator && self.remainingMinutes in 1..2) {
-                        showNotification("Low coins! ~${self.remainingMinutes} min remaining")
-                    }
                 }
             }
         }
@@ -553,17 +615,26 @@ class IplRoomCallActivity : AppCompatActivity() {
         slot.creatorBadge.visibility = if (member.isCreator) View.VISIBLE else View.GONE
         slot.flMuteIndicator.visibility = if (member.isMuted) View.VISIBLE else View.GONE
 
-        // Show remaining minutes for non-creators
-        if (!member.isCreator && member.remainingMinutes > 0) {
-            slot.remainingMinutes.visibility = View.VISIBLE
-            slot.remainingMinutes.text = "${member.remainingMinutes} min left"
-            if (member.remainingMinutes <= 2) {
-                slot.remainingMinutes.setTextColor(Color.parseColor("#FF6D00"))
+        // Hide the per-slot "min left" text — replaced by the global countdown timer at top
+        slot.remainingMinutes.visibility = View.GONE
+
+        // Show team badge if member has selected a team
+        val teamAbbr = member.iplTeam
+        if (!teamAbbr.isNullOrEmpty()) {
+            val team = com.gmwapp.hima.models.IplTeam.values().find { it.abbreviation == teamAbbr }
+            if (team != null) {
+                slot.flTeamBadge.visibility = View.VISIBLE
+                try {
+                    val badgeDrawable = slot.teamBadgeBg.background.mutate() as GradientDrawable
+                    badgeDrawable.setColor(Color.parseColor(team.primaryColor))
+                    badgeDrawable.setStroke((2 * resources.displayMetrics.density).toInt(), Color.parseColor("#0F172A"))
+                } catch (_: Exception) {}
+                slot.teamBadgeAbbr.text = team.abbreviation
             } else {
-                slot.remainingMinutes.setTextColor(Color.parseColor("#80FFFFFF"))
+                slot.flTeamBadge.visibility = View.GONE
             }
         } else {
-            slot.remainingMinutes.visibility = View.GONE
+            slot.flTeamBadge.visibility = View.GONE
         }
 
         if (member.isSpeaking) {
@@ -601,6 +672,7 @@ class IplRoomCallActivity : AppCompatActivity() {
         slot.creatorBadge.visibility = View.GONE
         slot.speakingRing.visibility = View.INVISIBLE
         slot.remainingMinutes.visibility = View.GONE
+        slot.flTeamBadge.visibility = View.GONE
         slot.emptyCricketBall.visibility = View.VISIBLE
         slot.emptyLabel.visibility = View.VISIBLE
         slot.root.setBackgroundResource(R.drawable.bg_empty_slot_dashed)
@@ -632,13 +704,60 @@ class IplRoomCallActivity : AppCompatActivity() {
     }
 
     private fun leaveAndFinish() {
-        // Always call leave for creator (auto-added) or anyone who joined
-        if (hasJoinedToSpeak || isCreator) {
+        if (isCreator) {
+            // Creator leaving closes the room
+            viewModel.closeRoom(userId, roomId)
+        } else if (hasJoinedToSpeak) {
             viewModel.leaveRoom(userId, roomId)
         }
-        handler.removeCallbacks(pollRunnable)
+        handler.removeCallbacksAndMessages(null)
         leaveAgoraChannel()
         finish()
+    }
+
+    private fun showLeaveConfirmation() {
+        val view = layoutInflater.inflate(R.layout.dialog_ipl_leave_confirm, null)
+        val dialog = AlertDialog.Builder(this, R.style.AlertDialogTransparent)
+            .setView(view)
+            .setCancelable(true)
+            .create()
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+
+        val title = view.findViewById<TextView>(R.id.tv_dialog_title)
+        val message = view.findViewById<TextView>(R.id.tv_dialog_message)
+        val btnConfirm = view.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_dialog_confirm)
+        val btnCancel = view.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_dialog_cancel)
+
+        if (isCreator) {
+            title.text = "Close Room?"
+            message.text = "If you leave, the room will be closed for everyone. Are you sure?"
+            btnConfirm.text = "Close Room"
+        } else {
+            title.text = "Leave Room?"
+            message.text = "Are you sure you want to leave this IPL room?"
+            btnConfirm.text = "Leave"
+        }
+
+        btnCancel.setOnClickListener { dialog.dismiss() }
+        btnConfirm.setOnClickListener {
+            dialog.dismiss()
+            leaveAndFinish()
+        }
+
+        dialog.show()
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        showLeaveConfirmation()
+    }
+
+    private fun copyInviteCode() {
+        if (inviteCode.isNotEmpty()) {
+            val clipboard = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("IPL Invite Code", inviteCode))
+            Toast.makeText(this, "Invite code copied: $inviteCode", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun showFloatingReaction(text: String, emoji: String, colorHex: String) {
@@ -701,23 +820,76 @@ class IplRoomCallActivity : AppCompatActivity() {
             binding.btnSpeaker.alpha = if (isSpeakerOn) 1.0f else 0.5f
         }
 
-        // Leave room
-        binding.btnLeave.setOnClickListener { leaveAndFinish() }
-        binding.ivBack.setOnClickListener { leaveAndFinish() }
+        // Leave room — always show confirmation dialog
+        binding.btnLeave.setOnClickListener { showLeaveConfirmation() }
+        binding.ivBack.setOnClickListener { showLeaveConfirmation() }
+
+        // Invite code display for creator
+        if (inviteCode.isNotEmpty()) {
+            binding.tvInviteCode.visibility = View.VISIBLE
+            binding.tvInviteCode.text = "Code: $inviteCode"
+            binding.tvInviteCode.setOnClickListener { copyInviteCode() }
+            binding.btnShareCode.visibility = View.VISIBLE
+            binding.btnShareCode.setOnClickListener {
+                // Open chat list to share invite code
+                val chatIntent = Intent(this, ChatListActivity::class.java)
+                chatIntent.putExtra("share_message", "Join my IPL Room! Use invite code: $inviteCode")
+                startActivity(chatIntent)
+            }
+        }
     }
 
     // ===== TIMER =====
 
+    private var remainingSecondsLocal: Int = 0
+    private var timerStarted = false
+
     private fun startTimer() {
+        // Female (creator) doesn't need a timer — hide it
+        val gender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender ?: ""
+        if (gender.equals("female", ignoreCase = true)) {
+            try { binding.tvTimer.visibility = View.GONE } catch (_: Exception) {}
+            try { (binding.tvTimer.parent as? View)?.visibility = View.GONE } catch (_: Exception) {}
+            return
+        }
+
+        // Male timer is started ONCE from the first room details response (which has remaining_seconds).
+        // No more API polling — purely local countdown.
+    }
+
+    private fun startMaleCountdown(initialSeconds: Int) {
+        if (timerStarted) return
+        timerStarted = true
+        remainingSecondsLocal = initialSeconds
+
+        binding.tvTimer.text = formatHms(remainingSecondsLocal)
+
         handler.post(object : Runnable {
             override fun run() {
-                timerSeconds++
-                val minutes = timerSeconds / 60
-                val seconds = timerSeconds % 60
-                binding.tvTimer.text = String.format("%02d:%02d", minutes, seconds)
+                if (remainingSecondsLocal <= 0) {
+                    Toast.makeText(this@IplRoomCallActivity, "Time's up — coins exhausted", Toast.LENGTH_LONG).show()
+                    leaveAndFinish()
+                    return
+                }
+                remainingSecondsLocal--
+                binding.tvTimer.text = formatHms(remainingSecondsLocal)
+                if (remainingSecondsLocal <= 60) {
+                    binding.tvTimer.setTextColor(Color.parseColor("#FF6D00"))
+                }
                 handler.postDelayed(this, 1000)
             }
         })
+    }
+
+    private fun formatHms(totalSeconds: Int): String {
+        val hours = totalSeconds / 3600
+        val minutes = (totalSeconds % 3600) / 60
+        val seconds = totalSeconds % 60
+        return if (hours > 0) {
+            String.format("%02d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            String.format("%02d:%02d", minutes, seconds)
+        }
     }
 
     // Fallback: simulate speaking when Agora not available

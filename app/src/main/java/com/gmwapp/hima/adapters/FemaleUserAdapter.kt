@@ -182,13 +182,21 @@ class FemaleUserAdapter(
             activity.startActivity(intent)
         }
 
-        // IPL Team Badge - Demo: assign teams based on position for visual demo
-        val demoTeams = IplTeam.values()
-        val assignedTeam = demoTeams[position % demoTeams.size]
-        holder.binding.iplTeamBadgeCard.visibility = View.VISIBLE
-        holder.binding.tvIplTeamAbbr.text = assignedTeam.abbreviation
-        val teamDot = holder.binding.iplTeamDot.background.mutate() as android.graphics.drawable.GradientDrawable
-        teamDot.setColor(android.graphics.Color.parseColor(assignedTeam.primaryColor))
+        // IPL Team Badge - Show real badge from API data
+        val iplTeamAbbr = femaleUser.ipl_team
+        if (!iplTeamAbbr.isNullOrEmpty()) {
+            val iplTeam = IplTeam.values().find { it.abbreviation == iplTeamAbbr }
+            if (iplTeam != null) {
+                holder.binding.iplTeamBadgeCard.visibility = View.VISIBLE
+                holder.binding.tvIplTeamAbbr.text = iplTeam.abbreviation
+                val teamDot = holder.binding.iplTeamDot.background.mutate() as android.graphics.drawable.GradientDrawable
+                teamDot.setColor(android.graphics.Color.parseColor(iplTeam.primaryColor))
+            } else {
+                holder.binding.iplTeamBadgeCard.visibility = View.GONE
+            }
+        } else {
+            holder.binding.iplTeamBadgeCard.visibility = View.GONE
+        }
     }
 
     override fun getItemCount(): Int {

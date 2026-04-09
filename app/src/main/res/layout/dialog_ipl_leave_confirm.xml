@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_ipl_leave_dialog"
+    android:padding="24dp"
+    android:gravity="center_horizontal">
+
+    <ImageView
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:src="@drawable/ic_cricket_ball"
+        android:contentDescription="IPL"
+        android:layout_marginTop="4dp" />
+
+    <TextView
+        android:id="@+id/tv_dialog_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Leave Room?"
+        android:textColor="@color/white"
+        android:textSize="20sp"
+        android:fontFamily="@font/poppins_bold"
+        android:layout_marginTop="16dp" />
+
+    <TextView
+        android:id="@+id/tv_dialog_message"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Are you sure you want to leave this room?"
+        android:textColor="#B0FFFFFF"
+        android:textSize="14sp"
+        android:fontFamily="@font/poppins_regular"
+        android:gravity="center"
+        android:layout_marginTop="8dp"
+        android:layout_marginHorizontal="4dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="22dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_dialog_cancel"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="48dp"
+            android:text="Cancel"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            android:fontFamily="@font/poppins_semibold"
+            android:textAllCaps="false"
+            app:backgroundTint="#1A2640"
+            app:cornerRadius="14dp"
+            app:strokeColor="#2A3A52"
+            app:strokeWidth="1dp"
+            android:layout_marginEnd="8dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_dialog_confirm"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="48dp"
+            android:text="Leave"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            android:fontFamily="@font/poppins_semibold"
+            android:textAllCaps="false"
+            app:backgroundTint="#E53935"
+            app:cornerRadius="14dp"
+            android:layout_marginStart="8dp" />
+    </LinearLayout>
+</LinearLayout>

@@ -12,8 +12,8 @@ class IplRoomRepository @Inject constructor(
         apiManager.getIplRooms(userId, callback)
     }
 
-    fun createIplRoom(userId: Int, roomName: String, teamA: String, teamB: String, callback: NetworkCallback<IplRoomCreateResponse>) {
-        apiManager.createIplRoom(userId, roomName, teamA, teamB, callback)
+    fun createIplRoom(userId: Int, roomName: String, teamA: String, teamB: String, creatorTeam: String, callback: NetworkCallback<IplRoomCreateResponse>) {
+        apiManager.createIplRoom(userId, roomName, teamA, teamB, creatorTeam, callback)
     }
 
     fun joinIplRoom(userId: Int, roomId: Int, callback: NetworkCallback<IplRoomJoinResponse>) {
@@ -38,5 +38,21 @@ class IplRoomRepository @Inject constructor(
 
     fun getIplMatchSuggestions(callback: NetworkCallback<IplMatchSuggestionsResponse>) {
         apiManager.getIplMatchSuggestions(callback)
+    }
+
+    fun joinIplRoomByCode(userId: Int, inviteCode: String, callback: NetworkCallback<IplRoomJoinResponse>) {
+        apiManager.joinIplRoomByCode(userId, inviteCode, callback)
+    }
+
+    fun joinIplRoomRandom(userId: Int, callback: NetworkCallback<IplRoomJoinResponse>) {
+        apiManager.joinIplRoomRandom(userId, callback)
+    }
+
+    fun closeIplRoom(userId: Int, roomId: Int, callback: NetworkCallback<IplRoomLeaveResponse>) {
+        apiManager.closeIplRoom(userId, roomId, callback)
+    }
+
+    fun updateIplTeam(userId: Int, iplTeam: String, callback: NetworkCallback<UpdateIplTeamResponse>) {
+        apiManager.updateIplTeam(userId, iplTeam, callback)
     }
 }

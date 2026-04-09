@@ -83,16 +83,24 @@ class HomeFragment : BaseFragment(), NetworkRetryable {
         binding.appBarLayout.requestApplyInsets()
     }
 
+    private fun refreshIplBanner() {
+        if (!::binding.isInitialized) return
+        val iplEnabled = (BaseApplication.getInstance()?.getPrefs()?.getUserData()?.ipl_rooms_enabled ?: 0) == 1
+        binding.cardIplRooms.visibility = if (iplEnabled) android.view.View.VISIBLE else android.view.View.GONE
+    }
+
     private fun initUI() {
         binding.clCoins.setOnSingleClickListener {
             val intent = Intent(context, WalletActivity::class.java)
             startActivity(intent)
         }
 
-        // IPL Room Calls banner
+        // IPL Room Calls banner — male join flow
         binding.cardIplRooms.setOnClickListener {
-            startActivity(Intent(requireContext(), IplRoomsActivity::class.java))
+            val bottomSheet = com.gmwapp.hima.dialogs.BottomSheetJoinIplRoom()
+            bottomSheet.show(parentFragmentManager, "JoinIplRoom")
         }
+        refreshIplBanner()
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val language = userData?.language
@@ -215,6 +223,8 @@ class HomeFragment : BaseFragment(), NetworkRetryable {
                 binding.tvCoins.text = userData.coins.toString()
                 Log.d("coinsvalue", "${userData.coins}")
                 Log.d("coinsvalue", "${userData.name}")
+                // Refresh IPL banner visibility once user data arrives from server
+                refreshIplBanner()
             } ?: Log.e("HomeFragment", "RegisterResponse is null")
         })
 

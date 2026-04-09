@@ -72,6 +72,34 @@
             android:contentDescription="Muted"/>
     </FrameLayout>
 
+    <!-- Team Badge (overlaid on avatar top-right) -->
+    <FrameLayout
+        android:id="@+id/fl_team_badge"
+        android:layout_width="26dp"
+        android:layout_height="26dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="@id/fl_avatar"
+        app:layout_constraintEnd_toEndOf="@id/fl_avatar"
+        android:layout_marginTop="-4dp"
+        android:layout_marginEnd="-4dp">
+
+        <View
+            android:id="@+id/view_team_badge_bg"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:background="@drawable/bg_team_circle"/>
+
+        <TextView
+            android:id="@+id/tv_team_badge_abbr"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:textColor="@color/white"
+            android:textSize="9sp"
+            android:fontFamily="@font/poppins_bold"
+            tools:text="MI"/>
+    </FrameLayout>
+
     <!-- HOST Badge (above avatar, centered) -->
     <TextView
         android:id="@+id/tv_creator_badge"

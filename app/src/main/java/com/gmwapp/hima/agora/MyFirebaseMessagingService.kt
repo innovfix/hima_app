@@ -154,7 +154,8 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     if (gender == "female") {
                         if (currentActivity is FemaleCallAcceptActivity ||
                             currentActivity is FemaleAudioCallingActivity ||
-                            currentActivity is FemaleVideoCallingActivity) {
+                            currentActivity is FemaleVideoCallingActivity ||
+                            currentActivity is com.gmwapp.hima.activities.IplRoomCallActivity) {
 
                             Log.d("FCM", "User is already in a call. Ignoring incoming call notification.")
 
@@ -231,10 +232,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                         val MaleCallAcceptActivity = com.gmwapp.hima.agora.male.MaleCallAcceptActivity::class.java
                         val MaleAudioCallingActivity = com.gmwapp.hima.agora.male.MaleAudioCallingActivity::class.java
                         val MaleVideoCallingActivity = com.gmwapp.hima.agora.male.MaleVideoCallingActivity::class.java
+                        val IplRoomCallActivity = com.gmwapp.hima.activities.IplRoomCallActivity::class.java
 
                         if (currentActivity?.javaClass == MaleCallAcceptActivity ||
                             currentActivity?.javaClass == MaleAudioCallingActivity ||
-                            currentActivity?.javaClass == MaleVideoCallingActivity) {
+                            currentActivity?.javaClass == MaleVideoCallingActivity ||
+                            currentActivity?.javaClass == IplRoomCallActivity) {
 
                             Log.d("FCM", "Male user is already in a call. Ignoring incoming call notification.")
 

@@ -13,7 +13,8 @@ data class AppUpdateModel(
     val minimum_required_version: Int,
     val description: String,
     val bank:Int,
-    val upi:Int
+    val upi:Int,
+    val ipl_rooms_enabled: Int = 0
 )
 
 

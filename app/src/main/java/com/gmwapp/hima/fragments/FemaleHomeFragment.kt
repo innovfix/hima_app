@@ -284,6 +284,12 @@ class FemaleHomeFragment : BaseFragment() {
         }
     }
 
+    private fun refreshIplBanner() {
+        if (!::binding.isInitialized) return
+        val iplEnabled = (BaseApplication.getInstance()?.getPrefs()?.getUserData()?.ipl_rooms_enabled ?: 0) == 1
+        binding.cardIplRooms.visibility = if (iplEnabled) android.view.View.VISIBLE else android.view.View.GONE
+    }
+
     private fun initUI() {
 
         val prefs = BaseApplication.getInstance()?.getPrefs()
@@ -474,6 +480,12 @@ class FemaleHomeFragment : BaseFragment() {
             val intent = Intent(context, EarningsActivity::class.java)
             startActivity(intent)
         })
+
+        // IPL Room Calls banner click — visibility handled by refreshIplBanner()
+        binding.cardIplRooms.setOnClickListener {
+            startActivity(Intent(requireContext(), com.gmwapp.hima.activities.IplRoomsActivity::class.java))
+        }
+        refreshIplBanner()
 
         if (userData != null) {
             // Disable listeners before initial setup to avoid triggering API calls
@@ -732,6 +744,9 @@ class FemaleHomeFragment : BaseFragment() {
             // Refresh Star Creator banner from latest API data
             binding.clStarCreatorBanner.visibility =
                 if (it?.data?.star == 1) View.VISIBLE else View.GONE
+
+            // Refresh IPL banner visibility once user data arrives from server
+            refreshIplBanner()
 
             if (it?.data != null) {
                 // Temporarily remove listeners to avoid triggering API calls when updating UI
