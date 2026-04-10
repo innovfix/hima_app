@@ -33,6 +33,7 @@ import com.gmwapp.hima.agora.AgoraRandomCallActivity
 import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.callbacks.NetworkRetryable
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
+import com.gmwapp.hima.callbacks.Refreshable
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentHomeBinding
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponseData
@@ -48,7 +49,7 @@ import kotlinx.coroutines.launch
 
 
 @AndroidEntryPoint
-class HomeFragment : BaseFragment(), NetworkRetryable {
+class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     private var isAllFabVisible: Boolean = false
     private var filterType: String = "all" // Default filter is "all"
     lateinit var binding: FragmentHomeBinding
@@ -395,6 +396,15 @@ class HomeFragment : BaseFragment(), NetworkRetryable {
             else   -> null
         }
         femaleUsersViewModel.getFemaleUsers(userId, filter)
+    }
+
+    /**
+     * Called when the user re-taps the Home tab in bottom nav.
+     * Re-fetches the female users list with the current filter.
+     */
+    override fun refresh() {
+        val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
+        loadFemaleUsers(userId)
     }
 
     private fun setLoading(isLoading: Boolean) {

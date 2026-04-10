@@ -32,6 +32,7 @@ import com.gmwapp.hima.activities.TermConditionWebViewActivity
 import com.gmwapp.hima.activities.TransactionsActivity
 import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.callbacks.NetworkRetryable
+import com.gmwapp.hima.callbacks.Refreshable
 import com.gmwapp.hima.fragments.FriendsTabFragment
 import com.gmwapp.hima.databinding.FragmentProfileBinding
 import com.gmwapp.hima.dialogs.BottomSheetLogout
@@ -44,7 +45,7 @@ import android.graphics.drawable.GradientDrawable
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
-class ProfileFragment : BaseFragment(), NetworkRetryable {
+class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
     lateinit var binding: FragmentProfileBinding
     private val EDIT_PROFILE_REQUEST_CODE = 1
     private val accountViewModel: AccountViewModel by viewModels()
@@ -160,6 +161,18 @@ class ProfileFragment : BaseFragment(), NetworkRetryable {
             .load(userData?.image)
             .apply(RequestOptions.circleCropTransform())
             .into(binding.ivProfile)
+    }
+
+    /**
+     * Called when the user re-taps the Profile tab in bottom nav.
+     * Re-fetches user profile data and IPL match suggestions.
+     */
+    override fun refresh() {
+        val refreshUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
+        profileViewModel.getUsers(refreshUserId)
+        iplRoomViewModel.getMatchSuggestions()
+        updateValues()
+        updateIplBadge()
     }
 
     private fun initUI() {

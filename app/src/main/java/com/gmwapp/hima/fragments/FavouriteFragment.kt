@@ -22,6 +22,7 @@ import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.agora.male.MaleCallConnectingActivity
 import com.gmwapp.hima.callbacks.NetworkRetryable
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
+import com.gmwapp.hima.callbacks.Refreshable
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentFavouriteBinding
 import com.gmwapp.hima.retrofit.ApiManager
@@ -35,7 +36,7 @@ import retrofit2.Response
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class FavouriteFragment : BaseFragment(), NetworkRetryable {
+class FavouriteFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
     @Inject
     lateinit var apiManager: ApiManager
@@ -120,6 +121,14 @@ class FavouriteFragment : BaseFragment(), NetworkRetryable {
                 }
             }
         })
+    }
+
+    /**
+     * Called when the user re-taps the Favourite tab in bottom nav.
+     * Re-fetches the favourites list.
+     */
+    override fun refresh() {
+        loadFavouritesList(resetData = true)
     }
 
     private fun loadFavouritesList(resetData: Boolean) {

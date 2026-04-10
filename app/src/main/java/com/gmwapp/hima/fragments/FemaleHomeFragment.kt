@@ -37,6 +37,7 @@ import com.gmwapp.hima.retrofit.responses.UserData
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.utils.AppEventLogger
 import com.bumptech.glide.Glide
+import com.gmwapp.hima.callbacks.Refreshable
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.BadgeViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
@@ -69,7 +70,7 @@ import kotlin.random.Random
 
 
 @AndroidEntryPoint
-class FemaleHomeFragment : BaseFragment() {
+class FemaleHomeFragment : BaseFragment(), Refreshable {
     private val OVERLAY_REQUEST_CODE: Int = 2
     private var mContext: Context? = null
     private val CALL_PERMISSIONS_REQUEST_CODE = 1
@@ -1084,6 +1085,18 @@ class FemaleHomeFragment : BaseFragment() {
                 }
             }
         }
+    }
+
+    /**
+     * Called when the user re-taps the Home tab in bottom nav.
+     * Re-fetches female reports / users / discovery so the screen shows current data.
+     */
+    override fun refresh() {
+        val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
+        femaleUsersViewModel.getReports(userId)
+        femaleUsersViewModel.getFemaleUsers(userId)
+        femaleUsersViewModel.getFemaleDiscovery(userId)
+        fetchBadgeList(userId)
     }
 
 

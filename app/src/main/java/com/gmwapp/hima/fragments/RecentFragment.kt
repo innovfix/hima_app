@@ -20,6 +20,7 @@ import com.gmwapp.hima.adapters.RecentCallsAdapter
 import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.agora.male.MaleCallConnectingActivity
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
+import com.gmwapp.hima.callbacks.Refreshable
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentRecentBinding
 import com.gmwapp.hima.retrofit.ApiManager
@@ -34,7 +35,7 @@ import retrofit2.Response
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class RecentFragment : BaseFragment() {
+class RecentFragment : BaseFragment(), Refreshable {
 
     @Inject
     lateinit var apiManager: ApiManager
@@ -137,6 +138,14 @@ class RecentFragment : BaseFragment() {
                 }
             }
         })
+    }
+
+    /**
+     * Called when the user re-taps the Recent tab in bottom nav.
+     * Re-fetches the calls list with the current sort/search filters.
+     */
+    override fun refresh() {
+        loadCallsList(currentSortType, resetData = true, searchQuery = currentSearchQuery)
     }
 
     private fun loadCallsList(sortType: String, resetData: Boolean, searchQuery: String = "") {

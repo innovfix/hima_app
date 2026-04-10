@@ -61,6 +61,7 @@ import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.agora.ZohoHelper
 import com.gmwapp.hima.callbacks.NetworkRetryable
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
+import com.gmwapp.hima.callbacks.Refreshable
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityMainBinding
 import com.gmwapp.hima.dialogs.BottomSheetWelcomeBonus
@@ -741,6 +742,9 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
         supportFragmentManager.executePendingTransactions()
         if (isAlreadyShowingTab(item.itemId)) {
+            // User re-tapped the tab they're already on — refresh its data.
+            val current = supportFragmentManager.findFragmentById(R.id.flFragment)
+            (current as? Refreshable)?.refresh()
             return true
         }
 
