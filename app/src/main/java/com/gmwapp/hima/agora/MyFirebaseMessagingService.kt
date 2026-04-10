@@ -70,11 +70,8 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         Log.d("FCM_Data_Complete", "From: ${remoteMessage.data}")
         Log.d("FCM_Message", "Message data payload: ${remoteMessage.data["message"]}")
 
-        // DND check: drop ALL incoming notifications when DND is active and not yet expired
-        if (BaseApplication.isDndActiveStatic(userData)) {
-            Log.d("FCM", "DND is active, dropping notification.")
-            return
-        }
+        // Note: DND filtering is handled server-side — the backend skips users
+        // with DND enabled before dispatching FCM, so no client-side drop here.
 
         if (remoteMessage.getPriority() == RemoteMessage.PRIORITY_HIGH) {
             Log.d("FCM_Message", "🔥 High-priority notification received!");

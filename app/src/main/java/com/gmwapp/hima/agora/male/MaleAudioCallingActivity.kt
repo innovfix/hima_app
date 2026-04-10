@@ -858,28 +858,11 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     }
 
     private fun setupIplTeamBadges() {
-        val prefs = BaseApplication.getInstance()?.getPrefs()
-        val savedTeamName = prefs?.getSelectedIplTeam()
-        val team = savedTeamName?.let { name ->
-            com.gmwapp.hima.models.IplTeam.values().find { it.name == name }
-        }
-        if (team != null) {
-            binding.maleIplBadge.visibility = View.VISIBLE
-            binding.tvMaleIplTeam.text = team.abbreviation
-            val maleDot = binding.maleIplDot.background.mutate() as android.graphics.drawable.GradientDrawable
-            maleDot.setColor(android.graphics.Color.parseColor(team.primaryColor))
-            binding.maleTeamRing.visibility = View.VISIBLE
-            val maleRing = binding.maleTeamRing.background.mutate() as android.graphics.drawable.GradientDrawable
-            maleRing.setColor(android.graphics.Color.parseColor(team.primaryColor))
-        }
-        val demoTeam = com.gmwapp.hima.models.IplTeam.values().random()
-        binding.femaleIplBadge.visibility = View.VISIBLE
-        binding.tvFemaleIplTeam.text = demoTeam.abbreviation
-        val femaleDot = binding.femaleIplDot.background.mutate() as android.graphics.drawable.GradientDrawable
-        femaleDot.setColor(android.graphics.Color.parseColor(demoTeam.primaryColor))
-        binding.femaleTeamRing.visibility = View.VISIBLE
-        val femaleRing = binding.femaleTeamRing.background.mutate() as android.graphics.drawable.GradientDrawable
-        femaleRing.setColor(android.graphics.Color.parseColor(demoTeam.primaryColor))
+        // IPL team badges and rings are hidden during calls.
+        binding.maleIplBadge.visibility = View.GONE
+        binding.femaleIplBadge.visibility = View.GONE
+        binding.maleTeamRing.visibility = View.GONE
+        binding.femaleTeamRing.visibility = View.GONE
     }
 
     private fun avatarObservers() {

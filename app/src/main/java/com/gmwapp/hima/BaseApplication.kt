@@ -81,7 +81,7 @@ class BaseApplication : Application(), Configuration.Provider {
     private var appConnectivityManager: ConnectivityManager? = null
     private var appNetworkCallback: ConnectivityManager.NetworkCallback? = null
     // val ONESIGNAL_APP_ID = "2c7d72ae-8f09-48ea-a3c8-68d9c913c592"
-    val ONESIGNAL_APP_ID = "5cd4154a-1ece-4c3b-b6af-e88bafee64cd"
+    val ONESIGNAL_APP_ID = "50cedb09-a202-455f-8c7b-683f4958df43"
 
     //val testingOneSingalAppId = "b5aee4f0-ef38-4116-a04d-ee279ee1f11f"
     private lateinit var sharedPreferences: SharedPreferences
@@ -174,23 +174,6 @@ class BaseApplication : Application(), Configuration.Provider {
         lateinit var firebaseAnalytics: FirebaseAnalytics
             private set
 
-        /**
-         * DND check that can be called from notification listeners (FCM + OneSignal).
-         */
-        fun isDndActiveStatic(userData: com.gmwapp.hima.retrofit.responses.UserData?): Boolean {
-            if (userData == null) return false
-            if ((userData.dnd_enabled ?: 0) != 1) return false
-            val until = userData.dnd_until ?: return false
-            return try {
-                val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", java.util.Locale.US)
-                val expiry = sdf.parse(until) ?: return false
-                expiry.time > System.currentTimeMillis()
-            } catch (e: Exception) {
-                Log.e("DND", "Failed to parse dnd_until=$until: ${e.message}")
-                false
-            }
-        }
-
 
 
 
@@ -273,17 +256,9 @@ class BaseApplication : Application(), Configuration.Provider {
         // OneSignal Initialization
         OneSignal.initWithContext(this, ONESIGNAL_APP_ID)
 
-        // ====== DND: suppress OneSignal notifications when DND is active ======
-        OneSignal.Notifications.addForegroundLifecycleListener(object : com.onesignal.notifications.INotificationLifecycleListener {
-            override fun onWillDisplay(event: com.onesignal.notifications.INotificationWillDisplayEvent) {
-                val userData = getInstance()?.getPrefs()?.getUserData()
-                if (isDndActiveStatic(userData)) {
-                    Log.d("OneSignal_DND", "DND is active — suppressing OneSignal notification")
-                    // preventDefault() stops OneSignal from displaying the notification
-                    event.preventDefault()
-                }
-            }
-        })
+        // Note: DND filtering is handled server-side. The demo/prod backend
+        // skips users with DND enabled before sending OneSignal/FCM, so no
+        // client-side suppression is needed here.
 
         // Create the same channel ID as your OneSignal dashboard
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

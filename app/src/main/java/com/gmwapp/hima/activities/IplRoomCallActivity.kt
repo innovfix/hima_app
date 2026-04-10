@@ -57,6 +57,7 @@ class IplRoomCallActivity : AppCompatActivity() {
     private var agoraAppId: String? = null
     private var channelName: String = ""
     private var isAgoraJoined = false
+    private var dataStreamId: Int = -1
     private val PERMISSION_REQ_ID = 22
     private val REQUESTED_PERMISSIONS = arrayOf(Manifest.permission.RECORD_AUDIO)
 
@@ -109,6 +110,29 @@ class IplRoomCallActivity : AppCompatActivity() {
         override fun onJoinChannelSuccess(channel: String, uid: Int, elapsed: Int) {
             Log.d(TAG, "Agora: Joined channel $channel, uid=$uid")
             isAgoraJoined = true
+            // Create a reliable data stream so we can broadcast mute/leave/reaction events
+            try {
+                val cfg = io.agora.rtc2.DataStreamConfig().apply {
+                    syncWithAudio = false
+                    ordered = true
+                }
+                val streamId = agoraEngine?.createDataStream(cfg) ?: -1
+                if (streamId >= 0) dataStreamId = streamId
+                Log.d(TAG, "Agora: data stream id=$dataStreamId")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to create data stream: ${e.message}")
+            }
+        }
+
+        override fun onStreamMessage(uid: Int, streamId: Int, data: ByteArray?) {
+            if (data == null) return
+            try {
+                val msg = String(data, Charsets.UTF_8)
+                Log.d(TAG, "Agora: stream msg from uid=$uid: $msg")
+                runOnUiThread { handleStreamMessage(uid, msg) }
+            } catch (e: Exception) {
+                Log.e(TAG, "onStreamMessage parse failed: ${e.message}")
+            }
         }
 
         override fun onUserJoined(uid: Int, elapsed: Int) {
@@ -134,7 +158,15 @@ class IplRoomCallActivity : AppCompatActivity() {
                     leaveAndFinish()
                     return@runOnUiThread
                 }
-                // Otherwise just refresh slots
+                // Remove the leaver from the local member list immediately
+                // (Agora uid == app userId in our channel join)
+                val idx = members.indexOfFirst { it.id == uid }
+                if (idx >= 0) {
+                    members.removeAt(idx)
+                    updateParticipantSlots()
+                    updateMemberCount()
+                }
+                // Also refresh from server to stay consistent
                 if (roomId > 0) viewModel.getRoomDetails(roomId)
             }
         }
@@ -207,6 +239,13 @@ class IplRoomCallActivity : AppCompatActivity() {
         roomId = intent.getIntExtra("room_id", 0)
         channelName = "ipl_room_$roomId"
         inviteCode = intent.getStringExtra("invite_code") ?: ""
+
+        // Intercept the system back press (works on Android 13+ predictive back too)
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                showLeaveConfirmation()
+            }
+        })
 
         handleNavBarInsets()
         setupRoomInfo()
@@ -374,6 +413,69 @@ class IplRoomCallActivity : AppCompatActivity() {
             Log.e(TAG, "Agora init failed: ${e.message}")
             // Fallback to simulation
             startSpeakingSimulation()
+        }
+    }
+
+    // ===== AGORA DATA STREAM HELPERS =====
+
+    private fun sendDataStreamMessage(payload: org.json.JSONObject) {
+        try {
+            payload.put("from_uid", userId)
+            if (dataStreamId < 0 || agoraEngine == null) return
+            val bytes = payload.toString().toByteArray(Charsets.UTF_8)
+            agoraEngine?.sendStreamMessage(dataStreamId, bytes)
+            Log.d(TAG, "Sent data stream: $payload")
+        } catch (e: Exception) {
+            Log.e(TAG, "sendDataStreamMessage failed: ${e.message}")
+        }
+    }
+
+    private fun handleStreamMessage(senderUid: Int, message: String) {
+        try {
+            val json = org.json.JSONObject(message)
+            val type = json.optString("type", "")
+            when (type) {
+                "mute" -> {
+                    val isMuted = json.optBoolean("muted", false)
+                    val targetUid = json.optInt("from_uid", senderUid)
+                    val idx = members.indexOfFirst { it.id == targetUid }
+                    if (idx >= 0) {
+                        members[idx] = members[idx].copy(isMuted = isMuted)
+                        if (idx < participantViews.size) {
+                            participantViews[idx].flMuteIndicator.visibility =
+                                if (isMuted) View.VISIBLE else View.GONE
+                        }
+                    }
+                }
+                "leave" -> {
+                    val targetUid = json.optInt("from_uid", senderUid)
+                    val idx = members.indexOfFirst { it.id == targetUid }
+                    if (idx >= 0) {
+                        val wasCreator = members[idx].isCreator
+                        members.removeAt(idx)
+                        updateParticipantSlots()
+                        updateMemberCount()
+                        if (wasCreator || (creatorUserId > 0 && targetUid == creatorUserId)) {
+                            Toast.makeText(this, "Host ended the room", Toast.LENGTH_SHORT).show()
+                            leaveAndFinish()
+                            return
+                        }
+                    }
+                    // Refresh from server too just in case
+                    if (roomId > 0) viewModel.getRoomDetails(roomId)
+                }
+                "reaction" -> {
+                    val rxType = json.optString("reaction", "")
+                    when (rxType) {
+                        "four" -> showFloatingReaction("FOUR!", "4️⃣", "#4CAF50")
+                        "six" -> showFloatingReaction("SIX!", "6️⃣", "#FF6D00")
+                        "wicket" -> showFloatingReaction("WICKET!", "🏏", "#E53935")
+                        "great" -> showFloatingReaction("GREAT!", "👏", "#2196F3")
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "handleStreamMessage error: ${e.message}")
         }
     }
 
@@ -688,31 +790,59 @@ class IplRoomCallActivity : AppCompatActivity() {
         binding.btnReactionFour.setOnClickListener {
             showFloatingReaction("FOUR!", "4️⃣", "#4CAF50")
             viewModel.sendReaction(userId, roomId, "four")
+            broadcastReaction("four")
         }
         binding.btnReactionSix.setOnClickListener {
             showFloatingReaction("SIX!", "6️⃣", "#FF6D00")
             viewModel.sendReaction(userId, roomId, "six")
+            broadcastReaction("six")
         }
         binding.btnReactionWicket.setOnClickListener {
             showFloatingReaction("WICKET!", "🏏", "#E53935")
             viewModel.sendReaction(userId, roomId, "wicket")
+            broadcastReaction("wicket")
         }
         binding.btnReactionGreat.setOnClickListener {
             showFloatingReaction("GREAT!", "👏", "#2196F3")
             viewModel.sendReaction(userId, roomId, "great")
+            broadcastReaction("great")
         }
     }
 
+    private fun broadcastReaction(rxType: String) {
+        sendDataStreamMessage(org.json.JSONObject().apply {
+            put("type", "reaction")
+            put("reaction", rxType)
+        })
+    }
+
     private fun leaveAndFinish() {
+        // Notify other room members instantly via Agora data stream.
+        // Agora's data stream is best-effort; sending 3 times improves reliability.
+        try {
+            val payload = org.json.JSONObject().apply {
+                put("type", "leave")
+                put("is_creator", isCreator)
+            }
+            sendDataStreamMessage(payload)
+            sendDataStreamMessage(payload)
+            sendDataStreamMessage(payload)
+        } catch (_: Exception) {}
+
         if (isCreator) {
-            // Creator leaving closes the room
             viewModel.closeRoom(userId, roomId)
         } else if (hasJoinedToSpeak) {
             viewModel.leaveRoom(userId, roomId)
         }
-        handler.removeCallbacksAndMessages(null)
-        leaveAgoraChannel()
-        finish()
+
+        // Give Agora a tiny moment to flush the stream messages, then leave.
+        handler.postDelayed({
+            try {
+                handler.removeCallbacksAndMessages(null)
+                leaveAgoraChannel()
+                finish()
+            } catch (_: Exception) { finish() }
+        }, 250)
     }
 
     private fun showLeaveConfirmation() {
@@ -731,7 +861,7 @@ class IplRoomCallActivity : AppCompatActivity() {
         if (isCreator) {
             title.text = "Close Room?"
             message.text = "If you leave, the room will be closed for everyone. Are you sure?"
-            btnConfirm.text = "Close Room"
+            btnConfirm.text = "Close"
         } else {
             title.text = "Leave Room?"
             message.text = "Are you sure you want to leave this IPL room?"
@@ -810,6 +940,11 @@ class IplRoomCallActivity : AppCompatActivity() {
             )
             binding.tvMuteLabel.text = if (isMuted) "Unmute" else "Mic"
             viewModel.toggleMute(userId, roomId, isMuted)
+            // Broadcast to other room members in real time
+            sendDataStreamMessage(org.json.JSONObject().apply {
+                put("type", "mute")
+                put("muted", isMuted)
+            })
         }
 
         // Speaker toggle - real Agora speaker
