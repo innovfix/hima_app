@@ -230,6 +230,11 @@ class WithdrawActivity : BaseActivity() {
         else if (payment_method == "bank_transfer"){
             binding.cvAddUpi.visibility = View.GONE
             binding.cvAddBank.visibility = View.VISIBLE
+            // Show the same Withdrawal Summary card (transaction fee + TDS + amount
+            // you'll receive) that the UPI flow shows. validateFields() already
+            // computes the slab-based fee + TDS regardless of payment method, it
+            // just gates the calculation on this card being visible.
+            binding.llTransactionfee.visibility = View.VISIBLE
         }
 
 
