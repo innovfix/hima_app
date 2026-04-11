@@ -931,14 +931,16 @@ class UserProfileDetailActivity : AppCompatActivity() {
     private fun updateUIBasedOnFriendStatus() {
         // Always hide call buttons
         binding.llCallButtons.visibility = View.GONE
-        
+
+        // Send Friend Request button is hidden everywhere now (UI request).
+        // The friend-request flow itself still works if triggered elsewhere.
+        binding.btnSendFriendRequest.visibility = View.GONE
+
         when (currentFriendStatus) {
             FriendStatus.NOT_FRIENDS -> {
-                // Show send friend request button
-                binding.btnSendFriendRequest.visibility = View.VISIBLE
+                // Send friend request button intentionally kept hidden.
                 binding.llAcceptRejectButtons.visibility = View.GONE
                 binding.cvFriendStatus.visibility = View.GONE
-                binding.btnSendFriendRequest.isEnabled = true
             }
             
             FriendStatus.REQUEST_SENT -> {

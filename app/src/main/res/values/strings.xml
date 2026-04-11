@@ -26,6 +26,8 @@
     <string name="recent">Recent</string>
     <string name="favourite">Favourite</string>
     <string name="chat_now">Chat Now</string>
+    <string name="tap_to_call_and_chat">Tap to call and chat</string>
+    <string name="rate_per_min_audio_video">Audio %1$d coins/min  ·  Video %2$d coins/min</string>
     <string name="profile">Profile</string>
     <string name="video">Video</string>
     <string name="video_text">Video 60/mins</string>
@@ -271,8 +273,8 @@
     <string name="facebook_app_id">866451756064625</string>
     <string name="facebook_client_token">6d5e012186e28f4668987be088cda8ce</string>
 
-    <!-- Snapchat SDK - Replace with your actual credentials from Snap Ads Manager -->
-    <string name="snap_app_id">YOUR_SNAP_APP_ID</string>
+    <!-- Snapchat SDK -->
+    <string name="snap_app_id">2bb19052-0d75-4e5d-9c82-ddc0fa17c384</string>
     <string name="snap_pixel_id">YOUR_SNAP_PIXEL_ID</string>
 
 

@@ -1,5 +1,7 @@
 package com.gmwapp.hima.retrofit.responses
 
+import com.google.gson.annotations.SerializedName
+
 data class FemaleUsersResponse(
     val success: Boolean,
     val message: String,
@@ -23,4 +25,8 @@ data class FemaleUsersResponseData(
     val is_star: Int?,
     val star: Int?,
     val ipl_team: String? = null,
+    @SerializedName("last_message")
+    val last_message: LastMessage? = null,
+    @SerializedName("unread_count")
+    val unread_count: Int = 0,
 )

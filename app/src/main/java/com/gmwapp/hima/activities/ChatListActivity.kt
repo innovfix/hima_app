@@ -163,6 +163,9 @@ class ChatListActivity : AppCompatActivity() {
     private fun setupViewPager() {
         val adapter = ChatPagerAdapter(this)
         binding.viewPager.adapter = adapter
+        // Disable horizontal swiping between tabs — UI request, tabs are hidden
+        // and the user should stay on the Chat tab.
+        binding.viewPager.isUserInputEnabled = false
 
         TabLayoutMediator(binding.tabLayout, binding.viewPager) { tab, position ->
             tab.text = when (position) {

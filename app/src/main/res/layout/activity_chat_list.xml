@@ -110,12 +110,13 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Tab Layout -->
+            <!-- Tab Layout — hidden by request; ViewPager still defaults to Chat tab. -->
             <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:scrollbars="none">
+                android:scrollbars="none"
+                android:visibility="gone">
 
                 <com.google.android.material.tabs.TabLayout
                     android:id="@+id/tab_layout"

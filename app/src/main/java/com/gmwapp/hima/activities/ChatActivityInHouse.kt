@@ -106,6 +106,10 @@ class ChatActivityInHouse : AppCompatActivity() {
     private lateinit var cvVideoCall: com.google.android.material.card.MaterialCardView
     private lateinit var ivAudioCall: ImageView
     private lateinit var ivVideoCall: ImageView
+
+    // Per-user call rate banner shown above the messages list
+    private var cvRateBanner: com.google.android.material.card.MaterialCardView? = null
+    private var tvRateBanner: TextView? = null
     private var peerUserGender: String? = null
     private var isPeerUserOnline: Boolean = false
     private var peerAudioStatus: Int? = null  // 0 or 1
@@ -178,6 +182,22 @@ class ChatActivityInHouse : AppCompatActivity() {
         ivAudioCall = findViewById(R.id.iv_audio_call)
         cvVideoCall = findViewById(R.id.cv_video_call)
         ivVideoCall = findViewById(R.id.iv_video_call)
+
+        // Per-user call rate banner (shown when home opens chat with rate extras)
+        cvRateBanner = findViewById(R.id.cv_rate_banner)
+        tvRateBanner = findViewById(R.id.tv_rate_banner)
+        val audioRate = intent.getIntExtra("COIN_PER_MIN_AUDIO", -1)
+        val videoRate = intent.getIntExtra("COIN_PER_MIN_VIDEO", -1)
+        if (audioRate > 0 || videoRate > 0) {
+            tvRateBanner?.text = getString(
+                R.string.rate_per_min_audio_video,
+                if (audioRate > 0) audioRate else 10,
+                if (videoRate > 0) videoRate else 60
+            )
+            cvRateBanner?.visibility = View.VISIBLE
+        } else {
+            cvRateBanner?.visibility = View.GONE
+        }
 
         val userName = intent.getStringExtra("USER_NAME") ?: "User"
         val userImage = intent.getStringExtra("USER_IMAGE")

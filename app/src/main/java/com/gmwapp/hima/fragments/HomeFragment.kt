@@ -265,45 +265,13 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 binding.rvProfiles.layoutManager =
                     LinearLayoutManager(activity, LinearLayoutManager.VERTICAL, false)
 
+                // Row click is handled inside the adapter (opens ChatActivityInHouse).
+                // The audio/video listeners are kept as no-ops for constructor compatibility.
+                val noOpListener = object : OnItemSelectionListener<FemaleUsersResponseData> {
+                    override fun onItemSelected(data: FemaleUsersResponseData) {}
+                }
                 val transactionAdapter = activity?.let { context ->
-                    FemaleUserAdapter(
-                        context,
-                        it.data,
-                        object : OnItemSelectionListener<FemaleUsersResponseData> {
-                            override fun onItemSelected(data: FemaleUsersResponseData) {
-                                val intent = Intent(context, MaleCallConnectingActivity::class.java)
-                                intent.putExtra(DConstants.CALL_TYPE, "audio")
-                                intent.putExtra(DConstants.RECEIVER_ID, data.id)
-                                intent.putExtra(DConstants.RECEIVER_NAME, data.name)
-                                intent.putExtra(DConstants.CALL_ID, 0)
-                                intent.putExtra(DConstants.IMAGE, data.image)
-                                intent.putExtra(DConstants.IS_RECEIVER_DETAILS_AVAILABLE, true)
-                                intent.putExtra(
-                                    DConstants.TEXT,
-                                    getString(R.string.wait_user_hint, data.name)
-                                )
-                                FcmUtils.isUserAvailable=1
-                                startActivity(intent)
-                            }
-                        },
-                        object : OnItemSelectionListener<FemaleUsersResponseData> {
-                            override fun onItemSelected(data: FemaleUsersResponseData) {
-                                val intent = Intent(context, MaleCallConnectingActivity::class.java)
-                                intent.putExtra(DConstants.CALL_TYPE, "video")
-                                intent.putExtra(DConstants.RECEIVER_ID, data.id)
-                                intent.putExtra(DConstants.RECEIVER_NAME, data.name)
-                                intent.putExtra(DConstants.CALL_ID, 0)
-                                intent.putExtra(DConstants.IMAGE, data.image)
-                                intent.putExtra(DConstants.IS_RECEIVER_DETAILS_AVAILABLE, true)
-                                intent.putExtra(
-                                    DConstants.TEXT,
-                                    getString(R.string.wait_user_hint, data.name)
-                                )
-                                FcmUtils.isUserAvailable=1
-                                startActivity(intent)
-                            }
-                        }
-                    )
+                    FemaleUserAdapter(context, it.data, noOpListener, noOpListener)
                 }
                 binding.rvProfiles.adapter = transactionAdapter
             }
