@@ -371,10 +371,9 @@ class ChatActivityInHouse : AppCompatActivity() {
             putExtra(DConstants.USER_ID, peerUserId)
             putExtra("USER_NAME", intent.getStringExtra("USER_NAME") ?: "User")
             putExtra("USER_IMAGE", intent.getStringExtra("USER_IMAGE") ?: "")
-            // Optional fields - use defaults if not available
-            putExtra("USER_LANGUAGE", "")
-            putExtra("USER_INTERESTS", "")
-            putExtra("USER_ABOUT", "")
+            putExtra("USER_LANGUAGE", intent.getStringExtra("USER_LANGUAGE") ?: "")
+            putExtra("USER_INTERESTS", intent.getStringExtra("USER_INTERESTS") ?: "")
+            putExtra("USER_ABOUT", intent.getStringExtra("USER_ABOUT") ?: "")
             putExtra("USER_AGE", 0)
             putExtra("AUDIO_STATUS", peerAudioStatus ?: 0)
             putExtra("VIDEO_STATUS", peerVideoStatus ?: 0)

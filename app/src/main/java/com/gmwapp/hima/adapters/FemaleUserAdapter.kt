@@ -123,6 +123,9 @@ class FemaleUserAdapter(
                 putExtra("VIDEO_STATUS", femaleUser.video_status)
                 putExtra("COIN_PER_MIN_AUDIO", femaleUser.coin_per_min_audio ?: 10)
                 putExtra("COIN_PER_MIN_VIDEO", femaleUser.coin_per_min_video ?: 60)
+                putExtra("USER_LANGUAGE", femaleUser.language)
+                putExtra("USER_INTERESTS", femaleUser.interests)
+                putExtra("USER_ABOUT", femaleUser.describe_yourself)
             }
             activity.startActivity(intent)
         }

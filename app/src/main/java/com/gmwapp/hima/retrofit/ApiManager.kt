@@ -1629,7 +1629,7 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         val apiCall = getApiInterface().trackRandomCallFailure(userId, callType)
         apiCall.enqueue(object : retrofit2.Callback<okhttp3.ResponseBody> {
             override fun onResponse(call: Call<okhttp3.ResponseBody>, response: retrofit2.Response<okhttp3.ResponseBody>) {
-                android.util.Log.d("RandomCallFailure", "Tracked: code=${response.code()}")
+                android.util.Log.d("RandomCallFailure", "Tracked: code=${response}")
             }
             override fun onFailure(call: Call<okhttp3.ResponseBody>, t: Throwable) {
                 android.util.Log.e("RandomCallFailure", "Track failed: ${t.message}")
