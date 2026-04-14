@@ -1838,9 +1838,9 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
 
     // ===== IPL Rooms =====
 
-    fun getIplRooms(userId: Int, language: String? = null, callback: NetworkCallback<IplRoomsListResponse>) {
+    fun getIplRooms(userId: Int, language: String? = null, limit: Int = 10, offset: Int = 0, callback: NetworkCallback<IplRoomsListResponse>) {
         if (Helper.checkNetworkConnection()) {
-            val apiCall = getApiInterface().getIplRooms(userId, language)
+            val apiCall = getApiInterface().getIplRooms(userId, language, limit, offset)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -2881,7 +2881,9 @@ interface ApiInterface {
     @POST("ipl-rooms-list")
     fun getIplRooms(
         @Field("user_id") userId: Int,
-        @Field("language") language: String? = null
+        @Field("language") language: String? = null,
+        @Field("limit") limit: Int = 10,
+        @Field("offset") offset: Int = 0
     ): Call<IplRoomsListResponse>
 
     @FormUrlEncoded

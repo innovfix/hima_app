@@ -58,17 +58,29 @@ class IplRoomViewModel @Inject constructor(
     val errorLiveData = MutableLiveData<String>()
     val isLoading = MutableLiveData<Boolean>()
 
-    fun getRooms(userId: Int, language: String? = null) {
+    private val PAGE_SIZE = 10
+    val hasMoreRooms = MutableLiveData<Boolean>(true)
+
+    fun getRooms(userId: Int, language: String? = null, offset: Int = 0) {
         isLoading.postValue(true)
         viewModelScope.launch {
-            repository.getIplRooms(userId, language, object : NetworkCallback<IplRoomsListResponse> {
+            repository.getIplRooms(userId, language, PAGE_SIZE, offset, object : NetworkCallback<IplRoomsListResponse> {
                 override fun onResponse(call: Call<IplRoomsListResponse>, response: Response<IplRoomsListResponse>) {
                     isLoading.postValue(false)
                     val body = response.body()
                     if (body != null && body.success && body.data != null) {
                         val mapped = body.data.map { it.toIplRoom() }.toMutableList()
-                        _rooms.postValue(mapped)
+                        if (offset == 0) {
+                            _rooms.postValue(mapped)
+                        } else {
+                            val current = _rooms.value ?: mutableListOf()
+                            current.addAll(mapped)
+                            _rooms.postValue(current)
+                        }
+                        hasMoreRooms.postValue(mapped.size >= PAGE_SIZE)
                     } else {
+                        if (offset == 0) _rooms.postValue(mutableListOf())
+                        hasMoreRooms.postValue(false)
                         errorLiveData.postValue(body?.message ?: "Failed to load rooms")
                     }
                 }

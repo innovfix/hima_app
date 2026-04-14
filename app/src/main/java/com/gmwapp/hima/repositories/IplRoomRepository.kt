@@ -8,8 +8,8 @@ import javax.inject.Inject
 class IplRoomRepository @Inject constructor(
     private val apiManager: ApiManager
 ) {
-    fun getIplRooms(userId: Int, language: String? = null, callback: NetworkCallback<IplRoomsListResponse>) {
-        apiManager.getIplRooms(userId, language, callback)
+    fun getIplRooms(userId: Int, language: String? = null, limit: Int = 10, offset: Int = 0, callback: NetworkCallback<IplRoomsListResponse>) {
+        apiManager.getIplRooms(userId, language, limit, offset, callback)
     }
 
     fun createIplRoom(userId: Int, roomName: String, teamA: String, teamB: String, creatorTeam: String, callback: NetworkCallback<IplRoomCreateResponse>) {

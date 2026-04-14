@@ -31,6 +31,8 @@ class IplRoomsActivity : AppCompatActivity() {
             .equals("female", ignoreCase = true)
 
     private var roomAdapter: IplRoomAdapter? = null
+    private var currentOffset = 0
+    private var isLoadingMore = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -138,13 +140,37 @@ class IplRoomsActivity : AppCompatActivity() {
         })
         binding.rvRooms.adapter = roomAdapter
 
+        // Scroll listener for pagination
+        binding.rvRooms.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                val layoutManager = recyclerView.layoutManager as? androidx.recyclerview.widget.LinearLayoutManager ?: return
+                val totalItemCount = layoutManager.itemCount
+                val lastVisibleItem = layoutManager.findLastVisibleItemPosition()
+
+                if (!isLoadingMore && lastVisibleItem >= totalItemCount - 3) {
+                    if (viewModel.hasMoreRooms.value == true) {
+                        loadMoreRooms()
+                    }
+                }
+            }
+        })
+
         observeMaleViewModel()
         loadRooms()
     }
 
     private fun loadRooms() {
+        currentOffset = 0
         val language = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.language
-        viewModel.getRooms(userId, language)
+        viewModel.getRooms(userId, language, 0)
+    }
+
+    private fun loadMoreRooms() {
+        isLoadingMore = true
+        currentOffset += 10
+        val language = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.language
+        viewModel.getRooms(userId, language, currentOffset)
     }
 
     private fun observeMaleViewModel() {
@@ -155,7 +181,7 @@ class IplRoomsActivity : AppCompatActivity() {
         }
 
         viewModel.isLoading.observe(this) { loading ->
-            // Could add a progress indicator here if needed
+            if (loading == false) isLoadingMore = false
         }
 
         viewModel.rooms.observe(this) { rooms ->
