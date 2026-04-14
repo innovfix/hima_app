@@ -45,29 +45,17 @@ class IplRoomAdapter(
             // LIVE badge
             binding.tvLiveBadge.visibility = if (room.isLive) View.VISIBLE else View.GONE
 
-            // Join button state
-            val isFull = room.memberCount >= room.maxMembers
-            binding.btnJoin.isEnabled = !isFull
-            if (isFull) {
-                binding.btnJoin.text = activity.getString(R.string.room_full)
-                binding.btnJoin.setBackgroundResource(R.drawable.bg_fantasy_member_count)
-                binding.btnJoin.setTextColor(
-                    ContextCompat.getColor(activity, R.color.grey_medium)
-                )
-                binding.btnJoin.alpha = 0.5f
-            } else {
-                binding.btnJoin.text = activity.getString(R.string.join_room)
-                binding.btnJoin.setBackgroundResource(R.drawable.bg_fantasy_join_btn)
-                binding.btnJoin.setTextColor(
-                    ContextCompat.getColor(activity, R.color.white)
-                )
-                binding.btnJoin.alpha = 1.0f
-            }
+            // Join button — always enabled since users enter as listeners first
+            binding.btnJoin.isEnabled = true
+            binding.btnJoin.text = activity.getString(R.string.join_room)
+            binding.btnJoin.setBackgroundResource(R.drawable.bg_fantasy_join_btn)
+            binding.btnJoin.setTextColor(
+                ContextCompat.getColor(activity, R.color.white)
+            )
+            binding.btnJoin.alpha = 1.0f
 
             binding.btnJoin.setOnClickListener {
-                if (!isFull) {
-                    onJoinListener.onItemSelected(room)
-                }
+                onJoinListener.onItemSelected(room)
             }
         }
     }

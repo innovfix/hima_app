@@ -47,6 +47,10 @@ class IplRoomViewModel @Inject constructor(
     val joinByCodeLiveData = MutableLiveData<IplRoomJoinResponse>()
     val joinRandomLiveData = MutableLiveData<IplRoomJoinResponse>()
 
+    // Lookup (without joining)
+    val lookupByCodeLiveData = MutableLiveData<IplRoomJoinResponse>()
+    val lookupRandomLiveData = MutableLiveData<IplRoomJoinResponse>()
+
     // Close room
     val closeRoomLiveData = MutableLiveData<IplRoomLeaveResponse>()
 
@@ -54,10 +58,10 @@ class IplRoomViewModel @Inject constructor(
     val errorLiveData = MutableLiveData<String>()
     val isLoading = MutableLiveData<Boolean>()
 
-    fun getRooms(userId: Int) {
+    fun getRooms(userId: Int, language: String? = null) {
         isLoading.postValue(true)
         viewModelScope.launch {
-            repository.getIplRooms(userId, object : NetworkCallback<IplRoomsListResponse> {
+            repository.getIplRooms(userId, language, object : NetworkCallback<IplRoomsListResponse> {
                 override fun onResponse(call: Call<IplRoomsListResponse>, response: Response<IplRoomsListResponse>) {
                     isLoading.postValue(false)
                     val body = response.body()
@@ -294,6 +298,72 @@ class IplRoomViewModel @Inject constructor(
 
                 override fun onNoNetwork() {
                     Log.e(TAG, "closeRoom: no network")
+                }
+            })
+        }
+    }
+
+    fun lookupRoomByCode(inviteCode: String) {
+        viewModelScope.launch {
+            repository.lookupRoomByCode(inviteCode, object : NetworkCallback<IplRoomJoinResponse> {
+                override fun onResponse(call: Call<IplRoomJoinResponse>, response: Response<IplRoomJoinResponse>) {
+                    lookupByCodeLiveData.postValue(response.body())
+                }
+                override fun onFailure(call: Call<IplRoomJoinResponse>, t: Throwable) {
+                    Log.e(TAG, "lookupByCode failed: ${t.message}")
+                    errorLiveData.postValue("Failed to find room")
+                }
+                override fun onNoNetwork() {
+                    errorLiveData.postValue("No network")
+                }
+            })
+        }
+    }
+
+    fun lookupRoomRandom(userId: Int) {
+        viewModelScope.launch {
+            repository.lookupRoomRandom(userId, object : NetworkCallback<IplRoomJoinResponse> {
+                override fun onResponse(call: Call<IplRoomJoinResponse>, response: Response<IplRoomJoinResponse>) {
+                    lookupRandomLiveData.postValue(response.body())
+                }
+                override fun onFailure(call: Call<IplRoomJoinResponse>, t: Throwable) {
+                    Log.e(TAG, "lookupRandom failed: ${t.message}")
+                    errorLiveData.postValue("Failed to find room")
+                }
+                override fun onNoNetwork() {
+                    errorLiveData.postValue("No network")
+                }
+            })
+        }
+    }
+
+    fun listenerJoin(userId: Int, roomId: Int) {
+        viewModelScope.launch {
+            repository.listenerJoin(userId, roomId, object : NetworkCallback<IplRoomLeaveResponse> {
+                override fun onResponse(call: Call<IplRoomLeaveResponse>, response: Response<IplRoomLeaveResponse>) {
+                    Log.d(TAG, "Listener join tracked")
+                }
+                override fun onFailure(call: Call<IplRoomLeaveResponse>, t: Throwable) {
+                    Log.e(TAG, "listenerJoin failed: ${t.message}")
+                }
+                override fun onNoNetwork() {
+                    Log.e(TAG, "listenerJoin: no network")
+                }
+            })
+        }
+    }
+
+    fun listenerLeave(userId: Int, roomId: Int) {
+        viewModelScope.launch {
+            repository.listenerLeave(userId, roomId, object : NetworkCallback<IplRoomLeaveResponse> {
+                override fun onResponse(call: Call<IplRoomLeaveResponse>, response: Response<IplRoomLeaveResponse>) {
+                    Log.d(TAG, "Listener leave tracked")
+                }
+                override fun onFailure(call: Call<IplRoomLeaveResponse>, t: Throwable) {
+                    Log.e(TAG, "listenerLeave failed: ${t.message}")
+                }
+                override fun onNoNetwork() {
+                    Log.e(TAG, "listenerLeave: no network")
                 }
             })
         }

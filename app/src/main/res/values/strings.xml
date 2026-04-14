@@ -374,6 +374,7 @@
     <string name="ipl_rooms">IPL Rooms</string>
     <string name="ipl_room_calls">IPL Room Calls</string>
     <string name="ipl_room_subtitle">Join the cricket conversation!</string>
+    <string name="ipl_room_subtitle_female">Create Room &amp; Earn Money!</string>
     <string name="create_room">Create Room</string>
     <string name="join_room">Join</string>
     <string name="live_label">LIVE</string>
@@ -397,8 +398,8 @@
     <string name="reaction_great">Great!</string>
 
     <!-- Fantasy IPL -->
-    <string name="fantasy_ipl_title">Fantasy Cricket</string>
-    <string name="fantasy_ipl_subtitle">Pick your team. Join the battle.</string>
+    <string name="fantasy_ipl_title">IPL Live Rooms</string>
+    <string name="fantasy_ipl_subtitle">Join live cricket discussions!</string>
     <string name="fantasy_live_rooms">Live Rooms</string>
     <string name="fantasy_no_rooms">No Live Matches</string>
     <string name="fantasy_no_rooms_sub">Start a room and rally your squad!</string>

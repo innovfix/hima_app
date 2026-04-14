@@ -136,6 +136,7 @@
             android:contentDescription="No rooms"/>
 
         <TextView
+            android:id="@+id/tv_empty_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
@@ -145,6 +146,7 @@
             android:fontFamily="@font/poppins_semibold"/>
 
         <TextView
+            android:id="@+id/tv_empty_subtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
@@ -167,10 +169,9 @@
         android:textSize="15sp"
         android:fontFamily="@font/poppins_bold"
         android:textAllCaps="false"
+        android:textAlignment="center"
+        android:gravity="center"
         android:elevation="12dp"
-        app:icon="@drawable/ic_cricket_ball"
-        app:iconTint="@color/white"
-        app:iconSize="22dp"
         app:backgroundTint="#FF6B35"
         app:cornerRadius="28dp"/>
 

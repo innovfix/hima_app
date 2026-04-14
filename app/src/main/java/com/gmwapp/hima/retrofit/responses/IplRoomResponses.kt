@@ -47,7 +47,8 @@ data class IplRoomDetailData(
     @SerializedName("creator_id") val creatorId: Int,
     @SerializedName("creator_name") val creatorName: String,
     @SerializedName("is_live") val isLive: Boolean,
-    val members: ArrayList<IplMemberData>?
+    val members: ArrayList<IplMemberData>?,
+    @SerializedName("listener_count") val listenerCount: Int = 0
 )
 
 // ===== Leave Room =====

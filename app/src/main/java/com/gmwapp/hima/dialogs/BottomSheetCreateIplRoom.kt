@@ -75,8 +75,13 @@ class BottomSheetCreateIplRoom(
                 Toast.makeText(requireContext(), "Please select your team first", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            val roomName = "${a.abbreviation} vs ${b.abbreviation}"
-            onRoomCreated(roomName, a, b, sel)
+            val customName = binding.etRoomName.text?.toString()?.trim()
+            if (customName.isNullOrEmpty()) {
+                binding.etRoomName.error = "Please enter a room name"
+                binding.etRoomName.requestFocus()
+                return@setOnClickListener
+            }
+            onRoomCreated(customName, a, b, sel)
             dismiss()
         }
 

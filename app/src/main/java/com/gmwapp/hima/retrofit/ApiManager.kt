@@ -1838,9 +1838,9 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
 
     // ===== IPL Rooms =====
 
-    fun getIplRooms(userId: Int, callback: NetworkCallback<IplRoomsListResponse>) {
+    fun getIplRooms(userId: Int, language: String? = null, callback: NetworkCallback<IplRoomsListResponse>) {
         if (Helper.checkNetworkConnection()) {
-            val apiCall = getApiInterface().getIplRooms(userId)
+            val apiCall = getApiInterface().getIplRooms(userId, language)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1928,6 +1928,24 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun listenerJoin(userId: Int, roomId: Int, callback: NetworkCallback<IplRoomLeaveResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().listenerJoin(userId, roomId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun listenerLeave(userId: Int, roomId: Int, callback: NetworkCallback<IplRoomLeaveResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().listenerLeave(userId, roomId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun closeIplRoom(userId: Int, roomId: Int, callback: NetworkCallback<IplRoomLeaveResponse>) {
         if (Helper.checkNetworkConnection()) {
             val apiCall = getApiInterface().closeIplRoom(userId, roomId)
@@ -1940,6 +1958,24 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     fun updateIplTeam(userId: Int, iplTeam: String, callback: NetworkCallback<UpdateIplTeamResponse>) {
         if (Helper.checkNetworkConnection()) {
             val apiCall = getApiInterface().updateIplTeam(userId, iplTeam)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun lookupRoomByCode(inviteCode: String, callback: NetworkCallback<IplRoomJoinResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().lookupRoomByCode(inviteCode)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun lookupRoomRandom(userId: Int, callback: NetworkCallback<IplRoomJoinResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().lookupRoomRandom(userId)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -2844,7 +2880,8 @@ interface ApiInterface {
     @FormUrlEncoded
     @POST("ipl-rooms-list")
     fun getIplRooms(
-        @Field("user_id") userId: Int
+        @Field("user_id") userId: Int,
+        @Field("language") language: String? = null
     ): Call<IplRoomsListResponse>
 
     @FormUrlEncoded
@@ -2915,6 +2952,32 @@ interface ApiInterface {
         @Field("user_id") userId: Int,
         @Field("room_id") roomId: Int
     ): Call<IplRoomLeaveResponse>
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-listener-join")
+    fun listenerJoin(
+        @Field("user_id") userId: Int,
+        @Field("room_id") roomId: Int
+    ): Call<IplRoomLeaveResponse>
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-listener-leave")
+    fun listenerLeave(
+        @Field("user_id") userId: Int,
+        @Field("room_id") roomId: Int
+    ): Call<IplRoomLeaveResponse>
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-lookup-code")
+    fun lookupRoomByCode(
+        @Field("invite_code") inviteCode: String
+    ): Call<IplRoomJoinResponse>
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-lookup-random")
+    fun lookupRoomRandom(
+        @Field("user_id") userId: Int
+    ): Call<IplRoomJoinResponse>
 
     @FormUrlEncoded
     @POST("update_ipl_team")

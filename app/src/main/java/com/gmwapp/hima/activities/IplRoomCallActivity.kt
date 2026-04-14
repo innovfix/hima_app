@@ -75,6 +75,8 @@ class IplRoomCallActivity : AppCompatActivity() {
     private var isSpeakerOn = true
     private var hasJoinedToSpeak = false
     private var isCreator = false
+    private var isListenerMode = false
+    private var preJoinedViaApi = false  // true if user was joined via code/random API before entering
     private var inviteCode: String = ""
     private var creatorUserId: Int = -1
     private var timerSeconds = 0
@@ -82,6 +84,9 @@ class IplRoomCallActivity : AppCompatActivity() {
     private var roomId = 0
     private val userId: Int
         get() = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+
+    // Track listener UIDs (Agora users not in members list) for real-time count
+    private val listenerUids = mutableSetOf<Int>()
 
     // No polling — room details fetched once on entry; countdown is local-only.
 
@@ -148,10 +153,18 @@ class IplRoomCallActivity : AppCompatActivity() {
                 // previous "left" state should be discarded immediately.
                 recentlyLeftUserIds.remove(uid)
 
-                // Find first non-self member without a uid mapping
-                val unmappedIndex = members.indexOfFirst { it.id != userId && !uidToMemberIndex.containsValue(members.indexOf(it)) }
-                if (unmappedIndex >= 0) {
-                    uidToMemberIndex[uid] = unmappedIndex
+                // Check if this UID is a known member (speaker) or a listener
+                val isMember = members.any { it.id == uid }
+                if (isMember) {
+                    // Find first non-self member without a uid mapping
+                    val unmappedIndex = members.indexOfFirst { it.id != userId && !uidToMemberIndex.containsValue(members.indexOf(it)) }
+                    if (unmappedIndex >= 0) {
+                        uidToMemberIndex[uid] = unmappedIndex
+                    }
+                } else {
+                    // Not in members list = listener
+                    listenerUids.add(uid)
+                    updateListenerCount()
                 }
                 // Re-fetch room details so the slot updates with the new member
                 if (roomId > 0) viewModel.getRoomDetails(roomId)
@@ -162,6 +175,11 @@ class IplRoomCallActivity : AppCompatActivity() {
             Log.d(TAG, "Agora: Remote user offline uid=$uid, reason=$reason")
             uidToMemberIndex.remove(uid)
             runOnUiThread {
+                // Remove from listener tracking
+                if (listenerUids.remove(uid)) {
+                    updateListenerCount()
+                }
+
                 // Tombstone this user so a stale roomDetails response doesn't re-add them
                 markUserAsLeft(uid)
 
@@ -249,6 +267,9 @@ class IplRoomCallActivity : AppCompatActivity() {
         binding = ActivityIplRoomCallBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Dark status bar to match the room UI
+        window.statusBarColor = Color.parseColor("#070E1A")
+
         roomId = intent.getIntExtra("room_id", 0)
         channelName = "ipl_room_$roomId"
         inviteCode = intent.getStringExtra("invite_code") ?: ""
@@ -273,29 +294,48 @@ class IplRoomCallActivity : AppCompatActivity() {
         // Check if user is creator from intent
         val userGender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender ?: ""
         val isFemaleUser = userGender.equals("female", ignoreCase = true)
+        isListenerMode = intent.getBooleanExtra("is_listener", false)
+        preJoinedViaApi = intent.getBooleanExtra("pre_joined", false)
+
         if (isFemaleUser) {
             // Female created the room — she's the creator, auto-join immediately
             isCreator = true
             hasJoinedToSpeak = true
+            isListenerMode = false
             binding.btnJoinToSpeak.visibility = View.GONE
             setControlsEnabled(true)
-            requestAgoraToken()
+            requestAgoraToken("publisher")
+        } else if (isListenerMode) {
+            // Male entering as listener — can hear but can't speak, no coins charged
+            hasJoinedToSpeak = false
+            binding.btnJoinToSpeak.visibility = View.VISIBLE
+            setControlsEnabled(false)
+            binding.reactionsBar.visibility = View.GONE
+            // Show timer as "Listening..." while in listener mode
+            try {
+                binding.tvTimer.visibility = View.VISIBLE
+                binding.tvTimer.text = "Listening..."
+                binding.tvTimer.setTextColor(Color.parseColor("#4CAF50"))
+            } catch (_: Exception) {}
+            // Join Agora as audience — can hear, can't speak, invisible to others
+            requestAgoraToken("audience")
+            // Track listener in backend for admin panel
+            viewModel.listenerJoin(userId, roomId)
         } else {
-            // Male joining — also auto-join immediately (already joined via API)
+            // Male joining directly as speaker (legacy path)
             hasJoinedToSpeak = true
             binding.btnJoinToSpeak.visibility = View.GONE
             setControlsEnabled(true)
-            requestAgoraToken()
+            requestAgoraToken("publisher")
         }
 
-        // Fetch room details ONCE on entry — no polling.
-        // The first response delivers remaining_seconds; the local countdown takes over from there.
+        // Fetch room details ONCE on entry
         if (roomId > 0) {
             viewModel.getRoomDetails(roomId)
         }
 
-        // For male, fetch remaining time via the existing get_remaining_time API (call_type=audio)
-        if (!isFemaleUser) {
+        // For male speaker (non-listener), fetch remaining time
+        if (!isFemaleUser && !isListenerMode) {
             fetchRemainingTimeAndStart()
         }
     }
@@ -370,7 +410,10 @@ class IplRoomCallActivity : AppCompatActivity() {
                     return@observe
                 }
 
-                if (checkAudioPermission()) {
+                if (isListenerMode && !hasJoinedToSpeak) {
+                    // Listeners don't need microphone permission
+                    initAgoraAndJoin()
+                } else if (checkAudioPermission()) {
                     initAgoraAndJoin()
                 } else {
                     ActivityCompat.requestPermissions(this, REQUESTED_PERMISSIONS, PERMISSION_REQ_ID)
@@ -389,9 +432,9 @@ class IplRoomCallActivity : AppCompatActivity() {
         }
     }
 
-    private fun requestAgoraToken() {
-        Log.d(TAG, "Requesting Agora token for channel: $channelName")
-        agoraViewModel.getAgoraToken(channelName, userId, "publisher", 3600)
+    private fun requestAgoraToken(role: String = "publisher") {
+        Log.d(TAG, "Requesting Agora token for channel: $channelName, role: $role")
+        agoraViewModel.getAgoraToken(channelName, userId, role, 3600)
     }
 
     private fun initAgoraAndJoin() {
@@ -413,10 +456,17 @@ class IplRoomCallActivity : AppCompatActivity() {
             // Set speaker on by default
             agoraEngine?.setEnableSpeakerphone(true)
 
-            // Join channel
+            // Join channel — use live broadcasting to support audience/broadcaster roles
             val options = ChannelMediaOptions()
-            options.channelProfile = Constants.CHANNEL_PROFILE_COMMUNICATION
-            options.clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
+            options.channelProfile = Constants.CHANNEL_PROFILE_LIVE_BROADCASTING
+            if (isListenerMode && !hasJoinedToSpeak) {
+                // Join as broadcaster with mic disabled — this way onUserJoined fires
+                // on the host side so we can track listener count in real-time
+                options.clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
+                options.publishMicrophoneTrack = false
+            } else {
+                options.clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
+            }
             options.autoSubscribeAudio = true
 
             agoraEngine?.joinChannel(agoraToken, channelName, userId, options)
@@ -487,6 +537,13 @@ class IplRoomCallActivity : AppCompatActivity() {
                         }
                     }
                     // Refresh from server too just in case
+                    if (roomId > 0) viewModel.getRoomDetails(roomId)
+                }
+                "speaker_joined" -> {
+                    // A listener just joined to speak — refresh room details to update UI
+                    val speakerUid = json.optInt("from_uid", senderUid)
+                    listenerUids.remove(speakerUid)
+                    updateListenerCount()
                     if (roomId > 0) viewModel.getRoomDetails(roomId)
                 }
                 "reaction" -> {
@@ -608,6 +665,14 @@ class IplRoomCallActivity : AppCompatActivity() {
                         isCreator = true
                     }
 
+                    // Reclassify: if a listener joined to speak, move them from listenerUids
+                    val memberIds = members.map { it.id }.toSet()
+                    val promoted = listenerUids.filter { it in memberIds }
+                    if (promoted.isNotEmpty()) {
+                        listenerUids.removeAll(promoted.toSet())
+                        updateListenerCount()
+                    }
+
                     // Creator auto-join: if creator is in members but hasn't joined voice yet
                     if (isCreator && !hasJoinedToSpeak && self != null) {
                         hasJoinedToSpeak = true
@@ -630,22 +695,55 @@ class IplRoomCallActivity : AppCompatActivity() {
         }
 
         viewModel.joinRoomLiveData.observe(this) { response ->
-            if (response == null || response.success != true) {
-                val msg = response?.message ?: ""
-                // "Already in room" means user is a member — just proceed with voice
+            if (response != null && response.success == true) {
+                // Successfully joined as speaker
+                hasJoinedToSpeak = true
+                isListenerMode = false
+                binding.btnJoinToSpeak.visibility = View.GONE
+                setControlsEnabled(true)
+                binding.reactionsBar.visibility = View.VISIBLE
+
+                // Switch Agora role from audience to broadcaster
+                agoraEngine?.setClientRole(Constants.CLIENT_ROLE_BROADCASTER)
+                val options = ChannelMediaOptions()
+                options.publishMicrophoneTrack = true
+                agoraEngine?.updateChannelMediaOptions(options)
+
+                // Add self to members UI
+                if (members.none { it.id == userId }) {
+                    members.add(RoomMember(id = userId, name = "You", isCreator = false))
+                    updateParticipantSlots()
+                }
+
+                // Start the coin countdown timer NOW
+                fetchRemainingTimeAndStart()
+
+                // Notify others (especially host) that a speaker joined
+                sendDataStreamMessage(org.json.JSONObject().apply {
+                    put("type", "speaker_joined")
+                })
+
+                // Refresh room details
+                if (roomId > 0) viewModel.getRoomDetails(roomId)
+            } else if (response != null) {
+                val msg = response.message ?: ""
+                // "Already in room" means user is a member — proceed
                 if (msg.contains("already", ignoreCase = true)) {
-                    // Not an error — user was auto-added (creator) or rejoining
-                    requestAgoraToken()
+                    hasJoinedToSpeak = true
+                    isListenerMode = false
+                    binding.btnJoinToSpeak.visibility = View.GONE
+                    setControlsEnabled(true)
+                    agoraEngine?.setClientRole(Constants.CLIENT_ROLE_BROADCASTER)
+                    val opts = ChannelMediaOptions()
+                    opts.publishMicrophoneTrack = true
+                    agoraEngine?.updateChannelMediaOptions(opts)
+                    fetchRemainingTimeAndStart()
                     return@observe
                 }
-                // Actual join failure — rollback UI
+                // Actual join failure — keep as listener
                 Toast.makeText(this, msg.ifEmpty { "Failed to join room" }, Toast.LENGTH_SHORT).show()
-                hasJoinedToSpeak = false
-                binding.btnJoinToSpeak.visibility = View.VISIBLE
-                setControlsEnabled(false)
-                members.removeAll { it.id == userId }
-                updateParticipantSlots()
-                leaveAgoraChannel()
+                binding.btnJoinToSpeak.isEnabled = true
+                binding.btnJoinToSpeak.text = getString(R.string.join_to_speak)
             }
         }
 
@@ -673,27 +771,19 @@ class IplRoomCallActivity : AppCompatActivity() {
 
     private fun joinToSpeak() {
         if (hasJoinedToSpeak) return
-        if (members.size >= 4) return
 
-        hasJoinedToSpeak = true
-        binding.btnJoinToSpeak.visibility = View.GONE
+        // Need microphone permission to speak
+        if (!checkAudioPermission()) {
+            ActivityCompat.requestPermissions(this, REQUESTED_PERMISSIONS, PERMISSION_REQ_ID)
+            return
+        }
 
-        // Call join API
+        // Show loading state
+        binding.btnJoinToSpeak.isEnabled = false
+        binding.btnJoinToSpeak.text = "Joining..."
+
+        // Call join API — backend checks coins and room space
         viewModel.joinRoom(userId, roomId)
-
-        // Add "You" to members locally
-        members.add(RoomMember(
-            id = userId,
-            name = "You",
-            isCreator = false
-        ))
-        updateParticipantSlots()
-
-        // Enable controls
-        setControlsEnabled(true)
-
-        // Request Agora token and join voice channel
-        requestAgoraToken()
     }
 
     private fun showNotification(text: String) {
@@ -730,7 +820,9 @@ class IplRoomCallActivity : AppCompatActivity() {
         }
         updateMemberCount()
 
-        if (members.size >= 4 && !hasJoinedToSpeak) {
+        // Keep join-to-speak visible for listeners even when room is full —
+        // the API will reject if no space, but they can still try
+        if (!isListenerMode && members.size >= 4 && !hasJoinedToSpeak) {
             binding.btnJoinToSpeak.visibility = View.GONE
         }
     }
@@ -863,8 +955,14 @@ class IplRoomCallActivity : AppCompatActivity() {
 
         if (isCreator) {
             viewModel.closeRoom(userId, roomId)
-        } else if (hasJoinedToSpeak) {
+        } else if (hasJoinedToSpeak || preJoinedViaApi) {
+            // Leave room if user spoke OR was pre-joined via code/random API
             viewModel.leaveRoom(userId, roomId)
+        }
+
+        // Track listener leave in backend
+        if (isListenerMode || !hasJoinedToSpeak) {
+            viewModel.listenerLeave(userId, roomId)
         }
 
         // Give Agora a tiny moment to flush the stream messages, then leave.
@@ -894,6 +992,10 @@ class IplRoomCallActivity : AppCompatActivity() {
             title.text = "Close Room?"
             message.text = "If you leave, the room will be closed for everyone. Are you sure?"
             btnConfirm.text = "Close"
+        } else if (isListenerMode && !hasJoinedToSpeak) {
+            title.text = "Leave Room?"
+            message.text = "You're listening for free. Leave?"
+            btnConfirm.text = "Leave"
         } else {
             title.text = "Leave Room?"
             message.text = "Are you sure you want to leave this IPL room?"
@@ -1006,6 +1108,19 @@ class IplRoomCallActivity : AppCompatActivity() {
         }
     }
 
+    // ===== LISTENER COUNT (real-time via Agora) =====
+
+    private fun updateListenerCount() {
+        if (!isCreator) return
+        val count = listenerUids.size
+        if (count > 0) {
+            binding.tvListenerCount.visibility = View.VISIBLE
+            binding.tvListenerCount.text = "$count listening"
+        } else {
+            binding.tvListenerCount.visibility = View.GONE
+        }
+    }
+
     // ===== TIMER =====
 
     private var remainingSecondsLocal: Int = 0
@@ -1017,6 +1132,16 @@ class IplRoomCallActivity : AppCompatActivity() {
         if (gender.equals("female", ignoreCase = true)) {
             try { binding.tvTimer.visibility = View.GONE } catch (_: Exception) {}
             try { (binding.tvTimer.parent as? View)?.visibility = View.GONE } catch (_: Exception) {}
+            return
+        }
+
+        // Listener mode — show "Listening..." instead of timer
+        if (isListenerMode) {
+            try {
+                binding.tvTimer.visibility = View.VISIBLE
+                binding.tvTimer.text = "Listening..."
+                binding.tvTimer.setTextColor(Color.parseColor("#4CAF50"))
+            } catch (_: Exception) {}
             return
         }
 

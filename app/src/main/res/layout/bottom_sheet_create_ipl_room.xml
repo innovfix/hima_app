@@ -96,6 +96,48 @@
             android:orientation="horizontal" />
     </HorizontalScrollView>
 
+    <!-- Room Name Input -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="20dp"
+        android:text="Room Name"
+        android:textColor="#70FFFFFF"
+        android:textSize="13sp"
+        android:fontFamily="@font/poppins_medium"/>
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="20dp"
+        android:layout_marginTop="8dp"
+        app:hintEnabled="false"
+        app:boxBackgroundMode="outline"
+        app:boxStrokeColor="#40FFFFFF"
+        app:boxCornerRadiusTopStart="12dp"
+        app:boxCornerRadiusTopEnd="12dp"
+        app:boxCornerRadiusBottomStart="12dp"
+        app:boxCornerRadiusBottomEnd="12dp"
+        app:counterEnabled="true"
+        app:counterMaxLength="30">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/et_room_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Enter room name"
+            android:textColor="#F0FFFFFF"
+            android:textColorHint="#50FFFFFF"
+            android:textSize="14sp"
+            android:fontFamily="@font/poppins_regular"
+            android:maxLength="30"
+            android:inputType="text"
+            android:imeOptions="actionDone"
+            android:background="@android:color/transparent"/>
+
+    </com.google.android.material.textfield.TextInputLayout>
+
     <!-- Create Button (Fantasy Orange Gradient) -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_create_room"
@@ -112,10 +154,6 @@
         android:enabled="false"
         android:alpha="0.5"
         app:backgroundTint="@null"
-        app:cornerRadius="26dp"
-        app:icon="@drawable/ic_cricket_ball"
-        app:iconSize="22dp"
-        app:iconGravity="textStart"
-        app:iconTint="@color/white"/>
+        app:cornerRadius="26dp"/>
 
 </LinearLayout>

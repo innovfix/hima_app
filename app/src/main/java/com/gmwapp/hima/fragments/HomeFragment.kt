@@ -96,10 +96,9 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             startActivity(intent)
         }
 
-        // IPL Room Calls banner — male join flow
+        // IPL Room Calls banner — male opens room list screen
         binding.cardIplRooms.setOnClickListener {
-            val bottomSheet = com.gmwapp.hima.dialogs.BottomSheetJoinIplRoom()
-            bottomSheet.show(parentFragmentManager, "JoinIplRoom")
+            startActivity(Intent(requireContext(), com.gmwapp.hima.activities.IplRoomsActivity::class.java))
         }
         refreshIplBanner()
 

@@ -8,8 +8,8 @@ import javax.inject.Inject
 class IplRoomRepository @Inject constructor(
     private val apiManager: ApiManager
 ) {
-    fun getIplRooms(userId: Int, callback: NetworkCallback<IplRoomsListResponse>) {
-        apiManager.getIplRooms(userId, callback)
+    fun getIplRooms(userId: Int, language: String? = null, callback: NetworkCallback<IplRoomsListResponse>) {
+        apiManager.getIplRooms(userId, language, callback)
     }
 
     fun createIplRoom(userId: Int, roomName: String, teamA: String, teamB: String, creatorTeam: String, callback: NetworkCallback<IplRoomCreateResponse>) {
@@ -54,5 +54,21 @@ class IplRoomRepository @Inject constructor(
 
     fun updateIplTeam(userId: Int, iplTeam: String, callback: NetworkCallback<UpdateIplTeamResponse>) {
         apiManager.updateIplTeam(userId, iplTeam, callback)
+    }
+
+    fun lookupRoomByCode(inviteCode: String, callback: NetworkCallback<IplRoomJoinResponse>) {
+        apiManager.lookupRoomByCode(inviteCode, callback)
+    }
+
+    fun lookupRoomRandom(userId: Int, callback: NetworkCallback<IplRoomJoinResponse>) {
+        apiManager.lookupRoomRandom(userId, callback)
+    }
+
+    fun listenerJoin(userId: Int, roomId: Int, callback: NetworkCallback<IplRoomLeaveResponse>) {
+        apiManager.listenerJoin(userId, roomId, callback)
+    }
+
+    fun listenerLeave(userId: Int, roomId: Int, callback: NetworkCallback<IplRoomLeaveResponse>) {
+        apiManager.listenerLeave(userId, roomId, callback)
     }
 }

@@ -80,7 +80,7 @@ class BottomSheetJoinIplRoom : BottomSheetDialogFragment() {
             }
         }
 
-        viewModel.joinByCodeLiveData.observe(viewLifecycleOwner) { response ->
+        viewModel.lookupByCodeLiveData.observe(viewLifecycleOwner) { response ->
             binding.btnJoinWithCode.isEnabled = selectedTeam != null
             if (response?.success == true && response.data != null) {
                 launchRoomCall(
@@ -89,12 +89,12 @@ class BottomSheetJoinIplRoom : BottomSheetDialogFragment() {
                 )
                 dismiss()
             } else {
-                val msg = response?.message ?: "Failed to join room"
+                val msg = response?.message ?: "Room not found"
                 Toast.makeText(requireContext(), msg, Toast.LENGTH_LONG).show()
             }
         }
 
-        viewModel.joinRandomLiveData.observe(viewLifecycleOwner) { response ->
+        viewModel.lookupRandomLiveData.observe(viewLifecycleOwner) { response ->
             binding.btnJoinRandom.isEnabled = selectedTeam != null
             if (response?.success == true && response.data != null) {
                 launchRoomCall(
@@ -276,9 +276,9 @@ class BottomSheetJoinIplRoom : BottomSheetDialogFragment() {
                 Toast.makeText(requireContext(), "Please select your team first", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            Log.d(TAG, "Join Random clicked, userId=$userId")
+            Log.d(TAG, "Lookup Random clicked, userId=$userId")
             binding.btnJoinRandom.isEnabled = false
-            viewModel.joinRoomRandom(userId)
+            viewModel.lookupRoomRandom(userId)
         }
 
         binding.btnJoinWithCode.setOnClickListener {
@@ -291,9 +291,9 @@ class BottomSheetJoinIplRoom : BottomSheetDialogFragment() {
                 Toast.makeText(requireContext(), "Please enter an invite code", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            Log.d(TAG, "Join with code clicked, userId=$userId, code=$code")
+            Log.d(TAG, "Lookup by code clicked, code=$code")
             binding.btnJoinWithCode.isEnabled = false
-            viewModel.joinRoomByCode(userId, code)
+            viewModel.lookupRoomByCode(code)
         }
     }
 
@@ -303,6 +303,7 @@ class BottomSheetJoinIplRoom : BottomSheetDialogFragment() {
             putExtra("room_name", roomName)
             putExtra("team_a", teamA)
             putExtra("team_b", teamB)
+            putExtra("is_listener", true)   // Enter as listener first
         }
         startActivity(intent)
     }
