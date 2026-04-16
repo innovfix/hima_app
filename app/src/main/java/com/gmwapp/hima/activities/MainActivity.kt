@@ -198,6 +198,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     private var recentUnreadCount: Int = 0
     private val recentMissedDotTag = "recent_missed_dot"
     private val recentUnreadDotTag = "recent_unread_dot"
+    private val messagesUnreadDotTag = "messages_unread_dot"
     private val paywallVideoContentPrefsKey = "paywall_video_content_response"
     private val showPaywallInsufficientIntentKey = "show_paywall_insufficient"
 
@@ -528,6 +529,9 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         // Show/hide favourite menu item based on user gender (only for MALE users)
         val userGender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
         binding.bottomNavigationView.menu.findItem(R.id.favourite)?.isVisible = (userGender == DConstants.MALE)
+
+        // Messages tab is only for FEMALE users — opens ChatListActivity
+        binding.bottomNavigationView.menu.findItem(R.id.messages)?.isVisible = (userGender == DConstants.FEMALE)
         
         binding.bottomNavigationView.setOnNavigationItemSelectedListener(this)
         
@@ -780,6 +784,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
                 transaction.replace(R.id.flFragment, RecentFragment()).commit()
                 return true
+            }
+
+            R.id.messages -> {
+                // Female only — open ChatListActivity directly (not a fragment)
+                startActivity(Intent(this, ChatListActivity::class.java))
+                return false // Don't select the tab since we leave the activity
             }
 
             R.id.favourite -> {
@@ -1366,17 +1376,28 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
     private fun updateRecentBadge() {
         val safeMissed = recentMissedCount.coerceAtLeast(0)
-        val safeUnread = recentUnreadCount.coerceAtLeast(0)
 
-        // Always remove native Material badge — we use our own positioning for both dots
-        // so they are anchored identically and sit at exactly the same height.
         binding.bottomNavigationView.removeBadge(R.id.recent)
 
-        if (safeMissed > 0 || safeUnread > 0) {
-            placeRecentBadges(safeMissed, safeUnread)
+        // Recent tab shows only missed call count (unread moved to Messages tab)
+        if (safeMissed > 0) {
+            placeRecentBadges(safeMissed, 0)
         } else {
             hideBadge(recentMissedDotTag)
             hideBadge(recentUnreadDotTag)
+        }
+
+        // Unread badge goes on Messages tab (females only)
+        updateMessagesBadge()
+    }
+
+    private fun updateMessagesBadge() {
+        val safeUnread = recentUnreadCount.coerceAtLeast(0)
+        binding.bottomNavigationView.removeBadge(R.id.messages)
+        if (safeUnread > 0) {
+            placeMessagesBadge(safeUnread)
+        } else {
+            hideBadge(messagesUnreadDotTag)
         }
     }
 
@@ -1465,6 +1486,50 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                                 else iconRight - dotSize / 2
                 it.topMargin  = topMargin
                 unreadDot.layoutParams = it
+            }
+        }
+    }
+
+    private fun getMessagesBottomNavItemView(): BottomNavigationItemView? {
+        val menuView = binding.bottomNavigationView.getChildAt(0) as? BottomNavigationMenuView ?: return null
+        for (i in 0 until menuView.childCount) {
+            val item = menuView.getChildAt(i)
+            if (item is BottomNavigationItemView && item.itemData?.itemId == R.id.messages) {
+                return item
+            }
+        }
+        return null
+    }
+
+    private fun placeMessagesBadge(unreadCount: Int) {
+        val rootView = window.decorView.findViewById<ViewGroup>(android.R.id.content)
+        val dp = resources.displayMetrics.density
+        val dotSize = (18 * dp).toInt()
+
+        val dot = rootView.findViewWithTag<TextView>(messagesUnreadDotTag)
+            ?: makeBadgeDot(messagesUnreadDotTag)
+        dot.text = unreadCount.coerceAtMost(99).toString()
+        dot.visibility = View.VISIBLE
+
+        binding.bottomNavigationView.post {
+            val itemView = getMessagesBottomNavItemView() ?: return@post
+            val iconView = itemView.findViewById<View>(
+                com.google.android.material.R.id.navigation_bar_item_icon_view
+            ) ?: return@post
+
+            val iconPos = IntArray(2)
+            iconView.getLocationInWindow(iconPos)
+            val rootPos = IntArray(2)
+            rootView.getLocationInWindow(rootPos)
+
+            val iconLeft = iconPos[0] - rootPos[0]
+            val iconRight = iconLeft + iconView.width
+            val iconTop = iconPos[1] - rootPos[1]
+
+            (dot.layoutParams as? FrameLayout.LayoutParams)?.let {
+                it.leftMargin = iconRight - dotSize / 2
+                it.topMargin = iconTop - dotSize / 2
+                dot.layoutParams = it
             }
         }
     }

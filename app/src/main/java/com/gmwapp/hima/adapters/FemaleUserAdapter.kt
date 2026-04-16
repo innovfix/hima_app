@@ -84,26 +84,11 @@ class FemaleUserAdapter(
             holder.binding.iplTeamBadgeCard.visibility = View.GONE
         }
 
-        // Last message + time. Time always sits in the bottom row, beside the
-        // unread badge — never on the name line.
-        val lastMessage = femaleUser.last_message
-        val hasMessage = lastMessage != null && lastMessage.message.isNotBlank()
-        if (hasMessage) {
-            holder.binding.tvLastMessage.text = lastMessage!!.message
-            holder.binding.tvLastMessage.setTextColor(
-                activity.resources.getColor(R.color.grey_medium, null)
-            )
-            holder.binding.tvTimeBottom.text = formatChatTime(lastMessage.timestamp)
-            holder.binding.tvTimeBottom.visibility = View.VISIBLE
-        } else {
-            holder.binding.tvLastMessage.text =
-                activity.getString(R.string.tap_to_call_and_chat)
-            holder.binding.tvLastMessage.setTextColor(
-                activity.resources.getColor(R.color.colorAccent, null)
-            )
-            holder.binding.tvTimeBottom.text = ""
-            holder.binding.tvTimeBottom.visibility = View.GONE
-        }
+        // Last message / time row is hidden — no longer displayed on home screen.
+        // Kept code commented for easy restoration if needed later.
+        // val lastMessage = femaleUser.last_message
+        // val hasMessage = lastMessage != null && lastMessage.message.isNotBlank()
+        // if (hasMessage) { ... } else { ... }
 
         val unread = femaleUser.unread_count
         if (unread > 0) {
@@ -113,8 +98,8 @@ class FemaleUserAdapter(
             holder.binding.tvUnreadCount.visibility = View.GONE
         }
 
-        // Whole row click → open in-house chat with this female.
-        holder.binding.main.setOnSingleClickListener {
+        // Whole card click (profile) → open in-house chat with this female.
+        val openChat: () -> Unit = {
             val intent = Intent(activity, ChatActivityInHouse::class.java).apply {
                 putExtra("USER_ID", femaleUser.id)
                 putExtra("USER_NAME", femaleUser.name)
@@ -128,6 +113,37 @@ class FemaleUserAdapter(
                 putExtra("USER_ABOUT", femaleUser.describe_yourself)
             }
             activity.startActivity(intent)
+        }
+
+        holder.binding.main.setOnSingleClickListener { openChat() }
+        holder.binding.btnChat.setOnSingleClickListener { openChat() }
+
+        // Audio call button — grey when unavailable (light grey bg, white icon/text still visible)
+        val audioAvailable = femaleUser.audio_status == 1
+        val audioColor = if (audioAvailable) {
+            androidx.core.content.ContextCompat.getColor(activity, R.color.colorAccent)
+        } else {
+            android.graphics.Color.parseColor("#C4C4C4")
+        }
+        holder.binding.btnAudioCall.setCardBackgroundColor(audioColor)
+        holder.binding.btnAudioCall.isEnabled = audioAvailable
+        holder.binding.btnAudioCall.alpha = 1.0f
+        holder.binding.btnAudioCall.setOnSingleClickListener {
+            if (audioAvailable) onAudioListener.onItemSelected(femaleUser)
+        }
+
+        // Video call button — grey when unavailable
+        val videoAvailable = femaleUser.video_status == 1
+        val videoColor = if (videoAvailable) {
+            android.graphics.Color.parseColor("#43A047")
+        } else {
+            android.graphics.Color.parseColor("#C4C4C4")
+        }
+        holder.binding.btnVideoCall.setCardBackgroundColor(videoColor)
+        holder.binding.btnVideoCall.isEnabled = videoAvailable
+        holder.binding.btnVideoCall.alpha = 1.0f
+        holder.binding.btnVideoCall.setOnSingleClickListener {
+            if (videoAvailable) onVideoListener.onItemSelected(femaleUser)
         }
     }
 

@@ -264,13 +264,20 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 binding.rvProfiles.layoutManager =
                     LinearLayoutManager(activity, LinearLayoutManager.VERTICAL, false)
 
-                // Row click is handled inside the adapter (opens ChatActivityInHouse).
-                // The audio/video listeners are kept as no-ops for constructor compatibility.
-                val noOpListener = object : OnItemSelectionListener<FemaleUsersResponseData> {
-                    override fun onItemSelected(data: FemaleUsersResponseData) {}
+                // Audio call button → start MaleCallConnectingActivity in audio mode
+                val audioListener = object : OnItemSelectionListener<FemaleUsersResponseData> {
+                    override fun onItemSelected(data: FemaleUsersResponseData) {
+                        startCallToFemale(data, com.gmwapp.hima.constants.DConstants.AUDIO)
+                    }
+                }
+                // Video call button → start MaleCallConnectingActivity in video mode
+                val videoListener = object : OnItemSelectionListener<FemaleUsersResponseData> {
+                    override fun onItemSelected(data: FemaleUsersResponseData) {
+                        startCallToFemale(data, com.gmwapp.hima.constants.DConstants.VIDEO)
+                    }
                 }
                 val transactionAdapter = activity?.let { context ->
-                    FemaleUserAdapter(context, it.data, noOpListener, noOpListener)
+                    FemaleUserAdapter(context, it.data, audioListener, videoListener)
                 }
                 binding.rvProfiles.adapter = transactionAdapter
             }
@@ -299,6 +306,22 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         refreshMaleHomeNetworkPlaceholder()
 
         initFab()
+    }
+
+    /**
+     * Start an audio or video call to a female user via MaleCallConnectingActivity.
+     * Used by the Audio/Video buttons on each female card in the home list.
+     */
+    private fun startCallToFemale(female: FemaleUsersResponseData, callType: String) {
+        val ctx = activity ?: return
+        val nameOnly = female.name.replace(Regex("\\d+$"), "").trim()
+        val intent = android.content.Intent(ctx, com.gmwapp.hima.agora.male.MaleCallConnectingActivity::class.java).apply {
+            putExtra(com.gmwapp.hima.constants.DConstants.CALL_TYPE, callType)
+            putExtra(com.gmwapp.hima.constants.DConstants.RECEIVER_ID, female.id)
+            putExtra(com.gmwapp.hima.constants.DConstants.IMAGE, female.image ?: "")
+            putExtra(com.gmwapp.hima.constants.DConstants.RECEIVER_NAME, nameOnly)
+        }
+        startActivity(intent)
     }
 
     private fun refreshMaleHomeNetworkPlaceholder() {

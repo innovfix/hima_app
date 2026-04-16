@@ -9,6 +9,15 @@
         android:tooltipText="@null"
         app:showAsAction="always" />
     <item
+        android:id="@+id/messages"
+        android:enabled="true"
+        android:icon="@drawable/ic_chat_bubble"
+        android:iconTint="@color/white"
+        android:title="Messages"
+        android:tooltipText="@null"
+        android:visible="false"
+        app:showAsAction="always" />
+    <item
         android:id="@+id/recent"
         android:enabled="true"
         android:icon="@drawable/recent"

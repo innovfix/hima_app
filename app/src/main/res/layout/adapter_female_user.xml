@@ -26,7 +26,6 @@
             android:id="@+id/card_profile"
             android:layout_width="58dp"
             android:layout_height="58dp"
-            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
 
@@ -52,7 +51,7 @@
                 tools:visibility="visible" />
         </FrameLayout>
 
-        <!-- Right-side text column -->
+        <!-- Right-side text column (name + badges only) -->
         <LinearLayout
             android:id="@+id/text_column"
             android:layout_width="0dp"
@@ -64,7 +63,7 @@
             app:layout_constraintStart_toEndOf="@id/card_profile"
             app:layout_constraintTop_toTopOf="@id/card_profile">
 
-            <!-- Top row: name + NEW + STAR + IPL chip / time -->
+            <!-- Top row: name + NEW + STAR + IPL chip -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -130,8 +129,6 @@
                         android:textSize="8sp" />
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- IPL Team Badge (top-right of name row) — chip background is
-                     set to the team color at bind time so every team is visible. -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/ipl_team_badge_card"
                     android:layout_width="wrap_content"
@@ -164,44 +161,7 @@
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-            </LinearLayout>
-
-            <!-- Bottom row: last message + time_bottom + unread badge -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/tv_last_message"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:ellipsize="end"
-                    android:fontFamily="@font/poppins_regular"
-                    android:maxLines="1"
-                    android:text="@string/tap_to_call_and_chat"
-                    android:textColor="@color/grey_medium"
-                    android:textSize="13sp"
-                    tools:text="Hey! How are you doing today?" />
-
-                <!-- Time (bottom-right) — always below the last message -->
-                <TextView
-                    android:id="@+id/tv_time_bottom"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:fontFamily="@font/poppins_regular"
-                    android:text=""
-                    android:textColor="@color/grey_medium"
-                    android:textSize="11sp"
-                    android:visibility="gone"
-                    tools:text="10:30 AM"
-                    tools:visibility="visible" />
-
-                <!-- Unread Count Badge -->
+                <!-- Unread Count Badge (on top row, right side) -->
                 <TextView
                     android:id="@+id/tv_unread_count"
                     android:layout_width="wrap_content"
@@ -221,6 +181,141 @@
                     tools:text="5"
                     tools:visibility="visible" />
             </LinearLayout>
+
+            <!-- Last message row — HIDDEN (no longer shown) -->
+            <TextView
+                android:id="@+id/tv_last_message"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tv_time_bottom"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <!-- ===== Action Buttons Row (below avatar) ===== -->
+        <LinearLayout
+            android:id="@+id/action_buttons_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal"
+            android:gravity="center"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/card_profile">
+
+            <!-- Audio Call Button (app brand pink) -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/btn_audio_call"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
+                app:cardBackgroundColor="@color/colorAccent"
+                app:cardCornerRadius="24dp"
+                app:cardElevation="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:paddingVertical="10dp">
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:src="@drawable/ic_call_accept"
+                        app:tint="@color/white"
+                        android:contentDescription="Audio call" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:text="Audio"
+                        android:textColor="@color/white"
+                        android:textSize="12sp"
+                        android:fontFamily="@font/poppins_semibold" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Video Call Button (green, matches chat screen) -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/btn_video_call"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginHorizontal="3dp"
+                app:cardBackgroundColor="#43A047"
+                app:cardCornerRadius="24dp"
+                app:cardElevation="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:paddingVertical="10dp">
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:src="@drawable/ic_videocam"
+                        app:tint="@color/white"
+                        android:contentDescription="Video call" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:text="Video"
+                        android:textColor="@color/white"
+                        android:textSize="12sp"
+                        android:fontFamily="@font/poppins_semibold" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Chat Button (blue, rounded) -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/btn_chat"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                app:cardBackgroundColor="#1E88E5"
+                app:cardCornerRadius="24dp"
+                app:cardElevation="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:paddingVertical="10dp">
+
+                    <ImageView
+                        android:layout_width="14dp"
+                        android:layout_height="14dp"
+                        android:src="@drawable/ic_chat_bubble"
+                        app:tint="@color/white"
+                        android:contentDescription="Chat" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:text="Free Chat"
+                        android:textColor="@color/white"
+                        android:textSize="12sp"
+                        android:fontFamily="@font/poppins_semibold" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
         </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
