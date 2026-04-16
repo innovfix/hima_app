@@ -214,7 +214,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginEnd="6dp"
+                android:layout_marginEnd="4dp"
                 app:cardBackgroundColor="@color/colorAccent"
                 app:cardCornerRadius="24dp"
                 app:cardElevation="0dp">
@@ -224,11 +224,12 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center"
-                    android:paddingVertical="10dp">
+                    android:paddingVertical="10dp"
+                    android:paddingHorizontal="4dp">
 
                     <ImageView
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
                         android:src="@drawable/ic_call_accept"
                         app:tint="@color/white"
                         android:contentDescription="Audio call" />
@@ -236,21 +237,22 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="6dp"
+                        android:layout_marginStart="4dp"
                         android:text="Audio"
                         android:textColor="@color/white"
-                        android:textSize="12sp"
+                        android:textSize="11sp"
+                        android:maxLines="1"
                         android:fontFamily="@font/poppins_semibold" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Video Call Button (green, matches chat screen) -->
+            <!-- Video Call Button (green) -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/btn_video_call"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginHorizontal="3dp"
+                android:layout_marginHorizontal="2dp"
                 app:cardBackgroundColor="#43A047"
                 app:cardCornerRadius="24dp"
                 app:cardElevation="0dp">
@@ -260,11 +262,12 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center"
-                    android:paddingVertical="10dp">
+                    android:paddingVertical="10dp"
+                    android:paddingHorizontal="4dp">
 
                     <ImageView
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
                         android:src="@drawable/ic_videocam"
                         app:tint="@color/white"
                         android:contentDescription="Video call" />
@@ -272,21 +275,22 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="6dp"
+                        android:layout_marginStart="4dp"
                         android:text="Video"
                         android:textColor="@color/white"
-                        android:textSize="12sp"
+                        android:textSize="11sp"
+                        android:maxLines="1"
                         android:fontFamily="@font/poppins_semibold" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Chat Button (blue, rounded) -->
+            <!-- Free Chat Button (blue, rounded) -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/btn_chat"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginStart="6dp"
+                android:layout_marginStart="4dp"
                 app:cardBackgroundColor="#1E88E5"
                 app:cardCornerRadius="24dp"
                 app:cardElevation="0dp">
@@ -296,11 +300,12 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center"
-                    android:paddingVertical="10dp">
+                    android:paddingVertical="10dp"
+                    android:paddingHorizontal="4dp">
 
                     <ImageView
-                        android:layout_width="14dp"
-                        android:layout_height="14dp"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
                         android:src="@drawable/ic_chat_bubble"
                         app:tint="@color/white"
                         android:contentDescription="Chat" />
@@ -308,10 +313,11 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="6dp"
+                        android:layout_marginStart="4dp"
                         android:text="Free Chat"
                         android:textColor="@color/white"
-                        android:textSize="12sp"
+                        android:textSize="11sp"
+                        android:maxLines="1"
                         android:fontFamily="@font/poppins_semibold" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
