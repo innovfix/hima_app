@@ -122,7 +122,7 @@
             android:fontFamily="@font/poppins_semibold"
             android:textColor="#F0FFFFFF"
             android:textSize="15sp"
-            android:maxLines="1"
+            android:maxLines="2"
             android:ellipsize="end"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"

@@ -160,6 +160,15 @@ class IplRoomsActivity : AppCompatActivity() {
             }
         })
 
+        // BUG-010: Pull-to-refresh
+        binding.swipeRefresh.setColorSchemeColors(
+            android.graphics.Color.parseColor("#FF6B35"),
+            android.graphics.Color.parseColor("#4CAF50")
+        )
+        binding.swipeRefresh.setOnRefreshListener {
+            loadRooms()
+        }
+
         observeMaleViewModel()
         loadRooms()
     }
@@ -185,7 +194,10 @@ class IplRoomsActivity : AppCompatActivity() {
         }
 
         viewModel.isLoading.observe(this) { loading ->
-            if (loading == false) isLoadingMore = false
+            if (loading == false) {
+                isLoadingMore = false
+                binding.swipeRefresh.isRefreshing = false
+            }
         }
 
         viewModel.rooms.observe(this) { rooms ->
