@@ -9,10 +9,13 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.ChatActivityInHouse
+import com.gmwapp.hima.agora.male.MaleCallConnectingActivity
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
+import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.AdapterFemaleUserBinding
 import com.gmwapp.hima.models.IplTeam
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponseData
+import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -129,6 +132,36 @@ class FemaleUserAdapter(
             }
             activity.startActivity(intent)
         }
+
+        // Audio & Video call buttons — show only when creator supports that call type
+        holder.binding.btnAudioCall.visibility =
+            if (femaleUser.audio_status == 1) View.VISIBLE else View.GONE
+        holder.binding.btnVideoCall.visibility =
+            if (femaleUser.video_status == 1) View.VISIBLE else View.GONE
+
+        holder.binding.btnAudioCall.setOnSingleClickListener {
+            launchCall(femaleUser, "audio")
+        }
+        holder.binding.btnVideoCall.setOnSingleClickListener {
+            launchCall(femaleUser, "video")
+        }
+    }
+
+    private fun launchCall(femaleUser: FemaleUsersResponseData, callType: String) {
+        val intent = Intent(activity, MaleCallConnectingActivity::class.java).apply {
+            putExtra(DConstants.CALL_TYPE, callType)
+            putExtra(DConstants.RECEIVER_ID, femaleUser.id)
+            putExtra(DConstants.RECEIVER_NAME, femaleUser.name)
+            putExtra(DConstants.CALL_ID, 0)
+            putExtra(DConstants.IMAGE, femaleUser.image)
+            putExtra(DConstants.IS_RECEIVER_DETAILS_AVAILABLE, true)
+            putExtra(
+                DConstants.TEXT,
+                activity.getString(R.string.wait_user_hint, femaleUser.name)
+            )
+        }
+        FcmUtils.isUserAvailable = 1
+        activity.startActivity(intent)
     }
 
     override fun getItemCount(): Int = femaleUsers.size

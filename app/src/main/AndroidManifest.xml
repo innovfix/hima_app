@@ -258,6 +258,8 @@
         <activity android:name=".activities.ShareActivity" />
         <activity android:name=".activities.SelectGenderActivity" />
         <activity android:name=".activities.SelectLanguageActivity" />
+        <activity android:name=".activities.AiOnboardingActivity"
+            android:screenOrientation="portrait" />
         <activity android:name=".activities.LoginActivity" />
         <activity
             android:name=".activities.NewLoginActivity"
