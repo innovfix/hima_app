@@ -2,6 +2,7 @@ package com.gmwapp.hima
 
 import android.app.Activity
 import android.app.Application
+import com.gmwapp.hima.BuildConfig
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Intent
@@ -877,27 +878,36 @@ class BaseApplication : Application(), Configuration.Provider {
     fun appflyer() {
         val conversionDataListener = object : AppsFlyerConversionListener {
             override fun onConversionDataSuccess(conversionData: MutableMap<String, Any>?) {
-                conversionData?.let {
-                    for ((key, value) in it) {
-                        Log.d("AppsFlyer", "Conversion data: $key = $value")
-                    }
-                } ?: Log.d("AppsFlyer", "Conversion data is null")
+                // BUG-011: Don't log sensitive attribution data in release builds
+                if (BuildConfig.DEBUG) {
+                    conversionData?.let {
+                        for ((key, value) in it) {
+                            Log.d("AppsFlyer", "Conversion data: $key = $value")
+                        }
+                    } ?: Log.d("AppsFlyer", "Conversion data is null")
+                }
             }
 
             override fun onConversionDataFail(errorMessage: String?) {
-                Log.e("AppsFlyer", "Conversion data failure: $errorMessage")
+                if (BuildConfig.DEBUG) {
+                    Log.e("AppsFlyer", "Conversion data failure: $errorMessage")
+                }
             }
 
             override fun onAppOpenAttribution(attributionData: MutableMap<String, String>?) {
-                attributionData?.let {
-                    for ((key, value) in it) {
-                        Log.d("AppsFlyer", "Attribution data: $key = $value")
-                    }
-                } ?: Log.d("AppsFlyer", "Attribution data is null")
+                if (BuildConfig.DEBUG) {
+                    attributionData?.let {
+                        for ((key, value) in it) {
+                            Log.d("AppsFlyer", "Attribution data: $key = $value")
+                        }
+                    } ?: Log.d("AppsFlyer", "Attribution data is null")
+                }
             }
 
             override fun onAttributionFailure(errorMessage: String?) {
-                Log.e("AppsFlyer", "Attribution failure: $errorMessage")
+                if (BuildConfig.DEBUG) {
+                    Log.e("AppsFlyer", "Attribution failure: $errorMessage")
+                }
             }
         }
 

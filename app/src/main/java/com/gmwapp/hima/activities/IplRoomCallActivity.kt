@@ -329,9 +329,11 @@ class IplRoomCallActivity : AppCompatActivity() {
             requestAgoraToken("publisher")
         }
 
-        // Fetch room details ONCE on entry
+        // Fetch room details immediately and start polling every 5 seconds
+        // This handles host-leaves detection + member join/leave updates for everyone
         if (roomId > 0) {
             viewModel.getRoomDetails(roomId)
+            startRoomDetailsPolling()
         }
 
         // For male speaker (non-listener), fetch remaining time
@@ -377,6 +379,25 @@ class IplRoomCallActivity : AppCompatActivity() {
         handler.removeCallbacksAndMessages(null)
         leaveAgoraChannel()
         super.onDestroy()
+    }
+
+    // BUG-002: When app goes to background, mute mic to prevent battery drain and accidental
+    // streaming. User stays in room but doesn't broadcast audio.
+    private var wasMutedBeforeBackground = false
+    override fun onPause() {
+        super.onPause()
+        if (hasJoinedToSpeak && agoraEngine != null) {
+            wasMutedBeforeBackground = isMuted
+            agoraEngine?.muteLocalAudioStream(true)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (hasJoinedToSpeak && agoraEngine != null) {
+            // Restore the user's pre-background mute state
+            agoraEngine?.muteLocalAudioStream(wasMutedBeforeBackground || isMuted)
+        }
     }
 
     // ===== AGORA SETUP =====
@@ -636,12 +657,27 @@ class IplRoomCallActivity : AppCompatActivity() {
     private fun observeRoomDetails() {
         viewModel.roomDetailLiveData.observe(this) { response ->
             if (response?.success == true && response.data != null) {
-                // If room is no longer live, exit
+                // If room is no longer live, exit (host closed it)
                 if (!response.data.isLive) {
-                    Toast.makeText(this, "Room has ended", Toast.LENGTH_SHORT).show()
+                    if (!isCreator) {
+                        Toast.makeText(this, "Host ended the room", Toast.LENGTH_SHORT).show()
+                    }
+                    stopRoomDetailsPolling()
                     leaveAgoraChannel()
                     finish()
                     return@observe
+                }
+
+                // BUG-001 fallback: if host is missing from members list, room is dead
+                if (!isCreator && response.data.creatorId > 0 && response.data.members != null) {
+                    val hostStillIn = response.data.members.any { it.id == response.data.creatorId }
+                    if (!hostStillIn) {
+                        Toast.makeText(this, "Host ended the room", Toast.LENGTH_SHORT).show()
+                        stopRoomDetailsPolling()
+                        leaveAgoraChannel()
+                        finish()
+                        return@observe
+                    }
                 }
 
                 // Capture the room creator's user id so we can detect when they leave
@@ -910,23 +946,38 @@ class IplRoomCallActivity : AppCompatActivity() {
 
     // ===== REACTIONS =====
 
+    // BUG-012: Debounce reactions — prevent spam from rapid taps
+    private var lastReactionTimeMs = 0L
+    private val REACTION_DEBOUNCE_MS = 800L
+
+    private fun canSendReaction(): Boolean {
+        val now = System.currentTimeMillis()
+        if (now - lastReactionTimeMs < REACTION_DEBOUNCE_MS) return false
+        lastReactionTimeMs = now
+        return true
+    }
+
     private fun setupReactions() {
         binding.btnReactionFour.setOnClickListener {
+            if (!canSendReaction()) return@setOnClickListener
             showFloatingReaction("FOUR!", "4️⃣", "#4CAF50")
             viewModel.sendReaction(userId, roomId, "four")
             broadcastReaction("four")
         }
         binding.btnReactionSix.setOnClickListener {
+            if (!canSendReaction()) return@setOnClickListener
             showFloatingReaction("SIX!", "6️⃣", "#FF6D00")
             viewModel.sendReaction(userId, roomId, "six")
             broadcastReaction("six")
         }
         binding.btnReactionWicket.setOnClickListener {
+            if (!canSendReaction()) return@setOnClickListener
             showFloatingReaction("WICKET!", "🏏", "#E53935")
             viewModel.sendReaction(userId, roomId, "wicket")
             broadcastReaction("wicket")
         }
         binding.btnReactionGreat.setOnClickListener {
+            if (!canSendReaction()) return@setOnClickListener
             showFloatingReaction("GREAT!", "👏", "#2196F3")
             viewModel.sendReaction(userId, roomId, "great")
             broadcastReaction("great")
@@ -1072,6 +1123,10 @@ class IplRoomCallActivity : AppCompatActivity() {
             binding.btnMute.setImageResource(
                 if (isMuted) R.drawable.mute_img else R.drawable.unmute_img
             )
+            // BUG-024: Stronger visual state — red tint when muted, default when unmuted
+            binding.btnMute.setBackgroundColor(
+                if (isMuted) Color.parseColor("#E53935") else Color.parseColor("#1A2640")
+            )
             binding.tvMuteLabel.text = if (isMuted) "Unmute" else "Mic"
             viewModel.toggleMute(userId, roomId, isMuted)
             // Broadcast to other room members in real time
@@ -1106,6 +1161,29 @@ class IplRoomCallActivity : AppCompatActivity() {
                 startActivity(chatIntent)
             }
         }
+    }
+
+    // ===== ROOM DETAILS POLLING =====
+    // Polls every 5s to:
+    // - Detect when host has closed the room (BUG-001)
+    // - Update member list when others join/leave (BUG-003)
+    // - Sync remaining time / auto-kick state
+
+    private val roomPollRunnable = object : Runnable {
+        override fun run() {
+            if (roomId > 0 && !isFinishing) {
+                viewModel.getRoomDetails(roomId)
+                handler.postDelayed(this, 5000)
+            }
+        }
+    }
+
+    private fun startRoomDetailsPolling() {
+        handler.postDelayed(roomPollRunnable, 5000)
+    }
+
+    private fun stopRoomDetailsPolling() {
+        handler.removeCallbacks(roomPollRunnable)
     }
 
     // ===== LISTENER COUNT (real-time via Agora) =====
