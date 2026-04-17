@@ -5,6 +5,7 @@ import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.AiOnboardingCompleteResponse
 import com.gmwapp.hima.retrofit.responses.AiOnboardingReplyResponse
 import com.gmwapp.hima.retrofit.responses.AiOnboardingStartResponse
+import com.gmwapp.hima.retrofit.responses.UserConcernResponse
 import com.gmwapp.hima.retrofit.responses.AddCoinsResponse
 import com.gmwapp.hima.retrofit.responses.AddPointsResponse
 import com.gmwapp.hima.retrofit.responses.AppUpdateResponse
@@ -2012,6 +2013,15 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
             callback.onNoNetwork()
         }
     }
+
+    fun getUserConcern(userId: Int, callback: NetworkCallback<UserConcernResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().getUserConcern(userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
 }
 
 interface ApiInterface {
@@ -3039,5 +3049,11 @@ interface ApiInterface {
     fun aiOnboardingComplete(
         @Field("session_id") sessionId: Int
     ): Call<AiOnboardingCompleteResponse>
+
+    @FormUrlEncoded
+    @POST("get_user_concern")
+    fun getUserConcern(
+        @Field("user_id") userId: Int
+    ): Call<UserConcernResponse>
 
 }

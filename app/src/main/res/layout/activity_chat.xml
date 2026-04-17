@@ -254,6 +254,28 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
+    <!-- Quick Reply Chips (for creators only, shown when user has a concern) -->
+    <HorizontalScrollView
+        android:id="@+id/quick_reply_scroll"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:scrollbars="none"
+        android:background="#FAFAFC"
+        android:paddingVertical="10dp"
+        android:paddingHorizontal="12dp"
+        android:visibility="gone"
+        tools:visibility="visible"
+        app:layout_constraintBottom_toTopOf="@id/message_input_container"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:id="@+id/quick_reply_container"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" />
+    </HorizontalScrollView>
+
     <!-- Message Input Container -->
     <LinearLayout
         android:id="@+id/message_input_container"

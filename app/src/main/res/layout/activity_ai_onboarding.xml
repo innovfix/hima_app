@@ -283,13 +283,14 @@
                 android:paddingHorizontal="12dp"
                 android:paddingVertical="10dp">
 
-                <com.google.android.material.textfield.TextInputEditText
+                <EditText
                     android:id="@+id/et_message"
                     android:layout_width="0dp"
                     android:layout_height="48dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_chat_input"
                     android:fontFamily="@font/poppins_regular"
+                    android:gravity="center_vertical"
                     android:hint="Type your message..."
                     android:imeOptions="actionSend"
                     android:inputType="text"
@@ -297,8 +298,9 @@
                     android:paddingHorizontal="18dp"
                     android:textColor="#111827"
                     android:textColorHint="#9CA3AF"
-                    android:textCursorDrawable="@null"
-                    android:textSize="15sp" />
+                    android:textSize="15sp"
+                    android:autofillHints="no"
+                    android:importantForAutofill="no" />
 
                 <ImageView
                     android:id="@+id/btn_send"
