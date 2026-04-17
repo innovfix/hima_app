@@ -78,7 +78,10 @@ class AiOnboardingActivity : AppCompatActivity() {
     private fun setupConcernCards() {
         val translations = concernTranslations[userLanguage] ?: concernTranslations["Tamil"]!!
 
-        binding.tvTitle.text = translations["title"] ?: "How are you feeling today?"
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val userName = userData?.name?.replace(Regex("[0-9]"), "")?.takeIf { it.isNotBlank() } ?: "friend"
+
+        binding.tvTitle.text = "Hi $userName! ${translations["title"] ?: "How are you feeling today?"}"
         binding.tvSubtitle.text = translations["subtitle"] ?: "Let us know, and we'll connect you with the right people"
         binding.tvBreakup.text = translations["breakup"] ?: "Breakup"
         binding.tvLoneliness.text = translations["loneliness"] ?: "Loneliness"
@@ -144,12 +147,13 @@ class AiOnboardingActivity : AppCompatActivity() {
         })
 
         viewModel.completeLiveData.observe(this, Observer { response ->
-            binding.loadingOverlay.visibility = View.GONE
-            if (response.success && !response.matchedCreators.isNullOrEmpty()) {
-                showCreatorsList(response.matchedCreators)
-            } else {
+            // Skip Screen 3 - go directly to Home with My Chats tab
+            binding.tvLoadingText.text = "Connecting you to creators..."
+            // Keep overlay visible for smooth transition feel
+            binding.rvCreators.postDelayed({
+                binding.loadingOverlay.visibility = View.GONE
                 navigateToMain()
-            }
+            }, 1200)
         })
 
         viewModel.errorLiveData.observe(this, Observer { error ->
@@ -220,8 +224,11 @@ class AiOnboardingActivity : AppCompatActivity() {
     private fun navigateToMain() {
         val intent = Intent(this, MainActivity::class.java)
         intent.putExtra(DConstants.LANGUAGE, userLanguage)
+        intent.putExtra("SHOW_MY_CHATS", true)
+        intent.putExtra("FROM_ONBOARDING", true)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)
+        overridePendingTransition(R.anim.onboarding_transition_in, R.anim.onboarding_transition_out)
         finish()
     }
 

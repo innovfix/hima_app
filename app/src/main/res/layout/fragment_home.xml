@@ -191,15 +191,43 @@
         android:orientation="vertical"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-        <!-- Filter Pills Below AppBar -->
+        <!-- Filter Pills Below AppBar (scrollable for 4 buttons) -->
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none"
+            android:background="@color/grey_extra_light"
+            android:fillViewport="true">
+
         <LinearLayout
             android:id="@+id/filter_pills_container"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center"
             android:paddingVertical="8dp"
+            android:paddingHorizontal="12dp"
             android:background="@color/grey_extra_light">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_filter_my_chats"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="wrap_content"
+                android:layout_height="44dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:fontFamily="@font/poppins_semibold"
+                android:minWidth="100dp"
+                android:paddingHorizontal="20dp"
+                android:text="💬 Chats"
+                android:textAllCaps="false"
+                android:textSize="13sp"
+                app:cornerRadius="22dp"
+                app:elevation="2dp" />
+
+            <Space
+                android:layout_width="10dp"
+                android:layout_height="match_parent" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_filter_all"
@@ -258,6 +286,7 @@
                 app:elevation="2dp" />
 
         </LinearLayout>
+        </HorizontalScrollView>
 
         <!-- IPL Room Calls Banner -->
         <com.google.android.material.card.MaterialCardView

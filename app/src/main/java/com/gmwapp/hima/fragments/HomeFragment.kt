@@ -55,6 +55,9 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     lateinit var binding: FragmentHomeBinding
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
 
+    @javax.inject.Inject
+    lateinit var myChatsApiManager: com.gmwapp.hima.retrofit.ApiManager
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
@@ -196,6 +199,17 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
         // Setup filter pills
         setupFilterButtons()
+
+        // If coming from AI onboarding, default to "My Chats" tab
+        val showMyChats = activity?.intent?.getBooleanExtra("SHOW_MY_CHATS", false) ?: false
+        if (showMyChats) {
+            filterType = "my_chats"
+            activity?.intent?.removeExtra("SHOW_MY_CHATS")
+            BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let { uid ->
+                loadMyChats(uid)
+                updateFilterButtonStyles()
+            }
+        }
         
         userData?.id?.let {
             if (context?.let { it1 -> isInternetAvailable(it1) } == true) {
@@ -381,10 +395,11 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     
     private fun setupFilterButtons() {
         Log.d("FilterButtons", "setupFilterButtons called - initial filterType: $filterType")
-        
+
         // Set initial state
         updateFilterButtonStyles()
 
+        binding.btnFilterMyChats.setOnClickListener { applyFilter("my_chats") }
         binding.btnFilterAll.setOnClickListener { applyFilter("all") }
         binding.btnFilterNew.setOnClickListener { applyFilter("new") }
         binding.btnFilterStar.setOnClickListener { applyFilter("star") }
@@ -394,13 +409,14 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         val strokeWidthPx = (1 * resources.displayMetrics.density).toInt()
         val pinkColor   = resources.getColorStateList(R.color.colorAccent, null)
         val goldColor   = android.content.res.ColorStateList.valueOf(0xFFFFC107.toInt())
+        val purpleColor = android.content.res.ColorStateList.valueOf(0xFF9C27B0.toInt())
         val whiteColor  = resources.getColorStateList(R.color.white, null)
         val greyColor   = resources.getColor(R.color.grey_medium, null)
         val whiteText   = resources.getColor(R.color.white, null)
         val borderColor = resources.getColorStateList(R.color.light_grey, null)
 
         // Reset all to unselected state first
-        listOf(binding.btnFilterAll, binding.btnFilterNew, binding.btnFilterStar).forEach {
+        listOf(binding.btnFilterMyChats, binding.btnFilterAll, binding.btnFilterNew, binding.btnFilterStar).forEach {
             it.backgroundTintList = whiteColor
             it.setTextColor(greyColor)
             it.strokeWidth = strokeWidthPx
@@ -409,6 +425,11 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
         // Highlight selected
         when (filterType) {
+            "my_chats" -> binding.btnFilterMyChats.apply {
+                backgroundTintList = purpleColor
+                setTextColor(whiteText)
+                strokeWidth = 0
+            }
             "all" -> binding.btnFilterAll.apply {
                 backgroundTintList = pinkColor
                 setTextColor(whiteText)
@@ -436,15 +457,75 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         filterType = selectedFilter
         updateFilterButtonStyles()
                         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-                        userData?.id?.let {
+                        userData?.id?.let { userId ->
                             if (context?.let { it1 -> isInternetAvailable(it1) } == true) {
-                                // Clear existing data
-                                femaleUsersViewModel.femaleUsersResponseLiveData.value?.data?.clear()
-                                (binding.rvProfiles.adapter as? FemaleUserAdapter)?.notifyDataSetChanged()
-                                // Reload with new filter
-                                loadFemaleUsers(it)
+                                if (selectedFilter == "my_chats") {
+                                    loadMyChats(userId)
+                                } else {
+                                    // Clear existing data
+                                    femaleUsersViewModel.femaleUsersResponseLiveData.value?.data?.clear()
+                                    (binding.rvProfiles.adapter as? FemaleUserAdapter)?.notifyDataSetChanged()
+                                    // Reload with new filter
+                                    loadFemaleUsers(userId)
+                                }
                             }
                         }
+    }
+
+    private fun loadMyChats(userId: Int) {
+        setLoading(true)
+        myChatsApiManager.getMyChat(userId, null, 100, 0, object : com.gmwapp.hima.retrofit.callbacks.NetworkCallback<com.gmwapp.hima.retrofit.responses.MyChatResponse> {
+            override fun onResponse(
+                call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.MyChatResponse>,
+                response: retrofit2.Response<com.gmwapp.hima.retrofit.responses.MyChatResponse>
+            ) {
+                setLoading(false)
+                binding.swipeRefreshLayout.isRefreshing = false
+                val chats = response.body()?.data?.chats ?: emptyList()
+                val conversations = chats.mapNotNull { item ->
+                    try {
+                        val ts = try {
+                            val fmt = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
+                            val date = item.lastMessage?.timestamp?.let { fmt.parse(it) }
+                            date?.let { com.google.firebase.Timestamp(it) }
+                        } catch (_: Exception) { null }
+                        com.gmwapp.hima.models.ChatConversation(
+                            threadId = item.chatId,
+                            userId = item.user.id.toString(),
+                            userName = item.user.name,
+                            userImage = item.user.image ?: "",
+                            lastMessage = item.lastMessage?.message ?: "",
+                            lastMessageTime = ts,
+                            unreadCount = item.unreadCount,
+                            isOnline = false
+                        )
+                    } catch (_: Exception) { null }
+                }.sortedByDescending { it.lastMessageTime?.seconds ?: 0 }
+
+                val activityCtx = activity ?: return
+                val adapter = com.gmwapp.hima.adapters.ChatListAdapter(activityCtx, ArrayList(conversations)) { conv ->
+                    val intent = Intent(activityCtx, com.gmwapp.hima.activities.ChatActivityInHouse::class.java).apply {
+                        putExtra("USER_ID", conv.userId.toIntOrNull() ?: -1)
+                        putExtra("USER_NAME", conv.userName)
+                        putExtra("USER_IMAGE", conv.userImage)
+                    }
+                    startActivity(intent)
+                }
+                binding.rvProfiles.layoutManager = LinearLayoutManager(activity, LinearLayoutManager.VERTICAL, false)
+                binding.rvProfiles.adapter = adapter
+                binding.rvProfiles.visibility = View.VISIBLE
+            }
+
+            override fun onFailure(call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.MyChatResponse>, t: Throwable) {
+                setLoading(false)
+                binding.swipeRefreshLayout.isRefreshing = false
+            }
+
+            override fun onNoNetwork() {
+                setLoading(false)
+                binding.swipeRefreshLayout.isRefreshing = false
+            }
+        })
     }
 
     fun initFab() {
