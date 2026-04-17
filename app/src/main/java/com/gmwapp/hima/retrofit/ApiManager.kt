@@ -2,6 +2,9 @@ package com.gmwapp.hima.retrofit
 
 import com.gmwapp.hima.activities.RetrofitClient
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
+import com.gmwapp.hima.retrofit.responses.AiOnboardingCompleteResponse
+import com.gmwapp.hima.retrofit.responses.AiOnboardingReplyResponse
+import com.gmwapp.hima.retrofit.responses.AiOnboardingStartResponse
 import com.gmwapp.hima.retrofit.responses.AddCoinsResponse
 import com.gmwapp.hima.retrofit.responses.AddPointsResponse
 import com.gmwapp.hima.retrofit.responses.AppUpdateResponse
@@ -1981,6 +1984,34 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
             callback.onNoNetwork()
         }
     }
+
+    // AI Onboarding
+    fun aiOnboardingStart(userId: Int, concern: String, callback: NetworkCallback<AiOnboardingStartResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().aiOnboardingStart(userId, concern)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun aiOnboardingReply(sessionId: Int, userMessage: String, callback: NetworkCallback<AiOnboardingReplyResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().aiOnboardingReply(sessionId, userMessage)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun aiOnboardingComplete(sessionId: Int, callback: NetworkCallback<AiOnboardingCompleteResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().aiOnboardingComplete(sessionId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
 }
 
 interface ApiInterface {
@@ -2987,5 +3018,26 @@ interface ApiInterface {
         @Field("user_id") userId: Int,
         @Field("ipl_team") iplTeam: String
     ): Call<UpdateIplTeamResponse>
+
+    // AI Onboarding
+    @FormUrlEncoded
+    @POST("ai_onboarding_start")
+    fun aiOnboardingStart(
+        @Field("user_id") userId: Int,
+        @Field("concern") concern: String
+    ): Call<AiOnboardingStartResponse>
+
+    @FormUrlEncoded
+    @POST("ai_onboarding_reply")
+    fun aiOnboardingReply(
+        @Field("session_id") sessionId: Int,
+        @Field("user_message") userMessage: String
+    ): Call<AiOnboardingReplyResponse>
+
+    @FormUrlEncoded
+    @POST("ai_onboarding_complete")
+    fun aiOnboardingComplete(
+        @Field("session_id") sessionId: Int
+    ): Call<AiOnboardingCompleteResponse>
 
 }

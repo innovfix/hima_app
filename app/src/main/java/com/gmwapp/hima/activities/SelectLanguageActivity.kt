@@ -78,7 +78,9 @@ class SelectLanguageActivity : BaseActivity() {
                 Log.d("SocketIOCheck", "✅ Registration successful - Socket.IO will connect when chat opens")
 
                 if (it.data?.gender == DConstants.MALE) {
-                    val intent = Intent(this, MainActivity::class.java)
+                    // Route new male users through AI onboarding
+                    val intent = Intent(this, AiOnboardingActivity::class.java)
+                    intent.putExtra("USER_ID", it.data?.id ?: 0)
                     intent.putExtra(
                         DConstants.AVATAR_ID, getIntent().getIntExtra(DConstants.AVATAR_ID, 0)
                     )

@@ -1,0 +1,246 @@
+package com.gmwapp.hima.activities
+
+import android.content.Intent
+import android.os.Bundle
+import android.view.View
+import android.view.inputmethod.EditorInfo
+import android.widget.ViewFlipper
+import androidx.activity.viewModels
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Observer
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.R
+import com.gmwapp.hima.adapters.AiChatAdapter
+import com.gmwapp.hima.adapters.AiChatMessage
+import com.gmwapp.hima.adapters.MatchedCreatorAdapter
+import com.gmwapp.hima.constants.DConstants
+import com.gmwapp.hima.databinding.ActivityAiOnboardingBinding
+import com.gmwapp.hima.viewmodels.AiOnboardingViewModel
+import dagger.hilt.android.AndroidEntryPoint
+
+@AndroidEntryPoint
+class AiOnboardingActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivityAiOnboardingBinding
+    private val viewModel: AiOnboardingViewModel by viewModels()
+    private lateinit var chatAdapter: AiChatAdapter
+
+    private var sessionId: Int? = null
+    private var userId: Int = 0
+    private var userLanguage: String = "Tamil"
+    private var currentStep: Int = 0
+
+    // Tanglish translations — regional language words in English/Roman script
+    private val concernTranslations = mapOf(
+        "Tamil" to mapOf("breakup" to "Breakup", "loneliness" to "Thanimai", "stress" to "Stress", "boredom" to "Boring",
+            "title" to "Inniki eppadi feel pannureenga?", "subtitle" to "Sollunga, unga ku correct aanavanga connect pannrom"),
+        "Hindi" to mapOf("breakup" to "Breakup", "loneliness" to "Akela", "stress" to "Tension", "boredom" to "Boring",
+            "title" to "Aaj kaisa feel kar rahe ho?", "subtitle" to "Batao, sahi logon se connect karenge"),
+        "Telugu" to mapOf("breakup" to "Breakup", "loneliness" to "Ontaritanam", "stress" to "Stress", "boredom" to "Boring",
+            "title" to "Ee roju ela feel avthunnaru?", "subtitle" to "Cheppandi, correct people connect chestam"),
+        "Kannada" to mapOf("breakup" to "Breakup", "loneliness" to "Onti", "stress" to "Stress", "boredom" to "Boring",
+            "title" to "Ivattu heg feel agthidira?", "subtitle" to "Heli, right janara connect madthivi"),
+        "Malayalam" to mapOf("breakup" to "Breakup", "loneliness" to "Ekanatha", "stress" to "Stress", "boredom" to "Boring",
+            "title" to "Innu engane feel cheyyunnu?", "subtitle" to "Parayo, correct aalukale connect cheyyam"),
+        "Marathi" to mapOf("breakup" to "Breakup", "loneliness" to "Ekta", "stress" to "Tension", "boredom" to "Boring",
+            "title" to "Aaj kasa feel hotay?", "subtitle" to "Sanga, yogya lokanshe jodto"),
+        "Bengali" to mapOf("breakup" to "Breakup", "loneliness" to "Ekla", "stress" to "Tension", "boredom" to "Boring",
+            "title" to "Aaj kemon feel korcho?", "subtitle" to "Bolo, thik manusher sathe connect korbo"),
+        "Assamese" to mapOf("breakup" to "Breakup", "loneliness" to "Okola", "stress" to "Tension", "boredom" to "Boring",
+            "title" to "Aji kenekuwa feel korisaa?", "subtitle" to "Kowa, correct manuh logot connect korim"),
+        "Odia" to mapOf("breakup" to "Breakup", "loneliness" to "Ekalaa", "stress" to "Tension", "boredom" to "Boring",
+            "title" to "Aaji kemiti feel karuchha?", "subtitle" to "Kahanta, thik loka saha connect kariba"),
+        "Gujarati" to mapOf("breakup" to "Breakup", "loneliness" to "Ekla", "stress" to "Tension", "boredom" to "Boring",
+            "title" to "Aaje kem feel thay chhe?", "subtitle" to "Kahejo, yogya loko sathe connect karishu"),
+        "Punjabi" to mapOf("breakup" to "Breakup", "loneliness" to "Ikalla", "stress" to "Tension", "boredom" to "Boring",
+            "title" to "Ajj kiven feel kar rahe ho?", "subtitle" to "Dasso, sahi logaan naal connect karange")
+    )
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityAiOnboardingBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        userId = intent.getIntExtra("USER_ID", 0)
+        userLanguage = intent.getStringExtra(DConstants.LANGUAGE) ?: "Tamil"
+
+        if (userId == 0) {
+            val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+            userId = userData?.id ?: 0
+        }
+
+        setupConcernCards()
+        setupChat()
+        observeViewModel()
+    }
+
+    private fun setupConcernCards() {
+        val translations = concernTranslations[userLanguage] ?: concernTranslations["Tamil"]!!
+
+        binding.tvTitle.text = translations["title"] ?: "How are you feeling today?"
+        binding.tvSubtitle.text = translations["subtitle"] ?: "Let us know, and we'll connect you with the right people"
+        binding.tvBreakup.text = translations["breakup"] ?: "Breakup"
+        binding.tvLoneliness.text = translations["loneliness"] ?: "Loneliness"
+        binding.tvStress.text = translations["stress"] ?: "Stress"
+        binding.tvBoredom.text = translations["boredom"] ?: "Boredom"
+
+        binding.cardBreakup.setOnClickListener { startAiChat("breakup") }
+        binding.cardLoneliness.setOnClickListener { startAiChat("loneliness") }
+        binding.cardStress.setOnClickListener { startAiChat("stress") }
+        binding.cardBoredom.setOnClickListener { startAiChat("boredom") }
+    }
+
+    private fun setupChat() {
+        chatAdapter = AiChatAdapter()
+        binding.rvChat.apply {
+            layoutManager = LinearLayoutManager(this@AiOnboardingActivity)
+            adapter = chatAdapter
+        }
+
+        binding.btnSend.setOnClickListener { sendUserMessage() }
+        binding.etMessage.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_SEND) {
+                sendUserMessage()
+                true
+            } else false
+        }
+
+        binding.btnLetsGo.setOnClickListener { completeOnboarding() }
+        binding.btnStartChatting.setOnClickListener { navigateToMain() }
+    }
+
+    private fun observeViewModel() {
+        viewModel.startLiveData.observe(this, Observer { response ->
+            if (response.success && response.sessionId != null) {
+                sessionId = response.sessionId
+                currentStep = response.step ?: 0
+                response.aiMessage?.let {
+                    chatAdapter.addMessage(AiChatMessage(it, isUser = false))
+                    scrollToBottom()
+                }
+                binding.tvTypingStatus.text = "Online"
+                binding.etMessage.isEnabled = true
+                binding.btnSend.isEnabled = true
+            }
+        })
+
+        viewModel.replyLiveData.observe(this, Observer { response ->
+            if (response.success) {
+                currentStep = response.step ?: currentStep
+                response.aiMessage?.let {
+                    chatAdapter.addMessage(AiChatMessage(it, isUser = false))
+                    scrollToBottom()
+                }
+                binding.tvTypingStatus.text = "Online"
+                binding.etMessage.isEnabled = true
+                binding.btnSend.isEnabled = true
+
+                if (response.isComplete == true) {
+                    binding.inputBar.visibility = View.GONE
+                    binding.btnLetsGo.visibility = View.VISIBLE
+                }
+            }
+        })
+
+        viewModel.completeLiveData.observe(this, Observer { response ->
+            binding.loadingOverlay.visibility = View.GONE
+            if (response.success && !response.matchedCreators.isNullOrEmpty()) {
+                showCreatorsList(response.matchedCreators)
+            } else {
+                navigateToMain()
+            }
+        })
+
+        viewModel.errorLiveData.observe(this, Observer { error ->
+            binding.tvTypingStatus.text = "Online"
+            binding.etMessage.isEnabled = true
+            binding.btnSend.isEnabled = true
+            binding.loadingOverlay.visibility = View.GONE
+
+            // On error during start, use fallback and allow continue
+            if (sessionId == null) {
+                binding.inputBar.visibility = View.GONE
+                binding.btnLetsGo.visibility = View.VISIBLE
+                chatAdapter.addMessage(AiChatMessage(
+                    "Don't worry, we have wonderful people here who would love to talk with you!",
+                    isUser = false
+                ))
+                scrollToBottom()
+            }
+        })
+
+        viewModel.loadingLiveData.observe(this, Observer { loading ->
+            if (loading) {
+                binding.tvTypingStatus.text = "typing..."
+            }
+        })
+    }
+
+    private fun startAiChat(concern: String) {
+        binding.viewFlipper.displayedChild = 1
+        binding.etMessage.isEnabled = false
+        binding.btnSend.isEnabled = false
+        viewModel.startOnboarding(userId, concern)
+    }
+
+    private fun sendUserMessage() {
+        val message = binding.etMessage.text?.toString()?.trim() ?: return
+        if (message.isEmpty()) return
+
+        chatAdapter.addMessage(AiChatMessage(message, isUser = true))
+        scrollToBottom()
+        binding.etMessage.setText("")
+        binding.etMessage.isEnabled = false
+        binding.btnSend.isEnabled = false
+
+        val sid = sessionId
+        if (sid != null) {
+            viewModel.replyOnboarding(sid, message)
+        }
+    }
+
+    private fun completeOnboarding() {
+        val sid = sessionId
+        if (sid != null) {
+            binding.loadingOverlay.visibility = View.VISIBLE
+            viewModel.completeOnboarding(sid)
+        } else {
+            // No session (error path) — skip to main
+            navigateToMain()
+        }
+    }
+
+    private fun showCreatorsList(creators: List<com.gmwapp.hima.retrofit.responses.MatchedCreator>) {
+        binding.viewFlipper.displayedChild = 2
+        binding.rvCreators.layoutManager = LinearLayoutManager(this)
+        binding.rvCreators.adapter = MatchedCreatorAdapter(this, creators)
+    }
+
+    private fun navigateToMain() {
+        val intent = Intent(this, MainActivity::class.java)
+        intent.putExtra(DConstants.LANGUAGE, userLanguage)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
+        finish()
+    }
+
+    private fun scrollToBottom() {
+        binding.rvChat.post {
+            val count = chatAdapter.itemCount
+            if (count > 0) {
+                binding.rvChat.smoothScrollToPosition(count - 1)
+            }
+        }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        if (binding.viewFlipper.displayedChild == 1) {
+            // Don't allow going back to concern selection mid-chat
+            // User must complete or skip
+            return
+        }
+        super.onBackPressed()
+    }
+}
