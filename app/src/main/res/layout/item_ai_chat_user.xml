@@ -1,28 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingHorizontal="16dp"
-    android:paddingVertical="4dp">
+    android:paddingHorizontal="14dp"
+    android:paddingVertical="5dp">
 
     <com.google.android.material.card.MaterialCardView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="end"
-        android:maxWidth="280dp"
+        android:maxWidth="300dp"
         app:cardBackgroundColor="@color/colorAccent"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="0dp"
-        app:strokeWidth="0dp"
-        xmlns:app="http://schemas.android.com/apk/res-auto">
+        app:cardCornerRadius="20dp"
+        app:cardElevation="2dp"
+        app:strokeWidth="0dp">
 
         <TextView
             android:id="@+id/tv_chat_message"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:fontFamily="@font/poppins_regular"
-            android:paddingHorizontal="14dp"
-            android:paddingVertical="10dp"
+            android:lineSpacingExtra="3dp"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="12dp"
             android:textColor="@color/white"
             android:textSize="14sp" />
 
