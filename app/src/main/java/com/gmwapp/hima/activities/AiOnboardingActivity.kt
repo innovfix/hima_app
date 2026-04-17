@@ -118,6 +118,7 @@ class AiOnboardingActivity : AppCompatActivity() {
             if (response.success && response.sessionId != null) {
                 sessionId = response.sessionId
                 currentStep = response.step ?: 0
+                chatAdapter.hideTyping()
                 response.aiMessage?.let {
                     chatAdapter.addMessage(AiChatMessage(it, isUser = false))
                     scrollToBottom()
@@ -131,18 +132,16 @@ class AiOnboardingActivity : AppCompatActivity() {
         viewModel.replyLiveData.observe(this, Observer { response ->
             if (response.success) {
                 currentStep = response.step ?: currentStep
+                chatAdapter.hideTyping()
                 response.aiMessage?.let {
                     chatAdapter.addMessage(AiChatMessage(it, isUser = false))
                     scrollToBottom()
                 }
                 binding.tvTypingStatus.text = "Online"
-                binding.etMessage.isEnabled = true
-                binding.btnSend.isEnabled = true
 
-                if (response.isComplete == true) {
-                    binding.inputBar.visibility = View.GONE
-                    binding.btnLetsGo.visibility = View.VISIBLE
-                }
+                // Single exchange enforced: after first reply, hide input bar
+                binding.inputBar.visibility = View.GONE
+                binding.btnLetsGo.visibility = View.VISIBLE
             }
         })
 
@@ -185,6 +184,9 @@ class AiOnboardingActivity : AppCompatActivity() {
         binding.viewFlipper.displayedChild = 1
         binding.etMessage.isEnabled = false
         binding.btnSend.isEnabled = false
+        binding.tvTypingStatus.text = "typing..."
+        chatAdapter.showTyping()
+        scrollToBottom()
         viewModel.startOnboarding(userId, concern)
     }
 
@@ -193,10 +195,13 @@ class AiOnboardingActivity : AppCompatActivity() {
         if (message.isEmpty()) return
 
         chatAdapter.addMessage(AiChatMessage(message, isUser = true))
-        scrollToBottom()
         binding.etMessage.setText("")
         binding.etMessage.isEnabled = false
         binding.btnSend.isEnabled = false
+        binding.inputBar.visibility = View.GONE // hide immediately - single exchange
+        binding.tvTypingStatus.text = "typing..."
+        chatAdapter.showTyping()
+        scrollToBottom()
 
         val sid = sessionId
         if (sid != null) {

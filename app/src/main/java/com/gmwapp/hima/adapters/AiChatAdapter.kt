@@ -9,16 +9,18 @@ import com.gmwapp.hima.R
 
 data class AiChatMessage(
     val text: String,
-    val isUser: Boolean
+    val isUser: Boolean,
+    val isTyping: Boolean = false
 )
 
 class AiChatAdapter(
     private val messages: MutableList<AiChatMessage> = mutableListOf()
-) : RecyclerView.Adapter<AiChatAdapter.ChatViewHolder>() {
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     companion object {
         private const val TYPE_AI = 0
         private const val TYPE_USER = 1
+        private const val TYPE_TYPING = 2
     }
 
     fun addMessage(message: AiChatMessage) {
@@ -26,24 +28,45 @@ class AiChatAdapter(
         notifyItemInserted(messages.size - 1)
     }
 
+    fun showTyping() {
+        if (messages.lastOrNull()?.isTyping == true) return
+        messages.add(AiChatMessage("", isUser = false, isTyping = true))
+        notifyItemInserted(messages.size - 1)
+    }
+
+    fun hideTyping() {
+        val last = messages.lastOrNull()
+        if (last?.isTyping == true) {
+            val pos = messages.size - 1
+            messages.removeAt(pos)
+            notifyItemRemoved(pos)
+        }
+    }
+
     fun getMessages() = messages.toList()
 
     override fun getItemViewType(position: Int): Int {
-        return if (messages[position].isUser) TYPE_USER else TYPE_AI
-    }
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChatViewHolder {
-        val layoutId = if (viewType == TYPE_USER) {
-            R.layout.item_ai_chat_user
-        } else {
-            R.layout.item_ai_chat_ai
+        val m = messages[position]
+        return when {
+            m.isTyping -> TYPE_TYPING
+            m.isUser -> TYPE_USER
+            else -> TYPE_AI
         }
-        val view = LayoutInflater.from(parent.context).inflate(layoutId, parent, false)
-        return ChatViewHolder(view)
     }
 
-    override fun onBindViewHolder(holder: ChatViewHolder, position: Int) {
-        holder.tvMessage.text = messages[position].text
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        val inflater = LayoutInflater.from(parent.context)
+        return when (viewType) {
+            TYPE_USER -> ChatViewHolder(inflater.inflate(R.layout.item_ai_chat_user, parent, false))
+            TYPE_TYPING -> TypingViewHolder(inflater.inflate(R.layout.item_ai_chat_typing, parent, false))
+            else -> ChatViewHolder(inflater.inflate(R.layout.item_ai_chat_ai, parent, false))
+        }
+    }
+
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        if (holder is ChatViewHolder) {
+            holder.tvMessage.text = messages[position].text
+        }
     }
 
     override fun getItemCount() = messages.size
@@ -51,4 +74,6 @@ class AiChatAdapter(
     class ChatViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val tvMessage: TextView = view.findViewById(R.id.tv_chat_message)
     }
+
+    class TypingViewHolder(view: View) : RecyclerView.ViewHolder(view)
 }
