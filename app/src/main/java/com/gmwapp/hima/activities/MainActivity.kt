@@ -528,6 +528,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         // Show/hide favourite menu item based on user gender (only for MALE users)
         val userGender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
         binding.bottomNavigationView.menu.findItem(R.id.favourite)?.isVisible = (userGender == DConstants.MALE)
+        // Messages tab is only for creators (FEMALE)
+        binding.bottomNavigationView.menu.findItem(R.id.messages)?.isVisible = (userGender == DConstants.FEMALE)
         
         binding.bottomNavigationView.setOnNavigationItemSelectedListener(this)
         
@@ -780,6 +782,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
                 transaction.replace(R.id.flFragment, RecentFragment()).commit()
                 return true
+            }
+
+            R.id.messages -> {
+                startActivity(Intent(this, ChatListActivity::class.java))
+                return false
             }
 
             R.id.favourite -> {
@@ -1367,16 +1374,34 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     private fun updateRecentBadge() {
         val safeMissed = recentMissedCount.coerceAtLeast(0)
         val safeUnread = recentUnreadCount.coerceAtLeast(0)
+        val isCreator = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender == DConstants.FEMALE
 
-        // Always remove native Material badge — we use our own positioning for both dots
-        // so they are anchored identically and sit at exactly the same height.
         binding.bottomNavigationView.removeBadge(R.id.recent)
+        binding.bottomNavigationView.removeBadge(R.id.messages)
 
-        if (safeMissed > 0 || safeUnread > 0) {
-            placeRecentBadges(safeMissed, safeUnread)
+        if (isCreator) {
+            // Recent = missed calls only; Messages tab carries the unread count.
+            if (safeMissed > 0) {
+                placeRecentBadges(safeMissed, 0)
+            } else {
+                hideBadge(recentMissedDotTag)
+                hideBadge(recentUnreadDotTag)
+            }
+            if (safeUnread > 0) {
+                val badge = binding.bottomNavigationView.getOrCreateBadge(R.id.messages)
+                badge.isVisible = true
+                badge.number = safeUnread.coerceAtMost(99)
+                badge.backgroundColor = ContextCompat.getColor(this, R.color.colorAccent)
+                badge.badgeTextColor = ContextCompat.getColor(this, R.color.white)
+            }
         } else {
-            hideBadge(recentMissedDotTag)
-            hideBadge(recentUnreadDotTag)
+            // Male users: keep existing dual-dot behaviour on Recent.
+            if (safeMissed > 0 || safeUnread > 0) {
+                placeRecentBadges(safeMissed, safeUnread)
+            } else {
+                hideBadge(recentMissedDotTag)
+                hideBadge(recentUnreadDotTag)
+            }
         }
     }
 

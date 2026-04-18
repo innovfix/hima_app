@@ -35,7 +35,6 @@
                 app:civ_border_color="@color/grey_extra_light"
                 tools:src="@drawable/small_profile" />
 
-            <!-- Online Indicator -->
             <View
                 android:id="@+id/v_online_indicator"
                 android:layout_width="14dp"
@@ -79,7 +78,6 @@
             android:text="Last message preview..."
             android:textColor="@color/grey_medium"
             android:textSize="13sp"
-            app:layout_constraintBottom_toBottomOf="@id/fl_image_container"
             app:layout_constraintEnd_toStartOf="@id/tv_unread_count"
             app:layout_constraintStart_toEndOf="@id/fl_image_container"
             app:layout_constraintTop_toBottomOf="@id/tv_user_name"
@@ -116,7 +114,94 @@
             tools:text="5"
             tools:visibility="visible" />
 
+        <!-- Audio + Video Call Buttons (row below the chat preview) -->
+        <LinearLayout
+            android:id="@+id/call_buttons_row"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal"
+            app:layout_constraintTop_toBottomOf="@id/tv_last_message"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/btn_audio_call"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardBackgroundColor="#A855F7"
+                app:cardCornerRadius="22dp"
+                app:cardElevation="0dp"
+                app:rippleColor="#DDDDDD"
+                app:strokeWidth="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:src="@drawable/ic_phone_modern"
+                        android:contentDescription="@null"
+                        app:tint="@color/white" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:fontFamily="@font/poppins_semibold"
+                        android:text="Audio"
+                        android:textColor="@color/white"
+                        android:textSize="14sp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/btn_video_call"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardBackgroundColor="#10B981"
+                app:cardCornerRadius="22dp"
+                app:cardElevation="0dp"
+                app:rippleColor="#DDDDDD"
+                app:strokeWidth="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:src="@drawable/ic_video_modern"
+                        android:contentDescription="@null"
+                        app:tint="@color/white" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:fontFamily="@font/poppins_semibold"
+                        android:text="Video"
+                        android:textColor="@color/white"
+                        android:textSize="14sp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </com.google.android.material.card.MaterialCardView>
-

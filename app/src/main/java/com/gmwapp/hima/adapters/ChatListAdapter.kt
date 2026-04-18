@@ -1,6 +1,9 @@
 package com.gmwapp.hima.adapters
 
 import android.app.Activity
+import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -8,8 +11,12 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.R
+import com.gmwapp.hima.agora.FcmUtils
+import com.gmwapp.hima.agora.male.MaleCallConnectingActivity
+import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ItemChatConversationBinding
 import com.gmwapp.hima.models.ChatConversation
+import com.gmwapp.hima.utils.setOnSingleClickListener
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -19,6 +26,11 @@ class ChatListAdapter(
     private val conversations: ArrayList<ChatConversation>,
     private val onItemClick: (ChatConversation) -> Unit
 ) : RecyclerView.Adapter<ChatListAdapter.ViewHolder>() {
+
+    companion object {
+        private const val BLINK_INTERVAL_MS = 1800L
+        private const val PROMPT_TEXT = "✨ Tap to see your message for free"
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val binding = ItemChatConversationBinding.inflate(
@@ -32,6 +44,11 @@ class ChatListAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val conversation = conversations[position]
         holder.bind(conversation)
+    }
+
+    override fun onViewRecycled(holder: ViewHolder) {
+        holder.stopBlink()
+        super.onViewRecycled(holder)
     }
 
     override fun getItemCount(): Int = conversations.size
@@ -50,6 +67,14 @@ class ChatListAdapter(
     inner class ViewHolder(private val binding: ItemChatConversationBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
+        private val blinkHandler = Handler(Looper.getMainLooper())
+        private var blinkRunnable: Runnable? = null
+
+        fun stopBlink() {
+            blinkRunnable?.let { blinkHandler.removeCallbacks(it) }
+            blinkRunnable = null
+        }
+
         fun bind(conversation: ChatConversation) {
             // Set user name (extract name only, remove trailing numbers)
             binding.tvUserName.text = extractNameOnly(conversation.userName)
@@ -62,11 +87,32 @@ class ChatListAdapter(
                 .error(R.drawable.small_profile)
                 .into(binding.ivUserImage)
 
-            // Set last message
-            binding.tvLastMessage.text = if (conversation.lastMessage.isNotEmpty()) {
+            // Last message: blink between the real message and a "tap to see" prompt.
+            stopBlink()
+            val realMessage = if (conversation.lastMessage.isNotEmpty())
                 conversation.lastMessage
-            } else {
+            else
                 "No messages yet"
+            binding.tvLastMessage.text = realMessage
+
+            if (conversation.lastMessage.isNotEmpty()) {
+                val accent = androidx.core.content.ContextCompat.getColor(activity, R.color.colorAccent)
+                val normal = androidx.core.content.ContextCompat.getColor(activity, R.color.grey_medium)
+                var showPrompt = false
+                blinkRunnable = object : Runnable {
+                    override fun run() {
+                        showPrompt = !showPrompt
+                        if (showPrompt) {
+                            binding.tvLastMessage.text = PROMPT_TEXT
+                            binding.tvLastMessage.setTextColor(accent)
+                        } else {
+                            binding.tvLastMessage.text = realMessage
+                            binding.tvLastMessage.setTextColor(normal)
+                        }
+                        blinkHandler.postDelayed(this, BLINK_INTERVAL_MS)
+                    }
+                }
+                blinkHandler.postDelayed(blinkRunnable!!, BLINK_INTERVAL_MS)
             }
 
             // Set time
@@ -91,10 +137,40 @@ class ChatListAdapter(
                 binding.vOnlineIndicator.visibility = View.GONE
             }
 
-            // Handle click
-            binding.root.setOnClickListener {
+            // Handle card click (open chat)
+            binding.root.setOnSingleClickListener {
                 onItemClick(conversation)
             }
+
+            // Audio / Video buttons — hide if creator doesn't support that call type
+            binding.btnAudioCall.visibility =
+                if (conversation.audioStatus == 1) View.VISIBLE else View.GONE
+            binding.btnVideoCall.visibility =
+                if (conversation.videoStatus == 1) View.VISIBLE else View.GONE
+
+            binding.btnAudioCall.setOnSingleClickListener {
+                launchCall(conversation, "audio")
+            }
+            binding.btnVideoCall.setOnSingleClickListener {
+                launchCall(conversation, "video")
+            }
+        }
+
+        private fun launchCall(conv: ChatConversation, callType: String) {
+            val intent = Intent(activity, MaleCallConnectingActivity::class.java).apply {
+                putExtra(DConstants.CALL_TYPE, callType)
+                putExtra(DConstants.RECEIVER_ID, conv.userId.toIntOrNull() ?: 0)
+                putExtra(DConstants.RECEIVER_NAME, conv.userName)
+                putExtra(DConstants.CALL_ID, 0)
+                putExtra(DConstants.IMAGE, conv.userImage)
+                putExtra(DConstants.IS_RECEIVER_DETAILS_AVAILABLE, true)
+                putExtra(
+                    DConstants.TEXT,
+                    activity.getString(R.string.wait_user_hint, conv.userName)
+                )
+            }
+            FcmUtils.isUserAvailable = 1
+            activity.startActivity(intent)
         }
 
         private fun formatTime(timestamp: com.google.firebase.Timestamp?): String {

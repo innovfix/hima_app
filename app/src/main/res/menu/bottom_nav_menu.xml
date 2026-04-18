@@ -17,6 +17,15 @@
         android:tooltipText="@null"
         app:showAsAction="always" />
     <item
+        android:id="@+id/messages"
+        android:enabled="true"
+        android:icon="@drawable/ic_chat_bubble"
+        android:iconTint="@color/white"
+        android:title="@string/messages"
+        android:tooltipText="@null"
+        android:visible="false"
+        app:showAsAction="always" />
+    <item
         android:id="@+id/favourite"
         android:enabled="true"
         android:icon="@drawable/nav_favourite"

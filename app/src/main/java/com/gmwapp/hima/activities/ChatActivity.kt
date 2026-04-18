@@ -144,7 +144,50 @@ class ChatActivity : AppCompatActivity() {
         checkIfUserIsBlocked()  // Check block status before setting up listener
         setupClickListeners()
         observeNotificationResponse()
+        renderQuickReplyChips()
         Log.d("checkPagiantion", "🏁 ChatActivity onCreate() completed")
+    }
+
+    /**
+     * Render default Tanglish quick-reply chips above the input bar. Always visible
+     * (no gender/API gate) so creators always see something to tap.
+     */
+    private fun renderQuickReplyChips() {
+        val scrollView = findViewById<android.widget.HorizontalScrollView>(R.id.quick_reply_scroll) ?: return
+        val container = findViewById<LinearLayout>(R.id.quick_reply_container) ?: return
+
+        val defaults = listOf(
+            "Hi da! 👋 Eppadi iruka?",
+            "Sollu da, enna pannra? 😊",
+            "Pesuvoma? Naan free 💬",
+            "Let's chat da! ✨"
+        )
+
+        container.removeAllViews()
+        val dp = { v: Int -> (v * resources.displayMetrics.density).toInt() }
+        defaults.forEach { replyText ->
+            val chip = TextView(this).apply {
+                text = replyText
+                textSize = 13f
+                setTextColor(ContextCompat.getColor(this@ChatActivity, R.color.colorAccent))
+                typeface = androidx.core.content.res.ResourcesCompat.getFont(context, R.font.poppins_semibold)
+                setBackgroundResource(R.drawable.bg_quick_reply_chip)
+                setPadding(dp(16), dp(9), dp(16), dp(9))
+                isClickable = true
+                isFocusable = true
+                setOnClickListener {
+                    etMessage.setText(replyText)
+                    etMessage.setSelection(etMessage.text?.length ?: 0)
+                    scrollView.visibility = View.GONE
+                }
+            }
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { marginEnd = dp(8) }
+            container.addView(chip, lp)
+        }
+        scrollView.visibility = View.VISIBLE
     }
 
     private fun initializeViews() {

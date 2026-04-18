@@ -30,6 +30,7 @@ class AiOnboardingActivity : AppCompatActivity() {
     private var userId: Int = 0
     private var userLanguage: String = "Tamil"
     private var currentStep: Int = 0
+    private var selectedConcern: String = "loneliness"
 
     // Tanglish translations — regional language words in English/Roman script
     private val concernTranslations = mapOf(
@@ -156,17 +157,19 @@ class AiOnboardingActivity : AppCompatActivity() {
         })
 
         viewModel.errorLiveData.observe(this, Observer { error ->
+            android.util.Log.w("AiOnboarding", "Error: $error")
             binding.tvTypingStatus.text = "Online"
             binding.etMessage.isEnabled = true
             binding.btnSend.isEnabled = true
             binding.loadingOverlay.visibility = View.GONE
+            chatAdapter.hideTyping()
 
-            // On error during start, use fallback and allow continue
+            // On error during start, use language-aware Tanglish fallback
             if (sessionId == null) {
                 binding.inputBar.visibility = View.GONE
                 binding.btnLetsGo.visibility = View.VISIBLE
                 chatAdapter.addMessage(AiChatMessage(
-                    "Don't worry, we have wonderful people here who would love to talk with you!",
+                    localisedFallback(selectedConcern, userLanguage),
                     isUser = false
                 ))
                 scrollToBottom()
@@ -181,6 +184,7 @@ class AiOnboardingActivity : AppCompatActivity() {
     }
 
     private fun startAiChat(concern: String) {
+        selectedConcern = concern
         binding.viewFlipper.displayedChild = 1
         binding.etMessage.isEnabled = false
         binding.btnSend.isEnabled = false
@@ -188,6 +192,43 @@ class AiOnboardingActivity : AppCompatActivity() {
         chatAdapter.showTyping()
         scrollToBottom()
         viewModel.startOnboarding(userId, concern)
+    }
+
+    private fun localisedFallback(concern: String, language: String): String {
+        val byLang = mapOf(
+            "Tamil" to mapOf(
+                "breakup" to "Ayyo da, breakup-a? \uD83D\uDC94 Romba kashtama irukum... Inga caring people irukanga, konjam nerathula unaku connect panren \uD83E\uDEC2",
+                "loneliness" to "Hey da, thanimai-a feel panreengala? \uD83D\uDE14 Naan inga irukken... caring people kitta konnect panren \uD83E\uDD17",
+                "stress" to "Stress-la irukeengala da? \uD83D\uDE30 Deep breath edunga... super people kitta connect panren \uD83D\uDCAD",
+                "boredom" to "Boring-a irukka da? \uD83D\uDE34 Don't worry, fun people kitta connect panren \uD83C\uDF1F"
+            ),
+            "Hindi" to mapOf(
+                "breakup" to "Arey yaar, breakup hua? \uD83D\uDC94 Bahut mushkil hota hai... Don't worry, accha log hai yahan \uD83E\uDEC2",
+                "loneliness" to "Arey yaar, akela feel ho raha? \uD83D\uDE14 Main hoon yahan... caring log se connect karenge \uD83E\uDD17",
+                "stress" to "Stress mein ho? \uD83D\uDE30 Deep breath lo... super log se baat karenge \uD83D\uDCAD",
+                "boredom" to "Bore ho rahe? \uD83D\uDE34 Fun log ready hai, connect karte hain \uD83C\uDF1F"
+            ),
+            "Telugu" to mapOf(
+                "breakup" to "Ayyo breakup-a? \uD83D\uDC94 Chala kashtamga untundi... Caring people unnaru ikkada \uD83E\uDEC2",
+                "loneliness" to "Ontaritanam-a feel avthunnava? \uD83D\uDE14 Nenu unnanu... caring people ki connect chestha \uD83E\uDD17",
+                "stress" to "Stress lo unnava? \uD83D\uDE30 Deep breath tiskondi... super people ki connect chestha \uD83D\uDCAD",
+                "boredom" to "Boring ga undha? \uD83D\uDE34 Fun people unnaru, connect chestha \uD83C\uDF1F"
+            ),
+            "Kannada" to mapOf(
+                "breakup" to "Ayyo breakup-a? \uD83D\uDC94 Tumba kashtavaagutte... Caring people iddare illi \uD83E\uDEC2",
+                "loneliness" to "Onti feel aagutte? \uD83D\uDE14 Naanu iddini... caring people ge connect maadtini \uD83E\uDD17",
+                "stress" to "Stress-nalli iddira? \uD83D\uDE30 Deep breath tagoli... super people ge connect maadtini \uD83D\uDCAD",
+                "boredom" to "Boring aagide? \uD83D\uDE34 Fun people idaare, connect maadtini \uD83C\uDF1F"
+            ),
+            "Malayalam" to mapOf(
+                "breakup" to "Ayyo breakup-o? \uD83D\uDC94 Valare kashtam aanu... Caring aalukal undu ivide \uD83E\uDEC2",
+                "loneliness" to "Ekanatha feel cheyyunno? \uD83D\uDE14 Njaan undu... caring aalukalkku connect cheyaam \uD83E\uDD17",
+                "stress" to "Stress aano? \uD83D\uDE30 Deep breath edukku... super aalukalkku connect cheyaam \uD83D\uDCAD",
+                "boredom" to "Boring aano? \uD83D\uDE34 Fun aalukal undu, connect cheyaam \uD83C\uDF1F"
+            )
+        )
+        val map = byLang[language] ?: byLang["Tamil"]!!
+        return map[concern] ?: map["loneliness"]!!
     }
 
     private fun sendUserMessage() {

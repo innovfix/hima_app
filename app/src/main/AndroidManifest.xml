@@ -259,7 +259,8 @@
         <activity android:name=".activities.SelectGenderActivity" />
         <activity android:name=".activities.SelectLanguageActivity" />
         <activity android:name=".activities.AiOnboardingActivity"
-            android:screenOrientation="portrait" />
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize" />
         <activity android:name=".activities.LoginActivity" />
         <activity
             android:name=".activities.NewLoginActivity"

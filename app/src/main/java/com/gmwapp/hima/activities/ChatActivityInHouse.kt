@@ -149,6 +149,10 @@ class ChatActivityInHouse : AppCompatActivity() {
         initializeViews()
         setupRecyclerView()
         setupUserIds()
+        if (peerUserId > 0) {
+            android.util.Log.d("QuickReply", "loading chips for peer=$peerUserId")
+            loadQuickReplyChips(peerUserId)
+        }
         setupClickListeners()
         connectSocket()
         suppressNextResumeHistoryReload = true
@@ -219,12 +223,8 @@ class ChatActivityInHouse : AppCompatActivity() {
         layoutParams.marginStart = marginInPx
         ivUser.layoutParams = layoutParams
 
-        // For female creators: load quick reply chips if the other user just did AI onboarding
-        val currentUserData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        val isCreator = currentUserData?.gender?.equals(DConstants.FEMALE, ignoreCase = true) == true
-        if (isCreator && peerUserId > 0) {
-            loadQuickReplyChips(peerUserId)
-        }
+        // NOTE: peerUserId isn't populated yet here — setupUserIds() runs after
+        // initializeViews(). Chip loading moved to onCreate, called after setupUserIds().
 
         window.statusBarColor = ContextCompat.getColor(this, R.color.white)
 
@@ -1996,62 +1996,75 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     /**
-     * Load quick reply chips for creators when the user just completed AI onboarding.
-     * Shows 4 pre-written Tanglish templates based on the user's concern (breakup/loneliness/stress/boredom).
+     * Load quick reply chips for creators. Shows Tanglish templates based on
+     * the user's AI-onboarding concern; falls back to generic chips so a
+     * creator always has something to tap.
      */
     private fun loadQuickReplyChips(userId: Int) {
         val scrollView = findViewById<android.widget.HorizontalScrollView>(R.id.quick_reply_scroll) ?: return
         val container = findViewById<android.widget.LinearLayout>(R.id.quick_reply_container) ?: return
+
+        val defaultReplies = listOf(
+            "Hi da! 👋 Eppadi iruka?",
+            "Sollu da, enna pannra? 😊",
+            "Pesuvoma? Naan free 💬",
+            "Let's chat da! ✨"
+        )
+
+        fun renderChips(replies: List<String>) {
+            if (replies.isEmpty()) return
+            container.removeAllViews()
+            val densityPx = { dp: Int -> (dp * resources.displayMetrics.density).toInt() }
+            replies.forEach { replyText ->
+                val chip = TextView(this@ChatActivityInHouse).apply {
+                    text = replyText
+                    textSize = 13f
+                    setTextColor(ContextCompat.getColor(this@ChatActivityInHouse, R.color.colorAccent))
+                    typeface = androidx.core.content.res.ResourcesCompat.getFont(context, R.font.poppins_semibold)
+                    setBackgroundResource(R.drawable.bg_quick_reply_chip)
+                    setPadding(densityPx(16), densityPx(9), densityPx(16), densityPx(9))
+                    isClickable = true
+                    isFocusable = true
+                    setOnClickListener {
+                        etMessage.setText(replyText)
+                        btnSend.performClick()
+                        scrollView.visibility = View.GONE
+                    }
+                }
+                val lp = android.widget.LinearLayout.LayoutParams(
+                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { marginEnd = densityPx(8) }
+                container.addView(chip, lp)
+            }
+            scrollView.visibility = View.VISIBLE
+        }
+
+        // Render defaults IMMEDIATELY so chips are always visible, even before (or if)
+        // the API call ever completes. Upgrade to concern-based chips when the API returns.
+        android.util.Log.d("QuickReply", "rendering defaults immediately for peer=$userId")
+        renderChips(defaultReplies)
 
         apiManager.getUserConcern(userId, object : com.gmwapp.hima.retrofit.callbacks.NetworkCallback<com.gmwapp.hima.retrofit.responses.UserConcernResponse> {
             override fun onResponse(
                 call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.UserConcernResponse>,
                 response: retrofit2.Response<com.gmwapp.hima.retrofit.responses.UserConcernResponse>
             ) {
-                val body = response.body() ?: return
-                if (body.success != true || body.hasConcern != true) return
-                val replies = body.quickReplies ?: return
-                if (replies.isEmpty()) return
-
-                container.removeAllViews()
-                val densityPx = { dp: Int -> (dp * resources.displayMetrics.density).toInt() }
-                replies.forEach { replyText ->
-                    val chip = TextView(this@ChatActivityInHouse).apply {
-                        text = replyText
-                        textSize = 13f
-                        setTextColor(ContextCompat.getColor(this@ChatActivityInHouse, R.color.colorAccent))
-                        typeface = androidx.core.content.res.ResourcesCompat.getFont(context, R.font.poppins_semibold)
-                        setBackgroundResource(R.drawable.bg_quick_reply_chip)
-                        setPadding(densityPx(16), densityPx(9), densityPx(16), densityPx(9))
-                        isClickable = true
-                        isFocusable = true
-                        setOnClickListener {
-                            etMessage.setText(replyText)
-                            btnSend.performClick()
-                            // Hide chips after first use
-                            scrollView.visibility = View.GONE
-                        }
-                    }
-                    val lp = android.widget.LinearLayout.LayoutParams(
-                        android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
-                        android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-                    ).apply {
-                        marginEnd = densityPx(8)
-                    }
-                    container.addView(chip, lp)
-                }
-                scrollView.visibility = View.VISIBLE
+                val body = response.body()
+                val replies = body?.quickReplies?.takeIf { it.isNotEmpty() } ?: return
+                android.util.Log.d("QuickReply", "upgrading to ${replies.size} concern-based chips")
+                renderChips(replies)
             }
 
             override fun onFailure(
                 call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.UserConcernResponse>,
                 t: Throwable
             ) {
-                // silent fail - chips just won't show
+                android.util.Log.w("QuickReply", "API failed, keeping defaults: ${t.message}")
             }
 
             override fun onNoNetwork() {
-                // silent fail
+                android.util.Log.w("QuickReply", "No network, keeping defaults")
             }
         })
     }

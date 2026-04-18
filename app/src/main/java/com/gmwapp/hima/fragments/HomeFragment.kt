@@ -210,10 +210,13 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 updateFilterButtonStyles()
             }
         }
-        
+
         userData?.id?.let {
             if (context?.let { it1 -> isInternetAvailable(it1) } == true) {
-                loadFemaleUsers(it)
+                // Don't override the My Chats adapter when user just came from onboarding
+                if (!showMyChats) {
+                    loadFemaleUsers(it)
+                }
             } else {
                 binding.tvNointernet.visibility = View.VISIBLE
                 setLoading(false)
@@ -497,7 +500,11 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                             lastMessage = item.lastMessage?.message ?: "",
                             lastMessageTime = ts,
                             unreadCount = item.unreadCount,
-                            isOnline = false
+                            isOnline = (item.user.audioStatus == 1 || item.user.videoStatus == 1),
+                            audioStatus = item.user.audioStatus ?: 1,
+                            videoStatus = item.user.videoStatus ?: 1,
+                            coinPerMinAudio = item.user.coinPerMinAudio ?: 10,
+                            coinPerMinVideo = item.user.coinPerMinVideo ?: 60
                         )
                     } catch (_: Exception) { null }
                 }.sortedByDescending { it.lastMessageTime?.seconds ?: 0 }
@@ -519,14 +526,25 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             override fun onFailure(call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.MyChatResponse>, t: Throwable) {
                 setLoading(false)
                 binding.swipeRefreshLayout.isRefreshing = false
+                showEmptyMyChats()
             }
 
             override fun onNoNetwork() {
                 setLoading(false)
                 binding.swipeRefreshLayout.isRefreshing = false
+                showEmptyMyChats()
             }
         })
     }
+
+    private fun showEmptyMyChats() {
+        val activityCtx = activity ?: return
+        val emptyAdapter = com.gmwapp.hima.adapters.ChatListAdapter(activityCtx, ArrayList()) { }
+        binding.rvProfiles.layoutManager = LinearLayoutManager(activity, LinearLayoutManager.VERTICAL, false)
+        binding.rvProfiles.adapter = emptyAdapter
+        binding.rvProfiles.visibility = View.VISIBLE
+    }
+
 
     fun initFab() {
         binding.fabRandom.extend()

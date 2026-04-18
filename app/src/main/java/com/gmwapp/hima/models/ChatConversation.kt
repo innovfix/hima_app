@@ -10,7 +10,11 @@ data class ChatConversation(
     val lastMessage: String = "",
     val lastMessageTime: Timestamp? = null,
     val unreadCount: Int = 0,
-    val isOnline: Boolean = false
+    val isOnline: Boolean = false,
+    val audioStatus: Int = 1,
+    val videoStatus: Int = 1,
+    val coinPerMinAudio: Int = 10,
+    val coinPerMinVideo: Int = 60
 )
 
 

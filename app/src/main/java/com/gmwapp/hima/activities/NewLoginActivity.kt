@@ -543,9 +543,22 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                 }
                 else -> {
                     binding.btnSendOtp.isEnabled = false
-                    val r = Random(System.currentTimeMillis())
-                    otp = r.nextInt(100000, 999999)
-                    sendOTP(mobile, countryCode)
+                    // Test-mobile bypass: numbers starting with 99999 skip SMS dispatch
+                    // entirely — use OTP "011011" on the next screen to log in.
+                    if (mobile.startsWith("99999")) {
+                        this.mobile = mobile
+                        otp = 11011
+                        binding.pbSendOtpLoader.visibility = View.GONE
+                        binding.btnSendOtp.setText(getString(R.string.send_otp))
+                        binding.loginSection.visibility = View.GONE
+                        binding.otpSection.visibility = View.VISIBLE
+                        binding.cvOtpBack.visibility = View.VISIBLE
+                        initOtpUI(mobile, 11011, countryCode)
+                    } else {
+                        val r = Random(System.currentTimeMillis())
+                        otp = r.nextInt(100000, 999999)
+                        sendOTP(mobile, countryCode)
+                    }
                 }
             }
         }
