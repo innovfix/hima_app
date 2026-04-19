@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<menu xmlns:android="http://schemas.android.com/apk/res/android">
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/action_accept_as_friend"
+        android:title="@string/chat_add_friend_menu_item"
+        android:visible="false"
+        app:showAsAction="never" />
     <item
         android:id="@+id/action_block"
         android:title="Block User"
