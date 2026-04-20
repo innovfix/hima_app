@@ -57,5 +57,7 @@ data class UserData (
     val ipl_team: String? = null,
     val ipl_rooms_enabled: Int? = 0,
     val dnd_enabled: Int? = 0,
-    val dnd_until: String? = null
+    val dnd_until: String? = null,
+    val startab: Int? = 0,
+    val starcreator: Int? = 0
 )

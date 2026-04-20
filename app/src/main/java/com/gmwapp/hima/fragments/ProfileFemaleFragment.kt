@@ -196,6 +196,7 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 BaseApplication.getInstance()?.getPrefs()?.setUserData(fresh)
                 updateIplBadge()
                 refreshDndUi()
+                refreshStarCreatorVisibility()
             }
         }
 
@@ -276,10 +277,10 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
             startActivity(intent)
         }
 
-        // Hide "Become Star Creator" for users who are already a star
+        // Show "Become Star Creator" only if starcreator == 1 and user is not already a star
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        binding.clStarCreatorApply.visibility =
-            if (userData?.star == 1) View.GONE else View.VISIBLE
+        val showStarCreator = (userData?.starcreator ?: 0) == 1 && userData?.star != 1
+        binding.clStarCreatorApply.visibility = if (showStarCreator) View.VISIBLE else View.GONE
 
         binding.clStarCreatorApply.setOnSingleClickListener {
             val intent = Intent(context, StarCreatorApplicationActivity::class.java)
@@ -388,6 +389,12 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 }
             }
         }
+    }
+
+    private fun refreshStarCreatorVisibility() {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val showStarCreator = (userData?.starcreator ?: 0) == 1 && userData?.star != 1
+        binding.clStarCreatorApply.visibility = if (showStarCreator) View.VISIBLE else View.GONE
     }
 
     override fun onNetworkRetry() {
