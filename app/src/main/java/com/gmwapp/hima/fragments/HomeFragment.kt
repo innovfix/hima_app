@@ -245,6 +245,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 Log.d("coinsvalue", "${userData.name}")
                 // Refresh IPL banner visibility once user data arrives from server
                 refreshIplBanner()
+                refreshStarTabVisibility()
             } ?: Log.e("HomeFragment", "RegisterResponse is null")
         })
 
@@ -411,11 +412,18 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
         // Set initial state
         updateFilterButtonStyles()
+        refreshStarTabVisibility()
 
         binding.btnFilterMyChats.setOnClickListener { applyFilter("my_chats") }
         binding.btnFilterAll.setOnClickListener { applyFilter("all") }
         binding.btnFilterNew.setOnClickListener { applyFilter("new") }
         binding.btnFilterStar.setOnClickListener { applyFilter("star") }
+    }
+
+    private fun refreshStarTabVisibility() {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val showStar = (userData?.startab ?: 0) == 1
+        binding.btnFilterStar.visibility = if (showStar) View.VISIBLE else View.GONE
     }
 
     private fun updateFilterButtonStyles() {
