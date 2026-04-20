@@ -23,6 +23,17 @@
     <string name="rupee_text">\u20B9%s</string>
     <string name="rupee_symbol">\u20B9</string>
     <string name="home">Home</string>
+    <string name="chat">Chat</string>
+    <string name="friends_empty_state_title">No friends yet</string>
+    <string name="friends_empty_state_subtitle">Start connecting with people\nby sending friend requests</string>
+    <string name="chat_empty_state_title">No chats yet</string>
+    <string name="chat_empty_state_subtitle">Messages from users will appear here</string>
+    <string name="chat_tab_friends">Friends</string>
+    <string name="chat_tab_general">General</string>
+    <string name="chat_friends_empty_state_title">No friends yet</string>
+    <string name="chat_friends_empty_state_subtitle">Accept friend requests to chat with them here</string>
+    <string name="chat_general_empty_state_title">No chats yet</string>
+    <string name="chat_general_empty_state_subtitle">New conversations will appear here</string>
     <string name="recent">Recent</string>
     <string name="messages">Messages</string>
     <string name="favourite">Favourite</string>
@@ -36,6 +47,26 @@
     <string name="peer_unavailable_audio">This user is not available for audio calls right now.</string>
     <string name="peer_unavailable_video">This user is not available for video calls right now.</string>
     <string name="peer_calls_blocked">You can\'t call this user.</string>
+
+    <!-- Chat list card -->
+    <string name="chat_preview_no_messages">No messages yet</string>
+    <string name="chat_preview_photo">📷 Photo</string>
+    <string name="chat_preview_voice">🎤 Voice message</string>
+    <string name="chat_free_label">Chat • FREE</string>
+    <string name="chat_add_friend_banner_title">Add %1$s as a friend?</string>
+    <string name="chat_add_friend_yes">Yes</string>
+    <string name="chat_add_friend_not_now">Not now</string>
+    <string name="chat_add_friend_menu_item">Accept as friend</string>
+    <string name="chat_add_friend_success">You are now friends with %1$s</string>
+    <string name="chat_add_friend_failure">Couldn\'t add friend. Please try again.</string>
+    <string name="call_unavailable">Unavailable</string>
+    <string name="notify_bell_default_desc">Notify when online</string>
+    <string name="notify_bell_on_desc">Notifications on for %s</string>
+    <string name="notify_bell_off_desc">Notify when %s is online</string>
+    <string name="notify_enabled_toast">You\'ll be notified when %s comes online</string>
+    <string name="notify_disabled_toast">Notification off for %s</string>
+    <string name="notify_error_toast">Couldn\'t update notification. Please try again.</string>
+    <string name="notify_no_network_toast">No network. Please try again.</string>
 
     <!-- IPL Team Badge -->
     <string name="choose_your_ipl_team">Choose Your IPL Team</string>
@@ -101,6 +132,12 @@
     <string name="male">Male</string>
     <string name="female">Female</string>
     <string name="continue_text">Continue</string>
+    <string name="getname_title">One last thing</string>
+    <string name="getname_subtitle">Tell us what to call you</string>
+    <string name="getname_input_label">Your name</string>
+    <string name="getname_input_hint">Enter your name</string>
+    <string name="getname_min_chars">Enter at least 2 characters</string>
+    <string name="getname_name_ok">Looks good!</string>
     <string name="personalise_yourself_hint">Pick your gender and avatar to make your profile unique</string>
     <string name="gender_change_warning">Gender can\'t be changed later</string>
     <string name="language_you_speak">Choose your language</string>
