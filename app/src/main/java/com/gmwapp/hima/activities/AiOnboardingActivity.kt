@@ -1,7 +1,10 @@
 package com.gmwapp.hima.activities
 
+import android.animation.ObjectAnimator
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.ViewFlipper
@@ -14,8 +17,10 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.AiChatAdapter
 import com.gmwapp.hima.adapters.AiChatMessage
 import com.gmwapp.hima.adapters.MatchedCreatorAdapter
+import com.gmwapp.hima.adapters.ProgressMatchAdapter
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityAiOnboardingBinding
+import com.gmwapp.hima.retrofit.responses.MatchedCreator
 import com.gmwapp.hima.viewmodels.AiOnboardingViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -31,6 +36,13 @@ class AiOnboardingActivity : AppCompatActivity() {
     private var userLanguage: String = "Tamil"
     private var currentStep: Int = 0
     private var selectedConcern: String = "loneliness"
+
+    // Delivery animation (Screen 3): avatar glides down the list as each
+    // matched creator's message is "delivered" one-by-one.
+    private val deliveryHandler = Handler(Looper.getMainLooper())
+    private var isDeliveryRunning = false
+    private val deliveryStaggerMs = 550L
+    private val deliveryTailMs = 800L
 
     // Tanglish translations — regional language words in English/Roman script
     private val concernTranslations = mapOf(
@@ -147,13 +159,14 @@ class AiOnboardingActivity : AppCompatActivity() {
         })
 
         viewModel.completeLiveData.observe(this, Observer { response ->
-            // Skip Screen 3 - go directly to Home with My Chats tab
-            binding.tvLoadingText.text = "Connecting you to creators..."
-            // Keep overlay visible for smooth transition feel
-            binding.rvCreators.postDelayed({
+            val creators = response?.matchedCreators ?: emptyList()
+            if (creators.isEmpty()) {
+                // No matches → skip the personalised animation and jump straight home.
                 binding.loadingOverlay.visibility = View.GONE
                 navigateToMain()
-            }, 1200)
+                return@Observer
+            }
+            startDeliveryAnimation(creators)
         })
 
         viewModel.errorLiveData.observe(this, Observer { error ->
@@ -261,10 +274,56 @@ class AiOnboardingActivity : AppCompatActivity() {
         }
     }
 
-    private fun showCreatorsList(creators: List<com.gmwapp.hima.retrofit.responses.MatchedCreator>) {
+    private fun showCreatorsList(creators: List<MatchedCreator>) {
         binding.viewFlipper.displayedChild = 2
         binding.rvCreators.layoutManager = LinearLayoutManager(this)
         binding.rvCreators.adapter = MatchedCreatorAdapter(this, creators)
+    }
+
+    /**
+     * Show the personalised delivery screen: creator avatars populate in a
+     * list, a Hima-branded messenger bubble glides down the list, and each
+     * row ticks green one-by-one. After the last tick we navigate home.
+     */
+    private fun startDeliveryAnimation(creators: List<MatchedCreator>) {
+        isDeliveryRunning = true
+        binding.loadingOverlay.visibility = View.GONE
+        binding.viewFlipper.displayedChild = 2
+
+        val adapter = ProgressMatchAdapter(this, creators)
+        binding.rvCreators.layoutManager = LinearLayoutManager(this)
+        binding.rvCreators.adapter = adapter
+
+        binding.rvCreators.post {
+            binding.ivMessengerAvatar.visibility = View.VISIBLE
+            creators.indices.forEach { i ->
+                deliveryHandler.postDelayed({
+                    adapter.markDelivered(i)
+                    slideMessengerToRow(i)
+                }, i * deliveryStaggerMs)
+            }
+            val totalMs = creators.size * deliveryStaggerMs + deliveryTailMs
+            deliveryHandler.postDelayed({
+                isDeliveryRunning = false
+                navigateToMain()
+            }, totalMs)
+        }
+    }
+
+    /**
+     * Translate the messenger bubble to sit centred-vertically on the row
+     * at [index]. First call also positions it horizontally. Falls back
+     * silently if the row hasn't been laid out yet.
+     */
+    private fun slideMessengerToRow(index: Int) {
+        val rv = binding.rvCreators
+        val rowView = rv.layoutManager?.findViewByPosition(index) ?: return
+        val rowCentre = rowView.top + (rowView.height / 2f)
+        val messengerHalf = binding.ivMessengerAvatar.height / 2f
+        val targetY = rowCentre - messengerHalf
+        ObjectAnimator.ofFloat(binding.ivMessengerAvatar, "translationY", binding.ivMessengerAvatar.translationY, targetY)
+            .setDuration(380)
+            .start()
     }
 
     private fun navigateToMain() {
@@ -294,6 +353,15 @@ class AiOnboardingActivity : AppCompatActivity() {
             // User must complete or skip
             return
         }
+        if (binding.viewFlipper.displayedChild == 2 && isDeliveryRunning) {
+            // Don't interrupt the delivery animation
+            return
+        }
         super.onBackPressed()
+    }
+
+    override fun onDestroy() {
+        deliveryHandler.removeCallbacksAndMessages(null)
+        super.onDestroy()
     }
 }

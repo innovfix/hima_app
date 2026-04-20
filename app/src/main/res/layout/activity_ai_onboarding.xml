@@ -334,7 +334,7 @@
 
         </LinearLayout>
 
-        <!-- Screen 3: Matched Creators List -->
+        <!-- Screen 3: Matched Creators List + Delivery Animation -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
@@ -342,13 +342,14 @@
             android:background="@color/white">
 
             <TextView
+                android:id="@+id/tv_creators_title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/poppins_bold"
                 android:gravity="center"
                 android:paddingTop="32dp"
                 android:paddingBottom="8dp"
-                android:text="We found people for you!"
+                android:text="Delivering your message…"
                 android:textColor="@color/creator_name_text"
                 android:textSize="20sp" />
 
@@ -360,19 +361,46 @@
                 android:gravity="center"
                 android:paddingHorizontal="32dp"
                 android:paddingBottom="16dp"
-                android:text="These creators are ready to talk with you right now"
+                android:text="Hima is reaching your matches now ✨"
                 android:textColor="@color/grey_medium"
                 android:textSize="14sp" />
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rv_creators"
+            <!-- Wrapper lets the messenger avatar float over the row list -->
+            <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
-                android:layout_weight="1"
-                android:clipToPadding="false"
-                android:paddingHorizontal="12dp"
-                android:paddingTop="8dp"
-                android:paddingBottom="80dp" />
+                android:layout_weight="1">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_creators"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipToPadding="false"
+                    android:paddingHorizontal="12dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="80dp" />
+
+                <!-- Hima messenger: overlaid bubble that glides to the row currently
+                     being delivered. Replaces the old "typing…" dots. -->
+                <FrameLayout
+                    android:id="@+id/iv_messenger_avatar"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_gravity="start|top"
+                    android:layout_marginStart="-6dp"
+                    android:background="@drawable/bg_hima_avatar"
+                    android:elevation="6dp"
+                    android:visibility="invisible"
+                    tools:visibility="visible">
+
+                    <ImageView
+                        android:layout_width="26dp"
+                        android:layout_height="26dp"
+                        android:layout_gravity="center"
+                        android:contentDescription="@null"
+                        android:src="@mipmap/ic_launcher" />
+                </FrameLayout>
+            </FrameLayout>
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_start_chatting"
@@ -383,6 +411,7 @@
                 android:text="Start Chatting"
                 android:textColor="@color/white"
                 android:textSize="16sp"
+                android:visibility="gone"
                 app:backgroundTint="@color/colorAccent"
                 app:cornerRadius="28dp" />
         </LinearLayout>
