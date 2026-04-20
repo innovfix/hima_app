@@ -84,11 +84,27 @@ class FemaleUserAdapter(
             holder.binding.iplTeamBadgeCard.visibility = View.GONE
         }
 
-        // Last message / time row is hidden — no longer displayed on home screen.
-        // Kept code commented for easy restoration if needed later.
-        // val lastMessage = femaleUser.last_message
-        // val hasMessage = lastMessage != null && lastMessage.message.isNotBlank()
-        // if (hasMessage) { ... } else { ... }
+        // Last message row: when the user has a chat with this creator show the
+        // real recent message + time; otherwise fall back to the "Tap to call
+        // and chat" hint in the brand colour.
+        val lastMessage = femaleUser.last_message
+        val hasMessage = lastMessage != null && lastMessage.message.isNotBlank()
+        if (hasMessage) {
+            holder.binding.tvLastMessage.text = lastMessage!!.message
+            holder.binding.tvLastMessage.setTextColor(
+                androidx.core.content.ContextCompat.getColor(activity, R.color.grey_medium)
+            )
+            holder.binding.tvTimeBottom.text = formatChatTime(lastMessage.timestamp)
+            holder.binding.tvTimeBottom.visibility = View.VISIBLE
+        } else {
+            holder.binding.tvLastMessage.text =
+                activity.getString(R.string.tap_to_call_and_chat)
+            holder.binding.tvLastMessage.setTextColor(
+                androidx.core.content.ContextCompat.getColor(activity, R.color.colorAccent)
+            )
+            holder.binding.tvTimeBottom.text = ""
+            holder.binding.tvTimeBottom.visibility = View.GONE
+        }
 
         val unread = femaleUser.unread_count
         if (unread > 0) {
