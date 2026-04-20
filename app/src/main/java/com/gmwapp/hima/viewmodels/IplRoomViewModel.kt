@@ -159,10 +159,12 @@ class IplRoomViewModel @Inject constructor(
 
                 override fun onFailure(call: Call<IplRoomLeaveResponse>, t: Throwable) {
                     Log.e(TAG, "leaveRoom failed: ${t.message}")
+                    errorLiveData.postValue("Couldn't leave the room. Please try again.")
                 }
 
                 override fun onNoNetwork() {
                     Log.e(TAG, "leaveRoom: no network")
+                    errorLiveData.postValue("No internet connection")
                 }
             })
         }
@@ -189,13 +191,19 @@ class IplRoomViewModel @Inject constructor(
             repository.sendIplReaction(userId, roomId, reactionType, object : NetworkCallback<IplRoomReactionResponse> {
                 override fun onResponse(call: Call<IplRoomReactionResponse>, response: Response<IplRoomReactionResponse>) {
                     Log.d(TAG, "Reaction sent: $reactionType")
+                    if (!response.isSuccessful || response.body()?.success != true) {
+                        errorLiveData.postValue("Couldn't send reaction. Check your internet.")
+                    }
                 }
 
                 override fun onFailure(call: Call<IplRoomReactionResponse>, t: Throwable) {
                     Log.e(TAG, "sendReaction failed: ${t.message}")
+                    errorLiveData.postValue("Couldn't send reaction. Check your internet.")
                 }
 
-                override fun onNoNetwork() {}
+                override fun onNoNetwork() {
+                    errorLiveData.postValue("No internet connection")
+                }
             })
         }
     }

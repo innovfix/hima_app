@@ -941,7 +941,12 @@ class IplRoomCallActivity : AppCompatActivity() {
     }
 
     private fun updateMemberCount() {
-        binding.tvMemberCount.text = "${members.size}/4"
+        // TC_010: QA saw "Shows 1 until they start to speak". Earlier this only
+        // counted speakers (members.size). A listener who has joined but not
+        // been promoted to a speaker slot wasn't reflected. Now include
+        // listeners so the count reflects everyone who's actually in the room.
+        val totalJoined = members.size + listenerUids.size
+        binding.tvMemberCount.text = "${members.size}/4 · $totalJoined joined"
     }
 
     // ===== REACTIONS =====

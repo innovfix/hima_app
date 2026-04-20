@@ -55,14 +55,10 @@ class BottomSheetCreateIplRoom(
         teamB = IplTeam.values().find { it.abbreviation == currentMatch!!.teamB }
         binding.tvMatchValue.text = "${currentMatch!!.teamA} vs ${currentMatch!!.teamB}"
 
-        // Pre-select user's existing team if it's one of the playing teams
-        val savedTeamAbbr = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.ipl_team
-        if (!savedTeamAbbr.isNullOrEmpty()) {
-            val saved = IplTeam.values().find { it.abbreviation == savedTeamAbbr }
-            if (saved != null && (saved == teamA || saved == teamB)) {
-                selectedTeam = saved
-            }
-        }
+        // TC_016: Do NOT auto-select a team. The user must tap one of the chips
+        // explicitly. Previously the saved IPL team was auto-selected which made
+        // QA see "Even when no team selected, one gets chosen automatically".
+        selectedTeam = null
 
         renderTeamChips()
         updateCreateButtonState()

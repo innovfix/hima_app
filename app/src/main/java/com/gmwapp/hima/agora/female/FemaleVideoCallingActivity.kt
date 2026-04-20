@@ -806,28 +806,15 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     }
 
     private fun setupIplTeamBadges() {
-        val prefs = BaseApplication.getInstance()?.getPrefs()
-        val savedTeamName = prefs?.getSelectedIplTeam()
-        val team = savedTeamName?.let { name ->
-            com.gmwapp.hima.models.IplTeam.values().find { it.name == name }
-        }
-        if (team != null) {
-            binding.femaleIplBadge.visibility = View.VISIBLE
-            binding.tvFemaleIplTeam.text = team.abbreviation
-            val femaleDot = binding.femaleIplDot.background.mutate() as android.graphics.drawable.GradientDrawable
-            femaleDot.setColor(android.graphics.Color.parseColor(team.primaryColor))
-            binding.femaleTeamRing.visibility = View.VISIBLE
-            val ringDrawable = binding.femaleTeamRing.background.mutate() as android.graphics.drawable.GradientDrawable
-            ringDrawable.setColor(android.graphics.Color.parseColor(team.primaryColor))
-        }
-        val demoTeam = com.gmwapp.hima.models.IplTeam.values().random()
-        binding.maleIplBadge.visibility = View.VISIBLE
-        binding.tvMaleIplTeam.text = demoTeam.abbreviation
-        val maleDot = binding.maleIplDot.background.mutate() as android.graphics.drawable.GradientDrawable
-        maleDot.setColor(android.graphics.Color.parseColor(demoTeam.primaryColor))
-        binding.maleTeamRing.visibility = View.VISIBLE
-        val maleRing = binding.maleTeamRing.background.mutate() as android.graphics.drawable.GradientDrawable
-        maleRing.setColor(android.graphics.Color.parseColor(demoTeam.primaryColor))
+        // TC_007: IPL team badges must only appear during IPL room calls, not
+        // during normal 1-to-1 calls. The previous implementation showed the
+        // saved team for self AND a RANDOM team for the peer, which QA saw as
+        // "IPL team fluctuates each call". Hiding them in all normal-call
+        // variants matches the male audio/video + female audio activities.
+        binding.femaleIplBadge.visibility = View.GONE
+        binding.femaleTeamRing.visibility = View.GONE
+        binding.maleIplBadge.visibility = View.GONE
+        binding.maleTeamRing.visibility = View.GONE
     }
 
     private fun avatarObservers() {

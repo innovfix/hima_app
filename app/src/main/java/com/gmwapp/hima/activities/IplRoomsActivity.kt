@@ -186,6 +186,10 @@ class IplRoomsActivity : AppCompatActivity() {
         viewModel.errorLiveData.observe(this) { error ->
             if (!error.isNullOrEmpty()) {
                 Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
+                // Always clear refresh spinner on error — otherwise it spins forever
+                // when the API never transitions the loading state back to false.
+                isLoadingMore = false
+                binding.swipeRefresh.isRefreshing = false
             }
         }
 

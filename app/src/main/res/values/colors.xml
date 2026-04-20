@@ -110,6 +110,7 @@
     <color name="chat_bubble_received">#F3F4F6</color>
     <color name="chat_text_sent">#FFFFFF</color>
     <color name="chat_text_received">#1F2937</color>
+    <color name="chat_attach_tint">#6B7280</color>
     <color name="chat_time_sent">#FFFFFF</color>
     <color name="chat_time_received">#9CA3AF</color>
     <color name="chat_input_bg">#F9FAFB</color>
