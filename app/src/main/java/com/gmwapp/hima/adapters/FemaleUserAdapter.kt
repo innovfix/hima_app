@@ -9,13 +9,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.ChatActivityInHouse
-import com.gmwapp.hima.agora.male.MaleCallConnectingActivity
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
-import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.AdapterFemaleUserBinding
 import com.gmwapp.hima.models.IplTeam
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponseData
-import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import java.text.SimpleDateFormat
 import java.util.Calendar
