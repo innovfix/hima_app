@@ -320,7 +320,9 @@
                 android:background="@drawable/bg_reaction_four"
                 android:paddingVertical="6dp"
                 android:clickable="true"
-                android:focusable="true">
+                android:focusable="true"
+                android:contentDescription="Send Four reaction"
+                android:foreground="?android:attr/selectableItemBackground">
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -349,7 +351,9 @@
                 android:background="@drawable/bg_reaction_six"
                 android:paddingVertical="6dp"
                 android:clickable="true"
-                android:focusable="true">
+                android:focusable="true"
+                android:contentDescription="Send Six reaction"
+                android:foreground="?android:attr/selectableItemBackground">
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -378,7 +382,9 @@
                 android:background="@drawable/bg_reaction_wicket"
                 android:paddingVertical="6dp"
                 android:clickable="true"
-                android:focusable="true">
+                android:focusable="true"
+                android:contentDescription="Send Wicket reaction"
+                android:foreground="?android:attr/selectableItemBackground">
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -396,6 +402,7 @@
 
             <LinearLayout
                 android:id="@+id/btn_reaction_great"
+                android:contentDescription="Send Great reaction"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -405,7 +412,8 @@
                 android:background="@drawable/bg_reaction_great"
                 android:paddingVertical="6dp"
                 android:clickable="true"
-                android:focusable="true">
+                android:focusable="true"
+                android:foreground="?android:attr/selectableItemBackground">
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"

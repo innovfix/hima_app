@@ -60,11 +60,14 @@
             tools:node="remove" />
         <activity
             android:name=".activities.IplRoomsActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:screenOrientation="portrait" />
         <activity
             android:name=".activities.IplRoomCallActivity"
             android:exported="false"
             android:launchMode="singleTask"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|screenSize|keyboardHidden"
             android:showWhenLocked="true"
             android:turnScreenOn="true" />
         <activity
