@@ -118,6 +118,19 @@ class ChatActivityInHouse : AppCompatActivity() {
     
     private var isChatVisible = false
     private val mainHandler = Handler(Looper.getMainLooper())
+
+    /** Delayed status log from [onCreate]; removed in [onDestroy] to avoid posting after activity is gone. */
+    private val logSocketStatusAfterDelay = Runnable { logSocketIOStatus() }
+
+    /** False after [onDestroy] / while finishing — use before touching views from async callbacks. */
+    private fun isUiSafe(): Boolean {
+        if (isFinishing) return false
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+            !isDestroyed
+        } else {
+            true
+        }
+    }
     
     // Track message sending method
     private val messageSendMethod = mutableMapOf<String, String>() // messageId -> "socket" or "api"
@@ -257,10 +270,8 @@ class ChatActivityInHouse : AppCompatActivity() {
         setupCallButtons()
         setupCallButtonListeners()
         
-        // Log initial status
-        mainHandler.postDelayed({
-            logSocketIOStatus()
-        }, 3000)
+        // Log initial status (runnable cleared in onDestroy)
+        mainHandler.postDelayed(logSocketStatusAfterDelay, 3000)
     }
 
     private fun initializeViews() {
@@ -399,6 +410,12 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun initAddFriendBanner() {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val isMaleUser = userData?.gender?.equals(DConstants.MALE, ignoreCase = true) == true
+        if (isMaleUser) {
+            bannerAddFriend?.visibility = View.GONE
+            return
+        }
         tvBannerAddFriendTitle?.text = getString(R.string.chat_add_friend_banner_title, peerName)
         btnBannerNotNow?.setOnClickListener {
             isAddFriendBannerDismissedThisSession = true
@@ -433,6 +450,12 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun updateAddFriendUi() {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val isMaleUser = userData?.gender?.equals(DConstants.MALE, ignoreCase = true) == true
+        if (isMaleUser) {
+            bannerAddFriend?.visibility = View.GONE
+            return
+        }
         val showBannerAndMenu = !isFriendWithPeer
         bannerAddFriend?.visibility =
             if (showBannerAndMenu && !isAddFriendBannerDismissedThisSession) View.VISIBLE else View.GONE
@@ -1006,6 +1029,7 @@ class ChatActivityInHouse : AppCompatActivity() {
     private fun updateOnlineStatusFromAPI(lastOnlineStatus: String?) {
         this.lastOnlineStatus = lastOnlineStatus
         mainHandler.post {
+            if (!isUiSafe()) return@post
             // Show status only if it's not null or empty
             if (!lastOnlineStatus.isNullOrEmpty()) {
                 tvUserStatus.text = lastOnlineStatus
@@ -1171,6 +1195,10 @@ class ChatActivityInHouse : AppCompatActivity() {
                 override fun onResponse(call: Call<ChatHistoryResponse>, response: Response<ChatHistoryResponse>) {
                     if (requestId != historyLoadRequestId.get()) {
                         Log.d("ChatPagination", "Ignoring stale chat history response (requestId=$requestId, latest=${historyLoadRequestId.get()})")
+                        return
+                    }
+                    if (!isUiSafe()) {
+                        Log.d("ChatPagination", "Ignoring chat history response — activity not safe")
                         return
                     }
                     if (response.isSuccessful) {
@@ -1344,6 +1372,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                         Log.d("ChatPagination", "Ignoring stale chat history failure (requestId=$requestId)")
                         return
                     }
+                    if (!isUiSafe()) return
                     Log.e("ChatPagination", "❌ Error loading messages: ${t.message}", t)
                     Log.e("chathisoryapi", "❌ NETWORK ERROR: ${t.message}")
                     Log.e("chathisoryapi", "Request URL: ${call.request().url}")
@@ -1356,6 +1385,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                         Log.d("ChatPagination", "Ignoring stale chat history no-network (requestId=$requestId)")
                         return
                     }
+                    if (!isUiSafe()) return
                     Log.e("ChatPagination", "❌ No network connection")
                     Log.e("chathisoryapi", "❌ NO NETWORK CONNECTION")
                     showAppToast("No internet connection", Toast.LENGTH_SHORT)
@@ -1396,6 +1426,11 @@ class ChatActivityInHouse : AppCompatActivity() {
             object : NetworkCallback<ChatHistoryResponse> {
                 override fun onResponse(call: Call<ChatHistoryResponse>, response: Response<ChatHistoryResponse>) {
                     if (response.isSuccessful) {
+                        if (!isUiSafe()) {
+                            Log.d("ChatPagination", "Ignoring pagination response — activity not safe")
+                            isLoadingMore = false
+                            return
+                        }
                         val responseBody = response.body()
                         
                         // Log complete API response with chathisoryapi tag (for pagination)
@@ -1511,6 +1546,10 @@ class ChatActivityInHouse : AppCompatActivity() {
                 }
 
                 override fun onFailure(call: Call<ChatHistoryResponse>, t: Throwable) {
+                    if (!isUiSafe()) {
+                        isLoadingMore = false
+                        return
+                    }
                     Log.e("ChatPagination", "❌ Error loading more messages: ${t.message}", t)
                     Log.e("chathisoryapi", "❌ PAGINATION NETWORK ERROR: ${t.message}")
                     Log.e("chathisoryapi", "Request URL: ${call.request().url}")
@@ -1518,6 +1557,10 @@ class ChatActivityInHouse : AppCompatActivity() {
                 }
 
                 override fun onNoNetwork() {
+                    if (!isUiSafe()) {
+                        isLoadingMore = false
+                        return
+                    }
                     Log.e("ChatPagination", "❌ No network connection")
                     Log.e("chathisoryapi", "❌ PAGINATION - NO NETWORK CONNECTION")
                     showAppToast("No internet connection", Toast.LENGTH_SHORT)
@@ -2035,22 +2078,19 @@ class ChatActivityInHouse : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
 
+        mainHandler.removeCallbacks(logSocketStatusAfterDelay)
         mainHandler.removeCallbacks(recordingTicker)
         stopRecordingPulse()
         audioRecorderController.release()
         chatAdapter.release()
         
         Log.d("SocketIOCheck", "═══════════════════════════════════════")
-        Log.d("SocketIOCheck", "🔌 Disconnecting Socket.IO - Leaving ChatActivityInHouse")
+        Log.d("SocketIOCheck", "👋 Leaving chat room (socket stays connected for app session)")
         Log.d("SocketIOCheck", "═══════════════════════════════════════")
         
-        // Leave chat room
+        // Leave this chat room only — do not disconnect the global socket here.
+        // Disconnecting on every close caused reconnect races when opening chat repeatedly (blank UI / failed loads).
         socketManager.leaveChat(chatId)
-        
-        // Disconnect Socket.IO only on destroy
-        socketManager.disconnect()
-        
-        Log.d("SocketIOCheck", "✅ Socket.IO disconnected")
     }
 
     override fun onBackPressed() {
@@ -2227,7 +2267,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         popup.menuInflater.inflate(R.menu.menu_chat, popup.menu)
 
         // Show block option or unblock option based on current status
-        popup.menu.findItem(R.id.action_accept_as_friend)?.isVisible = !isFriendWithPeer
+        popup.menu.findItem(R.id.action_accept_as_friend)?.isVisible = false
         popup.menu.findItem(R.id.action_block)?.isVisible = !iHaveBlockedThisUser
         popup.menu.findItem(R.id.action_unblock)?.isVisible = iHaveBlockedThisUser
 
@@ -2496,6 +2536,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                             Log.d("ChatActivityInHouse", "Call availability - Blocked: $isCallBlocked, Audio: $peerAudioStatus, Video: $peerVideoStatus")
                             
                             mainHandler.post {
+                                if (!isUiSafe()) return@post
                                 callButtonsContainer.visibility = View.VISIBLE
                                 // Initialize buttons as disabled (gray) first
                                 cvAudioCall.setCardBackgroundColor(ContextCompat.getColor(this@ChatActivityInHouse, R.color.light_grey))
@@ -2536,6 +2577,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         if (isCallBlocked) {
             Log.d("CallButtons", "User is BLOCKED - disabling both audio and video buttons")
             mainHandler.post {
+                if (!isUiSafe()) return@post
                 // DISABLED - Gray for both buttons
                 cvAudioCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.light_grey))
                 ivAudioCall.setColorFilter(ContextCompat.getColor(this, R.color.grey_medium))
@@ -2555,6 +2597,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         Log.d("CallButtons", "Final status - Audio: $isAudioEnabled ($peerAudioStatus), Video: $isVideoEnabled ($peerVideoStatus)")
         
         mainHandler.post {
+            if (!isUiSafe()) return@post
             // Audio button state - enabled only if audio is enabled (status = 1)
             if (isAudioEnabled) {
                 // ENABLED - Purple
