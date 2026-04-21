@@ -1,13 +1,12 @@
 package com.gmwapp.hima.activities
 
+import android.animation.ObjectAnimator
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.View
 import android.view.inputmethod.EditorInfo
-import android.widget.TextView
-import android.widget.Toast
 import android.widget.ViewFlipper
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -18,10 +17,10 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.AiChatAdapter
 import com.gmwapp.hima.adapters.AiChatMessage
 import com.gmwapp.hima.adapters.MatchedCreatorAdapter
+import com.gmwapp.hima.adapters.ProgressMatchAdapter
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityAiOnboardingBinding
 import com.gmwapp.hima.retrofit.responses.MatchedCreator
-import com.gmwapp.hima.utils.applySystemBarInsets
 import com.gmwapp.hima.viewmodels.AiOnboardingViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -36,241 +35,39 @@ class AiOnboardingActivity : AppCompatActivity() {
     private var userId: Int = 0
     private var userLanguage: String = "Tamil"
     private var currentStep: Int = 0
+    private var selectedConcern: String = "loneliness"
 
-    private val mainHandler = Handler(Looper.getMainLooper())
-    private var autoCompleteRunnable: Runnable? = null
-    private val sendAnimationRunnables = mutableListOf<Runnable>()
+    // Delivery animation (Screen 3): avatar glides down the list as each
+    // matched creator's message is "delivered" one-by-one.
+    private val deliveryHandler = Handler(Looper.getMainLooper())
+    private var isDeliveryRunning = false
+    private val deliveryStaggerMs = 550L
+    private val deliveryTailMs = 800L
 
-    // Tanglish / Hinglish / Tenglish translations — regional language words
-    // in English/Roman script (e.g. "manasu aara venum" rather than "மனசு ஆற வேணும்").
+    // Tanglish translations — regional language words in English/Roman script
     private val concernTranslations = mapOf(
-        "Tamil" to mapOf(
-            "title" to "Hima app-la enna ethir paathu varenga?",
-            "subtitle" to "Sollunga, ungalukku right-aana aalai connect pannrom",
-            "breakup" to "Breakup",
-            "loneliness" to "Thanimai",
-            "stress" to "Stress",
-            "boredom" to "Boring",
-            "breakup_desc" to "Breakup aachu… manasu aara venum",
-            "loneliness_desc" to "Thanimai-a feel panren, pesa aalu venum",
-            "stress_desc" to "Life-la stress jaasti, love-aa pesurathukku aalu venum",
-            "boredom_desc" to "Boring-a iruken, fun-aa pesanum"
-        ),
-        "Hindi" to mapOf(
-            "title" to "Hima app par kya umeed se aaye ho?",
-            "subtitle" to "Batao, sahi insaan se connect kar denge",
-            "breakup" to "Breakup",
-            "loneliness" to "Akela",
-            "stress" to "Tension",
-            "boredom" to "Boring",
-            "breakup_desc" to "Breakup hua, dil ko sukoon chahiye",
-            "loneliness_desc" to "Akela feel ho raha, koi baat karne wala chahiye",
-            "stress_desc" to "Life stress-ful, pyaar se sunne wala chahiye",
-            "boredom_desc" to "Bore ho raha, fun baatein karni hai"
-        ),
-        "Telugu" to mapOf(
-            "title" to "Hima app ki enti expect chesi vachcharu?",
-            "subtitle" to "Cheppandi, correct manishini connect chestam",
-            "breakup" to "Breakup",
-            "loneliness" to "Ontaritanam",
-            "stress" to "Stress",
-            "boredom" to "Boring",
-            "breakup_desc" to "Breakup aindi, manasuki prashantata kavali",
-            "loneliness_desc" to "Ontarigaa feel avthunna, matladataniki evaro kavali",
-            "stress_desc" to "Life lo stress ekkuva, prematho vinevaru kavali",
-            "boredom_desc" to "Boring gaa undi, fun gaa maatladali"
-        ),
-        "Kannada" to mapOf(
-            "title" to "Hima app alli enu expect maadi bandidira?",
-            "subtitle" to "Heli, sariyada vyaktiya jote connect madtivi",
-            "breakup" to "Breakup",
-            "loneliness" to "Onti",
-            "stress" to "Stress",
-            "boredom" to "Boring",
-            "breakup_desc" to "Breakup aagide, manasige nemmadi beku",
-            "loneliness_desc" to "Onti antha anstaide, matadokke yaaro beku",
-            "stress_desc" to "Life-alli stress jaasti, preeti inda keluvavru beku",
-            "boredom_desc" to "Boring agtaide, fun-aagi matadbeku"
-        ),
-        "Malayalam" to mapOf(
-            "title" to "Hima app-il enthu pratheekshichaa vannathu?",
-            "subtitle" to "Parayoo, sariyaya aalkalumayi connect cheyyam",
-            "breakup" to "Breakup",
-            "loneliness" to "Ekanatha",
-            "stress" to "Stress",
-            "boredom" to "Boring",
-            "breakup_desc" to "Breakup aayi, manassinu aashwasam venam",
-            "loneliness_desc" to "Othakku feel cheyyunnu, samsarikkan aarelum venam",
-            "stress_desc" to "Life-il stress kooduthal, snehathode kelkkan aalu venam",
-            "boredom_desc" to "Boring aanu, fun-aayi samsaarikkanam"
-        ),
-        "Marathi" to mapOf(
-            "title" to "Hima app var kay apeksha ghevun aalays?",
-            "subtitle" to "Sanga, yogya manasacha jodun deu",
-            "breakup" to "Breakup",
-            "loneliness" to "Ekta",
-            "stress" to "Tension",
-            "boredom" to "Boring",
-            "breakup_desc" to "Breakup zhala, manala shantata havi",
-            "loneliness_desc" to "Ekata vaatatay, boloya sathi koni pahije",
-            "stress_desc" to "Life madhe stress jast, premane aiknaara pahije",
-            "boredom_desc" to "Bore zhalay, fun bolaycha aahe"
-        ),
-        "Bengali" to mapOf(
-            "title" to "Hima app-e ki asha niye esecho?",
-            "subtitle" to "Bolo, thik manusher sathe connect kore debo",
-            "breakup" to "Breakup",
-            "loneliness" to "Ekla",
-            "stress" to "Tension",
-            "boredom" to "Boring",
-            "breakup_desc" to "Breakup hoyeche, mone shanti lagbe",
-            "loneliness_desc" to "Ekla lagche, kotha bolar keu chai",
-            "stress_desc" to "Life-e stress beshi, bhalobese shone emon keu chai",
-            "boredom_desc" to "Bore lagche, fun kotha bolte chai"
-        ),
-        "Assamese" to mapOf(
-            "title" to "Hima app-ot ki asha loi ahisa?",
-            "subtitle" to "Kowa, sothik manuhor logot connect koraim",
-            "breakup" to "Breakup",
-            "loneliness" to "Okola",
-            "stress" to "Tension",
-            "boredom" to "Boring",
-            "breakup_desc" to "Breakup hol, monot shanti lage",
-            "loneliness_desc" to "Okola lagi ase, katha pator babe konoba lage",
-            "stress_desc" to "Life-t stress beshi, morome huna ekjon lage",
-            "boredom_desc" to "Bore lagi ase, fun-koi katha patibo khuju"
-        ),
-        "Odia" to mapOf(
-            "title" to "Hima app ku kana asha neigala aasile?",
-            "subtitle" to "Kahanta, thik loka sahit connect kariba",
-            "breakup" to "Breakup",
-            "loneliness" to "Ekalaa",
-            "stress" to "Tension",
-            "boredom" to "Boring",
-            "breakup_desc" to "Breakup heigala, manaku shanti darkar",
-            "loneliness_desc" to "Ekaki lagucchi, katha hebaku kehi darkar",
-            "stress_desc" to "Life re stress beshi, premare shunibaaku kehi darkar",
-            "boredom_desc" to "Bore lagucchi, fun katha hebaku chahe"
-        ),
-        "Gujarati" to mapOf(
-            "title" to "Hima app par shu aasha laine aavya?",
-            "subtitle" to "Kahejo, yogya vyakti saathe connect karishu",
-            "breakup" to "Breakup",
-            "loneliness" to "Ekla",
-            "stress" to "Tension",
-            "boredom" to "Boring",
-            "breakup_desc" to "Breakup thayo, man-ne shanti joiye",
-            "loneliness_desc" to "Ekla feel thay, vaat karva mate koi joiye",
-            "stress_desc" to "Life ma stress vadhu, premthi sambhalnar joiye",
-            "boredom_desc" to "Bore thay chhe, fun vaat karvi chhe"
-        ),
-        "Punjabi" to mapOf(
-            "title" to "Hima app te ki umeed naal aaye ho?",
-            "subtitle" to "Dasso, sahi insaan naal connect karange",
-            "breakup" to "Breakup",
-            "loneliness" to "Ikalla",
-            "stress" to "Tension",
-            "boredom" to "Boring",
-            "breakup_desc" to "Breakup ho gaya, man nu sukoon chaahida",
-            "loneliness_desc" to "Ikalla feel ho reha, gall karan waala chaahida",
-            "stress_desc" to "Life ch stress jyada, pyaar naal sunan waala chaahida",
-            "boredom_desc" to "Bore ho reha, fun galan karni aa"
-        )
-    )
-
-    // Strings used while we're picking creators and animating the "sent" rows.
-    // Tanglish/Hinglish/etc. — matches the vibe of concernTranslations above so the
-    // whole onboarding flow speaks in one voice instead of switching to formal English
-    // at the final step. Use %s as the creator name placeholder.
-    private val sendingTranslations = mapOf(
-        "Tamil" to mapOf(
-            "searching" to "Unakaha theduren…",
-            "sending_title" to "Unakaha message anupuren…",
-            "happy" to "Avanga pesuvanga, nee happy ya iruppa",
-            "sending_to" to "%s ku message anupuren…",
-            "sent_to" to "%s ku message sent",
-            "connecting" to "Unna correct aalukalukku connect pannuren…"
-        ),
-        "Hindi" to mapOf(
-            "searching" to "Tumhare liye dhundh raha hoon…",
-            "sending_title" to "Tumhare liye message bhej raha hoon…",
-            "happy" to "Wo baat karenge, tum khush ho jaoge",
-            "sending_to" to "%s ko message bhej raha hoon…",
-            "sent_to" to "%s ko message bhej diya",
-            "connecting" to "Tumhe sahi logon se milwa raha hoon…"
-        ),
-        "Telugu" to mapOf(
-            "searching" to "Nee kosam vethukutunnanu…",
-            "sending_title" to "Nee kosam message pampistunnanu…",
-            "happy" to "Vaallu matladataru, nuvvu happy ga untaavu",
-            "sending_to" to "%s ki message pampistunnanu…",
-            "sent_to" to "%s ki message pampincha",
-            "connecting" to "Nee kosam sariyaina vaallani connect chestunna…"
-        ),
-        "Kannada" to mapOf(
-            "searching" to "Ninage hudukta idini…",
-            "sending_title" to "Ninage message kaltidini…",
-            "happy" to "Avaru maatadtaare, ninna mood chennaag aagutte",
-            "sending_to" to "%s ge message kaltidini…",
-            "sent_to" to "%s ge message kalsida",
-            "connecting" to "Ninage sariyaada janara jote connect madtidini…"
-        ),
-        "Malayalam" to mapOf(
-            "searching" to "Ninakku venti thappunnu…",
-            "sending_title" to "Ninakku venti message ayakkunnu…",
-            "happy" to "Avar samsarikum, nee happy aakum",
-            "sending_to" to "%s inu message ayakkunnu…",
-            "sent_to" to "%s inu message ayachu",
-            "connecting" to "Ninne correct aalukkal kude connect cheyyunnu…"
-        ),
-        "Marathi" to mapOf(
-            "searching" to "Tuzyasaathi shodhatoy…",
-            "sending_title" to "Tuzyasaathi message pathavtoy…",
-            "happy" to "Te boltil, tu khush hoshi",
-            "sending_to" to "%s la message pathavtoy…",
-            "sent_to" to "%s la message pathavla",
-            "connecting" to "Tula yogya lokanshi jodto aahe…"
-        ),
-        "Bengali" to mapOf(
-            "searching" to "Tomar jonno khujchi…",
-            "sending_title" to "Tomar jonno message pathacchi…",
-            "happy" to "Tara kotha bolbe, tumi khushi hobe",
-            "sending_to" to "%s ke message pathacchi…",
-            "sent_to" to "%s ke message pathiye diyechi",
-            "connecting" to "Tomake thik manusher sathe jor diye dichhi…"
-        ),
-        "Assamese" to mapOf(
-            "searching" to "Tumar babe bisari asu…",
-            "sending_title" to "Tumar babe message pothai asu…",
-            "happy" to "Xihote kotha kobo, tumi khushi hobaa",
-            "sending_to" to "%s loi message pothai asu…",
-            "sent_to" to "%s loi message pothai dilu",
-            "connecting" to "Tumak xothik manuh logot connect kori asu…"
-        ),
-        "Odia" to mapOf(
-            "searching" to "Tuma paain khujuchi…",
-            "sending_title" to "Tuma paain message pathaucchi…",
-            "happy" to "Semane katha kahibe, tu khushi heba",
-            "sending_to" to "%s ku message pathaucchi…",
-            "sent_to" to "%s ku message pathai dichi",
-            "connecting" to "Tuma paain thik loka sahit connect karucchi…"
-        ),
-        "Gujarati" to mapOf(
-            "searching" to "Tamara mate khoji rahyo chhu…",
-            "sending_title" to "Tamara mate message mokli rahyo chhu…",
-            "happy" to "Te vaat karshe, tame khush thai jasho",
-            "sending_to" to "%s ne message mokli rahyo chhu…",
-            "sent_to" to "%s ne message mokli didho",
-            "connecting" to "Tamne yogya loko sathe connect kari rahyo chhu…"
-        ),
-        "Punjabi" to mapOf(
-            "searching" to "Tuhade layi labbh reha haan…",
-            "sending_title" to "Tuhade layi message bhej reha haan…",
-            "happy" to "Oh gall karange, tusi khush ho jaao ge",
-            "sending_to" to "%s nu message bhej reha haan…",
-            "sent_to" to "%s nu message bhej dita",
-            "connecting" to "Tuhanu sahi logan naal connect kar reha haan…"
-        )
+        "Tamil" to mapOf("breakup" to "Breakup", "loneliness" to "Thanimai", "stress" to "Stress", "boredom" to "Boring",
+            "title" to "Inniki eppadi feel pannureenga?", "subtitle" to "Sollunga, unga ku correct aanavanga connect pannrom"),
+        "Hindi" to mapOf("breakup" to "Breakup", "loneliness" to "Akela", "stress" to "Tension", "boredom" to "Boring",
+            "title" to "Aaj kaisa feel kar rahe ho?", "subtitle" to "Batao, sahi logon se connect karenge"),
+        "Telugu" to mapOf("breakup" to "Breakup", "loneliness" to "Ontaritanam", "stress" to "Stress", "boredom" to "Boring",
+            "title" to "Ee roju ela feel avthunnaru?", "subtitle" to "Cheppandi, correct people connect chestam"),
+        "Kannada" to mapOf("breakup" to "Breakup", "loneliness" to "Onti", "stress" to "Stress", "boredom" to "Boring",
+            "title" to "Ivattu heg feel agthidira?", "subtitle" to "Heli, right janara connect madthivi"),
+        "Malayalam" to mapOf("breakup" to "Breakup", "loneliness" to "Ekanatha", "stress" to "Stress", "boredom" to "Boring",
+            "title" to "Innu engane feel cheyyunnu?", "subtitle" to "Parayo, correct aalukale connect cheyyam"),
+        "Marathi" to mapOf("breakup" to "Breakup", "loneliness" to "Ekta", "stress" to "Tension", "boredom" to "Boring",
+            "title" to "Aaj kasa feel hotay?", "subtitle" to "Sanga, yogya lokanshe jodto"),
+        "Bengali" to mapOf("breakup" to "Breakup", "loneliness" to "Ekla", "stress" to "Tension", "boredom" to "Boring",
+            "title" to "Aaj kemon feel korcho?", "subtitle" to "Bolo, thik manusher sathe connect korbo"),
+        "Assamese" to mapOf("breakup" to "Breakup", "loneliness" to "Okola", "stress" to "Tension", "boredom" to "Boring",
+            "title" to "Aji kenekuwa feel korisaa?", "subtitle" to "Kowa, correct manuh logot connect korim"),
+        "Odia" to mapOf("breakup" to "Breakup", "loneliness" to "Ekalaa", "stress" to "Tension", "boredom" to "Boring",
+            "title" to "Aaji kemiti feel karuchha?", "subtitle" to "Kahanta, thik loka saha connect kariba"),
+        "Gujarati" to mapOf("breakup" to "Breakup", "loneliness" to "Ekla", "stress" to "Tension", "boredom" to "Boring",
+            "title" to "Aaje kem feel thay chhe?", "subtitle" to "Kahejo, yogya loko sathe connect karishu"),
+        "Punjabi" to mapOf("breakup" to "Breakup", "loneliness" to "Ikalla", "stress" to "Tension", "boredom" to "Boring",
+            "title" to "Ajj kiven feel kar rahe ho?", "subtitle" to "Dasso, sahi logaan naal connect karange")
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -278,36 +75,12 @@ class AiOnboardingActivity : AppCompatActivity() {
         binding = ActivityAiOnboardingBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Screen 1 (concerns) + Screen 3 (creators) are white; only Screen 2
-        // (chat) has a pink header. Use a white status bar with DARK icons so
-        // time/WiFi/battery are visible on every screen in the flipper.
-        applySystemBarInsets(
-            binding.root,
-            R.color.white,
-            applyIme = true,
-            darkStatusBarIcons = true,
-        )
-
         userId = intent.getIntExtra("USER_ID", 0)
         userLanguage = intent.getStringExtra(DConstants.LANGUAGE) ?: "Tamil"
 
         if (userId == 0) {
             val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
             userId = userData?.id ?: 0
-        }
-
-        // Without a userId, the AI session calls will fail silently. Bail out to login
-        // rather than letting the user hit unresponsive cards — and don't just finish(),
-        // because this activity was launched with CLEAR_TASK and the back stack is empty,
-        // so finish() alone would drop the user out of the app entirely.
-        if (userId == 0) {
-            Toast.makeText(this, "Session expired, please log in again", Toast.LENGTH_LONG).show()
-            val loginIntent = Intent(this, NewLoginActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            }
-            startActivity(loginIntent)
-            finish()
-            return
         }
 
         setupConcernCards()
@@ -321,18 +94,12 @@ class AiOnboardingActivity : AppCompatActivity() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val userName = userData?.name?.replace(Regex("[0-9]"), "")?.takeIf { it.isNotBlank() } ?: "friend"
 
-        binding.tvTitle.text = "Hi $userName! ${translations["title"] ?: "What brings you to Hima?"}"
-        binding.tvSubtitle.text = translations["subtitle"]
-            ?: "Tell us why, and we'll connect you with the right person"
+        binding.tvTitle.text = "Hi $userName! ${translations["title"] ?: "How are you feeling today?"}"
+        binding.tvSubtitle.text = translations["subtitle"] ?: "Let us know, and we'll connect you with the right people"
         binding.tvBreakup.text = translations["breakup"] ?: "Breakup"
         binding.tvLoneliness.text = translations["loneliness"] ?: "Loneliness"
         binding.tvStress.text = translations["stress"] ?: "Stress"
         binding.tvBoredom.text = translations["boredom"] ?: "Boredom"
-
-        binding.tvBreakupDesc.text = translations["breakup_desc"] ?: "Breakup aachu, need healing"
-        binding.tvLonelinessDesc.text = translations["loneliness_desc"] ?: "Feeling alone, need someone to talk to"
-        binding.tvStressDesc.text = translations["stress_desc"] ?: "Stressed, need someone to listen with love"
-        binding.tvBoredomDesc.text = translations["boredom_desc"] ?: "Bored, want a fun conversation"
 
         binding.cardBreakup.setOnClickListener { startAiChat("breakup") }
         binding.cardLoneliness.setOnClickListener { startAiChat("loneliness") }
@@ -385,34 +152,37 @@ class AiOnboardingActivity : AppCompatActivity() {
                 }
                 binding.tvTypingStatus.text = "Online"
 
-                // Single exchange enforced: after AI's reply, auto-proceed to the
-                // match + send step. No tap required. Give the user a beat to read
-                // the AI's message first.
+                // Single exchange enforced: after first reply, hide input bar
                 binding.inputBar.visibility = View.GONE
-                binding.btnLetsGo.visibility = View.GONE
-                scheduleAutoComplete()
+                binding.btnLetsGo.visibility = View.VISIBLE
             }
         })
 
         viewModel.completeLiveData.observe(this, Observer { response ->
-            // Server has picked matches and (optionally) seeded chats. Render a
-            // staggered "sent" animation so the user feels the AI is messaging each
-            // creator for them, then hop to the home tab.
-            showSendingAnimation(response.matchedCreators.orEmpty())
+            val creators = response?.matchedCreators ?: emptyList()
+            if (creators.isEmpty()) {
+                // No matches → skip the personalised animation and jump straight home.
+                binding.loadingOverlay.visibility = View.GONE
+                navigateToMain()
+                return@Observer
+            }
+            startDeliveryAnimation(creators)
         })
 
         viewModel.errorLiveData.observe(this, Observer { error ->
+            android.util.Log.w("AiOnboarding", "Error: $error")
             binding.tvTypingStatus.text = "Online"
             binding.etMessage.isEnabled = true
             binding.btnSend.isEnabled = true
             binding.loadingOverlay.visibility = View.GONE
+            chatAdapter.hideTyping()
 
-            // On error during start, use fallback and allow continue
+            // On error during start, use language-aware Tanglish fallback
             if (sessionId == null) {
                 binding.inputBar.visibility = View.GONE
                 binding.btnLetsGo.visibility = View.VISIBLE
                 chatAdapter.addMessage(AiChatMessage(
-                    "Don't worry, we have wonderful people here who would love to talk with you!",
+                    localisedFallback(selectedConcern, userLanguage),
                     isUser = false
                 ))
                 scrollToBottom()
@@ -427,6 +197,7 @@ class AiOnboardingActivity : AppCompatActivity() {
     }
 
     private fun startAiChat(concern: String) {
+        selectedConcern = concern
         binding.viewFlipper.displayedChild = 1
         binding.etMessage.isEnabled = false
         binding.btnSend.isEnabled = false
@@ -434,6 +205,43 @@ class AiOnboardingActivity : AppCompatActivity() {
         chatAdapter.showTyping()
         scrollToBottom()
         viewModel.startOnboarding(userId, concern)
+    }
+
+    private fun localisedFallback(concern: String, language: String): String {
+        val byLang = mapOf(
+            "Tamil" to mapOf(
+                "breakup" to "Ayyo da, breakup-a? \uD83D\uDC94 Romba kashtama irukum... Inga caring people irukanga, konjam nerathula unaku connect panren \uD83E\uDEC2",
+                "loneliness" to "Hey da, thanimai-a feel panreengala? \uD83D\uDE14 Naan inga irukken... caring people kitta konnect panren \uD83E\uDD17",
+                "stress" to "Stress-la irukeengala da? \uD83D\uDE30 Deep breath edunga... super people kitta connect panren \uD83D\uDCAD",
+                "boredom" to "Boring-a irukka da? \uD83D\uDE34 Don't worry, fun people kitta connect panren \uD83C\uDF1F"
+            ),
+            "Hindi" to mapOf(
+                "breakup" to "Arey yaar, breakup hua? \uD83D\uDC94 Bahut mushkil hota hai... Don't worry, accha log hai yahan \uD83E\uDEC2",
+                "loneliness" to "Arey yaar, akela feel ho raha? \uD83D\uDE14 Main hoon yahan... caring log se connect karenge \uD83E\uDD17",
+                "stress" to "Stress mein ho? \uD83D\uDE30 Deep breath lo... super log se baat karenge \uD83D\uDCAD",
+                "boredom" to "Bore ho rahe? \uD83D\uDE34 Fun log ready hai, connect karte hain \uD83C\uDF1F"
+            ),
+            "Telugu" to mapOf(
+                "breakup" to "Ayyo breakup-a? \uD83D\uDC94 Chala kashtamga untundi... Caring people unnaru ikkada \uD83E\uDEC2",
+                "loneliness" to "Ontaritanam-a feel avthunnava? \uD83D\uDE14 Nenu unnanu... caring people ki connect chestha \uD83E\uDD17",
+                "stress" to "Stress lo unnava? \uD83D\uDE30 Deep breath tiskondi... super people ki connect chestha \uD83D\uDCAD",
+                "boredom" to "Boring ga undha? \uD83D\uDE34 Fun people unnaru, connect chestha \uD83C\uDF1F"
+            ),
+            "Kannada" to mapOf(
+                "breakup" to "Ayyo breakup-a? \uD83D\uDC94 Tumba kashtavaagutte... Caring people iddare illi \uD83E\uDEC2",
+                "loneliness" to "Onti feel aagutte? \uD83D\uDE14 Naanu iddini... caring people ge connect maadtini \uD83E\uDD17",
+                "stress" to "Stress-nalli iddira? \uD83D\uDE30 Deep breath tagoli... super people ge connect maadtini \uD83D\uDCAD",
+                "boredom" to "Boring aagide? \uD83D\uDE34 Fun people idaare, connect maadtini \uD83C\uDF1F"
+            ),
+            "Malayalam" to mapOf(
+                "breakup" to "Ayyo breakup-o? \uD83D\uDC94 Valare kashtam aanu... Caring aalukal undu ivide \uD83E\uDEC2",
+                "loneliness" to "Ekanatha feel cheyyunno? \uD83D\uDE14 Njaan undu... caring aalukalkku connect cheyaam \uD83E\uDD17",
+                "stress" to "Stress aano? \uD83D\uDE30 Deep breath edukku... super aalukalkku connect cheyaam \uD83D\uDCAD",
+                "boredom" to "Boring aano? \uD83D\uDE34 Fun aalukal undu, connect cheyaam \uD83C\uDF1F"
+            )
+        )
+        val map = byLang[language] ?: byLang["Tamil"]!!
+        return map[concern] ?: map["loneliness"]!!
     }
 
     private fun sendUserMessage() {
@@ -458,13 +266,7 @@ class AiOnboardingActivity : AppCompatActivity() {
     private fun completeOnboarding() {
         val sid = sessionId
         if (sid != null) {
-            // Keep the chat in view so the AI's last reply is still readable. Just
-            // show a typing indicator at the bottom while the server picks matches;
-            // the "sent to …" lines will roll in as AI messages once the response
-            // arrives.
-            binding.loadingOverlay.visibility = View.GONE
-            chatAdapter.showTyping()
-            scrollToBottom()
+            binding.loadingOverlay.visibility = View.VISIBLE
             viewModel.completeOnboarding(sid)
         } else {
             // No session (error path) — skip to main
@@ -472,105 +274,56 @@ class AiOnboardingActivity : AppCompatActivity() {
         }
     }
 
-    private fun sendingT(): Map<String, String> =
-        sendingTranslations[userLanguage] ?: sendingTranslations["Tamil"]!!
-
-    private fun scheduleAutoComplete() {
-        autoCompleteRunnable?.let { mainHandler.removeCallbacks(it) }
-        val r = Runnable { completeOnboarding() }
-        autoCompleteRunnable = r
-        mainHandler.postDelayed(r, AUTO_COMPLETE_DELAY_MS)
-    }
-
-    private fun showSendingAnimation(creators: List<MatchedCreator>) {
-        // Clear any previous run's pending posts so a retry doesn't double-animate.
-        sendAnimationRunnables.forEach { mainHandler.removeCallbacks(it) }
-        sendAnimationRunnables.clear()
-
-        // No overlay — everything plays inline in the chat so the user can still see
-        // the AI's previous replies above the "sent" updates.
-        binding.loadingOverlay.visibility = View.GONE
-
-        val t = sendingT()
-        val sentFmt = t["sent_to"] ?: "Sent to %s"
-
-        // Drop the waiting typing indicator that completeOnboarding put in place.
-        chatAdapter.hideTyping()
-
-        // Lead-in AI message framing what's about to happen.
-        chatAdapter.addMessage(
-            AiChatMessage(t["sending_title"] ?: "Sending your messages…", isUser = false)
-        )
-        scrollToBottom()
-
-        if (creators.isEmpty()) {
-            // No matches returned — consolation line, then navigate home so the
-            // transition still feels deliberate.
-            val connectingRunnable = Runnable {
-                chatAdapter.addMessage(
-                    AiChatMessage(
-                        t["connecting"] ?: "Connecting you to creators…",
-                        isUser = false
-                    )
-                )
-                scrollToBottom()
-            }
-            sendAnimationRunnables.add(connectingRunnable)
-            mainHandler.postDelayed(connectingRunnable, 600L)
-
-            val finish = Runnable { navigateToMain() }
-            sendAnimationRunnables.add(finish)
-            mainHandler.postDelayed(finish, 2200L)
-            return
-        }
-
-        // For each creator: show typing briefly, then post the "sent to" line.
-        // Looks like the AI is dispatching messages to each person in turn.
-        var timeline = PER_ITEM_DELAY_MS
-        creators.forEachIndexed { index, creator ->
-            val typingAt = timeline
-            val typingRunnable = Runnable {
-                chatAdapter.showTyping()
-                scrollToBottom()
-            }
-            sendAnimationRunnables.add(typingRunnable)
-            mainHandler.postDelayed(typingRunnable, typingAt)
-
-            val sentAt = timeline + TYPING_DWELL_MS
-            val sentRunnable = Runnable {
-                chatAdapter.hideTyping()
-                val name = creator.name.ifBlank { "Creator ${index + 1}" }
-                chatAdapter.addMessage(AiChatMessage(sentFmt.format(name), isUser = false))
-                scrollToBottom()
-            }
-            sendAnimationRunnables.add(sentRunnable)
-            mainHandler.postDelayed(sentRunnable, sentAt)
-
-            timeline = sentAt + PER_ITEM_DELAY_MS
-        }
-
-        // Warm sign-off line ("they'll talk to you, you'll be happy"), then home.
-        val closingRunnable = Runnable {
-            chatAdapter.addMessage(
-                AiChatMessage(
-                    t["happy"] ?: "They'll talk to you and make you happy",
-                    isUser = false
-                )
-            )
-            scrollToBottom()
-        }
-        sendAnimationRunnables.add(closingRunnable)
-        mainHandler.postDelayed(closingRunnable, timeline)
-
-        val finish = Runnable { navigateToMain() }
-        sendAnimationRunnables.add(finish)
-        mainHandler.postDelayed(finish, timeline + 1500L)
-    }
-
-    private fun showCreatorsList(creators: List<com.gmwapp.hima.retrofit.responses.MatchedCreator>) {
+    private fun showCreatorsList(creators: List<MatchedCreator>) {
         binding.viewFlipper.displayedChild = 2
         binding.rvCreators.layoutManager = LinearLayoutManager(this)
         binding.rvCreators.adapter = MatchedCreatorAdapter(this, creators)
+    }
+
+    /**
+     * Show the personalised delivery screen: creator avatars populate in a
+     * list, a Hima-branded messenger bubble glides down the list, and each
+     * row ticks green one-by-one. After the last tick we navigate home.
+     */
+    private fun startDeliveryAnimation(creators: List<MatchedCreator>) {
+        isDeliveryRunning = true
+        binding.loadingOverlay.visibility = View.GONE
+        binding.viewFlipper.displayedChild = 2
+
+        val adapter = ProgressMatchAdapter(this, creators)
+        binding.rvCreators.layoutManager = LinearLayoutManager(this)
+        binding.rvCreators.adapter = adapter
+
+        binding.rvCreators.post {
+            binding.ivMessengerAvatar.visibility = View.VISIBLE
+            creators.indices.forEach { i ->
+                deliveryHandler.postDelayed({
+                    adapter.markDelivered(i)
+                    slideMessengerToRow(i)
+                }, i * deliveryStaggerMs)
+            }
+            val totalMs = creators.size * deliveryStaggerMs + deliveryTailMs
+            deliveryHandler.postDelayed({
+                isDeliveryRunning = false
+                navigateToMain()
+            }, totalMs)
+        }
+    }
+
+    /**
+     * Translate the messenger bubble to sit centred-vertically on the row
+     * at [index]. First call also positions it horizontally. Falls back
+     * silently if the row hasn't been laid out yet.
+     */
+    private fun slideMessengerToRow(index: Int) {
+        val rv = binding.rvCreators
+        val rowView = rv.layoutManager?.findViewByPosition(index) ?: return
+        val rowCentre = rowView.top + (rowView.height / 2f)
+        val messengerHalf = binding.ivMessengerAvatar.height / 2f
+        val targetY = rowCentre - messengerHalf
+        ObjectAnimator.ofFloat(binding.ivMessengerAvatar, "translationY", binding.ivMessengerAvatar.translationY, targetY)
+            .setDuration(380)
+            .start()
     }
 
     private fun navigateToMain() {
@@ -600,19 +353,15 @@ class AiOnboardingActivity : AppCompatActivity() {
             // User must complete or skip
             return
         }
+        if (binding.viewFlipper.displayedChild == 2 && isDeliveryRunning) {
+            // Don't interrupt the delivery animation
+            return
+        }
         super.onBackPressed()
     }
 
     override fun onDestroy() {
-        autoCompleteRunnable?.let { mainHandler.removeCallbacks(it) }
-        sendAnimationRunnables.forEach { mainHandler.removeCallbacks(it) }
-        sendAnimationRunnables.clear()
+        deliveryHandler.removeCallbacksAndMessages(null)
         super.onDestroy()
-    }
-
-    companion object {
-        private const val AUTO_COMPLETE_DELAY_MS = 2000L
-        private const val PER_ITEM_DELAY_MS = 700L
-        private const val TYPING_DWELL_MS = 500L
     }
 }
