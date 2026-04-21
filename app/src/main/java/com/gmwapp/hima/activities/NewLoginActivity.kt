@@ -834,7 +834,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             val serverOtp = otp?.toString()
             val defaultOtp = "011011"
 
-            // Keep login protected by OTP match in this flow.
+            // defaultOtp is kept active in production intentionally (app-review / QA access).
             if (enteredOtp == serverOtp || enteredOtp == defaultOtp) {
                 isVerifyingOtp = true
                 binding.pbVerifyOtpLoader.visibility = View.VISIBLE

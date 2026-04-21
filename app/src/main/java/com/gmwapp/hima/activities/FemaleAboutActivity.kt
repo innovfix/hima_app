@@ -27,6 +27,7 @@ import com.gmwapp.hima.databinding.ActivityFemaleAboutBinding
 import com.gmwapp.hima.databinding.ActivitySelectLanguageBinding
 import com.gmwapp.hima.retrofit.responses.Interests
 import com.gmwapp.hima.retrofit.responses.Language
+import com.gmwapp.hima.utils.applySystemBarInsets
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.widgets.SpacesItemDecoration
@@ -50,8 +51,9 @@ class FemaleAboutActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityFemaleAboutBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
-        WindowCompat.getInsetsController(window, window.decorView)?.isAppearanceLightStatusBars = true
+        // Pink gradient AppBarLayout extends under the status bar via
+        // fitsSystemWindows=true in the layout. Use LIGHT (white) icons.
+        WindowCompat.getInsetsController(window, window.decorView)?.isAppearanceLightStatusBars = false
         initUI()
     }
 

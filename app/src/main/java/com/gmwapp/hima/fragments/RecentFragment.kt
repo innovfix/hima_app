@@ -10,6 +10,8 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -23,22 +25,13 @@ import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.callbacks.Refreshable
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentRecentBinding
-import com.gmwapp.hima.retrofit.ApiManager
-import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.CallsListResponseData
-import com.gmwapp.hima.retrofit.responses.MyChatResponse
 import com.gmwapp.hima.viewmodels.RecentViewModel
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
-import retrofit2.Call
-import retrofit2.Response
-import javax.inject.Inject
 
 @AndroidEntryPoint
 class RecentFragment : BaseFragment(), Refreshable {
-
-    @Inject
-    lateinit var apiManager: ApiManager
 
     private lateinit var binding: FragmentRecentBinding
     private val recentViewModel: RecentViewModel by viewModels()
@@ -62,10 +55,26 @@ class RecentFragment : BaseFragment(), Refreshable {
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
         binding = FragmentRecentBinding.inflate(inflater, container, false)
+        setupStatusBarInsets()
         initUI()
         observeViewModel()
         setupFilterChips()
         return binding.root
+    }
+
+    private fun setupStatusBarInsets() {
+        val basePaddingTop = binding.appBarLayout.paddingTop
+        ViewCompat.setOnApplyWindowInsetsListener(binding.appBarLayout) { view, insets ->
+            val statusBarInset = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
+            view.setPadding(
+                view.paddingLeft,
+                basePaddingTop + statusBarInset,
+                view.paddingRight,
+                view.paddingBottom
+            )
+            insets
+        }
+        ViewCompat.requestApplyInsets(binding.appBarLayout)
     }
 
     private fun initUI() {
@@ -75,12 +84,6 @@ class RecentFragment : BaseFragment(), Refreshable {
             return
         }
 
-        // Setup chat icon click listener
-        setupChatIconClickListener()
-        
-        // Load unread message count from API
-        loadUnreadMessageCount()
-        
         // Setup search listener
         setupSearchListener()
 
@@ -277,6 +280,7 @@ class RecentFragment : BaseFragment(), Refreshable {
                 showTalkTimeDaysDialog(
                     onDaySelected = { selectedDays ->
                         currentDaysFilter = selectedDays
+                        if (!::recentCallsAdapter.isInitialized) return@showTalkTimeDaysDialog
                         recentCallsAdapter.setFilter(currentSortType)
                         // Re-apply filter even when same day is selected again.
                         loadCallsList(currentSortType, resetData = true)
@@ -302,6 +306,7 @@ class RecentFragment : BaseFragment(), Refreshable {
                         val changed = currentSortType != "talk_time" || currentDaysFilter != selectedDays
                         currentSortType = "talk_time"
                         currentDaysFilter = selectedDays
+                        if (!::recentCallsAdapter.isInitialized) return@showTalkTimeDaysDialog
                         recentCallsAdapter.setFilter(currentSortType)
                         if (changed) {
                             loadCallsList(currentSortType, resetData = true)
@@ -317,6 +322,7 @@ class RecentFragment : BaseFragment(), Refreshable {
             val changed = currentSortType != sortType || currentDaysFilter != 0
             currentSortType = sortType
             currentDaysFilter = 0
+            if (!::recentCallsAdapter.isInitialized) return@setOnCheckedStateChangeListener
             recentCallsAdapter.setFilter(currentSortType)
             if (changed) {
                 loadCallsList(currentSortType, resetData = true)
@@ -383,83 +389,6 @@ class RecentFragment : BaseFragment(), Refreshable {
         }
     }
 
-    private fun setupChatIconClickListener() {
-        binding.cardChat.setOnClickListener {
-            // Open ChatListActivity
-            val intent = Intent(requireContext(), com.gmwapp.hima.activities.ChatListActivity::class.java)
-            startActivity(intent)
-        }
-    }
-
-    private fun loadUnreadMessageCount() {
-        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
-        val myUserId = userData.id
-
-        if (myUserId == 0) {
-            updateUnreadBadge(0)
-            return
-        }
-
-        Log.d("RecentFragment", "Loading unread message count for user: $myUserId")
-
-        // Call API to get chat list
-        apiManager.getMyChat(myUserId, null, 100, 0, object : NetworkCallback<MyChatResponse> {
-            override fun onResponse(call: Call<MyChatResponse>, response: Response<MyChatResponse>) {
-                if (!isAdded) return
-
-                if (response.isSuccessful) {
-                    val responseBody = response.body()
-                    if (responseBody?.success == true && responseBody.data != null) {
-                        val chats = responseBody.data.chats
-                        Log.d("RecentFragment", "✅ Received ${chats.size} chats from API")
-
-                        // Calculate total unread count
-                        val totalUnread = chats.sumOf { it.unreadCount }
-                        Log.d("RecentFragment", "📊 Total unread count: $totalUnread")
-                        updateUnreadBadge(totalUnread)
-                    } else {
-                        Log.e("RecentFragment", "❌ API response unsuccessful or data is null")
-                        updateUnreadBadge(0)
-                    }
-                } else {
-                    Log.e("RecentFragment", "❌ API call failed: ${response.code()}")
-                    updateUnreadBadge(0)
-                }
-            }
-
-            override fun onFailure(call: Call<MyChatResponse>, t: Throwable) {
-                if (!isAdded) return
-                Log.e("RecentFragment", "❌ Error loading unread count: ${t.message}", t)
-                updateUnreadBadge(0)
-            }
-
-            override fun onNoNetwork() {
-                if (!isAdded) return
-                Log.e("RecentFragment", "❌ No network connection")
-                updateUnreadBadge(0)
-            }
-        })
-    }
-
-    private fun updateUnreadBadge(count: Int) {
-        if (!::binding.isInitialized) {
-            Log.d("RecentFragment", "❌ Binding not initialized")
-            return
-        }
-
-        Log.d("RecentFragment", "📬 Updating unread badge: $count")
-
-        if (count > 0) {
-            binding.tvUnreadBadge.visibility = View.VISIBLE
-            binding.tvUnreadBadge.text = if (count > 99) "99+" else count.toString()
-            Log.d("RecentFragment", "✅ Badge visible with count: $count")
-        } else {
-            binding.tvUnreadBadge.visibility = View.GONE
-            Log.d("RecentFragment", "⚠️ Badge hidden (no unread)")
-        }
-    }
-
-
     override fun onResume() {
         super.onResume()
 
@@ -473,9 +402,6 @@ class RecentFragment : BaseFragment(), Refreshable {
             FcmUtils.shouldRefreshCallList = 0  // Reset flag after refresh
         }
 
-        // Refresh unread count when returning to this screen
-        Log.d("RecentFragment", "🔄 onResume - reloading unread count")
-        loadUnreadMessageCount()
         loadMissedCallCount(seen = 0)
     }
     

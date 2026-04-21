@@ -96,6 +96,7 @@ import com.gmwapp.hima.retrofit.responses.SendMessageResponse
 import com.gmwapp.hima.retrofit.responses.MarkReadResponse
 import com.gmwapp.hima.retrofit.responses.MarkMessagesReadResponse
 import com.gmwapp.hima.retrofit.responses.ChatHistoryResponse
+import com.gmwapp.hima.retrofit.responses.ChatAttachmentUploadResponse
 import com.gmwapp.hima.retrofit.responses.MyChatResponse
 import com.gmwapp.hima.retrofit.responses.FallbackSendMessageResponse
 import com.gmwapp.hima.retrofit.responses.AddReactionResponse
@@ -115,6 +116,8 @@ import com.gmwapp.hima.retrofit.responses.IcebreakerQuestionsResponse
 import com.gmwapp.hima.retrofit.responses.LudoFcmResponse
 import com.gmwapp.hima.retrofit.responses.GetFemaleNotificationPreferenceRequest
 import com.gmwapp.hima.retrofit.responses.GetFemaleNotificationPreferenceResponse
+import com.gmwapp.hima.retrofit.responses.ListCreatorOnlineNotificationsRequest
+import com.gmwapp.hima.retrofit.responses.ListCreatorOnlineNotificationsResponse
 import com.gmwapp.hima.retrofit.responses.CheckRatingEligibilityResponse
 import com.gmwapp.hima.retrofit.responses.SubmitRatingResponse
 import com.gmwapp.hima.retrofit.responses.MyWarningsResponse
@@ -126,6 +129,7 @@ import com.gmwapp.hima.utils.Helper
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.ResponseBody
 import retrofit2.Call
@@ -139,6 +143,7 @@ import retrofit2.http.POST
 import retrofit2.http.Part
 import retrofit2.http.Query
 import retrofit2.http.Body
+import java.io.File
 import javax.inject.Inject
 
 class ApiManager @Inject constructor(private val retrofit: Retrofit) {
@@ -1098,6 +1103,26 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun listCreatorOnlineNotifications(
+        userId: Int,
+        onlyOnline: Int? = null,
+        search: String? = null,
+        callback: NetworkCallback<ListCreatorOnlineNotificationsResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<ListCreatorOnlineNotificationsResponse> =
+                getApiInterface().listCreatorOnlineNotifications(
+                    ListCreatorOnlineNotificationsRequest(
+                        userId = userId,
+                        onlyOnline = onlyOnline,
+                        search = search
+                    )
+                )
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
 
     fun createUpiPayment(
         userId: Int,
@@ -1309,14 +1334,57 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    // TODO: Backend must implement `chats/upload_attachment` and return a
+    // public URL in `data.url`. Until then this call will fail server-side.
+    fun uploadChatAttachment(
+        userId: Int,
+        toUserId: Int,
+        messageType: String,
+        file: File,
+        callback: NetworkCallback<ChatAttachmentUploadResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val plain = "text/plain".toMediaTypeOrNull()
+            val mimeType = when (messageType.lowercase()) {
+                "image" -> "image/jpeg"
+                "audio" -> "audio/mp4"
+                else -> "application/octet-stream"
+            }.toMediaTypeOrNull()
+
+            val filePart = MultipartBody.Part.createFormData(
+                "file",
+                file.name,
+                file.asRequestBody(mimeType)
+            )
+
+            val apiCall: Call<ChatAttachmentUploadResponse> = getApiInterface().uploadChatAttachment(
+                userId.toString().toRequestBody(plain),
+                toUserId.toString().toRequestBody(plain),
+                messageType.toRequestBody(plain),
+                filePart
+            )
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun fallbackSendMessage(
         fromUserId: Int,
         toUserId: Int,
         message: String,
+        messageType: String? = null,
+        attachmentUrl: String? = null,
         callback: NetworkCallback<FallbackSendMessageResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<FallbackSendMessageResponse> = getApiInterface().fallbackSendMessage(fromUserId, toUserId, message)
+            val apiCall: Call<FallbackSendMessageResponse> = getApiInterface().fallbackSendMessage(
+                fromUserId,
+                toUserId,
+                message,
+                messageType,
+                attachmentUrl
+            )
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1430,6 +1498,38 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<MyChatResponse> = getApiInterface().getMyChat(userId, search, limit, offset)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getMyChatFriends(
+        userId: Int,
+        search: String?,
+        limit: Int,
+        offset: Int,
+        callback: NetworkCallback<MyChatResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<MyChatResponse> =
+                getApiInterface().getMyChatFriends(userId, search, limit, offset)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getMyChatGeneral(
+        userId: Int,
+        search: String?,
+        limit: Int,
+        offset: Int,
+        callback: NetworkCallback<MyChatResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<MyChatResponse> =
+                getApiInterface().getMyChatGeneral(userId, search, limit, offset)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -2539,6 +2639,11 @@ interface ApiInterface {
         @Body request: GetFemaleNotificationPreferenceRequest
     ): Call<GetFemaleNotificationPreferenceResponse>
 
+    @POST("list_creator_online_notifications")
+    fun listCreatorOnlineNotifications(
+        @Body request: ListCreatorOnlineNotificationsRequest
+    ): Call<ListCreatorOnlineNotificationsResponse>
+
     @FormUrlEncoded
     @POST("explaination_video_list")
     fun getExplanationVideos(
@@ -2759,6 +2864,15 @@ interface ApiInterface {
         @Field("message_type") messageType: String = "text"
     ): Call<SendMessageResponse>
 
+    @Multipart
+    @POST("chats/upload_attachment")
+    fun uploadChatAttachment(
+        @Part("user_id") userId: RequestBody,
+        @Part("to_user_id") toUserId: RequestBody,
+        @Part("message_type") messageType: RequestBody,
+        @Part file: MultipartBody.Part
+    ): Call<ChatAttachmentUploadResponse>
+
     @FormUrlEncoded
     @POST("chats/mark-read")
     fun markRead(
@@ -2793,6 +2907,24 @@ interface ApiInterface {
     ): Call<MyChatResponse>
 
     @FormUrlEncoded
+    @POST("my_chat/friends")
+    fun getMyChatFriends(
+        @Field("user_id") userId: Int,
+        @Field("search") search: String?,
+        @Field("limit") limit: Int,
+        @Field("offset") offset: Int
+    ): Call<MyChatResponse>
+
+    @FormUrlEncoded
+    @POST("my_chat/general")
+    fun getMyChatGeneral(
+        @Field("user_id") userId: Int,
+        @Field("search") search: String?,
+        @Field("limit") limit: Int,
+        @Field("offset") offset: Int
+    ): Call<MyChatResponse>
+
+    @FormUrlEncoded
     @POST("chat_block_user")
     fun blockChatUser(
         @Field("user_id") userId: Int,
@@ -2811,7 +2943,9 @@ interface ApiInterface {
     fun fallbackSendMessage(
         @Field("from_user_id") fromUserId: Int,
         @Field("to_user_id") toUserId: Int,
-        @Field("message") message: String
+        @Field("message") message: String,
+        @Field("message_type") messageType: String? = null,
+        @Field("attachment_url") attachmentUrl: String? = null
     ): Call<FallbackSendMessageResponse>
 
     @FormUrlEncoded

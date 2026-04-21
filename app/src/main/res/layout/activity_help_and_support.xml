@@ -5,7 +5,8 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F8F9FA"
+    android:background="@color/white"
+    android:fitsSystemWindows="true"
     tools:context=".activities.HelpAndSupportActivity">
 
     <!-- Top App Bar -->
@@ -15,49 +16,18 @@
         android:layout_height="?attr/actionBarSize"
         android:background="@android:color/white"
         android:elevation="2dp"
+        app:contentInsetLeft="0dp"
+        app:contentInsetStart="0dp"
+        app:contentInsetStartWithNavigation="0dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <LinearLayout
+        <include
+            android:id="@+id/include_profile_toolbar"
+            layout="@layout/layout_profile_flow_toolbar"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <!-- Back Button Card with Subtle Shadow -->
-            <androidx.cardview.widget.CardView
-                android:id="@+id/cv_back"
-                android:layout_width="42dp"
-                android:layout_height="42dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="1dp"
-                app:cardBackgroundColor="#F8F9FA">
-
-            <ImageView
-                android:id="@+id/iv_back"
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:layout_gravity="center"
-                android:contentDescription="Back"
-                android:src="@drawable/right_arrow"
-                android:rotation="180"
-                    app:tint="#374151" />
-
-            </androidx.cardview.widget.CardView>
-
-            <TextView
-                android:id="@+id/tv_title"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_weight="1"
-                android:text="Help and Support"
-                android:textColor="#212121"
-                android:textSize="20sp"
-                android:fontFamily="@font/poppins_medium" />
-
-        </LinearLayout>
+            android:layout_height="match_parent" />
 
     </com.google.android.material.appbar.MaterialToolbar>
 
@@ -77,16 +47,30 @@
             android:padding="16dp">
 
             <!-- Your Tickets Section -->
-            <TextView
-                android:id="@+id/tv_your_tickets_title"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:id="@+id/ll_your_tickets_section"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Your tickets"
-                android:textColor="#212121"
-                android:textSize="18sp"
-                android:fontFamily="@font/poppins_semibold"
                 android:layout_marginBottom="12dp"
-                android:visibility="visible" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="visible">
+
+                <View
+                    android:layout_width="3dp"
+                    android:layout_height="16dp"
+                    android:layout_marginEnd="8dp"
+                    android:background="@color/colorAccent" />
+
+                <TextView
+                    android:id="@+id/tv_your_tickets_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/poppins_bold"
+                    android:text="Your tickets"
+                    android:textColor="@color/black_light"
+                    android:textSize="13sp" />
+            </LinearLayout>
 
             <!-- Tickets Card -->
             <com.google.android.material.card.MaterialCardView
@@ -95,7 +79,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="24dp"
                 app:cardBackgroundColor="@android:color/white"
-                app:cardCornerRadius="12dp"
+                app:cardCornerRadius="14dp"
                 app:cardElevation="2dp"
                 android:visibility="visible">
 
@@ -141,7 +125,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Raised Ticket"
-                            android:textColor="#212121"
+                            android:textColor="@color/black_light"
                             android:textSize="16sp"
                             android:fontFamily="@font/poppins_semibold" />
 
@@ -150,7 +134,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="No ticket raised"
-                            android:textColor="#9E9E9E"
+                            android:textColor="@color/grey_medium"
                             android:textSize="14sp"
                             android:fontFamily="@font/poppins_regular"
                             android:layout_marginTop="4dp" />
@@ -161,7 +145,7 @@
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:src="@drawable/right_arrow"
-                        app:tint="#9E9E9E"
+                        app:tint="@color/grey_medium"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintTop_toTopOf="@+id/icon_bg_ticket"
                         app:layout_constraintBottom_toBottomOf="@+id/icon_bg_ticket" />
@@ -169,17 +153,31 @@
             </com.google.android.material.card.MaterialCardView>
 
             <!-- Create a new ticket Section (for Male users) -->
-            <TextView
-                android:id="@+id/tv_create_ticket_title"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:id="@+id/ll_create_ticket_header"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Create a new ticket"
-                android:textColor="#212121"
-                android:textSize="18sp"
-                android:fontFamily="@font/poppins_semibold"
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="12dp"
-                android:visibility="gone" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <View
+                    android:layout_width="3dp"
+                    android:layout_height="16dp"
+                    android:layout_marginEnd="8dp"
+                    android:background="@color/colorAccent" />
+
+                <TextView
+                    android:id="@+id/tv_create_ticket_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/poppins_bold"
+                    android:text="Create a new ticket"
+                    android:textColor="@color/black_light"
+                    android:textSize="13sp" />
+            </LinearLayout>
 
             <!-- Raise New Ticket Card (for Male users) -->
             <com.google.android.material.card.MaterialCardView
@@ -188,7 +186,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="24dp"
                 app:cardBackgroundColor="@android:color/white"
-                app:cardCornerRadius="12dp"
+                app:cardCornerRadius="14dp"
                 app:cardElevation="2dp"
                 android:visibility="gone">
 
@@ -234,7 +232,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Raise new ticket"
-                            android:textColor="#212121"
+                            android:textColor="@color/black_light"
                             android:textSize="16sp"
                             android:fontFamily="@font/poppins_semibold" />
                     </LinearLayout>
@@ -244,7 +242,7 @@
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:src="@drawable/right_arrow"
-                        app:tint="#9E9E9E"
+                        app:tint="@color/grey_medium"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintTop_toTopOf="@+id/icon_bg_raise_ticket"
                         app:layout_constraintBottom_toBottomOf="@+id/icon_bg_raise_ticket" />
@@ -252,15 +250,29 @@
             </com.google.android.material.card.MaterialCardView>
 
             <!-- Select Category Section -->
-            <TextView
-                android:id="@+id/tv_select_category_title"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:id="@+id/ll_select_category_header"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Please select a category"
-                android:textColor="#212121"
-                android:textSize="18sp"
-                android:fontFamily="@font/poppins_semibold"
-                android:layout_marginBottom="12dp" />
+                android:layout_marginBottom="12dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="3dp"
+                    android:layout_height="16dp"
+                    android:layout_marginEnd="8dp"
+                    android:background="@color/colorAccent" />
+
+                <TextView
+                    android:id="@+id/tv_select_category_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/poppins_bold"
+                    android:text="Please select a category"
+                    android:textColor="@color/black_light"
+                    android:textSize="13sp" />
+            </LinearLayout>
 
             <!-- RecyclerView for Categories -->
             <androidx.recyclerview.widget.RecyclerView
@@ -289,7 +301,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="No categories available"
-        android:textColor="#9E9E9E"
+        android:textColor="@color/grey_medium"
         android:textSize="16sp"
         android:fontFamily="@font/poppins_regular"
         android:visibility="gone"

@@ -12,6 +12,8 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import com.bumptech.glide.Glide
@@ -37,6 +39,8 @@ import com.gmwapp.hima.databinding.FragmentProfileFemaleBinding
 import com.gmwapp.hima.dialogs.BottomSheetLogout
 import com.gmwapp.hima.dialogs.BottomSheetSelectIplTeam
 import com.gmwapp.hima.models.IplTeam
+import com.gmwapp.hima.utils.DndController
+import com.gmwapp.hima.utils.UserDataDndMerge
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.LoginViewModel
@@ -54,6 +58,7 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
     private val whatsappLinkViewModel: WhatsappLinkViewModel by viewModels()
 
     private val loginViewModel: LoginViewModel by viewModels()
+    private lateinit var dndController: DndController
     private var isPanVerified = false
     var whataspplink : String = ""
     lateinit var language : String
@@ -66,10 +71,26 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
         savedInstanceState: Bundle?
     ): View {
         binding = FragmentProfileFemaleBinding.inflate(layoutInflater)
+        setupStatusBarInsets()
         initUI()
         whatsapp()
         panVerification()
         return binding.root
+    }
+
+    private fun setupStatusBarInsets() {
+        val basePaddingTop = binding.root.paddingTop
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
+            val statusBarInset = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
+            view.setPadding(
+                view.paddingLeft,
+                basePaddingTop + statusBarInset,
+                view.paddingRight,
+                view.paddingBottom
+            )
+            insets
+        }
+        ViewCompat.requestApplyInsets(binding.root)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -188,14 +209,18 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
         updateIplBadge()
         iplRoomViewModel.getMatchSuggestions() // Fetch today's matches for team picker
 
+        dndController = DndController(this, binding.switchDnd, binding.tvDndStatus, profileViewModel)
+
         // Refresh user data from server (handles auto-clear of expired ipl_team / dnd)
         val refreshUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
         refreshUserId?.let { profileViewModel.getUsers(it) }
         profileViewModel.getUserLiveData.observe(viewLifecycleOwner) { response ->
             response?.data?.let { fresh ->
-                BaseApplication.getInstance()?.getPrefs()?.setUserData(fresh)
+                val prev = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                val merged = UserDataDndMerge.mergePreserveDnd(prev, fresh)
+                BaseApplication.getInstance()?.getPrefs()?.setUserData(merged)
                 updateIplBadge()
-                refreshDndUi()
+                dndController.refresh()
             }
         }
 
@@ -203,16 +228,7 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
             showIplTeamPicker()
         }
 
-        // DND setup
-        refreshDndUi()
-        binding.switchDnd.setOnClickListener {
-            if (binding.switchDnd.isChecked) {
-                binding.switchDnd.isChecked = false
-                showDndDurationPicker()
-            } else {
-                callToggleDndApi(enabled = 0, durationHours = 0)
-            }
-        }
+        dndController.attach()
 
         val prefs = BaseApplication.getInstance()?.getPrefs()
 
@@ -410,93 +426,4 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
             panVerification()
     }
 
-    // ================= DND =================
-
-    private fun refreshDndUi() {
-        if (!::binding.isInitialized) return
-        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        val enabled = (userData?.dnd_enabled ?: 0) == 1
-        val until = userData?.dnd_until
-
-        binding.switchDnd.setOnCheckedChangeListener(null)
-        binding.switchDnd.isChecked = enabled
-
-        binding.switchDnd.setOnClickListener {
-            if (binding.switchDnd.isChecked) {
-                binding.switchDnd.isChecked = false
-                showDndDurationPicker()
-            } else {
-                callToggleDndApi(enabled = 0, durationHours = 0)
-            }
-        }
-
-        binding.tvDndStatus.text = "Do Not Disturb"
-    }
-
-    private fun formatDndUntil(iso: String): String {
-        return try {
-            val sdfIn = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", java.util.Locale.US)
-            val date = sdfIn.parse(iso) ?: return iso
-            val sdfOut = java.text.SimpleDateFormat("h:mm a", java.util.Locale.US)
-            sdfOut.format(date)
-        } catch (e: Exception) {
-            iso
-        }
-    }
-
-    private fun showDndDurationPicker() {
-        val view = layoutInflater.inflate(R.layout.dialog_dnd_duration, null)
-        val dialog = androidx.appcompat.app.AlertDialog.Builder(requireContext(), R.style.AlertDialogTransparent)
-            .setView(view)
-            .setCancelable(true)
-            .create()
-        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
-
-        view.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_dnd_1h).setOnClickListener {
-            dialog.dismiss(); callToggleDndApi(enabled = 1, durationHours = 1)
-        }
-        view.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_dnd_3h).setOnClickListener {
-            dialog.dismiss(); callToggleDndApi(enabled = 1, durationHours = 3)
-        }
-        view.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_dnd_24h).setOnClickListener {
-            dialog.dismiss(); callToggleDndApi(enabled = 1, durationHours = 24)
-        }
-        view.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_dnd_cancel).setOnClickListener {
-            dialog.dismiss()
-        }
-        dialog.show()
-    }
-
-    private fun callToggleDndApi(enabled: Int, durationHours: Int) {
-        val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
-        profileViewModel.toggleDnd(userId, enabled, durationHours, object : com.gmwapp.hima.retrofit.callbacks.NetworkCallback<com.gmwapp.hima.retrofit.responses.ToggleDndResponse> {
-            override fun onResponse(call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.ToggleDndResponse>, response: retrofit2.Response<com.gmwapp.hima.retrofit.responses.ToggleDndResponse>) {
-                val body = response.body()
-                if (body?.success == true) {
-                    val current = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-                    if (current != null) {
-                        val updated = current.copy(
-                            dnd_enabled = body.data?.dnd_enabled ?: 0,
-                            dnd_until = body.data?.dnd_until
-                        )
-                        BaseApplication.getInstance()?.getPrefs()?.setUserData(updated)
-                    }
-                    activity?.runOnUiThread {
-                        refreshDndUi()
-                        Toast.makeText(requireContext(), body.message ?: "Updated", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            }
-            override fun onFailure(call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.ToggleDndResponse>, t: Throwable) {
-                activity?.runOnUiThread {
-                    Toast.makeText(requireContext(), "Failed to update DND", Toast.LENGTH_SHORT).show()
-                }
-            }
-            override fun onNoNetwork() {
-                activity?.runOnUiThread {
-                    Toast.makeText(requireContext(), "No internet", Toast.LENGTH_SHORT).show()
-                }
-            }
-        })
-    }
 }

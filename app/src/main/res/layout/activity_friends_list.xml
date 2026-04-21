@@ -4,15 +4,17 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/background_gradient">
+    android:background="@color/white"
+    android:fitsSystemWindows="true">
 
     <!-- Header Container with Shadow -->
     <LinearLayout
         android:id="@+id/header_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/background_gradient"
-        android:elevation="8dp"
+        android:background="@color/white"
+        android:elevation="2dp"
+        android:fitsSystemWindows="true"
         android:orientation="vertical"
         android:paddingTop="8dp"
         android:paddingBottom="16dp"
@@ -64,7 +66,7 @@
                     android:text="My Friends"
                     android:textColor="@color/black_light"
                     android:fontFamily="@font/poppins_semibold"
-                    android:textSize="20sp" />
+                    android:textSize="18sp" />
 
             </LinearLayout>
         </com.google.android.material.appbar.MaterialToolbar>
@@ -82,7 +84,7 @@
                 android:layout_height="48dp"
                 android:layout_marginHorizontal="16dp"
                 android:background="@drawable/tab_background"
-                android:elevation="4dp"
+                android:elevation="2dp"
                 android:paddingHorizontal="4dp"
                 app:tabGravity="fill"
                 app:tabIndicatorColor="@android:color/transparent"

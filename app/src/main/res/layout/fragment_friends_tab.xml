@@ -39,21 +39,23 @@
                 app:tint="@color/grey_medium" />
 
             <TextView
+                android:id="@+id/empty_state_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:fontFamily="@font/poppins_semibold"
-                android:text="No friends yet"
+                android:text="@string/friends_empty_state_title"
                 android:textColor="@color/grey_dark"
                 android:textSize="18sp" />
 
             <TextView
+                android:id="@+id/empty_state_subtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:fontFamily="@font/poppins_regular"
                 android:gravity="center"
-                android:text="Start connecting with people\nby sending friend requests"
+                android:text="@string/friends_empty_state_subtitle"
                 android:textColor="@color/grey_medium"
                 android:textSize="14sp" />
         </LinearLayout>

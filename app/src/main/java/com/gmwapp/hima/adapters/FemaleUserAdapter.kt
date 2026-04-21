@@ -92,6 +92,7 @@ class FemaleUserAdapter(
         val lastMessage = femaleUser.last_message
         val hasMessage = lastMessage != null && lastMessage.message.isNotBlank()
         if (hasMessage) {
+            holder.binding.tvLastMessage.visibility = View.VISIBLE
             holder.binding.tvLastMessage.text = lastMessage!!.message
             holder.binding.tvLastMessage.setTextColor(
                 activity.resources.getColor(R.color.grey_medium, null)
@@ -99,11 +100,9 @@ class FemaleUserAdapter(
             holder.binding.tvTimeBottom.text = formatChatTime(lastMessage.timestamp)
             holder.binding.tvTimeBottom.visibility = View.VISIBLE
         } else {
-            holder.binding.tvLastMessage.text =
-                activity.getString(R.string.tap_to_call_and_chat)
-            holder.binding.tvLastMessage.setTextColor(
-                activity.resources.getColor(R.color.colorAccent, null)
-            )
+            // No previous message — hide the "Tap to call and chat" hint.
+            // The whole row is already clickable (opens chat), so no prompt needed.
+            holder.binding.tvLastMessage.visibility = View.GONE
             holder.binding.tvTimeBottom.text = ""
             holder.binding.tvTimeBottom.visibility = View.GONE
         }
@@ -133,17 +132,51 @@ class FemaleUserAdapter(
             activity.startActivity(intent)
         }
 
-        // Audio & Video call buttons — show only when creator supports that call type
-        holder.binding.btnAudioCall.visibility =
-            if (femaleUser.audio_status == 1) View.VISIBLE else View.GONE
-        holder.binding.btnVideoCall.visibility =
-            if (femaleUser.video_status == 1) View.VISIBLE else View.GONE
+        // Audio & Video call buttons — always visible; show disabled state when
+        // the creator isn't accepting that call type so the card layout stays
+        // symmetric and users can see what options exist.
+        val audioEnabled = femaleUser.audio_status == 1
+        val videoEnabled = femaleUser.video_status == 1
+        val disabledTextColor = android.graphics.Color.parseColor("#6B7280")
+        val whiteColor = activity.resources.getColor(R.color.white, null)
+
+        holder.binding.btnAudioCall.visibility = View.VISIBLE
+        holder.binding.btnVideoCall.visibility = View.VISIBLE
+
+        holder.binding.btnAudioCall.background = activity.resources.getDrawable(
+            if (audioEnabled) R.drawable.button_audio_gradient else R.drawable.button_disabled_gradient,
+            null
+        )
+        holder.binding.btnVideoCall.background = activity.resources.getDrawable(
+            if (videoEnabled) R.drawable.button_video_gradient else R.drawable.button_disabled_gradient,
+            null
+        )
+
+        holder.binding.btnAudioCall.isEnabled = audioEnabled
+        holder.binding.btnVideoCall.isEnabled = videoEnabled
+        holder.binding.btnAudioCall.isClickable = audioEnabled
+        holder.binding.btnVideoCall.isClickable = videoEnabled
+        holder.binding.btnAudioCall.alpha = if (audioEnabled) 1f else 1f
+        holder.binding.btnVideoCall.alpha = if (videoEnabled) 1f else 1f
+
+        // Icons & text — use white on color gradients, muted grey on disabled bg.
+        holder.binding.ivAudioIcon.setColorFilter(if (audioEnabled) whiteColor else disabledTextColor)
+        holder.binding.ivVideoIcon.setColorFilter(if (videoEnabled) whiteColor else disabledTextColor)
+        holder.binding.tvAudioRate.setTextColor(if (audioEnabled) whiteColor else disabledTextColor)
+        holder.binding.tvVideoRate.setTextColor(if (videoEnabled) whiteColor else disabledTextColor)
+        holder.binding.ivAudioCoin.visibility = if (audioEnabled) View.VISIBLE else View.GONE
+        holder.binding.ivVideoCoin.visibility = if (videoEnabled) View.VISIBLE else View.GONE
+
+        holder.binding.tvAudioRate.text = if (audioEnabled)
+            "${femaleUser.coin_per_min_audio ?: 10}/min" else "Unavailable"
+        holder.binding.tvVideoRate.text = if (videoEnabled)
+            "${femaleUser.coin_per_min_video ?: 60}/min" else "Unavailable"
 
         holder.binding.btnAudioCall.setOnSingleClickListener {
-            launchCall(femaleUser, "audio")
+            if (audioEnabled) launchCall(femaleUser, "audio")
         }
         holder.binding.btnVideoCall.setOnSingleClickListener {
-            launchCall(femaleUser, "video")
+            if (videoEnabled) launchCall(femaleUser, "video")
         }
     }
 

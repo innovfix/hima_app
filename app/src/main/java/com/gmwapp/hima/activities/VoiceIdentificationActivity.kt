@@ -20,6 +20,7 @@ import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityVoiceIdentificationBinding
 import com.gmwapp.hima.dialogs.BottomSheetVoiceIdentification
+import com.gmwapp.hima.utils.applySystemBarInsets
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import okhttp3.MultipartBody
@@ -36,6 +37,7 @@ class VoiceIdentificationActivity : BaseActivity(), OnItemSelectionListener<Stri
         super.onCreate(savedInstanceState)
         binding = ActivityVoiceIdentificationBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        applySystemBarInsets(binding.root, R.color.white, darkStatusBarIcons = true)
         initUI()
     }
 

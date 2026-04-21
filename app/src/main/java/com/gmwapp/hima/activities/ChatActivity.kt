@@ -15,6 +15,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AlertDialog
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
@@ -42,7 +43,6 @@ import android.view.View
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.os.Build
 import androidx.core.content.ContextCompat
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
@@ -174,15 +174,9 @@ class ChatActivity : AppCompatActivity() {
         }
 
         window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        // Light chat background → dark status-bar icons (time, battery, etc.)
+        WindowInsetsControllerCompat(window, findViewById(R.id.main)).isAppearanceLightStatusBars = true
 
-        // ✅ SIMPLE: Set status bar icons to LIGHT (white) - works on all devices
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            window.insetsController?.setSystemBarsAppearance(
-                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
-                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
-            )
-        }
-        
         // ✅ OPTIMIZATION: Prevent EditText from requesting focus on its own (reduces lag)
         etMessage.clearFocus()
         

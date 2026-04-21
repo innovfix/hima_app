@@ -36,6 +36,7 @@ import com.gmwapp.hima.activities.ChatListActivity
 import com.gmwapp.hima.agora.female.FemaleCallAcceptActivity
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivitySplashScreenBinding
+import com.gmwapp.hima.utils.applySystemBarInsets
 import com.gmwapp.hima.retrofit.responses.UserData
 import com.gmwapp.hima.viewmodels.IndividualAppUpdateViewModel
 import com.gmwapp.hima.viewmodels.LoginViewModel
@@ -62,12 +63,45 @@ class SplashScreenActivity : BaseActivity() {
     private var splashStartTime: Long = 0
     private val SPLASH_DISPLAY_DURATION = 3000L // 3 seconds
 
+    // Guards against double-navigation when both the API observer and the fallback
+    // timeout try to move the user forward.
+    private var hasNavigatedFromSplash = false
+
+    // Hard stop: if the version-check API hangs or the server misbehaves, we don't
+    // want the user staring at the logo for minutes. Fall back on cached data after 8s.
+    private val SPLASH_FALLBACK_MS = 8000L
+    private val splashTimeoutHandler = Handler(Looper.getMainLooper())
+    private val splashTimeoutRunnable = Runnable {
+        if (hasNavigatedFromSplash) return@Runnable
+        Log.w(
+            "SplashScreen",
+            "Splash fallback fired — init APIs did not return in ${SPLASH_FALLBACK_MS}ms"
+        )
+        val prefs = BaseApplication.getInstance()?.getPrefs()
+        val cached = prefs?.getUserData()
+        val fallbackIntent = when {
+            cached == null -> Intent(this, NewLoginActivity::class.java)
+            cached.status == 1 -> Intent(this, AlmostDoneActivity::class.java)
+            cached.gender == DConstants.MALE || cached.status == 2 ->
+                Intent(this, MainActivity::class.java).apply {
+                    putExtra(DConstants.LANGUAGE, cached.language)
+                }
+            else -> Intent(this, VoiceIdentificationActivity::class.java).apply {
+                putExtra(DConstants.LANGUAGE, cached.language)
+            }
+        }.apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        navigateWithMinimumDelay(fallbackIntent)
+    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySplashScreenBinding.inflate(layoutInflater)
         setContentView(binding.root)
         enableEdgeToEdge()
+        applySystemBarInsets(binding.root, darkStatusBarIcons = false)
 
         // Record start time
         splashStartTime = System.currentTimeMillis()
@@ -251,7 +285,10 @@ class SplashScreenActivity : BaseActivity() {
         val userId = userData?.id
         if (userId != null) {
             individualAppUpdateViewModel.checkUserAppVersion(userId, currentVersion)
-        }else{
+            // Arm the fallback only when we actually depend on a network response to
+            // decide routing. The no-userId branch navigates synchronously below.
+            splashTimeoutHandler.postDelayed(splashTimeoutRunnable, SPLASH_FALLBACK_MS)
+        } else {
             GotoActivity(userData)
         }
 
@@ -384,9 +421,15 @@ class SplashScreenActivity : BaseActivity() {
      */
     private fun navigateWithMinimumDelay(intent: Intent?) {
         intent?.let {
+            // Guard against the fallback timeout and the API observer both racing to
+            // navigate. First caller wins; later ones no-op.
+            if (hasNavigatedFromSplash) return
+            hasNavigatedFromSplash = true
+            splashTimeoutHandler.removeCallbacks(splashTimeoutRunnable)
+
             val elapsedTime = System.currentTimeMillis() - splashStartTime
             val remainingTime = SPLASH_DISPLAY_DURATION - elapsedTime
-            
+
             if (remainingTime > 0) {
                 // Wait for remaining time to reach minimum display duration
                 Handler(Looper.getMainLooper()).postDelayed({
@@ -403,6 +446,11 @@ class SplashScreenActivity : BaseActivity() {
                 finish()
             }
         }
+    }
+
+    override fun onDestroy() {
+        splashTimeoutHandler.removeCallbacks(splashTimeoutRunnable)
+        super.onDestroy()
     }
 
     fun GotoActivity(

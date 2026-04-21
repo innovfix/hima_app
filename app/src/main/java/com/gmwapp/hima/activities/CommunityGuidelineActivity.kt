@@ -6,7 +6,9 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
 import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.R
 import com.gmwapp.hima.databinding.ActivityCommunityGuidelineBinding
+import com.gmwapp.hima.utils.applySystemBarInsets
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -19,6 +21,9 @@ class CommunityGuidelineActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityCommunityGuidelineBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        applySystemBarInsets(binding.root, R.color.white, darkStatusBarIcons = true)
+        binding.includeProfileToolbar.tvFlowTitle.text = getString(R.string.CommunityGuidelines)
+        binding.includeProfileToolbar.cvBack.setOnClickListener { finish() }
 
         // Enable JavaScript in WebView
         binding.wvPrivacyPolicy.settings.javaScriptEnabled = true

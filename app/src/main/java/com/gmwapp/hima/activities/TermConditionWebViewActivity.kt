@@ -13,6 +13,7 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.databinding.ActivityRefundWebViewBinding
 import com.gmwapp.hima.databinding.ActivityTermConditionWebViewBinding
 import com.gmwapp.hima.databinding.ActivityWebviewBinding
+import com.gmwapp.hima.utils.applySystemBarInsets
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -24,6 +25,9 @@ class TermConditionWebViewActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityTermConditionWebViewBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        applySystemBarInsets(binding.root, R.color.white, darkStatusBarIcons = true)
+        binding.includeProfileToolbar.tvFlowTitle.text = getString(R.string.terms_and_condition)
+        binding.includeProfileToolbar.cvBack.setOnClickListener { finish() }
         binding.wvPrivacyPolicy.getSettings().setJavaScriptEnabled(true);
 
         val prefs = BaseApplication.getInstance()?.getPrefs()

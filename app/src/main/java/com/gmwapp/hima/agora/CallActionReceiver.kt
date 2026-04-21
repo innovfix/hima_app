@@ -56,6 +56,8 @@ class CallActionReceiver : BroadcastReceiver() {
                     context.startActivity(callIntent)
                 }
 
+                BaseApplication.getInstance()?.stopRingtone()
+                (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(1)
 
             }
 
@@ -140,6 +142,9 @@ class CallActionReceiver : BroadcastReceiver() {
                     }
                     context.startActivity(callIntent)
                 }
+
+                BaseApplication.getInstance()?.stopRingtone()
+                (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(1)
             }
 
             "ACTION_REJECT_CALL_MALE" -> {

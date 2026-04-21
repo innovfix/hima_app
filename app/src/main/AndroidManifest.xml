@@ -3,6 +3,10 @@
     xmlns:tools="http://schemas.android.com/tools">
     <!-- Permission for recording audio and storage of audio in users device -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
@@ -21,6 +25,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="com.google.android.gms.permission.SMS_RETRIEVER" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
 
 
     <uses-feature
@@ -32,7 +37,7 @@
 
     <application
         android:name=".BaseApplication"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:enableOnBackInvokedCallback="true"
         android:fullBackupContent="@xml/backup_rules"
@@ -43,7 +48,7 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="true"
-        tools:replace="android:dataExtractionRules,android:fullBackupContent"
+        tools:replace="android:allowBackup,android:dataExtractionRules,android:fullBackupContent"
         tools:targetApi="31">
 
         <!-- OneSignal Notification Service Extension for DND suppression
@@ -95,7 +100,8 @@
             android:exported="false" />
         <activity
             android:name=".activities.KycActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
 
         <meta-data
             android:name="com.facebook.sdk.ApplicationId"
@@ -139,7 +145,8 @@
             android:exported="false" />
         <activity
             android:name=".agora.female.FemaleCallAcceptActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:launchMode="singleTop" />
         <activity
             android:name=".agora.female.FemaleCallConnectingActivity"
             android:exported="false" />
@@ -158,13 +165,15 @@
             android:exported="false" />
         <activity
             android:name=".activities.ChatActivityInHouse"
-            android:exported="false" />
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".agora.male.MaleCallConnectingActivity"
             android:exported="true" />
         <activity
             android:name=".agora.male.MaleCallAcceptActivity"
-            android:exported="true" />
+            android:exported="true"
+            android:launchMode="singleTop" />
         <activity
             android:name=".YoutubeRechargeActivity"
             android:exported="false" />
@@ -237,29 +246,38 @@
         <activity android:name=".activities.TransactionsActivity" />
         <activity android:name=".activities.FemaleTransactionsActivity" />
         <activity android:name=".activities.AccountPrivacyActivity" />
+        <activity android:name=".activities.ManageNotificationsActivity" />
         <activity android:name=".activities.CreatorWarningsActivity" />
         <activity android:name=".activities.MyWarningsActivity" />
         <activity android:name=".activities.HelpAndSupportActivity" />
         <activity android:name=".activities.SubqueriesActivity" />
         <activity android:name=".activities.SubqueryDetailActivity" />
-        <activity android:name=".activities.SubmitTicketActivity" />
+        <activity android:name=".activities.SubmitTicketActivity"
+            android:windowSoftInputMode="adjustResize" />
         <activity android:name=".activities.StarCreatorAppliedActivity" />
-        <activity android:name=".activities.StarCreatorApplicationActivity" />
+        <activity android:name=".activities.StarCreatorApplicationActivity"
+            android:windowSoftInputMode="adjustResize" />
         <activity android:name=".activities.StarCreatorVideoRecordActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
         <activity android:name=".activities.TicketsListActivity" />
         <activity android:name=".activities.DeleteAccountActivity" />
-        <activity android:name=".activities.EditProfileActivity" />
+        <activity android:name=".activities.EditProfileActivity"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".activities.PaymentActivity"
             tools:ignore="DuplicateActivity" />
-        <activity android:name=".activities.CouponActivity" />
+        <activity android:name=".activities.CouponActivity"
+            android:windowSoftInputMode="adjustResize" />
         <activity android:name=".activities.ShareActivity" />
         <activity android:name=".activities.SelectGenderActivity" />
         <activity android:name=".activities.SelectLanguageActivity" />
         <activity android:name=".activities.AiOnboardingActivity"
-            android:screenOrientation="portrait" />
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".activities.GetNameActivity"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize" />
         <activity android:name=".activities.LoginActivity" />
         <activity
             android:name=".activities.NewLoginActivity"
@@ -274,10 +292,15 @@
         <activity android:name=".activities.YoutubeActivity" />
         <activity android:name=".activities.RandomUserActivity" />
         <activity android:name=".activities.GrantPermissionsActivity" />
+        <activity
+            android:name=".activities.NotificationImportanceActivity"
+            android:launchMode="singleTop"
+            android:noHistory="true" />
         <activity android:name=".activities.ReviewActivity" />
         <activity
             android:name=".activities.WithdrawActivity"
-            android:resizeableActivity="true" />
+            android:resizeableActivity="true"
+            android:windowSoftInputMode="adjustResize" />
         <activity android:name=".activities.PaymentInitiatedActivity" />
 
         <provider
@@ -344,10 +367,6 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
-        <service
-            android:name=".agora.services.CallingService"
-            android:exported="false"
-            android:foregroundServiceType="microphone" />
 
         <receiver
             android:name=".agora.CallActionReceiver"

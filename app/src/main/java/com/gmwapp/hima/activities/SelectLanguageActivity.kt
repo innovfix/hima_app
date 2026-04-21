@@ -11,8 +11,10 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.GridLayoutManager
 import com.appsflyer.AppsFlyerLib
@@ -26,6 +28,7 @@ import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivitySelectLanguageBinding
 import com.gmwapp.hima.retrofit.responses.Language
 import com.gmwapp.hima.utils.DPreferences
+import com.gmwapp.hima.utils.applySystemBarInsets
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.utils.AppEventLogger
 import com.gmwapp.hima.viewmodels.ProfileViewModel
@@ -44,12 +47,11 @@ class SelectLanguageActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivitySelectLanguageBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        enableEdgeToEdge()
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
+        // API 35+ forces edge-to-edge. The layout uses fitsSystemWindows=true
+        // on the AppBarLayout so the pink gradient extends *under* the status
+        // bar. Force LIGHT status-bar icons so they stay readable on the pink.
+        WindowInsetsControllerCompat(window, binding.root)
+            .isAppearanceLightStatusBars = false
         initUI()
     }
 
@@ -70,17 +72,18 @@ class SelectLanguageActivity : BaseActivity() {
         })
         profileViewModel.registerLiveData.observe(this, Observer {
             setContinueLoading(false)
-            if (it!=null && it.success) {
+            if (it != null && it.success && it.data != null) {
                 BaseApplication.getInstance()?.getPrefs()?.setUserData(it.data)
                 BaseApplication.getInstance()?.getPrefs()?.setAuthenticationToken(it.token)
-                
+
                 // Socket.IO will connect only when ChatActivityInHouse opens
                 Log.d("SocketIOCheck", "✅ Registration successful - Socket.IO will connect when chat opens")
 
-                if (it.data?.gender == DConstants.MALE) {
-                    // Route new male users through AI onboarding
-                    val intent = Intent(this, AiOnboardingActivity::class.java)
-                    intent.putExtra("USER_ID", it.data?.id ?: 0)
+                if (it.data.gender == DConstants.MALE) {
+                    // New male users first capture their display name; GetNameActivity
+                    // then launches AiOnboardingActivity once the name is saved.
+                    val intent = Intent(this, GetNameActivity::class.java)
+                    intent.putExtra("USER_ID", it.data.id)
                     intent.putExtra(
                         DConstants.AVATAR_ID, getIntent().getIntExtra(DConstants.AVATAR_ID, 0)
                     )
@@ -120,9 +123,10 @@ class SelectLanguageActivity : BaseActivity() {
                     intent.putExtra(DConstants.LANGUAGE, selectedLanguage)
                     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                     startActivity(intent)
+                    overridePendingTransition(R.anim.onboarding_transition_in, R.anim.onboarding_transition_out)
                     finish()
                 } else {
-                    if(it.data?.status == 2){
+                    if (it.data.status == 2) {
                         val intent = Intent(this, MainActivity::class.java)
                         intent.putExtra(
                             DConstants.AVATAR_ID, getIntent().getIntExtra(DConstants.AVATAR_ID, 0)
@@ -131,12 +135,12 @@ class SelectLanguageActivity : BaseActivity() {
                         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                         startActivity(intent)
                         finish()
-                    } else if(it.data?.status == 1){
+                    } else if (it.data.status == 1) {
                         val intent = Intent(this, AlmostDoneActivity::class.java)
                         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                         startActivity(intent)
                         finish()
-                    } else{
+                    } else {
                         val intent = Intent(this, VoiceIdentificationActivity::class.java)
                         intent.putExtra(DConstants.LANGUAGE, selectedLanguage)
                         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -154,14 +158,14 @@ class SelectLanguageActivity : BaseActivity() {
                 return@setOnSingleClickListener
             }
             setContinueLoading(true)
-            val gender = intent.getStringExtra(DConstants.GENDER).toString()
+            val gender = intent.getStringExtra(DConstants.GENDER).orEmpty()
             val savedReferCode = DPreferences(this).getReferralCode()
             Log.d("savedReferCode","$savedReferCode")
-            Log.d("MobileNumberUser","${intent.getStringExtra(DConstants.MOBILE_NUMBER).toString()}")
+            Log.d("MobileNumberUser","${intent.getStringExtra(DConstants.MOBILE_NUMBER).orEmpty()}")
 
             if (gender == DConstants.MALE) {
                 profileViewModel.register(
-                    intent.getStringExtra(DConstants.MOBILE_NUMBER).toString(),
+                    intent.getStringExtra(DConstants.MOBILE_NUMBER).orEmpty(),
                     selectedLanguage.toString(),
                     intent.getIntExtra(DConstants.AVATAR_ID, 0),
                     gender,
@@ -169,13 +173,13 @@ class SelectLanguageActivity : BaseActivity() {
                     )
             } else {
                 profileViewModel.registerFemale(
-                    intent.getStringExtra(DConstants.MOBILE_NUMBER).toString(),
+                    intent.getStringExtra(DConstants.MOBILE_NUMBER).orEmpty(),
                     selectedLanguage.toString(),
                     intent.getIntExtra(DConstants.AVATAR_ID, 0),
                     gender,
-                    intent.getStringExtra(DConstants.AGE).toString(),
-                    intent.getStringExtra(DConstants.INTERESTS).toString(),
-                    intent.getStringExtra(DConstants.SUMMARY).toString(),
+                    intent.getStringExtra(DConstants.AGE).orEmpty(),
+                    intent.getStringExtra(DConstants.INTERESTS).orEmpty(),
+                    intent.getStringExtra(DConstants.SUMMARY).orEmpty(),
                     savedReferCode,
                 )
             }

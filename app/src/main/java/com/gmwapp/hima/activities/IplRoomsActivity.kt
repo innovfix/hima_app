@@ -15,6 +15,7 @@ import com.gmwapp.hima.dialogs.BottomSheetCreateIplRoom
 import com.gmwapp.hima.dialogs.BottomSheetJoinIplRoom
 import com.gmwapp.hima.models.IplRoom
 import com.gmwapp.hima.viewmodels.IplRoomViewModel
+import androidx.core.view.WindowInsetsControllerCompat
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -38,6 +39,9 @@ class IplRoomsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityIplRoomsBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        // Dark fantasy header extends under status bar via fitsSystemWindows
+        // on the LinearLayout banner. LIGHT icons for readability.
+        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = false
 
         binding.ivBack.setOnClickListener { finish() }
 

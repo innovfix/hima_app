@@ -69,6 +69,7 @@ import com.gmwapp.hima.dialogs.BottomSheetInsufficientCoinsPaywall
 import com.gmwapp.hima.dialogs.FreeCoinsWelcomeDialog
 import com.gmwapp.hima.dialogs.RatingDialog
 import com.gmwapp.hima.fragments.FavouriteFragment
+import com.gmwapp.hima.fragments.CreatorChatFragment
 import com.gmwapp.hima.fragments.FemaleHomeFragment
 import com.gmwapp.hima.fragments.HomeFragment
 import com.gmwapp.hima.fragments.ProfileFemaleFragment
@@ -78,6 +79,7 @@ import com.gmwapp.hima.retrofit.responses.CoinsResponseData
 import com.gmwapp.hima.retrofit.responses.NewRazorpayLinkResponse
 import com.gmwapp.hima.retrofit.responses.PaywallVideoContentResponse
 import com.gmwapp.hima.retrofit.responses.RazorPayApiResponse
+import com.gmwapp.hima.utils.Config
 import com.gmwapp.hima.retrofit.responses.FreeCoinsStatusResponse
 import com.gmwapp.hima.retrofit.responses.InstallReferrerResponse
 import com.gmwapp.hima.retrofit.responses.LoginResponse
@@ -161,6 +163,9 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     private var billingManager: BillingManager? = null
     private val WalletViewModel: WalletViewModel by viewModels()
     private val fetchedSkuList: MutableList<String> = mutableListOf()
+
+    /** Google Play billing from Main: [updatePurchaseOnMeta] when [WalletViewModel.navigateToMain] fires. */
+    private var pendingPurchaseMetaFromMainActivityGpay = false
     
     @javax.inject.Inject
     lateinit var ratingPromptHelper: RatingPromptHelper
@@ -281,6 +286,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         fromApplication = intent.getBooleanExtra("fromApplication", false)
 
         checkIndividualPaymentType()
+        setupNavigateToMainAfterPurchaseObserver()
 
         try {
             CFPaymentGatewayService.getInstance().setCheckoutCallback(this)
@@ -458,8 +464,19 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         if (isGranted) {
             // Permission granted, notifications will work
         } else {
-            // Permission denied, notify the user
+            maybeShowNotificationImportance()
         }
+    }
+
+    private fun maybeShowNotificationImportance() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+        val key = "notif_importance_last_shown"
+        val last = prefs.getLong(key, 0L)
+        val oneDay = 24 * 60 * 60 * 1000L
+        if (System.currentTimeMillis() - last < oneDay) return
+        prefs.edit().putLong(key, System.currentTimeMillis()).apply()
+        startActivity(Intent(this, NotificationImportanceActivity::class.java))
     }
 
 
@@ -525,9 +542,10 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
         userID?.toIntOrNull()?.let { offerViewModel.getOffer(it) }
         
-        // Show/hide favourite menu item based on user gender (only for MALE users)
+        // Show/hide bottom-nav items by gender: males see Favourite, females see Chat
         val userGender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
         binding.bottomNavigationView.menu.findItem(R.id.favourite)?.isVisible = (userGender == DConstants.MALE)
+        binding.bottomNavigationView.menu.findItem(R.id.chat)?.isVisible = (userGender == DConstants.FEMALE)
         
         binding.bottomNavigationView.setOnNavigationItemSelectedListener(this)
         
@@ -732,6 +750,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         val current = supportFragmentManager.findFragmentById(R.id.flFragment) ?: return false
         return when (itemId) {
             R.id.home -> current is HomeFragment || current is FemaleHomeFragment
+            R.id.chat -> current is CreatorChatFragment
             R.id.recent -> current is RecentFragment
             R.id.favourite -> current is FavouriteFragment
             R.id.profile -> current is ProfileFragment || current is ProfileFemaleFragment
@@ -772,6 +791,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                         ?.getUserData()?.gender == DConstants.FEMALE
                 ) FemaleHomeFragment() else HomeFragment()
                 transaction.replace(R.id.flFragment, homeFragment).commit()
+                return true
+            }
+
+            R.id.chat -> {
+                window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+                transaction.replace(R.id.flFragment, CreatorChatFragment()).commit()
                 return true
             }
 
@@ -997,20 +1022,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 preferences.setSelectedPlanId(java.lang.String.valueOf(pointsIdInt))
                 preferences.setSelectedOrderId(java.lang.String.valueOf(random4Digit))
                 WalletViewModel.tryCoins(userId, pointsIdInt, 0, random4Digit, "try")
+                pendingPurchaseMetaFromMainActivityGpay = true
                 billingManager!!.purchaseProduct(pointsId)
-                WalletViewModel.navigateToMain.observe(
-                    this,
-                    Observer { shouldNavigate ->
-                        Log.d("shouldNavigateFromMain", "$shouldNavigate")
-                        if (shouldNavigate) {
-                            updatePurchaseOnMeta()
-                            val intent = Intent(this, MainActivity::class.java)
-                            intent.flags =
-                                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                            startActivity(intent)
-                            finish()
-                        }
-                    })
             }
 
             "razorpay" -> {
@@ -1141,7 +1154,13 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             val token = task.result
             Log.d("FCM", "Device token: $token")
 
-            userId?.let { 
+            userId?.let {
+                // User is signing in — drop any pending logout-time FCM invalidation
+                // for this userId so we don't race-reset the token we're about to register.
+                androidx.work.WorkManager.getInstance(applicationContext)
+                    .cancelUniqueWork(
+                        "${com.gmwapp.hima.workers.FcmTokenInvalidationWorker.WORK_NAME_PREFIX}$it"
+                    )
                 // Send token to backend
                 fcmTokenViewModel.sendToken(it, token)
             }
@@ -1368,15 +1387,23 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         val safeMissed = recentMissedCount.coerceAtLeast(0)
         val safeUnread = recentUnreadCount.coerceAtLeast(0)
 
-        // Always remove native Material badge — we use our own positioning for both dots
-        // so they are anchored identically and sit at exactly the same height.
+        // Always remove native Material badge — we use a custom overlay for pixel-perfect placement.
         binding.bottomNavigationView.removeBadge(R.id.recent)
 
-        if (safeMissed > 0 || safeUnread > 0) {
-            placeRecentBadges(safeMissed, safeUnread)
+        // Single-badge rule: missed calls win; unread chats are a fallback.
+        val displayCount = when {
+            safeMissed > 0 -> safeMissed
+            safeUnread > 0 -> safeUnread
+            else -> 0
+        }
+
+        // Legacy unread dot (from previous two-badge layout) — hide so no stale count lingers after upgrade.
+        hideBadge(recentUnreadDotTag)
+
+        if (displayCount > 0) {
+            placeRecentBadge(displayCount)
         } else {
             hideBadge(recentMissedDotTag)
-            hideBadge(recentUnreadDotTag)
         }
     }
 
@@ -1410,32 +1437,16 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         }
     }
 
-    // Both badges live in the root FrameLayout and are positioned via getLocationInWindow
-    // so they use identical coordinate space — guaranteed same vertical alignment.
-    private fun placeRecentBadges(missedCount: Int, unreadCount: Int) {
+    // Single badge on Recent tab — top-right of icon; reuses recentMissedDotTag TextView.
+    private fun placeRecentBadge(count: Int) {
         val rootView = window.decorView.findViewById<ViewGroup>(android.R.id.content)
         val dp = resources.displayMetrics.density
         val dotSize = (18 * dp).toInt()
 
-        val missedDot = rootView.findViewWithTag<TextView>(recentMissedDotTag)
+        val dot = rootView.findViewWithTag<TextView>(recentMissedDotTag)
             ?: makeBadgeDot(recentMissedDotTag)
-        val unreadDot = rootView.findViewWithTag<TextView>(recentUnreadDotTag)
-            ?: makeBadgeDot(recentUnreadDotTag)
-
-        if (missedCount > 0) {
-            missedDot.text = missedCount.coerceAtMost(99).toString()
-            missedDot.visibility = View.VISIBLE
-        } else {
-            missedDot.visibility = View.GONE
-        }
-
-        // Unread badge is always shown when count > 0, independent of missed count.
-        if (unreadCount > 0) {
-            unreadDot.text = unreadCount.coerceAtMost(99).toString()
-            unreadDot.visibility = View.VISIBLE
-        } else {
-            unreadDot.visibility = View.GONE
-        }
+        dot.text = count.coerceAtMost(99).toString()
+        dot.visibility = View.VISIBLE
 
         binding.bottomNavigationView.post {
             val itemView = getRecentBottomNavItemView() ?: return@post
@@ -1448,23 +1459,15 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             val rootPos = IntArray(2)
             rootView.getLocationInWindow(rootPos)
 
-            val iconLeft  = iconPos[0] - rootPos[0]
+            val iconLeft = iconPos[0] - rootPos[0]
             val iconRight = iconLeft + iconView.width
-            val iconTop   = iconPos[1] - rootPos[1]
+            val iconTop = iconPos[1] - rootPos[1]
             val topMargin = iconTop - dotSize / 2
 
-            // Missed always on top-right.
-            (missedDot.layoutParams as? FrameLayout.LayoutParams)?.let {
+            (dot.layoutParams as? FrameLayout.LayoutParams)?.let {
                 it.leftMargin = iconRight - dotSize / 2
-                it.topMargin  = topMargin
-                missedDot.layoutParams = it
-            }
-            // Unread: top-left when both visible, top-right when only unread visible.
-            (unreadDot.layoutParams as? FrameLayout.LayoutParams)?.let {
-                it.leftMargin = if (missedCount > 0) iconLeft - dotSize / 2
-                                else iconRight - dotSize / 2
-                it.topMargin  = topMargin
-                unreadDot.layoutParams = it
+                it.topMargin = topMargin
+                dot.layoutParams = it
             }
         }
     }
@@ -1531,7 +1534,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         Log.d("SelectedCoinID", " $coinId")
 
         val request = Request.Builder()
-            .url("https://himaapp.in/api/phonepe/live/create-order") // Should return { token, orderId }
+            .url("${Config.API_ROOT}phonepe/live/create-order") // Should return { token, orderId }
             .post(formBody)
             .build()
 
@@ -1596,7 +1599,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         val body = RequestBody.create(mediaType, json)
 
         val request = Request.Builder()
-            .url("https://himaapp.in/api/phonepe/live/check-status")
+            .url("${Config.API_ROOT}phonepe/live/check-status")
             .post(body) // ✅ Correct method
             .addHeader("Content-Type", "application/json")
             .build()
@@ -1625,7 +1628,6 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                     runOnUiThread{
                         showAppToast("Payment Successful", Toast.LENGTH_LONG)
                         user_id?.let { WalletViewModel.addCoins(it, coin_id, 1, order_id, "Coins purchased") }
-                        observeAddCoins()
                         updatePurchaseOnMeta()
                     }
 
@@ -1647,19 +1649,24 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         return activities.isNotEmpty()
     }
 
-    fun observeAddCoins(){
-
+    /** Single observer — avoids stacking [WalletViewModel.navigateToMain] on every payment poll. */
+    private fun setupNavigateToMainAfterPurchaseObserver() {
         WalletViewModel.navigateToMain.observe(
             this,
             Observer { shouldNavigate ->
-                Log.d("shouldNavigateFromMain","$shouldNavigate")
-                if (shouldNavigate){
-                    val intent = Intent(this, MainActivity::class.java)
-                    intent.flags =
-                        Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                    startActivity(intent)
-                    finish() // ✅ Now this works because we are in an Activity
-                                }})
+                Log.d("shouldNavigateFromMain", "$shouldNavigate")
+                if (!shouldNavigate) return@Observer
+                if (isFinishing || isDestroyed) return@Observer
+                if (pendingPurchaseMetaFromMainActivityGpay) {
+                    updatePurchaseOnMeta()
+                    pendingPurchaseMetaFromMainActivityGpay = false
+                }
+                val intent = Intent(this, MainActivity::class.java)
+                intent.flags =
+                    Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                startActivity(intent)
+                finish()
+            })
     }
 
     private fun isNewUser(createdAt: String?): Boolean {
@@ -2006,7 +2013,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         val body = RequestBody.create(mediaType, json)
 
         val request = Request.Builder()
-            .url("https://himaapp.in/api/cashfree/create-order")
+            .url("${Config.API_ROOT}cashfree/create-order")
             .post(body) // ✅ POST request like PhonePe example
             .addHeader("Content-Type", "application/json")
             .build()
@@ -2057,7 +2064,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         val client = OkHttpClient()
 
         val request = Request.Builder()
-            .url("https://himaapp.in/api/cashfree/check-order-status?order_id=$orderId")
+            .url("${Config.API_ROOT}cashfree/check-order-status?order_id=$orderId")
             .get() // ✅ This endpoint uses GET (based on your Postman test)
             .addHeader("Content-Type", "application/json")
             .build()
@@ -2087,7 +2094,6 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                         runOnUiThread {
                             showAppToast("Payment Successful", Toast.LENGTH_LONG)
                             user_id?.let { WalletViewModel.add_coins_cashfree(it, coin_id, 1, order_id, "Coins purchased") }
-                            observeAddCoins()
                             updatePurchaseOnMeta()
                         }
                     } else {

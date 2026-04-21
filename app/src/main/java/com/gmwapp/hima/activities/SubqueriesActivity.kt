@@ -11,6 +11,7 @@ import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.gmwapp.hima.BaseApplication
@@ -35,7 +36,8 @@ class SubqueriesActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivitySubqueriesBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        
+        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
+
         // Status bar configuration
         window.statusBarColor = ContextCompat.getColor(this, R.color.white)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {

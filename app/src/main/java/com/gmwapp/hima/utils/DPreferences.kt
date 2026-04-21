@@ -237,6 +237,22 @@ class DPreferences(context: Context) {
         return mPrefsRead.getString(key, null)
     }
 
+    fun getBoolPref(key: String, default: Boolean = true): Boolean {
+        return try {
+            mPrefsRead.getBoolean(key, default)
+        } catch (e: Exception) {
+            default
+        }
+    }
+
+    fun setBoolPref(key: String, value: Boolean) {
+        try {
+            mPrefsWrite.putBoolean(key, value).apply()
+        } catch (e: Exception) {
+            e.message?.let { Log.e("DPreferences", it) }
+        }
+    }
+
 
 
 

@@ -14,6 +14,7 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityAlmostDoneBinding
 import com.gmwapp.hima.retrofit.responses.UserData
+import com.gmwapp.hima.utils.applySystemBarInsets
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
@@ -73,6 +74,7 @@ class AlmostDoneActivity : BaseActivity() {
             }
         })
         setContentView(binding.root)
+        applySystemBarInsets(binding.root, R.color.white, darkStatusBarIcons = true)
     }
 
     override fun onResume() {

@@ -227,47 +227,97 @@
                 android:id="@+id/call_buttons_row"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="10dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <TextView
+                <LinearLayout
                     android:id="@+id/btn_audio_call"
                     android:layout_width="0dp"
-                    android:layout_height="36dp"
+                    android:layout_height="40dp"
                     android:layout_weight="1"
                     android:layout_marginEnd="6dp"
                     android:background="@drawable/button_audio_gradient"
-                    android:drawableStart="@drawable/ic_phone"
-                    android:drawablePadding="6dp"
-                    android:drawableTint="@color/white"
-                    android:fontFamily="@font/poppins_semibold"
+                    android:clickable="true"
+                    android:focusable="true"
                     android:gravity="center"
-                    android:paddingHorizontal="12dp"
-                    android:text="Audio"
-                    android:textColor="@color/white"
-                    android:textSize="13sp"
-                    android:visibility="gone"
-                    tools:visibility="visible" />
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="8dp"
+                    tools:ignore="UselessParent">
 
-                <TextView
+                    <ImageView
+                        android:id="@+id/iv_audio_icon"
+                        android:layout_width="15dp"
+                        android:layout_height="15dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_phone"
+                        app:tint="@color/white" />
+
+                    <ImageView
+                        android:id="@+id/iv_audio_coin"
+                        android:layout_width="14dp"
+                        android:layout_height="14dp"
+                        android:layout_marginStart="5dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/coin_d" />
+
+                    <TextView
+                        android:id="@+id/tv_audio_rate"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:fontFamily="@font/poppins_semibold"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
+                        android:text="10/min"
+                        android:textColor="@color/white"
+                        android:textSize="11sp"
+                        tools:text="10/min" />
+                </LinearLayout>
+
+                <LinearLayout
                     android:id="@+id/btn_video_call"
                     android:layout_width="0dp"
-                    android:layout_height="36dp"
+                    android:layout_height="40dp"
                     android:layout_weight="1"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/button_video_gradient"
-                    android:drawableStart="@drawable/baseline_video_chat_24"
-                    android:drawablePadding="6dp"
-                    android:drawableTint="@color/white"
-                    android:fontFamily="@font/poppins_semibold"
+                    android:clickable="true"
+                    android:focusable="true"
                     android:gravity="center"
-                    android:paddingHorizontal="12dp"
-                    android:text="Video"
-                    android:textColor="@color/white"
-                    android:textSize="13sp"
-                    android:visibility="gone"
-                    tools:visibility="visible" />
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="8dp"
+                    tools:ignore="UselessParent">
+
+                    <ImageView
+                        android:id="@+id/iv_video_icon"
+                        android:layout_width="17dp"
+                        android:layout_height="17dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/baseline_video_chat_24"
+                        app:tint="@color/white" />
+
+                    <ImageView
+                        android:id="@+id/iv_video_coin"
+                        android:layout_width="14dp"
+                        android:layout_height="14dp"
+                        android:layout_marginStart="5dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/coin_d" />
+
+                    <TextView
+                        android:id="@+id/tv_video_rate"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:fontFamily="@font/poppins_semibold"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
+                        android:text="60/min"
+                        android:textColor="@color/white"
+                        android:textSize="11sp"
+                        tools:text="60/min" />
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
 

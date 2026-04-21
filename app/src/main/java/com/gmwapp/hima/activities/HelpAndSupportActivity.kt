@@ -12,6 +12,7 @@ import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.gmwapp.hima.BaseApplication
@@ -36,7 +37,8 @@ class HelpAndSupportActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityHelpAndSupportBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        
+        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
+
         // Status bar configuration
         window.statusBarColor = ContextCompat.getColor(this, R.color.white)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -63,7 +65,8 @@ class HelpAndSupportActivity : BaseActivity() {
     }
 
     private fun initUI() {
-        binding.cvBack.setOnSingleClickListener {
+        binding.includeProfileToolbar.tvFlowTitle.text = "Help and Support"
+        binding.includeProfileToolbar.cvBack.setOnSingleClickListener {
             finish()
         }
 
@@ -86,20 +89,20 @@ class HelpAndSupportActivity : BaseActivity() {
 
         if (gender?.equals(DConstants.MALE, ignoreCase = true) == true) {
             // Hide category section for male users
-            binding.tvSelectCategoryTitle.visibility = android.view.View.GONE
+            binding.llSelectCategoryHeader.visibility = android.view.View.GONE
             binding.rvCategories.visibility = android.view.View.GONE
             binding.tvEmpty.visibility = android.view.View.GONE
             
             // Show create ticket section for male users
-            binding.tvCreateTicketTitle.visibility = android.view.View.VISIBLE
+            binding.llCreateTicketHeader.visibility = android.view.View.VISIBLE
             binding.cvRaiseTicket.visibility = android.view.View.VISIBLE
         } else {
             // Show category section for female users
-            binding.tvSelectCategoryTitle.visibility = android.view.View.VISIBLE
+            binding.llSelectCategoryHeader.visibility = android.view.View.VISIBLE
             binding.rvCategories.visibility = android.view.View.VISIBLE
             
             // Hide create ticket section for female users
-            binding.tvCreateTicketTitle.visibility = android.view.View.GONE
+            binding.llCreateTicketHeader.visibility = android.view.View.GONE
             binding.cvRaiseTicket.visibility = android.view.View.GONE
         }
     }
@@ -162,7 +165,7 @@ class HelpAndSupportActivity : BaseActivity() {
         // Observe tickets list
         accountViewModel.ticketsListLiveData.observe(this, Observer { response ->
             // Always show "Your tickets" section
-            binding.tvYourTicketsTitle.visibility = android.view.View.VISIBLE
+            binding.llYourTicketsSection.visibility = android.view.View.VISIBLE
             binding.cvYourTickets.visibility = android.view.View.VISIBLE
             
             // Hide progress bar after tickets are loaded (for male users who don't load categories)
@@ -224,7 +227,7 @@ class HelpAndSupportActivity : BaseActivity() {
 
         accountViewModel.ticketsListErrorLiveData.observe(this, Observer { error ->
             // Always show section even on error, but show "No ticket raised"
-            binding.tvYourTicketsTitle.visibility = android.view.View.VISIBLE
+            binding.llYourTicketsSection.visibility = android.view.View.VISIBLE
             binding.cvYourTickets.visibility = android.view.View.VISIBLE
             binding.tvActiveTickets.text = "No ticket raised"
             binding.tvActiveTickets.setTextColor(android.graphics.Color.parseColor("#9E9E9E"))

@@ -4,10 +4,14 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.View
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.PagerSnapHelper
 import com.gmwapp.hima.R
@@ -17,6 +21,7 @@ import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivitySelectGenderBinding
 import com.gmwapp.hima.retrofit.ApiManager
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
+import com.gmwapp.hima.utils.applySystemBarInsets
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.onesignal.OneSignal
@@ -40,12 +45,12 @@ class SelectGenderActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivitySelectGenderBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        enableEdgeToEdge()
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
+        // API 35+ forces edge-to-edge. The layout uses fitsSystemWindows=true
+        // on the AppBarLayout so the pink gradient extends *under* the status
+        // bar. We only need to force LIGHT status-bar icons (white) so they
+        // stay readable against the pink gradient.
+        WindowInsetsControllerCompat(window, binding.root)
+            .isAppearanceLightStatusBars = false
         callTrackingInfoFromSavedAddress()
         initUI()
     }
@@ -61,8 +66,13 @@ class SelectGenderActivity : BaseActivity() {
         setCenterLayoutManager(binding.rvAvatars)
         
         binding.ivBack.setOnSingleClickListener {
-            finish()
+            handleBackPress()
         }
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                this@SelectGenderActivity.handleBackPress()
+            }
+        })
         
         binding.btnContinue.setOnSingleClickListener {
             setContinueLoading(true)
@@ -83,7 +93,7 @@ class SelectGenderActivity : BaseActivity() {
             )
             intent.putExtra(DConstants.GENDER, selectedGender)
             startActivity(intent)
-
+            overridePendingTransition(R.anim.onboarding_transition_in, R.anim.onboarding_transition_out)
         }
         
         // Male Card Click
@@ -181,6 +191,27 @@ class SelectGenderActivity : BaseActivity() {
             binding.iconMale.setBackgroundResource(R.drawable.circle_bg_grey)
             binding.iconMale.setTextColor(greyColor)
         }
+    }
+
+    private fun handleBackPress() {
+        // User just passed OTP verification to get here — a slip of the back button
+        // shouldn't silently drop them back to login. Confirm the intent.
+        val dialogView = layoutInflater.inflate(R.layout.dialog_discard_changes, null)
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        dialogView.findViewById<View>(R.id.btn_keep_editing).setOnClickListener {
+            dialog.dismiss()
+        }
+        dialogView.findViewById<View>(R.id.btn_go_back).setOnClickListener {
+            dialog.dismiss()
+            finish()
+        }
+
+        dialog.show()
     }
 
     private fun callTrackingInfoFromSavedAddress() {

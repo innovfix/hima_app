@@ -16,6 +16,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -26,6 +27,7 @@ import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.databinding.ActivityNewLoginBinding
 import com.gmwapp.hima.databinding.ActivityShareBinding
+import com.gmwapp.hima.utils.applySystemBarInsets
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
@@ -49,16 +51,17 @@ class ShareActivity : AppCompatActivity() {
         setContentView(binding.root)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         enableEdgeToEdge()
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
+        // White header => dark status-bar icons
+        applySystemBarInsets(binding.root, R.color.white, darkStatusBarIcons = true)
         initUI()
     }
     fun initUI(){
         binding.shareLink.isEnabled = false
 
+        binding.includeProfileToolbar.tvFlowTitle.text = "Share & Get Coins"
+        binding.includeProfileToolbar.tvFlowTitle.setTextColor(
+            ContextCompat.getColor(this, R.color.pink_bold)
+        )
 
         viewModel.appUpdate()
 
@@ -66,7 +69,7 @@ class ShareActivity : AppCompatActivity() {
         userData?.id?.let { profileViewModel.getUsers(it) }
 
 
-        binding.cvBack.setOnSingleClickListener {
+        binding.includeProfileToolbar.cvBack.setOnSingleClickListener {
             finish()
         }
 
@@ -97,7 +100,7 @@ class ShareActivity : AppCompatActivity() {
             binding.coinEarned.text = "Total money earned"
             binding.textView6.text = "How to get money ?"
             binding.tvGetFreeCoin.text = "Get Money"
-            binding.tvShare.text = "Share & Get Money"
+            binding.includeProfileToolbar.tvFlowTitle.text = "Share & Get Money"
             userData?.let { loginViewModel.login(it.mobile,"0","0") }
             binding.coinH.setImageResource(R.drawable.ruppee_coin)
             binding.ivCoin.setImageResource(R.drawable.ruppee_coin)

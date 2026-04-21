@@ -10,6 +10,8 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -59,9 +61,25 @@ class FavouriteFragment : BaseFragment(), NetworkRetryable, Refreshable {
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
         binding = FragmentFavouriteBinding.inflate(inflater, container, false)
+        setupStatusBarInsets()
         initUI()
         observeViewModel()
         return binding.root
+    }
+
+    private fun setupStatusBarInsets() {
+        val basePaddingTop = binding.appBarLayout.paddingTop
+        ViewCompat.setOnApplyWindowInsetsListener(binding.appBarLayout) { view, insets ->
+            val statusBarInset = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
+            view.setPadding(
+                view.paddingLeft,
+                basePaddingTop + statusBarInset,
+                view.paddingRight,
+                view.paddingBottom
+            )
+            insets
+        }
+        ViewCompat.requestApplyInsets(binding.appBarLayout)
     }
 
     private fun initUI() {

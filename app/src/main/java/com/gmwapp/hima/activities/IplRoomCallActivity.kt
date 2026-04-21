@@ -26,6 +26,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.updatePadding
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
@@ -267,8 +268,9 @@ class IplRoomCallActivity : AppCompatActivity() {
         binding = ActivityIplRoomCallBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Dark status bar to match the room UI
+        // Dark status bar to match the room UI (translucent theme: root draws behind bar)
         window.statusBarColor = Color.parseColor("#070E1A")
+        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = false
 
         roomId = intent.getIntExtra("room_id", 0)
         channelName = "ipl_room_$roomId"

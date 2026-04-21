@@ -4,7 +4,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/white">
+    android:background="@android:color/white"
+    android:fitsSystemWindows="true">
 
     <!-- App Bar -->
     <com.google.android.material.appbar.AppBarLayout
@@ -12,6 +13,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@android:color/white"
+        android:fitsSystemWindows="true"
         app:elevation="2dp">
 
         <androidx.constraintlayout.widget.ConstraintLayout

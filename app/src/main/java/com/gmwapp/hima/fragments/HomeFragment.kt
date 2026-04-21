@@ -51,7 +51,7 @@ import kotlinx.coroutines.launch
 @AndroidEntryPoint
 class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     private var isAllFabVisible: Boolean = false
-    private var filterType: String = "all" // Default filter is "all"
+    private var filterType: String = "my_chats" // Default filter is "my_chats" — open on Chats tab
     lateinit var binding: FragmentHomeBinding
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
 
@@ -202,18 +202,37 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
         // If coming from AI onboarding, default to "My Chats" tab
         val showMyChats = activity?.intent?.getBooleanExtra("SHOW_MY_CHATS", false) ?: false
+        val fromOnboarding = activity?.intent?.getBooleanExtra("FROM_ONBOARDING", false) ?: false
         if (showMyChats) {
             filterType = "my_chats"
             activity?.intent?.removeExtra("SHOW_MY_CHATS")
-            BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let { uid ->
-                loadMyChats(uid)
-                updateFilterButtonStyles()
-            }
         }
-        
+
         userData?.id?.let {
             if (context?.let { it1 -> isInternetAvailable(it1) } == true) {
-                loadFemaleUsers(it)
+                // Chats is now the default tab. Load the appropriate list based
+                // on the active filter — chats API for the Chats tab, female
+                // users API otherwise. Keep styles in sync after the first
+                // render too so the highlighted pill matches the active tab.
+                updateFilterButtonStyles()
+                if (filterType == "my_chats") {
+                    loadMyChats(it)
+                    // The server seeds the chat rows asynchronously after AI
+                    // onboarding completes. The first my_chat call can land
+                    // before the rows exist, returning an empty list. Re-fire
+                    // after a short delay so the list fills in without the
+                    // user needing to pull-to-refresh manually.
+                    if (fromOnboarding) {
+                        activity?.intent?.removeExtra("FROM_ONBOARDING")
+                        binding.rvProfiles.postDelayed({
+                            if (filterType == "my_chats" && isAdded) {
+                                loadMyChats(it)
+                            }
+                        }, 1500L)
+                    }
+                } else {
+                    loadFemaleUsers(it)
+                }
             } else {
                 binding.tvNointernet.visibility = View.VISIBLE
                 setLoading(false)
@@ -351,15 +370,22 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
             userData?.id?.let {
                 if (context?.let { context -> isInternetAvailable(context) } == true) {
-                    // Clear the existing data
-                    femaleUsersViewModel.femaleUsersResponseLiveData.value?.data?.clear()
+                    // Route refresh through the API that matches the active filter.
+                    // Pulling down on My Chats used to fire loadFemaleUsers(), which
+                    // silently replaced the chats list with the All-users list.
+                    if (filterType == "my_chats") {
+                        loadMyChats(it)
+                    } else {
+                        // Clear the existing data
+                        femaleUsersViewModel.femaleUsersResponseLiveData.value?.data?.clear()
 
-                    // Notify the adapter that data has been cleared
-                    (binding.rvProfiles.adapter as? FemaleUserAdapter)?.notifyDataSetChanged()
+                        // Notify the adapter that data has been cleared
+                        (binding.rvProfiles.adapter as? FemaleUserAdapter)?.notifyDataSetChanged()
 
-                    // Reload the data with current filter
-                    loadFemaleUsers(it)
-                    Log.d("refreshing", "refreshing")
+                        // Reload the data with current filter
+                        loadFemaleUsers(it)
+                    }
+                    Log.d("refreshing", "refreshing filter=$filterType")
                 } else {
                     binding.tvNointernet.visibility = View.VISIBLE
                     binding.swipeRefreshLayout.isRefreshing = false
@@ -495,22 +521,35 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                             userName = item.user.name,
                             userImage = item.user.image ?: "",
                             lastMessage = item.lastMessage?.message ?: "",
+                            lastMessageType = item.lastMessage?.messageType ?: "text",
                             lastMessageTime = ts,
                             unreadCount = item.unreadCount,
-                            isOnline = false
+                            // status == 1 from the backend means the creator is
+                            // currently active — mirror the "All" tab's green dot.
+                            isOnline = (item.user.status ?: 0) == 1,
+                            audioStatus = item.user.audioStatus ?: 1,
+                            videoStatus = item.user.videoStatus ?: 1,
+                            coinPerMinAudio = item.user.coinPerMinAudio ?: 10,
+                            coinPerMinVideo = item.user.coinPerMinVideo ?: 60,
+                            language = item.user.language
                         )
                     } catch (_: Exception) { null }
                 }.sortedByDescending { it.lastMessageTime?.seconds ?: 0 }
 
                 val activityCtx = activity ?: return
-                val adapter = com.gmwapp.hima.adapters.ChatListAdapter(activityCtx, ArrayList(conversations)) { conv ->
-                    val intent = Intent(activityCtx, com.gmwapp.hima.activities.ChatActivityInHouse::class.java).apply {
-                        putExtra("USER_ID", conv.userId.toIntOrNull() ?: -1)
-                        putExtra("USER_NAME", conv.userName)
-                        putExtra("USER_IMAGE", conv.userImage)
-                    }
-                    startActivity(intent)
-                }
+                val adapter = com.gmwapp.hima.adapters.ChatListAdapter(
+                    activityCtx,
+                    ArrayList(conversations),
+                    { conv ->
+                        val intent = Intent(activityCtx, com.gmwapp.hima.activities.ChatActivityInHouse::class.java).apply {
+                            putExtra("USER_ID", conv.userId.toIntOrNull() ?: -1)
+                            putExtra("USER_NAME", conv.userName)
+                            putExtra("USER_IMAGE", conv.userImage)
+                        }
+                        startActivity(intent)
+                    },
+                    myChatsApiManager
+                )
                 binding.rvProfiles.layoutManager = LinearLayoutManager(activity, LinearLayoutManager.VERTICAL, false)
                 binding.rvProfiles.adapter = adapter
                 binding.rvProfiles.visibility = View.VISIBLE
@@ -626,7 +665,11 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         observeCoins()
 
         if (FcmUtils.isUserAvailable==0){
-            userData?.let { loadFemaleUsers(it.id) }
+            // Respect the active filter on resume — don't silently swap the
+            // chats list with the creators list when the user is on Chats.
+            userData?.id?.let { uid ->
+                if (filterType == "my_chats") loadMyChats(uid) else loadFemaleUsers(uid)
+            }
         }
         
         // Sync selected filter button styles when resuming

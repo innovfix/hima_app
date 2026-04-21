@@ -13,6 +13,7 @@ import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.PagerSnapHelper
 import com.gmwapp.hima.BaseApplication
@@ -50,6 +51,8 @@ class EditProfileActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityEditProfileBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
         enableEdgeToEdge()
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -60,6 +63,7 @@ class EditProfileActivity : BaseActivity() {
     }
 
     private fun initUI() {
+        binding.includeProfileToolbar.tvFlowTitle.text = getString(R.string.edit_profile)
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         originalUserName = userData?.name
         binding.etUserName.setText(userData?.name)
@@ -80,7 +84,7 @@ class EditProfileActivity : BaseActivity() {
 
         binding.tvPreferredLanguage.text = userData?.language
         //  binding.btnUpdate.setBackgroundResource(R.drawable.d_button_bg_disabled)
-        binding.cvBack.setOnClickListener(View.OnClickListener {
+        binding.includeProfileToolbar.cvBack.setOnClickListener(View.OnClickListener {
             finish()
         })
         window.navigationBarColor = getColor(R.color.black_background)

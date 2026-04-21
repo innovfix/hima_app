@@ -38,8 +38,16 @@ object AppModule {
     @Singleton
     @Provides
     fun providesOkHttpClient(httpLoggingInterceptor: HttpLoggingInterceptor): OkHttpClient {
-        val okClientBuilder = OkHttpClient.Builder().connectTimeout(100, TimeUnit.SECONDS)
-            .readTimeout(100, TimeUnit.SECONDS)
+        // Keep timeouts tight so a dying connection can't hold the UI hostage. The splash
+        // screen has its own 8s fallback on top of this — both layers matter.
+        val okClientBuilder = OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
+            .writeTimeout(20, TimeUnit.SECONDS)
+            // Don't silently follow redirects — a 302 to /login means auth failed and we
+            // need to surface it, not swallow the login HTML as a successful response.
+            .followRedirects(false)
+            .followSslRedirects(false)
 
         okClientBuilder.addInterceptor(object : Interceptor {
             @Throws(IOException::class)
@@ -136,8 +144,14 @@ object AppModule {
                     }
                 }
                 
-                if(response.code == 401){
-                    EventBus.getDefault().post(UnauthorizedEvent());
+                // The web backend returns 302 -> /login when the bearer token is
+                // invalid instead of a clean 401. With followRedirects disabled, we see
+                // that 302 here and can surface it as an auth failure the same way.
+                val location = response.header("Location").orEmpty()
+                val isLoginRedirect = response.code in 300..399 &&
+                    (location.contains("/login") || location.endsWith("login"))
+                if (response.code == 401 || isLoginRedirect) {
+                    EventBus.getDefault().post(UnauthorizedEvent())
                 }
                 return response
             }

@@ -2,6 +2,7 @@ package com.gmwapp.hima.activities
 
 import com.gmwapp.hima.utils.showAppToast
 
+import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.os.Build
@@ -486,6 +487,20 @@ class UserProfileDetailActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Keeps [ChatListAdapter] bell state in sync: it reads `notify_online_prefs` / `notify_<id>` only.
+     */
+    private fun mirrorNotifyPrefToLocal(femaleUserId: Int, enabled: Boolean) {
+        if (femaleUserId <= 0) return
+        com.gmwapp.hima.utils.NotifyOnlinePrefsHelper.setSubscribedWithMeta(
+            this,
+            femaleUserId,
+            enabled,
+            displayedUserName,
+            userImage
+        )
+    }
+
     private fun updateFemaleNotificationPreference(isEnabled: Boolean) {
         val maleUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
         if (maleUserId == 0 || userId == 0) {
@@ -511,6 +526,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
 
                     if (response.isSuccessful && response.body()?.success == true) {
                         showAppToast(response.body()?.message ?: "Preference updated successfully.", Toast.LENGTH_SHORT)
+                        mirrorNotifyPrefToLocal(userId, isEnabled)
                         isUpdatingNotifyPreference = false
                         return
                     }
@@ -562,6 +578,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
                         isUpdatingNotifyPreference = true
                         binding.swNotifyOnline.isChecked = isEnabled
                         isUpdatingNotifyPreference = false
+                        mirrorNotifyPrefToLocal(userId, isEnabled)
                     } else {
                         // Keep default state (off) if API fails
                         isUpdatingNotifyPreference = true

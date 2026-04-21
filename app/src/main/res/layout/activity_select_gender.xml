@@ -6,6 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/grey_extra_light"
+    android:fitsSystemWindows="true"
     tools:context=".activities.LoginActivity">
 
     <!-- Gradient Header Section -->
@@ -15,6 +16,7 @@
         android:layout_height="wrap_content"
         android:background="@drawable/bg_gradiend"
         android:elevation="0dp"
+        android:fitsSystemWindows="true"
         app:elevation="0dp">
 
         <androidx.constraintlayout.widget.ConstraintLayout

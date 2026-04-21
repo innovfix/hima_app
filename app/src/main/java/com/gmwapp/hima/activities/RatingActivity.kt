@@ -126,11 +126,12 @@ class RatingActivity : BaseActivity() {
 
 
 
-        // Set title text with dynamic receiver name
-        binding.tvTitle.text = getString(
-            R.string.review_hint,
-            intent.getStringExtra(DConstants.RECEIVER_NAME) ?: "User"
-        )
+        // Set title text with dynamic receiver name. Backend usernames often
+        // carry a trailing numeric id (e.g. "Chandana572") — strip those digits
+        // so the user sees just the display name.
+        val rawName = intent.getStringExtra(DConstants.RECEIVER_NAME) ?: "User"
+        val displayName = rawName.replace(Regex("\\d+$"), "").trim().ifBlank { "User" }
+        binding.tvTitle.text = getString(R.string.review_hint, displayName)
 
         // Check if female user AND call type was video, then call API for call duration
         val gender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender

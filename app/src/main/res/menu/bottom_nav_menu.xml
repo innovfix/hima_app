@@ -9,6 +9,14 @@
         android:tooltipText="@null"
         app:showAsAction="always" />
     <item
+        android:id="@+id/chat"
+        android:enabled="true"
+        android:icon="@drawable/nav_chat"
+        android:iconTint="@color/white"
+        android:title="@string/chat"
+        android:tooltipText="@null"
+        app:showAsAction="always" />
+    <item
         android:id="@+id/recent"
         android:enabled="true"
         android:icon="@drawable/recent"

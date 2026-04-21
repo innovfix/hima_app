@@ -46,7 +46,7 @@ class VerifyOTPActivity : BaseActivity() {
 
     private fun initUI() {
         window.statusBarColor = resources.getColor(R.color.dark_blue)
-        val mobileNumber: String = intent.getStringExtra(DConstants.MOBILE_NUMBER).toString()
+        val mobileNumber: String = intent.getStringExtra(DConstants.MOBILE_NUMBER).orEmpty()
         val otp = intent.getIntExtra(DConstants.OTP, 0)
         val countryCode = intent.getIntExtra(DConstants.COUNTRY_CODE, 0)
         binding.tvOtpMobileNumber.text = " $mobileNumber"

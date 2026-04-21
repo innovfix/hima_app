@@ -23,6 +23,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import com.gmwapp.hima.BaseApplication
@@ -111,6 +113,29 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         }
     }
 
+    private fun hasRecordAudioPermission(): Boolean =
+        ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+
+    private fun hasCameraPermission(): Boolean =
+        ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA) ==
+            PackageManager.PERMISSION_GRANTED
+
+    private val audioCallEnablePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val userData = getInstance()?.getPrefs()?.getUserData()
+            ?: return@registerForActivityResult
+        if (granted) {
+            femaleUsersViewModel.updateCallStatus(userData.id, DConstants.AUDIO, 1)
+            binding.sAudio.setOnCheckedChangeListener(null)
+            binding.sAudio.isChecked = true
+            setupSwitchListeners(userData)
+        } else {
+            startActivity(Intent(requireContext(), GrantPermissionsActivity::class.java))
+        }
+    }
+
     private var startTime: String = ""
     private var endTime: String = ""
 
@@ -118,12 +143,28 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
         binding = FragmentFemaleHomeBinding.inflate(layoutInflater)
+        setupStatusBarInsets()
 
         sharedPreferences = requireContext().getSharedPreferences("MyAppPrefs", Context.MODE_PRIVATE)
         isPermissionDenied = sharedPreferences.getBoolean("isTagSet", false)
         initUI()
         askPermissions()
         return binding.root
+    }
+
+    private fun setupStatusBarInsets() {
+        val basePaddingTop = binding.clHeader.paddingTop
+        ViewCompat.setOnApplyWindowInsetsListener(binding.clHeader) { view, insets ->
+            val statusBarInset = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
+            view.setPadding(
+                view.paddingLeft,
+                basePaddingTop + statusBarInset,
+                view.paddingRight,
+                view.paddingBottom
+            )
+            insets
+        }
+        ViewCompat.requestApplyInsets(binding.clHeader)
     }
 
     override fun onAttach(context: Context) {
@@ -314,19 +355,25 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
 //        userLanguage?.let { zohoMailViewModel.fetchZohoMail(it) }
 
 
-        userLanguage?.let {
-            zohoMailViewModel.fetchZohoMail(it) { email,department,appKey, accessKey ->
+        userLanguage?.let { lang ->
+            zohoMailViewModel.fetchZohoMail(lang) { email, department, appKey, accessKey ->
+                if (!isAdded || view == null) return@fetchZohoMail
+                val ud = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                if (ud == null) {
+                    Log.w("FemaleHomeFragment", "userData null in Zoho callback")
+                    return@fetchZohoMail
+                }
                 if (!email.isNullOrEmpty()) {
 
                     // Initialize Zoho *after* email is ready
 
-                    BaseApplication.getInstance()?.initZoho(appKey,accessKey)
+                    BaseApplication.getInstance()?.initZoho(appKey, accessKey)
 
-                    val langCode = userLanguage.take(3)
-                    ZohoSalesIQ.registerVisitor("${userData.id}_${userData.language}")
+                    val langCode = ud.language.take(3)
+                    ZohoSalesIQ.registerVisitor("${ud.id}_${ud.language}")
 
-                    ZohoSalesIQ.Visitor.setName("${userData?.name}($langCode)")
-                    ZohoSalesIQ.Visitor.setContactNumber("${userData?.mobile}")
+                    ZohoSalesIQ.Visitor.setName("${ud.name}($langCode)")
+                    ZohoSalesIQ.Visitor.setContactNumber("${ud.mobile}")
                     ZohoSalesIQ.Chat.setOperatorEmail(email)
 
 
@@ -714,21 +761,36 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
     }
 
     private fun setupSwitchListeners(userData: UserData?) {
-        if (userData != null) {
-            binding.sAudio.setOnCheckedChangeListener({ buttonView, isChecked ->
-                userData.id.let { userId ->
-                    femaleUsersViewModel.updateCallStatus(
-                        userId, DConstants.AUDIO, if (isChecked) 1 else 0
-                    )
-                }
-            })
-            binding.sVideo.setOnCheckedChangeListener({ buttonView, isChecked ->
-                userData.id.let { userId ->
-                    femaleUsersViewModel.updateCallStatus(
-                        userId, DConstants.VIDEO, if (isChecked) 1 else 0
-                    )
-                }
-            })
+        if (userData == null) return
+
+        binding.sAudio.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked && !hasRecordAudioPermission()) {
+                binding.sAudio.setOnCheckedChangeListener(null)
+                binding.sAudio.isChecked = false
+                setupSwitchListeners(userData)
+                audioCallEnablePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                return@setOnCheckedChangeListener
+            }
+            femaleUsersViewModel.updateCallStatus(
+                userData.id,
+                DConstants.AUDIO,
+                if (isChecked) 1 else 0
+            )
+        }
+
+        binding.sVideo.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked && (!hasCameraPermission() || !hasRecordAudioPermission())) {
+                binding.sVideo.setOnCheckedChangeListener(null)
+                binding.sVideo.isChecked = false
+                setupSwitchListeners(userData)
+                startActivity(Intent(requireContext(), GrantPermissionsActivity::class.java))
+                return@setOnCheckedChangeListener
+            }
+            femaleUsersViewModel.updateCallStatus(
+                userData.id,
+                DConstants.VIDEO,
+                if (isChecked) 1 else 0
+            )
         }
     }
 

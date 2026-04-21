@@ -56,11 +56,17 @@ import com.appsflyer.AppsFlyerConversionListener;
 import com.gmwapp.hima.activities.ChatActivityInHouse
 import com.gmwapp.hima.activities.ChatListActivity
 import com.gmwapp.hima.activities.MainActivity
+import com.gmwapp.hima.activities.NewLoginActivity
+import com.gmwapp.hima.dagger.UnauthorizedEvent
 import com.gmwapp.hima.fragments.FriendsTabFragment
 import com.gmwapp.hima.socket.SocketManager
 import com.onesignal.notifications.INotificationClickEvent
 import com.onesignal.notifications.INotificationClickListener
+import org.greenrobot.eventbus.EventBus
+import org.greenrobot.eventbus.Subscribe
+import org.greenrobot.eventbus.ThreadMode
 import org.json.JSONObject
+import android.widget.Toast
 
 
 @HiltAndroidApp
@@ -514,8 +520,31 @@ class BaseApplication : Application(), Configuration.Provider {
 
         registerActivityLifecycleCallbacks(lifecycleCallbacks)
 
+        // Listen for auth failures surfaced by the OkHttp interceptor (401 or a 302 to
+        // /login). Without this, a stale bearer token leaves the user stuck — every API
+        // silently fails and they'd have to clear app data to recover.
+        if (!EventBus.getDefault().isRegistered(this)) {
+            EventBus.getDefault().register(this)
+        }
 
+    }
 
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    fun onUnauthorizedEvent(event: UnauthorizedEvent) {
+        // Guard: if we've already logged the user out (or they were never logged in),
+        // a stray late-arriving 401 from an in-flight request shouldn't trigger another
+        // toast + navigation.
+        val prefs = getPrefs() ?: return
+        if (prefs.getUserData() == null) return
+
+        Log.w("Unauthorized", "Session expired — clearing data and routing to login")
+        prefs.clearUserData()
+        Toast.makeText(this, "Session expired, please log in again", Toast.LENGTH_LONG).show()
+
+        val intent = Intent(this, NewLoginActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        startActivity(intent)
     }
 
     fun getCurrentActivity(): Activity? {
@@ -649,7 +678,19 @@ class BaseApplication : Application(), Configuration.Provider {
                 setAudioAttributes(audioAttributes)
                 setDataSource(applicationContext, ringtoneUri)
                 isLooping = true
-                setOnPreparedListener { start() } // start only after prepared
+                setOnPreparedListener { mp ->
+                    try {
+                        if (mediaPlayer === mp) {
+                            mp.start()
+                        }
+                    } catch (e: IllegalStateException) {
+                        Log.w("MediaPlayer", "start() after release or invalid state", e)
+                        stopRingtone()
+                    } catch (e: Exception) {
+                        Log.e("MediaPlayer", "start() failed", e)
+                        stopRingtone()
+                    }
+                }
                 setOnCompletionListener { stopRingtone() } // safety
                 setOnErrorListener { _, _, _ ->
                     stopRingtone()
