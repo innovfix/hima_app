@@ -104,9 +104,9 @@ class GetNameActivity : BaseActivity() {
         }
         isSubmitInProgress = true
         setContinueLoading(true)
-        // interests=null — backend treats `interests` as nullable on update_profile, so
-        // omitting the field leaves the existing server value untouched.
-        profileViewModel.updateProfile(userId, avatarId, name, null)
+        // Production backend still requires a non-empty `interests` on update_profile.
+        // Send a harmless default so male onboarding (which has no interests step) can pass.
+        profileViewModel.updateProfile(userId, avatarId, name, arrayListOf("general"))
     }
 
     private fun observeViewModel() {
