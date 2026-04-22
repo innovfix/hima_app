@@ -26,6 +26,7 @@ import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.BaseApplication.Companion.getInstance
 import com.gmwapp.hima.agora.male.MaleCallConnectingActivity
 import com.gmwapp.hima.R
+import com.gmwapp.hima.activities.DummySubscriptionActivity
 import com.gmwapp.hima.activities.IplRoomsActivity
 import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.adapters.FemaleUserAdapter
@@ -36,6 +37,7 @@ import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.callbacks.Refreshable
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentHomeBinding
+import com.gmwapp.hima.dialogs.BottomSheetTrialOffer
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponseData
 import com.gmwapp.hima.utils.Helper
 import com.gmwapp.hima.utils.setOnSingleClickListener
@@ -95,8 +97,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
     private fun initUI() {
         binding.clCoins.setOnSingleClickListener {
-            val intent = Intent(context, WalletActivity::class.java)
-            startActivity(intent)
+            startActivity(android.content.Intent(requireContext(), WalletActivity::class.java))
         }
 
         // IPL Room Calls banner — male opens room list screen
@@ -104,6 +105,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             startActivity(Intent(requireContext(), com.gmwapp.hima.activities.IplRoomsActivity::class.java))
         }
         refreshIplBanner()
+        refreshFreeCallFab()
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val language = userData?.language
@@ -303,7 +305,28 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                     override fun onItemSelected(data: FemaleUsersResponseData) {}
                 }
                 val transactionAdapter = activity?.let { context ->
-                    FemaleUserAdapter(context, it.data, noOpListener, noOpListener)
+                    FemaleUserAdapter(
+                        context,
+                        it.data,
+                        object : OnItemSelectionListener<FemaleUsersResponseData> {
+                            override fun onItemSelected(data: FemaleUsersResponseData) {
+                                if (isSubscriptionActive()) {
+                                    startCallActivity(data, DConstants.AUDIO)
+                                } else {
+                                    showTrialOfferSheet()
+                                }
+                            }
+                        },
+                        object : OnItemSelectionListener<FemaleUsersResponseData> {
+                            override fun onItemSelected(data: FemaleUsersResponseData) {
+                                if (isSubscriptionActive()) {
+                                    startCallActivity(data, DConstants.VIDEO)
+                                } else {
+                                    showTrialOfferSheet()
+                                }
+                            }
+                        }
+                    )
                 }
                 binding.rvProfiles.adapter = transactionAdapter
             }
@@ -332,6 +355,45 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         refreshMaleHomeNetworkPlaceholder()
 
         initFab()
+    }
+
+    private fun showTrialOfferSheet() {
+        if (!isAdded) return
+        val existing = childFragmentManager.findFragmentByTag(BottomSheetTrialOffer.TAG)
+        if (existing is BottomSheetTrialOffer && existing.isAdded) return
+        BottomSheetTrialOffer.newInstance().apply {
+            setOnTryNowClickListener {
+                val ctx = context ?: return@setOnTryNowClickListener
+                startActivity(Intent(ctx, DummySubscriptionActivity::class.java))
+            }
+        }.show(childFragmentManager, BottomSheetTrialOffer.TAG)
+    }
+
+    private fun refreshFreeCallFab() {
+        if (!isAdded) return
+        val active = requireContext()
+            .getSharedPreferences(DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE)
+            .getBoolean(DummySubscriptionActivity.KEY_ACTIVE, false)
+        binding.fabFreeCall.visibility = if (active) View.VISIBLE else View.GONE
+    }
+
+    private fun isSubscriptionActive(): Boolean {
+        return requireContext()
+            .getSharedPreferences(DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE)
+            .getBoolean(DummySubscriptionActivity.KEY_ACTIVE, false)
+    }
+
+    private fun startCallActivity(data: FemaleUsersResponseData, callType: String) {
+        val intent = Intent(requireContext(), MaleCallConnectingActivity::class.java).apply {
+            putExtra(DConstants.CALL_TYPE, callType)
+            putExtra(DConstants.RECEIVER_ID, data.id)
+            putExtra(DConstants.RECEIVER_NAME, data.name)
+            putExtra(DConstants.CALL_ID, 0)
+            putExtra(DConstants.IMAGE, data.image)
+            putExtra(DConstants.IS_RECEIVER_DETAILS_AVAILABLE, true)
+            putExtra(DConstants.TEXT, "Connecting to ${data.name}…")
+        }
+        startActivity(intent)
     }
 
     private fun refreshMaleHomeNetworkPlaceholder() {
@@ -568,6 +630,14 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     }
 
     fun initFab() {
+        binding.fabFreeCall.setOnClickListener {
+            val intent = Intent(requireContext(), AgoraRandomCallActivity::class.java)
+            intent.putExtra(DConstants.CALL_TYPE, DConstants.AUDIO)
+            intent.putExtra("RANDOM_FILTER", filterType)
+            intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            startActivity(intent)
+        }
+
         binding.fabRandom.extend()
         binding.fabAudio.hide()
         binding.fabVideo.hide()
@@ -671,7 +741,9 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 if (filterType == "my_chats") loadMyChats(uid) else loadFemaleUsers(uid)
             }
         }
-        
+
+        refreshFreeCallFab()
+
         // Sync selected filter button styles when resuming
         updateFilterButtonStyles()
 
