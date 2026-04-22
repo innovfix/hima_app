@@ -19,7 +19,11 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import com.bumptech.glide.Glide
 import com.gmwapp.hima.BaseApplication
+import androidx.core.content.ContextCompat
+import com.gmwapp.hima.activities.CancelSubscriptionActivity
 import com.gmwapp.hima.activities.CommunityGuidelineActivity
+import com.gmwapp.hima.activities.DummySubscriptionActivity
+import com.gmwapp.hima.dialogs.BottomSheetTrialOffer
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.AccountPrivacyActivity
 import com.gmwapp.hima.activities.ManageNotificationsActivity
@@ -315,6 +319,8 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
             startActivity(intent)
         }
 
+        refreshActiveSubscriptionCard()
+
         binding.cvLogout.setOnSingleClickListener {
             val bottomSheet = BottomSheetLogout()
             fragmentManager?.let {
@@ -345,6 +351,49 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 binding.tvSupportMail.paintFlags = binding.tvSupportMail.paintFlags or Paint.UNDERLINE_TEXT_FLAG
             }
         })
+    }
+
+    override fun onResume() {
+        super.onResume()
+        refreshActiveSubscriptionCard()
+    }
+
+    private fun refreshActiveSubscriptionCard() {
+        val ctx = context ?: return
+        val prefs = ctx.getSharedPreferences(
+            DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE
+        )
+        val active = prefs.getBoolean(DummySubscriptionActivity.KEY_ACTIVE, false)
+
+        if (active) {
+            binding.activeSubIcon.setCardBackgroundColor(
+                ContextCompat.getColor(ctx, R.color.green).let {
+                    android.graphics.Color.argb(30, android.graphics.Color.red(it), android.graphics.Color.green(it), android.graphics.Color.blue(it))
+                }
+            )
+            binding.ivActiveSubIcon.setColorFilter(ContextCompat.getColor(ctx, R.color.green))
+            binding.tvActiveSubLabel.text = "Active Subscription"
+            binding.tvActiveSubStatus.text = "Active · Tap to manage"
+            binding.tvActiveSubStatus.setTextColor(ContextCompat.getColor(ctx, R.color.green))
+            binding.cvActiveSubscription.setOnClickListener {
+                startActivity(Intent(ctx, CancelSubscriptionActivity::class.java))
+            }
+        } else {
+            binding.activeSubIcon.setCardBackgroundColor(
+                android.graphics.Color.parseColor("#FFF0F7")
+            )
+            binding.ivActiveSubIcon.setColorFilter(ContextCompat.getColor(ctx, R.color.pink))
+            binding.tvActiveSubLabel.text = "Subscribe"
+            binding.tvActiveSubStatus.text = "Start 2-day trial for ₹1"
+            binding.tvActiveSubStatus.setTextColor(ContextCompat.getColor(ctx, R.color.pink))
+            binding.cvActiveSubscription.setOnClickListener {
+                val sheet = BottomSheetTrialOffer()
+                sheet.setOnTryNowClickListener {
+                    startActivity(Intent(ctx, DummySubscriptionActivity::class.java))
+                }
+                sheet.show(parentFragmentManager, "trial_offer")
+            }
+        }
     }
 
     override fun onNetworkRetry() {

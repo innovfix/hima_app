@@ -43,6 +43,7 @@ import com.gmwapp.hima.retrofit.responses.NewRazorpayLinkResponse
 import com.gmwapp.hima.retrofit.responses.RazorPayApiResponse
 import com.gmwapp.hima.utils.Config
 import com.gmwapp.hima.utils.DPreferences
+import com.gmwapp.hima.dialogs.BottomSheetTrialOffer
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.utils.AppEventLogger
 import com.gmwapp.hima.utils.applySystemBarInsets
@@ -469,6 +470,25 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         binding.tvCoins.text = userData?.coins.toString()
 
+
+        val isSubscribed = getSharedPreferences(DummySubscriptionActivity.PREFS, android.content.Context.MODE_PRIVATE)
+            .getBoolean(DummySubscriptionActivity.KEY_ACTIVE, false)
+        binding.cvSubscribeBanner.visibility = if (isSubscribed) View.GONE else View.VISIBLE
+
+        binding.cvSubscribeBanner.setOnSingleClickListener {
+            val sheet = BottomSheetTrialOffer()
+            sheet.setOnTryNowClickListener {
+                startActivity(Intent(this, DummySubscriptionActivity::class.java))
+            }
+            sheet.show(supportFragmentManager, "trial_offer")
+        }
+        binding.btnSubscribeNow.setOnSingleClickListener {
+            val sheet = BottomSheetTrialOffer()
+            sheet.setOnTryNowClickListener {
+                startActivity(Intent(this, DummySubscriptionActivity::class.java))
+            }
+            sheet.show(supportFragmentManager, "trial_offer")
+        }
 
         val layoutManager = GridLayoutManager(this, 3)
         binding.cvBack.setOnSingleClickListener {
