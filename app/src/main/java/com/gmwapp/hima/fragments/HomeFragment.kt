@@ -537,10 +537,12 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 }.sortedByDescending { it.lastMessageTime?.seconds ?: 0 }
 
                 val activityCtx = activity ?: return
-                val adapter = com.gmwapp.hima.adapters.ChatListAdapter(
+                lateinit var chatListAdapter: com.gmwapp.hima.adapters.ChatListAdapter
+                chatListAdapter = com.gmwapp.hima.adapters.ChatListAdapter(
                     activityCtx,
                     ArrayList(conversations),
                     { conv ->
+                        chatListAdapter.markConversationAsRead(conv.userId)
                         val intent = Intent(activityCtx, com.gmwapp.hima.activities.ChatActivityInHouse::class.java).apply {
                             putExtra("USER_ID", conv.userId.toIntOrNull() ?: -1)
                             putExtra("USER_NAME", conv.userName)
@@ -551,7 +553,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                     myChatsApiManager
                 )
                 binding.rvProfiles.layoutManager = LinearLayoutManager(activity, LinearLayoutManager.VERTICAL, false)
-                binding.rvProfiles.adapter = adapter
+                binding.rvProfiles.adapter = chatListAdapter
                 binding.rvProfiles.visibility = View.VISIBLE
             }
 

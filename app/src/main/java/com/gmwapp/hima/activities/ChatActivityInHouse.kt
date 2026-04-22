@@ -38,6 +38,7 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.cardview.widget.CardView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
+import com.gmwapp.hima.BuildConfig
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.ChatAdapter
@@ -77,17 +78,30 @@ import org.json.JSONObject
 import com.gmwapp.hima.activities.UserProfileDetailActivity
 import com.gmwapp.hima.utils.CallUnavailableFeedback
 import com.gmwapp.hima.utils.AudioRecorderController
+import com.gmwapp.hima.utils.ChatHistoryMemoryCache
 import com.gmwapp.hima.utils.ImageCompressor
 
 @AndroidEntryPoint
 class ChatActivityInHouse : AppCompatActivity() {
 
+    companion object {
+        /** Filter logcat: `adb logcat -s ChatReopenTrace` */
+        private const val CHAT_REOPEN_LOG = "ChatReopenTrace"
+        private val CHAT_REOPEN_VERBOSE: Boolean = BuildConfig.DEBUG
+    }
+
     @Inject
     lateinit var apiManager: ApiManager
+
+    @Inject
+    lateinit var historyCache: ChatHistoryMemoryCache
 
     private val femaleUsersViewModel: com.gmwapp.hima.viewmodels.FemaleUsersViewModel by viewModels()
 
     private lateinit var rvMessages: RecyclerView
+    private var layoutHistoryError: View? = null
+    private var tvHistoryError: TextView? = null
+    private var btnHistoryRetry: View? = null
     private lateinit var etMessage: EditText
     private lateinit var btnSend: ImageButton
     private lateinit var btnMic: ImageButton
@@ -180,6 +194,31 @@ class ChatActivityInHouse : AppCompatActivity() {
     /** Latest wins for overlapping [getChatHistory] calls so an older response cannot replace a newer list. */
     private val historyLoadRequestId = AtomicInteger(0)
 
+    /** In-flight Retrofit calls for chat history — cancelled on destroy or when superseded. */
+    private var currentHistoryCall: Call<ChatHistoryResponse>? = null
+    private var currentMoreCall: Call<ChatHistoryResponse>? = null
+    private var isInitialHistoryLoading = false
+    private val paginationLoadRequestId = AtomicInteger(0)
+    /** Prevents duplicate mark-read on both [onBackPressed] and [onPause] in one exit. */
+    private var markedReadOnce = false
+    /** One silent retry after a transient network failure (per [loadMessages] chain). */
+    private var historySilentRetryUsed = false
+
+    private val retryHistoryRunnable = Runnable {
+        if (!isUiSafe()) return@Runnable
+        if (messages.isEmpty()) {
+            Log.d(CHAT_REOPEN_LOG, "history RETRY firing peer=$peerUserId (silent retry)")
+            loadMessages(isSilentRetry = true)
+        } else {
+            Log.d(CHAT_REOPEN_LOG, "history RETRY skipped peer=$peerUserId (messages already loaded)")
+        }
+    }
+
+    /** Cancels a delayed initial history fetch when a new [loadMessages] supersedes it. */
+    private var pendingThrottleHistoryRunnable: Runnable? = null
+
+    private var activityCreatedAtElapsed: Long = 0L
+
     /**
      * Skip one history reload on the first [onResume] after [onCreate] ([loadMessages] already runs there).
      * Later resumes (returning from another screen / app background) refresh history so messages reappear.
@@ -264,6 +303,12 @@ class ChatActivityInHouse : AppCompatActivity() {
         setupComposer()
         connectSocket()
         suppressNextResumeHistoryReload = true
+        activityCreatedAtElapsed = SystemClock.elapsedRealtime()
+        Log.d(
+            CHAT_REOPEN_LOG,
+            "LIFECYCLE onCreate peer=$peerUserId chatId=$chatId taskId=$taskId instance=${hashCode()} " +
+                "cacheAvailable=${historyCache.hasSnapshot(peerUserId)} rateLimitRemainMs=${historyCache.cooldownRemainMs(peerUserId)}"
+        )
         loadMessages()
         observeSocketEvents()
         setupCallStatusObservers()
@@ -343,6 +388,29 @@ class ChatActivityInHouse : AppCompatActivity() {
         tvBannerAddFriendTitle = findViewById(R.id.tv_banner_add_friend_title)
         btnBannerNotNow = findViewById(R.id.btn_banner_not_now)
         btnBannerAcceptFriend = findViewById(R.id.btn_banner_accept_friend)
+
+        layoutHistoryError = findViewById(R.id.layout_history_error)
+        tvHistoryError = findViewById(R.id.tv_history_error)
+        btnHistoryRetry = findViewById(R.id.btn_history_retry)
+        btnHistoryRetry?.setOnClickListener {
+            Log.d(CHAT_REOPEN_LOG, "UI USER_RETRY tap peer=$peerUserId fromState=EMPTY_STATE")
+            hideHistoryErrorUi("USER_RETRY")
+            loadMessages(userRetry = true)
+        }
+    }
+
+    private fun hideHistoryErrorUi(reason: String) {
+        layoutHistoryError?.visibility = View.GONE
+        if (CHAT_REOPEN_VERBOSE) {
+            Log.d(CHAT_REOPEN_LOG, "UI EMPTY_STATE hidden peer=$peerUserId reason=$reason")
+        }
+    }
+
+    private fun showHistoryErrorUi(reason: String, code: Int, userMessage: String? = null) {
+        if (!isUiSafe()) return
+        layoutHistoryError?.visibility = View.VISIBLE
+        tvHistoryError?.text = userMessage ?: getString(R.string.chat_history_error_generic)
+        Log.w(CHAT_REOPEN_LOG, "UI EMPTY_STATE shown peer=$peerUserId reason=$reason code=$code")
     }
 
     private fun setupRecyclerView() {
@@ -1172,38 +1240,158 @@ class ChatActivityInHouse : AppCompatActivity() {
         bottomSheet.show(supportFragmentManager, "BottomSheetReactionDetails")
     }
 
-    private fun loadMessages() {
+    private fun loadMessages(isSilentRetry: Boolean = false, userRetry: Boolean = false) {
+        mainHandler.removeCallbacks(retryHistoryRunnable)
+        pendingThrottleHistoryRunnable?.let { mainHandler.removeCallbacks(it) }
+        pendingThrottleHistoryRunnable = null
+
+        val hadInFlightHistory = currentHistoryCall != null
+        currentHistoryCall?.cancel()
         val requestId = historyLoadRequestId.incrementAndGet()
+
+        if (!isSilentRetry) historySilentRetryUsed = false
+        if (userRetry) {
+            historyCache.clearRateLimit(peerUserId, "USER_RETRY")
+        }
+
+        hideHistoryErrorUi("NEW_LOAD_STARTED")
+
+        val cacheAvailable = historyCache.hasSnapshot(peerUserId)
+        val rateRemain = historyCache.cooldownRemainMs(peerUserId)
+        Log.d(
+            CHAT_REOPEN_LOG,
+            "HISTORY START req=$requestId peer=$peerUserId chatId=$chatId hadInFlightToCancel=$hadInFlightHistory " +
+                "isSilentRetry=$isSilentRetry cacheAvailable=$cacheAvailable rateLimitActive=${rateRemain > 0} " +
+                "rateLimitRemainMs=$rateRemain userRetry=$userRetry instance=${hashCode()}"
+        )
 
         // Reset pagination state
         currentOffset = 0
         hasMoreMessages = true
         isLoadingMore = false
-        
+        isInitialHistoryLoading = true
+
+        if (messages.isEmpty()) {
+            val snap = historyCache.getSnapshot(peerUserId)
+            if (snap != null) {
+                val ageMs = historyCache.snapshotAgeMs(peerUserId)
+                val before = messages.size
+                messages.clear()
+                messages.addAll(snap)
+                updateTopHeader(messages)
+                chatAdapter.notifyDataSetChanged()
+                if (CHAT_REOPEN_VERBOSE) {
+                    Log.d(
+                        CHAT_REOPEN_LOG,
+                        "UI ADAPTER notify peer=$peerUserId before=$before after=${messages.size} reason=CACHE_HYDRATE"
+                    )
+                }
+                hideHistoryErrorUi("CACHE_HYDRATE")
+                rvMessages.post {
+                    if (messages.isNotEmpty()) {
+                        rvMessages.scrollToPosition(messages.size - 1)
+                        Log.d(
+                            CHAT_REOPEN_LOG,
+                            "UI SCROLL to=${messages.size - 1} reason=CACHE_HYDRATE peer=$peerUserId"
+                        )
+                    }
+                }
+                Log.d(CHAT_REOPEN_LOG, "CACHE HIT peer=$peerUserId count=${snap.size} ageMs=$ageMs")
+            } else {
+                Log.d(CHAT_REOPEN_LOG, "CACHE MISS peer=$peerUserId")
+            }
+        }
+
+        if (historyCache.shouldSkipFetch(peerUserId)) {
+            if (messages.isNotEmpty()) {
+                isInitialHistoryLoading = false
+                Log.d(
+                    CHAT_REOPEN_LOG,
+                    "RATE_LIMIT SKIP peer=$peerUserId cooldownRemainMs=${historyCache.cooldownRemainMs(peerUserId)} usedCache=true"
+                )
+                return
+            }
+            isInitialHistoryLoading = false
+            showHistoryErrorUi("NO_CACHE_AND_RATE_LIMITED", -1)
+            Log.w(
+                CHAT_REOPEN_LOG,
+                "RATE_LIMIT SKIP peer=$peerUserId cooldownRemainMs=${historyCache.cooldownRemainMs(peerUserId)} usedCache=false"
+            )
+            return
+        }
+
         Log.d("ChatPagination", "═══════════════════════════════════════")
         Log.d("ChatPagination", "🔄 INITIAL LOAD - Requesting chat history (requestId=$requestId)")
         Log.d("ChatPagination", "User ID: $myUserId, Receiver ID: $peerUserId")
         Log.d("ChatPagination", "Limit: $MESSAGES_PER_PAGE, Offset: $currentOffset")
         Log.d("ChatPagination", "═══════════════════════════════════════")
-        
-        apiManager.getChatHistory(
+
+        val delayMs = if (messages.isNotEmpty()) historyCache.suggestedDelayMs() else 0L
+        if (delayMs > 0L) {
+            Log.d(CHAT_REOPEN_LOG, "THROTTLE DELAY peer=$peerUserId delayMs=$delayMs")
+        }
+        val scheduledAt = SystemClock.elapsedRealtime()
+        val throttleRunnable = Runnable {
+            pendingThrottleHistoryRunnable = null
+            val actualDelay = SystemClock.elapsedRealtime() - scheduledAt
+            if (delayMs > 0L && CHAT_REOPEN_VERBOSE) {
+                Log.d(
+                    CHAT_REOPEN_LOG,
+                    "THROTTLE FIRE peer=$peerUserId expectedDelayMs=$delayMs actualDelayMs=$actualDelay"
+                )
+            }
+            if (!isUiSafe()) {
+                isInitialHistoryLoading = false
+                if (CHAT_REOPEN_VERBOSE) {
+                    Log.w(CHAT_REOPEN_LOG, "LIFECYCLE UI_UNSAFE skip event=throttle_history peer=$peerUserId")
+                }
+                return@Runnable
+            }
+            if (requestId != historyLoadRequestId.get()) return@Runnable
+            enqueueHistoryNetworkRequest(requestId)
+        }
+        pendingThrottleHistoryRunnable = throttleRunnable
+        if (delayMs > 0L) {
+            mainHandler.postDelayed(throttleRunnable, delayMs)
+        } else {
+            throttleRunnable.run()
+        }
+    }
+
+    private fun enqueueHistoryNetworkRequest(requestId: Int) {
+        val fetchStartMs = SystemClock.elapsedRealtime()
+        historyCache.recordFetchStarted()
+
+        val historyCall = apiManager.getChatHistoryCancellable(
             userId = myUserId,
             receiverId = peerUserId,
             limit = MESSAGES_PER_PAGE,
             offset = currentOffset,
             object : NetworkCallback<ChatHistoryResponse> {
                 override fun onResponse(call: Call<ChatHistoryResponse>, response: Response<ChatHistoryResponse>) {
+                    val elapsedMs = SystemClock.elapsedRealtime() - fetchStartMs
                     if (requestId != historyLoadRequestId.get()) {
                         Log.d("ChatPagination", "Ignoring stale chat history response (requestId=$requestId, latest=${historyLoadRequestId.get()})")
+                        Log.d(CHAT_REOPEN_LOG, "history STALE response dropped req=$requestId latest=${historyLoadRequestId.get()} peer=$peerUserId")
                         return
                     }
                     if (!isUiSafe()) {
                         Log.d("ChatPagination", "Ignoring chat history response — activity not safe")
+                        isInitialHistoryLoading = false
+                        if (CHAT_REOPEN_VERBOSE) {
+                            Log.w(CHAT_REOPEN_LOG, "LIFECYCLE UI_UNSAFE skip event=history_onResponse peer=$peerUserId")
+                        }
                         return
                     }
                     if (response.isSuccessful) {
                         val responseBody = response.body()
-                        
+                        val retryAfter = response.headers()["Retry-After"]
+                        Log.d(
+                            CHAT_REOPEN_LOG,
+                            "HISTORY RESPONSE req=$requestId peer=$peerUserId http=${response.code()} success=${responseBody?.success} " +
+                                "elapsedMs=$elapsedMs retryAfterHeader=$retryAfter url=${call.request().url}"
+                        )
+
                         // Log complete API response with chathisoryapi tag
                         Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
                         Log.d("chathisoryapi", "📥 COMPLETE CHAT HISTORY API RESPONSE")
@@ -1357,26 +1545,106 @@ class ChatActivityInHouse : AppCompatActivity() {
                             
                             Log.d("ChatPagination", "✅ Initial load complete. Displaying ${messages.size} messages")
                             Log.d("ChatPagination", "Next offset for pagination: $currentOffset, Has more: $hasMoreMessages")
+                            historyCache.putSnapshot(peerUserId, messages.toList())
+                            historyCache.clearRateLimit(peerUserId, "SUCCESS")
+                            hideHistoryErrorUi("MESSAGES_LOADED")
+                            Log.d(
+                                CHAT_REOPEN_LOG,
+                                "HISTORY LOADED req=$requestId peer=$peerUserId msgCount=${messages.size} hasMore=$hasMoreMessages fromCache=false elapsedMs=$elapsedMs"
+                            )
+                            isInitialHistoryLoading = false
+                        } else {
+                            isInitialHistoryLoading = false
+                            if (messages.isEmpty()) {
+                                showHistoryErrorUi("API_ERROR", response.code())
+                                showAppToast("Failed to load messages", Toast.LENGTH_SHORT)
+                            }
                         }
                     } else {
-                        Log.e("ChatPagination", "❌ Error loading messages: ${response.code()}")
-                        Log.e("chathisoryapi", "❌ ERROR: HTTP ${response.code()}")
-                        Log.e("chathisoryapi", "Error Body: ${response.errorBody()?.string()}")
-                        showAppToast("Failed to load messages", Toast.LENGTH_SHORT)
+                        val code = response.code()
+                        val errSnippet = try {
+                            response.errorBody()?.string()?.take(120) ?: ""
+                        } catch (_: Exception) {
+                            ""
+                        }
+                        Log.e("ChatPagination", "❌ Error loading messages: $code")
+                        Log.e("chathisoryapi", "❌ ERROR: HTTP $code")
+                        Log.e("chathisoryapi", "Error Body: $errSnippet")
+                        isInitialHistoryLoading = false
+                        Log.e(
+                            CHAT_REOPEN_LOG,
+                            "HISTORY HTTP_ERROR req=$requestId code=$code peer=$peerUserId msgsInUi=${messages.size} retryUsed=$historySilentRetryUsed " +
+                                "elapsedMs=$elapsedMs errorBody=$errSnippet"
+                        )
+                        val isTransient = code == 429 || code == 408 || code in 500..599
+                        if (code == 429) {
+                            val retryAfterHeader = response.headers()["Retry-After"]
+                            val serverCooldownMs = ChatHistoryMemoryCache.parseRetryAfterMs(retryAfterHeader)
+                            val cooldownMs = serverCooldownMs ?: ChatHistoryMemoryCache.DEFAULT_COOLDOWN_MS
+                            val source = if (serverCooldownMs != null) "server(Retry-After=$retryAfterHeader)" else "default"
+                            historyCache.recordRateLimit(peerUserId, cooldownMs, source)
+                        }
+                        if (isTransient && !historySilentRetryUsed && messages.isEmpty()) {
+                            val delayMs = when (code) {
+                                429 -> historyCache.cooldownRemainMs(peerUserId).coerceAtLeast(500L)
+                                else -> 1500L
+                            }
+                            historySilentRetryUsed = true
+                            mainHandler.removeCallbacks(retryHistoryRunnable)
+                            mainHandler.postDelayed(retryHistoryRunnable, delayMs)
+                            Log.d(
+                                CHAT_REOPEN_LOG,
+                                "history RETRY scheduled peer=$peerUserId code=$code delayMs=$delayMs reason=TRANSIENT_HTTP"
+                            )
+                        } else if (messages.isEmpty()) {
+                            val msg = if (isTransient) getString(R.string.chat_history_error_generic) else "Failed to load messages"
+                            Log.w(CHAT_REOPEN_LOG, "history GIVE_UP peer=$peerUserId code=$code retryUsed=$historySilentRetryUsed shown=\"$msg\"")
+                            showHistoryErrorUi("HTTP_ERROR", code, msg)
+                            if (!isTransient) {
+                                showAppToast(msg, Toast.LENGTH_SHORT)
+                            }
+                        }
                     }
                     isLoadingMore = false
                 }
 
                 override fun onFailure(call: Call<ChatHistoryResponse>, t: Throwable) {
+                    val elapsedMs = SystemClock.elapsedRealtime() - fetchStartMs
                     if (requestId != historyLoadRequestId.get()) {
                         Log.d("ChatPagination", "Ignoring stale chat history failure (requestId=$requestId)")
                         return
                     }
-                    if (!isUiSafe()) return
+                    if (call.isCanceled) {
+                        Log.d("ChatPagination", "History load cancelled")
+                        Log.d(CHAT_REOPEN_LOG, "history CANCELLED req=$requestId peer=$peerUserId (expected if user left chat)")
+                        isInitialHistoryLoading = false
+                        return
+                    }
+                    if (!isUiSafe()) {
+                        isInitialHistoryLoading = false
+                        if (CHAT_REOPEN_VERBOSE) {
+                            Log.w(CHAT_REOPEN_LOG, "LIFECYCLE UI_UNSAFE skip event=history_onFailure peer=$peerUserId")
+                        }
+                        return
+                    }
+                    isInitialHistoryLoading = false
+                    val errClass = t.javaClass.simpleName
                     Log.e("ChatPagination", "❌ Error loading messages: ${t.message}", t)
+                    Log.e(
+                        CHAT_REOPEN_LOG,
+                        "HISTORY FAILURE req=$requestId peer=$peerUserId elapsedMs=$elapsedMs errClass=$errClass errMsg=${t.message} " +
+                            "isCanceled=${call.isCanceled} retry=${!historySilentRetryUsed && messages.isEmpty()}"
+                    )
                     Log.e("chathisoryapi", "❌ NETWORK ERROR: ${t.message}")
                     Log.e("chathisoryapi", "Request URL: ${call.request().url}")
-                    showAppToast("Error: ${t.message}", Toast.LENGTH_SHORT)
+                    if (messages.isEmpty() && !historySilentRetryUsed) {
+                        historySilentRetryUsed = true
+                        mainHandler.removeCallbacks(retryHistoryRunnable)
+                        mainHandler.postDelayed(retryHistoryRunnable, 1500L)
+                        Log.d(CHAT_REOPEN_LOG, "history RETRY scheduled peer=$peerUserId code=-1 delayMs=1500 reason=NETWORK_FAILURE")
+                    } else if (messages.isEmpty()) {
+                        showHistoryErrorUi("NETWORK_FAILURE", -1, t.message)
+                    }
                     isLoadingMore = false
                 }
 
@@ -1385,14 +1653,35 @@ class ChatActivityInHouse : AppCompatActivity() {
                         Log.d("ChatPagination", "Ignoring stale chat history no-network (requestId=$requestId)")
                         return
                     }
-                    if (!isUiSafe()) return
+                    if (!isUiSafe()) {
+                        isInitialHistoryLoading = false
+                        if (CHAT_REOPEN_VERBOSE) {
+                            Log.w(CHAT_REOPEN_LOG, "LIFECYCLE UI_UNSAFE skip event=history_onNoNetwork peer=$peerUserId")
+                        }
+                        return
+                    }
+                    isInitialHistoryLoading = false
                     Log.e("ChatPagination", "❌ No network connection")
                     Log.e("chathisoryapi", "❌ NO NETWORK CONNECTION")
-                    showAppToast("No internet connection", Toast.LENGTH_SHORT)
+                    if (messages.isEmpty()) {
+                        showHistoryErrorUi("NO_NETWORK", -1, getString(R.string.no_internet_connection))
+                    } else {
+                        showAppToast("No internet connection", Toast.LENGTH_SHORT)
+                    }
                     isLoadingMore = false
                 }
             }
         )
+        if (historyCall == null) {
+            isInitialHistoryLoading = false
+            Log.w(CHAT_REOPEN_LOG, "HISTORY NO_NETWORK (getChatHistory returned null) req=$requestId peer=$peerUserId")
+            if (messages.isEmpty()) {
+                showHistoryErrorUi("NO_NETWORK", -1)
+            }
+        } else {
+            Log.d(CHAT_REOPEN_LOG, "HISTORY ENQUEUED req=$requestId peer=$peerUserId url=${historyCall.request().url}")
+        }
+        currentHistoryCall = historyCall
     }
     
     private fun loadMoreMessages() {
@@ -1417,15 +1706,35 @@ class ChatActivityInHouse : AppCompatActivity() {
         val offset = currentFirstVisibleView?.top ?: 0
         
         Log.d("ChatPagination", "Current scroll position - First visible: $currentFirstVisiblePosition, Offset: $offset")
-        
-        apiManager.getChatHistory(
+
+        val pageFetchStartMs = SystemClock.elapsedRealtime()
+        historyCache.recordFetchStarted()
+        val pageRequestId = paginationLoadRequestId.incrementAndGet()
+        Log.d(
+            CHAT_REOPEN_LOG,
+            "PAGINATION START req=$pageRequestId peer=$peerUserId offset=$currentOffset limit=$MESSAGES_PER_PAGE instance=${hashCode()}"
+        )
+        currentMoreCall?.cancel()
+
+        val moreCall = apiManager.getChatHistoryCancellable(
             userId = myUserId,
             receiverId = peerUserId,
             limit = MESSAGES_PER_PAGE,
             offset = currentOffset,
             object : NetworkCallback<ChatHistoryResponse> {
                 override fun onResponse(call: Call<ChatHistoryResponse>, response: Response<ChatHistoryResponse>) {
+                    val elapsedMs = SystemClock.elapsedRealtime() - pageFetchStartMs
+                    if (pageRequestId != paginationLoadRequestId.get()) {
+                        Log.d("ChatPagination", "Ignoring stale pagination response (pageRequestId=$pageRequestId)")
+                        Log.d(CHAT_REOPEN_LOG, "PAGINATION STALE req=$pageRequestId latest=${paginationLoadRequestId.get()} peer=$peerUserId")
+                        return
+                    }
                     if (response.isSuccessful) {
+                        Log.d(
+                            CHAT_REOPEN_LOG,
+                            "PAGINATION RESPONSE req=$pageRequestId peer=$peerUserId http=${response.code()} success=${response.body()?.success} " +
+                                "elapsedMs=$elapsedMs url=${call.request().url}"
+                        )
                         if (!isUiSafe()) {
                             Log.d("ChatPagination", "Ignoring pagination response — activity not safe")
                             isLoadingMore = false
@@ -1528,6 +1837,12 @@ class ChatActivityInHouse : AppCompatActivity() {
                                     Log.d("ChatPagination", "✅ Loaded ${filteredOlderMessages.size} older messages")
                                     Log.d("ChatPagination", "Total messages now: ${messages.size} (was $oldSize)")
                                     Log.d("ChatPagination", "Next offset: $currentOffset, Has more: $hasMoreMessages")
+                                    historyCache.putSnapshot(peerUserId, messages.toList())
+                                    Log.d(
+                                        CHAT_REOPEN_LOG,
+                                        "PAGINATION LOADED req=$pageRequestId peer=$peerUserId newCount=${filteredOlderMessages.size} " +
+                                            "totalCount=${messages.size} hasMore=$hasMoreMessages elapsedMs=$elapsedMs"
+                                    )
                                 } else {
                                     Log.d("ChatPagination", "⚠️ All messages filtered (duplicates or newer than existing)")
                                     hasMoreMessages = false
@@ -1541,11 +1856,22 @@ class ChatActivityInHouse : AppCompatActivity() {
                         Log.e("ChatPagination", "❌ Error loading more messages: ${response.code()}")
                         Log.e("chathisoryapi", "❌ PAGINATION ERROR: HTTP ${response.code()}")
                         Log.e("chathisoryapi", "Error Body: ${response.errorBody()?.string()}")
+                        Log.e(
+                            CHAT_REOPEN_LOG,
+                            "PAGINATION HTTP_ERROR req=$pageRequestId peer=$peerUserId code=${response.code()} elapsedMs=$elapsedMs"
+                        )
                     }
                     isLoadingMore = false
                 }
 
                 override fun onFailure(call: Call<ChatHistoryResponse>, t: Throwable) {
+                    val failElapsed = SystemClock.elapsedRealtime() - pageFetchStartMs
+                    if (pageRequestId != paginationLoadRequestId.get()) return
+                    if (call.isCanceled) {
+                        Log.d(CHAT_REOPEN_LOG, "PAGINATION CANCELLED req=$pageRequestId peer=$peerUserId")
+                        isLoadingMore = false
+                        return
+                    }
                     if (!isUiSafe()) {
                         isLoadingMore = false
                         return
@@ -1553,10 +1879,16 @@ class ChatActivityInHouse : AppCompatActivity() {
                     Log.e("ChatPagination", "❌ Error loading more messages: ${t.message}", t)
                     Log.e("chathisoryapi", "❌ PAGINATION NETWORK ERROR: ${t.message}")
                     Log.e("chathisoryapi", "Request URL: ${call.request().url}")
+                    Log.e(
+                        CHAT_REOPEN_LOG,
+                        "PAGINATION FAILURE req=$pageRequestId peer=$peerUserId errClass=${t.javaClass.simpleName} errMsg=${t.message} " +
+                            "isCanceled=${call.isCanceled} elapsedMs=$failElapsed"
+                    )
                     isLoadingMore = false
                 }
 
                 override fun onNoNetwork() {
+                    if (pageRequestId != paginationLoadRequestId.get()) return
                     if (!isUiSafe()) {
                         isLoadingMore = false
                         return
@@ -1568,6 +1900,13 @@ class ChatActivityInHouse : AppCompatActivity() {
                 }
             }
         )
+        if (moreCall == null) {
+            isLoadingMore = false
+            Log.w(CHAT_REOPEN_LOG, "PAGINATION NO_NETWORK req=$pageRequestId peer=$peerUserId")
+        } else {
+            Log.d(CHAT_REOPEN_LOG, "PAGINATION ENQUEUED req=$pageRequestId peer=$peerUserId url=${moreCall.request().url}")
+        }
+        currentMoreCall = moreCall
     }
 
     private fun sendMessage() {
@@ -2021,8 +2360,15 @@ class ChatActivityInHouse : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        markedReadOnce = false
         isChatVisible = true
-        
+        val elapsedSinceCreate = SystemClock.elapsedRealtime() - activityCreatedAtElapsed
+        Log.d(
+            CHAT_REOPEN_LOG,
+            "LIFECYCLE onResume peer=$peerUserId suppressNextResume=$suppressNextResumeHistoryReload " +
+                "willCallLoadMessages=${!suppressNextResumeHistoryReload} elapsedSinceCreateMs=$elapsedSinceCreate instance=${hashCode()}"
+        )
+
         // Mark messages as read using the new API with last message id if messages are loaded
         markMessagesAsReadIfAvailable()
         
@@ -2055,8 +2401,10 @@ class ChatActivityInHouse : AppCompatActivity() {
         if (suppressNextResumeHistoryReload) {
             suppressNextResumeHistoryReload = false
             Log.d("ChatPagination", "Skipping duplicate history reload (first resume after onCreate)")
+            Log.d(CHAT_REOPEN_LOG, "onResume SKIP extra loadMessages (first resume after onCreate) peer=$peerUserId")
         } else {
             Log.d("ChatPagination", "onResume — refreshing chat history from server")
+            Log.d(CHAT_REOPEN_LOG, "onResume TRIGGER loadMessages() peer=$peerUserId (returning to chat)")
             loadMessages()
         }
     }
@@ -2064,19 +2412,50 @@ class ChatActivityInHouse : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         isChatVisible = false
+        val elapsedSinceCreate = SystemClock.elapsedRealtime() - activityCreatedAtElapsed
+        Log.d(
+            CHAT_REOPEN_LOG,
+            "LIFECYCLE onPause peer=$peerUserId instance=${hashCode()} elapsedSinceCreateMs=$elapsedSinceCreate " +
+                "hadInFlightHistory=${currentHistoryCall != null}"
+        )
 
         if (audioRecorderController.isRecording()) {
             cancelAudioRecording(showToast = false)
         }
-        
-        // Mark messages as read when user leaves the activity (e.g., pressing home, switching apps, etc.)
-        markMessagesAsReadIfAvailable()
-        
+
+        // Fire both mark-read endpoints on exit so the inbox badge clears reliably
+        // on the next `my_chat` refresh. markMessagesAsReadIfAvailable() covers the
+        // `mark_messages_read` path (by last message id); markMessagesAsRead()
+        // covers the `chats/mark-read` path (by chat id) — the latter also works
+        // when the in-memory messages list is empty.
+        markReadOnExit()
+
         // Keep Socket.IO connected - do not disconnect on pause
+    }
+
+    /** Single exit path so [onBackPressed] + [onPause] do not each fire mark-read APIs twice. */
+    private fun markReadOnExit() {
+        if (markedReadOnce) return
+        markedReadOnce = true
+        markMessagesAsReadIfAvailable()
+        markMessagesAsRead()
     }
 
     override fun onDestroy() {
         super.onDestroy()
+
+        val hadPendingThrottle = pendingThrottleHistoryRunnable != null
+        pendingThrottleHistoryRunnable?.let { mainHandler.removeCallbacks(it) }
+        pendingThrottleHistoryRunnable = null
+        Log.d(
+            CHAT_REOPEN_LOG,
+            "LIFECYCLE onDestroy peer=$peerUserId cancelHistory=${currentHistoryCall != null} cancelMore=${currentMoreCall != null} " +
+                "pendingThrottle=$hadPendingThrottle instance=${hashCode()}"
+        )
+        mainHandler.removeCallbacks(retryHistoryRunnable)
+        currentHistoryCall?.cancel()
+        currentMoreCall?.cancel()
+        isInitialHistoryLoading = false
 
         mainHandler.removeCallbacks(logSocketStatusAfterDelay)
         mainHandler.removeCallbacks(recordingTicker)
@@ -2094,8 +2473,8 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     override fun onBackPressed() {
-        // Mark messages as read when user presses back button
-        markMessagesAsReadIfAvailable()
+        Log.d(CHAT_REOPEN_LOG, "onBackPressed peer=$peerUserId")
+        markReadOnExit()
         super.onBackPressed()
     }
     

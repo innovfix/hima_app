@@ -402,6 +402,9 @@ class FriendsTabFragment : Fragment() {
             requireActivity(),
             chatConversations,
             onItemClick = { conversation ->
+                // Optimistically clear the badge on tap — server mark-read + next
+                // onResume refetch will keep the state consistent.
+                chatAdapter.markConversationAsRead(conversation.userId)
                 val intent = Intent(context, ChatActivityInHouse::class.java)
                 val userId = conversation.userId.toIntOrNull() ?: -1
                 intent.putExtra("USER_ID", userId)
@@ -418,7 +421,8 @@ class FriendsTabFragment : Fragment() {
             friendsList,
             tabType,
             onChatClick = { friend ->
-                // Open chat
+                // Same peer may appear in the Chat tab list — clear badge if present.
+                chatAdapter.markConversationAsRead(friend.friend_id.toString())
                 val intent = Intent(requireContext(), ChatActivityInHouse::class.java)
                 intent.putExtra("USER_ID", friend.friend_id)
                 intent.putExtra("USER_NAME", friend.name)

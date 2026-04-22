@@ -1,6 +1,6 @@
 # IPL Rooms - API Documentation
 
-**Base URL:** `https://himaapp.in/api/auth`
+**Base URL:** `development = https://demolivedb.himaapp.in/api/auth`, `production = https://himaapp.in/api/auth`
 **Auth:** All endpoints require JWT Bearer token in `Authorization` header
 **Content-Type:** `application/x-www-form-urlencoded`
 **Method:** All endpoints use `POST`

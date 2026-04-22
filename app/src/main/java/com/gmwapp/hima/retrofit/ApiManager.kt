@@ -1319,6 +1319,27 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    /**
+     * Same as [getChatHistory] but returns the underlying [Call] so the caller can
+     * [Call.cancel] when the screen is closed or a newer request supersedes this one.
+     */
+    fun getChatHistoryCancellable(
+        userId: Int,
+        receiverId: Int,
+        limit: Int = 10,
+        offset: Int = 0,
+        callback: NetworkCallback<ChatHistoryResponse>
+    ): Call<ChatHistoryResponse>? {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<ChatHistoryResponse> =
+                getApiInterface().getChatHistory(userId, receiverId, limit, offset)
+            apiCall.enqueue(callback)
+            return apiCall
+        }
+        callback.onNoNetwork()
+        return null
+    }
+
     fun sendMessage(
         userId: Int,
         toUserId: Int,

@@ -81,6 +81,19 @@ class ChatListAdapter(
         notifyDataSetChanged()
     }
 
+    /**
+     * Optimistically clears the unread badge for the row matching [userId]. Called
+     * when the user taps a chat so the badge disappears instantly; the server-side
+     * mark-read + next `my_chat` refresh will confirm the state on resume.
+     */
+    fun markConversationAsRead(userId: String) {
+        val idx = conversations.indexOfFirst { it.userId == userId }
+        if (idx >= 0 && conversations[idx].unreadCount != 0) {
+            conversations[idx] = conversations[idx].copy(unreadCount = 0)
+            notifyItemChanged(idx)
+        }
+    }
+
     inner class ViewHolder(private val binding: ItemChatConversationBinding) :
         RecyclerView.ViewHolder(binding.root) {
 

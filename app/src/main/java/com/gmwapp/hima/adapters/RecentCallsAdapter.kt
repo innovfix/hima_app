@@ -212,8 +212,16 @@ class RecentCallsAdapter(
             holder.binding.tvDuration.visibility = View.VISIBLE
             holder.binding.llDuration.visibility = View.VISIBLE
             holder.binding.tvTime.text = call.started_time ?: ""
-            val durationText = call.duration ?: ""
-            holder.binding.tvDuration.text = durationText
+            val rawDuration = call.duration?.trim().orEmpty()
+            // Missed calls come back from the backend with an empty or 0 duration,
+            // which left the clock-icon row visually empty. Show "Missed" instead.
+            // For connected calls, roll 60+ minutes into hours so "1265 min 29 sec"
+            // renders as "21 hr 5 min 29 sec".
+            holder.binding.tvDuration.text = if (rawDuration.isEmpty() || parseDuration(rawDuration) <= 0) {
+                activity.getString(R.string.missed_call_label)
+            } else {
+                formatDuration(rawDuration)
+            }
             // Remove click listener for non-favorite mode
             holder.binding.tvTime.setOnClickListener(null)
         }
@@ -382,6 +390,41 @@ class RecentCallsAdapter(
             if (numericValue.isEmpty()) 0 else numericValue.toInt()
         } catch (e: Exception) {
             0
+        }
+    }
+
+    /**
+     * Backend sends durations as "X min Y sec" (e.g. "1265 min 29 sec"),
+     * which is unreadable once we cross an hour. Normalize so 60+ min
+     * rolls up into "H hr M min S sec", dropping zero parts.
+     */
+    private fun formatDuration(rawDuration: String): String {
+        val trimmed = rawDuration.trim()
+        if (trimmed.isEmpty()) return trimmed
+
+        val pattern = Regex(
+            "^(\\d+)\\s*min(?:ute)?s?(?:\\s+(\\d+)\\s*sec(?:ond)?s?)?$",
+            RegexOption.IGNORE_CASE
+        )
+        val match = pattern.find(trimmed) ?: return trimmed
+
+        val totalMinutes = match.groupValues[1].toIntOrNull() ?: return trimmed
+        val seconds = match.groupValues.getOrNull(2)?.toIntOrNull() ?: 0
+
+        val hours = totalMinutes / 60
+        val minutes = totalMinutes % 60
+
+        return when {
+            hours > 0 -> buildString {
+                append(hours).append(" hr")
+                if (minutes > 0) append(' ').append(minutes).append(" min")
+                if (seconds > 0) append(' ').append(seconds).append(" sec")
+            }
+            minutes > 0 -> buildString {
+                append(minutes).append(" min")
+                if (seconds > 0) append(' ').append(seconds).append(" sec")
+            }
+            else -> "$seconds sec"
         }
     }
 

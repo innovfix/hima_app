@@ -1,7 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find /c/Users/JP/AndroidStudioProjects/hima_app -iname *ipl* -o -iname *cricket* -o -iname *room*)"
+      "Bash(git fetch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git stash:*)",
+      "Bash(curl:*)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('TOKEN:', d.get\\('token',''\\)\\); print\\('USER:', json.dumps\\(d.get\\('data',{}\\), indent=2\\)\\)\")",
+      "Read(//c/Users/JP/.ssh/**)",
+      "Bash(xargs grep *)",
+      "Bash(adb devices *)"
     ]
   }
 }

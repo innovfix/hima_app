@@ -37,6 +37,7 @@
     <string name="recent">Recent</string>
     <string name="favourite">Favourite</string>
     <string name="chat_now">Chat Now</string>
+    <string name="missed_call_label">Missed</string>
     <string name="tap_to_call_and_chat">Tap to call and chat</string>
     <string name="rate_per_min_audio_video">Audio %1$d coins/min  ·  Video %2$d coins/min</string>
     <string name="profile">Profile</string>
@@ -58,6 +59,8 @@
     <string name="chat_add_friend_menu_item">Accept as friend</string>
     <string name="chat_add_friend_success">You are now friends with %1$s</string>
     <string name="chat_add_friend_failure">Couldn\'t add friend. Please try again.</string>
+    <string name="chat_history_error_generic">Server is busy. Please try again.</string>
+    <string name="chat_history_retry">Tap to retry</string>
     <string name="call_unavailable">Unavailable</string>
     <string name="notify_bell_default_desc">Notify when online</string>
     <string name="notify_bell_on_desc">Notifications on for %s</string>
