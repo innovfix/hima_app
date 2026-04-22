@@ -1,6 +1,11 @@
 package com.gmwapp.hima.retrofit.responses
 
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonDeserializer
+import com.google.gson.JsonElement
+import com.google.gson.annotations.JsonAdapter
 import com.google.gson.annotations.SerializedName
+import java.lang.reflect.Type
 
 data class LoginResponse(
     val success: Boolean,
@@ -57,5 +62,26 @@ data class UserData (
     val ipl_team: String? = null,
     val ipl_rooms_enabled: Int? = 0,
     val dnd_enabled: Int? = 0,
-    val dnd_until: String? = null
+    val dnd_until: String? = null,
+    @JsonAdapter(FlexibleBooleanDeserializer::class)
+    val play_ludo: Boolean? = false
 )
+
+class FlexibleBooleanDeserializer : JsonDeserializer<Boolean> {
+    override fun deserialize(
+        json: JsonElement?,
+        typeOfT: Type,
+        context: JsonDeserializationContext
+    ): Boolean {
+        if (json == null || json.isJsonNull) return false
+        if (!json.isJsonPrimitive) return false
+        val primitive = json.asJsonPrimitive
+        if (primitive.isBoolean) return primitive.asBoolean
+        if (primitive.isNumber) return primitive.asInt != 0
+        val str = primitive.asString?.trim().orEmpty()
+        return when (str.lowercase()) {
+            "true", "1", "yes" -> true
+            else -> false
+        }
+    }
+}
