@@ -998,8 +998,6 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         val token = TokenGenerator.getToken()
 
 
-        // ✅ Log for Postman testing
-        Log.d("JWT_TOKEN", "Generated Token: $token")
         return token
 
 

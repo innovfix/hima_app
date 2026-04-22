@@ -32,7 +32,11 @@ object AppModule {
     @Provides
     fun providesHttpLoggingInterceptor() = HttpLoggingInterceptor()
         .apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BODY
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
         }
 
     @Singleton
@@ -49,8 +53,8 @@ object AppModule {
                 // ✅ Get auth token and check if it's valid
                 val authToken = BaseApplication.getInstance()?.getPrefs()?.getAuthenticationToken() ?: ""
                 
-                // ✅ Log COMPLETE REQUEST for FCM API calls
-                if (chain.request().url.toString().contains("send-fcm-notification")) {
+                // ✅ Log COMPLETE REQUEST for FCM API calls (debug builds only)
+                if (BuildConfig.DEBUG && chain.request().url.toString().contains("send-fcm-notification")) {
                     android.util.Log.i("FCM_REQUEST_DEBUG", "════════════════════════════════════════")
                     android.util.Log.i("FCM_REQUEST_DEBUG", "📤 FCM NOTIFICATION REQUEST DETAILS:")
                     android.util.Log.i("FCM_REQUEST_DEBUG", "════════════════════════════════════════")
@@ -103,8 +107,8 @@ object AppModule {
                 request.header("Authorization", "Bearer $authToken")
                 val response = chain.proceed(request.build())
                 
-                // ✅ Log raw FCM notification responses for debugging
-                if (request.build().url.toString().contains("send-fcm-notification")) {
+                // ✅ Log raw FCM notification responses for debugging (debug builds only)
+                if (BuildConfig.DEBUG && request.build().url.toString().contains("send-fcm-notification")) {
                     try {
                         val responseBody = response.body
                         val responseBodyString = responseBody?.string() ?: ""

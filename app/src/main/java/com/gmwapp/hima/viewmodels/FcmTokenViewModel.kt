@@ -30,13 +30,10 @@ class FcmTokenViewModel @Inject constructor(
                     response: Response<FcmTokenResponse>
                 ) {
                     tokenResponseLiveData.postValue(response.body())
-                    Log.d("tokenResponseLiveData","${response.body()?.data}")
                 }
 
                 override fun onFailure(call: Call<FcmTokenResponse>, t: Throwable) {
                     tokenErrorLiveData.postValue("API Failure: ${t.message}")
-                    Log.d("tokenResponseLiveData","${t.message}")
-
                 }
 
                 override fun onNoNetwork() {

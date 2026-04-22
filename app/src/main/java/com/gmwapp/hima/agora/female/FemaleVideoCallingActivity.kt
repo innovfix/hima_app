@@ -1180,7 +1180,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         if (checkSelfPermission()) {
             val options = ChannelMediaOptions()
 
-            Log.d("AgoraDebug", "Joining channel: $channelName, Token: $token")
+            Log.d("AgoraDebug", "Joining channel: $channelName")
 
             options.channelProfile = Constants.CHANNEL_PROFILE_COMMUNICATION
             options.clientRoleType = Constants.CLIENT_ROLE_BROADCASTER

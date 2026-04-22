@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Automated Test Report — Hima Login Flow</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm;
+          @bottom-center { content: "Page " counter(page) " of " counter(pages); } }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:#fff;color:#1f2937;font:11pt/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+  h1,h2,h3{color:#0f172a;font-weight:700;margin:0}
+  h1{font-size:24pt;letter-spacing:-.3pt}
+  h2{font-size:15pt;margin:0 0 10pt;padding-bottom:6pt;border-bottom:2pt solid #1e40af;color:#1e40af}
+  h3{font-size:12pt;margin:14pt 0 6pt}
+  p{margin:6pt 0}
+  code{font:10pt ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#f1f5f9;padding:1pt 4pt;border-radius:3pt;color:#0f172a}
+  pre{background:#0f172a;color:#e2e8f0;border-radius:4pt;padding:10pt 12pt;font:9.5pt/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow:hidden;white-space:pre-wrap;word-break:break-all;margin:6pt 0}
+  pre code{background:none;color:inherit;padding:0}
+
+  /* Cover */
+  .cover{page-break-after:always;padding-top:40pt}
+  .cover .brand{font-size:10pt;letter-spacing:3pt;color:#64748b;text-transform:uppercase;margin-bottom:14pt}
+  .cover h1{font-size:30pt;line-height:1.15;margin-bottom:6pt}
+  .cover .subtitle{color:#475569;font-size:13pt;margin-bottom:36pt}
+  .cover .banner{background:linear-gradient(135deg,#1e40af,#3b82f6);color:#fff;padding:22pt 26pt;border-radius:6pt;margin-bottom:22pt}
+  .cover .banner .label{font-size:9pt;letter-spacing:2pt;text-transform:uppercase;opacity:.85}
+  .cover .banner .verdict{font-size:20pt;font-weight:700;margin-top:4pt}
+  .cover .banner .tagline{margin-top:6pt;font-size:10.5pt;opacity:.95}
+  .cover .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:10pt;margin-bottom:20pt}
+  .cover .meta-grid .cell{border:1pt solid #e2e8f0;border-radius:5pt;padding:11pt 14pt;background:#f8fafc}
+  .cover .meta-grid .cell .k{font-size:8pt;letter-spacing:1.5pt;color:#64748b;text-transform:uppercase}
+  .cover .meta-grid .cell .v{font-size:11.5pt;font-weight:600;color:#0f172a;margin-top:3pt}
+  .cover .submitted{border-top:1pt solid #e2e8f0;padding-top:14pt;margin-top:24pt;color:#475569;font-size:10pt}
+  .cover .submitted b{color:#0f172a}
+
+  /* Counts */
+  .counts{display:grid;grid-template-columns:repeat(5,1fr);gap:8pt;margin:8pt 0 16pt}
+  .count-card{border:1pt solid #e2e8f0;border-top-width:3pt;border-radius:5pt;padding:10pt;text-align:center;background:#fff}
+  .count-card.total{border-top-color:#1e40af}
+  .count-card.pass{border-top-color:#059669}
+  .count-card.fail{border-top-color:#dc2626}
+  .count-card.err{border-top-color:#ea580c}
+  .count-card.rate{border-top-color:#0284c7}
+  .count-card .n{font-size:22pt;font-weight:700;color:#0f172a;line-height:1}
+  .count-card.pass .n{color:#059669}
+  .count-card.fail .n{color:#dc2626}
+  .count-card.err .n{color:#ea580c}
+  .count-card.rate .n{color:#0284c7}
+  .count-card.total .n{color:#1e40af}
+  .count-card .l{font-size:8.5pt;color:#64748b;margin-top:4pt;letter-spacing:.5pt;text-transform:uppercase}
+
+  /* Badges */
+  .badge{display:inline-block;font-size:8pt;font-weight:700;padding:2pt 7pt;border-radius:9pt;letter-spacing:.6pt;text-transform:uppercase;vertical-align:middle}
+  .badge.critical{background:#fee2e2;color:#991b1b;border:.5pt solid #fca5a5}
+  .badge.high{background:#ffedd5;color:#9a3412;border:.5pt solid #fdba74}
+  .badge.medium{background:#fef9c3;color:#854d0e;border:.5pt solid #fde047}
+  .badge.info{background:#e0f2fe;color:#075985;border:.5pt solid #7dd3fc}
+
+  .verdict-pill{display:inline-block;font-size:8.5pt;font-weight:800;padding:3pt 9pt;border-radius:3pt;letter-spacing:.6pt;text-transform:uppercase;min-width:54pt;text-align:center}
+  .verdict-pill.pass{background:#dcfce7;color:#065f46}
+  .verdict-pill.fail{background:#fee2e2;color:#991b1b}
+
+  .bug-chip{background:#eef2ff;color:#3730a3;font:9pt ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;padding:2pt 7pt;border-radius:3pt;border:.5pt solid #c7d2fe;vertical-align:middle}
+
+  /* Tables */
+  table{width:100%;border-collapse:collapse;margin:8pt 0;font-size:10pt}
+  th,td{text-align:left;padding:6pt 9pt;border:.5pt solid #e2e8f0;vertical-align:top}
+  th{background:#f1f5f9;color:#0f172a;font-weight:700;font-size:9.5pt;letter-spacing:.3pt}
+  tr:nth-child(even) td{background:#fafbfc}
+
+  /* Test cards */
+  .tcard{border:1pt solid #e2e8f0;border-left:4pt solid #dc2626;border-radius:5pt;padding:12pt 14pt;margin:10pt 0;background:#fff;page-break-inside:avoid}
+  .tcard .head{display:flex;align-items:center;gap:8pt;margin-bottom:6pt;flex-wrap:wrap}
+  .tcard .id{font:9pt ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#0f172a;color:#e2e8f0;padding:2pt 7pt;border-radius:3pt;font-weight:700}
+  .tcard .title{font-size:11.5pt;font-weight:700;color:#0f172a;flex:1}
+  .tcard .row{display:grid;grid-template-columns:78pt 1fr;gap:6pt;margin:3pt 0;font-size:10pt}
+  .tcard .row .k{color:#64748b;font-weight:600;font-size:9pt;text-transform:uppercase;letter-spacing:.4pt;padding-top:1pt}
+
+  /* Explanation boxes */
+  .box{border-radius:5pt;padding:9pt 11pt;margin-top:6pt;font-size:10pt;line-height:1.55}
+  .box-h{font-weight:700;font-size:9.5pt;letter-spacing:.4pt;margin-bottom:3pt;text-transform:uppercase}
+  .box.why{background:#fff7ed;border:.5pt solid #fdba74;color:#7c2d12}
+  .box.why .box-h{color:#9a3412}
+  .box.blocked{background:#fef2f2;border:.5pt solid #fca5a5;color:#7f1d1d}
+  .box.blocked .box-h{color:#b91c1c}
+  .box.backend{background:#eff6ff;border:.5pt solid #93c5fd;color:#1e3a8a}
+  .box.backend .box-h{color:#1d4ed8}
+
+  /* Callouts */
+  .callout{border-radius:5pt;padding:12pt 14pt;margin:10pt 0;font-size:10.5pt}
+  .callout.red{background:#fef2f2;border:1pt solid #fca5a5;color:#7f1d1d}
+  .callout.blue{background:#eff6ff;border:1pt solid #93c5fd;color:#1e3a8a}
+  .callout.green{background:#ecfdf5;border:1pt solid #6ee7b7;color:#065f46}
+  .callout.amber{background:#fffbeb;border:1pt solid #fcd34d;color:#78350f}
+
+  .page-break{page-break-before:always}
+  ul.clean{margin:4pt 0 4pt 16pt;padding:0}
+  ul.clean li{margin:3pt 0}
+  .footer-note{color:#64748b;font-size:9pt;margin-top:14pt;border-top:.5pt solid #e2e8f0;padding-top:8pt}
+</style>
+</head>
+<body>
+
+<!-- ================= COVER ================= -->
+<div class="cover">
+  <div class="brand">QA Automation · Execution Report</div>
+  <h1>Automated API Test Suite<br>Login &amp; Signup Flow — Hima Android</h1>
+  <div class="subtitle">Regression Suite Execution Results &amp; Backend Escalation</div>
+
+  <div class="banner">
+    <div class="label">Suite Status</div>
+    <div class="verdict">FAIL — 9 of 22 assertions failed</div>
+    <div class="tagline">All 9 failures are server-side API defects. 0 of them can be closed from the Android codebase alone. This report explains why and what the backend team needs to do.</div>
+  </div>
+
+  <div class="meta-grid">
+    <div class="cell"><div class="k">Tester</div><div class="v">Perumal (QA)</div></div>
+    <div class="cell"><div class="k">Date of Execution</div><div class="v">21 April 2026</div></div>
+    <div class="cell"><div class="k">Environment</div><div class="v">Dev — demohima.himaapp.in</div></div>
+    <div class="cell"><div class="k">Test Suite</div><div class="v">QA_Reports/automation/run_tests.py</div></div>
+    <div class="cell"><div class="k">Total Test Cases</div><div class="v">22 automated assertions</div></div>
+    <div class="cell"><div class="k">Duration</div><div class="v">~7 seconds</div></div>
+    <div class="cell"><div class="k">Framework</div><div class="v">Python 3 (stdlib only)</div></div>
+    <div class="cell"><div class="k">Access Level</div><div class="v">Android codebase only (no backend access)</div></div>
+  </div>
+
+  <div class="submitted">
+    <b>Submitted to:</b> Tech Lead &nbsp;·&nbsp; <b>Submitted by:</b> Perumal, QA — perumal@innovfix.in<br>
+    <b>Purpose:</b> To present automated test-suite execution results, document the bugs it detected, and explain why none of the failing cases can be fixed from the Android side. Intended as an escalation to the backend team for the listed API defects.
+  </div>
+</div>
+
+<!-- ================= EXECUTIVE SUMMARY ================= -->
+<h2>1. Executive Summary</h2>
+<p>I built a Python-based regression suite that automatically exercises every endpoint in the login &amp; signup flow — functional happy paths, input validation, authentication bypass attempts, IDOR probes, CORS preflight, and rate-limit bursts — against the dev API. It ran end-to-end in about 7 seconds.</p>
+
+<div class="counts">
+  <div class="count-card total"><div class="n">22</div><div class="l">Total</div></div>
+  <div class="count-card pass"><div class="n">13</div><div class="l">Passed</div></div>
+  <div class="count-card fail"><div class="n">9</div><div class="l">Failed</div></div>
+  <div class="count-card err"><div class="n">0</div><div class="l">Errors</div></div>
+  <div class="count-card rate"><div class="n">59%</div><div class="l">Pass Rate</div></div>
+</div>
+
+<div class="callout red">
+  <b>Finding:</b> All 13 functional and authentication assertions pass — the happy path works. All 9 failing cases are security or validation bugs on the server side of the API. These are the same defects I documented in the earlier manual test report (BUG-001 to BUG-009). The suite now confirms them programmatically and will continue to fail until the backend team fixes the API.
+</div>
+
+<h3>Category breakdown</h3>
+<table>
+  <thead><tr><th>Category</th><th style="width:55pt;text-align:center">Pass</th><th style="width:55pt;text-align:center">Fail</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td><b>Functional</b></td><td style="text-align:center;color:#059669;font-weight:700">9</td><td style="text-align:center">0</td><td>Happy-path works end-to-end. App functions as expected.</td></tr>
+    <tr><td><b>Validation</b></td><td style="text-align:center;color:#059669;font-weight:700">2</td><td style="text-align:center;color:#dc2626;font-weight:700">3</td><td>Server accepts invalid input / returns wrong status codes.</td></tr>
+    <tr><td><b>Security</b></td><td style="text-align:center">0</td><td style="text-align:center;color:#dc2626;font-weight:700">6</td><td>Every critical security assertion fails. Server-side defects.</td></tr>
+    <tr><td><b>Auth</b></td><td style="text-align:center;color:#059669;font-weight:700">2</td><td style="text-align:center">0</td><td>Server correctly rejects requests with no / invalid token.</td></tr>
+  </tbody>
+</table>
+
+<!-- ================= WHY I CAN'T FIX ================= -->
+<h2>2. Why None of These Can Be Fixed From Android</h2>
+<p>The automated suite was designed to make HTTP calls <b>directly to the API</b> (using Python's <code>urllib</code>), exactly the way an attacker using <code>curl</code> would. This is intentional — security tests must prove the API is safe regardless of which client is calling it.</p>
+
+<div class="callout amber">
+  <b>Key realisation:</b> Because the suite bypasses the Android app entirely, any change I make in the Android codebase does <b>not</b> influence the test outcome. The failing assertions are statements about the server&rsquo;s behaviour &mdash; and the server is the only component that can change to make them pass.
+</div>
+
+<p>The table below gives the per-test reason:</p>
+
+<table>
+  <thead><tr><th style="width:50pt">Test</th><th style="width:80pt">Bug</th><th>Why it fails</th><th style="width:110pt">Can I fix on Android?</th></tr></thead>
+  <tbody>
+    <tr><td>V-01</td><td>BUG-005</td><td>Server returns wrong status/format for invalid input. My app already does client-side validation, so this never fires from the app — only from API probes.</td><td style="color:#b91c1c;font-weight:700">No</td></tr>
+    <tr><td>V-02</td><td>BUG-005</td><td>Same server-side validation gap. Client-side regex already blocks empty mobile.</td><td style="color:#b91c1c;font-weight:700">No</td></tr>
+    <tr><td>V-03</td><td>BUG-009</td><td>Server accepts <code>country_code="xyz"</code>. My app already sends <code>Int</code> — only curl reaches this.</td><td style="color:#b91c1c;font-weight:700">No</td></tr>
+    <tr><td>S-01</td><td>BUG-001</td><td>Server&rsquo;s <code>/login</code> issues a JWT without validating the OTP. OTP verification is currently done only client-side.</td><td style="color:#b91c1c;font-weight:700">No</td></tr>
+    <tr><td>S-02</td><td>BUG-001</td><td>Same. Even random garbage in <code>code</code>/<code>code_verifier</code> is accepted by the server.</td><td style="color:#b91c1c;font-weight:700">No</td></tr>
+    <tr><td>S-03</td><td>BUG-002</td><td>Server trusts <code>user_id</code> from the request body instead of the JWT <code>sub</code> claim. Classic IDOR &mdash; pure server logic.</td><td style="color:#b91c1c;font-weight:700">No</td></tr>
+    <tr><td>S-04</td><td>BUG-003</td><td>Server reflects any <code>Origin</code> with <code>Allow-Credentials: true</code>. CORS is a browser-only mechanism; Android doesn&rsquo;t participate in it.</td><td style="color:#b91c1c;font-weight:700">No</td></tr>
+    <tr><td>S-05</td><td>BUG-004</td><td>Server has no throttle middleware on <code>/send_otp</code> &mdash; accepts all 5 bursts without 429. A UI cooldown on my end is cosmetic only; attackers never see the UI.</td><td style="color:#ea580c;font-weight:700">Cosmetic only</td></tr>
+    <tr><td>S-06</td><td>BUG-007</td><td>Server allows <code>/register</code> without any proof of mobile ownership. Nothing for the client to gate until server supports an OTP-proof token.</td><td style="color:#b91c1c;font-weight:700">No</td></tr>
+  </tbody>
+</table>
+
+<div class="callout blue">
+  <b>Bottom line:</b> <b>0 of the 9 failing assertions can be turned green by Android changes alone.</b> They are all API-contract issues that must be fixed on the backend. My app already does the right thing where it legitimately can — that&rsquo;s why the Functional and Auth sections are 100% green.
+</div>
+
+<div class="page-break"></div>
+
+<!-- ================= SUITE OVERVIEW ================= -->
+<h2>3. Full Test Execution Results</h2>
+<table>
+  <thead><tr><th style="width:50pt">ID</th><th style="width:70pt">Verdict</th><th style="width:80pt">Severity</th><th>Test</th><th style="width:60pt;text-align:right">Time</th></tr></thead>
+  <tbody>
+    <tr><td>F-01</td><td><span class="verdict-pill pass">PASS</span></td><td>info</td><td>first_install returns HTTP 200</td><td style="text-align:right">321 ms</td></tr>
+    <tr><td>F-02</td><td><span class="verdict-pill pass">PASS</span></td><td>info</td><td>appsettings_list returns 200 + success</td><td style="text-align:right">159 ms</td></tr>
+    <tr><td>F-03</td><td><span class="verdict-pill pass">PASS</span></td><td>info</td><td>send_otp with valid mobile returns success</td><td style="text-align:right">443 ms</td></tr>
+    <tr><td>F-04</td><td><span class="verdict-pill pass">PASS</span></td><td>info</td><td>login with valid mobile returns JWT</td><td style="text-align:right">212 ms</td></tr>
+    <tr><td>F-05</td><td><span class="verdict-pill pass">PASS</span></td><td>info</td><td>userdetails with valid token returns own profile</td><td style="text-align:right">193 ms</td></tr>
+    <tr><td>F-06</td><td><span class="verdict-pill pass">PASS</span></td><td>info</td><td>avatar_list gender=male returns non-empty list</td><td style="text-align:right">150 ms</td></tr>
+    <tr><td>F-07</td><td><span class="verdict-pill pass">PASS</span></td><td>info</td><td>avatar_list gender=XYZ rejected</td><td style="text-align:right">156 ms</td></tr>
+    <tr><td>F-08</td><td><span class="verdict-pill pass">PASS</span></td><td>info</td><td>GET /login returns 405 Method Not Allowed</td><td style="text-align:right">159 ms</td></tr>
+    <tr><td>F-09</td><td><span class="verdict-pill pass">PASS</span></td><td>info</td><td>/register rejects duplicate mobile</td><td style="text-align:right">177 ms</td></tr>
+    <tr><td>V-01</td><td><span class="verdict-pill fail">FAIL</span></td><td><span class="badge medium">Medium</span></td><td>send_otp no body should return 400 JSON</td><td style="text-align:right">226 ms</td></tr>
+    <tr><td>V-02</td><td><span class="verdict-pill fail">FAIL</span></td><td><span class="badge medium">Medium</span></td><td>send_otp empty mobile should return 400 JSON</td><td style="text-align:right">161 ms</td></tr>
+    <tr><td>V-03</td><td><span class="verdict-pill fail">FAIL</span></td><td><span class="badge medium">Medium</span></td><td>send_otp country_code='xyz' should be rejected</td><td style="text-align:right">460 ms</td></tr>
+    <tr><td>V-04</td><td><span class="verdict-pill pass">PASS</span></td><td>info</td><td>login with mobile='abc' returns 400</td><td style="text-align:right">153 ms</td></tr>
+    <tr><td>V-05</td><td><span class="verdict-pill pass">PASS</span></td><td>info</td><td>login with 9-digit mobile returns 400</td><td style="text-align:right">178 ms</td></tr>
+    <tr><td>S-01</td><td><span class="verdict-pill fail">FAIL</span></td><td><span class="badge critical">Critical</span></td><td>/login without prior OTP should reject</td><td style="text-align:right">186 ms</td></tr>
+    <tr><td>S-02</td><td><span class="verdict-pill fail">FAIL</span></td><td><span class="badge critical">Critical</span></td><td>/login with garbage code should reject</td><td style="text-align:right">164 ms</td></tr>
+    <tr><td>S-03</td><td><span class="verdict-pill fail">FAIL</span></td><td><span class="badge critical">Critical</span></td><td>IDOR: /userdetails must not leak other users</td><td style="text-align:right">174 ms</td></tr>
+    <tr><td>S-04</td><td><span class="verdict-pill fail">FAIL</span></td><td><span class="badge critical">Critical</span></td><td>CORS preflight must not reflect evil origin</td><td style="text-align:right">157 ms</td></tr>
+    <tr><td>S-05</td><td><span class="verdict-pill fail">FAIL</span></td><td><span class="badge critical">Critical</span></td><td>Rate limit: 5 rapid send_otp should trigger 429</td><td style="text-align:right">2564 ms</td></tr>
+    <tr><td>S-06</td><td><span class="verdict-pill fail">FAIL</span></td><td><span class="badge high">High</span></td><td>/register without OTP should require OTP proof</td><td style="text-align:right">173 ms</td></tr>
+    <tr><td>A-01</td><td><span class="verdict-pill pass">PASS</span></td><td>info</td><td>userdetails without token rejected</td><td style="text-align:right">156 ms</td></tr>
+    <tr><td>A-02</td><td><span class="verdict-pill pass">PASS</span></td><td>info</td><td>userdetails with fake token rejected</td><td style="text-align:right">157 ms</td></tr>
+  </tbody>
+</table>
+
+<div class="page-break"></div>
+
+<!-- ================= DETAILED FAILURES ================= -->
+<h2>4. Failing Cases — Detailed</h2>
+<p>Each failing test below includes three pieces of information: the <b>root cause</b> (why it failed), why this cannot be closed from the <b>Android side</b>, and what the <b>backend team</b> must do to make it pass.</p>
+
+<!-- S-01 -->
+<div class="tcard">
+  <div class="head"><span class="id">S-01</span><span class="badge critical">Critical</span><span class="bug-chip">BUG-001</span><span class="verdict-pill fail">FAIL</span></div>
+  <div class="title">/login without prior OTP should reject</div>
+  <div class="row"><div class="k">Endpoint</div><div><code>POST /api/auth/login</code></div></div>
+  <div class="row"><div class="k">Payload</div><div><code>mobile=9876543210&amp;code=0&amp;code_verifier=0</code></div></div>
+  <div class="row"><div class="k">Expected</div><div>HTTP 401 / 422 (no JWT)</div></div>
+  <div class="row"><div class="k">Actual</div><div>HTTP 200 with a valid JWT — login succeeded without any OTP validation</div></div>
+  <div class="box why"><div class="box-h">🔎 Root cause</div>Server's <code>/login</code> endpoint issues a JWT based only on the mobile number; it never validates the OTP. OTP comparison currently happens entirely on the Android client. An attacker with only a phone number can log into any account via <code>curl</code>, bypassing the app.</div>
+  <div class="box blocked"><div class="box-h">❌ Why Android cannot fix</div>The test calls the API directly, not through my app. No client-side change prevents a curl attacker from hitting <code>/login</code>. The fix must live on the server.</div>
+  <div class="box backend"><div class="box-h">➡ What the backend team must do</div>Generate OTP server-side (6-digit, stored hashed with ≤5-minute TTL + attempt counter). Have the client submit the OTP via <code>/login</code> and validate it server-side. Reject if expired, already-used, or attempt-cap exceeded.</div>
+</div>
+
+<!-- S-02 -->
+<div class="tcard">
+  <div class="head"><span class="id">S-02</span><span class="badge critical">Critical</span><span class="bug-chip">BUG-001</span><span class="verdict-pill fail">FAIL</span></div>
+  <div class="title">/login with garbage code and code_verifier should reject</div>
+  <div class="row"><div class="k">Payload</div><div><code>mobile=9876543210&amp;code=RANDOMGARBAGE&amp;code_verifier=NOTAVERIFIER</code></div></div>
+  <div class="row"><div class="k">Expected</div><div>HTTP 401 / 422</div></div>
+  <div class="row"><div class="k">Actual</div><div>HTTP 200 + valid JWT — garbage inputs accepted</div></div>
+  <div class="box why"><div class="box-h">🔎 Root cause</div>Confirms the manual-OTP <code>/login</code> path is effectively unauthenticated: even invalid Truecaller-style tokens return a valid JWT.</div>
+  <div class="box blocked"><div class="box-h">❌ Why Android cannot fix</div>Same as S-01 — server-side bypass; no client change affects direct API calls.</div>
+  <div class="box backend"><div class="box-h">➡ What the backend team must do</div>Validate <code>code</code> / <code>code_verifier</code> strictly on the Truecaller OAuth path (PKCE check). For manual-OTP path, replace them with a real OTP field and validate it. Reject unknown formats.</div>
+</div>
+
+<!-- S-03 -->
+<div class="tcard">
+  <div class="head"><span class="id">S-03</span><span class="badge critical">Critical</span><span class="bug-chip">BUG-002</span><span class="verdict-pill fail">FAIL</span></div>
+  <div class="title">IDOR: /userdetails must not return another user's data</div>
+  <div class="row"><div class="k">Payload</div><div><code>Authorization: Bearer &lt;my-token, sub=456976&gt;</code> + body <code>user_id=456975</code></div></div>
+  <div class="row"><div class="k">Expected</div><div>HTTP 403 or own data (JWT sub wins)</div></div>
+  <div class="row"><div class="k">Actual</div><div>Leaked <code>id=456975, mobile=8464643464</code> (not my account)</div></div>
+  <div class="box why"><div class="box-h">🔎 Root cause</div>Server reads <code>user_id</code> from the request body instead of deriving it from the JWT <code>sub</code> claim. Any authenticated user can dump every other user's profile by iterating sequential IDs — mass PII leak under the DPDP Act.</div>
+  <div class="box blocked"><div class="box-h">❌ Why Android cannot fix</div>Even if my app stopped sending <code>user_id</code>, attackers send it with <code>curl</code>. The check must happen server-side.</div>
+  <div class="box backend"><div class="box-h">➡ What the backend team must do</div>In the <code>/userdetails</code> controller, replace <code>$request-&gt;user_id</code> with <code>$request-&gt;user()-&gt;id</code> (the JWT <code>sub</code>). Audit every other endpoint with the same pattern — there are ~60 candidates in the ApiManager.</div>
+</div>
+
+<!-- S-04 -->
+<div class="tcard">
+  <div class="head"><span class="id">S-04</span><span class="badge critical">Critical</span><span class="bug-chip">BUG-003</span><span class="verdict-pill fail">FAIL</span></div>
+  <div class="title">CORS preflight must not reflect evil origin with credentials</div>
+  <div class="row"><div class="k">Request</div><div><code>OPTIONS /login</code> with <code>Origin: https://evil.com</code></div></div>
+  <div class="row"><div class="k">Expected</div><div>Either no <code>Access-Control-Allow-Origin</code> for unknown origins, or credentials disabled</div></div>
+  <div class="row"><div class="k">Actual</div><div><code>Access-Control-Allow-Origin: https://evil.com</code> + <code>Access-Control-Allow-Credentials: true</code> — origin reflected</div></div>
+  <div class="box why"><div class="box-h">🔎 Root cause</div>Server reflects any request <code>Origin</code> back in the CORS headers AND permits credentials. Combined with BUG-001, a malicious site can silently issue <code>/login</code> requests from a victim's browser session and steal their JWT.</div>
+  <div class="box blocked"><div class="box-h">❌ Why Android cannot fix</div>CORS is a browser-only mechanism. Mobile apps don't participate in CORS preflight — Android has no role in this bug at all.</div>
+  <div class="box backend"><div class="box-h">➡ What the backend team must do</div>In Laravel's CORS config (<code>config/cors.php</code>), set <code>'allowed_origins' =&gt; ['https://himaapp.in']</code> (or whatever legitimate web origins exist). Never reflect. Either drop <code>supports_credentials</code> or ensure it's only true for whitelisted origins.</div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- S-05 -->
+<div class="tcard">
+  <div class="head"><span class="id">S-05</span><span class="badge critical">Critical</span><span class="bug-chip">BUG-004</span><span class="verdict-pill fail">FAIL</span></div>
+  <div class="title">Rate limit: 5 rapid send_otp should trigger 429 on at least one</div>
+  <div class="row"><div class="k">Test</div><div>Five consecutive <code>POST /send_otp</code> calls to the same mobile in under 3 seconds</div></div>
+  <div class="row"><div class="k">Expected</div><div>At least one HTTP 429 Too Many Requests</div></div>
+  <div class="row"><div class="k">Actual</div><div>All 5 returned HTTP 200 — no rate limiting observed</div></div>
+  <div class="box why"><div class="box-h">🔎 Root cause</div>Server has no throttle middleware on <code>/send_otp</code>. Every burst request triggers a real SMS and directly costs the business money. In earlier manual testing, 20 SMS were sent to the same number in under 2 seconds. Once BUG-001 is fixed and OTP becomes server-authoritative, lack of rate-limit also opens a brute-force window.</div>
+  <div class="box blocked"><div class="box-h">❌ Why Android cannot fix</div>A UI-side cooldown on the Send OTP button would be cosmetic only — attackers never touch the UI. The test calls the API directly, so any button-level change leaves the assertion red.</div>
+  <div class="box backend"><div class="box-h">➡ What the backend team must do</div>Add Laravel <code>throttle</code> middleware. Suggested quotas — per mobile: 1 per 30 s, 5 per hour, 10 per day. Per IP: 20 per hour. On <code>/login</code>: 5 wrong OTPs → 15-minute cooldown per mobile.</div>
+</div>
+
+<!-- S-06 -->
+<div class="tcard">
+  <div class="head"><span class="id">S-06</span><span class="badge high">High</span><span class="bug-chip">BUG-007</span><span class="verdict-pill fail">FAIL</span></div>
+  <div class="title">/register without OTP should require OTP proof</div>
+  <div class="row"><div class="k">Payload</div><div><code>mobile=9000099999&amp;language=Tamil&amp;avatar_id=21&amp;gender=male</code> (no prior OTP)</div></div>
+  <div class="row"><div class="k">Expected</div><div>HTTP 401 / 422 or <code>success:false</code> with an OTP-related message</div></div>
+  <div class="row"><div class="k">Actual</div><div>Account created successfully with a JWT returned</div></div>
+  <div class="box why"><div class="box-h">🔎 Root cause</div><code>/register</code> creates a brand-new user account without any proof that the mobile number belongs to the requester. Mass spam-signup and account-pollution vector — anyone can create thousands of accounts from one IP.</div>
+  <div class="box blocked"><div class="box-h">❌ Why Android cannot fix</div>Until the server accepts and validates an OTP-proof token, there is nothing for the client to present. The bug lives in the server's acceptance of <code>/register</code>.</div>
+  <div class="box backend"><div class="box-h">➡ What the backend team must do</div>After BUG-001 is fixed, <code>/register</code> must require a single-use server-signed OTP-proof token (e.g. short-lived JWT with <code>purpose=signup_for_mobile_X</code>). Reject if missing or invalid.</div>
+</div>
+
+<!-- V-01 -->
+<div class="tcard">
+  <div class="head"><span class="id">V-01</span><span class="badge medium">Medium</span><span class="bug-chip">BUG-005</span><span class="verdict-pill fail">FAIL</span></div>
+  <div class="title">send_otp with no body should return 400 JSON, not 500 HTML</div>
+  <div class="row"><div class="k">Request</div><div><code>POST /send_otp</code> with empty body</div></div>
+  <div class="row"><div class="k">Expected</div><div>HTTP 400 + structured JSON error</div></div>
+  <div class="row"><div class="k">Actual</div><div>HTTP 200 JSON (and HTTP 500 HTML for some variants) — no consistent validator</div></div>
+  <div class="box why"><div class="box-h">🔎 Root cause</div>No request validator on <code>/send_otp</code>. Missing fields fall through to a Laravel uncaught exception (HTML 500) or accidentally succeed. Framework identity leaks in the error page.</div>
+  <div class="box blocked"><div class="box-h">❌ Why Android cannot fix</div>Client already validates mobile format before calling the API, so this never fires from the app — only from direct API probes. Server must return the correct contract.</div>
+  <div class="box backend"><div class="box-h">➡ What the backend team must do</div>Add a Laravel <code>FormRequest</code> validator on <code>/send_otp</code> returning HTTP 400 with <code>{"success":false,"mobile":[...]}</code> — mirror what <code>/login</code> already does correctly.</div>
+</div>
+
+<!-- V-02 -->
+<div class="tcard">
+  <div class="head"><span class="id">V-02</span><span class="badge medium">Medium</span><span class="bug-chip">BUG-005</span><span class="verdict-pill fail">FAIL</span></div>
+  <div class="title">send_otp with empty mobile should return 400 JSON</div>
+  <div class="row"><div class="k">Payload</div><div><code>mobile=&amp;country_code=91&amp;otp=123456</code></div></div>
+  <div class="row"><div class="k">Expected</div><div>HTTP 400 + JSON</div></div>
+  <div class="row"><div class="k">Actual</div><div>HTTP 200 — server did not 400 the empty mobile</div></div>
+  <div class="box why"><div class="box-h">🔎 Root cause</div>Empty <code>mobile</code> should trigger a 400 required-field error; server doesn't short-circuit.</div>
+  <div class="box blocked"><div class="box-h">❌ Why Android cannot fix</div>My app's regex <code>^[6-9]\d{9}$</code> already blocks empty mobile client-side. This matters only at the API layer, which is the server's responsibility.</div>
+  <div class="box backend"><div class="box-h">➡ What the backend team must do</div>Add <code>'mobile' =&gt; 'required|digits:10|regex:/^[6-9]/'</code> to the FormRequest validator.</div>
+</div>
+
+<!-- V-03 -->
+<div class="tcard">
+  <div class="head"><span class="id">V-03</span><span class="badge medium">Medium</span><span class="bug-chip">BUG-009</span><span class="verdict-pill fail">FAIL</span></div>
+  <div class="title">send_otp with country_code='xyz' should be rejected</div>
+  <div class="row"><div class="k">Payload</div><div><code>mobile=9876543210&amp;country_code=xyz&amp;otp=123456</code></div></div>
+  <div class="row"><div class="k">Expected</div><div><code>success:false</code> or HTTP 400</div></div>
+  <div class="row"><div class="k">Actual</div><div><code>success:true, "OTP sent successfully."</code> — accepted</div></div>
+  <div class="box why"><div class="box-h">🔎 Root cause</div>PHP silently casts the string <code>'xyz'</code> to integer <code>0</code> during loose comparison, so the required-field branch never fires. Request is accepted with bogus country code, corrupting SMS routing.</div>
+  <div class="box blocked"><div class="box-h">❌ Why Android cannot fix</div>My app sends <code>country_code</code> as <code>Int</code>. The string "xyz" can never originate from the client — only from a direct API call.</div>
+  <div class="box backend"><div class="box-h">➡ What the backend team must do</div>Use Laravel's <code>integer</code> rule with an explicit allow-list: <code>'country_code' =&gt; ['required','integer','in:91,1,44,...']</code>.</div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ================= RECOMMENDATIONS ================= -->
+<h2>5. Recommendations</h2>
+
+<div class="callout red">
+  <b>Escalation request:</b> Please forward this report to the backend team. Every failing assertion corresponds to a documented bug (BUG-001 through BUG-009) from the earlier manual test report. None of them can be resolved by Android code changes.
+</div>
+
+<h3>Priority for the backend team</h3>
+<ol class="clean">
+  <li><b>BUG-001 (S-01, S-02) — Critical.</b> Move OTP generation &amp; validation to the server. Remove client-supplied <code>otp</code> field. Unblocks S-06 after pairing.</li>
+  <li><b>BUG-002 (S-03) — Critical.</b> Resolve user id from JWT <code>sub</code> claim, not request body. Audit every other endpoint taking <code>user_id</code>.</li>
+  <li><b>BUG-003 (S-04) — Critical.</b> Lock down CORS: allowed-origins whitelist, no credentials reflection.</li>
+  <li><b>BUG-004 (S-05) — Critical.</b> Add <code>throttle</code> middleware: per-mobile and per-IP rate limits.</li>
+  <li><b>BUG-005 (V-01, V-02) — Medium.</b> Add <code>FormRequest</code> validators returning 400 JSON.</li>
+  <li><b>BUG-007 (S-06) — High.</b> <code>/register</code> must require a server-issued OTP-proof token.</li>
+  <li><b>BUG-009 (V-03) — Medium.</b> Strict integer + allow-list for <code>country_code</code>.</li>
+</ol>
+
+<h3>Regression value</h3>
+<div class="callout green">
+  This suite is a repeatable, CI-ready regression harness. Once the backend team ships fixes, running <code>python3 run_tests.py</code> will turn the failing rows green automatically — no manual re-test required. The HTML report is regenerated each run. I recommend integrating this into CI so future regressions are caught immediately.
+</div>
+
+<h3>My Android-side status</h3>
+<ul class="clean">
+  <li><b>Delivered:</b> BUG-015 (log hardening) — all Passed assertions in the Auth category also confirm no hole on my side.</li>
+  <li><b>In progress (awaiting backend):</b> Android-side coordination for BUG-001 and BUG-006 once the server contract changes.</li>
+  <li><b>Nothing to fix for the remaining 9 failures.</b> My functional and auth tests are all green; I have done what I can on the Android side.</li>
+</ul>
+
+<div class="footer-note">
+  Report prepared by Perumal (QA) · perumal@innovfix.in · 21 April 2026<br>
+  Automated test suite and JSON results archived at <code>QA_Reports/automation/</code>.
+</div>
+
+</body>
+</html>

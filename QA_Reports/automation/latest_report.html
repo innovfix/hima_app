@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Hima Login API — Automated Test Report</title>
+<style>
+:root{--bg:#f8fafc;--panel:#fff;--line:#e2e8f0;--text:#0f172a;--muted:#64748b;
+       --ok:#059669;--bad:#dc2626;--warn:#ea580c;--info:#0284c7;--brand:#1e40af}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);
+ font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+header{background:linear-gradient(135deg,#1e40af,#3b82f6);color:#fff;padding:28px 32px}
+header .eyebrow{text-transform:uppercase;letter-spacing:3px;font-size:11px;opacity:.85}
+header h1{margin:6px 0 2px;font-size:26px;font-weight:700}
+header .sub{opacity:.9}
+main{max-width:1150px;margin:0 auto;padding:24px 28px}
+.summary{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:10px 0 22px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--line);
+      border-radius:6px;padding:12px 14px;text-align:center}
+.kpi.total{border-top-color:var(--brand)}
+.kpi.pass{border-top-color:var(--ok)}
+.kpi.fail{border-top-color:var(--bad)}
+.kpi.err{border-top-color:var(--warn)}
+.kpi.rate{border-top-color:var(--info)}
+.kpi .n{font-size:26px;font-weight:700}
+.kpi .l{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+.kpi.pass .n{color:var(--ok)} .kpi.fail .n{color:var(--bad)}
+.kpi.err .n{color:var(--warn)} .kpi.rate .n{color:var(--info)}
+.env{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px;
+     margin-bottom:18px;font-size:12.5px;color:var(--muted);display:flex;gap:18px;flex-wrap:wrap}
+.env b{color:var(--text);font-weight:600}
+h2{margin:22px 0 10px;font-size:16px;color:var(--brand);display:flex;align-items:center;
+    justify-content:space-between;border-bottom:2px solid var(--brand);padding-bottom:6px}
+h2 .cat-count{font-size:11px;color:var(--muted);font-weight:500;letter-spacing:.3px}
+.case{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--line);
+       border-radius:5px;margin:6px 0;padding:0}
+.case-pass{border-left-color:var(--ok)}
+.case-fail{border-left-color:var(--bad)}
+.case-err{border-left-color:var(--warn)}
+.case summary{padding:10px 14px;display:flex;gap:10px;align-items:center;cursor:pointer;
+               list-style:none;flex-wrap:wrap}
+.case summary::-webkit-details-marker{display:none}
+.verdict{font-size:10px;font-weight:800;padding:3px 8px;border-radius:3px;letter-spacing:.5px;
+         text-transform:uppercase;min-width:52px;text-align:center}
+.v-pass{background:#dcfce7;color:#065f46}
+.v-fail{background:#fee2e2;color:#991b1b}
+.v-err{background:#ffedd5;color:#9a3412}
+.tc{font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#0f172a;color:#e2e8f0;
+     padding:2px 7px;border-radius:3px}
+.case .title{flex:1;font-weight:500}
+.sev{font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:9px;text-transform:uppercase;
+      letter-spacing:.4px}
+.sev-critical{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
+.sev-high{background:#ffedd5;color:#9a3412;border:1px solid #fdba74}
+.sev-medium{background:#fef9c3;color:#854d0e;border:1px solid #fde047}
+.sev-low{background:#e0f2fe;color:#075985;border:1px solid #7dd3fc}
+.bug{background:#eef2ff;color:#3730a3;font:10.5px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+      padding:2px 7px;border-radius:3px;border:1px solid #c7d2fe}
+.meta{color:var(--muted);font-size:11.5px;margin-left:auto;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.case-body{padding:4px 16px 14px;border-top:1px solid var(--line)}
+.kv{display:grid;grid-template-columns:90px 1fr;gap:10px;margin:8px 0;font-size:12.5px}
+.kv .k{color:var(--muted);text-transform:uppercase;font-size:10.5px;letter-spacing:1px;font-weight:600}
+pre{background:#0f172a;color:#e2e8f0;padding:10px 12px;border-radius:4px;
+    font:11.5px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    overflow:auto;white-space:pre-wrap;word-break:break-all;margin:0;max-height:240px}
+.guidance{display:grid;grid-template-columns:1fr;gap:8px;margin:10px 0 4px}
+.box{border-radius:5px;padding:10px 12px;border:1px solid var(--line);font-size:12.5px;line-height:1.55}
+.box-h{font-weight:700;font-size:11.5px;letter-spacing:.4px;margin-bottom:4px}
+.box.why{background:#fff7ed;border-color:#fdba74;color:#7c2d12}
+.box.why .box-h{color:#9a3412}
+.box.fix-a{background:#ecfdf5;border-color:#86efac;color:#14532d}
+.box.fix-a .box-h{color:#047857}
+.box.fix-s{background:#fef2f2;border-color:#fca5a5;color:#7f1d1d}
+.box.fix-s .box-h{color:#b91c1c}
+.file-ref{margin-top:6px;font-size:11.5px;color:#166534}
+.file-ref code{background:#0f172a;color:#bbf7d0;padding:2px 6px;border-radius:3px;font-size:11px}
+footer{padding:18px 28px;color:var(--muted);font-size:11.5px;text-align:center;border-top:1px solid var(--line);margin-top:28px}
+.banner-fail{background:#fef2f2;border:1px solid #fca5a5;color:#7f1d1d;padding:14px 16px;border-radius:5px;margin:10px 0 16px}
+.banner-pass{background:#ecfdf5;border:1px solid #6ee7b7;color:#065f46;padding:14px 16px;border-radius:5px;margin:10px 0 16px}
+</style></head><body>
+
+<header>
+  <div class="eyebrow">QA Automation · API Regression Suite</div>
+  <h1>Hima Login &amp; Signup Flow — Automated Test Report</h1>
+  <div class="sub">2026-04-21 23:20:43 UTC · https://demohima.himaapp.in/api/auth</div>
+</header>
+
+<main>
+  <div class="summary">
+    <div class="kpi total"><div class="n">22</div><div class="l">Total</div></div>
+    <div class="kpi pass"><div class="n">13</div><div class="l">Passed</div></div>
+    <div class="kpi fail"><div class="n">9</div><div class="l">Failed</div></div>
+    <div class="kpi err"><div class="n">0</div><div class="l">Errors</div></div>
+    <div class="kpi rate"><div class="n">59%</div><div class="l">Pass rate</div></div>
+  </div>
+
+  <div class="banner-fail"><b>Suite status: FAIL</b> — 9 assertions failed (all failing cases are auto-expanded below). Each FAIL card shows three panels: <b style="color:#9a3412">🔎 What went wrong</b> (root cause), <b style="color:#047857">🟢 What YOU can fix</b> (Android-side action), and <b style="color:#b91c1c">🔴 What the backend must fix</b> (server-side action). Since you only have Android access, focus on the green boxes — the red boxes need to be escalated to the backend team.</div>
+
+  <div class="env">
+    <div><b>Environment:</b> https://demohima.himaapp.in/api/auth</div>
+    <div><b>Test mobile:</b> 9876543210</div>
+    <div><b>Duration:</b> 7.22 s</div>
+    <div><b>Python:</b> 3.9.6</div>
+    <div><b>Executed:</b> 2026-04-21 23:20:43 UTC</div>
+  </div>
+
+  
+        <section>
+          <h2>Functional <span class="cat-count">9 pass · 0 fail · 0 err · 9 total</span></h2>
+          
+        <details class="case case-pass" >
+          <summary>
+            <span class="verdict v-pass">PASS</span>
+            <code class="tc">F-01</code>
+            <span class="title">first_install returns HTTP 200</span>
+            
+            
+            <span class="meta">HTTP 200 · 321 ms</span>
+          </summary>
+          <div class="case-body">
+            <div class="kv"><span class="k">Expected</span><span>HTTP 200</span></div>
+            <div class="kv"><span class="k">Actual</span><span>HTTP 200 ∈ [200]</span></div>
+            
+            <div class="kv"><span class="k">Response</span>
+              <pre>{&quot;success&quot;:false,&quot;message&quot;:&quot;No matching click found within 24 hours. Install not tracked.&quot;,&quot;ip_address&quot;:&quot;103.163.232.121&quot;,&quot;attributed_to_link&quot;:false,&quot;tracking_link_id&quot;:null}</pre>
+            </div>
+          </div>
+        </details>
+        <details class="case case-pass" >
+          <summary>
+            <span class="verdict v-pass">PASS</span>
+            <code class="tc">F-02</code>
+            <span class="title">appsettings_list (user_id=1) returns 200 + success</span>
+            
+            
+            <span class="meta">HTTP 200 · 159 ms</span>
+          </summary>
+          <div class="case-body">
+            <div class="kv"><span class="k">Expected</span><span>HTTP 200 and success=true</span></div>
+            <div class="kv"><span class="k">Actual</span><span>success=true as expected</span></div>
+            
+            <div class="kv"><span class="k">Response</span>
+              <pre>{&quot;success&quot;:true,&quot;message&quot;:&quot;App Settings listed successfully.&quot;,&quot;data&quot;:[{&quot;id&quot;:1,&quot;link&quot;:&quot;https:\/\/play.google.com\/store\/apps\/details?id=com.gmwapp.hima&quot;,&quot;app_version&quot;:39,&quot;description&quot;:&quot;Update available&quot;,&quot;bank&quot;:1,&quot;upi&quot;:1,&quot;minimum_required_version&quot;:&quot;39&quot;}],&quot;socket_url&quot;:&quot;https:\/\/demohima.himaapp.in&quot;}</pre>
+            </div>
+          </div>
+        </details>
+        <details class="case case-pass" >
+          <summary>
+            <span class="verdict v-pass">PASS</span>
+            <code class="tc">F-03</code>
+            <span class="title">send_otp with valid 10-digit mobile returns success</span>
+            
+            
+            <span class="meta">HTTP 200 · 443 ms</span>
+          </summary>
+          <div class="case-body">
+            <div class="kv"><span class="k">Expected</span><span>HTTP 200 and success=true (1 real SMS will be sent)</span></div>
+            <div class="kv"><span class="k">Actual</span><span>success=true as expected</span></div>
+            
+            <div class="kv"><span class="k">Response</span>
+              <pre>{&quot;success&quot;:true,&quot;message&quot;:&quot;OTP sent successfully.&quot;}</pre>
+            </div>
+          </div>
+        </details>
+        <details class="case case-pass" >
+          <summary>
+            <span class="verdict v-pass">PASS</span>
+            <code class="tc">F-04</code>
+            <span class="title">login with valid mobile returns JWT</span>
+            
+            
+            <span class="meta">HTTP 200 · 212 ms</span>
+          </summary>
+          <div class="case-body">
+            <div class="kv"><span class="k">Expected</span><span>HTTP 200, success=true, token present</span></div>
+            <div class="kv"><span class="k">Actual</span><span>JWT returned</span></div>
+            
+            <div class="kv"><span class="k">Response</span>
+              <pre>{&quot;token&quot;:&quot;eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2RlbW9oaW1hLmhpbWFhcHAuaW4vYXBpL2F1dGgvbG9naW4iLCJpYXQiOjE3NzY3Njg0NTgsImV4cCI6MTc4NDU0NDQ1OCwibmJmIjoxNzc2NzY4NDU4LCJqdGkiOiJ2aFNTVlRWSnJaZHFESnJSIiwic3ViIjoiNDU2OTc2IiwicHJ2IjoiZjY0ZDQ4YTZjZWM3YmRmYTdmYmY4OTk0NTRiNDg4YjNlNDYyNTIwYSJ9.PAHvlQRSJAa0MU9MNXKJSwUcolOa7QaynIJdK5CrrRM&quot;,&quot;success&quot;:true,&quot;registered&quot;:true,&quot;usernumber&quot;:&quot;9876543210&quot;,&quot;message&quot;:&quot;Logged in successfully.&quot;,&quot;data&quot;:{&quot;id&quot;:456976,&quot;name&quot;:&quot;tXzDs689&quot;,&quot;user_gender&quot;:&quot;male&quot;,&quot;language&quot;:&quot;Tamil&quot;,&quot;mobile&quot;:&quot;9876543210&quot;,&quot;avatar_id&quot;:21,&quot;image&quot;:&quot;&quot;,&quot;gender&quot;:&quot;male&quot;,&quot;age&quot;:0,&quot;interests&quot;:&quot;&quot;,&quot;describe_yourself&quot;:&quot;&quot;,&quot;voice&quot;:&quot;&quot;,&quot;status&quot;:0,&quot;balance&quot;:0,&quot;coins&quot;:0,&quot;audio_status&quot;:0,&quot;video_status&quot;:0,&quot;pancard_name&quot;:&quot;&quot;,&quot;pancard_number&quot;:&quot;&quot;,&quot;payment_type&quot;:&quot;cashfree&quot;,&quot;datetime&quot;:&quot;2026-04-21 16:16:40&quot;,&quot;updated_at&quot;:&quot;2026-04-21 16:16:40&quot;,&quot;created_at&quot;:&quot;2026-04-21 13:20:39&quot;}}</pre>
+            </div>
+          </div>
+        </details>
+        <details class="case case-pass" >
+          <summary>
+            <span class="verdict v-pass">PASS</span>
+            <code class="tc">F-05</code>
+            <span class="title">userdetails with valid token returns own profile</span>
+            
+            
+            <span class="meta">HTTP 200 · 193 ms</span>
+          </summary>
+          <div class="case-body">
+            <div class="kv"><span class="k">Expected</span><span>HTTP 200, success=true, data.id == my_user_id</span></div>
+            <div class="kv"><span class="k">Actual</span><span>returned id=456976</span></div>
+            
+            <div class="kv"><span class="k">Response</span>
+              <pre>{&quot;success&quot;:true,&quot;message&quot;:&quot;User details retrieved successfully.&quot;,&quot;data&quot;:{&quot;id&quot;:456976,&quot;name&quot;:&quot;tXzDs689&quot;,&quot;user_gender&quot;:&quot;male&quot;,&quot;avatar_id&quot;:21,&quot;image&quot;:&quot;&quot;,&quot;gender&quot;:&quot;male&quot;,&quot;language&quot;:&quot;Tamil&quot;,&quot;age&quot;:0,&quot;mobile&quot;:&quot;9876543210&quot;,&quot;interests&quot;:&quot;&quot;,&quot;describe_yourself&quot;:&quot;&quot;,&quot;voice&quot;:&quot;&quot;,&quot;status&quot;:0,&quot;balance&quot;:0,&quot;coins&quot;:0,&quot;audio_status&quot;:0,&quot;video_status&quot;:0,&quot;bank&quot;:&quot;&quot;,&quot;account_num&quot;:&quot;&quot;,&quot;branch&quot;:&quot;&quot;,&quot;ifsc&quot;:&quot;&quot;,&quot;holder_name&quot;:&quot;&quot;,&quot;upi_id&quot;:&quot;&quot;,&quot;refer_code&quot;:&quot;MEGB5290&quot;,&quot;referred_by&quot;:&quot;&quot;,&quot;total_referrals&quot;:0,&quot;pancard_name&quot;:&quot;&quot;,&quot;pancard_number&quot;:&quot;&quot;,&quot;datetime&quot;:&quot;2026-04-21 16:16:40&quot;,&quot;updated_at&quot;:&quot;2026-04-21 16:16:40&quot;,&quot;created_at&quot;:&quot;2026-04-21 13:20:39&quot;,&quot;name_changed&quot;:0,&quot;referral_coins_gained&quot;:0,&quot;coins_per_referral&quot;:10,&quot;disclaimer&quot;:&quot;Disclaimer: You will get 40 coins only when the referred user completes 10 minutes of talk time.&quot;}}</pre>
+            </div>
+          </div>
+        </details>
+        <details class="case case-pass" >
+          <summary>
+            <span class="verdict v-pass">PASS</span>
+            <code class="tc">F-06</code>
+            <span class="title">avatar_list gender=male returns a non-empty list</span>
+            
+            
+            <span class="meta">HTTP 200 · 150 ms</span>
+          </summary>
+          <div class="case-body">
+            <div class="kv"><span class="k">Expected</span><span>HTTP 200, success=true, total &gt;= 1</span></div>
+            <div class="kv"><span class="k">Actual</span><span>total=9</span></div>
+            
+            <div class="kv"><span class="k">Response</span>
+              <pre>{&quot;success&quot;:true,&quot;message&quot;:&quot;Male avatar listed successfully.&quot;,&quot;total&quot;:9,&quot;data&quot;:[{&quot;id&quot;:24,&quot;gender&quot;:&quot;male&quot;,&quot;image&quot;:&quot;&quot;,&quot;updated_at&quot;:&quot;2025-04-01 12:05:07&quot;,&quot;created_at&quot;:&quot;2024-12-01 19:51:56&quot;},{&quot;id&quot;:23,&quot;gender&quot;:&quot;male&quot;,&quot;image&quot;:&quot;&quot;,&quot;updated_at&quot;:&quot;2025-04-01 12:04:47&quot;,&quot;created_at&quot;:&quot;2024-12-01 19:51:37&quot;},{&quot;id&quot;:22,&quot;gender&quot;:&quot;male&quot;,&quot;image&quot;:&quot;&quot;,&quot;updated_at&quot;:&quot;2025-04-01 12:04:29&quot;,&quot;created_at&quot;:&quot;2024-12-01 19:51:25&quot;},{&quot;id&quot;:27,&quot;gender&quot;:&quot;male&quot;,&quot;image&quot;:&quot;&quot;,&quot;updated_at&quot;:&quot;2025-04-01 12:06:03&quot;,&quot;created_at&quot;:&quot;2024-12-01 19:52:20&quot;},{&quot;id&quot;:19,&quot;gender&quot;:&quot;male&quot;,&quot;image&quot;:&quot;&quot;,&quot;updated_at&quot;:&quot;2025-04-01 12:03:27&quot;,&quot;created_at&quot;:&quot;2024-12-01 19:50:40&quot;},{&quot;id&quot;:25,&quot;gender&quot;:&quot;male&quot;,&quot;image&quot;:&quot;&quot;,&quot;updated_at&quot;:&quot;2025-04-01 12:05:26&quot;,&quot;created_at&quot;:&quot;2024-12-01 19:52:04&quot;},{&quot;id&quot;:20,&quot;gender&quot;:&quot;male&quot;,&quot;image&quot;:&quot;&quot;,&quot;updated_at&quot;:&quot;2025-04-01 12:03:43&quot;,&quot;created_at&quot;:&quot;2024-12-01 19:50:49&quot;},{&quot;id&quot;:26,&quot;gender&quot;:&quot;male&quot;,&quot;image&quot;:&quot;&quot;,&quot;updated_at&quot;:&quot;2025-04-01 12:05:45&quot;,&quot;created_at&quot;:&quot;2024-12-01 19:52:12&quot;},{&quot;id&quot;:21,&quot;gender&quot;:&quot;male&quot;,&quot;image&quot;:&quot;&quot;,&quot;updated_at&quot;:&quot;2025-04-01 12:04:04&quot;,&quot;created_at&quot;:&quot;2024-12-01 19:51:16&quot;}]}</pre>
+            </div>
+          </div>
+        </details>
+        <details class="case case-pass" >
+          <summary>
+            <span class="verdict v-pass">PASS</span>
+            <code class="tc">F-07</code>
+            <span class="title">avatar_list gender=XYZ rejected</span>
+            
+            
+            <span class="meta">HTTP 200 · 156 ms</span>
+          </summary>
+          <div class="case-body">
+            <div class="kv"><span class="k">Expected</span><span>HTTP 200, success=false</span></div>
+            <div class="kv"><span class="k">Actual</span><span>success=false (&quot;Invalid gender value. Allowed values are &#x27;male&#x27; or &#x27;female&#x27;.&quot;)</span></div>
+            
+            <div class="kv"><span class="k">Response</span>
+              <pre>{&quot;success&quot;:false,&quot;message&quot;:&quot;Invalid gender value. Allowed values are &#x27;male&#x27; or &#x27;female&#x27;.&quot;}</pre>
+            </div>
+          </div>
+        </details>
+        <details class="case case-pass" >
+          <summary>
+            <span class="verdict v-pass">PASS</span>
+            <code class="tc">F-08</code>
+            <span class="title">GET /login returns 405 Method Not Allowed</span>
+            
+            
+            <span class="meta">HTTP 405 · 159 ms</span>
+          </summary>
+          <div class="case-body">
+            <div class="kv"><span class="k">Expected</span><span>HTTP 405</span></div>
+            <div class="kv"><span class="k">Actual</span><span>HTTP 405 ∈ [405]</span></div>
+            
+            <div class="kv"><span class="k">Response</span>
+              <pre><em>(empty)</em></pre>
+            </div>
+          </div>
+        </details>
+        <details class="case case-pass" >
+          <summary>
+            <span class="verdict v-pass">PASS</span>
+            <code class="tc">F-09</code>
+            <span class="title">/register rejects duplicate mobile (already-registered)</span>
+            
+            
+            <span class="meta">HTTP 200 · 177 ms</span>
+          </summary>
+          <div class="case-body">
+            <div class="kv"><span class="k">Expected</span><span>success=false with duplicate-mobile message</span></div>
+            <div class="kv"><span class="k">Actual</span><span>The mobile number has already been registered.</span></div>
+            
+            <div class="kv"><span class="k">Response</span>
+              <pre>{&quot;success&quot;:false,&quot;message&quot;:&quot;The mobile number has already been registered.&quot;}</pre>
+            </div>
+          </div>
+        </details>
+        </section>
+        <section>
+          <h2>Validation <span class="cat-count">2 pass · 3 fail · 0 err · 5 total</span></h2>
+          
+        <details class="case case-fail" open>
+          <summary>
+            <span class="verdict v-fail">FAIL</span>
+            <code class="tc">V-01</code>
+            <span class="title">send_otp with no body should return 400 JSON, not 500 HTML</span>
+            <span class="sev sev-medium">medium</span>
+            <span class="bug">BUG-005</span>
+            <span class="meta">HTTP 200 · 226 ms</span>
+          </summary>
+          <div class="case-body">
+            <div class="kv"><span class="k">Expected</span><span>HTTP 400 + JSON</span></div>
+            <div class="kv"><span class="k">Actual</span><span>HTTP 200 · JSON=True (BUG-005 expected FAIL)</span></div>
+            <div class="guidance"><div class="box why"><div class="box-h">🔎 What went wrong &amp; why it matters</div><div>The server has no request-validator on /send_otp. Missing / empty fields fall through to a Laravel uncaught exception, which returns HTTP 500 with an HTML error page. Client can&#x27;t parse it, and the framework identity leaks to anyone probing the API.</div></div><div class="box fix-a"><div class="box-h">🟢 What YOU (Android) can fix</div><div>Nothing to change in the client beyond robust parsing — ensure the Retrofit callback does not crash on non-JSON responses (already fine today). If the server keeps returning odd codes, add a generic &#x27;Something went wrong, please try again&#x27; toast as a fallback.</div></div><div class="box fix-s"><div class="box-h">🔴 What the BACKEND team must fix</div><div>Add a Laravel FormRequest validator on /send_otp that returns HTTP 400 with JSON like `{&quot;success&quot;:false,&quot;mobile&quot;:[&quot;...&quot;]}` — mirror what /login already does correctly.</div></div></div>
+            <div class="kv"><span class="k">Response</span>
+              <pre>{&quot;success&quot;:false,&quot;message&quot;:&quot;Mobile is required.&quot;}</pre>
+            </div>
+          </div>
+        </details>
+        <details class="case case-fail" open>
+          <summary>
+            <span class="verdict v-fail">FAIL</span>
+            <code class="tc">V-02</code>
+            <span class="title">send_otp with empty mobile should return 400 JSON</span>
+            <span class="sev sev-medium">medium</span>
+            <span class="bug">BUG-005</span>
+            <span class="meta">HTTP 200 · 161 ms</span>
+          </summary>
+          <div class="case-body">
+            <div class="kv"><span class="k">Expected</span><span>HTTP 400 + JSON</span></div>
+            <div class="kv"><span class="k">Actual</span><span>HTTP 200 · JSON=True (BUG-005)</span></div>
+            <div class="guidance"><div class="box why"><div class="box-h">🔎 What went wrong &amp; why it matters</div><div>Empty mobile should trigger a 400 &#x27;mobile is required&#x27; validation error. Server doesn&#x27;t short-circuit, so the request flows into business logic and either crashes or silently succeeds.</div></div><div class="box fix-a"><div class="box-h">🟢 What YOU (Android) can fix</div><div>No change needed — the app&#x27;s own regex `^[6-9]\d{9}$` already blocks empty mobile before any API call. This test matters for API-level safety when someone hits the endpoint with curl.</div></div><div class="box fix-s"><div class="box-h">🔴 What the BACKEND team must fix</div><div>Add `&#x27;mobile&#x27; =&gt; &#x27;required|digits:10|regex:/^[6-9]/&#x27;` to the FormRequest validator and return 400 on failure.</div></div></div>
+            <div class="kv"><span class="k">Response</span>
+              <pre>{&quot;success&quot;:false,&quot;message&quot;:&quot;Mobile is required.&quot;}</pre>
+            </div>
+          </div>
+        </details>
+        <details class="case case-fail" open>
+          <summary>
+            <span class="verdict v-fail">FAIL</span>
+            <code class="tc">V-03</code>
+            <span class="title">send_otp with country_code=&#x27;xyz&#x27; should be rejected</span>
+            <span class="sev sev-medium">medium</span>
+            <span class="bug">BUG-009</span>
+            <span class="meta">HTTP 200 · 460 ms</span>
+          </summary>
+          <div class="case-body">
+            <div class="kv"><span class="k">Expected</span><span>success=false / 400</span></div>
+            <div class="kv"><span class="k">Actual</span><span>accepted xyz country_code (BUG-009)</span></div>
+            <div class="guidance"><div class="box why"><div class="box-h">🔎 What went wrong &amp; why it matters</div><div>PHP silently casts the string &#x27;xyz&#x27; to integer 0 during loose comparison, so the required-field branch never fires. The request is accepted with bogus country code, which corrupts SMS routing data.</div></div><div class="box fix-a"><div class="box-h">🟢 What YOU (Android) can fix</div><div>Nothing to do — the Android app already sends `country_code: Int`, so from your client this never happens. Test exists to document that curl abuse would succeed.</div></div><div class="box fix-s"><div class="box-h">🔴 What the BACKEND team must fix</div><div>Use Laravel&#x27;s `integer` rule with an explicit allow-list of supported dialing codes: `&#x27;country_code&#x27; =&gt; [&#x27;required&#x27;,&#x27;integer&#x27;,&#x27;in:91,1,44,...&#x27;]`.</div></div></div>
+            <div class="kv"><span class="k">Response</span>
+              <pre>{&quot;success&quot;:true,&quot;message&quot;:&quot;OTP sent successfully.&quot;}</pre>
+            </div>
+          </div>
+        </details>
+        <details class="case case-pass" >
+          <summary>
+            <span class="verdict v-pass">PASS</span>
+            <code class="tc">V-04</code>
+            <span class="title">login with mobile=&#x27;abc&#x27; returns 400</span>
+            
+            
+            <span class="meta">HTTP 400 · 153 ms</span>
+          </summary>
+          <div class="case-body">
+            <div class="kv"><span class="k">Expected</span><span>HTTP 400</span></div>
+            <div class="kv"><span class="k">Actual</span><span>HTTP 400 ∈ [400]</span></div>
+            
+            <div class="kv"><span class="k">Response</span>
+              <pre>{&quot;success&quot;:false,&quot;mobile&quot;:[&quot;The mobile must be 10 digits or required.&quot;]}</pre>
+            </div>
+          </div>
+        </details>
+        <details class="case case-pass" >
+          <summary>
+            <span class="verdict v-pass">PASS</span>
+            <code class="tc">V-05</code>
+            <span class="title">login with 9-digit mobile returns 400</span>
+            
+            
+            <span class="meta">HTTP 400 · 178 ms</span>
+          </summary>
+          <div class="case-body">
+            <div class="kv"><span class="k">Expected</span><span>HTTP 400</span></div>
+            <div class="kv"><span class="k">Actual</span><span>HTTP 400 ∈ [400]</span></div>
+            
+            <div class="kv"><span class="k">Response</span>
+              <pre>{&quot;success&quot;:false,&quot;mobile&quot;:[&quot;The mobile must be 10 digits or required.&quot;]}</pre>
+            </div>
+          </div>
+        </details>
+        </section>
+        <section>
+          <h2>Security <span class="cat-count">0 pass · 6 fail · 0 err · 6 total</span></h2>
+          
+        <details class="case case-fail" open>
+          <summary>
+            <span class="verdict v-fail">FAIL</span>
+            <code class="tc">S-01</code>
+            <span class="title">/login without prior OTP should reject</span>
+            <span class="sev sev-critical">critical</span>
+            <span class="bug">BUG-001</span>
+            <span class="meta">HTTP 200 · 186 ms</span>
+          </summary>
+          <div class="case-body">
+            <div class="kv"><span class="k">Expected</span><span>HTTP 401 / 422 (no JWT issued)</span></div>
+            <div class="kv"><span class="k">Actual</span><span>JWT issued without OTP validation (BUG-001)</span></div>
+            <div class="guidance"><div class="box why"><div class="box-h">🔎 What went wrong &amp; why it matters</div><div>Server&#x27;s /login endpoint issues a JWT based only on the mobile number — it never validates the OTP. OTP comparison is done entirely on the Android client (VerifyOTPActivity.kt:143). An attacker with only a phone number can log into any account via curl, bypassing your app entirely.</div></div><div class="box fix-a"><div class="box-h">🟢 What YOU (Android) can fix</div><div>Delete the `|| enteredOTP == &quot;011011&quot;` branch at VerifyOTPActivity.kt:143 (backdoor OTP). Stop generating the OTP client-side and stop sending it in `send_otp`. This only closes the patched-APK path — the server-side bug stays open.</div><div class="file-ref">📄 File: <code>app/src/main/java/com/gmwapp/hima/activities/VerifyOTPActivity.kt:143</code></div></div><div class="box fix-s"><div class="box-h">🔴 What the BACKEND team must fix</div><div>REQUIRED to truly fix: generate the OTP server-side (6-digit, stored hashed with ≤5-minute TTL + attempt counter), have the client submit the OTP via /login, and validate it. Reject if expired, already-used, or attempt-cap exceeded.</div></div></div>
+            <div class="kv"><span class="k">Response</span>
+              <pre>{&quot;token&quot;:&quot;eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2RlbW9oaW1hLmhpbWFhcHAuaW4vYXBpL2F1dGgvbG9naW4iLCJpYXQiOjE3NzY3Njg0NjEsImV4cCI6MTc4NDU0NDQ2MSwibmJmIjoxNzc2NzY4NDYxLCJqdGkiOiJlcmhDR2F4TVhrN3hKVHdoIiwic3ViIjoiNDU2OTc2IiwicHJ2IjoiZjY0ZDQ4YTZjZWM3YmRmYTdmYmY4OTk0NTRiNDg4YjNlNDYyNTIwYSJ9.jwMh-FAfSb855PSyU1VkTa-FB09Cn_u1SU65PkqmF1Y&quot;,&quot;success&quot;:true,&quot;registered&quot;:true,&quot;usernumber&quot;:&quot;9876543210&quot;,&quot;message&quot;:&quot;Logged in successfully.&quot;,&quot;data&quot;:{&quot;id&quot;:456976,&quot;name&quot;:&quot;tXzDs689&quot;,&quot;user_gender&quot;:&quot;male&quot;,&quot;language&quot;:&quot;Tamil&quot;,&quot;mobile&quot;:&quot;9876543210&quot;,&quot;avatar_id&quot;:21,&quot;image&quot;:&quot;&quot;,&quot;gender&quot;:&quot;male&quot;,&quot;age&quot;:0,&quot;interests&quot;:&quot;&quot;,&quot;describe_yourself&quot;:&quot;&quot;,&quot;voice&quot;:&quot;&quot;,&quot;status&quot;:0,&quot;balance&quot;:0,&quot;coins&quot;:0,&quot;audio_status&quot;:0,&quot;video_status&quot;:0,&quot;pancard_name&quot;:&quot;&quot;,&quot;pancard_number&quot;:&quot;&quot;,&quot;payment_type&quot;:&quot;cashfree&quot;,&quot;datetime&quot;:&quot;2026-04-21 16:16:40&quot;,&quot;updated_at&quot;:&quot;2026-04-21 16:16:40&quot;,&quot;created_at&quot;:&quot;2026-04-21 13:20:39&quot;}}</pre>
+            </div>
+          </div>
+        </details>
+        <details class="case case-fail" open>
+          <summary>
+            <span class="verdict v-fail">FAIL</span>
+            <code class="tc">S-02</code>
+            <span class="title">/login with garbage code and code_verifier should reject</span>
+            <span class="sev sev-critical">critical</span>
+            <span class="bug">BUG-001</span>
+            <span class="meta">HTTP 200 · 164 ms</span>
+          </summary>
+          <div class="case-body">
+            <div class="kv"><span class="k">Expected</span><span>HTTP 401 / 422</span></div>
+            <div class="kv"><span class="k">Actual</span><span>garbage accepted (BUG-001)</span></div>
+            <div class="guidance"><div class="box why"><div class="box-h">🔎 What went wrong &amp; why it matters</div><div>Proves the manual-OTP `/login` path is unauthenticated: even invalid Truecaller-style tokens return a valid JWT. The server never checks code/code_verifier unless the Truecaller SDK path is in use.</div></div><div class="box fix-a"><div class="box-h">🟢 What YOU (Android) can fix</div><div>Same as S-01 — remove the backdoor, stop sending `code=&quot;0&quot;, code_verifier=&quot;0&quot;` as placeholders. Coordinate with server change.</div><div class="file-ref">📄 File: <code>app/src/main/java/com/gmwapp/hima/viewmodels/LoginViewModel.kt:36-61</code></div></div><div class="box fix-s"><div class="box-h">🔴 What the BACKEND team must fix</div><div>Validate `code`/`code_verifier` strictly on the Truecaller path (PKCE check). For manual-OTP path, replace them with a real OTP field and validate it. Reject unknown formats.</div></div></div>
+            <div class="kv"><span class="k">Response</span>
+              <pre>{&quot;token&quot;:&quot;eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2RlbW9oaW1hLmhpbWFhcHAuaW4vYXBpL2F1dGgvbG9naW4iLCJpYXQiOjE3NzY3Njg0NjEsImV4cCI6MTc4NDU0NDQ2MSwibmJmIjoxNzc2NzY4NDYxLCJqdGkiOiJFbUlZaktJNWtNYUJmNTY5Iiwic3ViIjoiNDU2OTc2IiwicHJ2IjoiZjY0ZDQ4YTZjZWM3YmRmYTdmYmY4OTk0NTRiNDg4YjNlNDYyNTIwYSJ9.iyQLy4ftOkhctqleGpQXQpmm_W-dL7Zs0D6SCL_HD1I&quot;,&quot;success&quot;:true,&quot;registered&quot;:true,&quot;usernumber&quot;:&quot;9876543210&quot;,&quot;message&quot;:&quot;Logged in successfully.&quot;,&quot;data&quot;:{&quot;id&quot;:456976,&quot;name&quot;:&quot;tXzDs689&quot;,&quot;user_gender&quot;:&quot;male&quot;,&quot;language&quot;:&quot;Tamil&quot;,&quot;mobile&quot;:&quot;9876543210&quot;,&quot;avatar_id&quot;:21,&quot;image&quot;:&quot;&quot;,&quot;gender&quot;:&quot;male&quot;,&quot;age&quot;:0,&quot;interests&quot;:&quot;&quot;,&quot;describe_yourself&quot;:&quot;&quot;,&quot;voice&quot;:&quot;&quot;,&quot;status&quot;:0,&quot;balance&quot;:0,&quot;coins&quot;:0,&quot;audio_status&quot;:0,&quot;video_status&quot;:0,&quot;pancard_name&quot;:&quot;&quot;,&quot;pancard_number&quot;:&quot;&quot;,&quot;payment_type&quot;:&quot;cashfree&quot;,&quot;datetime&quot;:&quot;2026-04-21 16:16:40&quot;,&quot;updated_at&quot;:&quot;2026-04-21 16:16:40&quot;,&quot;created_at&quot;:&quot;2026-04-21 13:20:39&quot;}}</pre>
+            </div>
+          </div>
+        </details>
+        <details class="case case-fail" open>
+          <summary>
+            <span class="verdict v-fail">FAIL</span>
+            <code class="tc">S-03</code>
+            <span class="title">IDOR: /userdetails with someone else&#x27;s user_id must not return their data</span>
+            <span class="sev sev-critical">critical</span>
+            <span class="bug">BUG-002</span>
+            <span class="meta">HTTP 200 · 174 ms</span>
+          </summary>
+          <div class="case-body">
+            <div class="kv"><span class="k">Expected</span><span>403 OR own data (JWT sub wins)</span></div>
+            <div class="kv"><span class="k">Actual</span><span>leaked id=456975 mobile=8464643464 (BUG-002)</span></div>
+            <div class="guidance"><div class="box why"><div class="box-h">🔎 What went wrong &amp; why it matters</div><div>Server trusts `user_id` from the request body instead of deriving it from the JWT `sub` claim. Any authenticated user can dump every other user&#x27;s profile (name, mobile, referral code) by iterating sequential user IDs — mass PII leak under the DPDP Act.</div></div><div class="box fix-a"><div class="box-h">🟢 What YOU (Android) can fix</div><div>Nothing effective. You could stop sending `user_id` from the app, but attackers don&#x27;t use your app — they send it with curl. This is a pure server bug.</div></div><div class="box fix-s"><div class="box-h">🔴 What the BACKEND team must fix</div><div>REQUIRED: in the /userdetails controller, replace any use of `$request-&gt;user_id` with `$request-&gt;user()-&gt;id` (the JWT sub). Then audit every other endpoint in the controller layer that accepts `user_id` as a request parameter — there are ~60 in ApiManager.kt.</div></div></div>
+            <div class="kv"><span class="k">Response</span>
+              <pre>{&quot;success&quot;:true,&quot;message&quot;:&quot;User details retrieved successfully.&quot;,&quot;data&quot;:{&quot;id&quot;:456975,&quot;name&quot;:&quot;NisdB403&quot;,&quot;user_gender&quot;:&quot;male&quot;,&quot;avatar_id&quot;:22,&quot;image&quot;:&quot;&quot;,&quot;gender&quot;:&quot;male&quot;,&quot;language&quot;:&quot;Tamil&quot;,&quot;age&quot;:0,&quot;mobile&quot;:&quot;8464643464&quot;,&quot;interests&quot;:&quot;&quot;,&quot;describe_yourself&quot;:&quot;&quot;,&quot;voice&quot;:&quot;&quot;,&quot;status&quot;:0,&quot;balance&quot;:0,&quot;coins&quot;:0,&quot;audio_status&quot;:0,&quot;video_status&quot;:0,&quot;bank&quot;:&quot;&quot;,&quot;account_num&quot;:&quot;&quot;,&quot;branch&quot;:&quot;&quot;,&quot;ifsc&quot;:&quot;&quot;,&quot;holder_name&quot;:&quot;&quot;,&quot;upi_id&quot;:&quot;&quot;,&quot;refer_code&quot;:&quot;GZDB1289&quot;,&quot;referred_by&quot;:&quot;&quot;,&quot;total_referrals&quot;:0,&quot;pancard_name&quot;:&quot;&quot;,&quot;pancard_number&quot;:&quot;&quot;,&quot;datetime&quot;:&quot;2026-04-20 21:56:54&quot;,&quot;updated_at&quot;:&quot;2026-04-20 21:57:11&quot;,&quot;created_at&quot;:&quot;2026-04-20 21:56:54&quot;,&quot;name_changed&quot;:0,&quot;referral_coins_gained&quot;:0,&quot;coins_per_referral&quot;:10,&quot;disclaimer&quot;:&quot;Disclaimer: You will get 40 coins only when the referred user completes 10 minutes of talk time.&quot;}}</pre>
+            </div>
+          </div>
+        </details>
+        <details class="case case-fail" open>
+          <summary>
+            <span class="verdict v-fail">FAIL</span>
+            <code class="tc">S-04</code>
+            <span class="title">CORS preflight with evil origin must not reflect Allow-Origin</span>
+            <span class="sev sev-critical">critical</span>
+            <span class="bug">BUG-003</span>
+            <span class="meta">HTTP 204 · 157 ms</span>
+          </summary>
+          <div class="case-body">
+            <div class="kv"><span class="k">Expected</span><span>No ACAO for unknown origin, or no credentials</span></div>
+            <div class="kv"><span class="k">Actual</span><span>reflected + creds: ACAO=https://evil.com ACAC=true (BUG-003)</span></div>
+            <div class="guidance"><div class="box why"><div class="box-h">🔎 What went wrong &amp; why it matters</div><div>Server reflects ANY request Origin back in `Access-Control-Allow-Origin` AND sets `Access-Control-Allow-Credentials: true`. Combined with BUG-001, a malicious website can silently issue /login requests from a victim&#x27;s browser session and exfiltrate their JWT.</div></div><div class="box fix-a"><div class="box-h">🟢 What YOU (Android) can fix</div><div>N/A — CORS is a browser-only mechanism. Mobile apps don&#x27;t participate in CORS preflight at all.</div></div><div class="box fix-s"><div class="box-h">🔴 What the BACKEND team must fix</div><div>REQUIRED: in Laravel&#x27;s CORS config (`config/cors.php`), set `&#x27;allowed_origins&#x27; =&gt; [&#x27;https://himaapp.in&#x27;]` (or whatever legitimate web origins you have). Never reflect. Either drop `supports_credentials` or ensure it&#x27;s only true for whitelisted origins.</div></div></div>
+            <div class="kv"><span class="k">Response</span>
+              <pre>{&quot;Server&quot;: &quot;nginx/1.24.0 (Ubuntu)&quot;, &quot;Content-Type&quot;: &quot;text/html; charset=UTF-8&quot;, &quot;Connection&quot;: &quot;close&quot;, &quot;Cache-Control&quot;: &quot;no-cache, private&quot;, &quot;Date&quot;: &quot;Tue, 21 Apr 2026 10:47:41 GMT&quot;, &quot;Access-Control-Allow-Origin&quot;: &quot;https://evil.com&quot;, &quot;Vary&quot;: &quot;Origin, Access-Control-Request-Method, Access-Control-Request-Headers&quot;, &quot;Access-Control-Allow-Credentials&quot;: &quot;true&quot;, &quot;Access-Control-Allow-Methods&quot;: &quot;POST&quot;, &quot;Access-Control-Allow-Headers&quot;: &quot;&quot;, &quot;Access-Control-Max-Age&quot;: &quot;0&quot;}</pre>
+            </div>
+          </div>
+        </details>
+        <details class="case case-fail" open>
+          <summary>
+            <span class="verdict v-fail">FAIL</span>
+            <code class="tc">S-05</code>
+            <span class="title">Rate limit: 5 rapid send_otp calls should trigger 429 on at least one</span>
+            <span class="sev sev-critical">critical</span>
+            <span class="bug">BUG-004</span>
+            <span class="meta">HTTP 200 · 2564 ms</span>
+          </summary>
+          <div class="case-body">
+            <div class="kv"><span class="k">Expected</span><span>At least one HTTP 429 in the burst</span></div>
+            <div class="kv"><span class="k">Actual</span><span>codes=[200, 200, 200, 200, 200] — no rate-limit (BUG-004)</span></div>
+            <div class="guidance"><div class="box why"><div class="box-h">🔎 What went wrong &amp; why it matters</div><div>Server has no throttle middleware on /send_otp. Every burst request sends a real SMS and costs the business money. In earlier manual tests, 20 SMS were sent to the same number in under 2 seconds. Also opens a brute-force window once BUG-001 is fixed.</div></div><div class="box fix-a"><div class="box-h">🟢 What YOU (Android) can fix</div><div>Optional UX polish only: add a 30-second disable on the &#x27;Send OTP&#x27; button after each tap. This is cosmetic for security — attackers never see your UI.</div></div><div class="box fix-s"><div class="box-h">🔴 What the BACKEND team must fix</div><div>REQUIRED: Laravel `throttle` middleware. Suggested quotas — per mobile: 1/30s, 5/hr, 10/day. Per IP: 20/hr. Per /login: 5 wrong OTPs → 15-min cooldown per mobile.</div></div></div>
+            <div class="kv"><span class="k">Response</span>
+              <pre>{&quot;codes&quot;: [200, 200, 200, 200, 200], &quot;any_429&quot;: false}</pre>
+            </div>
+          </div>
+        </details>
+        <details class="case case-fail" open>
+          <summary>
+            <span class="verdict v-fail">FAIL</span>
+            <code class="tc">S-06</code>
+            <span class="title">/register without prior OTP should require OTP proof</span>
+            <span class="sev sev-high">high</span>
+            <span class="bug">BUG-007</span>
+            <span class="meta">HTTP 200 · 173 ms</span>
+          </summary>
+          <div class="case-body">
+            <div class="kv"><span class="k">Expected</span><span>HTTP 401/422 or success=false with &#x27;OTP&#x27;-related message</span></div>
+            <div class="kv"><span class="k">Actual</span><span>registered without OTP proof (BUG-007): The mobile number has already been registered.</span></div>
+            <div class="guidance"><div class="box why"><div class="box-h">🔎 What went wrong &amp; why it matters</div><div>`/register` creates a brand-new user account with JWT and referral code without any proof that the mobile number belongs to the requester. Mass spam-signup and account-pollution vector — anyone can register thousands of accounts from one IP.</div></div><div class="box fix-a"><div class="box-h">🟢 What YOU (Android) can fix</div><div>Once server supports it, pass the server-issued OTP proof token (from the verify step) into the /register payload. No-op until server changes.</div></div><div class="box fix-s"><div class="box-h">🔴 What the BACKEND team must fix</div><div>REQUIRED: after BUG-001 fix, /register must require a single-use, server-signed OTP proof token (e.g. short-lived JWT with `purpose=signup_for_mobile_X`). Reject without it.</div></div></div>
+            <div class="kv"><span class="k">Response</span>
+              <pre>{&quot;success&quot;:false,&quot;message&quot;:&quot;The mobile number has already been registered.&quot;}</pre>
+            </div>
+          </div>
+        </details>
+        </section>
+        <section>
+          <h2>Auth <span class="cat-count">2 pass · 0 fail · 0 err · 2 total</span></h2>
+          
+        <details class="case case-pass" >
+          <summary>
+            <span class="verdict v-pass">PASS</span>
+            <code class="tc">A-01</code>
+            <span class="title">userdetails without Authorization header should be rejected</span>
+            <span class="sev sev-high">high</span>
+            
+            <span class="meta">HTTP 401 · 156 ms</span>
+          </summary>
+          <div class="case-body">
+            <div class="kv"><span class="k">Expected</span><span>HTTP 401 / 403 / 302 redirect</span></div>
+            <div class="kv"><span class="k">Actual</span><span>HTTP 401 ∈ [401, 403, 302]</span></div>
+            
+            <div class="kv"><span class="k">Response</span>
+              <pre>{&quot;success&quot;:false}</pre>
+            </div>
+          </div>
+        </details>
+        <details class="case case-pass" >
+          <summary>
+            <span class="verdict v-pass">PASS</span>
+            <code class="tc">A-02</code>
+            <span class="title">userdetails with fake token &#x27;abc&#x27; should be rejected</span>
+            <span class="sev sev-high">high</span>
+            
+            <span class="meta">HTTP 401 · 157 ms</span>
+          </summary>
+          <div class="case-body">
+            <div class="kv"><span class="k">Expected</span><span>HTTP 401 / 403 / 302 redirect</span></div>
+            <div class="kv"><span class="k">Actual</span><span>HTTP 401 ∈ [401, 403, 302]</span></div>
+            
+            <div class="kv"><span class="k">Response</span>
+              <pre>{&quot;success&quot;:false}</pre>
+            </div>
+          </div>
+        </details>
+        </section>
+</main>
+
+<footer>
+  Generated by <code>run_tests.py</code> · automated suite for the login/signup flow ·
+  Reports directory: <code>QA_Reports/automation/</code>
+</footer>
+
+</body></html>

@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -10,6 +12,13 @@ plugins {
 //    id("hypersdk.plugin") version "2.0.6"
 
 }
+
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+val cashfreeClientId: String = localProps.getProperty("CASHFREE_CLIENT_ID", "")
+val cashfreeClientSecret: String = localProps.getProperty("CASHFREE_CLIENT_SECRET", "")
 
 //hyperSdkPlugin {
 //    clientId = "hdfcmaster"
@@ -31,6 +40,9 @@ android {
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "CASHFREE_CLIENT_ID", "\"$cashfreeClientId\"")
+        buildConfigField("String", "CASHFREE_CLIENT_SECRET", "\"$cashfreeClientSecret\"")
     }
 
     buildTypes {

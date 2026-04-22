@@ -139,8 +139,8 @@ class VerifyOTPActivity : BaseActivity() {
             Log.d("VerifyOTP", "Verify button clicked")
             val enteredOTP = binding.pvOtp.text.toString()
             if (enteredOTP.length == 6) {
-                Log.d("VerifyOTP", "OTP entered: $enteredOTP")
-                if (enteredOTP == otp.toString() || enteredOTP == "011011") {
+                Log.d("VerifyOTP", "OTP entered")
+                if (enteredOTP == otp.toString()) {
                     Log.d("VerifyOTP", "OTP matched, calling login()")
                     isVerifyingOtp = true
                     binding.pbVerifyOtpLoader.visibility = View.VISIBLE

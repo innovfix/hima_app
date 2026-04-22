@@ -1,0 +1,616 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Login / Signup API Test Report — Hima · 2026-04-21</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#151923; --panel2:#1b2030; --line:#262c3b;
+    --text:#e6e8ee; --muted:#9aa3b2; --accent:#5b8def;
+    --s1:#ef4444; --s2:#f59e0b; --s3:#eab308; --s4:#38bdf8; --ok:#10b981;
+    --code:#0b0e14;
+    --android:#10b981; --server:#ef4444; --both:#f59e0b;
+  }
+  *{box-sizing:border-box}
+  html,body{background:var(--bg);color:var(--text);font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  header{padding:28px 40px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#171b26,#0f1115)}
+  header h1{margin:0 0 6px;font-size:24px;letter-spacing:.2px}
+  header .sub{color:var(--muted);font-size:13px}
+  .layout{display:grid;grid-template-columns:280px 1fr;min-height:calc(100vh - 90px)}
+  nav{border-right:1px solid var(--line);padding:18px 16px;position:sticky;top:0;height:100vh;overflow:auto;background:#111521}
+  nav h3{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:14px 6px 6px}
+  nav a{display:block;padding:6px 8px;border-radius:6px;color:#c8cfdd;font-size:13px}
+  nav a:hover{background:#1d2333;text-decoration:none}
+  nav .s1{border-left:3px solid var(--s1);padding-left:8px}
+  nav .s2{border-left:3px solid var(--s2);padding-left:8px}
+  nav .s3{border-left:3px solid var(--s3);padding-left:8px}
+  nav .s4{border-left:3px solid var(--s4);padding-left:8px}
+  nav .chip{display:inline-block;margin-left:6px;font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;letter-spacing:.5px}
+  nav .chip.A{background:#0a2a1f;color:#6ee7b7;border:1px solid #065f46}
+  nav .chip.S{background:#2a0b0b;color:#fca5a5;border:1px solid #7f1d1d}
+  nav .chip.B{background:#2a1a0b;color:#fcd34d;border:1px solid #92400e}
+  main{padding:24px 40px;max-width:1150px}
+  h2{margin:38px 0 14px;font-size:18px;border-bottom:1px solid var(--line);padding-bottom:8px}
+  h3{margin:28px 0 10px;font-size:16px}
+  .meta{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:10px 0 6px}
+  .meta div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+  .meta .k{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+  .meta .v{font-weight:600;margin-top:4px}
+  .cards{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:16px 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;text-align:center}
+  .card .n{font-size:26px;font-weight:700}
+  .card .l{font-size:12px;color:var(--muted);margin-top:4px}
+  .card.s1{border-color:var(--s1)} .card.s1 .n{color:var(--s1)}
+  .card.s2{border-color:var(--s2)} .card.s2 .n{color:var(--s2)}
+  .card.s3{border-color:var(--s3)} .card.s3 .n{color:var(--s3)}
+  .card.s4{border-color:var(--s4)} .card.s4 .n{color:var(--s4)}
+  .card.ok{border-color:var(--ok)} .card.ok .n{color:var(--ok)}
+
+  .fix-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}
+  .fix-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;border-top:4px solid var(--line)}
+  .fix-card.client{border-top-color:var(--android)}
+  .fix-card.both{border-top-color:var(--both)}
+  .fix-card.server{border-top-color:var(--server)}
+  .fix-card .title{font-weight:700;margin-bottom:6px}
+  .fix-card .title.client{color:#6ee7b7}
+  .fix-card .title.both{color:#fcd34d}
+  .fix-card .title.server{color:#fca5a5}
+  .fix-card .big{font-size:28px;font-weight:700;margin:4px 0}
+  .fix-card ul{margin:8px 0 0 18px;padding:0;font-size:13px;color:#cbd5e1}
+  .fix-card li{margin:3px 0}
+
+  .bug{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:10px;padding:18px 20px;margin:18px 0}
+  .bug.s1{border-left-color:var(--s1)}
+  .bug.s2{border-left-color:var(--s2)}
+  .bug.s3{border-left-color:var(--s3)}
+  .bug.s4{border-left-color:var(--s4)}
+  .bug h3{margin-top:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .bug h3 .id{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--muted);background:#11151f;padding:3px 8px;border-radius:6px}
+  .badge{display:inline-block;font-size:11px;letter-spacing:.5px;font-weight:700;padding:3px 8px;border-radius:999px;text-transform:uppercase}
+  .badge.s1{background:#3b0d0d;color:#fecaca;border:1px solid #7f1d1d}
+  .badge.s2{background:#3a230a;color:#fed7aa;border:1px solid #9a3412}
+  .badge.s3{background:#332a0a;color:#fde68a;border:1px solid #854d0e}
+  .badge.s4{background:#0a2738;color:#bae6fd;border:1px solid #0e5c8a}
+  .badge.ok{background:#0a2a1f;color:#a7f3d0;border:1px solid #065f46}
+  .fixloc{display:inline-block;font-size:11px;letter-spacing:.5px;font-weight:700;padding:3px 10px;border-radius:6px;text-transform:uppercase}
+  .fixloc.client{background:#0a2a1f;color:#6ee7b7;border:1px solid #065f46}
+  .fixloc.server{background:#2a0b0b;color:#fca5a5;border:1px solid #7f1d1d}
+  .fixloc.both{background:#2a1a0b;color:#fcd34d;border:1px solid #92400e}
+
+  .field{margin:10px 0}
+  .field b{color:#cbd5e1;font-weight:600;margin-right:6px;display:inline-block;min-width:80px}
+  .tag{display:inline-block;background:#1d2333;color:#cbd5e0;border:1px solid var(--line);border-radius:6px;padding:2px 8px;font-size:12px;margin:2px 4px 2px 0}
+  pre{background:var(--code);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow:auto;font:12.5px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#d7def0}
+  code{font:12.5px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#11151f;border:1px solid var(--line);padding:1px 6px;border-radius:4px;color:#dbe1ef}
+  pre code{background:none;border:0;padding:0}
+  table{border-collapse:collapse;width:100%;margin:10px 0;background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top;font-size:13px}
+  th{background:#1a1f2e;color:#cbd5e1;font-weight:600}
+  tr:last-child td{border-bottom:0}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  .dot.s1{background:var(--s1)} .dot.s2{background:var(--s2)} .dot.s3{background:var(--s3)} .dot.s4{background:var(--s4)} .dot.ok{background:var(--ok)}
+  details{background:#111521;border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin:10px 0}
+  summary{cursor:pointer;font-weight:600;color:#cbd5e1}
+  .verdict{background:#2a0b0b;border:1px solid #7f1d1d;color:#fecaca;padding:14px 16px;border-radius:10px;font-weight:600;margin-top:12px}
+  .note{background:#0b2033;border:1px solid #0e5c8a;color:#bae6fd;padding:12px 14px;border-radius:10px;margin:12px 0}
+  .android-fix{background:#0a2a1f;border:1px solid #065f46;color:#a7f3d0;border-radius:8px;padding:10px 12px;margin-top:8px}
+  .android-fix b{color:#6ee7b7}
+  .server-fix{background:#2a0b0b;border:1px solid #7f1d1d;color:#fecaca;border-radius:8px;padding:10px 12px;margin-top:8px}
+  .server-fix b{color:#fca5a5}
+  footer{padding:20px 40px;color:var(--muted);border-top:1px solid var(--line);font-size:12px}
+  .pill{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#11151f;padding:2px 8px;border-radius:5px;border:1px solid var(--line);font-size:12px}
+  .checklist{list-style:none;padding:0;margin:10px 0}
+  .checklist li{padding:10px 14px;margin:6px 0;background:var(--panel);border:1px solid var(--line);border-radius:8px;display:flex;align-items:flex-start;gap:10px}
+  .checklist li:before{content:"☐";font-size:16px;color:var(--muted);flex-shrink:0}
+  .checklist .tag{margin-left:auto}
+  @media (max-width:900px){.layout{grid-template-columns:1fr}nav{position:static;height:auto}.meta,.cards,.fix-cards{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Login &amp; Signup Flow — API Test Report</h1>
+  <div class="sub">Hima Android · Dev base <span class="pill">https://demohima.himaapp.in/api/auth/</span> · Tested 2026-04-21 by Perumal (QA)</div>
+</header>
+
+<div class="layout">
+  <nav>
+    <h3>Overview</h3>
+    <a href="#summary">Executive summary</a>
+    <a href="#fix-split">Who can fix what</a>
+    <a href="#android-action">Android action list</a>
+    <a href="#coverage">Endpoint coverage</a>
+
+    <h3>Critical (S1)</h3>
+    <a class="s1" href="#bug-001">BUG-001 OTP skippable <span class="chip B">BOTH</span></a>
+    <a class="s1" href="#bug-002">BUG-002 IDOR on /userdetails <span class="chip S">SERVER</span></a>
+    <a class="s1" href="#bug-003">BUG-003 CORS wildcard <span class="chip S">SERVER</span></a>
+    <a class="s1" href="#bug-004">BUG-004 No rate limit <span class="chip S">SERVER</span></a>
+
+    <h3>High (S2)</h3>
+    <a class="s2" href="#bug-005">BUG-005 500 HTML <span class="chip S">SERVER</span></a>
+    <a class="s2" href="#bug-006">BUG-006 Client picks OTP <span class="chip B">BOTH</span></a>
+    <a class="s2" href="#bug-007">BUG-007 /register skips OTP <span class="chip S">SERVER</span></a>
+    <a class="s2" href="#bug-008">BUG-008 90-day JWT <span class="chip S">SERVER</span></a>
+
+    <h3>Medium (S3)</h3>
+    <a class="s3" href="#bug-009">BUG-009 country_code strings <span class="chip S">SERVER</span></a>
+    <a class="s3" href="#bug-010">BUG-010 HTTP 200 on fail <span class="chip S">SERVER</span></a>
+    <a class="s3" href="#bug-011">BUG-011 IP leak <span class="chip S">SERVER</span></a>
+    <a class="s3" href="#bug-012">BUG-012 Referral code <span class="chip S">SERVER</span></a>
+    <a class="s3" href="#bug-013">BUG-013 No payload cap <span class="chip B">BOTH</span></a>
+
+    <h3>Low (S4)</h3>
+    <a class="s4" href="#bug-014">BUG-014 Cashfree keys <span class="chip B">BOTH</span></a>
+    <a class="s4" href="#bug-015">BUG-015 OTP in Log.d <span class="chip A">ANDROID</span></a>
+    <a class="s4" href="#bug-016">BUG-016 Cryptic error <span class="chip B">BOTH</span></a>
+
+    <h3>Appendix</h3>
+    <a href="#passed">Passed cases</a>
+    <a href="#retest">Re-test checklist</a>
+  </nav>
+
+  <main>
+
+    <section id="summary">
+      <h2>Executive summary</h2>
+      <div class="meta">
+        <div><div class="k">Verdict</div><div class="v" style="color:#fecaca">FAIL — release blocker</div></div>
+        <div><div class="k">Cases run</div><div class="v">52</div></div>
+        <div><div class="k">Env</div><div class="v">Dev (demohima)</div></div>
+        <div><div class="k">Branch</div><div class="v">login_flow_test_21_04_2026</div></div>
+      </div>
+      <div class="cards">
+        <div class="card s1"><div class="n">4</div><div class="l">S1 Critical</div></div>
+        <div class="card s2"><div class="n">4</div><div class="l">S2 High</div></div>
+        <div class="card s3"><div class="n">5</div><div class="l">S3 Medium</div></div>
+        <div class="card s4"><div class="n">3</div><div class="l">S4 Low</div></div>
+        <div class="card ok"><div class="n">8</div><div class="l">Passed</div></div>
+      </div>
+      <div class="verdict">Do not ship to production until the 4 S1 defects are fixed. The login flow is currently equivalent to <b>unauthenticated login by phone number</b>.</div>
+    </section>
+
+    <!-- =========================== WHO CAN FIX WHAT =========================== -->
+    <section id="fix-split">
+      <h2>Who can fix what (Android-only vs Server)</h2>
+
+      <div class="verdict" style="background:#2a0b0b;border-color:#7f1d1d">
+        Direct answer to <i>"can we fully fix all this without touching the backend?"</i> — <b>No.</b> Of 16 bugs, only <b>1</b> can be 100% closed from Android alone. The rest either need the backend team, or need an action outside the Android code repo (like rotating a key in a vendor dashboard).
+      </div>
+
+      <div class="fix-cards">
+        <div class="fix-card client">
+          <div class="title client">✅ Fully closeable from Android alone</div>
+          <div class="big" style="color:#6ee7b7">1</div>
+          <ul>
+            <li><a href="#bug-015">BUG-015</a> — Gate <code>Log.d</code> behind <code>BuildConfig.DEBUG</code> + ProGuard strip. Pure code change, no external action.</li>
+          </ul>
+        </div>
+        <div class="fix-card both">
+          <div class="title both">⚠ Partially mitigable from Android</div>
+          <div class="big" style="color:#fcd34d">5</div>
+          <ul>
+            <li><a href="#bug-001">BUG-001</a> — Remove <code>"011011"</code> backdoor &amp; stop generating OTP client-side <span class="tag">server still exploitable</span></li>
+            <li><a href="#bug-006">BUG-006</a> — Stop sending <code>otp</code> to <code>/send_otp</code> <span class="tag">needs server to accept new payload</span></li>
+            <li><a href="#bug-013">BUG-013</a> — <code>InputFilter</code> length caps <span class="tag">attacker bypasses via curl</span></li>
+            <li><a href="#bug-014">BUG-014</a> — Move Cashfree keys to <code>BuildConfig</code> <span class="tag">keys still leaked in git history + shipped APKs</span></li>
+            <li><a href="#bug-016">BUG-016</a> — Map cryptic server message to friendly UI string <span class="tag">server still returns bad message</span></li>
+          </ul>
+        </div>
+        <div class="fix-card server">
+          <div class="title server">❌ Server-only — needs backend team</div>
+          <div class="big" style="color:#fca5a5">10</div>
+          <ul>
+            <li><a href="#bug-002">BUG-002</a>, <a href="#bug-003">003</a>, <a href="#bug-004">004</a>, <a href="#bug-005">005</a>, <a href="#bug-007">007</a>, <a href="#bug-008">008</a>, <a href="#bug-009">009</a>, <a href="#bug-010">010</a>, <a href="#bug-011">011</a>, <a href="#bug-012">012</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <h3 style="margin-top:24px">Why every other bug has a ceiling on Android</h3>
+      <table>
+        <thead><tr><th>Bug</th><th>Why Android alone can't close it</th><th>External dependency</th></tr></thead>
+        <tbody>
+          <tr><td><a href="#bug-001">BUG-001</a></td><td>The vuln is on the server — <code>/login</code> issues a JWT without OTP validation. An attacker uses <code>curl</code>, not your app. Removing the <code>"011011"</code> branch only closes the patched-APK path.</td><td>Server must validate OTP server-side</td></tr>
+          <tr><td><a href="#bug-002">BUG-002</a></td><td>Server reads <code>user_id</code> from request body. Even if your app stopped sending it, attackers send it anyway.</td><td>Server must use JWT <code>sub</code></td></tr>
+          <tr><td><a href="#bug-003">BUG-003</a></td><td>CORS is enforced by browsers based on server response headers. The Android app doesn't participate in CORS at all.</td><td>Server CORS config</td></tr>
+          <tr><td><a href="#bug-004">BUG-004</a></td><td>Rate-limit must reject requests at the server. A UI cooldown is cosmetic — attackers don't use your UI.</td><td>Server <code>throttle</code> middleware</td></tr>
+          <tr><td><a href="#bug-005">BUG-005</a></td><td>The 500 HTML comes from Laravel's uncaught exception handler. Nothing Android does can change what the server returns.</td><td>Server <code>FormRequest</code> validator</td></tr>
+          <tr><td><a href="#bug-006">BUG-006</a></td><td>You can stop <i>sending</i> the <code>otp</code> field, but the server must still accept the new payload shape, else requests fail. Also server still lets attackers choose an OTP directly.</td><td>Server contract change</td></tr>
+          <tr><td><a href="#bug-007">BUG-007</a></td><td>Your app could refuse to call <code>/register</code> without prior OTP, but attackers bypass with <code>curl</code>. The check has to live server-side.</td><td>Server must enforce OTP proof</td></tr>
+          <tr><td><a href="#bug-008">BUG-008</a></td><td>JWT expiry is encoded in the token — issued by the server, validated by the server. Client can only store it differently (encrypt at rest).</td><td>Server must shorten TTL + add refresh</td></tr>
+          <tr><td><a href="#bug-009">BUG-009</a></td><td>You already send an <code>Int</code>, so it never fires from your app. Attackers send raw strings directly.</td><td>Server integer validation</td></tr>
+          <tr><td><a href="#bug-010">BUG-010</a></td><td>HTTP status codes are chosen by the server. Client can only re-interpret them.</td><td>Server HTTP code cleanup</td></tr>
+          <tr><td><a href="#bug-011">BUG-011</a></td><td>IP is embedded in the server response. Client ignoring it doesn't remove it from the wire (still visible to anyone with a proxy).</td><td>Server must stop returning IP</td></tr>
+          <tr><td><a href="#bug-012">BUG-012</a></td><td>Referral code validity is only known to the server's referral table. Client has no ground truth.</td><td>Server must validate + expose lookup</td></tr>
+          <tr><td><a href="#bug-013">BUG-013</a></td><td><code>InputFilter</code> caps the UI, not the API. Attackers send any size via <code>curl</code>.</td><td>Server max-length validator</td></tr>
+          <tr><td><a href="#bug-014">BUG-014</a></td><td>Moving keys to <code>BuildConfig</code> doesn't un-leak them — the old keys are in git history and in every shipped APK. Until you rotate them in the Cashfree dashboard, the exposed values are still valid.</td><td>Key rotation in Cashfree dashboard + git history purge</td></tr>
+          <tr><td><a href="#bug-015">BUG-015</a></td><td style="color:#6ee7b7"><b>— Nothing external needed. Pure Android code change. This one is truly fully fixable.</b></td><td>None ✅</td></tr>
+          <tr><td><a href="#bug-016">BUG-016</a></td><td>You can mask the cryptic server string in the UI, but the server still returns it. Other clients (web, future apps) see the raw message.</td><td>Server proper HTTP 403 + message</td></tr>
+        </tbody>
+      </table>
+
+      <div class="note">
+        <b>Bottom line:</b> The 4 S1 release-blockers need the backend team — full stop. Shipping Android-only changes without backend fixes means the app looks safer but the API is still wide open. Escalate BUG-001…004 to backend <b>today</b>, in parallel with the Android work below.
+      </div>
+    </section>
+
+    <!-- =========================== ANDROID ACTION LIST =========================== -->
+    <section id="android-action">
+      <h2>Android action list — what you can ship this sprint</h2>
+
+      <h3>1. Full fix (closes the bug completely, no external dependency)</h3>
+      <ul class="checklist">
+        <li>
+          <div>
+            <b>BUG-015 — Strip OTP / request-response logging from release.</b><br>
+            <span style="color:var(--muted)">Files: <a href="../app/src/main/java/com/gmwapp/hima/activities/VerifyOTPActivity.kt#L139-L154">VerifyOTPActivity.kt:139–154</a>, <a href="../app/src/main/java/com/gmwapp/hima/viewmodels/LoginViewModel.kt#L45">LoginViewModel.kt:45,47</a>, <a href="../app/src/main/java/com/gmwapp/hima/dagger/AppModule.kt#L33-L36">AppModule.kt:33–36</a></span>
+            <pre><code>// Remove or gate with BuildConfig.DEBUG
+if (BuildConfig.DEBUG) Log.d("VerifyOTP", "OTP entered: $enteredOTP")
+
+// AppModule.kt — only attach HttpLoggingInterceptor in debug
+if (BuildConfig.DEBUG) {
+    val logger = HttpLoggingInterceptor().apply { level = BODY }
+    builder.addInterceptor(logger)
+}</code></pre>
+            Also add a ProGuard rule to strip <code>Log.d</code>/<code>Log.v</code> in release:
+            <pre><code>-assumenosideeffects class android.util.Log {
+    public static *** d(...);
+    public static *** v(...);
+}</code></pre>
+          </div>
+          <span class="tag">S4</span>
+        </li>
+      </ul>
+
+      <h3>2. Partial mitigations (reduce risk, but bug stays open until external action)</h3>
+      <ul class="checklist">
+        <li>
+          <div>
+            <b>BUG-014 (partial) — Move Cashfree credentials out of source.</b><br>
+            <span style="color:var(--muted)">File: <a href="../app/src/main/java/com/gmwapp/hima/verification/CashfreeApiService.kt">CashfreeApiService.kt</a></span>
+            <pre><code>// build.gradle.kts — productFlavors
+buildConfigField("String", "CASHFREE_CLIENT_ID",
+                 "\"${project.findProperty("CASHFREE_CLIENT_ID") ?: ""}\"")
+buildConfigField("String", "CASHFREE_CLIENT_SECRET",
+                 "\"${project.findProperty("CASHFREE_CLIENT_SECRET") ?: ""}\"")
+
+// CashfreeApiService.kt
+.header("x-client-id",     BuildConfig.CASHFREE_CLIENT_ID)
+.header("x-client-secret", BuildConfig.CASHFREE_CLIENT_SECRET)</code></pre>
+            Put real values in <code>~/.gradle/gradle.properties</code> (never commit).<br>
+            <b>Why this is only "partial":</b> the old keys are still in git history and in every APK you've already shipped. To truly close the bug, also:
+            <ol style="margin:6px 0 0 18px">
+              <li><b>Rotate the keys in the Cashfree dashboard</b> — this is the step that actually invalidates the leaked values. Without it, the Android code change changes nothing for the attacker.</li>
+              <li>Purge the old keys from git history (<code>git filter-repo</code> or BFG), then force-push. Coordinate with the team.</li>
+              <li>Ship a release with the new keys; old APKs still have the old keys, but post-rotation they're useless.</li>
+            </ol>
+          </div>
+          <span class="tag">S4</span>
+        </li>
+        <li>
+          <div>
+            <b>BUG-001 (partial) — Remove the hard-coded <code>"011011"</code> backdoor.</b><br>
+            <span style="color:var(--muted)">File: <a href="../app/src/main/java/com/gmwapp/hima/activities/VerifyOTPActivity.kt#L143">VerifyOTPActivity.kt:143</a></span>
+            <pre><code>// BEFORE
+if (enteredOTP == otp.toString() || enteredOTP == "011011") { login(mobileNumber) }
+
+// AFTER
+if (enteredOTP == otp.toString()) { login(mobileNumber) }
+else { showError("Invalid OTP") }</code></pre>
+            <b>Note:</b> This only closes the patched-APK / leaked-constant path. The underlying server-side bypass stays open until BUG-001 is fixed on the backend.
+          </div>
+          <span class="tag">S1</span>
+        </li>
+        <li>
+          <div>
+            <b>BUG-006 (partial) — Stop generating OTP in the client.</b><br>
+            Today the Android app picks a random 6-digit number and sends it to the server in <code>send_otp</code>. Remove the generation; change the <code>sendOTP</code> signature to drop <code>otp</code>. Requires server to accept the new payload too — coordinate before merging.<br>
+            <span style="color:var(--muted)">Files: <a href="../app/src/main/java/com/gmwapp/hima/viewmodels/LoginViewModel.kt#L87-L111">LoginViewModel.kt:87–111</a>, <a href="../app/src/main/java/com/gmwapp/hima/activities/NewLoginActivity.kt#L712-L719">NewLoginActivity.kt:712–719</a>, <a href="../app/src/main/java/com/gmwapp/hima/retrofit/ApiManager.kt#L1761-L1766">ApiManager.kt:1761–1766</a></span>
+          </div>
+          <span class="tag">S2</span>
+        </li>
+        <li>
+          <div>
+            <b>BUG-013 (partial) — Enforce max lengths on client text fields.</b><br>
+            Add <code>android:maxLength</code> in XML and <code>InputFilter.LengthFilter</code> in code for all signup text inputs:<br>
+            <span style="color:var(--muted)">• name ≤ 50 • describe_yourself ≤ 500 • interests ≤ 200 • mobile exactly 10 (already done)</span>
+            <pre><code>binding.etDescribeYourself.filters = arrayOf(InputFilter.LengthFilter(500))</code></pre>
+            <b>Note:</b> Real protection needs a server-side cap (attacker bypasses client via curl).
+          </div>
+          <span class="tag">S3</span>
+        </li>
+        <li>
+          <div>
+            <b>BUG-016 (partial) — Translate cryptic <code>delete_users</code> error at the UI layer.</b>
+            <pre><code>// Repository / ViewModel
+val friendly = when (response.message) {
+    "please mail your mobile number and describe your issue" ->
+        "Unable to delete account. Please contact support."
+    else -> response.message
+}</code></pre>
+          </div>
+          <span class="tag">S4</span>
+        </li>
+      </ul>
+
+      <h3>3. Additional Android hardening (recommended, out-of-scope of the listed bugs)</h3>
+      <ul class="checklist">
+        <li>
+          <div><b>Certificate pinning on OkHttp.</b> Pin <code>himaapp.in</code> certificate / SPKI in <code>AppModule.kt</code> to prevent MITM via rogue CA / proxies.</div>
+          <span class="tag">Recommended</span>
+        </li>
+        <li>
+          <div><b>Store auth token in EncryptedSharedPreferences.</b> Today the JWT sits in plain <code>SharedPreferences</code> (<a href="../app/src/main/java/com/gmwapp/hima/utils/DPreferences.kt#L163-L180">DPreferences.kt:163–180</a>). Root/ADB pull exposes it for 90 days.</div>
+          <span class="tag">Recommended</span>
+        </li>
+        <li>
+          <div><b>Disable allowBackup + debuggable in release manifest.</b> Prevents <code>adb backup</code> from exporting the token DB.</div>
+          <span class="tag">Recommended</span>
+        </li>
+        <li>
+          <div><b>Client-side throttle on "Send OTP" button.</b> Cosmetic only (BUG-004 is server-side), but a 30-second cooldown in UI avoids accidental double-sends.</div>
+          <span class="tag">Nice-to-have</span>
+        </li>
+      </ul>
+    </section>
+
+    <!-- =========================== COVERAGE =========================== -->
+    <section id="coverage">
+      <h2>Endpoint coverage</h2>
+      <table>
+        <thead><tr><th>#</th><th>Endpoint</th><th>Method</th><th>Auth</th><th>Status</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><code>/first_install</code></td><td>POST</td><td>none</td><td><span class="dot ok"></span>Works</td><td>Leaks caller IP — see BUG-011</td></tr>
+          <tr><td>2</td><td><code>/appsettings_list</code></td><td>POST</td><td>none</td><td><span class="dot ok"></span>Works</td><td>Returns min app version = 39</td></tr>
+          <tr><td>3</td><td><code>/send_otp</code></td><td>POST</td><td>none</td><td><span class="dot s1"></span>Multiple defects</td><td>BUG-001 · 004 · 005 · 006 · 009</td></tr>
+          <tr><td>4</td><td><code>/login</code></td><td>POST</td><td>none</td><td><span class="dot s1"></span>Critical</td><td>BUG-001 · 004 · 008 — no OTP validation server-side</td></tr>
+          <tr><td>5</td><td><code>/register</code></td><td>POST</td><td>none</td><td><span class="dot s2"></span>High</td><td>BUG-007 · 010 · 012 · 013</td></tr>
+          <tr><td>6</td><td><code>/avatar_list</code></td><td>POST</td><td>Bearer</td><td><span class="dot ok"></span>Works</td><td>Good input validation</td></tr>
+          <tr><td>7</td><td><code>/userdetails</code></td><td>POST</td><td>Bearer</td><td><span class="dot s1"></span>Critical</td><td>BUG-002 IDOR — returns any user's data</td></tr>
+          <tr><td>8</td><td><code>/delete_users</code></td><td>POST</td><td>Bearer</td><td><span class="dot ok"></span>Works</td><td>Correctly refuses cross-user delete</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ================= S1 ================== -->
+
+    <section id="bug-001" class="bug s1">
+      <h3><span class="id">BUG-001</span> <span class="badge s1">S1 Critical</span> <span class="fixloc both">Fix: Android + Server</span> OTP is verified only on the Android client — <code>/login</code> accepts any code</h3>
+      <div class="field"><b>Where:</b> <a href="../app/src/main/java/com/gmwapp/hima/activities/VerifyOTPActivity.kt#L138-L156">VerifyOTPActivity.kt:138–156</a> (client OTP compare) &nbsp;·&nbsp; <a href="../app/src/main/java/com/gmwapp/hima/retrofit/ApiManager.kt#L1753-L1759">ApiManager.kt:1753–1759</a> (<code>/login</code>)</div>
+      <div class="field"><b>What:</b> The client compares the entered OTP with the one it generated locally, then calls <code>/login</code> with hard-coded <code>code="0", code_verifier="0"</code>. The server does not re-validate the OTP. A backdoor OTP <code>"011011"</code> is hard-coded in the client.</div>
+<pre><code>// VerifyOTPActivity.kt:143
+if (enteredOTP == otp.toString() || enteredOTP == "011011") {
+    login(mobileNumber)          // → viewmodel.login(mobile, "0", "0")
+}</code></pre>
+      <div class="field"><b>Proof (no SMS ever sent):</b></div>
+<pre><code>$ curl -X POST https://demohima.himaapp.in/api/auth/login \
+       -d "mobile=9876543210&amp;code=0&amp;code_verifier=0"
+
+HTTP/1.1 200 OK
+{ "success":true, "registered":true,
+  "token":"eyJ0eXAiOiJKV1Qi...&lt;valid JWT&gt;",
+  "data":{"id":456976, "mobile":"9876543210", ... } }</code></pre>
+      <div class="field"><b>Impact:</b> Complete account takeover of any user given only their phone number.</div>
+      <div class="android-fix"><b>Android side (do now):</b> Delete the <code>"011011"</code> branch at <a href="../app/src/main/java/com/gmwapp/hima/activities/VerifyOTPActivity.kt#L143">VerifyOTPActivity.kt:143</a>. Stop generating the OTP client-side. Keep calling <code>/login</code> with the real user-entered OTP.</div>
+      <div class="server-fix"><b>Server side (required to actually close the bug):</b> Generate OTP server-side, store hashed with ≤5-min TTL + attempt counter, validate it in <code>/login</code>. Until this is done, the vulnerability is OPEN regardless of Android changes — an attacker uses curl, not your app.</div>
+    </section>
+
+    <section id="bug-002" class="bug s1">
+      <h3><span class="id">BUG-002</span> <span class="badge s1">S1 Critical</span> <span class="fixloc server">Fix: Server only</span> IDOR on <code>/userdetails</code> — any logged-in user can read every other user's profile</h3>
+      <div class="field"><b>What:</b> The server reads <code>user_id</code> from the request body instead of the JWT <code>sub</code> claim. Swapping <code>user_id</code> returns any user's data.</div>
+      <div class="field"><b>Proof:</b></div>
+<pre><code>$ curl -X POST .../userdetails \
+       -H "Authorization: Bearer &lt;my-token, sub=456976&gt;" \
+       -d "user_id=456975"
+
+{ "data":{ "id":456975, "name":"NisdB403",
+           "mobile":"8464643464",           // ← not my account
+           "refer_code":"GZDB1289", ... } }</code></pre>
+      <div class="field"><b>Impact:</b> Mass PII leak. Any attacker can enumerate sequential <code>user_id</code>s and dump every user's mobile number + profile. DPDP-regulated data.</div>
+      <div class="server-fix"><b>Server fix:</b> Resolve user id from <code>$request-&gt;user()-&gt;id</code> (JWT <code>sub</code>). Stop accepting <code>user_id</code> from the body. Audit every other endpoint with the same pattern.</div>
+      <div class="android-fix"><b>Android side:</b> Nothing to do. Even if the app stopped sending <code>user_id</code>, an attacker with curl would still exploit the server.</div>
+    </section>
+
+    <section id="bug-003" class="bug s1">
+      <h3><span class="id">BUG-003</span> <span class="badge s1">S1 Critical</span> <span class="fixloc server">Fix: Server only</span> CORS reflects any Origin with <code>Allow-Credentials: true</code></h3>
+      <div class="field"><b>Proof:</b></div>
+<pre><code>$ curl -i -X OPTIONS .../login -H "Origin: https://evil.com"
+
+HTTP/1.1 204 No Content
+Access-Control-Allow-Origin: https://evil.com        ← reflected!
+Access-Control-Allow-Credentials: true</code></pre>
+      <div class="field"><b>Impact:</b> Any site the victim visits can call the API in their browser session and exfiltrate JWTs (combined with BUG-001).</div>
+      <div class="server-fix"><b>Server fix:</b> Whitelist allowed origins in Laravel CORS config. Don't reflect the request Origin. Drop <code>Allow-Credentials</code> unless strictly required.</div>
+      <div class="android-fix"><b>Android side:</b> Not applicable — mobile apps don't participate in CORS.</div>
+    </section>
+
+    <section id="bug-004" class="bug s1">
+      <h3><span class="id">BUG-004</span> <span class="badge s1">S1 Critical</span> <span class="fixloc server">Fix: Server only</span> No rate limiting on <code>/send_otp</code> or <code>/login</code></h3>
+      <div class="field"><b>Proof:</b> 20 consecutive <code>/send_otp</code> in &lt; 2 s, all returned HTTP 200 (each triggered a real SMS).</div>
+      <div class="field"><b>Impact:</b> SMS-bombing any Indian mobile, cost abuse, brute-force window for OTP (after BUG-001 is fixed).</div>
+      <div class="server-fix"><b>Server fix:</b> Laravel <code>throttle</code> middleware. Per-mobile + per-IP (1/30s, 5/hr, 10/day). Per-mobile attempt cap on <code>/login</code>.</div>
+      <div class="android-fix"><b>Android side:</b> Nothing effective. A 30-second UI cooldown is cosmetic — attackers don't use your UI. Do it anyway for UX, not security.</div>
+    </section>
+
+    <!-- ================= S2 ================== -->
+
+    <section id="bug-005" class="bug s2">
+      <h3><span class="id">BUG-005</span> <span class="badge s2">S2 High</span> <span class="fixloc server">Fix: Server only</span> <code>/send_otp</code> returns HTTP 500 (HTML) for any invalid input</h3>
+      <div class="field"><b>Proof:</b></div>
+<pre><code>$ curl -i -X POST .../send_otp       # missing body
+HTTP/1.1 500 Internal Server Error
+Content-Type: text/html
+&lt;!DOCTYPE html&gt;&lt;title&gt;Server Error&lt;/title&gt;...</code></pre>
+      <div class="server-fix"><b>Server fix:</b> Add a Laravel <code>FormRequest</code> validator returning JSON 400 (mirror what <code>/login</code> already does).</div>
+      <div class="android-fix"><b>Android side:</b> You already validate mobile client-side, so this rarely fires for your users. Ensure Retrofit doesn't crash on non-JSON responses — wrap in try/catch around <code>response.body()</code> and show a generic error.</div>
+    </section>
+
+    <section id="bug-006" class="bug s2">
+      <h3><span class="id">BUG-006</span> <span class="badge s2">S2 High</span> <span class="fixloc both">Fix: Android + Server</span> <code>/send_otp</code> accepts the OTP value from the client</h3>
+      <div class="field"><b>Proof:</b></div>
+<pre><code>$ curl -X POST .../send_otp -d "mobile=9876543210&amp;country_code=91&amp;otp=-1"
+{"success":true,"message":"OTP sent successfully."}
+
+$ curl -X POST .../send_otp -d "mobile=9876543210&amp;country_code=91&amp;otp=&lt;script&gt;alert(1)&lt;/script&gt;"
+{"success":true,"message":"OTP sent successfully."}</code></pre>
+      <div class="android-fix"><b>Android side (do now):</b> Remove the client-side OTP generation. Change Retrofit signature to drop the <code>otp</code> field. Files to edit: <a href="../app/src/main/java/com/gmwapp/hima/viewmodels/LoginViewModel.kt#L87-L111">LoginViewModel.kt</a>, <a href="../app/src/main/java/com/gmwapp/hima/retrofit/ApiManager.kt#L1761-L1766">ApiManager.kt</a>, <a href="../app/src/main/java/com/gmwapp/hima/activities/NewLoginActivity.kt#L712-L719">NewLoginActivity.kt</a>. Must ship together with server change — flag behind a config.</div>
+      <div class="server-fix"><b>Server fix:</b> Stop accepting the <code>otp</code> field. Generate cryptographically-random 6-digit OTP server-side; return nothing sensitive to the client.</div>
+    </section>
+
+    <section id="bug-007" class="bug s2">
+      <h3><span class="id">BUG-007</span> <span class="badge s2">S2 High</span> <span class="fixloc server">Fix: Server only</span> <code>/register</code> does not require any proof of mobile ownership</h3>
+      <div class="field"><b>Proof:</b></div>
+<pre><code>$ curl -X POST .../register \
+       -d "mobile=9000000003&amp;language=Tamil&amp;avatar_id=21&amp;gender=male"
+{ "success":true, "message":"Registered successfully.", "token":"...", ... }</code></pre>
+      <div class="server-fix"><b>Server fix:</b> After fixing BUG-001, require a single-use server-issued OTP token (≤5 min TTL) in <code>/register</code> that proves the mobile was just verified.</div>
+      <div class="android-fix"><b>Android side:</b> Once server exposes the new signed-OTP token, pass it through from the OTP verify step to register. No-op until server changes.</div>
+    </section>
+
+    <section id="bug-008" class="bug s2">
+      <h3><span class="id">BUG-008</span> <span class="badge s2">S2 High</span> <span class="fixloc server">Fix: Server only</span> JWT is valid for 90 days with no revocation path</h3>
+      <div class="field"><b>Proof — decoded JWT payload:</b></div>
+<pre><code>{ "iss": "https://demohima.himaapp.in/api/auth/login",
+  "iat": 1776761750, "exp": 1784537750,     //  exp-iat = 90 days
+  "sub": "456976" }</code></pre>
+      <div class="server-fix"><b>Server fix:</b> Short-lived access token (≤ 1 h) + refresh token with server-side rotation and revocation list. Add <code>/logout</code> that blacklists the <code>jti</code>.</div>
+      <div class="android-fix"><b>Android side (supporting work):</b> (1) Store the JWT in <code>EncryptedSharedPreferences</code> instead of plain prefs. (2) Implement a Retrofit <code>Authenticator</code> to refresh-on-401 once server exposes the refresh endpoint. (3) Call a real <code>/logout</code> from the logout button (today it only clears prefs).</div>
+    </section>
+
+    <!-- ================= S3 ================== -->
+
+    <section id="bug-009" class="bug s3">
+      <h3><span class="id">BUG-009</span> <span class="badge s3">S3 Medium</span> <span class="fixloc server">Fix: Server only</span> <code>country_code=xyz</code> accepted on <code>/send_otp</code></h3>
+<pre><code>$ curl -X POST .../send_otp -d "mobile=9876543210&amp;country_code=xyz&amp;otp=123456"
+{"success":true,"message":"OTP sent successfully."}</code></pre>
+      <div class="server-fix"><b>Server fix:</b> Strict integer validation + allow-list of supported country codes.</div>
+      <div class="android-fix"><b>Android side:</b> Already sends <code>Int</code>, so this never fires from the app. No change needed.</div>
+    </section>
+
+    <section id="bug-010" class="bug s3">
+      <h3><span class="id">BUG-010</span> <span class="badge s3">S3 Medium</span> <span class="fixloc server">Fix: Server only</span> HTTP 200 returned for business-logic failures</h3>
+      <div class="field"><code>/register</code>, <code>/send_otp</code>, <code>/avatar_list</code> etc. return HTTP 200 with <code>{"success":false,...}</code>. Inconsistent with <code>/login</code>.</div>
+      <div class="server-fix"><b>Server fix:</b> 4xx for validation / business failures. Never HTML.</div>
+      <div class="android-fix"><b>Android side:</b> Your code already checks <code>response.body().success</code>, so functionally fine. No change needed, but once server fixes this, some existing <code>if (body?.success == false)</code> branches can be simplified to rely on <code>response.isSuccessful</code>.</div>
+    </section>
+
+    <section id="bug-011" class="bug s3">
+      <h3><span class="id">BUG-011</span> <span class="badge s3">S3 Medium</span> <span class="fixloc server">Fix: Server only</span> <code>/first_install</code> leaks caller IP</h3>
+<pre><code>{ "ip_address":"103.163.232.121", ... }</code></pre>
+      <div class="server-fix"><b>Server fix:</b> Remove <code>ip_address</code> from the response.</div>
+      <div class="android-fix"><b>Android side:</b> The app already ignores this field. No change needed.</div>
+    </section>
+
+    <section id="bug-012" class="bug s3">
+      <h3><span class="id">BUG-012</span> <span class="badge s3">S3 Medium</span> <span class="fixloc server">Fix: Server only</span> Referral code not validated on <code>/register</code></h3>
+      <div class="field"><code>referred_by=INVALIDXYZ</code> → account created, referral silently dropped.</div>
+      <div class="server-fix"><b>Server fix:</b> Reject unknown codes OR attribute + return the partner id. Either way, tell the client.</div>
+      <div class="android-fix"><b>Android side:</b> You can't verify codes without a lookup endpoint. If server adds <code>/validate_referral</code>, wire it into the "Enter referral" screen before calling <code>/register</code>.</div>
+    </section>
+
+    <section id="bug-013" class="bug s3">
+      <h3><span class="id">BUG-013</span> <span class="badge s3">S3 Medium</span> <span class="fixloc both">Fix: Android + Server</span> No payload size cap on <code>/register</code></h3>
+      <div class="field">10 KB <code>describe_yourself</code> accepted. Combined with BUG-004 → DoS / DB bloat.</div>
+      <div class="android-fix"><b>Android side (do now):</b>
+<pre><code>// On every editable field in the signup flow
+binding.etDescribeYourself.filters = arrayOf(InputFilter.LengthFilter(500))
+binding.etName.filters             = arrayOf(InputFilter.LengthFilter(50))
+
+&lt;!-- XML equivalent --&gt;
+android:maxLength="500"</code></pre></div>
+      <div class="server-fix"><b>Server fix:</b> Add <code>max</code> rules on the validator (describe_yourself ≤ 500, name ≤ 50, etc.). Real protection — attacker ignores your InputFilter.</div>
+    </section>
+
+    <!-- ================= S4 ================== -->
+
+    <section id="bug-014" class="bug s4">
+      <h3><span class="id">BUG-014</span> <span class="badge s4">S4 Low</span> <span class="fixloc both">Fix: Android + external action</span> Cashfree test credentials hard-coded in source</h3>
+      <div class="field"><b>Where:</b> <a href="../app/src/main/java/com/gmwapp/hima/verification/CashfreeApiService.kt">CashfreeApiService.kt</a></div>
+<pre><code>x-client-id:     CF10666599D157Q7U76C7C73BOAF4G
+x-client-secret: cfsk_ma_test_40c029f442f352110cb1c3f85aebf06e_085bf549</code></pre>
+      <div class="android-fix"><b>Android side:</b> Move the strings out of the <code>.kt</code> file into <code>BuildConfig</code> fed by <code>gradle.properties</code> (see the Android action list above for the snippet).</div>
+      <div class="server-fix"><b>External action required to actually close the bug:</b>
+        <ol style="margin:6px 0 0 18px">
+          <li><b>Rotate the keys in the Cashfree dashboard.</b> This is the only step that invalidates the exposed values. Without it, the old keys keep working regardless of what you change in Android.</li>
+          <li>Purge the old keys from git history (<code>git filter-repo</code> / BFG), then force-push.</li>
+          <li>Ship a new release that uses the rotated keys via <code>BuildConfig</code>.</li>
+        </ol>
+        That's why I reclassified this from "Android-only fix" to "partial" — the Android code change alone is not sufficient.
+      </div>
+    </section>
+
+    <section id="bug-015" class="bug s4">
+      <h3><span class="id">BUG-015</span> <span class="badge s4">S4 Low</span> <span class="fixloc client">Fix: Android only ✅</span> OTP and request bodies logged via <code>Log.d</code></h3>
+      <div class="field"><b>Where:</b> <a href="../app/src/main/java/com/gmwapp/hima/activities/VerifyOTPActivity.kt#L139-L154">VerifyOTPActivity.kt</a>, <a href="../app/src/main/java/com/gmwapp/hima/viewmodels/LoginViewModel.kt#L45">LoginViewModel.kt:45</a>, <a href="../app/src/main/java/com/gmwapp/hima/dagger/AppModule.kt#L33-L36">AppModule.kt</a></div>
+<pre><code>Log.d("VerifyOTP", "OTP entered: $enteredOTP")   // !! OTP in logcat
+Log.d("ApiUrl",    "${call.request().url}.")</code></pre>
+      <div class="android-fix"><b>Android fix:</b> Gate every <code>Log.d</code> with <code>BuildConfig.DEBUG</code>, only attach <code>HttpLoggingInterceptor</code> in debug, add the ProGuard <code>-assumenosideeffects</code> rule for <code>Log.d/v</code>.</div>
+    </section>
+
+    <section id="bug-016" class="bug s4">
+      <h3><span class="id">BUG-016</span> <span class="badge s4">S4 Low</span> <span class="fixloc both">Fix: Android + Server</span> Cryptic <code>delete_users</code> error message</h3>
+      <div class="field">Server returns <code>"please mail your mobile number and describe your issue"</code> on failed delete — works (doesn't delete) but user-hostile.</div>
+      <div class="android-fix"><b>Android side (do now):</b> Map the exact server string to a friendly toast / dialog at the repository or ViewModel layer.</div>
+      <div class="server-fix"><b>Server fix:</b> Return HTTP 403 with <code>"You can only delete your own account."</code>.</div>
+    </section>
+
+    <!-- ================= Appendix ================== -->
+
+    <section id="passed">
+      <h2>Passed test cases</h2>
+      <table>
+        <thead><tr><th>TC</th><th>Case</th></tr></thead>
+        <tbody>
+          <tr><td>TC-02</td><td><code>appsettings_list</code> returns version &amp; socket URL</td></tr>
+          <tr><td>TC-11</td><td><code>send_otp</code> happy-path → 200 <i>OTP sent successfully</i></td></tr>
+          <tr><td>TC-23</td><td><code>/login</code> returns JWT + user data for valid mobile (functional — security is BUG-001)</td></tr>
+          <tr><td>TC-29</td><td><code>/userdetails</code> with valid token returns own profile</td></tr>
+          <tr><td>TC-38</td><td><code>/avatar_list gender=male</code> → 9 avatars</td></tr>
+          <tr><td>TC-39 &amp; TC-40</td><td><code>/avatar_list</code> correctly rejects invalid / missing gender</td></tr>
+          <tr><td>TC-42</td><td><code>/register</code> rejects duplicate mobile</td></tr>
+          <tr><td>TC-46</td><td><code>GET /login</code> returns 405 Method Not Allowed</td></tr>
+          <tr><td>TC-52</td><td><code>/delete_users</code> does not allow cross-user delete</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="retest">
+      <h2>Re-test checklist (after dev fixes)</h2>
+      <ol>
+        <li><b>BUG-001:</b> <code>POST /login mobile=X&amp;code=0&amp;code_verifier=0</code> with no prior <code>/send_otp</code> → expect <code>401</code> / <code>422</code>.</li>
+        <li><b>BUG-001:</b> <code>/login</code> with a wrong OTP → expect error + attempt counter incremented.</li>
+        <li><b>BUG-002:</b> as user A, call <code>/userdetails user_id=B</code> → expect 403, or own-user data ignoring body.</li>
+        <li><b>BUG-003:</b> <code>OPTIONS /login Origin: https://evil.com</code> → expect no <code>Access-Control-Allow-Origin</code> for that origin.</li>
+        <li><b>BUG-004:</b> burst 10× <code>/send_otp</code> in 10 s → expect <code>429</code> after threshold.</li>
+        <li><b>BUG-005:</b> <code>/send_otp</code> with missing fields → expect <code>400</code> JSON (not 500 HTML).</li>
+        <li><b>BUG-008:</b> call <code>/logout</code> then reuse token → expect <code>401</code>.</li>
+        <li><b>BUG-014:</b> decompile release APK → no Cashfree secret strings.</li>
+        <li><b>BUG-015:</b> <code>adb logcat</code> during login on a release build → no OTP / URL logs.</li>
+        <li><b>Regression:</b> full signup + login + profile fetch still works end-to-end.</li>
+      </ol>
+      <details>
+        <summary>Test users auto-created — please purge from demohima DB</summary>
+        <ul>
+          <li>ID 456976 — mobile 9876543210</li>
+          <li>ID 456978 — mobile 9000000003</li>
+        </ul>
+        <b>Real user data observed during IDOR probe</b> (delete-after-verification reminder):
+        <ul>
+          <li>ID 456974 — mobile 6162326296</li>
+          <li>ID 456975 — mobile 8464643464</li>
+        </ul>
+      </details>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  Report · Hima · 2026-04-21 · Perumal (QA) · perumal@innovfix.in &nbsp;·&nbsp; Android-only: 1 full fix (BUG-015) + 5 partial mitigations. Server / external: 10 bugs to escalate. <b>Cannot fully fix the flow without backend.</b>
+</footer>
+
+</body>
+</html>

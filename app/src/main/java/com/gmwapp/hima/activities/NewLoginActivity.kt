@@ -184,14 +184,14 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
                 VerificationCallback.TYPE_OTP_RECEIVED -> {
                     val otp = bundle?.getString(VerificationDataBundle.KEY_OTP)
-                    Log.d("verificationCallback", "OTP auto-received: $otp")
+                    Log.d("verificationCallback", "OTP auto-received")
                     // Auto-fill to your EditText
                     binding.pvOtp.setText(otp)
                 }
 
                 VerificationCallback.TYPE_VERIFICATION_COMPLETE -> {
                     val token = bundle?.getString(VerificationDataBundle.KEY_ACCESS_TOKEN)
-                    Log.d("verificationCallback", "Verification complete, token: $token")
+                    Log.d("verificationCallback", "Verification complete")
 
                     // TODO: Send this access token to your server for validation
                     showAppToast("Verified!", Toast.LENGTH_SHORT)
@@ -199,7 +199,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
                 VerificationCallback.TYPE_PROFILE_VERIFIED_BEFORE -> {
                     val token = bundle?.profile?.accessToken
-                    Log.d("verificationCallback", "Already verified before, token: $token")
+                    Log.d("verificationCallback", "Already verified before")
 
                     // TODO: Use token if needed
                     showAppToast("Already Verified", Toast.LENGTH_SHORT)
@@ -223,14 +223,14 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                 when (status.statusCode) {
                     CommonStatusCodes.SUCCESS -> {
                         val message = extras.get(SmsRetriever.EXTRA_SMS_MESSAGE) as String
-                        Log.d("OTP", "Message received: $message")
+                        Log.d("OTP", "SMS received")
 
                         // Extract 6-digit OTP
                         val otpRegex = Regex("\\d{6}")
                         val getOtp = otpRegex.find(message)?.value
                         getOtp?.let {
                             binding.pvOtp.setText(it)
-                            Log.d("OtpExtract","$it")
+                            Log.d("OtpExtract", "OTP extracted from SMS")
                             if (it.toIntOrNull() == otp) { // your default OTP
                                 isVerifyingOtp = true
                                 binding.pbVerifyOtpLoader.visibility = View.VISIBLE
@@ -238,7 +238,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                                 updateVerifyOtpButtonState()
                                 login(mobile ?: "")
                             }else{
-                                Log.d("OtpExtract","null")
+                                Log.d("OtpExtract", "no OTP match")
 
                             }
                         }
@@ -832,10 +832,9 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             closeKeyboard()
             val enteredOtp = binding.pvOtp.text.toString()
             val serverOtp = otp?.toString()
-            val defaultOtp = "011011"
 
             // Keep login protected by OTP match in this flow.
-            if (enteredOtp == serverOtp || enteredOtp == defaultOtp) {
+            if (enteredOtp == serverOtp) {
                 isVerifyingOtp = true
                 binding.pbVerifyOtpLoader.visibility = View.VISIBLE
                 binding.btnVerifyOtp.text = ""
@@ -871,14 +870,10 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
 
     private fun login(mobile: String) {
-        Log.d("VerifyOTP", "Calling login function now")
-        Log.d("VerifyOTP", "$mobile")
+        Log.d("VerifyOTP", "Calling login function")
 
         if (mobile.isNotEmpty()){
-            Log.d("VerifyOTP", "Not Empty")
-
             loginViewModel.login(mobile,"0","0")
-
         }
     }
 

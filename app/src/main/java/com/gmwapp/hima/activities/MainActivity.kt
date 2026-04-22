@@ -1110,9 +1110,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             }
             // Get new FCM registration token
             val token = task.result
-            Log.d("FCM", "Device token: $token")
 
-            userId?.let { 
+            userId?.let {
                 // Send token to backend
                 fcmTokenViewModel.sendToken(it, token)
             }
@@ -1122,8 +1121,6 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
     fun observeTokenResponse() {
         fcmTokenViewModel.tokenResponseLiveData.observe(this) { response ->
-            Log.d("FCMToken", "$response")
-
             response?.let {
                 if (it.success) {
                     Log.d("FCMToken", "Token saved successfully!")

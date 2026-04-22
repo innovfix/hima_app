@@ -154,8 +154,6 @@ class SelectLanguageActivity : BaseActivity() {
             setContinueLoading(true)
             val gender = intent.getStringExtra(DConstants.GENDER).toString()
             val savedReferCode = DPreferences(this).getReferralCode()
-            Log.d("savedReferCode","$savedReferCode")
-            Log.d("MobileNumberUser","${intent.getStringExtra(DConstants.MOBILE_NUMBER).toString()}")
 
             if (gender == DConstants.MALE) {
                 profileViewModel.register(

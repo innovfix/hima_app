@@ -41,11 +41,6 @@ class LoginViewModel @Inject constructor(private val loginRepositories: LoginRep
                     response: Response<LoginResponse>
                 ) {
                     loginResponseLiveData.postValue(response.body());
-
-                    Log.d("ApiUrl","${call.request().url}.")
-
-                    Log.d("VerifyOTP", "Request URL: ${response.body()}")
-
                 }
 
                 override fun onFailure(call: Call<LoginResponse>, t: Throwable) {
@@ -92,9 +87,6 @@ class LoginViewModel @Inject constructor(private val loginRepositories: LoginRep
                     response: Response<SendOTPResponse>
                 ) {
                     sendOTPResponseLiveData.postValue(response.body());
-                    Log.d("RetrofitURL", "Request URL: ${call.request().url}")
-                    Log.d("RetrofitURL", "Request URL: ${response.body()}")
-
                 }
 
                 override fun onFailure(call: Call<SendOTPResponse>, t: Throwable) {

@@ -1118,7 +1118,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             options.autoSubscribeVideo = true  // ✅ Ensure video is OFF
 
             agoraEngine!!.joinChannel(token, channelName, uid, options)
-            Log.d("AgoraTag", "Joined channel: $channelName with token: $token")
+            Log.d("AgoraTag", "Joined channel: $channelName")
 
         } else {
             Toast.makeText(applicationContext, "Permissions were not granted", Toast.LENGTH_SHORT)

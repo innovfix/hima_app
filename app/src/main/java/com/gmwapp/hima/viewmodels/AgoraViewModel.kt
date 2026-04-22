@@ -41,8 +41,7 @@ class AgoraViewModel @Inject constructor(
                     ) {
                         if (response.isSuccessful && response.body() != null) {
                             agoraTokenLiveData.postValue(response.body())
-                            Log.d("AgoraToken", "Token received: ${response.body()?.token?.take(50)}...")
-                            Log.d("AgoraToken", "Token received: ${call.request().url}")
+                            Log.d("AgoraToken", "Token received")
                         } else {
                             agoraTokenErrorLiveData.postValue("Failed to get token: ${response.code()}")
                             Log.e("AgoraToken", "Failed response: ${response.code()}")
