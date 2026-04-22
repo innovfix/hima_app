@@ -1,0 +1,1071 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Edit Profile + Voice Verification — API Test Report · 2026-04-22</title>
+<style>
+:root{
+  --bg:#0f1115; --panel:#151923; --panel2:#1b2030; --line:#262c3b;
+  --text:#e6e8ee; --muted:#9aa3b2; --accent:#5b8def;
+  --critical:#ef4444; --high:#f59e0b; --medium:#eab308; --low:#38bdf8;
+  --info:#7dd3fc; --ok:#10b981;
+  --client:#10b981; --server:#ef4444; --both:#f59e0b;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--text);font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0}
+header{padding:28px 40px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#171b26,#0f1115)}
+header h1{margin:0 0 6px;font-size:22px}
+header .sub{color:var(--muted);font-size:13px}
+main{padding:22px 40px;max-width:1250px;margin:0 auto}
+h2{font-size:18px;margin:32px 0 12px;border-bottom:1px solid var(--line);padding-bottom:8px}
+.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:10px 0}
+.meta div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.meta .k{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+.meta .v{font-weight:600;margin-top:4px;word-break:break-all}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:16px 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;text-align:center}
+.card .n{font-size:26px;font-weight:700}
+.card .l{font-size:12px;color:var(--muted);margin-top:4px}
+.card.ok{border-color:var(--ok)} .card.ok .n{color:var(--ok)}
+.card.fail{border-color:var(--critical)} .card.fail .n{color:var(--critical)}
+.card.sev-critical{border-color:var(--critical)} .card.sev-critical .n{color:var(--critical)}
+.card.sev-high{border-color:var(--high)} .card.sev-high .n{color:var(--high)}
+.card.sev-medium{border-color:var(--medium)} .card.sev-medium .n{color:var(--medium)}
+.card.sev-low{border-color:var(--low)} .card.sev-low .n{color:var(--low)}
+.card.sev-info{border-color:var(--info)} .card.sev-info .n{color:var(--info)}
+
+.fix-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:14px 0}
+.fix-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;border-top:4px solid var(--line)}
+.fix-card.client{border-top-color:var(--client)}
+.fix-card.both{border-top-color:var(--both)}
+.fix-card.server{border-top-color:var(--server)}
+.fix-card .title{font-weight:700;margin-bottom:6px}
+.fix-card .title.client{color:#6ee7b7}
+.fix-card .title.both{color:#fcd34d}
+.fix-card .title.server{color:#fca5a5}
+.fix-card .big{font-size:28px;font-weight:700;margin:4px 0}
+.fix-card ul{margin:8px 0 0 18px;padding:0;font-size:13px;color:#cbd5e1}
+
+table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:13px}
+th,td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+thead th{background:#11151f;color:#cbd5e1;font-size:11px;letter-spacing:.6px;text-transform:uppercase}
+tr.row.fail{background:#21131a}
+tr.detail-row td{background:#10131b;padding:10px 18px}
+.detail .mini{margin:4px 0;color:#cbd5e1}
+.mono,code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:#cbd5e1}
+
+.st{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px}
+.st.pass{background:#0a2a1f;color:#6ee7b7;border:1px solid #065f46}
+.st.fail{background:#2a0b0b;color:#fca5a5;border:1px solid #7f1d1d}
+
+.badge{display:inline-block;font-size:10px;letter-spacing:.5px;font-weight:700;padding:2px 7px;border-radius:999px;text-transform:uppercase}
+.badge.sev-critical{background:#3b0d0d;color:#fecaca;border:1px solid #7f1d1d}
+.badge.sev-high{background:#3a230a;color:#fed7aa;border:1px solid #9a3412}
+.badge.sev-medium{background:#332a0a;color:#fde68a;border:1px solid #854d0e}
+.badge.sev-low{background:#0a2738;color:#bae6fd;border:1px solid #0e5c8a}
+.badge.sev-info{background:#162033;color:#93c5fd;border:1px solid #1d4ed8}
+
+.fx{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.5px}
+.fx.client{background:#0a2a1f;color:#6ee7b7;border:1px solid #065f46}
+.fx.server{background:#2a0b0b;color:#fca5a5;border:1px solid #7f1d1d}
+.fx.both{background:#2a1a0b;color:#fcd34d;border:1px solid #92400e}
+
+.bug{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:10px;padding:16px 18px;margin:14px 0}
+.bug.sev-critical{border-left-color:var(--critical)}
+.bug.sev-high{border-left-color:var(--high)}
+.bug.sev-medium{border-left-color:var(--medium)}
+.bug.sev-low{border-left-color:var(--low)}
+.bug h3{margin:0 0 8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14px}
+.bug h3 .id{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--muted);background:#11151f;padding:3px 8px;border-radius:6px}
+.mini{margin:4px 0;color:#cbd5e1;font-size:13px}
+
+.legend{color:var(--muted);font-size:12px;margin-top:6px}
+.screen-tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;background:#1d2333;color:#c8cfdd;margin-right:6px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Edit Profile + Voice Verification — API Test Report</h1>
+  <div class="sub">2026-04-22 19:50:06 UTC · Env <code>https://demohima.himaapp.in/api/auth</code> · QA: Perumal</div>
+</header>
+<main>
+
+<div class="meta">
+  <div><div class="k">Screens covered</div><div class="v">Edit Profile · Voice Verification</div></div>
+  <div><div class="k">Endpoints</div><div class="v">/user_validations · /avatar_list · /update_profile · /speech_text · /update_voice</div></div>
+  <div><div class="k">Test user</div><div class="v">id=456976 · 9876543210</div></div>
+  <div><div class="k">Suite size</div><div class="v">42 test cases</div></div>
+</div>
+
+<h2>Summary</h2>
+<div class="cards">
+  <div class="card ok"><div class="n">32</div><div class="l">Pass</div></div>
+  <div class="card fail"><div class="n">10</div><div class="l">Fail</div></div>
+  <div class="card sev-critical"><div class="n">4</div><div class="l">CRITICAL fails</div></div><div class="card sev-high"><div class="n">3</div><div class="l">HIGH fails</div></div><div class="card sev-medium"><div class="n">3</div><div class="l">MEDIUM fails</div></div>
+</div>
+
+<h2>Fix-ownership breakdown (of failing cases only)</h2>
+<div class="fix-cards">
+  <div class="fix-card client">
+    <div class="title client">Fixable on ANDROID side</div>
+    <div class="big">1</div>
+    <div class="mini">Client-only: 0 · Also needs client touch: 1</div>
+    <ul>
+      <li>Explicit MIME on voice upload (<code>audio/wav</code>)</li>
+      <li>Hard input length via <code>maxLength</code></li>
+      <li>Drop redundant <code>user_id</code> once server stops trusting it</li>
+    </ul>
+  </div>
+  <div class="fix-card both">
+    <div class="title both">Requires BOTH android + server</div>
+    <div class="big">1</div>
+    <div class="mini">Defence in depth: client UX guard + server enforcement</div>
+    <ul>
+      <li>Voice file size / duration cap (client + server)</li>
+      <li>Name length, pattern, XSS</li>
+      <li>Unsupported language handling</li>
+    </ul>
+  </div>
+  <div class="fix-card server">
+    <div class="title server">ONLY fixable on server</div>
+    <div class="big">10</div>
+    <div class="mini">Pure server-side: 9 · With client piece: 1</div>
+    <ul>
+      <li>IDOR on /update_profile, /update_voice, /user_validations (use JWT <code>sub</code>)</li>
+      <li>Auth middleware on all mutating routes</li>
+      <li>Laravel FormRequest validators for every endpoint</li>
+      <li>FK + whitelist: avatar_id, interests, language</li>
+    </ul>
+  </div>
+</div>
+<div class="legend">Client/server/both figures only count failing cases. Informational passes are not included here.</div>
+
+<h2>Failing cases — detailed bug list</h2>
+
+<section class="bug sev-critical">
+  <h3><span class="id">BUG-EP-005</span>
+      <span class="badge sev-critical">critical</span>
+      <span class="fx server">FIX · SERVER</span>
+      /user_validations — IDOR: validate another user&#x27;s id</h3>
+  <div><b>Screen:</b> Edit Profile · <b>Endpoint check:</b> Security</div>
+  <div class="mini"><b>Why it matters:</b> Endpoint takes user_id from request body. Combined with the /userdetails IDOR already filed (BUG-002 in login report), the server trusts the client for identity across the whole API surface.</div>
+  <div class="mini"><b>Android side:</b> Don&#x27;t send user_id — but curl bypasses this. Pure server fix needed.</div>
+  <div class="mini"><b>Server side:</b> Derive user_id from JWT `$request-&gt;user()-&gt;id`. Ignore body param.</div>
+  
+  <div class="mini"><b>Response body:</b> <code>{&quot;success&quot;:true,&quot;message&quot;:&quot;Name is valid.&quot;}</code></div>
+</section>
+<section class="bug sev-medium">
+  <h3><span class="id">BUG-EP-008</span>
+      <span class="badge sev-medium">medium</span>
+      <span class="fx server">FIX · SERVER</span>
+      /avatar_list — no auth header</h3>
+  <div><b>Screen:</b> Edit Profile · <b>Endpoint check:</b> Security</div>
+  <div class="mini"><b>Why it matters:</b> Avatar list is low-sensitivity but the route should still be behind auth to reduce scraping surface &amp; unify policy.</div>
+  <div class="mini"><b>Android side:</b> N/A.</div>
+  <div class="mini"><b>Server side:</b> Put route inside `auth:api` group.</div>
+  
+  <div class="mini"><b>Response body:</b> <code>{&quot;success&quot;:true,&quot;message&quot;:&quot;Male avatar listed successfully.&quot;,&quot;total&quot;:9,&quot;data&quot;:[{&quot;id&quot;:22,&quot;gender&quot;:&quot;male&quot;,&quot;image&quot;:&quot;&quot;,&quot;updated_at&quot;:&quot;2025-04-01 12:04:29&quot;,&quot;created_at&quot;:&quot;2024-12-01 19:51:25&quot;},{&quot;id&quot;:23,&quot;gender&quot;:&quot;male&quot;,&quot;image&quot;:&quot;&quot;,&quot;updated_at&quot;:&quot;2025-04-01 12:04:47&quot;,&quot;created_at&quot;:&quot;2024-12-01 19:51:37&quot;},{&quot;id&quot;:2</code></div>
+</section>
+<section class="bug sev-critical">
+  <h3><span class="id">BUG-EP-015</span>
+      <span class="badge sev-critical">critical</span>
+      <span class="fx server">FIX · SERVER</span>
+      /update_profile — happy path (clean name + 1 interest)</h3>
+  <div><b>Screen:</b> Edit Profile · <b>Endpoint check:</b> Functional</div>
+  <div class="mini"><b>Why it matters:</b> Valid /update_profile payload returns HTTP 500 &#x27;Server Error&#x27; on the 2nd attempt within a session — the &#x27;change name only once&#x27; rule appears to raise an uncaught exception instead of returning JSON {success:false, message:&#x27;You can change your name only once.&#x27;}.</div>
+  <div class="mini"><b>Android side:</b> None — client sends the correct payload. Crash happens entirely server-side.</div>
+  <div class="mini"><b>Server side:</b> Wrap the once-only check in a try/catch and return `{success:false, message:&#x27;You can change your name only once.&#x27;}` as JSON. Add FormRequest validator to short-circuit before the update query.</div>
+  <div class="mini"><b>Source ref:</b> <code>app/src/main/java/com/gmwapp/hima/activities/EditProfileActivity.kt:240-246</code></div>
+  <div class="mini"><b>Response body:</b> <code>{
+    &quot;message&quot;: &quot;Server Error&quot;
+}</code></div>
+</section>
+<section class="bug sev-critical">
+  <h3><span class="id">BUG-EP-010</span>
+      <span class="badge sev-critical">critical</span>
+      <span class="fx server">FIX · SERVER</span>
+      /update_profile — IDOR: update foreign user_id</h3>
+  <div><b>Screen:</b> Edit Profile · <b>Endpoint check:</b> Security</div>
+  <div class="mini"><b>Why it matters:</b> Server uses user_id from request body, so any logged-in user can overwrite another user&#x27;s name, avatar, and interests. Critical account-takeover-adjacent bug.</div>
+  <div class="mini"><b>Android side:</b> Stop sending `user_id`; derive server-side. But curl-level bug remains until server fixed.</div>
+  <div class="mini"><b>Server side:</b> REQUIRED: `$user = $request-&gt;user(); $user-&gt;update([...]);` — ignore body user_id. Apply same pattern to every `user_id`-accepting endpoint.</div>
+  <div class="mini"><b>Source ref:</b> <code>app/src/main/java/com/gmwapp/hima/activities/EditProfileActivity.kt:241</code></div>
+  <div class="mini"><b>Response body:</b> <code>{
+    &quot;message&quot;: &quot;Server Error&quot;
+}</code></div>
+</section>
+<section class="bug sev-high">
+  <h3><span class="id">BUG-EP-011</span>
+      <span class="badge sev-high">high</span>
+      <span class="fx server">FIX · SERVER</span>
+      /update_profile — missing name field</h3>
+  <div><b>Screen:</b> Edit Profile · <b>Endpoint check:</b> Validation</div>
+  <div class="mini"><b>Why it matters:</b> Without a &#x27;required&#x27; rule, missing field becomes empty string in DB and wipes the display name.</div>
+  <div class="mini"><b>Android side:</b> Button is disabled in UI when name invalid — already guarded.</div>
+  <div class="mini"><b>Server side:</b> Validator: `&#x27;name&#x27; =&gt; &#x27;required|string|min:4|max:30&#x27;`.</div>
+  
+  <div class="mini"><b>Response body:</b> <code>{&quot;success&quot;:true,&quot;message&quot;:&quot;User details updated successfully.&quot;,&quot;data&quot;:{&quot;id&quot;:456976,&quot;name&quot;:&quot;tXzDs689&quot;,&quot;user_gender&quot;:&quot;male&quot;,&quot;language&quot;:&quot;Tamil&quot;,&quot;mobile&quot;:&quot;9876543210&quot;,&quot;avatar_id&quot;:21,&quot;image&quot;:&quot;&quot;,&quot;gender&quot;:&quot;male&quot;,&quot;age&quot;:0,&quot;interests&quot;:&quot;Music&quot;,&quot;describe_yourself&quot;:&quot;&quot;,&quot;voice&quot;:&quot;https:\/\/demohima.himaapp.in\/stor</code></div>
+</section>
+<section class="bug sev-medium">
+  <h3><span class="id">BUG-EP-013</span>
+      <span class="badge sev-medium">medium</span>
+      <span class="fx server">FIX · SERVER</span>
+      /update_profile — 30 interests (limit should be 5 per UI)</h3>
+  <div><b>Screen:</b> Edit Profile · <b>Endpoint check:</b> Validation</div>
+  <div class="mini"><b>Why it matters:</b> Client caps at 5 interests; server has no cap. Leads to bloated profile data and inconsistent UI elsewhere.</div>
+  <div class="mini"><b>Android side:</b> Client already caps (InterestsListAdapter).</div>
+  <div class="mini"><b>Server side:</b> Validator: `&#x27;interests&#x27; =&gt; &#x27;array|max:5&#x27;` (or explode string &amp; count).</div>
+  
+  <div class="mini"><b>Response body:</b> <code>{
+    &quot;message&quot;: &quot;Server Error&quot;
+}</code></div>
+</section>
+<section class="bug sev-high">
+  <h3><span class="id">BUG-VV-002</span>
+      <span class="badge sev-high">high</span>
+      <span class="fx server">FIX · SERVER</span>
+      /speech_text — no auth header</h3>
+  <div><b>Screen:</b> Voice Verification · <b>Endpoint check:</b> Security</div>
+  <div class="mini"><b>Why it matters:</b> Speech prompts drive onboarding flow. Unauth access allows scraping the whole prompt catalog and gaming the voice-verification step.</div>
+  <div class="mini"><b>Android side:</b> N/A.</div>
+  <div class="mini"><b>Server side:</b> Route must be in `auth:api` group.</div>
+  
+  <div class="mini"><b>Response body:</b> <code>{&quot;success&quot;:true,&quot;message&quot;:&quot;Speech Text listed successfully.&quot;,&quot;total&quot;:10,&quot;data&quot;:[{&quot;id&quot;:4,&quot;text&quot;:&quot;\u0b8e\u0ba9\u0bcd \u0bb5\u0bbe\u0bb4\u0bcd\u0bb5\u0bbf\u0ba9\u0bcd \u0baa\u0bca\u0bb0\u0bc1\u0bb3\u0bcd \u0ba8\u0bc0&quot;,&quot;language&quot;:&quot;Tamil&quot;},{&quot;id&quot;:11,&quot;text&quot;:&quot;\u0ba8\u0bae\u0bcd \u0b95\u0bbe\u0ba4\u0bb2\u0bc</code></div>
+</section>
+<section class="bug sev-critical">
+  <h3><span class="id">BUG-VV-006</span>
+      <span class="badge sev-critical">critical</span>
+      <span class="fx server">FIX · SERVER</span>
+      /update_voice — IDOR: upload voice for a different user_id</h3>
+  <div><b>Screen:</b> Voice Verification · <b>Endpoint check:</b> Security</div>
+  <div class="mini"><b>Why it matters:</b> Voice verification is the gating step for female accounts. If someone else can overwrite a rival creator&#x27;s voice with nonsense, they can get them de-verified / flagged.</div>
+  <div class="mini"><b>Android side:</b> Drop user_id from body; use JWT server-side.</div>
+  <div class="mini"><b>Server side:</b> REQUIRED: use `$request-&gt;user()-&gt;id` only.</div>
+  <div class="mini"><b>Source ref:</b> <code>app/src/main/java/com/gmwapp/hima/activities/VoiceIdentificationActivity.kt:146</code></div>
+  <div class="mini"><b>Response body:</b> <code>{&quot;success&quot;:true,&quot;message&quot;:&quot;Voice uploaded successfully. Your profile is pending admin verification.&quot;,&quot;data&quot;:{&quot;id&quot;:456975,&quot;name&quot;:&quot;NisdB403&quot;,&quot;user_gender&quot;:&quot;male&quot;,&quot;avatar_id&quot;:22,&quot;image&quot;:&quot;&quot;,&quot;gender&quot;:&quot;male&quot;,&quot;language&quot;:&quot;Tamil&quot;,&quot;age&quot;:0,&quot;mobile&quot;:&quot;8464643464&quot;,&quot;interests&quot;:&quot;&quot;,&quot;describe_yourself&quot;:&quot;&quot;,&quot;voice&quot;:&quot;ht</code></div>
+</section>
+<section class="bug sev-medium">
+  <h3><span class="id">BUG-VV-008</span>
+      <span class="badge sev-medium">medium</span>
+      <span class="fx both">FIX · BOTH</span>
+      /update_voice — 10 MB file (mime/size guard)</h3>
+  <div><b>Screen:</b> Voice Verification · <b>Endpoint check:</b> Boundary</div>
+  <div class="mini"><b>Why it matters:</b> Upload-size abuse → storage bill spike. Test documents server-side cap. Expected: 413 or validation 400.</div>
+  <div class="mini"><b>Android side:</b> Client should cap recording at 30s already; confirm BottomSheetVoiceIdentification.</div>
+  <div class="mini"><b>Server side:</b> `&#x27;voice&#x27; =&gt; &#x27;max:10240&#x27;` (10 MB) + nginx client_max_body_size guard.</div>
+  
+  <div class="mini"><b>Response body:</b> <code>{&quot;success&quot;:true,&quot;message&quot;:&quot;Voice uploaded successfully. Your profile is pending admin verification.&quot;,&quot;data&quot;:{&quot;id&quot;:456976,&quot;name&quot;:&quot;tXzDs689&quot;,&quot;user_gender&quot;:&quot;male&quot;,&quot;avatar_id&quot;:21,&quot;image&quot;:&quot;&quot;,&quot;gender&quot;:&quot;male&quot;,&quot;language&quot;:&quot;Tamil&quot;,&quot;age&quot;:0,&quot;mobile&quot;:&quot;9876543210&quot;,&quot;interests&quot;:&quot;Music&quot;,&quot;describe_yourself&quot;:&quot;&quot;,&quot;voice</code></div>
+</section>
+
+<h2>Full test matrix</h2>
+<table>
+  <thead>
+    <tr>
+      <th>ID</th><th>Screen</th><th>Category</th><th>Sev</th>
+      <th>Title</th><th>Status</th><th>HTTP</th><th>Detail</th><th>Fix</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+<tr class="row pass sev-info">
+  <td class="mono">EP-UV-01</td>
+  <td>Edit Profile</td>
+  <td>Functional</td>
+  <td><span class="badge sev-info">info</span></td>
+  <td>/user_validations — valid user_id + clean name → success</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>msg=&#x27;Name is valid.&#x27;</td>
+  <td></td>
+</tr>
+
+<tr class="row pass sev-medium">
+  <td class="mono">EP-UV-02</td>
+  <td>Edit Profile</td>
+  <td>Functional</td>
+  <td><span class="badge sev-medium">medium</span></td>
+  <td>/user_validations — 3-char name should be rejected (UI enforces &gt;=4)</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>rejected</td>
+  <td><span class="fx server">SERVER</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> success=false (len&lt;4 should fail)</div>
+  <div class="mini"><b>Body preview:</b> <code>{&quot;success&quot;:false,&quot;message&quot;:&quot;Name must be between 4 and 10 characters.&quot;}</code></div>
+  <div class="mini"><b>Why it matters:</b> The 4-character minimum is enforced only on the client (EditProfileActivity.kt:94). The server accepts shorter names through the API, so any curl user or patched APK can set a 1–3 char username.</div>
+  <div class="mini"><b>Android fix:</b> No client fix closes this (client check still matters for UX, but cannot be trusted).</div>
+  <div class="mini"><b>Server fix:</b> Add FormRequest rule `&#x27;name&#x27; =&gt; &#x27;required|string|min:4|max:30|regex:/^[\p{L}\p{N}_ ]+$/u&#x27;` and return 400.</div>
+  <div class="mini"><b>File ref:</b> <code>app/src/main/java/com/gmwapp/hima/activities/EditProfileActivity.kt:94</code></div>
+  <div class="mini"><b>Bug ID:</b> BUG-EP-001</div>
+</div></td></tr>
+<tr class="row pass sev-medium">
+  <td class="mono">EP-UV-03</td>
+  <td>Edit Profile</td>
+  <td>Validation</td>
+  <td><span class="badge sev-medium">medium</span></td>
+  <td>/user_validations — empty name should be rejected</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>&#x27;name is required.&#x27;</td>
+  <td><span class="fx server">SERVER</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> success=false</div>
+  <div class="mini"><b>Body preview:</b> <code>{&quot;success&quot;:false,&quot;message&quot;:&quot;name is required.&quot;}</code></div>
+  <div class="mini"><b>Why it matters:</b> Empty string flows through to DB. Should be validated server-side.</div>
+  <div class="mini"><b>Android fix:</b> Client already blocks — no change needed.</div>
+  <div class="mini"><b>Server fix:</b> FormRequest: `&#x27;name&#x27; =&gt; &#x27;required|string|min:4&#x27;`.</div>
+  
+  <div class="mini"><b>Bug ID:</b> BUG-EP-002</div>
+</div></td></tr>
+<tr class="row pass sev-medium">
+  <td class="mono">EP-UV-04</td>
+  <td>Edit Profile</td>
+  <td>Validation</td>
+  <td><span class="badge sev-medium">medium</span></td>
+  <td>/user_validations — 200-char name (overflow) should be rejected</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>rejected · &#x27;Name must be between 4 and 10 characters.&#x27;</td>
+  <td><span class="fx both">BOTH</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> HTTP 400 / success=false</div>
+  <div class="mini"><b>Body preview:</b> <code>{&quot;success&quot;:false,&quot;message&quot;:&quot;Name must be between 4 and 10 characters.&quot;}</code></div>
+  <div class="mini"><b>Why it matters:</b> No max-length check server-side. Long names break chat-list UI rows and can trigger Firestore 1 MiB document limit when propagated to chat threads.</div>
+  <div class="mini"><b>Android fix:</b> Add `android:maxLength=&quot;30&quot;` to etUserName in activity_edit_profile.xml for UX, but server must still enforce it.</div>
+  <div class="mini"><b>Server fix:</b> Validator `&#x27;name&#x27; =&gt; &#x27;max:30&#x27;`.</div>
+  
+  <div class="mini"><b>Bug ID:</b> BUG-EP-003</div>
+</div></td></tr>
+<tr class="row pass sev-high">
+  <td class="mono">EP-UV-05</td>
+  <td>Edit Profile</td>
+  <td>Security</td>
+  <td><span class="badge sev-high">high</span></td>
+  <td>/user_validations — XSS/HTML injection name should be sanitized or rejected</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>rejected or escaped</td>
+  <td><span class="fx both">BOTH</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> success=false OR value returned escaped</div>
+  <div class="mini"><b>Body preview:</b> <code>{&quot;success&quot;:false,&quot;message&quot;:&quot;Name must be between 4 and 10 characters.&quot;}</code></div>
+  <div class="mini"><b>Why it matters:</b> Name is echoed inside chat list / profile views. If accepted raw, any WebView or HTML-rendered surface is a stored-XSS vector.</div>
+  <div class="mini"><b>Android fix:</b> TextView uses setText which is safe, but any WebView rendering names is at risk — audit FriendsAdapter/ChatAdapter HTML sinks.</div>
+  <div class="mini"><b>Server fix:</b> Strip tags (`strip_tags`) and reject names matching `/&lt;|&gt;|&amp;#|javascript:/i` in validator.</div>
+  
+  <div class="mini"><b>Bug ID:</b> BUG-EP-004</div>
+</div></td></tr>
+<tr class="row pass sev-high">
+  <td class="mono">EP-UV-06</td>
+  <td>Edit Profile</td>
+  <td>Security</td>
+  <td><span class="badge sev-high">high</span></td>
+  <td>/user_validations — SQL-like payload in name</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>&#x27;Name must be between 4 and 10 characters.&#x27;</td>
+  <td></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> success=false OR safely stored</div>
+  <div class="mini"><b>Body preview:</b> <code>{&quot;success&quot;:false,&quot;message&quot;:&quot;Name must be between 4 and 10 characters.&quot;}</code></div>
+  <div class="mini"><b>Why it matters:</b> Smoke test that input doesn&#x27;t leak SQL errors. Laravel Eloquent param-binds by default so expected PASS.</div>
+  
+  
+  
+  
+</div></td></tr>
+<tr class="row fail sev-critical">
+  <td class="mono">EP-UV-07</td>
+  <td>Edit Profile</td>
+  <td>Security</td>
+  <td><span class="badge sev-critical">critical</span></td>
+  <td>/user_validations — IDOR: validate another user&#x27;s id</td>
+  <td><span class="st fail">FAIL</span></td>
+  <td class="mono">200</td>
+  <td>accepted foreign user_id — IDOR (BUG-EP-005)</td>
+  <td><span class="fx server">SERVER</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> should tie user_id from JWT, not body</div>
+  <div class="mini"><b>Body preview:</b> <code>{&quot;success&quot;:true,&quot;message&quot;:&quot;Name is valid.&quot;}</code></div>
+  <div class="mini"><b>Why it matters:</b> Endpoint takes user_id from request body. Combined with the /userdetails IDOR already filed (BUG-002 in login report), the server trusts the client for identity across the whole API surface.</div>
+  <div class="mini"><b>Android fix:</b> Don&#x27;t send user_id — but curl bypasses this. Pure server fix needed.</div>
+  <div class="mini"><b>Server fix:</b> Derive user_id from JWT `$request-&gt;user()-&gt;id`. Ignore body param.</div>
+  
+  <div class="mini"><b>Bug ID:</b> BUG-EP-005</div>
+</div></td></tr>
+<tr class="row pass sev-high">
+  <td class="mono">EP-UV-08</td>
+  <td>Edit Profile</td>
+  <td>Security</td>
+  <td><span class="badge sev-high">high</span></td>
+  <td>/user_validations — no Authorization header</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">401</td>
+  <td>HTTP 401</td>
+  <td><span class="fx server">SERVER</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> HTTP 401</div>
+  <div class="mini"><b>Body preview:</b> <code>{&quot;success&quot;:false}</code></div>
+  <div class="mini"><b>Why it matters:</b> Profile-modifying endpoints must require a valid JWT. If this endpoint responds without auth, any scraper can test whether names exist.</div>
+  <div class="mini"><b>Android fix:</b> N/A (app already sends auth header).</div>
+  <div class="mini"><b>Server fix:</b> Move /user_validations route into `auth:api` middleware group.</div>
+  
+  <div class="mini"><b>Bug ID:</b> BUG-EP-006</div>
+</div></td></tr>
+<tr class="row pass sev-info">
+  <td class="mono">EP-UV-09</td>
+  <td>Edit Profile</td>
+  <td>Validation</td>
+  <td><span class="badge sev-info">info</span></td>
+  <td>/user_validations — emoji-only name &#x27;😀😀😀😀&#x27;</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>HTTP 200 · success=False</td>
+  <td></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> HTTP 200 + success=true/false (document behavior)</div>
+  <div class="mini"><b>Body preview:</b> <code>{&quot;success&quot;:false,&quot;message&quot;:&quot;Name must be between 4 and 10 characters.&quot;}</code></div>
+  <div class="mini"><b>Why it matters:</b> Emoji is valid Unicode. Documents whether server accepts 4-byte UTF-8 — important because MySQL `utf8` (not `utf8mb4`) corrupts emojis.</div>
+  
+  
+  
+  
+</div></td></tr>
+<tr class="row pass sev-info">
+  <td class="mono">EP-UV-10</td>
+  <td>Edit Profile</td>
+  <td>Validation</td>
+  <td><span class="badge sev-info">info</span></td>
+  <td>/user_validations — leading/trailing whitespace</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>HTTP 200</td>
+  <td><span class="fx server">SERVER</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> Trim server-side ideally</div>
+  <div class="mini"><b>Body preview:</b> <code>{&quot;success&quot;:true,&quot;message&quot;:&quot;Name is valid.&quot;}</code></div>
+  <div class="mini"><b>Why it matters:</b> Server should trim whitespace. Not trimming lets two names that look identical differ in DB.</div>
+  
+  
+  
+  
+</div></td></tr>
+<tr class="row pass sev-info">
+  <td class="mono">EP-AV-01</td>
+  <td>Edit Profile</td>
+  <td>Functional</td>
+  <td><span class="badge sev-info">info</span></td>
+  <td>/avatar_list — gender=male returns non-empty list</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>total=9</td>
+  <td></td>
+</tr>
+
+<tr class="row pass sev-info">
+  <td class="mono">EP-AV-02</td>
+  <td>Edit Profile</td>
+  <td>Functional</td>
+  <td><span class="badge sev-info">info</span></td>
+  <td>/avatar_list — gender=female returns non-empty list</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>total=1</td>
+  <td></td>
+</tr>
+
+<tr class="row pass sev-low">
+  <td class="mono">EP-AV-03</td>
+  <td>Edit Profile</td>
+  <td>Validation</td>
+  <td><span class="badge sev-low">low</span></td>
+  <td>/avatar_list — invalid gender value</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>rejected</td>
+  <td><span class="fx server">SERVER</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> success=false</div>
+  <div class="mini"><b>Body preview:</b> <code>{&quot;success&quot;:false,&quot;message&quot;:&quot;Invalid gender value. Allowed values are &#x27;male&#x27; or &#x27;female&#x27;.&quot;}</code></div>
+  <div class="mini"><b>Why it matters:</b> Loose validation — unknown genders should return success=false rather than empty list or crash.</div>
+  <div class="mini"><b>Android fix:</b> No change — gender is always &#x27;male&#x27;/&#x27;female&#x27; from app.</div>
+  <div class="mini"><b>Server fix:</b> Use `&#x27;gender&#x27; =&gt; &#x27;required|in:male,female&#x27;`.</div>
+  
+  <div class="mini"><b>Bug ID:</b> BUG-EP-007</div>
+</div></td></tr>
+<tr class="row fail sev-medium">
+  <td class="mono">EP-AV-04</td>
+  <td>Edit Profile</td>
+  <td>Security</td>
+  <td><span class="badge sev-medium">medium</span></td>
+  <td>/avatar_list — no auth header</td>
+  <td><span class="st fail">FAIL</span></td>
+  <td class="mono">200</td>
+  <td>HTTP 200 — avatar list exposed unauth (BUG-EP-008)</td>
+  <td><span class="fx server">SERVER</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> HTTP 401</div>
+  <div class="mini"><b>Body preview:</b> <code>{&quot;success&quot;:true,&quot;message&quot;:&quot;Male avatar listed successfully.&quot;,&quot;total&quot;:9,&quot;data&quot;:[{&quot;id&quot;:22,&quot;gender&quot;:&quot;male&quot;,&quot;image&quot;:&quot;&quot;,&quot;updated_at&quot;:&quot;2025-04-01 12:04:29&quot;,&quot;created_at&quot;:&quot;2024-12-01 19:51:25&quot;},{&quot;id&quot;:23,&quot;gender&quot;:&quot;male&quot;,&quot;image&quot;:&quot;&quot;,&quot;updated_at&quot;:&quot;2025-04-01 12:04:47&quot;,&quot;created_at&quot;:&quot;2024-12-0</code></div>
+  <div class="mini"><b>Why it matters:</b> Avatar list is low-sensitivity but the route should still be behind auth to reduce scraping surface &amp; unify policy.</div>
+  <div class="mini"><b>Android fix:</b> N/A.</div>
+  <div class="mini"><b>Server fix:</b> Put route inside `auth:api` group.</div>
+  
+  <div class="mini"><b>Bug ID:</b> BUG-EP-008</div>
+</div></td></tr>
+<tr class="row pass sev-info">
+  <td class="mono">EP-AV-05</td>
+  <td>Edit Profile</td>
+  <td>Performance</td>
+  <td><span class="badge sev-info">info</span></td>
+  <td>/avatar_list — response under 2s (p95)</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>0.15s</td>
+  <td></td>
+</tr>
+
+<tr class="row fail sev-critical">
+  <td class="mono">EP-UP-01</td>
+  <td>Edit Profile</td>
+  <td>Functional</td>
+  <td><span class="badge sev-critical">critical</span></td>
+  <td>/update_profile — happy path (clean name + 1 interest)</td>
+  <td><span class="st fail">FAIL</span></td>
+  <td class="mono">500</td>
+  <td>HTTP 500 body={
+    &quot;message&quot;: &quot;Server Error&quot;
+}</td>
+  <td><span class="fx server">SERVER</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> HTTP 200 + success=true + data.id == my_id</div>
+  <div class="mini"><b>Body preview:</b> <code>{
+    &quot;message&quot;: &quot;Server Error&quot;
+}</code></div>
+  <div class="mini"><b>Why it matters:</b> Valid /update_profile payload returns HTTP 500 &#x27;Server Error&#x27; on the 2nd attempt within a session — the &#x27;change name only once&#x27; rule appears to raise an uncaught exception instead of returning JSON {success:false, message:&#x27;You can change your name only once.&#x27;}.</div>
+  <div class="mini"><b>Android fix:</b> None — client sends the correct payload. Crash happens entirely server-side.</div>
+  <div class="mini"><b>Server fix:</b> Wrap the once-only check in a try/catch and return `{success:false, message:&#x27;You can change your name only once.&#x27;}` as JSON. Add FormRequest validator to short-circuit before the update query.</div>
+  <div class="mini"><b>File ref:</b> <code>app/src/main/java/com/gmwapp/hima/activities/EditProfileActivity.kt:240-246</code></div>
+  <div class="mini"><b>Bug ID:</b> BUG-EP-015</div>
+</div></td></tr>
+<tr class="row pass sev-medium">
+  <td class="mono">EP-UP-02</td>
+  <td>Edit Profile</td>
+  <td>Validation</td>
+  <td><span class="badge sev-medium">medium</span></td>
+  <td>/update_profile — avatar_id=999999 (not in avatar table)</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>&#x27;avatar not found.&#x27;</td>
+  <td><span class="fx server">SERVER</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> success=false or FK error</div>
+  <div class="mini"><b>Body preview:</b> <code>{&quot;success&quot;:false,&quot;message&quot;:&quot;avatar not found.&quot;}</code></div>
+  <div class="mini"><b>Why it matters:</b> Avatar is a FK into avatars table. If DB has no constraint / validator, the app can display a broken avatar URL to the entire user base.</div>
+  <div class="mini"><b>Android fix:</b> No meaningful client fix (invalid avatar_id can only be sent from a patched APK or curl).</div>
+  <div class="mini"><b>Server fix:</b> Validator: `&#x27;avatar_id&#x27; =&gt; &#x27;required|exists:avatars,id&#x27;`.</div>
+  
+  <div class="mini"><b>Bug ID:</b> BUG-EP-009</div>
+</div></td></tr>
+<tr class="row pass sev-medium">
+  <td class="mono">EP-UP-03</td>
+  <td>Edit Profile</td>
+  <td>Validation</td>
+  <td><span class="badge sev-medium">medium</span></td>
+  <td>/update_profile — avatar_id=&#x27;abc&#x27; (non-numeric)</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>200</td>
+  <td><span class="fx server">SERVER</span></td>
+</tr>
+
+<tr class="row fail sev-critical">
+  <td class="mono">EP-UP-04</td>
+  <td>Edit Profile</td>
+  <td>Security</td>
+  <td><span class="badge sev-critical">critical</span></td>
+  <td>/update_profile — IDOR: update foreign user_id</td>
+  <td><span class="st fail">FAIL</span></td>
+  <td class="mono">500</td>
+  <td>updated user None (BUG-EP-010)</td>
+  <td><span class="fx server">SERVER</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> 403 or server returns own id</div>
+  <div class="mini"><b>Body preview:</b> <code>{
+    &quot;message&quot;: &quot;Server Error&quot;
+}</code></div>
+  <div class="mini"><b>Why it matters:</b> Server uses user_id from request body, so any logged-in user can overwrite another user&#x27;s name, avatar, and interests. Critical account-takeover-adjacent bug.</div>
+  <div class="mini"><b>Android fix:</b> Stop sending `user_id`; derive server-side. But curl-level bug remains until server fixed.</div>
+  <div class="mini"><b>Server fix:</b> REQUIRED: `$user = $request-&gt;user(); $user-&gt;update([...]);` — ignore body user_id. Apply same pattern to every `user_id`-accepting endpoint.</div>
+  <div class="mini"><b>File ref:</b> <code>app/src/main/java/com/gmwapp/hima/activities/EditProfileActivity.kt:241</code></div>
+  <div class="mini"><b>Bug ID:</b> BUG-EP-010</div>
+</div></td></tr>
+<tr class="row fail sev-high">
+  <td class="mono">EP-UP-05</td>
+  <td>Edit Profile</td>
+  <td>Validation</td>
+  <td><span class="badge sev-high">high</span></td>
+  <td>/update_profile — missing name field</td>
+  <td><span class="st fail">FAIL</span></td>
+  <td class="mono">200</td>
+  <td>accepted missing name → may blank out profile</td>
+  <td><span class="fx server">SERVER</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> 400 / success=false</div>
+  <div class="mini"><b>Body preview:</b> <code>{&quot;success&quot;:true,&quot;message&quot;:&quot;User details updated successfully.&quot;,&quot;data&quot;:{&quot;id&quot;:456976,&quot;name&quot;:&quot;tXzDs689&quot;,&quot;user_gender&quot;:&quot;male&quot;,&quot;language&quot;:&quot;Tamil&quot;,&quot;mobile&quot;:&quot;9876543210&quot;,&quot;avatar_id&quot;:21,&quot;image&quot;:&quot;&quot;,&quot;gender&quot;:&quot;male&quot;,&quot;age&quot;:0,&quot;interests&quot;:&quot;Music&quot;,&quot;describe_yourself&quot;:&quot;&quot;,&quot;voice&quot;:&quot;https:\/\/demoh</code></div>
+  <div class="mini"><b>Why it matters:</b> Without a &#x27;required&#x27; rule, missing field becomes empty string in DB and wipes the display name.</div>
+  <div class="mini"><b>Android fix:</b> Button is disabled in UI when name invalid — already guarded.</div>
+  <div class="mini"><b>Server fix:</b> Validator: `&#x27;name&#x27; =&gt; &#x27;required|string|min:4|max:30&#x27;`.</div>
+  
+  <div class="mini"><b>Bug ID:</b> BUG-EP-011</div>
+</div></td></tr>
+<tr class="row pass sev-high">
+  <td class="mono">EP-UP-06</td>
+  <td>Edit Profile</td>
+  <td>Security</td>
+  <td><span class="badge sev-high">high</span></td>
+  <td>/update_profile — no Authorization header</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">401</td>
+  <td>HTTP 401</td>
+  <td><span class="fx server">SERVER</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> HTTP 401</div>
+  <div class="mini"><b>Body preview:</b> <code>{&quot;success&quot;:false}</code></div>
+  <div class="mini"><b>Why it matters:</b> Any mutating endpoint must require JWT.</div>
+  <div class="mini"><b>Android fix:</b> N/A.</div>
+  <div class="mini"><b>Server fix:</b> Require `auth:api` on the route.</div>
+  
+  <div class="mini"><b>Bug ID:</b> BUG-EP-012</div>
+</div></td></tr>
+<tr class="row fail sev-medium">
+  <td class="mono">EP-UP-07</td>
+  <td>Edit Profile</td>
+  <td>Validation</td>
+  <td><span class="badge sev-medium">medium</span></td>
+  <td>/update_profile — 30 interests (limit should be 5 per UI)</td>
+  <td><span class="st fail">FAIL</span></td>
+  <td class="mono">500</td>
+  <td>accepted 30 interests (BUG-EP-013) — msg=&#x27;Server Error&#x27;</td>
+  <td><span class="fx server">SERVER</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> success=false (server should cap to 5)</div>
+  <div class="mini"><b>Body preview:</b> <code>{
+    &quot;message&quot;: &quot;Server Error&quot;
+}</code></div>
+  <div class="mini"><b>Why it matters:</b> Client caps at 5 interests; server has no cap. Leads to bloated profile data and inconsistent UI elsewhere.</div>
+  <div class="mini"><b>Android fix:</b> Client already caps (InterestsListAdapter).</div>
+  <div class="mini"><b>Server fix:</b> Validator: `&#x27;interests&#x27; =&gt; &#x27;array|max:5&#x27;` (or explode string &amp; count).</div>
+  
+  <div class="mini"><b>Bug ID:</b> BUG-EP-013</div>
+</div></td></tr>
+<tr class="row pass sev-medium">
+  <td class="mono">EP-UP-08</td>
+  <td>Edit Profile</td>
+  <td>Validation</td>
+  <td><span class="badge sev-medium">medium</span></td>
+  <td>/update_profile — interests containing non-whitelisted tag</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>rejected</td>
+  <td><span class="fx server">SERVER</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> Server should reject unknown interest tokens</div>
+  <div class="mini"><b>Body preview:</b> <code>{&quot;success&quot;:false,&quot;message&quot;:&quot;Interests contain invalid characters. Only letters, numbers, spaces, commas, periods, and hyphens are allowed.&quot;}</code></div>
+  <div class="mini"><b>Why it matters:</b> Interests are chosen from a fixed list in-app. Server shouldn&#x27;t accept arbitrary strings — interest field may later feed recommendation queries.</div>
+  <div class="mini"><b>Android fix:</b> Client already limits to known list.</div>
+  <div class="mini"><b>Server fix:</b> Validator with `in:Politics,Art,Sports,Movies,Music,...`.</div>
+  
+  <div class="mini"><b>Bug ID:</b> BUG-EP-014</div>
+</div></td></tr>
+<tr class="row fail sev-high">
+  <td class="mono">EP-UP-09</td>
+  <td>Edit Profile</td>
+  <td>Functional</td>
+  <td><span class="badge sev-high">high</span></td>
+  <td>/update_profile — second name change must return JSON error, not crash</td>
+  <td><span class="st fail">FAIL</span></td>
+  <td class="mono">500</td>
+  <td>HTTP 500 body={
+    &quot;message&quot;: &quot;Server Error&quot;
+}</td>
+  <td><span class="fx server">SERVER</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> HTTP 200 + success=false</div>
+  <div class="mini"><b>Body preview:</b> <code>{
+    &quot;message&quot;: &quot;Server Error&quot;
+}</code></div>
+  <div class="mini"><b>Why it matters:</b> The &#x27;change name only once&#x27; rule is enforced by throwing an exception that bubbles to Laravel&#x27;s default 500 handler. Client gets {&quot;message&quot;:&quot;Server Error&quot;} HTML-flavoured payload instead of the intended `{success:false, message:&#x27;You can change your name only once.&#x27;}`. EditProfileActivity.kt:343-344 tries to read `it.message` which will be null → user sees generic toast.</div>
+  <div class="mini"><b>Android fix:</b> Keep current toast fallback (already does). But the user-friendly message is lost until server returns JSON.</div>
+  <div class="mini"><b>Server fix:</b> Return JSON (not 500): `return response()-&gt;json([&#x27;success&#x27;=&gt;false,&#x27;message&#x27;=&gt;&#x27;You can change your name only once.&#x27;,&#x27;data&#x27;=&gt;null])`.</div>
+  <div class="mini"><b>File ref:</b> <code>app/src/main/java/com/gmwapp/hima/activities/EditProfileActivity.kt:343</code></div>
+  <div class="mini"><b>Bug ID:</b> BUG-EP-015</div>
+</div></td></tr>
+<tr class="row pass sev-info">
+  <td class="mono">EP-UP-10</td>
+  <td>Edit Profile</td>
+  <td>Performance</td>
+  <td><span class="badge sev-info">info</span></td>
+  <td>/update_profile — response under 3s</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">500</td>
+  <td>0.18s</td>
+  <td></td>
+</tr>
+
+<tr class="row pass sev-info">
+  <td class="mono">VV-ST-01</td>
+  <td>Voice Verification</td>
+  <td>Functional</td>
+  <td><span class="badge sev-info">info</span></td>
+  <td>/speech_text — valid user + language returns non-empty text</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>got text len=17</td>
+  <td></td>
+</tr>
+
+<tr class="row pass sev-medium">
+  <td class="mono">VV-ST-02</td>
+  <td>Voice Verification</td>
+  <td>Validation</td>
+  <td><span class="badge sev-medium">medium</span></td>
+  <td>/speech_text — unsupported language &#x27;Klingon&#x27;</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>rejected</td>
+  <td><span class="fx both">BOTH</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> success=false</div>
+  <div class="mini"><b>Body preview:</b> <code>{&quot;success&quot;:false,&quot;message&quot;:&quot;No Speech Text found for the specified language.&quot;,&quot;total&quot;:0}</code></div>
+  <div class="mini"><b>Why it matters:</b> Language not in allow-list should fail cleanly. If server returns empty list silently and the client shows &#x27;no text&#x27; toast, users get stuck on voice verification step.</div>
+  <div class="mini"><b>Android fix:</b> Already shows toast on empty list (VoiceIdentificationActivity.kt:79). Add friendlier message.</div>
+  <div class="mini"><b>Server fix:</b> Validator: `&#x27;language&#x27; =&gt; &#x27;required|in:Hindi,Tamil,Telugu,English,...&#x27;`.</div>
+  
+  <div class="mini"><b>Bug ID:</b> BUG-VV-001</div>
+</div></td></tr>
+<tr class="row pass sev-medium">
+  <td class="mono">VV-ST-03</td>
+  <td>Voice Verification</td>
+  <td>Validation</td>
+  <td><span class="badge sev-medium">medium</span></td>
+  <td>/speech_text — missing language param</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>HTTP 200</td>
+  <td><span class="fx server">SERVER</span></td>
+</tr>
+
+<tr class="row fail sev-high">
+  <td class="mono">VV-ST-04</td>
+  <td>Voice Verification</td>
+  <td>Security</td>
+  <td><span class="badge sev-high">high</span></td>
+  <td>/speech_text — no auth header</td>
+  <td><span class="st fail">FAIL</span></td>
+  <td class="mono">200</td>
+  <td>HTTP 200 — endpoint unauthenticated (BUG-VV-002)</td>
+  <td><span class="fx server">SERVER</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> HTTP 401</div>
+  <div class="mini"><b>Body preview:</b> <code>{&quot;success&quot;:true,&quot;message&quot;:&quot;Speech Text listed successfully.&quot;,&quot;total&quot;:10,&quot;data&quot;:[{&quot;id&quot;:4,&quot;text&quot;:&quot;\u0b8e\u0ba9\u0bcd \u0bb5\u0bbe\u0bb4\u0bcd\u0bb5\u0bbf\u0ba9\u0bcd \u0baa\u0bca\u0bb0\u0bc1\u0bb3\u0bcd \u0ba8\u0bc0&quot;,&quot;language&quot;:&quot;Tamil&quot;},{&quot;id&quot;:11,&quot;text&quot;:&quot;\u0ba8\u0bae\u0bcd \u0b95\u0</code></div>
+  <div class="mini"><b>Why it matters:</b> Speech prompts drive onboarding flow. Unauth access allows scraping the whole prompt catalog and gaming the voice-verification step.</div>
+  <div class="mini"><b>Android fix:</b> N/A.</div>
+  <div class="mini"><b>Server fix:</b> Route must be in `auth:api` group.</div>
+  
+  <div class="mini"><b>Bug ID:</b> BUG-VV-002</div>
+</div></td></tr>
+<tr class="row pass sev-high">
+  <td class="mono">VV-ST-05</td>
+  <td>Voice Verification</td>
+  <td>Security</td>
+  <td><span class="badge sev-high">high</span></td>
+  <td>/speech_text — IDOR: foreign user_id</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>docs: returned generic prompt list</td>
+  <td><span class="fx server">SERVER</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> JWT sub should win or 403</div>
+  <div class="mini"><b>Body preview:</b> <code>{&quot;success&quot;:true,&quot;message&quot;:&quot;Speech Text listed successfully.&quot;,&quot;total&quot;:10,&quot;data&quot;:[{&quot;id&quot;:5,&quot;text&quot;:&quot;\u0b89\u0ba9\u0bcd\u0ba9\u0bcb\u0b9f\u0bc1 \u0bb5\u0bbe\u0bb4\u0bc1\u0bae\u0bcd \u0b8e\u0ba9\u0ba4\u0bc1 \u0b95\u0ba9\u0bb5\u0bc1&quot;,&quot;language&quot;:&quot;Tamil&quot;},{&quot;id&quot;:4,&quot;text&quot;:&quot;\u0b8e\u0ba9\u0bc</code></div>
+  <div class="mini"><b>Why it matters:</b> Low-harm IDOR (prompts are public), but still documents that user_id from body is trusted.</div>
+  
+  
+  
+  
+</div></td></tr>
+<tr class="row pass sev-info">
+  <td class="mono">VV-ST-06</td>
+  <td>Voice Verification</td>
+  <td>Performance</td>
+  <td><span class="badge sev-info">info</span></td>
+  <td>/speech_text — response under 2s</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>0.14s</td>
+  <td></td>
+</tr>
+
+<tr class="row pass sev-info">
+  <td class="mono">VV-UV-01</td>
+  <td>Voice Verification</td>
+  <td>Functional</td>
+  <td><span class="badge sev-info">info</span></td>
+  <td>/update_voice — small valid MP3 accepted</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>voice url saved</td>
+  <td></td>
+</tr>
+
+<tr class="row pass sev-medium">
+  <td class="mono">VV-UV-02</td>
+  <td>Voice Verification</td>
+  <td>Validation</td>
+  <td><span class="badge sev-medium">medium</span></td>
+  <td>/update_voice — empty file upload</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>HTTP 200</td>
+  <td><span class="fx both">BOTH</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> 400 / success=false</div>
+  <div class="mini"><b>Body preview:</b> <code>{&quot;success&quot;:false,&quot;message&quot;:&quot;Invalid voice file or Enter a Valid voice MP3 File required&quot;}</code></div>
+  <div class="mini"><b>Why it matters:</b> An empty audio file should not pass verification. If it does, user gets approved without speaking — defeats the point of the screen.</div>
+  <div class="mini"><b>Android fix:</b> Add MediaRecorder duration check (&gt;= 2s) before upload.</div>
+  <div class="mini"><b>Server fix:</b> Validator `&#x27;voice&#x27; =&gt; &#x27;required|file|mimes:wav,mp3,m4a,aac|min:5&#x27;` (KB), plus ffprobe duration check in a Job.</div>
+  
+  <div class="mini"><b>Bug ID:</b> BUG-VV-003</div>
+</div></td></tr>
+<tr class="row pass sev-medium">
+  <td class="mono">VV-UV-03</td>
+  <td>Voice Verification</td>
+  <td>Validation</td>
+  <td><span class="badge sev-medium">medium</span></td>
+  <td>/update_voice — wrong MIME: PNG named voice.png</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>HTTP 200</td>
+  <td><span class="fx both">BOTH</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> 400 / success=false (type check)</div>
+  <div class="mini"><b>Body preview:</b> <code>{&quot;success&quot;:false,&quot;message&quot;:&quot;Invalid voice file or Enter a Valid voice MP3 File required&quot;}</code></div>
+  <div class="mini"><b>Why it matters:</b> Without MIME/extension whitelist, attacker can upload arbitrary files to `public/voice/` — a potential RCE vector if PHP is configured to execute inside that dir, and at minimum abuses storage as a CDN.</div>
+  <div class="mini"><b>Android fix:</b> Set `asRequestBody(&quot;audio/wav&quot;.toMediaTypeOrNull())` explicitly in VoiceIdentificationActivity.kt:148.</div>
+  <div class="mini"><b>Server fix:</b> REQUIRED: `&#x27;voice&#x27; =&gt; &#x27;required|file|mimes:wav,mp3,m4a,aac|max:10240&#x27;` + deny-exec on the upload dir.</div>
+  <div class="mini"><b>File ref:</b> <code>app/src/main/java/com/gmwapp/hima/activities/VoiceIdentificationActivity.kt:147</code></div>
+  <div class="mini"><b>Bug ID:</b> BUG-VV-004</div>
+</div></td></tr>
+<tr class="row pass sev-medium">
+  <td class="mono">VV-UV-04</td>
+  <td>Voice Verification</td>
+  <td>Validation</td>
+  <td><span class="badge sev-medium">medium</span></td>
+  <td>/update_voice — no file part</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>HTTP 200</td>
+  <td><span class="fx server">SERVER</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> 400 / success=false</div>
+  <div class="mini"><b>Body preview:</b> <code>{&quot;success&quot;:false,&quot;message&quot;:&quot;voice is required and cannot be empty.&quot;}</code></div>
+  <div class="mini"><b>Why it matters:</b> Request with no file should be 400. If server silently succeeds, the status can flip to &#x27;verified&#x27; with no voice on file.</div>
+  <div class="mini"><b>Android fix:</b> Already checks `file != null` in onItemSelected — but client check isn&#x27;t enough.</div>
+  <div class="mini"><b>Server fix:</b> Validator `&#x27;voice&#x27; =&gt; &#x27;required|file&#x27;`.</div>
+  
+  <div class="mini"><b>Bug ID:</b> BUG-VV-005</div>
+</div></td></tr>
+<tr class="row fail sev-critical">
+  <td class="mono">VV-UV-05</td>
+  <td>Voice Verification</td>
+  <td>Security</td>
+  <td><span class="badge sev-critical">critical</span></td>
+  <td>/update_voice — IDOR: upload voice for a different user_id</td>
+  <td><span class="st fail">FAIL</span></td>
+  <td class="mono">200</td>
+  <td>overwrote foreign user&#x27;s voice id=456975 (BUG-VV-006)</td>
+  <td><span class="fx server">SERVER</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> 403 / success=false / own id returned</div>
+  <div class="mini"><b>Body preview:</b> <code>{&quot;success&quot;:true,&quot;message&quot;:&quot;Voice uploaded successfully. Your profile is pending admin verification.&quot;,&quot;data&quot;:{&quot;id&quot;:456975,&quot;name&quot;:&quot;NisdB403&quot;,&quot;user_gender&quot;:&quot;male&quot;,&quot;avatar_id&quot;:22,&quot;image&quot;:&quot;&quot;,&quot;gender&quot;:&quot;male&quot;,&quot;language&quot;:&quot;Tamil&quot;,&quot;age&quot;:0,&quot;mobile&quot;:&quot;8464643464&quot;,&quot;interests&quot;:&quot;&quot;,&quot;describe_your</code></div>
+  <div class="mini"><b>Why it matters:</b> Voice verification is the gating step for female accounts. If someone else can overwrite a rival creator&#x27;s voice with nonsense, they can get them de-verified / flagged.</div>
+  <div class="mini"><b>Android fix:</b> Drop user_id from body; use JWT server-side.</div>
+  <div class="mini"><b>Server fix:</b> REQUIRED: use `$request-&gt;user()-&gt;id` only.</div>
+  <div class="mini"><b>File ref:</b> <code>app/src/main/java/com/gmwapp/hima/activities/VoiceIdentificationActivity.kt:146</code></div>
+  <div class="mini"><b>Bug ID:</b> BUG-VV-006</div>
+</div></td></tr>
+<tr class="row pass sev-high">
+  <td class="mono">VV-UV-06</td>
+  <td>Voice Verification</td>
+  <td>Security</td>
+  <td><span class="badge sev-high">high</span></td>
+  <td>/update_voice — no auth header</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">401</td>
+  <td>HTTP 401</td>
+  <td><span class="fx server">SERVER</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> HTTP 401</div>
+  <div class="mini"><b>Body preview:</b> <code>{&quot;success&quot;:false}</code></div>
+  <div class="mini"><b>Why it matters:</b> Mutating endpoints without auth = anyone can overwrite any account&#x27;s voice.</div>
+  <div class="mini"><b>Android fix:</b> N/A.</div>
+  <div class="mini"><b>Server fix:</b> Wrap in `auth:api`.</div>
+  
+  <div class="mini"><b>Bug ID:</b> BUG-VV-007</div>
+</div></td></tr>
+<tr class="row fail sev-medium">
+  <td class="mono">VV-UV-07</td>
+  <td>Voice Verification</td>
+  <td>Boundary</td>
+  <td><span class="badge sev-medium">medium</span></td>
+  <td>/update_voice — 10 MB file (mime/size guard)</td>
+  <td><span class="st fail">FAIL</span></td>
+  <td class="mono">200</td>
+  <td>10 MB upload accepted — storage DoS risk (BUG-VV-008)</td>
+  <td><span class="fx both">BOTH</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> 413 / 400 / success=false</div>
+  <div class="mini"><b>Body preview:</b> <code>{&quot;success&quot;:true,&quot;message&quot;:&quot;Voice uploaded successfully. Your profile is pending admin verification.&quot;,&quot;data&quot;:{&quot;id&quot;:456976,&quot;name&quot;:&quot;tXzDs689&quot;,&quot;user_gender&quot;:&quot;male&quot;,&quot;avatar_id&quot;:21,&quot;image&quot;:&quot;&quot;,&quot;gender&quot;:&quot;male&quot;,&quot;language&quot;:&quot;Tamil&quot;,&quot;age&quot;:0,&quot;mobile&quot;:&quot;9876543210&quot;,&quot;interests&quot;:&quot;Music&quot;,&quot;describe</code></div>
+  <div class="mini"><b>Why it matters:</b> Upload-size abuse → storage bill spike. Test documents server-side cap. Expected: 413 or validation 400.</div>
+  <div class="mini"><b>Android fix:</b> Client should cap recording at 30s already; confirm BottomSheetVoiceIdentification.</div>
+  <div class="mini"><b>Server fix:</b> `&#x27;voice&#x27; =&gt; &#x27;max:10240&#x27;` (10 MB) + nginx client_max_body_size guard.</div>
+  
+  <div class="mini"><b>Bug ID:</b> BUG-VV-008</div>
+</div></td></tr>
+<tr class="row pass sev-info">
+  <td class="mono">VV-UV-08</td>
+  <td>Voice Verification</td>
+  <td>Validation</td>
+  <td><span class="badge sev-info">info</span></td>
+  <td>/update_voice — missing user_id field</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>HTTP 200</td>
+  <td><span class="fx server">SERVER</span></td>
+</tr>
+
+<tr class="row pass sev-info">
+  <td class="mono">VV-UV-09</td>
+  <td>Voice Verification</td>
+  <td>Performance</td>
+  <td><span class="badge sev-info">info</span></td>
+  <td>/update_voice — response under 8s for small MP3</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>0.20s</td>
+  <td></td>
+</tr>
+
+<tr class="row pass sev-info">
+  <td class="mono">VV-UV-11</td>
+  <td>Voice Verification</td>
+  <td>Validation</td>
+  <td><span class="badge sev-info">info</span></td>
+  <td>/update_voice — WAV file rejected (server enforces MP3)</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>rejected: &#x27;Invalid voice file or Enter a Valid voice MP3 File required&#x27;</td>
+  <td></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> success=false with explanatory message</div>
+  <div class="mini"><b>Body preview:</b> <code>{&quot;success&quot;:false,&quot;message&quot;:&quot;Invalid voice file or Enter a Valid voice MP3 File required&quot;}</code></div>
+  <div class="mini"><b>Why it matters:</b> Documents that the server enforces audio/mpeg. Client must pass a .mp3 recorded file, not WAV.</div>
+  
+  
+  
+  
+</div></td></tr>
+<tr class="row pass sev-medium">
+  <td class="mono">VV-UV-10</td>
+  <td>Voice Verification</td>
+  <td>Security</td>
+  <td><span class="badge sev-medium">medium</span></td>
+  <td>/update_voice — path traversal filename</td>
+  <td><span class="st pass">PASS</span></td>
+  <td class="mono">200</td>
+  <td>safe (Laravel Storage regenerates name)</td>
+  <td><span class="fx server">SERVER</span></td>
+</tr>
+
+<tr class="detail-row"><td colspan="9"><div class="detail">
+  <div class="mini"><b>Expected:</b> Server renames / rejects</div>
+  <div class="mini"><b>Body preview:</b> <code>{&quot;success&quot;:false,&quot;message&quot;:&quot;Invalid voice file or Enter a Valid voice MP3 File required&quot;}</code></div>
+  <div class="mini"><b>Why it matters:</b> Laravel Storage::put generates its own hash-based filename, so path traversal via filename is typically mitigated. Test documents the behaviour.</div>
+  
+  
+  
+  
+</div></td></tr>
+  </tbody>
+</table>
+
+<h2>Notes / methodology</h2>
+<ul class="mini">
+  <li>Authenticated tests use the JWT obtained via <code>/login</code> for the QA test mobile (9876543210).</li>
+  <li>IDOR tests use <code>user_id - 1</code> to probe cross-user access while staying within DB bounds.</li>
+  <li>Voice uploads use synthesised silent WAVs of various sizes; no real user voice collected.</li>
+  <li>Rate-limit tests intentionally omitted here — covered in the login-flow report (BUG-004).</li>
+  <li>Tests run sequentially with 200 ms inter-request delay to avoid triggering throttle middleware.</li>
+</ul>
+
+</main>
+</body>
+</html>

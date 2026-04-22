@@ -69,7 +69,8 @@ class BottomSheetVoiceIdentification : BottomSheetDialogFragment() {
                 binding.tlSpeechTextHintTimer.visibility = View.VISIBLE
                 binding.tlSpeechTextHint.visibility = View.VISIBLE
                 var secs=0;
-                timer = object : CountDownTimer(60 * 60000, 1000) {
+                val maxRecordingSecs = 30
+                timer = object : CountDownTimer((maxRecordingSecs * 1000).toLong(), 1000) {
                     override fun onTick(millisUntilFinished: Long) {
                         secs++;
                         val mins = secs/60;
@@ -79,6 +80,12 @@ class BottomSheetVoiceIdentification : BottomSheetDialogFragment() {
                     }
 
                     override fun onFinish() {
+                        requireContext().showAppToast(
+                            "Max 30 seconds — stopping recording", Toast.LENGTH_SHORT
+                        )
+                        binding.content.stopRippleAnimation()
+                        binding.ivMicroPhoneCircle.setBackgroundResource(R.drawable.voice_mic_background)
+                        stopRecording(isCancelled = false)
                     }
                 }.start()
 

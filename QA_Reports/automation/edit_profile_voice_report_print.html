@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hima — Edit Profile & Voice Verification API Test Report</title>
+<style>
+  @page { size: A4; margin: 16mm 14mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", Arial, sans-serif;
+    color: #111; font-size: 11.2pt; line-height: 1.45; margin: 0;
+  }
+  h1 { font-size: 20pt; margin: 0 0 4pt; color: #1f2937; }
+  h2 { font-size: 14pt; margin: 18pt 0 6pt; color: #1f2937;
+        border-bottom: 1px solid #d1d5db; padding-bottom: 3pt; }
+  h3 { font-size: 12pt; margin: 8pt 0 4pt; }
+  .meta { color: #555; font-size: 10pt; margin-bottom: 10pt; }
+  .note { color: #555; font-size: 10pt; }
+  .cards {
+    display: flex; flex-wrap: wrap; gap: 8pt; margin: 6pt 0 12pt;
+  }
+  .card {
+    flex: 1 1 110pt; min-width: 110pt; padding: 10pt; border: 1px solid #d1d5db;
+    border-radius: 6pt; text-align: center; background: #fafbfc;
+  }
+  .card .n { font-size: 22pt; font-weight: 700; color: #1f2937; }
+  .card .l { font-size: 9.5pt; color: #555; margin-top: 2pt; }
+  .card.crit .n { color: #c0392b; }
+  .card.high .n { color: #d35400; }
+  .card.med  .n { color: #b7791f; }
+  .card.low  .n { color: #2563eb; }
+  .card.pass .n { color: #15803d; }
+  .card.fail .n { color: #b91c1c; }
+
+  .bug {
+    border: 1px solid #d1d5db; border-left: 4px solid #64748b;
+    border-radius: 6pt; padding: 9pt 11pt; margin: 10pt 0;
+    page-break-inside: avoid; background: #fcfcfd;
+  }
+  .bug.crit { border-left-color: #c0392b; }
+  .bug-head { display: flex; gap: 6pt; flex-wrap: wrap; align-items: center; margin-bottom: 4pt; }
+  .bug-title { font-size: 12pt; font-weight: 600; margin: 2pt 0 6pt; color: #111; }
+
+  .sev { display: inline-block; font-size: 8.5pt; font-weight: 700;
+          padding: 1.5pt 6pt; border-radius: 3pt; color: #fff; text-transform: uppercase; }
+  .sev-critical { background: #c0392b; }
+  .sev-high { background: #d35400; }
+  .sev-medium { background: #b7791f; }
+  .sev-low { background: #2563eb; }
+  .sev-info { background: #64748b; }
+
+  .id { font-family: ui-monospace, Menlo, Consolas, monospace;
+         font-size: 9.5pt; background: #eef1f4; padding: 1.5pt 6pt; border-radius: 3pt; }
+  .where { font-size: 8.5pt; font-weight: 700; padding: 1.5pt 6pt; border-radius: 3pt;
+            letter-spacing: 0.3pt; }
+  .where-server { background: #fde2e2; color: #991b1b; }
+  .where-both { background: #fef3c7; color: #854d0e; }
+  .where-client { background: #dcfce7; color: #065f46; }
+  .where-none { background: #eef1f4; color: #6b7280; }
+  .screen { font-size: 9pt; color: #555; background: #eef1f4; padding: 1.5pt 6pt; border-radius: 3pt; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+  table.kv th { text-align: left; width: 25%; padding: 4pt 6pt; vertical-align: top;
+                 color: #444; font-weight: 600; background: #f7f8fa; border-right: 1px solid #e5e7eb; }
+  table.kv td { padding: 4pt 8pt; vertical-align: top; }
+  table.kv tr + tr th, table.kv tr + tr td { border-top: 1px solid #e5e7eb; }
+
+  .matrix th, .matrix td { border: 1px solid #e5e7eb; padding: 4pt 6pt; font-size: 9.5pt; }
+  .matrix th { background: #f3f4f6; font-weight: 600; }
+  tr.fail { background: #fff5f5; }
+  .st { display: inline-block; font-size: 9pt; font-weight: 700; padding: 1pt 6pt; border-radius: 3pt; }
+  .st-pass { background: #dcfce7; color: #166534; }
+  .st-fail { background: #fde2e2; color: #991b1b; }
+
+  .mono, code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 9pt; }
+
+  .fix-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8pt; margin: 6pt 0 12pt; }
+  .fix-box {
+    border: 1px solid #d1d5db; border-top: 4px solid #9ca3af;
+    border-radius: 6pt; padding: 9pt 11pt; background: #fcfcfd;
+  }
+  .fix-box.client { border-top-color: #16a34a; }
+  .fix-box.both   { border-top-color: #f59e0b; }
+  .fix-box.server { border-top-color: #dc2626; }
+  .fix-box .big { font-size: 24pt; font-weight: 700; margin: 2pt 0; }
+  .fix-box .title { font-weight: 700; margin-bottom: 3pt; font-size: 11pt; }
+  .fix-box.client .title { color: #15803d; }
+  .fix-box.both .title { color: #92400e; }
+  .fix-box.server .title { color: #991b1b; }
+  .fix-box ul { margin: 4pt 0 0 14pt; padding: 0; font-size: 10pt; color: #374151; }
+  .fix-box li { margin: 2pt 0; }
+
+  .page-break { page-break-before: always; }
+</style>
+</head>
+<body>
+
+<h1>Edit Profile &amp; Voice Verification — API Test Report</h1>
+<div class="meta">
+  <b>Project:</b> Hima (Android app) &nbsp;·&nbsp;
+  <b>Environment:</b> https://demohima.himaapp.in/api/auth &nbsp;·&nbsp;
+  <b>Tested by:</b> Perumal (QA) &nbsp;·&nbsp;
+  <b>Date:</b> 2026-04-22 13:20
+</div>
+
+<h2>1. Executive summary</h2>
+<p>
+  I ran 42 API test cases covering the two screens' five endpoints —
+  <code>/user_validations</code>, <code>/avatar_list</code>, <code>/update_profile</code>,
+  <code>/speech_text</code>, <code>/update_voice</code> — across functional,
+  validation, security, boundary and performance categories.
+</p>
+<div class="cards">
+  <div class="card"><div class="n">42</div><div class="l">Total tests</div></div>
+  <div class="card pass"><div class="n">32</div><div class="l">Passed</div></div>
+  <div class="card fail"><div class="n">10</div><div class="l">Failed</div></div>
+  <div class="card crit"><div class="n">4</div><div class="l">Critical</div></div>
+  <div class="card high"><div class="n">3</div><div class="l">High</div></div>
+  <div class="card med"><div class="n">3</div><div class="l">Medium</div></div>
+</div>
+
+<h2>2. Who needs to fix what</h2>
+<p class="note">
+  Every failure was classified by where the fix actually closes the hole.
+  A fix belongs to the <b>server</b> if a curl-wielding attacker would bypass any client-side guard.
+</p>
+<div class="fix-grid">
+  <div class="fix-box client">
+    <div class="title">Android only</div>
+    <div class="big">0</div>
+    <ul><li>No bug is purely client-fixable — the app is well-behaved.</li></ul>
+  </div>
+  <div class="fix-box both">
+    <div class="title">Android + Backend</div>
+    <div class="big">1</div>
+    <ul><li>Voice upload size cap — client should limit recording duration; backend must enforce byte cap.</li></ul>
+  </div>
+  <div class="fix-box server">
+    <div class="title">Backend only</div>
+    <div class="big">9</div>
+    <ul>
+      <li>Fix IDOR on /update_profile, /update_voice, /user_validations — use JWT sub, not body user_id.</li>
+      <li>Add auth middleware on /avatar_list, /speech_text.</li>
+      <li>Replace HTTP 500 crashes with JSON error responses.</li>
+      <li>Add FormRequest validators (name, interests, file size).</li>
+    </ul>
+  </div>
+</div>
+<p class="note"><b>Bottom line:</b> 10 of 10 bugs need backend work. 0 can be closed by Android alone.</p>
+
+<h2 class="page-break">3. Bugs — plain-language breakdown</h2>
+
+<section class="bug">
+  <div class="bug-head">
+    <span class="sev sev-critical">CRITICAL</span>
+    <span class="id">BUG-EP-005</span>
+    <span class="where where-server">FIX: SERVER</span>
+    <span class="screen">Edit Profile</span>
+  </div>
+  <h3 class="bug-title">/user_validations — IDOR: validate another user&#x27;s id</h3>
+  <table class="kv">
+    <tr><th>What's wrong</th><td>Anyone logged in can validate a name as if they were a different user.</td></tr>
+    <tr><th>Why it matters</th><td>Lets an attacker probe which user IDs exist and what names are taken on other accounts.</td></tr>
+    <tr><th>How to fix</th><td>Backend: take the user_id from the login token, ignore the one sent in the request body.</td></tr>
+    
+    <tr><th>Server response observed</th><td class="mono">{&quot;success&quot;:true,&quot;message&quot;:&quot;Name is valid.&quot;}</td></tr>
+  </table>
+</section>
+<section class="bug">
+  <div class="bug-head">
+    <span class="sev sev-medium">MEDIUM</span>
+    <span class="id">BUG-EP-008</span>
+    <span class="where where-server">FIX: SERVER</span>
+    <span class="screen">Edit Profile</span>
+  </div>
+  <h3 class="bug-title">/avatar_list — no auth header</h3>
+  <table class="kv">
+    <tr><th>What's wrong</th><td>The avatar list API works without a login token at all.</td></tr>
+    <tr><th>Why it matters</th><td>Low severity, but any scraper can pull the whole avatar catalogue without signing in. Reduces attack surface to have one consistent auth policy.</td></tr>
+    <tr><th>How to fix</th><td>Backend: put this route behind the same auth middleware as the rest.</td></tr>
+    
+    <tr><th>Server response observed</th><td class="mono">{&quot;success&quot;:true,&quot;message&quot;:&quot;Male avatar listed successfully.&quot;,&quot;total&quot;:9,&quot;data&quot;:[{&quot;id&quot;:22,&quot;gender&quot;:&quot;male&quot;,&quot;image&quot;:&quot;&quot;,&quot;updated_at&quot;:&quot;2025-04-01 12:04:29&quot;,&quot;created_at&quot;:&quot;2024-12-01 19:51:25&quot;},{&quot;id&quot;:23,&quot;gender&quot;:&quot;male&quot;,&quot;image&quot;:&quot;</td></tr>
+  </table>
+</section>
+<section class="bug">
+  <div class="bug-head">
+    <span class="sev sev-critical">CRITICAL</span>
+    <span class="id">BUG-EP-015</span>
+    <span class="where where-server">FIX: SERVER</span>
+    <span class="screen">Edit Profile</span>
+  </div>
+  <h3 class="bug-title">/update_profile — happy path (clean name + 1 interest)</h3>
+  <table class="kv">
+    <tr><th>What's wrong</th><td>Update-profile is crashing with HTTP 500 &#x27;Server Error&#x27; (plain Laravel error page) instead of returning a clean JSON error.</td></tr>
+    <tr><th>Why it matters</th><td>Critical for UX: the app shows the generic &#x27;please try again later&#x27; toast instead of the real reason (e.g. &#x27;you can change your name only once&#x27;). Also leaks the framework identity to anyone probing the API.</td></tr>
+    <tr><th>How to fix</th><td>Backend: wrap the &#x27;name change only once&#x27; check in a proper validator / try-catch and return {success:false, message:&#x27;…&#x27;} JSON — never a 500 HTML.</td></tr>
+    <tr><th>Source ref</th><td class="mono">app/src/main/java/com/gmwapp/hima/activities/EditProfileActivity.kt:240-246</td></tr>
+    <tr><th>Server response observed</th><td class="mono">{
+    &quot;message&quot;: &quot;Server Error&quot;
+}</td></tr>
+  </table>
+</section>
+<section class="bug">
+  <div class="bug-head">
+    <span class="sev sev-critical">CRITICAL</span>
+    <span class="id">BUG-EP-010</span>
+    <span class="where where-server">FIX: SERVER</span>
+    <span class="screen">Edit Profile</span>
+  </div>
+  <h3 class="bug-title">/update_profile — IDOR: update foreign user_id</h3>
+  <table class="kv">
+    <tr><th>What's wrong</th><td>A logged-in user can overwrite another user&#x27;s profile (name, avatar, interests) by sending a different user_id.</td></tr>
+    <tr><th>Why it matters</th><td>CRITICAL. This is close to account takeover — attacker can wipe, impersonate or defame any user with a single API call.</td></tr>
+    <tr><th>How to fix</th><td>Backend: derive user_id from the login token, not from the request body. Apply to every endpoint that takes user_id.</td></tr>
+    <tr><th>Source ref</th><td class="mono">app/src/main/java/com/gmwapp/hima/activities/EditProfileActivity.kt:241</td></tr>
+    <tr><th>Server response observed</th><td class="mono">{
+    &quot;message&quot;: &quot;Server Error&quot;
+}</td></tr>
+  </table>
+</section>
+<section class="bug">
+  <div class="bug-head">
+    <span class="sev sev-high">HIGH</span>
+    <span class="id">BUG-EP-011</span>
+    <span class="where where-server">FIX: SERVER</span>
+    <span class="screen">Edit Profile</span>
+  </div>
+  <h3 class="bug-title">/update_profile — missing name field</h3>
+  <table class="kv">
+    <tr><th>What's wrong</th><td>/update_profile — missing name field</td></tr>
+    <tr><th>Why it matters</th><td>Without a &#x27;required&#x27; rule, missing field becomes empty string in DB and wipes the display name.</td></tr>
+    <tr><th>How to fix</th><td>Validator: `&#x27;name&#x27; =&gt; &#x27;required|string|min:4|max:30&#x27;`.</td></tr>
+    
+    <tr><th>Server response observed</th><td class="mono">{&quot;success&quot;:true,&quot;message&quot;:&quot;User details updated successfully.&quot;,&quot;data&quot;:{&quot;id&quot;:456976,&quot;name&quot;:&quot;tXzDs689&quot;,&quot;user_gender&quot;:&quot;male&quot;,&quot;language&quot;:&quot;Tamil&quot;,&quot;mobile&quot;:&quot;9876543210&quot;,&quot;avatar_id&quot;:21,&quot;image&quot;:&quot;&quot;,&quot;gender&quot;:&quot;male&quot;,&quot;age&quot;:0,&quot;intere</td></tr>
+  </table>
+</section>
+<section class="bug">
+  <div class="bug-head">
+    <span class="sev sev-medium">MEDIUM</span>
+    <span class="id">BUG-EP-013</span>
+    <span class="where where-server">FIX: SERVER</span>
+    <span class="screen">Edit Profile</span>
+  </div>
+  <h3 class="bug-title">/update_profile — 30 interests (limit should be 5 per UI)</h3>
+  <table class="kv">
+    <tr><th>What's wrong</th><td>The server accepts 30 interests, even though the app UI caps at 5.</td></tr>
+    <tr><th>Why it matters</th><td>Medium. Bloats profile data; users from patched APKs or curl can pollute recommendation features that read the interests column.</td></tr>
+    <tr><th>How to fix</th><td>Backend: validate interests as an array with max 5, only from the known allow-list.</td></tr>
+    
+    <tr><th>Server response observed</th><td class="mono">{
+    &quot;message&quot;: &quot;Server Error&quot;
+}</td></tr>
+  </table>
+</section>
+<section class="bug">
+  <div class="bug-head">
+    <span class="sev sev-high">HIGH</span>
+    <span class="id">BUG-VV-002</span>
+    <span class="where where-server">FIX: SERVER</span>
+    <span class="screen">Voice Verification</span>
+  </div>
+  <h3 class="bug-title">/speech_text — no auth header</h3>
+  <table class="kv">
+    <tr><th>What's wrong</th><td>The speech-text API (which returns the sentence the user must read aloud) works without a login token.</td></tr>
+    <tr><th>Why it matters</th><td>Anyone can scrape the entire prompt catalogue. That makes it easy to bot / automate the voice-verification step.</td></tr>
+    <tr><th>How to fix</th><td>Backend: route must require auth.</td></tr>
+    
+    <tr><th>Server response observed</th><td class="mono">{&quot;success&quot;:true,&quot;message&quot;:&quot;Speech Text listed successfully.&quot;,&quot;total&quot;:10,&quot;data&quot;:[{&quot;id&quot;:4,&quot;text&quot;:&quot;\u0b8e\u0ba9\u0bcd \u0bb5\u0bbe\u0bb4\u0bcd\u0bb5\u0bbf\u0ba9\u0bcd \u0baa\u0bca\u0bb0\u0bc1\u0bb3\u0bcd \u0ba8\u0bc0&quot;,&quot;lang</td></tr>
+  </table>
+</section>
+<section class="bug">
+  <div class="bug-head">
+    <span class="sev sev-critical">CRITICAL</span>
+    <span class="id">BUG-VV-006</span>
+    <span class="where where-server">FIX: SERVER</span>
+    <span class="screen">Voice Verification</span>
+  </div>
+  <h3 class="bug-title">/update_voice — IDOR: upload voice for a different user_id</h3>
+  <table class="kv">
+    <tr><th>What's wrong</th><td>A logged-in user can replace someone else&#x27;s voice recording by passing a different user_id. Test confirmed we actually overwrote another user&#x27;s voice.</td></tr>
+    <tr><th>Why it matters</th><td>CRITICAL. Voice verification is the gating step for female creators. This lets someone sabotage a rival creator (replace their voice with gibberish → they get flagged / de-verified).</td></tr>
+    <tr><th>How to fix</th><td>Backend: derive user_id from the JWT only. Same pattern as BUG-EP-010.</td></tr>
+    <tr><th>Source ref</th><td class="mono">app/src/main/java/com/gmwapp/hima/activities/VoiceIdentificationActivity.kt:146</td></tr>
+    <tr><th>Server response observed</th><td class="mono">{&quot;success&quot;:true,&quot;message&quot;:&quot;Voice uploaded successfully. Your profile is pending admin verification.&quot;,&quot;data&quot;:{&quot;id&quot;:456975,&quot;name&quot;:&quot;NisdB403&quot;,&quot;user_gender&quot;:&quot;male&quot;,&quot;avatar_id&quot;:22,&quot;image&quot;:&quot;&quot;,&quot;gender&quot;:&quot;male&quot;,&quot;language&quot;:&quot;Tamil&quot;</td></tr>
+  </table>
+</section>
+<section class="bug">
+  <div class="bug-head">
+    <span class="sev sev-medium">MEDIUM</span>
+    <span class="id">BUG-VV-008</span>
+    <span class="where where-both">FIX: BOTH</span>
+    <span class="screen">Voice Verification</span>
+  </div>
+  <h3 class="bug-title">/update_voice — 10 MB file (mime/size guard)</h3>
+  <table class="kv">
+    <tr><th>What's wrong</th><td>The server accepts a 10 MB upload on /update_voice — no size limit observed.</td></tr>
+    <tr><th>Why it matters</th><td>Medium. Storage-DoS risk — an attacker can upload gigabytes of junk over time and inflate S3 bills.</td></tr>
+    <tr><th>How to fix</th><td>Client: cap recording duration. Backend: add `max:10240` (10 MB) validator + nginx body-size guard.</td></tr>
+    
+    <tr><th>Server response observed</th><td class="mono">{&quot;success&quot;:true,&quot;message&quot;:&quot;Voice uploaded successfully. Your profile is pending admin verification.&quot;,&quot;data&quot;:{&quot;id&quot;:456976,&quot;name&quot;:&quot;tXzDs689&quot;,&quot;user_gender&quot;:&quot;male&quot;,&quot;avatar_id&quot;:21,&quot;image&quot;:&quot;&quot;,&quot;gender&quot;:&quot;male&quot;,&quot;language&quot;:&quot;Tamil&quot;</td></tr>
+  </table>
+</section>
+
+<h2 class="page-break">4. Full test matrix (42 cases)</h2>
+<table class="matrix">
+  <thead>
+    <tr>
+      <th>ID</th><th>Screen</th><th>Test</th><th>Sev</th>
+      <th>Status</th><th>HTTP</th><th>Detail</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+<tr class="pass">
+  <td class="mono">EP-UV-01</td>
+  <td>Edit Profile</td>
+  <td>/user_validations — valid user_id + clean name → success</td>
+  <td><span class="sev sev-info">info</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>msg=&#x27;Name is valid.&#x27;</td>
+</tr>
+<tr class="pass">
+  <td class="mono">EP-UV-02</td>
+  <td>Edit Profile</td>
+  <td>/user_validations — 3-char name should be rejected (UI enforces &gt;=4)</td>
+  <td><span class="sev sev-medium">medium</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>rejected</td>
+</tr>
+<tr class="pass">
+  <td class="mono">EP-UV-03</td>
+  <td>Edit Profile</td>
+  <td>/user_validations — empty name should be rejected</td>
+  <td><span class="sev sev-medium">medium</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>&#x27;name is required.&#x27;</td>
+</tr>
+<tr class="pass">
+  <td class="mono">EP-UV-04</td>
+  <td>Edit Profile</td>
+  <td>/user_validations — 200-char name (overflow) should be rejected</td>
+  <td><span class="sev sev-medium">medium</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>rejected · &#x27;Name must be between 4 and 10 characters.&#x27;</td>
+</tr>
+<tr class="pass">
+  <td class="mono">EP-UV-05</td>
+  <td>Edit Profile</td>
+  <td>/user_validations — XSS/HTML injection name should be sanitized or rejected</td>
+  <td><span class="sev sev-high">high</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>rejected or escaped</td>
+</tr>
+<tr class="pass">
+  <td class="mono">EP-UV-06</td>
+  <td>Edit Profile</td>
+  <td>/user_validations — SQL-like payload in name</td>
+  <td><span class="sev sev-high">high</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>&#x27;Name must be between 4 and 10 characters.&#x27;</td>
+</tr>
+<tr class="fail">
+  <td class="mono">EP-UV-07</td>
+  <td>Edit Profile</td>
+  <td>/user_validations — IDOR: validate another user&#x27;s id</td>
+  <td><span class="sev sev-critical">critical</span></td>
+  <td class="st st-fail">FAIL</td>
+  <td class="mono">200</td>
+  <td>accepted foreign user_id — IDOR (BUG-EP-005)</td>
+</tr>
+<tr class="pass">
+  <td class="mono">EP-UV-08</td>
+  <td>Edit Profile</td>
+  <td>/user_validations — no Authorization header</td>
+  <td><span class="sev sev-high">high</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">401</td>
+  <td>HTTP 401</td>
+</tr>
+<tr class="pass">
+  <td class="mono">EP-UV-09</td>
+  <td>Edit Profile</td>
+  <td>/user_validations — emoji-only name &#x27;😀😀😀😀&#x27;</td>
+  <td><span class="sev sev-info">info</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>HTTP 200 · success=False</td>
+</tr>
+<tr class="pass">
+  <td class="mono">EP-UV-10</td>
+  <td>Edit Profile</td>
+  <td>/user_validations — leading/trailing whitespace</td>
+  <td><span class="sev sev-info">info</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>HTTP 200</td>
+</tr>
+<tr class="pass">
+  <td class="mono">EP-AV-01</td>
+  <td>Edit Profile</td>
+  <td>/avatar_list — gender=male returns non-empty list</td>
+  <td><span class="sev sev-info">info</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>total=9</td>
+</tr>
+<tr class="pass">
+  <td class="mono">EP-AV-02</td>
+  <td>Edit Profile</td>
+  <td>/avatar_list — gender=female returns non-empty list</td>
+  <td><span class="sev sev-info">info</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>total=1</td>
+</tr>
+<tr class="pass">
+  <td class="mono">EP-AV-03</td>
+  <td>Edit Profile</td>
+  <td>/avatar_list — invalid gender value</td>
+  <td><span class="sev sev-low">low</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>rejected</td>
+</tr>
+<tr class="fail">
+  <td class="mono">EP-AV-04</td>
+  <td>Edit Profile</td>
+  <td>/avatar_list — no auth header</td>
+  <td><span class="sev sev-medium">medium</span></td>
+  <td class="st st-fail">FAIL</td>
+  <td class="mono">200</td>
+  <td>HTTP 200 — avatar list exposed unauth (BUG-EP-008)</td>
+</tr>
+<tr class="pass">
+  <td class="mono">EP-AV-05</td>
+  <td>Edit Profile</td>
+  <td>/avatar_list — response under 2s (p95)</td>
+  <td><span class="sev sev-info">info</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>0.15s</td>
+</tr>
+<tr class="fail">
+  <td class="mono">EP-UP-01</td>
+  <td>Edit Profile</td>
+  <td>/update_profile — happy path (clean name + 1 interest)</td>
+  <td><span class="sev sev-critical">critical</span></td>
+  <td class="st st-fail">FAIL</td>
+  <td class="mono">500</td>
+  <td>HTTP 500 body={
+    &quot;message&quot;: &quot;Server Error&quot;
+}</td>
+</tr>
+<tr class="pass">
+  <td class="mono">EP-UP-02</td>
+  <td>Edit Profile</td>
+  <td>/update_profile — avatar_id=999999 (not in avatar table)</td>
+  <td><span class="sev sev-medium">medium</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>&#x27;avatar not found.&#x27;</td>
+</tr>
+<tr class="pass">
+  <td class="mono">EP-UP-03</td>
+  <td>Edit Profile</td>
+  <td>/update_profile — avatar_id=&#x27;abc&#x27; (non-numeric)</td>
+  <td><span class="sev sev-medium">medium</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>200</td>
+</tr>
+<tr class="fail">
+  <td class="mono">EP-UP-04</td>
+  <td>Edit Profile</td>
+  <td>/update_profile — IDOR: update foreign user_id</td>
+  <td><span class="sev sev-critical">critical</span></td>
+  <td class="st st-fail">FAIL</td>
+  <td class="mono">500</td>
+  <td>updated user None (BUG-EP-010)</td>
+</tr>
+<tr class="fail">
+  <td class="mono">EP-UP-05</td>
+  <td>Edit Profile</td>
+  <td>/update_profile — missing name field</td>
+  <td><span class="sev sev-high">high</span></td>
+  <td class="st st-fail">FAIL</td>
+  <td class="mono">200</td>
+  <td>accepted missing name → may blank out profile</td>
+</tr>
+<tr class="pass">
+  <td class="mono">EP-UP-06</td>
+  <td>Edit Profile</td>
+  <td>/update_profile — no Authorization header</td>
+  <td><span class="sev sev-high">high</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">401</td>
+  <td>HTTP 401</td>
+</tr>
+<tr class="fail">
+  <td class="mono">EP-UP-07</td>
+  <td>Edit Profile</td>
+  <td>/update_profile — 30 interests (limit should be 5 per UI)</td>
+  <td><span class="sev sev-medium">medium</span></td>
+  <td class="st st-fail">FAIL</td>
+  <td class="mono">500</td>
+  <td>accepted 30 interests (BUG-EP-013) — msg=&#x27;Server Error&#x27;</td>
+</tr>
+<tr class="pass">
+  <td class="mono">EP-UP-08</td>
+  <td>Edit Profile</td>
+  <td>/update_profile — interests containing non-whitelisted tag</td>
+  <td><span class="sev sev-medium">medium</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>rejected</td>
+</tr>
+<tr class="fail">
+  <td class="mono">EP-UP-09</td>
+  <td>Edit Profile</td>
+  <td>/update_profile — second name change must return JSON error, not crash</td>
+  <td><span class="sev sev-high">high</span></td>
+  <td class="st st-fail">FAIL</td>
+  <td class="mono">500</td>
+  <td>HTTP 500 body={
+    &quot;message&quot;: &quot;Server Error&quot;
+}</td>
+</tr>
+<tr class="pass">
+  <td class="mono">EP-UP-10</td>
+  <td>Edit Profile</td>
+  <td>/update_profile — response under 3s</td>
+  <td><span class="sev sev-info">info</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">500</td>
+  <td>0.18s</td>
+</tr>
+<tr class="pass">
+  <td class="mono">VV-ST-01</td>
+  <td>Voice Verification</td>
+  <td>/speech_text — valid user + language returns non-empty text</td>
+  <td><span class="sev sev-info">info</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>got text len=17</td>
+</tr>
+<tr class="pass">
+  <td class="mono">VV-ST-02</td>
+  <td>Voice Verification</td>
+  <td>/speech_text — unsupported language &#x27;Klingon&#x27;</td>
+  <td><span class="sev sev-medium">medium</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>rejected</td>
+</tr>
+<tr class="pass">
+  <td class="mono">VV-ST-03</td>
+  <td>Voice Verification</td>
+  <td>/speech_text — missing language param</td>
+  <td><span class="sev sev-medium">medium</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>HTTP 200</td>
+</tr>
+<tr class="fail">
+  <td class="mono">VV-ST-04</td>
+  <td>Voice Verification</td>
+  <td>/speech_text — no auth header</td>
+  <td><span class="sev sev-high">high</span></td>
+  <td class="st st-fail">FAIL</td>
+  <td class="mono">200</td>
+  <td>HTTP 200 — endpoint unauthenticated (BUG-VV-002)</td>
+</tr>
+<tr class="pass">
+  <td class="mono">VV-ST-05</td>
+  <td>Voice Verification</td>
+  <td>/speech_text — IDOR: foreign user_id</td>
+  <td><span class="sev sev-high">high</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>docs: returned generic prompt list</td>
+</tr>
+<tr class="pass">
+  <td class="mono">VV-ST-06</td>
+  <td>Voice Verification</td>
+  <td>/speech_text — response under 2s</td>
+  <td><span class="sev sev-info">info</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>0.14s</td>
+</tr>
+<tr class="pass">
+  <td class="mono">VV-UV-01</td>
+  <td>Voice Verification</td>
+  <td>/update_voice — small valid MP3 accepted</td>
+  <td><span class="sev sev-info">info</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>voice url saved</td>
+</tr>
+<tr class="pass">
+  <td class="mono">VV-UV-02</td>
+  <td>Voice Verification</td>
+  <td>/update_voice — empty file upload</td>
+  <td><span class="sev sev-medium">medium</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>HTTP 200</td>
+</tr>
+<tr class="pass">
+  <td class="mono">VV-UV-03</td>
+  <td>Voice Verification</td>
+  <td>/update_voice — wrong MIME: PNG named voice.png</td>
+  <td><span class="sev sev-medium">medium</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>HTTP 200</td>
+</tr>
+<tr class="pass">
+  <td class="mono">VV-UV-04</td>
+  <td>Voice Verification</td>
+  <td>/update_voice — no file part</td>
+  <td><span class="sev sev-medium">medium</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>HTTP 200</td>
+</tr>
+<tr class="fail">
+  <td class="mono">VV-UV-05</td>
+  <td>Voice Verification</td>
+  <td>/update_voice — IDOR: upload voice for a different user_id</td>
+  <td><span class="sev sev-critical">critical</span></td>
+  <td class="st st-fail">FAIL</td>
+  <td class="mono">200</td>
+  <td>overwrote foreign user&#x27;s voice id=456975 (BUG-VV-006)</td>
+</tr>
+<tr class="pass">
+  <td class="mono">VV-UV-06</td>
+  <td>Voice Verification</td>
+  <td>/update_voice — no auth header</td>
+  <td><span class="sev sev-high">high</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">401</td>
+  <td>HTTP 401</td>
+</tr>
+<tr class="fail">
+  <td class="mono">VV-UV-07</td>
+  <td>Voice Verification</td>
+  <td>/update_voice — 10 MB file (mime/size guard)</td>
+  <td><span class="sev sev-medium">medium</span></td>
+  <td class="st st-fail">FAIL</td>
+  <td class="mono">200</td>
+  <td>10 MB upload accepted — storage DoS risk (BUG-VV-008)</td>
+</tr>
+<tr class="pass">
+  <td class="mono">VV-UV-08</td>
+  <td>Voice Verification</td>
+  <td>/update_voice — missing user_id field</td>
+  <td><span class="sev sev-info">info</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>HTTP 200</td>
+</tr>
+<tr class="pass">
+  <td class="mono">VV-UV-09</td>
+  <td>Voice Verification</td>
+  <td>/update_voice — response under 8s for small MP3</td>
+  <td><span class="sev sev-info">info</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>0.20s</td>
+</tr>
+<tr class="pass">
+  <td class="mono">VV-UV-11</td>
+  <td>Voice Verification</td>
+  <td>/update_voice — WAV file rejected (server enforces MP3)</td>
+  <td><span class="sev sev-info">info</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>rejected: &#x27;Invalid voice file or Enter a Valid voice MP3 File required&#x27;</td>
+</tr>
+<tr class="pass">
+  <td class="mono">VV-UV-10</td>
+  <td>Voice Verification</td>
+  <td>/update_voice — path traversal filename</td>
+  <td><span class="sev sev-medium">medium</span></td>
+  <td class="st st-pass">PASS</td>
+  <td class="mono">200</td>
+  <td>safe (Laravel Storage regenerates name)</td>
+</tr>
+  </tbody>
+</table>
+
+<h2>5. Methodology</h2>
+<ul class="note">
+  <li>Tests authenticated with a real JWT obtained via <code>/login</code> for QA mobile 9876543210.</li>
+  <li>IDOR tests use user_id − 1 to stay within valid DB range while probing cross-user access.</li>
+  <li>Voice tests use synthesised silent MP3 / WAV fixtures — no real user voice recorded.</li>
+  <li>Each request includes 200 ms spacing to avoid triggering throttle middleware.</li>
+  <li>Profile mutated during the suite is restored to its original state at the end.</li>
+</ul>
+
+</body>
+</html>

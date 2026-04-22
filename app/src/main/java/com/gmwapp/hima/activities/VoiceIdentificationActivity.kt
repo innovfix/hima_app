@@ -22,6 +22,7 @@ import com.gmwapp.hima.databinding.ActivityVoiceIdentificationBinding
 import com.gmwapp.hima.dialogs.BottomSheetVoiceIdentification
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
@@ -143,16 +144,27 @@ class VoiceIdentificationActivity : BaseActivity(), OnItemSelectionListener<Stri
 
     override fun onItemSelected(path: String?) {
         val file: File? = path?.let { File(it) }
-        BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
-            file?.asRequestBody()?.let { it1 ->
-                MultipartBody.Part.createFormData(
-                    "voice", file.name, it1
-                )
-            }?.let { it2 ->
-                profileViewModel.updateVoice(
-                    it, it2
-                )
-            }
+
+        if (file == null || !file.exists() || file.length() == 0L) {
+            applicationContext.showAppToast(
+                getString(R.string.please_try_again_later), Toast.LENGTH_LONG
+            )
+            return
+        }
+
+        val maxBytes = 5L * 1024 * 1024
+        if (file.length() > maxBytes) {
+            applicationContext.showAppToast(
+                "Recording too large, please re-record", Toast.LENGTH_LONG
+            )
+            file.delete()
+            return
+        }
+
+        BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let { userId ->
+            val body = file.asRequestBody("audio/mpeg".toMediaTypeOrNull())
+            val part = MultipartBody.Part.createFormData("voice", file.name, body)
+            profileViewModel.updateVoice(userId, part)
         }
     }
 }
