@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Ball body -->
+    <path
+        android:fillColor="#E53935"
+        android:pathData="M24,24m-20,0a20,20 0,1 1,40 0a20,20 0,1 1,-40 0"/>
+    <!-- Seam line left -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.5"
+        android:fillColor="#00000000"
+        android:pathData="M18,6 Q10,16 10,24 Q10,32 18,42"/>
+    <!-- Seam line right -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.5"
+        android:fillColor="#00000000"
+        android:pathData="M30,6 Q38,16 38,24 Q38,32 30,42"/>
+    <!-- Stitch marks left -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1"
+        android:fillColor="#00000000"
+        android:pathData="M16,10 L14,12 M14,16 L12,18 M12,22 L10,24 M12,28 L14,30 M14,34 L16,36 M16,38 L18,40"/>
+    <!-- Stitch marks right -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1"
+        android:fillColor="#00000000"
+        android:pathData="M32,10 L34,12 M34,16 L36,18 M36,22 L38,24 M36,28 L34,30 M34,34 L32,36 M32,38 L30,40"/>
+</vector>

@@ -24,6 +24,7 @@ import com.gmwapp.hima.databinding.ActivityAlmostDoneBinding
 import com.gmwapp.hima.databinding.ActivityVoiceIdentificationBinding
 import com.gmwapp.hima.databinding.ActivityWebviewBinding
 import com.gmwapp.hima.dialogs.BottomSheetVoiceIdentification
+import com.gmwapp.hima.utils.applySystemBarInsets
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -40,6 +41,7 @@ class WebviewActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityWebviewBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        applySystemBarInsets(binding.root, R.color.white)
         binding.wvPrivacyPolicy.getSettings().setJavaScriptEnabled(true);
 
         val prefs = BaseApplication.getInstance()?.getPrefs()

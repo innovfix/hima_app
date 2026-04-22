@@ -104,18 +104,33 @@
     <color name="creator_language_bg">#F3F4F6</color>
     <color name="creator_language_text">#6B7280</color>
     
+    <!-- Chat List Card Colors -->
+    <color name="chat_list_free_badge_bg">#ECFDF5</color>
+    <color name="chat_list_free_badge_stroke">#10B981</color>
+    <color name="chat_list_free_badge_text">#059669</color>
+    <color name="chat_list_bell_active">#FF4081</color>
+    <color name="chat_list_bell_inactive">#6B7280</color>
+    <color name="chat_list_call_disabled_text">#6B7280</color>
+
     <!-- Chat Interface Colors -->
     <color name="chat_background">#FAFBFC</color>
-    <color name="chat_bubble_sent">#FF1383</color>
-    <color name="chat_bubble_received">#F3F4F6</color>
+    <color name="chat_bubble_sent">#FF2E88</color>
+    <color name="chat_bubble_sent_start">#FF4C9A</color>
+    <color name="chat_bubble_sent_end">#FF2E88</color>
+    <color name="chat_bubble_received">#FFFFFF</color>
+    <color name="chat_bubble_received_stroke">#ECECEC</color>
     <color name="chat_text_sent">#FFFFFF</color>
     <color name="chat_text_received">#1F2937</color>
     <color name="chat_time_sent">#FFFFFF</color>
-    <color name="chat_time_received">#9CA3AF</color>
+    <color name="chat_time_received">#8A8F9A</color>
     <color name="chat_input_bg">#F9FAFB</color>
     <color name="chat_input_border">#E5E7EB</color>
     <color name="chat_status_online">#10B981</color>
     <color name="chat_status_offline">#9CA3AF</color>
+    <color name="chat_action_pink">#FF0A73</color>
+    <color name="chat_action_pink_dark">#E90066</color>
+    <color name="chat_attach_tint">#6B7280</color>
+    <color name="chat_recording_red">#FF3B30</color>
     
     <!-- Premium Button Gradients -->
     <color name="audio_gradient_start">#9C1DF9</color>
@@ -131,5 +146,21 @@
     <color name="premium_orange">#FF6B35</color>
     <color name="premium_blue">#4F46E5</color>
     <color name="premium_pink">#EC4899</color>
+
+    <!-- IPL Room Call Colors -->
+    <color name="ipl_stadium_dark">#0D1B2A</color>
+    <color name="ipl_stadium_mid">#1B2838</color>
+    <color name="ipl_stadium_green">#0A3D2E</color>
+    <color name="ipl_card_bg">#1A2332</color>
+    <color name="ipl_card_bg_light">#2A3442</color>
+    <color name="ipl_live_red">#FF3B3B</color>
+    <color name="ipl_join_green">#00C853</color>
+    <color name="ipl_empty_slot_border">#3A4A5A</color>
+    <color name="ipl_speaking_glow">#4CAF50</color>
+    <color name="ipl_header_start">#1A3A2A</color>
+    <color name="ipl_header_end">#0D2818</color>
+    <color name="ipl_timer_bg">#E8F5E9</color>
+    <color name="ipl_timer_text">#1B5E20</color>
+    <color name="ipl_member_badge_bg">#33FFFFFF</color>
 
 </resources>

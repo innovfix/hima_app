@@ -17,6 +17,7 @@ import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Observer
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.BuildConfig
@@ -47,6 +48,8 @@ class DeleteAccountActivity : BaseActivity(), OnButtonClickListener {
         super.onCreate(savedInstanceState)
         binding = ActivityDeleteAccountBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
+        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
         applyStatusBarPaddingForToolbar()
         initUI()
     }

@@ -12,6 +12,7 @@ import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Observer
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
@@ -32,7 +33,8 @@ class TicketsListActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityTicketsListBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        
+        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
+
         // Status bar configuration
         window.statusBarColor = ContextCompat.getColor(this, R.color.white)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -109,6 +111,7 @@ class TicketsListActivity : BaseActivity() {
     private fun observeTickets() {
         accountViewModel.ticketsListLiveData.observe(this, Observer { response ->
             binding.progressBar.visibility = android.view.View.GONE
+            if (!::viewPagerAdapter.isInitialized) return@Observer
             
             if (response != null && response.success) {
                 val tickets = response.data ?: emptyList()

@@ -16,6 +16,7 @@ import com.gmwapp.hima.adapters.EarningsAdapter
 import com.gmwapp.hima.databinding.ActivityEarningsBinding
 import com.gmwapp.hima.databinding.BottomSheetSelectPaymentBinding
 import com.gmwapp.hima.dialogs.BottomSheetSelectPayment
+import com.gmwapp.hima.utils.applySystemBarInsets
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.EarningsViewModel
@@ -37,6 +38,7 @@ class EarningsActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityEarningsBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        applySystemBarInsets(binding.root, R.color.white, darkStatusBarIcons = true)
         initUI()
     }
 

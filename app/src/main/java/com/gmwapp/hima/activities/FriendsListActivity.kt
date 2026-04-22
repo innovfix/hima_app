@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.viewpager2.adapter.FragmentStateAdapter
@@ -34,14 +35,15 @@ class FriendsListActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityFriendsListBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
 
         setupToolbar()
         setupViewPager()
         loadTabCounts()  // Load counts immediately
         onBackPressedBtn()
-        window.statusBarColor = Color.parseColor("#ffffff") // startColor of your gradient
+        window.statusBarColor = Color.parseColor("#ffffff")
 
-        // Make status bar icons light (white) so they're visible on black background
+        // Light status bar background → dark status-bar icons
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             window.insetsController?.setSystemBarsAppearance(
                 android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,

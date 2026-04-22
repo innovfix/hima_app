@@ -322,9 +322,12 @@
 
         <CheckBox
             android:id="@+id/cb_favourite_user"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:buttonTint="@color/colorAccent" />
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:background="@null"
+            android:button="@null"
+            android:foreground="@drawable/heart_checkbox_selector"
+            android:foregroundTint="@color/colorAccent" />
 
         <TextView
             android:id="@+id/tv_favourite_label"
@@ -335,7 +338,7 @@
             android:fontFamily="@font/poppins_regular"
             android:textSize="12sp"
             android:layout_gravity="center_vertical"
-            android:layout_marginStart="4dp" />
+            android:layout_marginStart="8dp" />
     </LinearLayout>
 
     <!-- Submit Button -->

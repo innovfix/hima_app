@@ -16,11 +16,15 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TableRow
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import com.gmwapp.hima.BaseApplication
@@ -35,6 +39,7 @@ import com.gmwapp.hima.retrofit.responses.UserData
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.utils.AppEventLogger
 import com.bumptech.glide.Glide
+import com.gmwapp.hima.callbacks.Refreshable
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.BadgeViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
@@ -63,10 +68,11 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
+import kotlin.random.Random
 
 
 @AndroidEntryPoint
-class FemaleHomeFragment : BaseFragment() {
+class FemaleHomeFragment : BaseFragment(), Refreshable {
     private val OVERLAY_REQUEST_CODE: Int = 2
     private var mContext: Context? = null
     private val CALL_PERMISSIONS_REQUEST_CODE = 1
@@ -107,6 +113,29 @@ class FemaleHomeFragment : BaseFragment() {
         }
     }
 
+    private fun hasRecordAudioPermission(): Boolean =
+        ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+
+    private fun hasCameraPermission(): Boolean =
+        ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA) ==
+            PackageManager.PERMISSION_GRANTED
+
+    private val audioCallEnablePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val userData = getInstance()?.getPrefs()?.getUserData()
+            ?: return@registerForActivityResult
+        if (granted) {
+            femaleUsersViewModel.updateCallStatus(userData.id, DConstants.AUDIO, 1)
+            binding.sAudio.setOnCheckedChangeListener(null)
+            binding.sAudio.isChecked = true
+            setupSwitchListeners(userData)
+        } else {
+            startActivity(Intent(requireContext(), GrantPermissionsActivity::class.java))
+        }
+    }
+
     private var startTime: String = ""
     private var endTime: String = ""
 
@@ -114,12 +143,28 @@ class FemaleHomeFragment : BaseFragment() {
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
         binding = FragmentFemaleHomeBinding.inflate(layoutInflater)
+        setupStatusBarInsets()
 
         sharedPreferences = requireContext().getSharedPreferences("MyAppPrefs", Context.MODE_PRIVATE)
         isPermissionDenied = sharedPreferences.getBoolean("isTagSet", false)
         initUI()
         askPermissions()
         return binding.root
+    }
+
+    private fun setupStatusBarInsets() {
+        val basePaddingTop = binding.clHeader.paddingTop
+        ViewCompat.setOnApplyWindowInsetsListener(binding.clHeader) { view, insets ->
+            val statusBarInset = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
+            view.setPadding(
+                view.paddingLeft,
+                basePaddingTop + statusBarInset,
+                view.paddingRight,
+                view.paddingBottom
+            )
+            insets
+        }
+        ViewCompat.requestApplyInsets(binding.clHeader)
     }
 
     override fun onAttach(context: Context) {
@@ -281,6 +326,12 @@ class FemaleHomeFragment : BaseFragment() {
         }
     }
 
+    private fun refreshIplBanner() {
+        if (!::binding.isInitialized) return
+        val iplEnabled = (BaseApplication.getInstance()?.getPrefs()?.getUserData()?.ipl_rooms_enabled ?: 0) == 1
+        binding.cardIplRooms.visibility = if (iplEnabled) android.view.View.VISIBLE else android.view.View.GONE
+    }
+
     private fun initUI() {
 
         val prefs = BaseApplication.getInstance()?.getPrefs()
@@ -304,19 +355,25 @@ class FemaleHomeFragment : BaseFragment() {
 //        userLanguage?.let { zohoMailViewModel.fetchZohoMail(it) }
 
 
-        userLanguage?.let {
-            zohoMailViewModel.fetchZohoMail(it) { email,department,appKey, accessKey ->
+        userLanguage?.let { lang ->
+            zohoMailViewModel.fetchZohoMail(lang) { email, department, appKey, accessKey ->
+                if (!isAdded || view == null) return@fetchZohoMail
+                val ud = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                if (ud == null) {
+                    Log.w("FemaleHomeFragment", "userData null in Zoho callback")
+                    return@fetchZohoMail
+                }
                 if (!email.isNullOrEmpty()) {
 
                     // Initialize Zoho *after* email is ready
 
-                    BaseApplication.getInstance()?.initZoho(appKey,accessKey)
+                    BaseApplication.getInstance()?.initZoho(appKey, accessKey)
 
-                    val langCode = userLanguage.take(3)
-                    ZohoSalesIQ.registerVisitor("${userData.id}_${userData.language}")
+                    val langCode = ud.language.take(3)
+                    ZohoSalesIQ.registerVisitor("${ud.id}_${ud.language}")
 
-                    ZohoSalesIQ.Visitor.setName("${userData?.name}($langCode)")
-                    ZohoSalesIQ.Visitor.setContactNumber("${userData?.mobile}")
+                    ZohoSalesIQ.Visitor.setName("${ud.name}($langCode)")
+                    ZohoSalesIQ.Visitor.setContactNumber("${ud.mobile}")
                     ZohoSalesIQ.Chat.setOperatorEmail(email)
 
 
@@ -472,6 +529,12 @@ class FemaleHomeFragment : BaseFragment() {
             startActivity(intent)
         })
 
+        // IPL Room Calls banner click — visibility handled by refreshIplBanner()
+        binding.cardIplRooms.setOnClickListener {
+            startActivity(Intent(requireContext(), com.gmwapp.hima.activities.IplRoomsActivity::class.java))
+        }
+        refreshIplBanner()
+
         if (userData != null) {
             // Disable listeners before initial setup to avoid triggering API calls
             binding.sAudio.setOnCheckedChangeListener(null)
@@ -491,6 +554,7 @@ class FemaleHomeFragment : BaseFragment() {
 
         femaleUsersViewModel.getReports(userData?.id!!)
         femaleUsersViewModel.getFemaleUsers(userData.id)
+        femaleUsersViewModel.getFemaleDiscovery(userData.id)
 
         femaleUsersViewModel.femaleUsersResponseLiveData.observe(viewLifecycleOwner, Observer { response ->
             if (response != null && response.success) {
@@ -502,6 +566,24 @@ class FemaleHomeFragment : BaseFragment() {
                     binding.tvVideoRateValue.text = "1 min = ₹$rate"
                 }
             }
+        })
+
+        femaleUsersViewModel.femaleDiscoveryResponseLiveData.observe(viewLifecycleOwner, Observer { response ->
+            if (response != null && response.success) {
+                val creators = response.data.orEmpty()
+                binding.tvOnlineCount.text = "${response.online_count ?: 0} online"
+                renderDiscoveryCreators(creators.mapNotNull { creator ->
+                    val name = creator.name?.trim().orEmpty()
+                    val avatar = creator.avatar?.trim()
+                    if (name.isBlank()) null else name to avatar
+                })
+            } else {
+                binding.cvFemaleDiscovery.visibility = View.GONE
+            }
+        })
+
+        femaleUsersViewModel.femaleDiscoveryErrorLiveData.observe(viewLifecycleOwner, Observer {
+            binding.cvFemaleDiscovery.visibility = View.GONE
         })
 
         femaleUsersViewModel.reportResponseLiveData.observe(viewLifecycleOwner, Observer {
@@ -634,22 +716,81 @@ class FemaleHomeFragment : BaseFragment() {
         setupSwitchListeners(userData)
     }
 
+    private fun renderDiscoveryCreators(creators: List<Pair<String, String?>>) {
+        if (creators.isEmpty()) {
+            binding.cvFemaleDiscovery.visibility = View.GONE
+            return
+        }
+
+        binding.cvFemaleDiscovery.visibility = View.VISIBLE
+        binding.llDiscoveryCreators.removeAllViews()
+        val displayCreators = creators.take(12)
+        val sortedMinutes = List(displayCreators.size) { Random.nextInt(1, 10) }.sorted()
+
+        displayCreators.forEachIndexed { index, (name, avatar) ->
+            val itemView = layoutInflater.inflate(
+                R.layout.item_female_discovery_creator,
+                binding.llDiscoveryCreators,
+                false
+            )
+            val ivAvatar = itemView.findViewById<ImageView>(R.id.iv_creator_avatar)
+            val tvName = itemView.findViewById<TextView>(R.id.tv_creator_name)
+            val tvTime = itemView.findViewById<TextView>(R.id.tv_joined_time)
+
+            tvName.text = name
+            tvTime.text = "${sortedMinutes[index]} min ago"
+
+            if (avatar.isNullOrBlank()) {
+                ivAvatar.setBackgroundResource(R.drawable.circle_bg_grey)
+                ivAvatar.setImageResource(R.drawable.ic_user_add)
+                ivAvatar.setColorFilter(ContextCompat.getColor(requireContext(), R.color.colorAccent))
+                ivAvatar.scaleType = ImageView.ScaleType.CENTER_INSIDE
+                ivAvatar.setPadding(14, 14, 14, 14)
+            } else {
+                ivAvatar.setBackgroundResource(0)
+                ivAvatar.clearColorFilter()
+                ivAvatar.setPadding(0, 0, 0, 0)
+                ivAvatar.scaleType = ImageView.ScaleType.CENTER_CROP
+                Glide.with(this)
+                    .load(avatar)
+                    .into(ivAvatar)
+            }
+
+            binding.llDiscoveryCreators.addView(itemView)
+        }
+    }
+
     private fun setupSwitchListeners(userData: UserData?) {
-        if (userData != null) {
-            binding.sAudio.setOnCheckedChangeListener({ buttonView, isChecked ->
-                userData.id.let { userId ->
-                    femaleUsersViewModel.updateCallStatus(
-                        userId, DConstants.AUDIO, if (isChecked) 1 else 0
-                    )
-                }
-            })
-            binding.sVideo.setOnCheckedChangeListener({ buttonView, isChecked ->
-                userData.id.let { userId ->
-                    femaleUsersViewModel.updateCallStatus(
-                        userId, DConstants.VIDEO, if (isChecked) 1 else 0
-                    )
-                }
-            })
+        if (userData == null) return
+
+        binding.sAudio.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked && !hasRecordAudioPermission()) {
+                binding.sAudio.setOnCheckedChangeListener(null)
+                binding.sAudio.isChecked = false
+                setupSwitchListeners(userData)
+                audioCallEnablePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                return@setOnCheckedChangeListener
+            }
+            femaleUsersViewModel.updateCallStatus(
+                userData.id,
+                DConstants.AUDIO,
+                if (isChecked) 1 else 0
+            )
+        }
+
+        binding.sVideo.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked && (!hasCameraPermission() || !hasRecordAudioPermission())) {
+                binding.sVideo.setOnCheckedChangeListener(null)
+                binding.sVideo.isChecked = false
+                setupSwitchListeners(userData)
+                startActivity(Intent(requireContext(), GrantPermissionsActivity::class.java))
+                return@setOnCheckedChangeListener
+            }
+            femaleUsersViewModel.updateCallStatus(
+                userData.id,
+                DConstants.VIDEO,
+                if (isChecked) 1 else 0
+            )
         }
     }
 
@@ -666,6 +807,9 @@ class FemaleHomeFragment : BaseFragment() {
             // Refresh Star Creator banner from latest API data
             binding.clStarCreatorBanner.visibility =
                 if (it?.data?.star == 1) View.VISIBLE else View.GONE
+
+            // Refresh IPL banner visibility once user data arrives from server
+            refreshIplBanner()
 
             if (it?.data != null) {
                 // Temporarily remove listeners to avoid triggering API calls when updating UI
@@ -699,6 +843,7 @@ class FemaleHomeFragment : BaseFragment() {
             checkAndLogTwoMinDuration(userData)
             
             femaleUsersViewModel.getReports(userData.id)
+            femaleUsersViewModel.getFemaleDiscovery(userData.id)
             updateEarnings()
         } else {
             Log.e("FemaleHomeFragment", "UserData is null, skipping getReports()")
@@ -1002,6 +1147,18 @@ class FemaleHomeFragment : BaseFragment() {
                 }
             }
         }
+    }
+
+    /**
+     * Called when the user re-taps the Home tab in bottom nav.
+     * Re-fetches female reports / users / discovery so the screen shows current data.
+     */
+    override fun refresh() {
+        val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
+        femaleUsersViewModel.getReports(userId)
+        femaleUsersViewModel.getFemaleUsers(userId)
+        femaleUsersViewModel.getFemaleDiscovery(userId)
+        fetchBadgeList(userId)
     }
 
 

@@ -9,8 +9,10 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Observer
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
@@ -27,8 +29,11 @@ class AccountPrivacyActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         binding = ActivityAccountPrivacyBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
+        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
@@ -38,6 +43,7 @@ class AccountPrivacyActivity : BaseActivity() {
     }
 
     private fun initUI() {
+        binding.includeProfileToolbar.tvFlowTitle.text = getString(R.string.account_privacy)
         val prefs = BaseApplication.getInstance()?.getPrefs()
         accountViewModel.getSettings()
 
@@ -45,7 +51,7 @@ class AccountPrivacyActivity : BaseActivity() {
             val intent = Intent(this, DeleteAccountActivity::class.java)
             startActivity(intent)
         }
-        binding.cvBack.setOnSingleClickListener {
+        binding.includeProfileToolbar.cvBack.setOnSingleClickListener {
             finish()
         }
         binding.cvPrivacyPolicy.setOnSingleClickListener {

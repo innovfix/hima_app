@@ -10,6 +10,7 @@ import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.AvatarsListResponse
 import com.gmwapp.hima.retrofit.responses.DeleteUserResponse
 import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
+import com.gmwapp.hima.retrofit.responses.IcebreakerQuestionsResponse
 import com.gmwapp.hima.retrofit.responses.RegisterResponse
 import com.gmwapp.hima.retrofit.responses.SpeechTextResponse
 import com.gmwapp.hima.retrofit.responses.StarCreatorSpeechResponse
@@ -439,6 +440,26 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
                 userId,
                 callType,
                 callback)
+        }
+    }
+
+    fun toggleDnd(
+        userId: Int,
+        enabled: Int,
+        durationHours: Int,
+        callback: NetworkCallback<com.gmwapp.hima.retrofit.responses.ToggleDndResponse>
+    ) {
+        viewModelScope.launch {
+            profileRepositories.toggleDnd(userId, enabled, durationHours, callback)
+        }
+    }
+
+    fun getIcebreakerQuestions(
+        userId: Int,
+        callback: NetworkCallback<IcebreakerQuestionsResponse>
+    ) {
+        viewModelScope.launch {
+            profileRepositories.getIcebreakerQuestions(userId, callback)
         }
     }
 

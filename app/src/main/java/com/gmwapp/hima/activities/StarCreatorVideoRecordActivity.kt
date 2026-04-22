@@ -26,6 +26,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import com.gmwapp.hima.R
 import com.gmwapp.hima.databinding.ActivityStarCreatorVideoRecordBinding
+import com.gmwapp.hima.utils.applySystemBarInsets
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -57,6 +58,7 @@ class StarCreatorVideoRecordActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityStarCreatorVideoRecordBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        applySystemBarInsets(binding.root, R.color.black)
 
         // Show speech text so user can read while recording
         val speechText = intent.getStringExtra(EXTRA_SPEECH_TEXT).orEmpty()

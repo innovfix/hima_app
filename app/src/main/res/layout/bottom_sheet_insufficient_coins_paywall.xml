@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingTop="16dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="24dp">
+
+        <TextView
+            android:id="@+id/tvTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textColor="@android:color/black"
+            android:textSize="24sp"
+            android:fontFamily="@font/poppins_semibold" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/priceContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="8dp"
+            app:cardBackgroundColor="@android:color/white"
+            app:cardCornerRadius="10dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/pink"
+            app:strokeWidth="1dp">
+
+            <TextView
+                android:id="@+id/tvPrice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingStart="22dp"
+                android:paddingTop="8dp"
+                android:paddingEnd="22dp"
+                android:paddingBottom="8dp"
+                android:textColor="@android:color/black"
+                android:textSize="22sp"
+                android:fontFamily="@font/poppins_semibold" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <TextView
+            android:id="@+id/tvSubtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:gravity="center"
+            android:textColor="#1A1A1A"
+            android:textSize="16sp"
+            android:fontFamily="@font/poppins_regular" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="3dp">
+
+            <com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
+                android:id="@+id/youtubePlayerView"
+                android:layout_width="match_parent"
+                android:layout_height="220dp" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnAddCoin"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_marginTop="18dp"
+            android:text="Add Coin"
+            android:textAllCaps="false"
+            android:textColor="@android:color/white"
+            android:textSize="18sp"
+            android:fontFamily="@font/poppins_semibold"
+            app:backgroundTint="@color/pink"
+            app:cornerRadius="26dp" />
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

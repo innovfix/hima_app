@@ -11,6 +11,7 @@ import androidx.lifecycle.Observer
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
+import androidx.core.content.ContextCompat
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -25,13 +26,19 @@ import com.gmwapp.hima.agora.male.MaleAudioCallingActivity
 import com.gmwapp.hima.agora.male.MaleVideoCallingActivity
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityAgoraRandomCallBinding
+import com.gmwapp.hima.viewmodels.AgoraViewModel
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class AgoraRandomCallActivity : AppCompatActivity() {
+
+    @javax.inject.Inject
+    lateinit var apiManager: com.gmwapp.hima.retrofit.ApiManager
+
     private val fcmNotificationViewModel: FcmNotificationViewModel by viewModels()
+    private val agoraViewModel: AgoraViewModel by viewModels()
     private lateinit var binding : ActivityAgoraRandomCallBinding
     var callType: String? = null
     var randomFilter: String? = null
@@ -51,6 +58,8 @@ class AgoraRandomCallActivity : AppCompatActivity() {
     private var declinedChannelName = "CallDeclined"
 
     private var isWaitingForAcceptance = false
+    private var prefetchedAgoraToken: String? = null
+    private var prefetchedAgoraAppId: String? = null
 
 
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
@@ -59,6 +68,7 @@ class AgoraRandomCallActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding = ActivityAgoraRandomCallBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        window.statusBarColor = ContextCompat.getColor(this, R.color.black)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
@@ -320,8 +330,9 @@ class AgoraRandomCallActivity : AppCompatActivity() {
                         Log.d("triedUserList","$triedUserIds")
 
                         currentChannelName = generateUniqueChannelName(userId!!)
-
-
+                        prefetchedAgoraToken = null
+                        prefetchedAgoraAppId = null
+                        prefetchAgoraToken(currentChannelName!!)
 
                         if (currentChannelName!=null){
                             sendCallNotification(userId!!, receiverId!!, callType!!,currentChannelName!!, "incoming call $callId $myAvatar $myname")
@@ -410,6 +421,13 @@ class AgoraRandomCallActivity : AppCompatActivity() {
         } else {
             Log.d("RandomCall", "Max retries reached, stopping calls.")
 
+            // Track this failed cycle on the backend (audio/video, language inferred server-side from user)
+            val uid = userId
+            val ct = callType
+            if (uid != null && uid > 0 && !ct.isNullOrEmpty()) {
+                apiManager.trackRandomCallFailure(uid, ct)
+            }
+
             val intent = Intent(this@AgoraRandomCallActivity, MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             startActivity(intent)
@@ -470,6 +488,8 @@ class AgoraRandomCallActivity : AppCompatActivity() {
                                 putExtra("CHANNEL_NAME", channelName)
                                 putExtra("RECEIVER_ID", receiverId)
                                 putExtra("CALL_ID", callId)
+                                prefetchedAgoraToken?.let { putExtra("AGORA_TOKEN", it) }
+                                prefetchedAgoraAppId?.let { putExtra("AGORA_APP_ID", it) }
                                 Log.d("RECEIVER_ID","$receiverId")
                             }
                             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -481,7 +501,8 @@ class AgoraRandomCallActivity : AppCompatActivity() {
                                 putExtra("CHANNEL_NAME", channelName)
                                 putExtra("RECEIVER_ID", receiverId)
                                 putExtra("CALL_ID", callId)
-
+                                prefetchedAgoraToken?.let { putExtra("AGORA_TOKEN", it) }
+                                prefetchedAgoraAppId?.let { putExtra("AGORA_APP_ID", it) }
                             }
                             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                             startActivity(intent)
@@ -513,6 +534,19 @@ class AgoraRandomCallActivity : AppCompatActivity() {
                 retryCall()
             }
         })
+    }
+
+    private fun prefetchAgoraToken(channelForToken: String) {
+        Log.d("AgoraTiming", "RandomCall prefetchAgoraToken started at ${System.currentTimeMillis()}")
+        agoraViewModel.agoraTokenLiveData.removeObservers(this)
+        agoraViewModel.agoraTokenLiveData.observe(this) { response ->
+            if (response != null && response.success == true && !response.token.isNullOrEmpty()) {
+                prefetchedAgoraToken = response.token
+                prefetchedAgoraAppId = response.app_id
+                Log.d("AgoraTiming", "RandomCall prefetchAgoraToken received at ${System.currentTimeMillis()}")
+            }
+        }
+        agoraViewModel.getAgoraToken(channelForToken, 0, "publisher", 3600)
     }
 
     private fun navigateToMainActivity() {

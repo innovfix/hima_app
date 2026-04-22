@@ -1,0 +1,453 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    android:background="@color/white">
+
+    <ViewFlipper
+        android:id="@+id/view_flipper"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:inAnimation="@android:anim/fade_in"
+        android:outAnimation="@android:anim/fade_out">
+
+        <!-- Screen 1: Concern Selection -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <ImageView
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:src="@mipmap/ic_launcher"
+                android:layout_marginBottom="16dp"
+                tools:ignore="ContentDescription" />
+
+            <TextView
+                android:id="@+id/tv_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_bold"
+                android:text="How are you feeling today?"
+                android:textColor="@color/creator_name_text"
+                android:textSize="22sp"
+                android:gravity="center" />
+
+            <TextView
+                android:id="@+id/tv_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="32dp"
+                android:fontFamily="@font/poppins_regular"
+                android:text="Let us know, and we'll connect you with the right people"
+                android:textColor="@color/grey_medium"
+                android:textSize="14sp"
+                android:gravity="center" />
+
+            <GridLayout
+                android:id="@+id/concern_grid"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:columnCount="2"
+                android:rowCount="2"
+                android:useDefaultMargins="true">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_breakup"
+                    android:layout_width="0dp"
+                    android:layout_height="120dp"
+                    android:layout_columnWeight="1"
+                    android:layout_margin="8dp"
+                    app:cardBackgroundColor="#FFF1F2"
+                    app:cardCornerRadius="20dp"
+                    app:cardElevation="2dp"
+                    app:strokeWidth="0dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="12dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="💔"
+                            android:textSize="32sp" />
+
+                        <TextView
+                            android:id="@+id/tv_breakup"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:fontFamily="@font/poppins_semibold"
+                            android:text="Breakup"
+                            android:textColor="#BE123C"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_loneliness"
+                    android:layout_width="0dp"
+                    android:layout_height="120dp"
+                    android:layout_columnWeight="1"
+                    android:layout_margin="8dp"
+                    app:cardBackgroundColor="#EFF6FF"
+                    app:cardCornerRadius="20dp"
+                    app:cardElevation="2dp"
+                    app:strokeWidth="0dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="12dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="😔"
+                            android:textSize="32sp" />
+
+                        <TextView
+                            android:id="@+id/tv_loneliness"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:fontFamily="@font/poppins_semibold"
+                            android:text="Loneliness"
+                            android:textColor="#1D4ED8"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_stress"
+                    android:layout_width="0dp"
+                    android:layout_height="120dp"
+                    android:layout_columnWeight="1"
+                    android:layout_margin="8dp"
+                    app:cardBackgroundColor="#FFF7ED"
+                    app:cardCornerRadius="20dp"
+                    app:cardElevation="2dp"
+                    app:strokeWidth="0dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="12dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="😰"
+                            android:textSize="32sp" />
+
+                        <TextView
+                            android:id="@+id/tv_stress"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:fontFamily="@font/poppins_semibold"
+                            android:text="Stress"
+                            android:textColor="#C2410C"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/card_boredom"
+                    android:layout_width="0dp"
+                    android:layout_height="120dp"
+                    android:layout_columnWeight="1"
+                    android:layout_margin="8dp"
+                    app:cardBackgroundColor="#F0FDF4"
+                    app:cardCornerRadius="20dp"
+                    app:cardElevation="2dp"
+                    app:strokeWidth="0dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="12dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="😴"
+                            android:textSize="32sp" />
+
+                        <TextView
+                            android:id="@+id/tv_boredom"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:fontFamily="@font/poppins_semibold"
+                            android:text="Boredom"
+                            android:textColor="#15803D"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+            </GridLayout>
+
+        </LinearLayout>
+
+        <!-- Screen 2: AI Chat -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#FAFAFC"
+            android:orientation="vertical">
+
+            <!-- Chat header (premium look) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="72dp"
+                android:background="@color/colorAccent"
+                android:elevation="4dp"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="16dp">
+
+                <FrameLayout
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:background="@drawable/bg_hima_avatar">
+
+                    <ImageView
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:layout_gravity="center"
+                        android:src="@mipmap/ic_launcher"
+                        tools:ignore="ContentDescription" />
+                </FrameLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="14dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/poppins_bold"
+                        android:text="Hima"
+                        android:textColor="@color/white"
+                        android:textSize="17sp" />
+
+                    <TextView
+                        android:id="@+id/tv_typing_status"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:fontFamily="@font/poppins_regular"
+                        android:text="Online"
+                        android:textColor="#FFFFFFD9"
+                        android:textSize="12sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Chat messages -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_chat"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:clipToPadding="false"
+                android:paddingTop="16dp"
+                android:paddingBottom="8dp" />
+
+            <!-- Input bar (premium rounded look) -->
+            <LinearLayout
+                android:id="@+id/input_bar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@color/white"
+                android:elevation="8dp"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="10dp">
+
+                <EditText
+                    android:id="@+id/et_message"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_chat_input"
+                    android:fontFamily="@font/poppins_regular"
+                    android:gravity="center_vertical"
+                    android:hint="Type your message..."
+                    android:imeOptions="actionSend"
+                    android:inputType="text"
+                    android:maxLines="1"
+                    android:paddingHorizontal="18dp"
+                    android:textColor="#111827"
+                    android:textColorHint="#9CA3AF"
+                    android:textSize="15sp"
+                    android:autofillHints="no"
+                    android:importantForAutofill="no" />
+
+                <ImageView
+                    android:id="@+id/btn_send"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="10dp"
+                    android:background="@drawable/bg_chat_send_btn"
+                    android:padding="12dp"
+                    android:src="@android:drawable/ic_menu_send"
+                    app:tint="@color/white"
+                    tools:ignore="ContentDescription" />
+            </LinearLayout>
+
+            <!-- "Let's Go" button (shown after AI recommendation) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_lets_go"
+                android:layout_width="match_parent"
+                android:layout_height="58dp"
+                android:layout_margin="16dp"
+                android:fontFamily="@font/poppins_bold"
+                android:letterSpacing="0.02"
+                android:text="✨ Let's Go! Meet Your Matches"
+                android:textColor="@color/white"
+                android:textSize="15sp"
+                android:visibility="gone"
+                app:backgroundTint="@color/colorAccent"
+                app:cornerRadius="29dp"
+                app:elevation="6dp"
+                tools:visibility="visible" />
+
+        </LinearLayout>
+
+        <!-- Screen 3: Matched Creators List + Delivery Animation -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:background="@color/white">
+
+            <TextView
+                android:id="@+id/tv_creators_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_bold"
+                android:gravity="center"
+                android:paddingTop="32dp"
+                android:paddingBottom="8dp"
+                android:text="Delivering your message…"
+                android:textColor="@color/creator_name_text"
+                android:textSize="20sp" />
+
+            <TextView
+                android:id="@+id/tv_creators_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_regular"
+                android:gravity="center"
+                android:paddingHorizontal="32dp"
+                android:paddingBottom="16dp"
+                android:text="Hima is reaching your matches now ✨"
+                android:textColor="@color/grey_medium"
+                android:textSize="14sp" />
+
+            <!-- Wrapper lets the messenger avatar float over the row list -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_creators"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipToPadding="false"
+                    android:paddingHorizontal="12dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="80dp" />
+
+                <!-- Hima messenger: overlaid bubble that glides to the row currently
+                     being delivered. Replaces the old "typing…" dots. -->
+                <FrameLayout
+                    android:id="@+id/iv_messenger_avatar"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_gravity="start|top"
+                    android:layout_marginStart="-6dp"
+                    android:background="@drawable/bg_hima_avatar"
+                    android:elevation="6dp"
+                    android:visibility="invisible"
+                    tools:visibility="visible">
+
+                    <ImageView
+                        android:layout_width="26dp"
+                        android:layout_height="26dp"
+                        android:layout_gravity="center"
+                        android:contentDescription="@null"
+                        android:src="@mipmap/ic_launcher" />
+                </FrameLayout>
+            </FrameLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_start_chatting"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_margin="16dp"
+                android:fontFamily="@font/poppins_bold"
+                android:text="Start Chatting"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:visibility="gone"
+                app:backgroundTint="@color/colorAccent"
+                app:cornerRadius="28dp" />
+        </LinearLayout>
+
+    </ViewFlipper>
+
+    <!-- Loading overlay -->
+    <FrameLayout
+        android:id="@+id/loading_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#CC000000"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ProgressBar
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:indeterminateTint="@color/colorAccent" />
+
+            <TextView
+                android:id="@+id/tv_loading_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:fontFamily="@font/poppins_semibold"
+                android:text="Finding perfect matches for you..."
+                android:textColor="@color/white"
+                android:textSize="16sp" />
+        </LinearLayout>
+    </FrameLayout>
+
+</FrameLayout>

@@ -28,6 +28,7 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityStarCreatorApplicationBinding
 import com.gmwapp.hima.retrofit.responses.StarCreatorSpeechResponse
+import com.gmwapp.hima.utils.applySystemBarInsets
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.naman14.androidlame.Mp3Recorder
 import dagger.hilt.android.AndroidEntryPoint
@@ -86,6 +87,7 @@ class StarCreatorApplicationActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityStarCreatorApplicationBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        applySystemBarInsets(binding.root, R.color.white, applyIme = true, darkStatusBarIcons = true)
 
         binding.ivBack.setOnClickListener { finish() }
         setupChips()

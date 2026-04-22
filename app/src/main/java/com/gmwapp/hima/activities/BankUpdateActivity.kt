@@ -27,6 +27,7 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityBankUpdateBinding
 import com.gmwapp.hima.retrofit.responses.UserData
+import com.gmwapp.hima.utils.applySystemBarInsets
 import com.gmwapp.hima.viewmodels.BankViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -49,6 +50,7 @@ class BankUpdateActivity : BaseActivity() {
 
         binding = ActivityBankUpdateBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        applySystemBarInsets(binding.root, R.color.white, applyIme = true, darkStatusBarIcons = true)
 
         initUI()
 

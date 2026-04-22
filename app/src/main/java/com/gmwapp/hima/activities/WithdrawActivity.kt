@@ -31,6 +31,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.updatePadding
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
@@ -90,6 +91,8 @@ class WithdrawActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityWithdrawBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
         enableEdgeToEdge()
@@ -200,7 +203,7 @@ class WithdrawActivity : BaseActivity() {
         val rvUpiTypes = findViewById<RecyclerView>(R.id.rv_upi_types)
         val etUpiId = findViewById<EditText>(R.id.et_upi_id)
 
-         payment_method = intent.getStringExtra("payment_method").toString()
+         payment_method = intent.getStringExtra("payment_method").orEmpty()
          val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
 
 
@@ -230,6 +233,11 @@ class WithdrawActivity : BaseActivity() {
         else if (payment_method == "bank_transfer"){
             binding.cvAddUpi.visibility = View.GONE
             binding.cvAddBank.visibility = View.VISIBLE
+            // Show the same Withdrawal Summary card (transaction fee + TDS + amount
+            // you'll receive) that the UPI flow shows. validateFields() already
+            // computes the slab-based fee + TDS regardless of payment method, it
+            // just gates the calculation on this card being visible.
+            binding.llTransactionfee.visibility = View.VISIBLE
         }
 
 
@@ -306,11 +314,16 @@ class WithdrawActivity : BaseActivity() {
                 return@setOnClickListener  //
             }
 
-            val amount = binding.etAmount.text.toString().toDouble().toInt()
-            val paymentMethod = payment_method
+            val rawAmount = binding.etAmount.text?.toString()?.trim().orEmpty()
+            val amount = rawAmount.toDoubleOrNull()?.toInt()
+            if (amount == null || amount <= 0) {
+                showAppToast("Enter a valid amount", Toast.LENGTH_SHORT)
+                return@setOnClickListener
+            }
+            val paymentMethod = payment_method.orEmpty().trim()
 
             Log.d("paymentMethod","$paymentMethod")
-            if (payment_method.trim().equals("upi_transfer", ignoreCase = true)){
+            if (paymentMethod.equals("upi_transfer", ignoreCase = true)){
 
 
                 val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id

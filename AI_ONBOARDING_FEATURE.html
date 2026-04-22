@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hima AI Onboarding - Feature Documentation</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Inter',sans-serif; background:#0f0f1a; color:#e0e0e0; line-height:1.7; }
+
+/* Hero */
+.hero { background:linear-gradient(135deg,#ff2d78,#ff6b9d,#c084fc,#818cf8); padding:80px 40px; text-align:center; position:relative; overflow:hidden; }
+.hero::before { content:''; position:absolute; top:-50%; left:-50%; width:200%; height:200%; background:radial-gradient(circle,rgba(255,255,255,0.1) 0%,transparent 60%); animation:pulse 4s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.1);} }
+.hero h1 { font-size:3.2em; font-weight:900; color:#fff; text-shadow:0 4px 20px rgba(0,0,0,0.3); position:relative; }
+.hero p { font-size:1.2em; color:rgba(255,255,255,0.9); margin-top:12px; position:relative; max-width:700px; margin-left:auto; margin-right:auto; }
+.hero .badge { display:inline-block; background:rgba(255,255,255,0.2); backdrop-filter:blur(10px); padding:8px 20px; border-radius:50px; color:#fff; font-weight:600; margin-top:20px; border:1px solid rgba(255,255,255,0.3); position:relative; }
+
+.container { max-width:1100px; margin:0 auto; padding:40px 24px; }
+
+/* Section */
+.section { margin-bottom:48px; }
+.section-title { font-size:1.8em; font-weight:800; margin-bottom:24px; display:flex; align-items:center; gap:12px; }
+.section-title .icon { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.4em; flex-shrink:0; }
+
+/* Cards */
+.card { background:#1a1a2e; border-radius:16px; padding:28px; margin-bottom:20px; border:1px solid #2a2a4a; transition:transform 0.2s,box-shadow 0.2s; }
+.card:hover { transform:translateY(-2px); box-shadow:0 8px 30px rgba(0,0,0,0.3); }
+.card h3 { font-size:1.15em; font-weight:700; margin-bottom:12px; }
+.card p { color:#a0a0b8; }
+
+/* Flow */
+.flow { display:flex; flex-wrap:wrap; gap:0; align-items:center; justify-content:center; margin:30px 0; }
+.flow-step { background:linear-gradient(135deg,#1e1e3a,#2a2a4e); border-radius:16px; padding:20px 24px; text-align:center; min-width:160px; border:1px solid #3a3a5e; }
+.flow-step .num { width:36px; height:36px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:800; font-size:0.9em; margin-bottom:8px; }
+.flow-step .label { font-weight:600; font-size:0.95em; }
+.flow-arrow { font-size:1.8em; color:#ff2d78; padding:0 8px; }
+
+/* Screen Cards */
+.screen-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:20px; }
+.screen-card { border-radius:20px; padding:32px; border:2px solid transparent; position:relative; overflow:hidden; }
+.screen-card::before { content:''; position:absolute; top:0; left:0; right:0; height:4px; }
+.screen-card.s1 { background:linear-gradient(180deg,#2d1b1b,#1a1a2e); border-color:#ff4d6d33; }
+.screen-card.s1::before { background:linear-gradient(90deg,#ff4d6d,#ff8fa3); }
+.screen-card.s2 { background:linear-gradient(180deg,#1b2d1e,#1a1a2e); border-color:#10b98133; }
+.screen-card.s2::before { background:linear-gradient(90deg,#10b981,#6ee7b7); }
+.screen-card.s3 { background:linear-gradient(180deg,#1b1b2d,#1a1a2e); border-color:#818cf833; }
+.screen-card.s3::before { background:linear-gradient(90deg,#818cf8,#c084fc); }
+.screen-num { font-size:3em; font-weight:900; opacity:0.15; position:absolute; top:12px; right:20px; }
+.screen-card h3 { font-size:1.3em; font-weight:700; margin-bottom:12px; }
+.screen-card ul { list-style:none; padding:0; }
+.screen-card li { padding:6px 0; color:#b0b0c8; font-size:0.95em; }
+.screen-card li::before { content:''; display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:10px; }
+.s1 li::before { background:#ff4d6d; }
+.s2 li::before { background:#10b981; }
+.s3 li::before { background:#818cf8; }
+
+/* Concern Grid */
+.concern-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin:20px 0; }
+.concern-item { border-radius:16px; padding:24px 16px; text-align:center; }
+.concern-item .emoji { font-size:2.2em; margin-bottom:8px; }
+.concern-item .name { font-weight:700; font-size:1em; }
+.concern-item .tanglish { font-size:0.8em; opacity:0.7; margin-top:4px; }
+
+/* Table */
+table { width:100%; border-collapse:separate; border-spacing:0; margin:16px 0; border-radius:12px; overflow:hidden; }
+th { background:linear-gradient(135deg,#ff2d78,#c084fc); color:#fff; padding:14px 18px; text-align:left; font-weight:700; font-size:0.9em; text-transform:uppercase; letter-spacing:0.5px; }
+td { padding:12px 18px; border-bottom:1px solid #2a2a4a; font-size:0.92em; color:#c0c0d8; }
+tr:last-child td { border-bottom:none; }
+tr:nth-child(even) td { background:#1e1e34; }
+tr:nth-child(odd) td { background:#1a1a2e; }
+tr:hover td { background:#252545; }
+
+/* API Cards */
+.api-card { background:#1a1a2e; border-radius:16px; padding:28px; margin-bottom:16px; border-left:4px solid; }
+.api-card.post { border-left-color:#10b981; }
+.api-card .method { display:inline-block; padding:4px 12px; border-radius:6px; font-weight:700; font-size:0.8em; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+.api-card.post .method { background:#10b98122; color:#10b981; }
+.api-card .endpoint { font-family:'Courier New',monospace; font-size:1.05em; font-weight:600; color:#e0e0f0; }
+.api-card .desc { color:#a0a0b8; margin-top:8px; font-size:0.92em; }
+
+/* Code */
+.code-block { background:#12121f; border-radius:12px; padding:20px; font-family:'Courier New',monospace; font-size:0.88em; color:#a0e0a0; overflow-x:auto; border:1px solid #2a2a4a; margin:12px 0; white-space:pre; line-height:1.6; }
+
+/* File list */
+.file-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:12px; }
+.file-item { background:#1e1e34; border-radius:12px; padding:16px; display:flex; align-items:flex-start; gap:12px; border:1px solid #2a2a4a; }
+.file-icon { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.1em; flex-shrink:0; }
+.file-new .file-icon { background:#10b98122; }
+.file-mod .file-icon { background:#f59e0b22; }
+.file-item .file-name { font-weight:600; font-size:0.9em; color:#e0e0f0; word-break:break-all; }
+.file-item .file-desc { font-size:0.8em; color:#8080a0; margin-top:4px; }
+
+/* Tags */
+.tag { display:inline-block; padding:3px 10px; border-radius:6px; font-size:0.75em; font-weight:600; margin:2px; }
+.tag-green { background:#10b98122; color:#10b981; }
+.tag-pink { background:#ff2d7822; color:#ff6b9d; }
+.tag-purple { background:#818cf822; color:#c084fc; }
+.tag-yellow { background:#f59e0b22; color:#fbbf24; }
+.tag-blue { background:#3b82f622; color:#60a5fa; }
+
+/* Lang table */
+.lang-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; margin:16px 0; }
+.lang-chip { background:#1e1e34; border-radius:12px; padding:14px 18px; border:1px solid #2a2a4a; }
+.lang-chip .lang-name { font-weight:700; font-size:0.95em; color:#ff6b9d; }
+.lang-chip .lang-title { font-size:0.8em; color:#8080a0; margin-top:6px; }
+
+/* Stats */
+.stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; margin:24px 0; }
+.stat-card { background:linear-gradient(135deg,#1e1e3a,#2a2a4e); border-radius:16px; padding:24px; text-align:center; border:1px solid #3a3a5e; }
+.stat-num { font-size:2.2em; font-weight:900; background:linear-gradient(135deg,#ff2d78,#c084fc); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.stat-label { font-size:0.85em; color:#8080a0; margin-top:4px; font-weight:500; }
+
+/* Footer */
+.footer { text-align:center; padding:40px; color:#505070; font-size:0.85em; border-top:1px solid #2a2a4a; }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+    <h1>Hima AI Onboarding</h1>
+    <p>Empathetic AI-powered onboarding that connects new users with the perfect creators through meaningful conversation</p>
+    <div class="badge">Branch: ai_onboarding (from IPL_Fixes)</div>
+</div>
+
+<div class="container">
+
+<!-- STATS -->
+<div class="stats-grid">
+    <div class="stat-card"><div class="stat-num">3</div><div class="stat-label">Screens</div></div>
+    <div class="stat-card"><div class="stat-num">11</div><div class="stat-label">Languages</div></div>
+    <div class="stat-card"><div class="stat-num">3</div><div class="stat-label">API Endpoints</div></div>
+    <div class="stat-card"><div class="stat-num">17</div><div class="stat-label">Files Changed</div></div>
+    <div class="stat-card"><div class="stat-num">$0.03</div><div class="stat-label">Cost / User</div></div>
+</div>
+
+<!-- USER FLOW -->
+<div class="section">
+    <div class="section-title"><div class="icon" style="background:#ff2d7822;color:#ff6b9d">&#x1F680;</div> User Flow</div>
+    <div class="flow">
+        <div class="flow-step"><div class="num" style="background:#ff2d7833;color:#ff6b9d">1</div><div class="label">Register<br><small style="color:#8080a0">Male User</small></div></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step"><div class="num" style="background:#f59e0b33;color:#fbbf24">2</div><div class="label">Pick Concern<br><small style="color:#8080a0">4 Options</small></div></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step"><div class="num" style="background:#10b98133;color:#10b981">3</div><div class="label">AI Chat<br><small style="color:#8080a0">Tanglish</small></div></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step"><div class="num" style="background:#818cf833;color:#818cf8">4</div><div class="label">Creators List<br><small style="color:#8080a0">Top Matches</small></div></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step"><div class="num" style="background:#c084fc33;color:#c084fc">5</div><div class="label">Main App<br><small style="color:#8080a0">Chats Ready</small></div></div>
+    </div>
+</div>
+
+<!-- THREE SCREENS -->
+<div class="section">
+    <div class="section-title"><div class="icon" style="background:#818cf822;color:#818cf8">&#x1F4F1;</div> Three Screens</div>
+    <div class="screen-grid">
+        <div class="screen-card s1">
+            <div class="screen-num">01</div>
+            <h3>&#x1F494; Concern Selection</h3>
+            <ul>
+                <li>4 emotion cards in 2x2 grid</li>
+                <li>Tanglish text (Roman script)</li>
+                <li>All 11 Indian languages</li>
+                <li>Breakup / Loneliness / Stress / Boredom</li>
+                <li>Beautiful pastel card colors</li>
+            </ul>
+        </div>
+        <div class="screen-card s2">
+            <div class="screen-num">02</div>
+            <h3>&#x1F916; AI Conversation</h3>
+            <ul>
+                <li>Multi-turn chat (no fixed limit)</li>
+                <li>AI speaks Tanglish via OpenRouter GPT</li>
+                <li>"Hima" header with typing indicator</li>
+                <li>After 3+ exchanges, AI wraps up</li>
+                <li>"Let's Go! Meet Your Matches" button</li>
+            </ul>
+        </div>
+        <div class="screen-card s3">
+            <div class="screen-num">03</div>
+            <h3>&#x1F465; Matched Creators</h3>
+            <ul>
+                <li>Top 5 creators by score + language</li>
+                <li>Profile image + online indicator</li>
+                <li>Audio / Video call buttons</li>
+                <li>Tap to open chat directly</li>
+                <li>Ice-breaker messages already sent</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- CONCERN CARDS -->
+<div class="section">
+    <div class="section-title"><div class="icon" style="background:#f59e0b22;color:#fbbf24">&#x1F3AF;</div> Concern Options</div>
+    <div class="concern-grid">
+        <div class="concern-item" style="background:linear-gradient(135deg,#4a1525,#2d1020)">
+            <div class="emoji">&#x1F494;</div>
+            <div class="name" style="color:#ff6b9d">Breakup</div>
+            <div class="tanglish">Pirivu / Breakup</div>
+        </div>
+        <div class="concern-item" style="background:linear-gradient(135deg,#152545,#102040)">
+            <div class="emoji">&#x1F614;</div>
+            <div class="name" style="color:#60a5fa">Loneliness</div>
+            <div class="tanglish">Thanimai / Akela</div>
+        </div>
+        <div class="concern-item" style="background:linear-gradient(135deg,#453015,#302010)">
+            <div class="emoji">&#x1F630;</div>
+            <div class="name" style="color:#fbbf24">Stress</div>
+            <div class="tanglish">Stress / Tension</div>
+        </div>
+        <div class="concern-item" style="background:linear-gradient(135deg,#154525,#103020)">
+            <div class="emoji">&#x1F634;</div>
+            <div class="name" style="color:#10b981">Boredom</div>
+            <div class="tanglish">Boring / Salipu</div>
+        </div>
+    </div>
+</div>
+
+<!-- AI EXAMPLE -->
+<div class="section">
+    <div class="section-title"><div class="icon" style="background:#10b98122;color:#10b981">&#x1F4AC;</div> AI Chat Example (Tamil Tanglish)</div>
+    <div class="card" style="background:#12121f">
+        <div style="display:flex;flex-direction:column;gap:12px">
+            <div style="align-self:flex-start;background:#2a2a4e;padding:12px 18px;border-radius:16px;max-width:70%;color:#e0e0f0">
+                <strong style="color:#ff6b9d">Hima:</strong> Ayyo, breakup aachaa? Romba kastama irukum da... Naan unoda pain-a purinjukuren. Enna nadanthathu sollu?
+            </div>
+            <div style="align-self:flex-end;background:linear-gradient(135deg,#ff2d78,#ff6b9d);padding:12px 18px;border-radius:16px;max-width:70%;color:#fff">
+                <strong>User:</strong> 2 years relationship bro... suddenly she left me
+            </div>
+            <div style="align-self:flex-start;background:#2a2a4e;padding:12px 18px;border-radius:16px;max-width:70%;color:#e0e0f0">
+                <strong style="color:#ff6b9d">Hima:</strong> 2 years-a?! Adhuku aprom leave pannadhu romba painful da. Unaku ippo enna feel aaguthu? Angry-a illa sad-a?
+            </div>
+            <div style="align-self:flex-end;background:linear-gradient(135deg,#ff2d78,#ff6b9d);padding:12px 18px;border-radius:16px;max-width:70%;color:#fff">
+                <strong>User:</strong> sad bro cant sleep properly
+            </div>
+            <div style="align-self:flex-start;background:#2a2a4e;padding:12px 18px;border-radius:16px;max-width:70%;color:#e0e0f0">
+                <strong style="color:#ff6b9d">Hima:</strong> Puriyuthu da... Sleep illama irundha mind-la ore think-a irukkum. But nee alone illa! Inga romba nalla people irukanga, unakaga pesuvanga. Naan connect pannren, okay? &#x1F49B;
+            </div>
+            <div style="text-align:center;margin-top:12px">
+                <span style="background:linear-gradient(135deg,#ff2d78,#c084fc);color:#fff;padding:10px 32px;border-radius:50px;font-weight:700;display:inline-block">LET'S GO! MEET YOUR MATCHES</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- API ENDPOINTS -->
+<div class="section">
+    <div class="section-title"><div class="icon" style="background:#3b82f622;color:#60a5fa">&#x26A1;</div> API Endpoints</div>
+
+    <div class="api-card post">
+        <span class="method">POST</span>
+        <span class="endpoint">/api/auth/ai_onboarding_start</span>
+        <div class="desc">Start AI session. Input: <span class="tag tag-blue">user_id</span> <span class="tag tag-pink">concern</span> &rarr; Returns: session_id + first AI message</div>
+    </div>
+
+    <div class="api-card post">
+        <span class="method">POST</span>
+        <span class="endpoint">/api/auth/ai_onboarding_reply</span>
+        <div class="desc">Send user message. Input: <span class="tag tag-blue">session_id</span> <span class="tag tag-pink">user_message</span> &rarr; Returns: AI reply + is_complete flag</div>
+    </div>
+
+    <div class="api-card post">
+        <span class="method">POST</span>
+        <span class="endpoint">/api/auth/ai_onboarding_complete</span>
+        <div class="desc">Match creators. Input: <span class="tag tag-blue">session_id</span> &rarr; Returns: matched_creators[] + messages_sent</div>
+    </div>
+</div>
+
+<!-- CREATOR MATCHING -->
+<div class="section">
+    <div class="section-title"><div class="icon" style="background:#c084fc22;color:#c084fc">&#x1F3AF;</div> Creator Matching Algorithm</div>
+    <div class="card">
+        <h3 style="color:#c084fc">How creators are selected</h3>
+        <div style="margin-top:16px">
+            <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #2a2a4a">
+                <span class="tag tag-green">Step 1</span>
+                <span>Filter: <code style="color:#10b981">gender=female, status=2, language IN connectedLanguages</code></span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #2a2a4a">
+                <span class="tag tag-green">Step 2</span>
+                <span>Online check: <code style="color:#10b981">audio_status=1 OR video_status=1</code> within 5 min</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #2a2a4a">
+                <span class="tag tag-green">Step 3</span>
+                <span>Sort: <code style="color:#10b981">random_audio_score DESC, avg_call_percentage DESC</code></span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #2a2a4a">
+                <span class="tag tag-yellow">Fallback A</span>
+                <span>If &lt;3 online &rarr; relax to 30min window</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;padding:8px 0">
+                <span class="tag tag-pink">Fallback B</span>
+                <span>If still 0 &rarr; top-scoring regardless of online status</span>
+            </div>
+        </div>
+        <div style="margin-top:16px;padding:16px;background:#12121f;border-radius:12px">
+            <strong style="color:#fbbf24">Ice-breaker sent to each creator:</strong><br>
+            <code style="color:#a0e0a0">"Hi {name}! I'm going through a tough time. Would love to talk with you!"</code>
+        </div>
+    </div>
+</div>
+
+<!-- FILES -->
+<div class="section">
+    <div class="section-title"><div class="icon" style="background:#f59e0b22;color:#fbbf24">&#x1F4C1;</div> Android Files</div>
+    <p style="margin-bottom:16px"><span class="tag tag-green">NEW</span> = Created &nbsp; <span class="tag tag-yellow">MOD</span> = Modified</p>
+    <div class="file-grid">
+        <div class="file-item file-new"><div class="file-icon">&#x1F4F1;</div><div><div class="file-name">AiOnboardingActivity.kt</div><div class="file-desc">Main 3-screen activity with ViewFlipper</div></div></div>
+        <div class="file-item file-new"><div class="file-icon">&#x1F4AC;</div><div><div class="file-name">AiChatAdapter.kt</div><div class="file-desc">Chat bubbles (AI left, user right)</div></div></div>
+        <div class="file-item file-new"><div class="file-icon">&#x1F465;</div><div><div class="file-name">MatchedCreatorAdapter.kt</div><div class="file-desc">Creator cards with call buttons</div></div></div>
+        <div class="file-item file-new"><div class="file-icon">&#x1F9E0;</div><div><div class="file-name">AiOnboardingViewModel.kt</div><div class="file-desc">MVVM ViewModel with 5 LiveData streams</div></div></div>
+        <div class="file-item file-new"><div class="file-icon">&#x1F4E6;</div><div><div class="file-name">AiOnboardingRepository.kt</div><div class="file-desc">Repository layer delegating to ApiManager</div></div></div>
+        <div class="file-item file-new"><div class="file-icon">&#x1F4E8;</div><div><div class="file-name">AiOnboarding*Response.kt</div><div class="file-desc">3 response data classes with Gson mapping</div></div></div>
+        <div class="file-item file-new"><div class="file-icon">&#x1F3A8;</div><div><div class="file-name">activity_ai_onboarding.xml</div><div class="file-desc">3-screen layout with loading overlay</div></div></div>
+        <div class="file-item file-new"><div class="file-icon">&#x1F5BC;</div><div><div class="file-name">item_ai_chat_*.xml + item_matched_creator.xml</div><div class="file-desc">Chat bubble + creator card layouts</div></div></div>
+        <div class="file-item file-mod"><div class="file-icon" style="background:#f59e0b22">&#x270F;</div><div><div class="file-name">SelectLanguageActivity.kt</div><div class="file-desc">Routes new males to AI onboarding</div></div></div>
+        <div class="file-item file-mod"><div class="file-icon" style="background:#f59e0b22">&#x270F;</div><div><div class="file-name">ApiManager.kt</div><div class="file-desc">3 new endpoints + imports</div></div></div>
+        <div class="file-item file-mod"><div class="file-icon" style="background:#f59e0b22">&#x270F;</div><div><div class="file-name">FemaleUserAdapter.kt</div><div class="file-desc">Audio/Video call buttons on cards</div></div></div>
+        <div class="file-item file-mod"><div class="file-icon" style="background:#f59e0b22">&#x270F;</div><div><div class="file-name">AndroidManifest.xml</div><div class="file-desc">Registered AiOnboardingActivity</div></div></div>
+    </div>
+</div>
+
+<!-- BACKEND FILES -->
+<div class="section">
+    <div class="section-title"><div class="icon" style="background:#10b98122;color:#10b981">&#x1F5A5;</div> Backend Files</div>
+    <div class="file-grid">
+        <div class="file-item file-new"><div class="file-icon">&#x1F4CA;</div><div><div class="file-name">AiOnboardingSession.php</div><div class="file-desc">Eloquent model with JSON casts</div></div></div>
+        <div class="file-item file-new"><div class="file-icon">&#x1F4BE;</div><div><div class="file-name">Migration: ai_onboarding_sessions</div><div class="file-desc">Sessions table + users.ai_onboarding_completed</div></div></div>
+        <div class="file-item file-mod"><div class="file-icon" style="background:#f59e0b22">&#x270F;</div><div><div class="file-name">OpenRouterService.php</div><div class="file-desc">callOnboardingApi() + empathy + followup methods</div></div></div>
+        <div class="file-item file-mod"><div class="file-icon" style="background:#f59e0b22">&#x270F;</div><div><div class="file-name">AuthController.php</div><div class="file-desc">3 endpoint methods with creator matching</div></div></div>
+        <div class="file-item file-mod"><div class="file-icon" style="background:#f59e0b22">&#x270F;</div><div><div class="file-name">routes/api.php</div><div class="file-desc">3 POST routes in auth middleware</div></div></div>
+    </div>
+</div>
+
+<!-- DATABASE -->
+<div class="section">
+    <div class="section-title"><div class="icon" style="background:#ff2d7822;color:#ff6b9d">&#x1F4BE;</div> Database Schema</div>
+    <table>
+        <tr><th>Column</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>id</code></td><td>bigint PK</td><td>Auto-increment</td></tr>
+        <tr><td><code>user_id</code></td><td>int (indexed)</td><td>FK to users table</td></tr>
+        <tr><td><code>language</code></td><td>varchar(50)</td><td>User's selected language</td></tr>
+        <tr><td><code>concern</code></td><td>varchar(50)</td><td>breakup / loneliness / stress / boredom</td></tr>
+        <tr><td><code>conversation_history</code></td><td>JSON</td><td>[{role: "ai"/"user", content: "..."}]</td></tr>
+        <tr><td><code>step</code></td><td>tinyint</td><td>Conversation progress (0-10)</td></tr>
+        <tr><td><code>matched_creator_ids</code></td><td>JSON</td><td>[123, 456, 789]</td></tr>
+        <tr><td><code>messages_sent</code></td><td>boolean</td><td>Whether ice-breakers were sent</td></tr>
+    </table>
+</div>
+
+<!-- LANGUAGES -->
+<div class="section">
+    <div class="section-title"><div class="icon" style="background:#3b82f622;color:#60a5fa">&#x1F30D;</div> 11 Languages (Tanglish)</div>
+    <div class="lang-grid">
+        <div class="lang-chip"><div class="lang-name">Tamil</div><div class="lang-title">Inniki eppadi feel pannureenga?</div></div>
+        <div class="lang-chip"><div class="lang-name">Hindi</div><div class="lang-title">Aaj kaisa feel kar rahe ho?</div></div>
+        <div class="lang-chip"><div class="lang-name">Telugu</div><div class="lang-title">Ee roju ela feel avthunnaru?</div></div>
+        <div class="lang-chip"><div class="lang-name">Kannada</div><div class="lang-title">Ivattu heg feel agthidira?</div></div>
+        <div class="lang-chip"><div class="lang-name">Malayalam</div><div class="lang-title">Innu engane feel cheyyunnu?</div></div>
+        <div class="lang-chip"><div class="lang-name">Marathi</div><div class="lang-title">Aaj kasa feel hotay?</div></div>
+        <div class="lang-chip"><div class="lang-name">Bengali</div><div class="lang-title">Aaj kemon feel korcho?</div></div>
+        <div class="lang-chip"><div class="lang-name">Assamese</div><div class="lang-title">Aji kenekuwa feel korisaa?</div></div>
+        <div class="lang-chip"><div class="lang-name">Odia</div><div class="lang-title">Aaji kemiti feel karuchha?</div></div>
+        <div class="lang-chip"><div class="lang-name">Gujarati</div><div class="lang-title">Aaje kem feel thay chhe?</div></div>
+        <div class="lang-chip"><div class="lang-name">Punjabi</div><div class="lang-title">Ajj kiven feel kar rahe ho?</div></div>
+    </div>
+</div>
+
+<!-- COST + SAFETY -->
+<div class="section">
+    <div class="section-title"><div class="icon" style="background:#10b98122;color:#10b981">&#x1F6E1;</div> Cost Control & Safety</div>
+    <div class="screen-grid">
+        <div class="card">
+            <h3 style="color:#10b981">Cost Controls</h3>
+            <ul style="list-style:none;padding:0">
+                <li style="padding:6px 0;color:#b0b0c8">&#x2705; 1 onboarding per user lifetime</li>
+                <li style="padding:6px 0;color:#b0b0c8">&#x2705; Session reuse within 24h</li>
+                <li style="padding:6px 0;color:#b0b0c8">&#x2705; Max ~5 AI calls per user</li>
+                <li style="padding:6px 0;color:#b0b0c8">&#x2705; Hard cap at 10 conversation steps</li>
+                <li style="padding:6px 0;color:#b0b0c8">&#x2705; ~$0.03 per new user</li>
+            </ul>
+        </div>
+        <div class="card">
+            <h3 style="color:#fbbf24">Error Handling</h3>
+            <ul style="list-style:none;padding:0">
+                <li style="padding:6px 0;color:#b0b0c8">&#x1F6E1; AI fails &rarr; pre-written fallback messages</li>
+                <li style="padding:6px 0;color:#b0b0c8">&#x1F6E1; 0 creators online &rarr; 3-tier fallback (5m &rarr; 30m &rarr; all)</li>
+                <li style="padding:6px 0;color:#b0b0c8">&#x1F6E1; Network error &rarr; skip AI, show "Let's Go"</li>
+                <li style="padding:6px 0;color:#b0b0c8">&#x1F6E1; Complete fails &rarr; navigate to Main anyway</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- ARCHITECTURE -->
+<div class="section">
+    <div class="section-title"><div class="icon" style="background:#c084fc22;color:#c084fc">&#x1F3D7;</div> Architecture</div>
+    <div class="code-block" style="text-align:center;color:#c0c0e0;font-size:0.95em">
+AiOnboardingActivity  <span style="color:#ff6b9d">(View)</span>
+        |  observes LiveData
+        v
+AiOnboardingViewModel  <span style="color:#10b981">(@HiltViewModel)</span>
+        |  delegates
+        v
+AiOnboardingRepository  <span style="color:#60a5fa">(@Inject)</span>
+        |  calls
+        v
+ApiManager  <span style="color:#fbbf24">(Retrofit)</span>
+        |  HTTP POST
+        v
+AuthController  <span style="color:#c084fc">(Laravel)</span>
+        |  calls
+        v
+OpenRouterService  <span style="color:#ff6b9d">(GPT via OpenRouter)</span>
+    </div>
+</div>
+
+</div>
+
+<div class="footer">
+    Hima AI Onboarding Feature &bull; Built April 2026 &bull; Branch: ai_onboarding
+</div>
+
+</body>
+</html>

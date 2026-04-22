@@ -5,7 +5,8 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F8F9FA"
+    android:background="@color/white"
+    android:fitsSystemWindows="true"
     tools:context=".activities.AccountPrivacyActivity">
 
     <!-- Top App Bar -->
@@ -15,49 +16,18 @@
         android:layout_height="?attr/actionBarSize"
         android:background="@android:color/white"
         android:elevation="2dp"
+        app:contentInsetLeft="0dp"
+        app:contentInsetStart="0dp"
+        app:contentInsetStartWithNavigation="0dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <LinearLayout
+        <include
+            android:id="@+id/include_profile_toolbar"
+            layout="@layout/layout_profile_flow_toolbar"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <!-- Back Button Card with Subtle Shadow -->
-            <androidx.cardview.widget.CardView
-                android:id="@+id/cv_back"
-                android:layout_width="42dp"
-                android:layout_height="42dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="1dp"
-                app:cardBackgroundColor="#F8F9FA">
-
-            <ImageView
-                android:id="@+id/iv_back"
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:layout_gravity="center"
-                android:contentDescription="@string/account_privacy"
-                android:src="@drawable/right_arrow"
-                android:rotation="180"
-                    app:tint="#374151" />
-
-            </androidx.cardview.widget.CardView>
-
-            <TextView
-                android:id="@+id/tv_account_privacy"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_weight="1"
-                android:text="@string/account_privacy"
-                android:textColor="#212121"
-                android:textSize="20sp"
-                android:fontFamily="@font/poppins_medium" />
-
-        </LinearLayout>
+            android:layout_height="match_parent" />
 
     </com.google.android.material.appbar.MaterialToolbar>
 
@@ -86,7 +56,7 @@
                 android:clickable="true"
                 android:focusable="true"
                 app:cardBackgroundColor="@android:color/white"
-                app:cardCornerRadius="12dp"
+                app:cardCornerRadius="14dp"
                 app:cardElevation="2dp"
                 app:cardUseCompatPadding="false"
                 app:rippleColor="#E0E0E0">
@@ -94,10 +64,10 @@
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:paddingStart="20dp"
-                    android:paddingTop="20dp"
-                    android:paddingEnd="20dp"
-                    android:paddingBottom="20dp">
+                    android:paddingStart="14dp"
+                    android:paddingTop="14dp"
+                    android:paddingEnd="14dp"
+                    android:paddingBottom="14dp">
 
                     <!-- Icon Circle Background -->
                     <View
@@ -129,7 +99,7 @@
                         android:layout_marginStart="16dp"
                         android:layout_marginEnd="8dp"
                         android:text="@string/privacy_policy"
-                        android:textColor="#212121"
+                        android:textColor="@color/black_light"
                         android:textSize="16sp"
                         android:fontFamily="@font/poppins_medium"
                         app:layout_constraintBottom_toBottomOf="@+id/icon_bg_privacy"
@@ -146,7 +116,7 @@
                         app:layout_constraintBottom_toBottomOf="@+id/icon_bg_privacy"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintTop_toTopOf="@+id/icon_bg_privacy"
-                        app:tint="#9E9E9E" />
+                        app:tint="@color/grey_medium" />
 
                 </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -161,7 +131,7 @@
                 android:clickable="true"
                 android:focusable="true"
                 app:cardBackgroundColor="@android:color/white"
-                app:cardCornerRadius="12dp"
+                app:cardCornerRadius="14dp"
                 app:cardElevation="2dp"
                 app:cardUseCompatPadding="false"
                 app:rippleColor="#E0E0E0">
@@ -169,10 +139,10 @@
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:paddingStart="20dp"
-                    android:paddingTop="20dp"
-                    android:paddingEnd="20dp"
-                    android:paddingBottom="20dp">
+                    android:paddingStart="14dp"
+                    android:paddingTop="14dp"
+                    android:paddingEnd="14dp"
+                    android:paddingBottom="14dp">
 
                     <!-- Icon Circle Background -->
                     <View
@@ -204,7 +174,7 @@
                         android:layout_marginStart="16dp"
                         android:layout_marginEnd="8dp"
                         android:text="@string/delete_account"
-                        android:textColor="#212121"
+                        android:textColor="@color/black_light"
                         android:textSize="16sp"
                         android:fontFamily="@font/poppins_medium"
                         app:layout_constraintBottom_toBottomOf="@+id/icon_bg_delete"
@@ -221,7 +191,7 @@
                         app:layout_constraintBottom_toBottomOf="@+id/icon_bg_delete"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintTop_toTopOf="@+id/icon_bg_delete"
-                        app:tint="#9E9E9E" />
+                        app:tint="@color/grey_medium" />
 
                 </androidx.constraintlayout.widget.ConstraintLayout>
 

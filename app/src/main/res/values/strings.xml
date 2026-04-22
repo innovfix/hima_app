@@ -23,9 +23,22 @@
     <string name="rupee_text">\u20B9%s</string>
     <string name="rupee_symbol">\u20B9</string>
     <string name="home">Home</string>
+    <string name="chat">Chat</string>
+    <string name="friends_empty_state_title">No friends yet</string>
+    <string name="friends_empty_state_subtitle">Start connecting with people\nby sending friend requests</string>
+    <string name="chat_empty_state_title">No chats yet</string>
+    <string name="chat_empty_state_subtitle">Messages from users will appear here</string>
+    <string name="chat_tab_friends">Friends</string>
+    <string name="chat_tab_general">General</string>
+    <string name="chat_friends_empty_state_title">No friends yet</string>
+    <string name="chat_friends_empty_state_subtitle">Accept friend requests to chat with them here</string>
+    <string name="chat_general_empty_state_title">No chats yet</string>
+    <string name="chat_general_empty_state_subtitle">New conversations will appear here</string>
     <string name="recent">Recent</string>
     <string name="favourite">Favourite</string>
     <string name="chat_now">Chat Now</string>
+    <string name="tap_to_call_and_chat">Tap to call and chat</string>
+    <string name="rate_per_min_audio_video">Audio %1$d coins/min  ·  Video %2$d coins/min</string>
     <string name="profile">Profile</string>
     <string name="video">Video</string>
     <string name="video_text">Video 60/mins</string>
@@ -33,6 +46,55 @@
     <string name="peer_unavailable_audio">This user is not available for audio calls right now.</string>
     <string name="peer_unavailable_video">This user is not available for video calls right now.</string>
     <string name="peer_calls_blocked">You can\'t call this user.</string>
+
+    <!-- Chat list card -->
+    <string name="chat_preview_no_messages">No messages yet</string>
+    <string name="chat_preview_photo">📷 Photo</string>
+    <string name="chat_preview_voice">🎤 Voice message</string>
+    <string name="chat_free_label">Chat • FREE</string>
+    <string name="chat_add_friend_banner_title">Add %1$s as a friend?</string>
+    <string name="chat_add_friend_yes">Yes</string>
+    <string name="chat_add_friend_not_now">Not now</string>
+    <string name="chat_add_friend_menu_item">Accept as friend</string>
+    <string name="chat_add_friend_success">You are now friends with %1$s</string>
+    <string name="chat_add_friend_failure">Couldn\'t add friend. Please try again.</string>
+    <string name="call_unavailable">Unavailable</string>
+    <string name="notify_bell_default_desc">Notify when online</string>
+    <string name="notify_bell_on_desc">Notifications on for %s</string>
+    <string name="notify_bell_off_desc">Notify when %s is online</string>
+    <string name="notify_enabled_toast">You\'ll be notified when %s comes online</string>
+    <string name="notify_disabled_toast">Notification off for %s</string>
+    <string name="notify_error_toast">Couldn\'t update notification. Please try again.</string>
+    <string name="notify_no_network_toast">No network. Please try again.</string>
+
+    <!-- Manage notifications (male profile) -->
+    <string name="manage_notifications_title">Manage Notifications</string>
+    <string name="manage_notifications_row_title">Manage Notifications</string>
+    <string name="manage_notifications_row_subtitle">Control chats, support, promos &amp; creator alerts</string>
+    <string name="manage_notif_section_general">General notifications</string>
+    <string name="manage_notif_chat_friends">Chat &amp; friends</string>
+    <string name="manage_notif_chat_friends_desc">New messages, friend requests</string>
+    <string name="manage_notif_support">Support updates</string>
+    <string name="manage_notif_support_desc">Replies to your support tickets</string>
+    <string name="manage_notif_promotions">Promotions &amp; tips</string>
+    <string name="manage_notif_promotions_desc">Offers, re-engagement &amp; announcements</string>
+    <string name="manage_notif_section_creator">Creator online alerts</string>
+    <string name="manage_notif_creator_master">Notify when creators go online</string>
+    <string name="manage_notif_creator_master_desc">Master switch for online alerts</string>
+    <string name="manage_notif_creator_per_creator">Per creator</string>
+    <string name="manage_notif_creator_section_title">Creator online alerts</string>
+    <string name="manage_notif_creator_section_desc">Choose which creators can send you &quot;online now&quot; push notifications.</string>
+    <string name="manage_notif_empty_creators">You\'re not tracking any creator yet. Tap the bell next to a creator in Chats to start.</string>
+    <string name="notify_trigger_bell">Notifications on</string>
+    <string name="notify_trigger_repeat">Frequent caller</string>
+    <string name="notify_trigger_both">Notifications on · Frequent caller</string>
+    <string name="online_now_desc">Online now</string>
+
+    <!-- IPL Team Badge -->
+    <string name="choose_your_ipl_team">Choose Your IPL Team</string>
+    <string name="ipl_team_subtitle">Show your support on your profile!</string>
+    <string name="choose_team">+ Choose Team</string>
+    <string name="remove_team_badge">Remove Team Badge</string>
     <string name="no_sessions_yet">No Sessions yet</string>
     <string name="your_past_sessions_will_be_displayed_here">Your past sessions will be displayed here.</string>
     <string name="connect_with_a_hima">Connect with a %s</string>
@@ -92,6 +154,12 @@
     <string name="male">Male</string>
     <string name="female">Female</string>
     <string name="continue_text">Continue</string>
+    <string name="getname_title">One last thing</string>
+    <string name="getname_subtitle">Tell us what to call you</string>
+    <string name="getname_input_label">Your name</string>
+    <string name="getname_input_hint">Enter your name</string>
+    <string name="getname_min_chars">Enter at least 2 characters</string>
+    <string name="getname_name_ok">Looks good!</string>
     <string name="personalise_yourself_hint">Pick your gender and avatar to make your profile unique</string>
     <string name="gender_change_warning">Gender can\'t be changed later</string>
     <string name="language_you_speak">Choose your language</string>
@@ -255,6 +323,17 @@
     <string name="preferred_payment_method">Preferred payment method</string>
     <string name="select">select</string>
     <string name="running_service_to_call">Your session is in progress</string>
+    <string name="ni_title">Stay connected</string>
+    <string name="ni_subtitle">Turn on notifications so you never miss a moment on Hi ma.</string>
+    <string name="ni_item_calls_title">Incoming calls</string>
+    <string name="ni_item_calls_hint">Know instantly when a friend calls you.</string>
+    <string name="ni_item_chats_title">New messages</string>
+    <string name="ni_item_chats_hint">Never miss a chat from someone special.</string>
+    <string name="ni_item_online_title">When they\'re online</string>
+    <string name="ni_item_online_hint">Get pinged the moment a creator comes online.</string>
+    <string name="ni_enable">Enable notifications</string>
+    <string name="ni_maybe_later">Maybe later</string>
+    <string name="ni_enabled_toast">Notifications enabled. You\'re all set.</string>
     <string name="enable_notification">Please enable the notifications to receive the calls properly</string>
     <string name="appupdate">A brand new version of the Hi ma app is available in the Google play store. Please update your app to explore all of new amazing featuresy</string>
 
@@ -264,6 +343,10 @@
 
     <string name="facebook_app_id">866451756064625</string>
     <string name="facebook_client_token">6d5e012186e28f4668987be088cda8ce</string>
+
+    <!-- Snapchat SDK -->
+    <string name="snap_app_id">2bb19052-0d75-4e5d-9c82-ddc0fa17c384</string>
+    <string name="snap_pixel_id">YOUR_SNAP_PIXEL_ID</string>
 
 
     <string name="juspay_sdk_"> Juspay SDK Integration Demo </string>
@@ -357,4 +440,57 @@
     <string name="report_reasons_unavailable_title">Couldn\'t load report options</string>
     <string name="report_reasons_unavailable_message">Check your connection and try again.</string>
     <string name="report_unable_to_identify_user">Unable to submit report. Please try again.</string>
+
+    <!-- IPL Room Calls -->
+    <string name="ipl_rooms">IPL Rooms</string>
+    <string name="ipl_room_calls">IPL Room Calls</string>
+    <string name="ipl_room_subtitle">Join the cricket conversation!</string>
+    <string name="ipl_room_subtitle_female">Create Room &amp; Earn Money!</string>
+    <string name="create_room">Create Room</string>
+    <string name="join_room">Join</string>
+    <string name="live_label">LIVE</string>
+    <string name="members_count_format">%d/%d</string>
+    <string name="waiting_for_player">Waiting for player…</string>
+    <string name="room_name_hint">Room Name</string>
+    <string name="select_team_a">Select Team A</string>
+    <string name="select_team_b">Select Team B</string>
+    <string name="create_ipl_room">Create IPL Room</string>
+    <string name="leave_room">Leave</string>
+    <string name="ipl_enter_rooms">Enter IPL Rooms</string>
+    <string name="vs_label">VS</string>
+    <string name="created_by">Created by %s</string>
+    <string name="room_full">Full</string>
+    <string name="join_to_speak">Join to Speak</string>
+    <string name="user_joined">%s joined</string>
+    <string name="you_joined">You joined the room</string>
+    <string name="reaction_four">Four!</string>
+    <string name="reaction_six">Six!</string>
+    <string name="reaction_wicket">Wicket!</string>
+    <string name="reaction_great">Great!</string>
+
+    <!-- Fantasy IPL -->
+    <string name="fantasy_ipl_title">IPL Live Rooms</string>
+    <string name="fantasy_ipl_subtitle">Join live cricket discussions!</string>
+    <string name="fantasy_live_rooms">Live Rooms</string>
+    <string name="fantasy_no_rooms">No Live Matches</string>
+    <string name="fantasy_no_rooms_sub">Start a room and rally your squad!</string>
+
+    <!-- Do Not Disturb -->
+    <string name="dnd_title">Do Not Disturb</string>
+    <string name="dnd_until_fmt">Do Not Disturb · Until %1$s</string>
+    <string name="dnd_updated">Do Not Disturb updated</string>
+    <string name="dnd_err_http">DND error (code %1$d)</string>
+    <string name="dnd_err_empty_body">DND update failed (empty response)</string>
+    <string name="dnd_err_server">DND update failed</string>
+    <string name="dnd_err_missing_data">DND response missing data</string>
+    <string name="dnd_err_not_activated">DND did not activate. Please try again.</string>
+    <string name="dnd_err_generic">DND error: %1$s</string>
+    <string name="dnd_err_no_network">No internet</string>
+    <string name="dnd_enable_title">Enable Do Not Disturb</string>
+    <string name="dnd_enable_desc">Pick how long you want to mute calls and notifications</string>
+    <string name="dnd_duration_1h">1 Hour</string>
+    <string name="dnd_duration_3h">3 Hours</string>
+    <string name="dnd_duration_24h">24 Hours</string>
+    <string name="dnd_cancel">Cancel</string>
+    <string name="dnd_fallback_local">Do Not Disturb saved on this device. The server did not recognize the DND endpoint yet (404) — notifications are muted locally until expiry.</string>
 </resources>

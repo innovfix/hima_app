@@ -9,6 +9,7 @@ import android.view.View
 import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
+import androidx.core.content.ContextCompat
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
@@ -16,6 +17,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.updatePadding
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
@@ -49,6 +51,8 @@ class KycActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding= ActivityKycBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
         enableEdgeToEdge()

@@ -44,6 +44,7 @@ import com.gmwapp.hima.agora.female.FemaleVideoCallingActivity
 import com.gmwapp.hima.repositories.FcmNotificationRepository
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.FcmNotificationResponse
+import com.gmwapp.hima.utils.MaleNotificationFcmGate
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.onesignal.OneSignal
@@ -69,6 +70,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         Log.d("FCM", "From: ${remoteMessage.from}")
         Log.d("FCM_Data_Complete", "From: ${remoteMessage.data}")
         Log.d("FCM_Message", "Message data payload: ${remoteMessage.data["message"]}")
+
+        // DND check: drop ALL incoming notifications when DND is active and not yet expired
+        if (BaseApplication.isDndActiveStatic(userData)) {
+            Log.d("FCM", "DND is active, dropping notification.")
+            return
+        }
 
         if (remoteMessage.getPriority() == RemoteMessage.PRIORITY_HIGH) {
             Log.d("FCM_Message", "🔥 High-priority notification received!");
@@ -117,6 +124,15 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 return
             }
 
+            if (MaleNotificationFcmGate.shouldDropDataPayload(
+                    gender,
+                    remoteMessage.data,
+                    BaseApplication.getInstance()?.getPrefs()
+                )
+            ) {
+                Log.d("FCM", "Dropped by male Manage Notifications prefs (type=${remoteMessage.data["type"]})")
+                return
+            }
 
             val currentActivity = BaseApplication.getInstance()?.getCurrentActivity()
 
@@ -154,7 +170,8 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     if (gender == "female") {
                         if (currentActivity is FemaleCallAcceptActivity ||
                             currentActivity is FemaleAudioCallingActivity ||
-                            currentActivity is FemaleVideoCallingActivity) {
+                            currentActivity is FemaleVideoCallingActivity ||
+                            currentActivity is com.gmwapp.hima.activities.IplRoomCallActivity) {
 
                             Log.d("FCM", "User is already in a call. Ignoring incoming call notification.")
 
@@ -231,10 +248,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                         val MaleCallAcceptActivity = com.gmwapp.hima.agora.male.MaleCallAcceptActivity::class.java
                         val MaleAudioCallingActivity = com.gmwapp.hima.agora.male.MaleAudioCallingActivity::class.java
                         val MaleVideoCallingActivity = com.gmwapp.hima.agora.male.MaleVideoCallingActivity::class.java
+                        val IplRoomCallActivity = com.gmwapp.hima.activities.IplRoomCallActivity::class.java
 
                         if (currentActivity?.javaClass == MaleCallAcceptActivity ||
                             currentActivity?.javaClass == MaleAudioCallingActivity ||
-                            currentActivity?.javaClass == MaleVideoCallingActivity) {
+                            currentActivity?.javaClass == MaleVideoCallingActivity ||
+                            currentActivity?.javaClass == IplRoomCallActivity) {
 
                             Log.d("FCM", "Male user is already in a call. Ignoring incoming call notification.")
 
@@ -802,10 +821,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             remoteViews.setTextColor(R.id.caller_name, textColor)
             remoteViews.setTextColor(R.id.call_type, textColor)
 
-            remoteViews.setOnClickPendingIntent(R.id.btn_accept, pendingIntent)
-            remoteViews.setOnClickPendingIntent(R.id.btn_decline, pendingIntent)
+            remoteViews.setOnClickPendingIntent(R.id.btn_accept, acceptPendingIntent)
+            remoteViews.setOnClickPendingIntent(R.id.btn_decline, rejectPendingIntent)
 
-            val builder = NotificationCompat.Builder(this, "calls")
+            val builder = NotificationCompat.Builder(this, CALLS_NOTIFICATION_CHANNEL_ID)
                 .setSmallIcon(R.drawable.notification_icon)
                 .setStyle(NotificationCompat.DecoratedCustomViewStyle())
                 .setCustomContentView(remoteViews)
@@ -814,8 +833,11 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 .setCategory(NotificationCompat.CATEGORY_CALL)
                 .setCustomContentView(remoteViews)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setContentIntent(pendingIntent)
                 .setFullScreenIntent(pendingIntent, true)
-                .setAutoCancel(true)
+                .setOngoing(true)
+                .setAutoCancel(false)
+                .setTimeoutAfter(35_000L)
 
             Glide.with(this)
                 .asBitmap()
@@ -919,10 +941,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             remoteViews.setTextColor(R.id.caller_name, textColor)
             remoteViews.setTextColor(R.id.call_type, textColor)
 
-            remoteViews.setOnClickPendingIntent(R.id.btn_accept, pendingIntent)
-            remoteViews.setOnClickPendingIntent(R.id.btn_decline, pendingIntent)
+            remoteViews.setOnClickPendingIntent(R.id.btn_accept, acceptPendingIntent)
+            remoteViews.setOnClickPendingIntent(R.id.btn_decline, rejectPendingIntent)
 
-            val builder = NotificationCompat.Builder(this, "calls")
+            val builder = NotificationCompat.Builder(this, CALLS_NOTIFICATION_CHANNEL_ID)
                 .setSmallIcon(R.drawable.notification_icon)
                 .setStyle(NotificationCompat.DecoratedCustomViewStyle())
                 .setCustomContentView(remoteViews)
@@ -931,8 +953,11 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 .setCategory(NotificationCompat.CATEGORY_CALL)
                 .setCustomContentView(remoteViews)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setContentIntent(pendingIntent)
                 .setFullScreenIntent(pendingIntent, true)
-                .setAutoCancel(true)
+                .setOngoing(true)
+                .setAutoCancel(false)
+                .setTimeoutAfter(35_000L)
 
             Glide.with(this)
                 .asBitmap()
@@ -962,20 +987,27 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     }
     // ========== END MALE INCOMING CALL NOTIFICATION ==========
 
-
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
-                "calls",
+                CALLS_NOTIFICATION_CHANNEL_ID,
                 "Incoming Calls",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
+                // MediaPlayer ringtone in BaseApplication is the only sound source.
+                setSound(null, null)
+                enableVibration(false)
             }
 
             val manager = getSystemService(NotificationManager::class.java)
             manager?.createNotificationChannel(channel)
         }
+    }
+
+    companion object {
+        /** New ID so silenced channel settings apply on upgraded installs (channel config is immutable per ID). */
+        const val CALLS_NOTIFICATION_CHANNEL_ID = "calls_v2"
     }
 
 

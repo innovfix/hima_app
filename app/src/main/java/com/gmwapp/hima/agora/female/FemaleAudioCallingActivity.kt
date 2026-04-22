@@ -51,6 +51,7 @@ import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
 import com.gmwapp.hima.viewmodels.AgoraViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.hilt.android.AndroidEntryPoint
 import io.agora.rtc2.ChannelMediaOptions
 import io.agora.rtc2.Constants
@@ -75,7 +76,11 @@ import com.gmwapp.hima.agora.FaceDetectVideoFrameObserver
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
 import com.gmwapp.hima.agora.services.CallingService
+import com.gmwapp.hima.retrofit.responses.IcebreakerQuestionsResponse
 import com.gmwapp.hima.utils.setOnSingleClickListener
+import com.gmwapp.hima.utils.CallAudioFocusHelper
+import com.gmwapp.hima.utils.CallAudioRouter
+import com.gmwapp.hima.utils.CallPhoneStateHelper
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
@@ -86,6 +91,7 @@ import com.gmwapp.hima.workers.CallUpdateWorker
 import io.agora.rtc2.IAudioFrameObserver
 import io.agora.rtc2.audio.AudioParams
 import io.agora.rtc2.video.VideoCanvas
+import com.google.gson.JsonElement
 import org.json.JSONObject
 //import org.vosk.Model
 //import org.vosk.Recognizer
@@ -147,6 +153,11 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
     private var isMuted = false
     private var isSpeakerOn = true
+
+    private var audioFocusHelper: CallAudioFocusHelper? = null
+    private var audioRouter: CallAudioRouter? = null
+    private var phoneStateHelper: CallPhoneStateHelper? = null
+    private var mutedByInterrupt = false
     private var storedRemainingTime: String? = null
     private var storedVideoRemainingTime: String? = null
     private var countDownTimer: CountDownTimer? = null
@@ -212,13 +223,11 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private val REQUESTED_PERMISSIONS = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
         arrayOf(
             Manifest.permission.RECORD_AUDIO,
-            Manifest.permission.CAMERA,
             Manifest.permission.FOREGROUND_SERVICE_MICROPHONE
         )
     } else {
         arrayOf(
-            Manifest.permission.RECORD_AUDIO,
-            Manifest.permission.CAMERA
+            Manifest.permission.RECORD_AUDIO
         )
     }
 
@@ -251,8 +260,57 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
             // Enable only audio module (Disable video)
             agoraEngine!!.enableAudio()
+            // Configure audio profile BEFORE joinChannel to avoid mid-session track reset
+            agoraEngine!!.setAudioProfile(Constants.AUDIO_PROFILE_SPEECH_STANDARD, Constants.AUDIO_SCENARIO_DEFAULT)
+            agoraEngine!!.enableAudioVolumeIndication(200, 3, true)
+            // Set the SDK's default audio route + explicit current route so users hear
+            // audio in the expected output immediately (also helps Bluetooth/headset).
+            agoraEngine!!.setDefaultAudioRoutetoSpeakerphone(true)
+            agoraEngine!!.setEnableSpeakerphone(isSpeakerOn)
+            Log.d("AgoraTiming", "FemaleAudio setupAudioSDKEngine done at ${System.currentTimeMillis()}")
+
+            audioRouter?.release()
+            audioRouter = CallAudioRouter(this).also {
+                it.init()
+                if (isSpeakerOn) it.forceSpeaker() else it.useDefaultRoute()
+            }
+
+            setupCallInterruptHandlers()
         } catch (e: Exception) {
             showMessage(e.toString())
+        }
+    }
+
+    private fun setupCallInterruptHandlers() {
+        if (audioFocusHelper == null) {
+            audioFocusHelper = CallAudioFocusHelper(
+                context = this,
+                onFocusLost = { muteForInterrupt(true) },
+                onFocusGained = { muteForInterrupt(false) }
+            ).also { it.request() }
+        }
+        if (phoneStateHelper == null) {
+            phoneStateHelper = CallPhoneStateHelper(
+                context = this,
+                onCellularCallActive = { muteForInterrupt(true) },
+                onCellularCallEnded = { muteForInterrupt(false) }
+            ).also { it.register() }
+        }
+    }
+
+    private fun muteForInterrupt(muted: Boolean) {
+        runOnUiThread {
+            if (muted) {
+                if (!mutedByInterrupt && !isMuted) {
+                    mutedByInterrupt = true
+                    agoraEngine?.muteLocalAudioStream(true)
+                }
+            } else {
+                if (mutedByInterrupt) {
+                    mutedByInterrupt = false
+                    if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
+                }
+            }
         }
     }
 
@@ -261,6 +319,13 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding = ActivityFemaleAudioCallingBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Keep the call screen visible across lockscreen so users who lock
+        // the phone mid-call can resume immediately.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        }
         
         // ✅ Restrict screenshots and screen recording
         window.setFlags(
@@ -282,9 +347,28 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
         Log.d("FemaleAudioCallingCheck", "Channel: $channelName, Receiver: $receiverId, callID : $call_Id")
         Log.d("FemaleAudioCallingCheck", "$call_Id")
+        Log.d("AgoraTiming", "FemaleAudio onCreate at ${System.currentTimeMillis()}")
 
-        // Get token from backend
-        getAgoraTokenFromBackend()
+        // Use pre-fetched token from connecting/accept screen if available, else fetch from backend
+        val intentToken = intent.getStringExtra("AGORA_TOKEN")
+        val intentAppId = intent.getStringExtra("AGORA_APP_ID")
+        if (!intentToken.isNullOrEmpty() && !intentAppId.isNullOrEmpty()) {
+            Log.d("AgoraTiming", "FemaleAudio using pre-fetched token at ${System.currentTimeMillis()}")
+            token = intentToken
+            appId = intentAppId
+            if (!checkSelfPermission()) {
+                ActivityCompat.requestPermissions(
+                    this@FemaleAudioCallingActivity,
+                    REQUESTED_PERMISSIONS,
+                    PERMISSION_REQ_ID
+                )
+            } else {
+                setupAudioSDKEngine()
+                joinChannel(binding.JoinButton)
+            }
+        } else {
+            getAgoraTokenFromBackend()
+        }
 
 
         showGreyScreen()
@@ -312,9 +396,147 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         setupLocalPreviewDrag()
 
         userData?.let { setMyAvatar(it.image, it.name) }
+        setupIplTeamBadges()
         getBlockWords()
+        setupIcebreakerIfFemale()
         setupLudoInviteFlow()
 
+    }
+
+    private fun setupIcebreakerIfFemale() {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
+        if (!userData.gender.equals("female", ignoreCase = true)) {
+            binding.icebreakerHintButton.visibility = View.GONE
+            return
+        }
+        binding.icebreakerHintButton.visibility = View.VISIBLE
+        binding.icebreakerHintButton.setOnSingleClickListener {
+            requestAndShowIcebreakerQuestions(userData.id)
+        }
+    }
+
+    private fun requestAndShowIcebreakerQuestions(userId: Int) {
+        profileViewModel.getIcebreakerQuestions(
+            userId = userId,
+            callback = object : NetworkCallback<IcebreakerQuestionsResponse> {
+                override fun onResponse(
+                    call: Call<IcebreakerQuestionsResponse>,
+                    response: Response<IcebreakerQuestionsResponse>
+                ) {
+                    Log.e("IcebreakerQuestions", "${response.body()}")
+
+                    val body = response.body()
+                    if (body?.success == true) {
+                        val questions = parseIcebreakerQuestions(body.data)
+                        if (questions.isEmpty()) {
+                            Toast.makeText(
+                                this@FemaleAudioCallingActivity,
+                                "No icebreaker questions available",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        } else {
+                            showIcebreakerDialog(questions)
+                        }
+                    } else {
+                        Toast.makeText(
+                            this@FemaleAudioCallingActivity,
+                            body?.message ?: "Unable to load questions",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+
+                override fun onFailure(call: Call<IcebreakerQuestionsResponse>, t: Throwable) {
+                    Log.e("IcebreakerQuestions", "API failed: ${t.message}")
+                    Toast.makeText(
+                        this@FemaleAudioCallingActivity,
+                        "Failed to load questions",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+
+                override fun onNoNetwork() {
+                    Toast.makeText(
+                        this@FemaleAudioCallingActivity,
+                        "No internet connection",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        )
+    }
+
+    private fun showIcebreakerDialog(questions: List<String>) {
+        val message = buildString {
+            questions.forEachIndexed { index, question ->
+                append("\u2022 ")
+                append(question)
+                if (index != questions.lastIndex) append("\n\n")
+            }
+        }
+        val dialogView = layoutInflater.inflate(R.layout.dialog_icebreaker_questions, null)
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        val tvMessage = dialogView.findViewById<TextView>(R.id.tv_icebreaker_dialog_message)
+        val btnClose = dialogView.findViewById<com.google.android.material.button.MaterialButton>(
+            R.id.btn_close_icebreaker_dialog
+        )
+        tvMessage.text = message
+        btnClose.setOnClickListener { dialog.dismiss() }
+        dialog.show()
+    }
+
+    private fun parseIcebreakerQuestions(data: JsonElement?): List<String> {
+        if (data == null || data.isJsonNull) return emptyList()
+        val result = mutableListOf<String>()
+
+        fun addQuestion(raw: String?) {
+            val cleaned = raw?.trim().orEmpty()
+            if (cleaned.isNotEmpty()) {
+                result.add(cleaned)
+            }
+        }
+
+        fun parseElement(element: JsonElement?) {
+            if (element == null || element.isJsonNull) return
+
+            when {
+                element.isJsonPrimitive -> addQuestion(element.asString)
+
+                element.isJsonArray -> {
+                    element.asJsonArray.forEach { parseElement(it) }
+                }
+
+                element.isJsonObject -> {
+                    val obj = element.asJsonObject
+                    val candidateKeys = listOf("question", "text", "title", "prompt")
+                    var consumed = false
+
+                    for (key in candidateKeys) {
+                        if (obj.has(key)) {
+                            parseElement(obj.get(key))
+                            consumed = true
+                        }
+                    }
+
+                    if (!consumed) {
+                        if (obj.has("questions")) {
+                            parseElement(obj.get("questions"))
+                        } else if (obj.has("data")) {
+                            parseElement(obj.get("data"))
+                        }
+                    }
+                }
+            }
+        }
+
+        parseElement(data)
+        return result.distinct()
     }
 
     private fun setupLocalPreviewDrag() {
@@ -808,7 +1030,34 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             .load(image)
             .apply(RequestOptions.circleCropTransform())
             .into(binding.ivFemaleUser)
+    }
 
+    private fun setupIplTeamBadges() {
+        val prefs = BaseApplication.getInstance()?.getPrefs()
+        val savedTeamName = prefs?.getSelectedIplTeam()
+        val team = savedTeamName?.let { name ->
+            com.gmwapp.hima.models.IplTeam.values().find { it.name == name }
+        }
+        if (team != null) {
+            // Show female (self) team badge + ring
+            binding.femaleIplBadge.visibility = View.VISIBLE
+            binding.tvFemaleIplTeam.text = team.abbreviation
+            val femaleDot = binding.femaleIplDot.background.mutate() as android.graphics.drawable.GradientDrawable
+            femaleDot.setColor(android.graphics.Color.parseColor(team.primaryColor))
+            binding.femaleTeamRing.visibility = View.VISIBLE
+            val ringDrawable = binding.femaleTeamRing.background.mutate() as android.graphics.drawable.GradientDrawable
+            ringDrawable.setColor(android.graphics.Color.parseColor(team.primaryColor))
+        }
+
+        // Demo: Show a random team for the male caller
+        val demoTeam = com.gmwapp.hima.models.IplTeam.values().random()
+        binding.maleIplBadge.visibility = View.VISIBLE
+        binding.tvMaleIplTeam.text = demoTeam.abbreviation
+        val maleDot = binding.maleIplDot.background.mutate() as android.graphics.drawable.GradientDrawable
+        maleDot.setColor(android.graphics.Color.parseColor(demoTeam.primaryColor))
+        binding.maleTeamRing.visibility = View.VISIBLE
+        val maleRing = binding.maleTeamRing.background.mutate() as android.graphics.drawable.GradientDrawable
+        maleRing.setColor(android.graphics.Color.parseColor(demoTeam.primaryColor))
     }
 
     private fun avatarObservers() {
@@ -879,11 +1128,13 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == PERMISSION_REQ_ID) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            val allGranted = grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }
+            if (allGranted) {
                 setupAudioSDKEngine()
                 joinChannel(binding.JoinButton) // Automatically join the channel
             } else {
-                ActivityCompat.requestPermissions(this, REQUESTED_PERMISSIONS, PERMISSION_REQ_ID)
+                showMessage("Microphone permission is required for audio calls")
+                finish()
             }
         }
     }
@@ -927,9 +1178,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private val mRtcEventHandler: IRtcEngineEventHandler = object : IRtcEngineEventHandler() {
         override fun onJoinChannelSuccess(channel: String, uid: Int, elapsed: Int) {
             isJoined = true
-           // showMessage("Joined Channel $channel")
+            Log.d("AgoraTiming", "FemaleAudio onJoinChannelSuccess at ${System.currentTimeMillis()}")
             startTimeoutTracking()
-
         }
 
         override fun onUserOffline(uid: Int, reason: Int) {
@@ -946,6 +1196,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         }
         override fun onUserJoined(uid: Int, elapsed: Int) {
          //   showMessage("Remote user joined $uid")
+            Log.d("AgoraTiming", "FemaleAudio onUserJoined at ${System.currentTimeMillis()}")
             startTime = dateFormat.format(Date()) // Set call end time in IST
             isRemoteUserJoined= true
             videoUid = uid
@@ -975,14 +1226,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
 
             initVosk()
-            agoraEngine?.setAudioProfile(Constants.AUDIO_PROFILE_SPEECH_STANDARD, Constants.AUDIO_SCENARIO_DEFAULT)
 
 //            agoraEngine?.registerAudioFrameObserver(audioFrameObserver)
-
-
-
-            agoraEngine?.enableAudioVolumeIndication(200, 3, true)
-
 
         }
 
@@ -1115,8 +1360,11 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             options.channelProfile = Constants.CHANNEL_PROFILE_COMMUNICATION
             options.clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
             options.autoSubscribeAudio = true
-            options.autoSubscribeVideo = true  // ✅ Ensure video is OFF
+            options.autoSubscribeVideo = false
+            options.publishMicrophoneTrack = true
+            options.publishCameraTrack = false
 
+            Log.d("AgoraTiming", "FemaleAudio joinChannel at ${System.currentTimeMillis()}")
             agoraEngine!!.joinChannel(token, channelName, uid, options)
             Log.d("AgoraTag", "Joined channel: $channelName with token: $token")
 
@@ -1134,22 +1382,41 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             startActivity(intent)
             finish()
         } else {
-            agoraEngine?.leaveChannel()
+            try {
+                agoraEngine?.stopPreview()
+            } catch (e: Exception) {
+                Log.e("FemaleAudioCalling", "stopPreview in leaveChannel", e)
+                FirebaseCrashlytics.getInstance().recordException(e)
+            }
+            try {
+                agoraEngine?.leaveChannel()
+            } catch (e: Exception) {
+                Log.e("FemaleAudioCalling", "leaveChannel", e)
+                FirebaseCrashlytics.getInstance().recordException(e)
+            }
           //  showMessage("You left the channel")
             isJoined = false
 
-            RtcEngine.destroy()
+            try {
+                RtcEngine.destroy()
+            } catch (e: Exception) {
+                Log.e("FemaleAudioCalling", "RtcEngine.destroy in leaveChannel", e)
+                FirebaseCrashlytics.getInstance().recordException(e)
+            }
             agoraEngine = null
 
 
             updateCallEndDetails()
 
             stopCountdown()
-            val intent = Intent(this@FemaleAudioCallingActivity, MainActivity::class.java)
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            Log.d("blockword","$isBlockWordDetected")
-            startActivity(intent)
-           finish()
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (isFinishing || isDestroyed) return@postDelayed
+                val intent = Intent(this@FemaleAudioCallingActivity, MainActivity::class.java)
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                Log.d("blockword","$isBlockWordDetected")
+                startActivity(intent)
+                finish()
+            }, 50L)
         }
 
     }
@@ -1247,12 +1514,39 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         cancelTimeoutTracking()
         stopCallingService()
         stopCountdown()
-        agoraEngine?.apply {
-            leaveChannel()
+        try {
+            agoraEngine?.let { engine ->
+                try {
+                    engine.stopPreview()
+                } catch (e: Exception) {
+                    Log.e("FemaleAudioCalling", "stopPreview in onDestroy", e)
+                    FirebaseCrashlytics.getInstance().recordException(e)
+                }
+                try {
+                    engine.leaveChannel()
+                } catch (e: Exception) {
+                    Log.e("FemaleAudioCalling", "leaveChannel in onDestroy", e)
+                    FirebaseCrashlytics.getInstance().recordException(e)
+                }
+            }
+        } catch (e: Exception) {
+            FirebaseCrashlytics.getInstance().recordException(e)
         }
 
+        audioFocusHelper?.abandon()
+        audioFocusHelper = null
+        audioRouter?.release()
+        audioRouter = null
+        phoneStateHelper?.unregister()
+        phoneStateHelper = null
+
         Thread {
-            RtcEngine.destroy()
+            try {
+                RtcEngine.destroy()
+            } catch (e: Exception) {
+                Log.e("FemaleAudioCalling", "RtcEngine.destroy in onDestroy", e)
+                FirebaseCrashlytics.getInstance().recordException(e)
+            }
             agoraEngine = null
         }.start()
 
@@ -1720,6 +2014,23 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             // Enable video module
             agoraEngine?.enableVideo()
 
+            // Critical: the original joinChannel used audio-only ChannelMediaOptions
+            // (publishCameraTrack = false, autoSubscribeVideo = false). Those options
+            // persist unless we explicitly flip them here, so the camera track never
+            // reaches the peer even after enableVideo(). Update them before setting up
+            // the local surface so the track is publishing by the time the canvas binds.
+            agoraEngine?.enableLocalVideo(true)
+            agoraEngine?.muteLocalVideoStream(false)
+            agoraEngine?.updateChannelMediaOptions(ChannelMediaOptions().apply {
+                autoSubscribeAudio = true
+                autoSubscribeVideo = true
+                publishMicrophoneTrack = true
+                publishCameraTrack = true
+                clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
+            })
+            agoraEngine?.startPreview()
+            Log.d("AgoraTiming", "FemaleAudio switched to VIDEO at ${System.currentTimeMillis()}")
+
             // Set up the local video view
             val localContainer = binding.localVideoViewContainer
             val localView = SurfaceView(this)
@@ -1813,6 +2124,15 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         Log.d("resumedtag","resumed")
         newRemainingTime()
         startCallingService()
+
+        if (isJoined && ContextCompat.checkSelfPermission(
+                this, Manifest.permission.RECORD_AUDIO
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            showMessage("Microphone permission was revoked. Ending call.")
+            agoraEngine?.leaveChannel()
+            finish()
+        }
     }
 
     private fun onAddcoinClicked() {
@@ -1834,7 +2154,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     // Function to toggle speaker on/off
     private fun toggleSpeaker() {
         isSpeakerOn = !isSpeakerOn
-        agoraEngine?.setEnableSpeakerphone(isSpeakerOn)  // Enable or disable speakerphone
+        if (isSpeakerOn) audioRouter?.forceSpeaker() else audioRouter?.useDefaultRoute()
+        agoraEngine?.setEnableSpeakerphone(isSpeakerOn)
         val speakerIcon = if (isSpeakerOn) R.drawable.speakeron_img else R.drawable.speakeroff_img
         binding.btnSpeaker.setImageResource(speakerIcon)
     }
@@ -2067,8 +2388,21 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
 
         runOnUiThread {
-            // Enable video module
+            // Stop publishing and capturing camera, and mirror the audio-only
+            // ChannelMediaOptions from the original joinChannel so bandwidth +
+            // camera LED stop when the user goes back to audio mode.
+            agoraEngine?.muteLocalVideoStream(true)
+            agoraEngine?.enableLocalVideo(false)
+            agoraEngine?.updateChannelMediaOptions(ChannelMediaOptions().apply {
+                autoSubscribeAudio = true
+                autoSubscribeVideo = false
+                publishMicrophoneTrack = true
+                publishCameraTrack = false
+                clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
+            })
+            agoraEngine?.stopPreview()
             agoraEngine?.disableVideo()
+            Log.d("AgoraTiming", "FemaleAudio switched back to AUDIO at ${System.currentTimeMillis()}")
 
             // Hide local video view
             binding.localVideoViewContainer.removeAllViews()

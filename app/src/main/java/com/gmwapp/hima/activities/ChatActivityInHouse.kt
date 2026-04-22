@@ -2,21 +2,34 @@ package com.gmwapp.hima.activities
 
 import com.gmwapp.hima.utils.showAppToast
 
+import android.Manifest
+import android.animation.ObjectAnimator
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.Observer
 import androidx.activity.viewModels
@@ -33,6 +46,7 @@ import com.gmwapp.hima.models.ChatMessage
 import com.gmwapp.hima.models.ChatMessageApi
 import com.gmwapp.hima.retrofit.ApiManager
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
+import com.gmwapp.hima.retrofit.responses.ChatAttachmentUploadResponse
 import com.gmwapp.hima.retrofit.responses.MarkReadResponse
 import com.gmwapp.hima.retrofit.responses.MarkMessagesReadResponse
 import com.gmwapp.hima.retrofit.responses.MessageListResponse
@@ -41,24 +55,29 @@ import com.gmwapp.hima.retrofit.responses.ChatHistoryResponse
 import com.gmwapp.hima.retrofit.responses.BlockUserResponse
 import com.gmwapp.hima.retrofit.responses.CheckCallAvailabilityResponse
 import com.gmwapp.hima.retrofit.responses.FallbackSendMessageResponse
+import com.gmwapp.hima.retrofit.responses.FriendRequestResponse
 import com.gmwapp.hima.retrofit.responses.RegisterResponse
 import retrofit2.Call
 import retrofit2.Response
 import com.gmwapp.hima.socket.ChatMessageSocket
 import com.gmwapp.hima.socket.SocketManager
-import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import dagger.hilt.android.AndroidEntryPoint
 import de.hdodenhof.circleimageview.CircleImageView
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
+import java.io.File
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
-import android.content.Intent
 import org.json.JSONObject
 import com.gmwapp.hima.activities.UserProfileDetailActivity
 import com.gmwapp.hima.utils.CallUnavailableFeedback
+import com.gmwapp.hima.utils.AudioRecorderController
+import com.gmwapp.hima.utils.ImageCompressor
 
 @AndroidEntryPoint
 class ChatActivityInHouse : AppCompatActivity() {
@@ -70,7 +89,9 @@ class ChatActivityInHouse : AppCompatActivity() {
 
     private lateinit var rvMessages: RecyclerView
     private lateinit var etMessage: EditText
-    private lateinit var btnSend: FloatingActionButton
+    private lateinit var btnSend: ImageButton
+    private lateinit var btnMic: ImageButton
+    private lateinit var ivAttach: ImageView
     private lateinit var ivBack: ImageView
     private lateinit var cvBack: CardView
     private lateinit var ivMore: ImageView
@@ -78,6 +99,10 @@ class ChatActivityInHouse : AppCompatActivity() {
     private lateinit var tvUserName: TextView
     private lateinit var tvUserStatus: TextView
     private lateinit var vOnlineIndicator: View
+    private lateinit var recordingBar: View
+    private lateinit var tvRecordingTimer: TextView
+    private lateinit var tvRecordingHint: TextView
+    private lateinit var vRecordingDot: View
 
     private lateinit var chatAdapter: ChatAdapter
     private val messages = mutableListOf<ChatMessage>()
@@ -87,9 +112,25 @@ class ChatActivityInHouse : AppCompatActivity() {
     private var myUserId: Int = 0
     private var peerUserId: Int = 0
     private var chatId: String = ""
+
+    /** Tracks last [SocketManager.isConnected] value for false→true reconnect detection. */
+    private var previousSocketConnected: Boolean? = null
     
     private var isChatVisible = false
     private val mainHandler = Handler(Looper.getMainLooper())
+
+    /** Delayed status log from [onCreate]; removed in [onDestroy] to avoid posting after activity is gone. */
+    private val logSocketStatusAfterDelay = Runnable { logSocketIOStatus() }
+
+    /** False after [onDestroy] / while finishing — use before touching views from async callbacks. */
+    private fun isUiSafe(): Boolean {
+        if (isFinishing) return false
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+            !isDestroyed
+        } else {
+            true
+        }
+    }
     
     // Track message sending method
     private val messageSendMethod = mutableMapOf<String, String>() // messageId -> "socket" or "api"
@@ -99,6 +140,17 @@ class ChatActivityInHouse : AppCompatActivity() {
     
     // Track if user is blocked
     private var iHaveBlockedThisUser: Boolean = false
+
+    /** Peer display name (for add-friend banner / toasts). */
+    private var peerName: String = ""
+
+    private var isFriendWithPeer: Boolean = false
+    private var isAddFriendBannerDismissedThisSession: Boolean = false
+
+    private var bannerAddFriend: com.google.android.material.card.MaterialCardView? = null
+    private var tvBannerAddFriendTitle: TextView? = null
+    private var btnBannerNotNow: TextView? = null
+    private var btnBannerAcceptFriend: com.google.android.material.button.MaterialButton? = null
     
     // Call buttons
     private lateinit var callButtonsContainer: View
@@ -106,6 +158,10 @@ class ChatActivityInHouse : AppCompatActivity() {
     private lateinit var cvVideoCall: com.google.android.material.card.MaterialCardView
     private lateinit var ivAudioCall: ImageView
     private lateinit var ivVideoCall: ImageView
+
+    // Per-user call rate banner shown above the messages list
+    private var cvRateBanner: com.google.android.material.card.MaterialCardView? = null
+    private var tvRateBanner: TextView? = null
     private var peerUserGender: String? = null
     private var isPeerUserOnline: Boolean = false
     private var peerAudioStatus: Int? = null  // 0 or 1
@@ -129,6 +185,12 @@ class ChatActivityInHouse : AppCompatActivity() {
      * Later resumes (returning from another screen / app background) refresh history so messages reappear.
      */
     private var suppressNextResumeHistoryReload = true
+    private val audioRecorderController by lazy { AudioRecorderController(cacheDir) }
+    private var recordingPulseAnimator: ObjectAnimator? = null
+    private var recordingStartY: Float = 0f
+    private var cancelRecordingOnRelease = false
+    private var recordingStartedAtMs: Long = 0L
+    private val cancelRecordingThresholdPx by lazy { 72f * resources.displayMetrics.density }
     
     // API returns timestamps in IST format: "2025-11-18 19:10:31"
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).apply {
@@ -138,6 +200,58 @@ class ChatActivityInHouse : AppCompatActivity() {
         timeZone = TimeZone.getTimeZone("Asia/Kolkata")
     }
 
+    private val recordingTicker = object : Runnable {
+        override fun run() {
+            if (!audioRecorderController.isRecording()) return
+            val elapsed = (SystemClock.elapsedRealtime() - recordingStartedAtMs).coerceAtLeast(0L)
+            tvRecordingTimer.text = formatElapsedTime(elapsed)
+            mainHandler.postDelayed(this, 100L)
+        }
+    }
+
+    private val imagePickerLauncher = registerForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        uri?.let { selectedUri ->
+            handlePickedImage(selectedUri)
+        }
+    }
+
+    private val imagePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            launchPhotoPicker()
+        } else {
+            showAppToast("Image permission is required to pick a photo", Toast.LENGTH_SHORT)
+        }
+    }
+
+    private val audioPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            showAppToast("Hold the mic again to record a voice note", Toast.LENGTH_SHORT)
+        } else {
+            showAppToast("Microphone permission is required to record audio", Toast.LENGTH_SHORT)
+        }
+    }
+
+    private val audioCallEnablePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+            ?: return@registerForActivityResult
+        if (granted) {
+            femaleUsersViewModel.updateCallStatus(userData.id, DConstants.AUDIO, 1)
+            isApplyingCallStatusToggleState = true
+            callStatusAudioSwitch?.isChecked = true
+            isApplyingCallStatusToggleState = false
+        } else {
+            startActivity(Intent(this, GrantPermissionsActivity::class.java))
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_chat)
@@ -145,7 +259,9 @@ class ChatActivityInHouse : AppCompatActivity() {
         initializeViews()
         setupRecyclerView()
         setupUserIds()
+        initAddFriendBanner()
         setupClickListeners()
+        setupComposer()
         connectSocket()
         suppressNextResumeHistoryReload = true
         loadMessages()
@@ -154,16 +270,16 @@ class ChatActivityInHouse : AppCompatActivity() {
         setupCallButtons()
         setupCallButtonListeners()
         
-        // Log initial status
-        mainHandler.postDelayed({
-            logSocketIOStatus()
-        }, 3000)
+        // Log initial status (runnable cleared in onDestroy)
+        mainHandler.postDelayed(logSocketStatusAfterDelay, 3000)
     }
 
     private fun initializeViews() {
         rvMessages = findViewById(R.id.rv_messages)
         etMessage = findViewById(R.id.et_message)
         btnSend = findViewById(R.id.btn_send)
+        btnMic = findViewById(R.id.btn_mic)
+        ivAttach = findViewById(R.id.iv_attach)
         ivBack = findViewById(R.id.iv_back)
         cvBack = findViewById(R.id.cv_back)
         ivMore = findViewById(R.id.iv_more)
@@ -171,6 +287,10 @@ class ChatActivityInHouse : AppCompatActivity() {
         tvUserName = findViewById(R.id.tv_user_name)
         tvUserStatus = findViewById(R.id.tv_user_status)
         vOnlineIndicator = findViewById(R.id.v_online_indicator)
+        recordingBar = findViewById(R.id.recording_bar)
+        tvRecordingTimer = findViewById(R.id.tv_recording_timer)
+        tvRecordingHint = findViewById(R.id.tv_recording_hint)
+        vRecordingDot = findViewById(R.id.v_recording_dot)
         
         // Initialize call buttons
         callButtonsContainer = findViewById(R.id.call_buttons_container)
@@ -179,10 +299,27 @@ class ChatActivityInHouse : AppCompatActivity() {
         cvVideoCall = findViewById(R.id.cv_video_call)
         ivVideoCall = findViewById(R.id.iv_video_call)
 
+        // Per-user call rate banner (shown when home opens chat with rate extras)
+        cvRateBanner = findViewById(R.id.cv_rate_banner)
+        tvRateBanner = findViewById(R.id.tv_rate_banner)
+        val audioRate = intent.getIntExtra("COIN_PER_MIN_AUDIO", -1)
+        val videoRate = intent.getIntExtra("COIN_PER_MIN_VIDEO", -1)
+        if (audioRate > 0 || videoRate > 0) {
+            tvRateBanner?.text = getString(
+                R.string.rate_per_min_audio_video,
+                if (audioRate > 0) audioRate else 10,
+                if (videoRate > 0) videoRate else 60
+            )
+            cvRateBanner?.visibility = View.VISIBLE
+        } else {
+            cvRateBanner?.visibility = View.GONE
+        }
+
         val userName = intent.getStringExtra("USER_NAME") ?: "User"
+        peerName = extractNameOnly(userName)
         val userImage = intent.getStringExtra("USER_IMAGE")
 
-        tvUserName.text = extractNameOnly(userName)
+        tvUserName.text = peerName
 
         if (!userImage.isNullOrEmpty()) {
             Glide.with(this)
@@ -200,13 +337,12 @@ class ChatActivityInHouse : AppCompatActivity() {
         ivUser.layoutParams = layoutParams
 
         window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        WindowInsetsControllerCompat(window, findViewById(R.id.main)).isAppearanceLightStatusBars = true
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            window.insetsController?.setSystemBarsAppearance(
-                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
-                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
-            )
-        }
+        bannerAddFriend = findViewById(R.id.banner_add_friend)
+        tvBannerAddFriendTitle = findViewById(R.id.tv_banner_add_friend_title)
+        btnBannerNotNow = findViewById(R.id.btn_banner_not_now)
+        btnBannerAcceptFriend = findViewById(R.id.btn_banner_accept_friend)
     }
 
     private fun setupRecyclerView() {
@@ -273,6 +409,83 @@ class ChatActivityInHouse : AppCompatActivity() {
         }
     }
 
+    private fun initAddFriendBanner() {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val isMaleUser = userData?.gender?.equals(DConstants.MALE, ignoreCase = true) == true
+        if (isMaleUser) {
+            bannerAddFriend?.visibility = View.GONE
+            return
+        }
+        tvBannerAddFriendTitle?.text = getString(R.string.chat_add_friend_banner_title, peerName)
+        btnBannerNotNow?.setOnClickListener {
+            isAddFriendBannerDismissedThisSession = true
+            bannerAddFriend?.visibility = View.GONE
+        }
+        btnBannerAcceptFriend?.setOnClickListener { acceptAsFriend() }
+        refreshFriendState()
+    }
+
+    private fun refreshFriendState() {
+        val me = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
+        val peer = peerUserId.takeIf { it > 0 } ?: return
+        apiManager.checkFriendRequest(peer, me, me, object : NetworkCallback<FriendRequestResponse> {
+            override fun onResponse(call: Call<FriendRequestResponse>, response: Response<FriendRequestResponse>) {
+                val body = response.body()
+                isFriendWithPeer = response.isSuccessful &&
+                    body?.success == true &&
+                    body.message == "You are friends"
+                updateAddFriendUi()
+            }
+
+            override fun onFailure(call: Call<FriendRequestResponse>, t: Throwable) {
+                isFriendWithPeer = false
+                updateAddFriendUi()
+            }
+
+            override fun onNoNetwork() {
+                isFriendWithPeer = false
+                updateAddFriendUi()
+            }
+        })
+    }
+
+    private fun updateAddFriendUi() {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val isMaleUser = userData?.gender?.equals(DConstants.MALE, ignoreCase = true) == true
+        if (isMaleUser) {
+            bannerAddFriend?.visibility = View.GONE
+            return
+        }
+        val showBannerAndMenu = !isFriendWithPeer
+        bannerAddFriend?.visibility =
+            if (showBannerAndMenu && !isAddFriendBannerDismissedThisSession) View.VISIBLE else View.GONE
+    }
+
+    private fun acceptAsFriend() {
+        val me = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
+        val peer = peerUserId.takeIf { it > 0 } ?: return
+        apiManager.sendFriendRequest(peer, me, 1, object : NetworkCallback<FriendRequestResponse> {
+            override fun onResponse(call: Call<FriendRequestResponse>, response: Response<FriendRequestResponse>) {
+                val body = response.body()
+                if (response.isSuccessful && body?.success == true) {
+                    isFriendWithPeer = true
+                    showAppToast(getString(R.string.chat_add_friend_success, peerName), Toast.LENGTH_SHORT)
+                } else {
+                    showAppToast(getString(R.string.chat_add_friend_failure), Toast.LENGTH_SHORT)
+                }
+                updateAddFriendUi()
+            }
+
+            override fun onFailure(call: Call<FriendRequestResponse>, t: Throwable) {
+                showAppToast(getString(R.string.chat_add_friend_failure), Toast.LENGTH_SHORT)
+            }
+
+            override fun onNoNetwork() {
+                showAppToast(getString(R.string.chat_add_friend_failure), Toast.LENGTH_SHORT)
+            }
+        })
+    }
+
     private fun handleReactionUpdate(message: ChatMessage, reactionEmoji: String?) {
         if (message.isDateHeader) return
         
@@ -336,14 +549,35 @@ class ChatActivityInHouse : AppCompatActivity() {
             showOptionsMenu()
         }
 
-        btnSend.setOnClickListener {
-            sendMessage()
-        }
-
         // Profile icon click - open UserProfileDetailActivity
         ivUser.setOnClickListener {
             openUserProfile()
         }
+    }
+
+    private fun setupComposer() {
+        btnSend.setOnClickListener {
+            sendMessage()
+        }
+
+        ivAttach.setOnClickListener {
+            showAttachmentBottomSheet()
+        }
+
+        btnMic.setOnTouchListener { _, event ->
+            handleMicTouch(event)
+        }
+
+        etMessage.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+
+            override fun afterTextChanged(s: Editable?) {
+                updateComposerActionState()
+            }
+        })
+
+        updateComposerActionState()
     }
 
     private fun openUserProfile() {
@@ -351,15 +585,415 @@ class ChatActivityInHouse : AppCompatActivity() {
             putExtra(DConstants.USER_ID, peerUserId)
             putExtra("USER_NAME", intent.getStringExtra("USER_NAME") ?: "User")
             putExtra("USER_IMAGE", intent.getStringExtra("USER_IMAGE") ?: "")
-            // Optional fields - use defaults if not available
-            putExtra("USER_LANGUAGE", "")
-            putExtra("USER_INTERESTS", "")
-            putExtra("USER_ABOUT", "")
+            putExtra("USER_LANGUAGE", intent.getStringExtra("USER_LANGUAGE") ?: "")
+            putExtra("USER_INTERESTS", intent.getStringExtra("USER_INTERESTS") ?: "")
+            putExtra("USER_ABOUT", intent.getStringExtra("USER_ABOUT") ?: "")
             putExtra("USER_AGE", 0)
             putExtra("AUDIO_STATUS", peerAudioStatus ?: 0)
             putExtra("VIDEO_STATUS", peerVideoStatus ?: 0)
         }
         startActivity(intent)
+    }
+
+    private fun updateComposerActionState() {
+        val hasText = etMessage.text?.toString()?.trim().orEmpty().isNotEmpty()
+        btnSend.visibility = if (hasText) View.VISIBLE else View.GONE
+        btnMic.visibility = if (hasText) View.GONE else View.VISIBLE
+    }
+
+    private fun showAttachmentBottomSheet() {
+        if (!canSendMediaPayload()) return
+
+        val sheet = BottomSheetDialog(this)
+        val contentView = LayoutInflater.from(this).inflate(R.layout.bottomsheet_chat_attach, null)
+        sheet.setContentView(contentView)
+
+        contentView.findViewById<View>(R.id.row_photo)?.setOnClickListener {
+            sheet.dismiss()
+            requestPhotoAccessAndOpenPicker()
+        }
+        contentView.findViewById<View>(R.id.row_camera)?.setOnClickListener {
+            sheet.dismiss()
+            showAppToast("Camera option will be added next", Toast.LENGTH_SHORT)
+        }
+        sheet.show()
+    }
+
+    private fun requestPhotoAccessAndOpenPicker() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            launchPhotoPicker()
+            return
+        }
+
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            launchPhotoPicker()
+        } else {
+            imagePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+    }
+
+    private fun launchPhotoPicker() {
+        imagePickerLauncher.launch(
+            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+        )
+    }
+
+    private fun handlePickedImage(uri: Uri) {
+        if (!canSendMediaPayload()) return
+
+        lifecycleScope.launch {
+            try {
+                val compressedFile = withContext(Dispatchers.IO) {
+                    ImageCompressor.compress(this@ChatActivityInHouse, uri)
+                }
+                val tempId = addOptimisticMediaMessage(
+                    messageType = "image",
+                    localAttachmentUrl = compressedFile.toURI().toString()
+                )
+                uploadAndSendAttachment(tempId, compressedFile, "image")
+            } catch (e: Exception) {
+                Log.e("ChatMedia", "Image prepare failed: ${e.message}", e)
+                showAppToast("Couldn't prepare image", Toast.LENGTH_SHORT)
+            }
+        }
+    }
+
+    private fun canSendMediaPayload(): Boolean {
+        if (iHaveBlockedThisUser) {
+            showAppToast("Please unblock to send message", Toast.LENGTH_SHORT)
+            return false
+        }
+        if (myUserId <= 0 || peerUserId <= 0) {
+            showAppToast("Chat isn't ready yet. Please try again.", Toast.LENGTH_SHORT)
+            return false
+        }
+        return true
+    }
+
+    private fun handleMicTouch(event: MotionEvent): Boolean {
+        if (etMessage.text?.toString()?.trim().orEmpty().isNotEmpty()) {
+            return false
+        }
+
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                if (!canSendMediaPayload()) return true
+                if (!hasRecordAudioPermission()) {
+                    audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    return true
+                }
+                startAudioRecording(event.rawY)
+                return true
+            }
+
+            MotionEvent.ACTION_MOVE -> {
+                if (!audioRecorderController.isRecording()) return true
+                cancelRecordingOnRelease = event.rawY < recordingStartY - cancelRecordingThresholdPx
+                tvRecordingHint.text = if (cancelRecordingOnRelease) {
+                    "Release to cancel"
+                } else {
+                    "Slide up to cancel"
+                }
+                return true
+            }
+
+            MotionEvent.ACTION_UP -> {
+                if (!audioRecorderController.isRecording()) return true
+                if (cancelRecordingOnRelease) {
+                    cancelAudioRecording(showToast = true)
+                } else {
+                    stopAudioRecordingAndSend()
+                }
+                return true
+            }
+
+            MotionEvent.ACTION_CANCEL -> {
+                if (audioRecorderController.isRecording()) {
+                    cancelAudioRecording(showToast = false)
+                }
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun hasRecordAudioPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.RECORD_AUDIO
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun hasCameraPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.CAMERA
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun startAudioRecording(touchStartY: Float) {
+        try {
+            audioRecorderController.start()
+            recordingStartY = touchStartY
+            cancelRecordingOnRelease = false
+            recordingStartedAtMs = SystemClock.elapsedRealtime()
+            tvRecordingTimer.text = "00:00"
+            tvRecordingHint.text = "Slide up to cancel"
+            setRecordingUiVisible(true)
+            mainHandler.removeCallbacks(recordingTicker)
+            mainHandler.post(recordingTicker)
+        } catch (e: Exception) {
+            Log.e("ChatMedia", "Audio recording start failed: ${e.message}", e)
+            setRecordingUiVisible(false)
+            showAppToast("Couldn't start recording", Toast.LENGTH_SHORT)
+        }
+    }
+
+    private fun stopAudioRecordingAndSend() {
+        try {
+            val recordingResult = audioRecorderController.stop()
+            setRecordingUiVisible(false)
+            if (recordingResult.durationMs < 1000L) {
+                recordingResult.file.delete()
+                showAppToast("Voice note is too short", Toast.LENGTH_SHORT)
+                return
+            }
+
+            val tempId = addOptimisticMediaMessage(
+                messageType = "audio",
+                localAttachmentUrl = recordingResult.file.toURI().toString(),
+                audioDurationMs = recordingResult.durationMs
+            )
+            uploadAndSendAttachment(tempId, recordingResult.file, "audio")
+        } catch (e: Exception) {
+            Log.e("ChatMedia", "Audio recording stop failed: ${e.message}", e)
+            setRecordingUiVisible(false)
+            showAppToast("Couldn't save voice note", Toast.LENGTH_SHORT)
+        }
+    }
+
+    private fun cancelAudioRecording(showToast: Boolean) {
+        audioRecorderController.cancel()
+        setRecordingUiVisible(false)
+        if (showToast) {
+            showAppToast("Recording canceled", Toast.LENGTH_SHORT)
+        }
+    }
+
+    private fun setRecordingUiVisible(isVisible: Boolean) {
+        recordingBar.visibility = if (isVisible) View.VISIBLE else View.GONE
+        if (isVisible) {
+            startRecordingPulse()
+        } else {
+            stopRecordingPulse()
+            mainHandler.removeCallbacks(recordingTicker)
+            tvRecordingTimer.text = "00:00"
+            tvRecordingHint.text = "Slide up to cancel"
+        }
+        updateComposerActionState()
+    }
+
+    private fun startRecordingPulse() {
+        recordingPulseAnimator?.cancel()
+        recordingPulseAnimator = ObjectAnimator.ofFloat(vRecordingDot, View.ALPHA, 1f, 0.25f).apply {
+            duration = 450L
+            repeatCount = ObjectAnimator.INFINITE
+            repeatMode = ObjectAnimator.REVERSE
+            start()
+        }
+    }
+
+    private fun stopRecordingPulse() {
+        recordingPulseAnimator?.cancel()
+        recordingPulseAnimator = null
+        vRecordingDot.alpha = 1f
+    }
+
+    private fun addOptimisticMediaMessage(
+        messageType: String,
+        localAttachmentUrl: String,
+        audioDurationMs: Long = 0L
+    ): String {
+        val currentTime = Date()
+        val tempId = "temp_${System.currentTimeMillis()}"
+        val tempMessage = ChatMessage(
+            id = tempId,
+            message = "",
+            timestamp = timeFormat.format(currentTime),
+            isSentByMe = true,
+            date = currentTime,
+            messageType = messageType,
+            attachmentUrl = localAttachmentUrl,
+            audioDurationMs = audioDurationMs
+        )
+
+        messages.add(tempMessage)
+        updateTopHeader(messages)
+        chatAdapter.notifyDataSetChanged()
+        rvMessages.post {
+            rvMessages.smoothScrollToPosition(messages.size - 1)
+        }
+        return tempId
+    }
+
+    private fun updateTempMessage(tempId: String, updater: (ChatMessage) -> ChatMessage) {
+        val index = messages.indexOfFirst { it.id == tempId }
+        if (index == -1) return
+        messages[index] = updater(messages[index])
+        chatAdapter.notifyItemChanged(index)
+    }
+
+    private fun removeTempMessage(tempId: String) {
+        val index = messages.indexOfFirst { it.id == tempId }
+        if (index == -1) return
+        messages.removeAt(index)
+        chatAdapter.notifyItemRemoved(index)
+    }
+
+    private fun uploadAndSendAttachment(tempId: String, file: File, messageType: String) {
+        apiManager.uploadChatAttachment(
+            userId = myUserId,
+            toUserId = peerUserId,
+            messageType = messageType,
+            file = file,
+            callback = object : NetworkCallback<ChatAttachmentUploadResponse> {
+                override fun onResponse(
+                    call: Call<ChatAttachmentUploadResponse>,
+                    response: Response<ChatAttachmentUploadResponse>
+                ) {
+                    val remoteUrl = response.body()?.data?.url
+                    val success = response.isSuccessful && response.body()?.success == true &&
+                        !remoteUrl.isNullOrBlank()
+                    if (!success) {
+                        removeTempMessage(tempId)
+                        val body = response.body()
+                        val minVer = body?.data?.requiredMinVersion
+                        val baseMsg = body?.message ?: "Couldn't upload attachment"
+                        showAppToast(
+                            if (minVer != null) "$baseMsg (min version: $minVer)" else baseMsg,
+                            Toast.LENGTH_SHORT
+                        )
+                        file.delete()
+                        return
+                    }
+
+                    updateTempMessage(tempId) { current ->
+                        current.copy(attachmentUrl = remoteUrl)
+                    }
+
+                    if (!socketManager.isConnected()) {
+                        sendMediaViaFallbackAPI(tempId, messageType, remoteUrl!!)
+                        file.delete()
+                        return
+                    }
+
+                    messageSendMethod[tempId] = "socket"
+                    socketManager.sendMessage(
+                        myUserId,
+                        peerUserId,
+                        "",
+                        messageType,
+                        remoteUrl
+                    )
+                    file.delete()
+                }
+
+                override fun onFailure(call: Call<ChatAttachmentUploadResponse>, t: Throwable) {
+                    removeTempMessage(tempId)
+                    showAppToast("Couldn't upload attachment", Toast.LENGTH_SHORT)
+                    file.delete()
+                    Log.e("ChatMedia", "Attachment upload failed: ${t.message}", t)
+                }
+
+                override fun onNoNetwork() {
+                    removeTempMessage(tempId)
+                    showAppToast(DConstants.NO_NETWORK, Toast.LENGTH_SHORT)
+                    file.delete()
+                }
+            }
+        )
+    }
+
+    /**
+     * When the socket is down after a successful upload, send the media message via REST
+     * using the same fields as socket (`message_type`, `attachment_url`).
+     */
+    private fun sendMediaViaFallbackAPI(tempId: String, messageType: String, attachmentUrl: String) {
+        messageSendMethod[tempId] = "api"
+        apiManager.fallbackSendMessage(
+            fromUserId = myUserId,
+            toUserId = peerUserId,
+            message = "",
+            messageType = messageType,
+            attachmentUrl = attachmentUrl,
+            callback = object : NetworkCallback<FallbackSendMessageResponse> {
+                override fun onResponse(
+                    call: Call<FallbackSendMessageResponse>,
+                    response: Response<FallbackSendMessageResponse>
+                ) {
+                    if (response.isSuccessful) {
+                        val responseBody = response.body()
+                        if (responseBody?.success == true && responseBody.data?.message != null) {
+                            val fallbackMessage = responseBody.data.message
+                            val realMessage = convertFallbackMessageToChatMessage(fallbackMessage)
+                            val tempIndex = messages.indexOfFirst { it.id == tempId }
+                            if (tempIndex != -1) {
+                                val existingReactions = messages[tempIndex].reactions
+                                messages[tempIndex] = realMessage
+                                messages[tempIndex].reactions = existingReactions
+                                messageSendMethod[realMessage.id] = "api"
+                                updateTopHeader(messages)
+                                chatAdapter.notifyDataSetChanged()
+                            }
+                            Log.d(
+                                "SocketIOCheck",
+                                "✅ Media sent via fallback API - ID: ${fallbackMessage.id}"
+                            )
+                        } else {
+                            removeTempMessage(tempId)
+                            showAppToast(
+                                responseBody?.message ?: "Couldn't send attachment",
+                                Toast.LENGTH_SHORT
+                            )
+                        }
+                    } else {
+                        removeTempMessage(tempId)
+                        showAppToast("Couldn't send attachment", Toast.LENGTH_SHORT)
+                        Log.e(
+                            "SocketIOCheck",
+                            "Failed to send media via fallback API: ${response.code()}"
+                        )
+                    }
+                }
+
+                override fun onFailure(call: Call<FallbackSendMessageResponse>, t: Throwable) {
+                    removeTempMessage(tempId)
+                    showAppToast("Couldn't send attachment", Toast.LENGTH_SHORT)
+                    Log.e(
+                        "SocketIOCheck",
+                        "Failed to send media via fallback API: ${t.message}",
+                        t
+                    )
+                }
+
+                override fun onNoNetwork() {
+                    removeTempMessage(tempId)
+                    showAppToast(DConstants.NO_NETWORK, Toast.LENGTH_SHORT)
+                    Log.e("SocketIOCheck", "No internet connection (media fallback)")
+                }
+            }
+        )
+    }
+
+    private fun formatElapsedTime(elapsedMs: Long): String {
+        val totalSeconds = elapsedMs / 1000L
+        val minutes = totalSeconds / 60L
+        val seconds = totalSeconds % 60L
+        return "%02d:%02d".format(minutes, seconds)
     }
 
     private fun connectSocket() {
@@ -395,6 +1029,7 @@ class ChatActivityInHouse : AppCompatActivity() {
     private fun updateOnlineStatusFromAPI(lastOnlineStatus: String?) {
         this.lastOnlineStatus = lastOnlineStatus
         mainHandler.post {
+            if (!isUiSafe()) return@post
             // Show status only if it's not null or empty
             if (!lastOnlineStatus.isNullOrEmpty()) {
                 tvUserStatus.text = lastOnlineStatus
@@ -414,6 +1049,8 @@ class ChatActivityInHouse : AppCompatActivity() {
     private fun observeSocketEvents() {
         lifecycleScope.launch {
             socketManager.isConnected.collectLatest { connected ->
+                val prev = previousSocketConnected
+                previousSocketConnected = connected
                 if (connected) {
                     Log.d("SocketIOCheck", "✅ Socket.IO CONNECTED - joining chat room immediately: $chatId")
                     // Join chat room immediately when connected
@@ -424,6 +1061,11 @@ class ChatActivityInHouse : AppCompatActivity() {
                         // Fallback to chatId if user IDs not set
                         socketManager.joinChat(chatId)
                     }
+                    // Catch up history after a disconnect (missed socket events while offline)
+                    if (prev == false && chatId.isNotEmpty() && myUserId > 0 && peerUserId > 0) {
+                        Log.d("SocketIOCheck", "🔄 Socket reconnected — refreshing chat history")
+                        loadMessages()
+                    }
                 } else {
                     Log.d("SocketIOCheck", "❌ Socket.IO DISCONNECTED")
                 }
@@ -433,7 +1075,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         lifecycleScope.launch {
             socketManager.newMessage.collectLatest { message ->
                 message?.let {
-                    if (it.chatId == chatId) {
+                    if (isSocketMessageForThisChat(it)) {
                         handleNewMessage(it)
                     }
                 }
@@ -443,7 +1085,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         lifecycleScope.launch {
             socketManager.messageSent.collectLatest { message ->
                 message?.let {
-                    if (it.chatId == chatId) {
+                    if (isSocketMessageForThisChat(it)) {
                         val messageId = it.id.toString()
                         messageSendMethod[messageId] = "socket"
                         Log.d("SocketIOCheck", "✅ Message sent via SOCKET.IO - ID: $messageId")
@@ -553,6 +1195,10 @@ class ChatActivityInHouse : AppCompatActivity() {
                 override fun onResponse(call: Call<ChatHistoryResponse>, response: Response<ChatHistoryResponse>) {
                     if (requestId != historyLoadRequestId.get()) {
                         Log.d("ChatPagination", "Ignoring stale chat history response (requestId=$requestId, latest=${historyLoadRequestId.get()})")
+                        return
+                    }
+                    if (!isUiSafe()) {
+                        Log.d("ChatPagination", "Ignoring chat history response — activity not safe")
                         return
                     }
                     if (response.isSuccessful) {
@@ -726,6 +1372,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                         Log.d("ChatPagination", "Ignoring stale chat history failure (requestId=$requestId)")
                         return
                     }
+                    if (!isUiSafe()) return
                     Log.e("ChatPagination", "❌ Error loading messages: ${t.message}", t)
                     Log.e("chathisoryapi", "❌ NETWORK ERROR: ${t.message}")
                     Log.e("chathisoryapi", "Request URL: ${call.request().url}")
@@ -738,6 +1385,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                         Log.d("ChatPagination", "Ignoring stale chat history no-network (requestId=$requestId)")
                         return
                     }
+                    if (!isUiSafe()) return
                     Log.e("ChatPagination", "❌ No network connection")
                     Log.e("chathisoryapi", "❌ NO NETWORK CONNECTION")
                     showAppToast("No internet connection", Toast.LENGTH_SHORT)
@@ -778,6 +1426,11 @@ class ChatActivityInHouse : AppCompatActivity() {
             object : NetworkCallback<ChatHistoryResponse> {
                 override fun onResponse(call: Call<ChatHistoryResponse>, response: Response<ChatHistoryResponse>) {
                     if (response.isSuccessful) {
+                        if (!isUiSafe()) {
+                            Log.d("ChatPagination", "Ignoring pagination response — activity not safe")
+                            isLoadingMore = false
+                            return
+                        }
                         val responseBody = response.body()
                         
                         // Log complete API response with chathisoryapi tag (for pagination)
@@ -893,6 +1546,10 @@ class ChatActivityInHouse : AppCompatActivity() {
                 }
 
                 override fun onFailure(call: Call<ChatHistoryResponse>, t: Throwable) {
+                    if (!isUiSafe()) {
+                        isLoadingMore = false
+                        return
+                    }
                     Log.e("ChatPagination", "❌ Error loading more messages: ${t.message}", t)
                     Log.e("chathisoryapi", "❌ PAGINATION NETWORK ERROR: ${t.message}")
                     Log.e("chathisoryapi", "Request URL: ${call.request().url}")
@@ -900,6 +1557,10 @@ class ChatActivityInHouse : AppCompatActivity() {
                 }
 
                 override fun onNoNetwork() {
+                    if (!isUiSafe()) {
+                        isLoadingMore = false
+                        return
+                    }
                     Log.e("ChatPagination", "❌ No network connection")
                     Log.e("chathisoryapi", "❌ PAGINATION - NO NETWORK CONNECTION")
                     showAppToast("No internet connection", Toast.LENGTH_SHORT)
@@ -967,7 +1628,7 @@ class ChatActivityInHouse : AppCompatActivity() {
             fromUserId = myUserId,
             toUserId = peerUserId,
             message = messageText,
-            object : NetworkCallback<FallbackSendMessageResponse> {
+            callback = object : NetworkCallback<FallbackSendMessageResponse> {
                 override fun onResponse(call: Call<FallbackSendMessageResponse>, response: Response<FallbackSendMessageResponse>) {
                     if (response.isSuccessful) {
                         val responseBody = response.body()
@@ -1022,9 +1683,22 @@ class ChatActivityInHouse : AppCompatActivity() {
         )
     }
 
+    /**
+     * Accept socket payloads when [chatId] matches or when participant IDs match this thread
+     * (backend may emit a slightly different [ChatMessageSocket.chatId] string).
+     */
+    private fun isSocketMessageForThisChat(socketMessage: ChatMessageSocket): Boolean {
+        if (socketMessage.chatId == chatId) return true
+        val from = socketMessage.fromUserId ?: return false
+        val to = socketMessage.toUserId ?: return false
+        if (myUserId <= 0 || peerUserId <= 0) return false
+        return (from == myUserId && to == peerUserId) ||
+            (from == peerUserId && to == myUserId)
+    }
+
     private fun handleNewMessage(socketMessage: ChatMessageSocket) {
         // Check if message is from this chat
-        if (socketMessage.chatId != chatId) {
+        if (!isSocketMessageForThisChat(socketMessage)) {
             return
         }
 
@@ -1043,8 +1717,13 @@ class ChatActivityInHouse : AppCompatActivity() {
         // This happens when we send a message and it comes back via Socket.IO
         val tempMessageIndex = messages.indexOfFirst { 
             it.id.startsWith("temp_") && 
-            it.message == socketMessage.message && 
-            it.isSentByMe == isSentByMe
+            it.isSentByMe == isSentByMe &&
+            if (socketMessage.messageType == "image" || socketMessage.messageType == "audio") {
+                it.messageType == socketMessage.messageType &&
+                    it.attachmentUrl == socketMessage.attachmentUrl
+            } else {
+                it.message == socketMessage.message
+            }
         }
         
         val chatMessage = convertSocketMessageToChatMessage(socketMessage)
@@ -1099,7 +1778,9 @@ class ChatActivityInHouse : AppCompatActivity() {
             timestamp = timeFormat.format(timestamp),
             isSentByMe = isSentByMe,
             date = timestamp,
-            reactions = reactionsMap
+            reactions = reactionsMap,
+            messageType = apiMsg.messageType,
+            attachmentUrl = apiMsg.attachmentUrl
         )
     }
 
@@ -1121,7 +1802,9 @@ class ChatActivityInHouse : AppCompatActivity() {
             timestamp = timeFormat.format(timestamp),
             isSentByMe = isSentByMe,
             date = timestamp,
-            reactions = reactionsMap
+            reactions = reactionsMap,
+            messageType = socketMsg.messageType,
+            attachmentUrl = socketMsg.attachmentUrl
         )
     }
 
@@ -1142,7 +1825,9 @@ class ChatActivityInHouse : AppCompatActivity() {
             timestamp = timeFormat.format(timestamp),
             isSentByMe = isSentByMe,
             date = timestamp,
-            reactions = reactionsMap
+            reactions = reactionsMap,
+            messageType = fallbackMsg.messageType,
+            attachmentUrl = fallbackMsg.attachmentUrl
         )
     }
 
@@ -1379,6 +2064,10 @@ class ChatActivityInHouse : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         isChatVisible = false
+
+        if (audioRecorderController.isRecording()) {
+            cancelAudioRecording(showToast = false)
+        }
         
         // Mark messages as read when user leaves the activity (e.g., pressing home, switching apps, etc.)
         markMessagesAsReadIfAvailable()
@@ -1388,18 +2077,20 @@ class ChatActivityInHouse : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+
+        mainHandler.removeCallbacks(logSocketStatusAfterDelay)
+        mainHandler.removeCallbacks(recordingTicker)
+        stopRecordingPulse()
+        audioRecorderController.release()
+        chatAdapter.release()
         
         Log.d("SocketIOCheck", "═══════════════════════════════════════")
-        Log.d("SocketIOCheck", "🔌 Disconnecting Socket.IO - Leaving ChatActivityInHouse")
+        Log.d("SocketIOCheck", "👋 Leaving chat room (socket stays connected for app session)")
         Log.d("SocketIOCheck", "═══════════════════════════════════════")
         
-        // Leave chat room
+        // Leave this chat room only — do not disconnect the global socket here.
+        // Disconnecting on every close caused reconnect races when opening chat repeatedly (blank UI / failed loads).
         socketManager.leaveChat(chatId)
-        
-        // Disconnect Socket.IO only on destroy
-        socketManager.disconnect()
-        
-        Log.d("SocketIOCheck", "✅ Socket.IO disconnected")
     }
 
     override fun onBackPressed() {
@@ -1477,27 +2168,43 @@ class ChatActivityInHouse : AppCompatActivity() {
         // Audio switch listener
         switchAudio?.setOnCheckedChangeListener { _, isChecked ->
             if (isApplyingCallStatusToggleState) return@setOnCheckedChangeListener
-            if (userData != null) {
-                Log.d("ChatActivityInHouse", "📞 Updating audio status: ${if (isChecked) "ON" else "OFF"}")
-                femaleUsersViewModel.updateCallStatus(
-                    userId = userData.id,
-                    callType = DConstants.AUDIO,
-                    status = if (isChecked) 1 else 0
-                )
+            val uid = userData?.id ?: return@setOnCheckedChangeListener
+
+            if (isChecked && !hasRecordAudioPermission()) {
+                isApplyingCallStatusToggleState = true
+                switchAudio.isChecked = false
+                isApplyingCallStatusToggleState = false
+                audioCallEnablePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                return@setOnCheckedChangeListener
             }
+
+            Log.d("ChatActivityInHouse", "📞 Updating audio status: ${if (isChecked) "ON" else "OFF"}")
+            femaleUsersViewModel.updateCallStatus(
+                userId = uid,
+                callType = DConstants.AUDIO,
+                status = if (isChecked) 1 else 0
+            )
         }
 
         // Video switch listener
         switchVideo?.setOnCheckedChangeListener { _, isChecked ->
             if (isApplyingCallStatusToggleState) return@setOnCheckedChangeListener
-            if (userData != null) {
-                Log.d("ChatActivityInHouse", "📹 Updating video status: ${if (isChecked) "ON" else "OFF"}")
-                femaleUsersViewModel.updateCallStatus(
-                    userId = userData.id,
-                    callType = DConstants.VIDEO,
-                    status = if (isChecked) 1 else 0
-                )
+            val uid = userData?.id ?: return@setOnCheckedChangeListener
+
+            if (isChecked && (!hasCameraPermission() || !hasRecordAudioPermission())) {
+                isApplyingCallStatusToggleState = true
+                switchVideo.isChecked = false
+                isApplyingCallStatusToggleState = false
+                startActivity(Intent(this@ChatActivityInHouse, GrantPermissionsActivity::class.java))
+                return@setOnCheckedChangeListener
             }
+
+            Log.d("ChatActivityInHouse", "📹 Updating video status: ${if (isChecked) "ON" else "OFF"}")
+            femaleUsersViewModel.updateCallStatus(
+                userId = uid,
+                callType = DConstants.VIDEO,
+                status = if (isChecked) 1 else 0
+            )
         }
 
         // Block user click listener - show block or unblock based on status
@@ -1513,6 +2220,16 @@ class ChatActivityInHouse : AppCompatActivity() {
                 popupWindow.dismiss()
                 showBlockConfirmationDialog()
             }
+        }
+
+        val itemAcceptFriend = popupView.findViewById<TextView>(R.id.item_accept_as_friend)
+        val dividerBeforeBlockUser = popupView.findViewById<View>(R.id.divider_before_block_user)
+        val showAcceptFriend = !isFriendWithPeer
+        itemAcceptFriend?.visibility = if (showAcceptFriend) View.VISIBLE else View.GONE
+        dividerBeforeBlockUser?.visibility = if (showAcceptFriend) View.VISIBLE else View.GONE
+        itemAcceptFriend?.setOnClickListener {
+            popupWindow.dismiss()
+            acceptAsFriend()
         }
 
         // Measure popup to get its width
@@ -1550,11 +2267,16 @@ class ChatActivityInHouse : AppCompatActivity() {
         popup.menuInflater.inflate(R.menu.menu_chat, popup.menu)
 
         // Show block option or unblock option based on current status
+        popup.menu.findItem(R.id.action_accept_as_friend)?.isVisible = false
         popup.menu.findItem(R.id.action_block)?.isVisible = !iHaveBlockedThisUser
         popup.menu.findItem(R.id.action_unblock)?.isVisible = iHaveBlockedThisUser
 
         popup.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
+                R.id.action_accept_as_friend -> {
+                    acceptAsFriend()
+                    true
+                }
                 R.id.action_block -> {
                     showBlockConfirmationDialog()
                     true
@@ -1814,6 +2536,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                             Log.d("ChatActivityInHouse", "Call availability - Blocked: $isCallBlocked, Audio: $peerAudioStatus, Video: $peerVideoStatus")
                             
                             mainHandler.post {
+                                if (!isUiSafe()) return@post
                                 callButtonsContainer.visibility = View.VISIBLE
                                 // Initialize buttons as disabled (gray) first
                                 cvAudioCall.setCardBackgroundColor(ContextCompat.getColor(this@ChatActivityInHouse, R.color.light_grey))
@@ -1854,6 +2577,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         if (isCallBlocked) {
             Log.d("CallButtons", "User is BLOCKED - disabling both audio and video buttons")
             mainHandler.post {
+                if (!isUiSafe()) return@post
                 // DISABLED - Gray for both buttons
                 cvAudioCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.light_grey))
                 ivAudioCall.setColorFilter(ContextCompat.getColor(this, R.color.grey_medium))
@@ -1873,6 +2597,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         Log.d("CallButtons", "Final status - Audio: $isAudioEnabled ($peerAudioStatus), Video: $isVideoEnabled ($peerVideoStatus)")
         
         mainHandler.post {
+            if (!isUiSafe()) return@post
             // Audio button state - enabled only if audio is enabled (status = 1)
             if (isAudioEnabled) {
                 // ENABLED - Purple

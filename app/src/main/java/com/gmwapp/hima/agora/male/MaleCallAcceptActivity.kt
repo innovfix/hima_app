@@ -1,13 +1,17 @@
 package com.gmwapp.hima.agora.male
 
+import android.Manifest
 import android.app.KeyguardManager
 import android.app.NotificationManager
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import android.view.animation.AnimationUtils
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -22,6 +26,7 @@ import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.databinding.ActivityMaleCallAcceptBinding
+import com.gmwapp.hima.viewmodels.AgoraViewModel
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.UserAvatarViewModel
 import com.gmwapp.hima.viewmodels.AccountViewModel
@@ -33,6 +38,7 @@ class MaleCallAcceptActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMaleCallAcceptBinding
     private val fcmNotificationViewModel: FcmNotificationViewModel by viewModels()
     private val accountViewModel: AccountViewModel by viewModels()
+    private val agoraViewModel: AgoraViewModel by viewModels()
 
     private var callType: String? = null
     private var receiverId: Int = -1
@@ -43,12 +49,15 @@ class MaleCallAcceptActivity : AppCompatActivity() {
 
     private var channelName: String? = null
     var userId: Int? = null
+    private var prefetchedAgoraToken: String? = null
+    private var prefetchedAgoraAppId: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         binding = ActivityMaleCallAcceptBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        window.statusBarColor = ContextCompat.getColor(this, R.color.black)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
@@ -62,11 +71,21 @@ class MaleCallAcceptActivity : AppCompatActivity() {
         receiverId = intent.getIntExtra("SENDER_ID", -1)
         channelName = intent.getStringExtra("CHANNEL_NAME")
 
-        callerName = intent.getStringExtra("Caller_NAME").toString()
-        callerImage = intent.getStringExtra("Caller_Image").toString()
+        callerName = intent.getStringExtra("Caller_NAME").orEmpty()
+        callerImage = intent.getStringExtra("Caller_Image").orEmpty()
 
         Log.d("MaleCallAccept_CallerDetails","Image: $callerImage, Name: $callerName")
         call_Id = intent.getIntExtra("CALL_ID", 0)
+
+        // Pre-request RECORD_AUDIO so permission dialog won't block call start on accept
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 100)
+        }
+
+        // Pre-fetch Agora token while the user decides to accept/reject
+        if (!channelName.isNullOrEmpty()) {
+            prefetchAgoraToken(channelName!!)
+        }
 
         // Allow the activity to show when the device is locked
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
@@ -89,20 +108,6 @@ class MaleCallAcceptActivity : AppCompatActivity() {
 
         val keyguardManager = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
         val isLocked = keyguardManager.isKeyguardLocked // Check if device is locked
-
-        if (BaseApplication.getInstance()?.isAppInForeground() == true && !isLocked) {
-            // Only remove notification if app is in foreground and not on lockscreen
-            val notificationManager = getSystemService(NotificationManager::class.java)
-            notificationManager?.cancel(1)
-
-            Handler(Looper.getMainLooper()).postDelayed({
-                notificationManager?.cancel(1)
-            }, 500)
-
-            Handler(Looper.getMainLooper()).postDelayed({
-                notificationManager?.cancel(1)
-            }, 1000)
-        }
 
         BaseApplication.getInstance()?.clearIncomingCall()
         if (BaseApplication.getInstance()?.isRingtonePlaying() == false) {
@@ -138,7 +143,8 @@ class MaleCallAcceptActivity : AppCompatActivity() {
                     
                     // Stop ringtone
                     BaseApplication.getInstance()?.stopRingtone()
-                    
+                    getSystemService(NotificationManager::class.java)?.cancel(1)
+
                     // Show toast message
                     Toast.makeText(
                         this,
@@ -160,10 +166,13 @@ class MaleCallAcceptActivity : AppCompatActivity() {
 
                 if (callType == "audio") {
                     BaseApplication.getInstance()?.stopRingtone()
+                    getSystemService(NotificationManager::class.java)?.cancel(1)
                     val intent = Intent(this, MaleAudioCallingActivity::class.java).apply {
                         putExtra("CHANNEL_NAME", channelName)
                         putExtra("RECEIVER_ID", receiverId)
                         putExtra("CALL_ID", call_Id)
+                        prefetchedAgoraToken?.let { putExtra("AGORA_TOKEN", it) }
+                        prefetchedAgoraAppId?.let { putExtra("AGORA_APP_ID", it) }
                         Log.d("MaleCallAccept_RECEIVER_ID","$receiverId")
                     }
                     intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -171,10 +180,13 @@ class MaleCallAcceptActivity : AppCompatActivity() {
                     finish()
                 }else{
                     BaseApplication.getInstance()?.stopRingtone()
+                    getSystemService(NotificationManager::class.java)?.cancel(1)
                     val intent = Intent(this, MaleVideoCallingActivity::class.java).apply {
                         putExtra("CHANNEL_NAME", channelName)
                         putExtra("RECEIVER_ID", receiverId)
                         putExtra("CALL_ID", call_Id)
+                        prefetchedAgoraToken?.let { putExtra("AGORA_TOKEN", it) }
+                        prefetchedAgoraAppId?.let { putExtra("AGORA_APP_ID", it) }
                     }
                     intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                     startActivity(intent)
@@ -200,6 +212,7 @@ class MaleCallAcceptActivity : AppCompatActivity() {
                 }
 
                 BaseApplication.getInstance()?.stopRingtone()
+                getSystemService(NotificationManager::class.java)?.cancel(1)
                 val intent = Intent(this@MaleCallAcceptActivity, MainActivity::class.java)
                     intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 startActivity(intent)
@@ -275,6 +288,18 @@ class MaleCallAcceptActivity : AppCompatActivity() {
                 Log.e("MaleCallAccept_RejectCount", "Error: $it")
             }
         }
+    }
+
+    private fun prefetchAgoraToken(channelForToken: String) {
+        Log.d("AgoraTiming", "MaleCallAccept prefetchAgoraToken started at ${System.currentTimeMillis()}")
+        agoraViewModel.agoraTokenLiveData.observe(this) { response ->
+            if (response != null && response.success == true && !response.token.isNullOrEmpty()) {
+                prefetchedAgoraToken = response.token
+                prefetchedAgoraAppId = response.app_id
+                Log.d("AgoraTiming", "MaleCallAccept prefetchAgoraToken received at ${System.currentTimeMillis()}")
+            }
+        }
+        agoraViewModel.getAgoraToken(channelForToken, 0, "publisher", 3600)
     }
 
     private fun startPulseAnimations() {

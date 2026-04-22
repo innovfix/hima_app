@@ -13,6 +13,8 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import com.bumptech.glide.Glide
@@ -25,10 +27,10 @@ import com.gmwapp.hima.activities.DummySubscriptionActivity
 import com.gmwapp.hima.dialogs.BottomSheetTrialOffer
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.AccountPrivacyActivity
+import com.gmwapp.hima.activities.ManageNotificationsActivity
 import com.gmwapp.hima.activities.MyWarningsActivity
 import com.gmwapp.hima.activities.EditProfileActivity
 import com.gmwapp.hima.constants.DConstants
-import com.gmwapp.hima.activities.FriendsListActivity
 import com.gmwapp.hima.activities.HelpAndSupportActivity
 import com.gmwapp.hima.activities.RefundWebViewActivity
 import com.gmwapp.hima.activities.ShareActivity
@@ -36,18 +38,26 @@ import com.gmwapp.hima.activities.TermConditionWebViewActivity
 import com.gmwapp.hima.activities.TransactionsActivity
 import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.callbacks.NetworkRetryable
-import com.gmwapp.hima.fragments.FriendsTabFragment
+import com.gmwapp.hima.callbacks.Refreshable
 import com.gmwapp.hima.databinding.FragmentProfileBinding
 import com.gmwapp.hima.dialogs.BottomSheetLogout
+import com.gmwapp.hima.dialogs.BottomSheetSelectIplTeam
+import com.gmwapp.hima.models.IplTeam
+import com.gmwapp.hima.utils.DndController
+import com.gmwapp.hima.utils.UserDataDndMerge
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.AccountViewModel
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
-class ProfileFragment : BaseFragment(), NetworkRetryable {
+class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
     lateinit var binding: FragmentProfileBinding
     private val EDIT_PROFILE_REQUEST_CODE = 1
     private val accountViewModel: AccountViewModel by viewModels()
+    private val iplRoomViewModel: com.gmwapp.hima.viewmodels.IplRoomViewModel by viewModels()
+    private lateinit var dndController: DndController
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -55,8 +65,24 @@ class ProfileFragment : BaseFragment(), NetworkRetryable {
         savedInstanceState: Bundle?
     ): View {
         binding = FragmentProfileBinding.inflate(layoutInflater)
+        setupStatusBarInsets()
         initUI()
         return binding.root
+    }
+
+    private fun setupStatusBarInsets() {
+        val basePaddingTop = binding.root.paddingTop
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
+            val statusBarInset = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
+            view.setPadding(
+                view.paddingLeft,
+                basePaddingTop + statusBarInset,
+                view.paddingRight,
+                view.paddingBottom
+            )
+            insets
+        }
+        ViewCompat.requestApplyInsets(binding.root)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -64,6 +90,78 @@ class ProfileFragment : BaseFragment(), NetworkRetryable {
         if (resultCode == Activity.RESULT_OK && requestCode == EDIT_PROFILE_REQUEST_CODE) {
             updateValues()
         }
+    }
+
+    private fun updateIplBadge() {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val iplEnabled = (userData?.ipl_rooms_enabled ?: 0) == 1
+
+        // Hide badge entirely if IPL rooms are disabled by admin
+        if (!iplEnabled) {
+            binding.iplTeamBadge.visibility = View.GONE
+            return
+        }
+        binding.iplTeamBadge.visibility = View.VISIBLE
+
+        // Read team from server (userdata.ipl_team), not from local prefs
+        val savedTeamAbbr = userData?.ipl_team
+        val team = savedTeamAbbr?.let { abbr ->
+            IplTeam.values().find { it.abbreviation == abbr }
+        }
+
+        if (team != null) {
+            binding.iplBadgeTeamDot.visibility = View.VISIBLE
+            val dotDrawable = binding.iplBadgeTeamDot.background.mutate() as GradientDrawable
+            dotDrawable.setColor(Color.parseColor(team.primaryColor))
+            binding.tvIplBadgeTeamName.text = "${team.abbreviation} - ${team.teamName}"
+            binding.iplTeamBadge.setBackgroundResource(R.drawable.bg_ipl_team_profile_badge)
+        } else {
+            binding.iplBadgeTeamDot.visibility = View.GONE
+            binding.tvIplBadgeTeamName.text = getString(R.string.choose_team)
+            binding.iplTeamBadge.setBackgroundResource(R.drawable.bg_ipl_no_team_badge)
+        }
+    }
+
+    private fun showIplTeamPicker() {
+        // Always fetch fresh match data every time the picker opens
+        iplRoomViewModel.getMatchSuggestions()
+
+        // Observe one-time for fresh response
+        iplRoomViewModel.matchSuggestionsLiveData.observe(viewLifecycleOwner) { matches ->
+            iplRoomViewModel.matchSuggestionsLiveData.removeObservers(viewLifecycleOwner)
+            openTeamPickerSheet(matches)
+        }
+    }
+
+    private fun openTeamPickerSheet(matches: List<com.gmwapp.hima.retrofit.responses.IplMatchData>?) {
+        val prefs = BaseApplication.getInstance()?.getPrefs()
+        val userData = prefs?.getUserData()
+        // Read current team from server data, not local prefs
+        val currentTeam = userData?.ipl_team?.let { abbr ->
+            IplTeam.values().find { it.abbreviation == abbr }
+        }
+
+        val playingTeams = if (matches != null && matches.isNotEmpty()) {
+            val abbrs = matches.flatMap { listOf(it.teamA, it.teamB) }.distinct()
+            IplTeam.values().filter { it.abbreviation in abbrs }.toTypedArray()
+        } else null
+
+        if (playingTeams == null || playingTeams.isEmpty()) {
+            android.widget.Toast.makeText(requireContext(), "No matches available today", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val bottomSheet = BottomSheetSelectIplTeam(currentTeam, playingTeams) { selectedTeam ->
+            val userId = userData?.id ?: return@BottomSheetSelectIplTeam
+            val teamAbbr = selectedTeam?.abbreviation ?: ""
+            // Save to server
+            iplRoomViewModel.updateIplTeam(userId, teamAbbr)
+            // Update local userData copy so badge refreshes immediately
+            val updated = userData.copy(ipl_team = selectedTeam?.abbreviation)
+            prefs.setUserData(updated)
+            updateIplBadge()
+        }
+        parentFragmentManager.let { bottomSheet.show(it, "IplTeamPicker") }
     }
 
     private fun updateValues() {
@@ -89,8 +187,43 @@ class ProfileFragment : BaseFragment(), NetworkRetryable {
             .into(binding.ivProfile)
     }
 
+    /**
+     * Called when the user re-taps the Profile tab in bottom nav.
+     * Re-fetches user profile data and IPL match suggestions.
+     */
+    override fun refresh() {
+        val refreshUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
+        profileViewModel.getUsers(refreshUserId)
+        iplRoomViewModel.getMatchSuggestions()
+        updateValues()
+        updateIplBadge()
+    }
+
     private fun initUI() {
         updateValues()
+        updateIplBadge()
+        iplRoomViewModel.getMatchSuggestions() // Fetch today's matches for team picker
+
+        dndController = DndController(this, binding.switchDnd, binding.tvDndStatus, profileViewModel)
+
+        // Refresh user data from server (handles auto-clear of expired ipl_team / dnd)
+        val refreshUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
+        refreshUserId?.let { profileViewModel.getUsers(it) }
+        profileViewModel.getUserLiveData.observe(viewLifecycleOwner) { response ->
+            response?.data?.let { fresh ->
+                val prev = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                val merged = UserDataDndMerge.mergePreserveDnd(prev, fresh)
+                BaseApplication.getInstance()?.getPrefs()?.setUserData(merged)
+                updateIplBadge()
+                dndController.refresh()
+            }
+        }
+
+        binding.iplTeamBadge.setOnSingleClickListener {
+            showIplTeamPicker()
+        }
+
+        dndController.attach()
 
         val prefs = BaseApplication.getInstance()?.getPrefs()
         
@@ -106,6 +239,12 @@ class ProfileFragment : BaseFragment(), NetworkRetryable {
         } else {
             binding.clWarnings.visibility = View.GONE
             android.util.Log.d("ProfileFragment", "Warnings card set to GONE")
+        }
+
+        binding.clManageNotifications.visibility =
+            if (userGender?.equals(DConstants.MALE, ignoreCase = true) == true) View.VISIBLE else View.GONE
+        binding.clManageNotifications.setOnSingleClickListener {
+            startActivity(Intent(context, ManageNotificationsActivity::class.java))
         }
 
         binding.clWallet.setOnSingleClickListener {
@@ -144,12 +283,6 @@ class ProfileFragment : BaseFragment(), NetworkRetryable {
 
         binding.clReferEarn.setOnSingleClickListener {
             val intent = Intent(context, ShareActivity::class.java)
-            startActivity(intent)
-        }
-
-        binding.clMyFriends.setOnSingleClickListener {
-            val intent = Intent(context, FriendsListActivity::class.java)
-            intent.putExtra("target_tab", FriendsTabFragment.TYPE_CHAT)
             startActivity(intent)
         }
 

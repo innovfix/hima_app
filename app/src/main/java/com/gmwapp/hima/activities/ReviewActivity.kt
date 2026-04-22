@@ -1,5 +1,6 @@
 package com.gmwapp.hima.activities
 
+import androidx.core.view.WindowInsetsControllerCompat
 import com.gmwapp.hima.utils.showAppToast
 
 import android.Manifest
@@ -70,6 +71,9 @@ class ReviewActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityReviewBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        // Pink gradient root (bg_gradiend) extends under status bar via
+        // fitsSystemWindows=true. LIGHT icons for pink background.
+        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = false
         initUI()
     }
 

@@ -10,8 +10,10 @@ import android.widget.LinearLayout
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -36,6 +38,8 @@ class CouponActivity : AppCompatActivity(), CouponAdapter.OnCouponClickListener 
         super.onCreate(savedInstanceState)
         binding = ActivityCouponBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
 
         enableEdgeToEdge()
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->

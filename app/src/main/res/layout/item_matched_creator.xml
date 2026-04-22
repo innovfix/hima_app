@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="8dp"
+    android:layout_marginVertical="6dp"
+    app:cardBackgroundColor="@color/white"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="2dp"
+    app:strokeColor="#F0F0F0"
+    app:strokeWidth="1dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="14dp">
+
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/iv_creator_image"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:src="@drawable/small_profile"
+            app:civ_border_color="#FFE5F1"
+            app:civ_border_width="2dp" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_creator_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_semibold"
+                android:textColor="@color/creator_name_text"
+                android:textSize="16sp"
+                tools:text="Sarah" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:background="@drawable/circle_bg_green" />
+
+                <TextView
+                    android:id="@+id/tv_creator_language"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:fontFamily="@font/poppins_regular"
+                    android:textColor="@color/grey_medium"
+                    android:textSize="13sp"
+                    tools:text="Tamil" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/btn_creator_audio"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/button_audio_gradient"
+            android:drawableStart="@drawable/ic_phone"
+            android:drawableTint="@color/white"
+            android:gravity="center"
+            android:visibility="gone"
+            tools:visibility="visible"
+            tools:ignore="ContentDescription" />
+
+        <TextView
+            android:id="@+id/btn_creator_video"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/button_video_gradient"
+            android:drawableStart="@drawable/baseline_video_chat_24"
+            android:drawableTint="@color/white"
+            android:gravity="center"
+            android:visibility="gone"
+            tools:visibility="visible"
+            tools:ignore="ContentDescription" />
+
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

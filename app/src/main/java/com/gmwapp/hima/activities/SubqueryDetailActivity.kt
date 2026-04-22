@@ -7,6 +7,7 @@ import android.view.View
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners
 import com.bumptech.glide.request.RequestOptions
@@ -32,7 +33,8 @@ class SubqueryDetailActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivitySubqueryDetailBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        
+        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
+
         // Status bar configuration
         window.statusBarColor = ContextCompat.getColor(this, R.color.white)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {

@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:gravity="end"
+    android:orientation="horizontal"
+    android:paddingVertical="3dp">
+
+    <RelativeLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:clipChildren="false"
+        android:clipToPadding="false">
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/bubble_container"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="18dp"
+            app:cardElevation="1dp"
+            app:strokeWidth="0dp">
+
+            <FrameLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
+
+                <ImageView
+                    android:id="@+id/iv_image"
+                    android:layout_width="220dp"
+                    android:layout_height="220dp"
+                    android:adjustViewBounds="true"
+                    android:contentDescription="@null"
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/small_profile" />
+
+                <TextView
+                    android:id="@+id/tv_time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|end"
+                    android:layout_margin="8dp"
+                    android:background="@drawable/chat_image_time_chip"
+                    android:fontFamily="@font/poppins_regular"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="4dp"
+                    android:text="10:31 AM"
+                    android:textColor="@color/chat_time_sent"
+                    android:textSize="10sp" />
+            </FrameLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <TextView
+            android:id="@+id/tv_reaction"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignStart="@id/bubble_container"
+            android:layout_below="@id/bubble_container"
+            android:layout_marginStart="-8dp"
+            android:layout_marginTop="-14dp"
+            android:background="@drawable/bg_reaction_circle"
+            android:elevation="3dp"
+            android:gravity="center"
+            android:minWidth="28dp"
+            android:minHeight="28dp"
+            android:padding="6dp"
+            android:text="👍"
+            android:textSize="16sp"
+            android:visibility="gone" />
+    </RelativeLayout>
+</LinearLayout>

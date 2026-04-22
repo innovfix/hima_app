@@ -11,6 +11,7 @@ import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
+import androidx.core.content.ContextCompat
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -25,6 +26,7 @@ import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityFemaleCallConnectingBinding
+import com.gmwapp.hima.viewmodels.AgoraViewModel
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -35,6 +37,7 @@ import kotlinx.coroutines.launch
 class FemaleCallConnectingActivity : AppCompatActivity() {
     private lateinit var binding : ActivityFemaleCallConnectingBinding
     private val fcmNotificationViewModel: FcmNotificationViewModel by viewModels()
+    private val agoraViewModel: AgoraViewModel by viewModels()
     var callType: String? = null
     var receiverId: Int = -1
     var receiverImg : String? = null
@@ -43,6 +46,8 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
     private var callId = 0
     private var channelName: String = ""  // Store channel name to ensure consistency
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
+    private var prefetchedAgoraToken: String? = null
+    private var prefetchedAgoraAppId: String? = null
     private lateinit var progressBar: ProgressBar
     private val handler = Handler(Looper.getMainLooper())
     private var progressStatus = 0
@@ -78,6 +83,7 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding = ActivityFemaleCallConnectingBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        window.statusBarColor = ContextCompat.getColor(this, R.color.black)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
@@ -327,6 +333,7 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                 channelName = "channel_$callId"  // Set channel name based on call ID
                 Log.d("CallID", "CallID: $callId, ChannelName: $channelName")
                 if (callId != 0) {
+                    prefetchAgoraToken(channelName)
                     sendCallNotification(userId!!, receiverId, callType!!, "incoming call $callId $myAvatar $myname")
                     observeNotificationResponse()
                 }
@@ -365,6 +372,18 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
         )
     }
 
+    private fun prefetchAgoraToken(channelForToken: String) {
+        Log.d("AgoraTiming", "FemaleConnecting prefetchAgoraToken started at ${System.currentTimeMillis()}")
+        agoraViewModel.agoraTokenLiveData.observe(this) { response ->
+            if (response != null && response.success == true && !response.token.isNullOrEmpty()) {
+                prefetchedAgoraToken = response.token
+                prefetchedAgoraAppId = response.app_id
+                Log.d("AgoraTiming", "FemaleConnecting prefetchAgoraToken received at ${System.currentTimeMillis()}")
+            }
+        }
+        agoraViewModel.getAgoraToken(channelForToken, 0, "publisher", 3600)
+    }
+
     fun observeCallAcceptance() {
         if (designOnly) return // UI-only: skip observers
         FcmUtils.callStatus.observe(this, androidx.lifecycle.Observer { callStatus ->
@@ -389,6 +408,8 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                     intent.putExtra("CHANNEL_NAME", channelName)  // Use stored channel name
                     intent.putExtra("RECEIVER_ID", this.receiverId)
                     intent.putExtra("CALL_ID", callId)
+                    prefetchedAgoraToken?.let { intent.putExtra("AGORA_TOKEN", it) }
+                    prefetchedAgoraAppId?.let { intent.putExtra("AGORA_APP_ID", it) }
                     
                     startActivity(intent)
                     finish()

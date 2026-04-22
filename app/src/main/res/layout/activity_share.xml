@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FAFAFA"
+    android:background="@color/white"
     android:fillViewport="true">
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -14,56 +14,14 @@
         android:paddingBottom="24dp"
         tools:context=".activities.ShareActivity">
 
-        <!-- Header Section -->
-        <LinearLayout
-            android:id="@+id/header_section"
+        <include
+            android:id="@+id/include_profile_toolbar"
+            layout="@layout/layout_profile_flow_toolbar"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:background="@android:color/white"
-            android:elevation="2dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingStart="16dp"
-            android:paddingTop="12dp"
-            android:paddingEnd="16dp"
-            android:paddingBottom="12dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
-
-            <!-- Back Button Card with Subtle Shadow -->
-            <androidx.cardview.widget.CardView
-                android:id="@+id/cv_back"
-                android:layout_width="42dp"
-                android:layout_height="42dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="1dp"
-                app:cardBackgroundColor="#F8F9FA">
-
-            <ImageView
-                android:id="@+id/iv_back"
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:layout_gravity="center"
-                android:contentDescription="@string/edit"
-                    android:src="@drawable/right_arrow"
-                android:rotation="180"
-                    app:tint="#374151" />
-
-            </androidx.cardview.widget.CardView>
-
-            <TextView
-                android:id="@+id/tv_share"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:fontFamily="@font/poppins_bold"
-                android:text="Share &amp; Get Coins"
-                android:textColor="@color/pink_bold"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-
-        </LinearLayout>
+            app:layout_constraintTop_toTopOf="parent" />
 
         <!-- Stats Cards Row -->
         <LinearLayout
@@ -78,7 +36,7 @@
             android:weightSum="2"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/header_section">
+            app:layout_constraintTop_toBottomOf="@+id/include_profile_toolbar">
 
             <!-- My Invites Card -->
             <LinearLayout
@@ -103,7 +61,7 @@
                     android:layout_marginTop="8dp"
                     android:fontFamily="@font/poppins_medium"
                     android:text="My Invites"
-                    android:textColor="#757575"
+                    android:textColor="@color/grey_medium"
                     android:textSize="11sp" />
 
                 <TextView
@@ -113,7 +71,7 @@
                     android:layout_marginTop="4dp"
                     android:fontFamily="@font/poppins_bold"
                     android:text="0"
-                    android:textColor="#212121"
+                    android:textColor="@color/black_light"
                     android:textSize="26sp" />
 
             </LinearLayout>
@@ -145,7 +103,7 @@
                     android:layout_marginTop="8dp"
                     android:fontFamily="@font/poppins_medium"
                     android:text="Per Invite"
-                    android:textColor="#757575"
+                    android:textColor="@color/grey_medium"
                     android:textSize="11sp" />
 
                 <TextView
@@ -155,7 +113,7 @@
                     android:layout_marginTop="4dp"
                     android:fontFamily="@font/poppins_bold"
                     android:text="10"
-                    android:textColor="#212121"
+                    android:textColor="@color/black_light"
                     android:textSize="26sp" />
 
             </LinearLayout>
@@ -239,7 +197,7 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/poppins_medium"
                 android:text="My Invite Code"
-                android:textColor="#757575"
+                android:textColor="@color/grey_medium"
                 android:textSize="11sp" />
 
             <LinearLayout
@@ -311,7 +269,7 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/poppins_bold"
                 android:text="How to Get Coins?"
-                android:textColor="#212121"
+                android:textColor="@color/black_light"
                 android:textSize="16sp" />
 
             <ImageView
@@ -324,7 +282,7 @@
                 android:padding="2dp"
                 android:src="@drawable/ic_info_outline"
                 android:visibility="gone"
-                app:tint="#616161" />
+                app:tint="@color/grey_medium" />
 
         </LinearLayout>
 
@@ -344,7 +302,7 @@
             android:paddingVertical="14dp"
             android:text="Disclaimer: You will get money only when the referred user completes their KYC."
             android:textAlignment="center"
-            android:textColor="#616161"
+            android:textColor="@color/grey_medium"
             android:textSize="11sp"
             android:visibility="gone"
             app:layout_constraintEnd_toEndOf="parent"

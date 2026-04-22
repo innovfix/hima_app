@@ -3,9 +3,7 @@ package com.gmwapp.hima.activities
 import com.gmwapp.hima.utils.showAppToast
 
 import android.content.Intent
-import android.graphics.Color
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.util.Base64
@@ -48,6 +46,7 @@ import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.dialogs.BottomSheetTrialOffer
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.utils.AppEventLogger
+import com.gmwapp.hima.utils.applySystemBarInsets
 import androidx.appcompat.app.AlertDialog
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.CashfreeOrderViewModel
@@ -63,6 +62,7 @@ import retrofit2.Call
 import retrofit2.Response
 import com.google.androidbrowserhelper.trusted.LauncherActivity
 import com.google.firebase.analytics.FirebaseAnalytics
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.onesignal.OneSignal
 import com.onesignal.notifications.INotificationClickEvent
 import com.onesignal.notifications.INotificationClickListener
@@ -138,6 +138,9 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 
     var messageCameWhenIsAlive = 0
 
+    /** True only for Google Play billing flow — [updatePurchaseOnMeta] must run when [WalletViewModel.navigateToMain] fires. */
+    private var pendingPurchaseMetaFromPlayBilling = false
+
     private val activityResultLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -162,21 +165,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         binding = ActivityWalletBinding.inflate(layoutInflater)
         enableEdgeToEdge()
         setContentView(binding.root)
-        
-        // Set status bar colors
-       // window.statusBarColor = resources.getColor(R.color.white, null)
-
-//        window.statusBarColor = Color.parseColor("#2193b0") // startColor of your gradient
-
-        window.statusBarColor = Color.parseColor("#ffffff") // startColor of your gradient
-
-        // Make status bar icons light (white) so they're visible on black background
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            window.insetsController?.setSystemBarsAppearance(
-                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
-                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
-            )
-        }
+        applySystemBarInsets(binding.root, R.color.white, darkStatusBarIcons = true)
 
         window.navigationBarColor = resources.getColor(android.R.color.white, null)
 
@@ -185,7 +174,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         setupPaymentTypeLoginObserverOnce()
         checkIndividualPaymentType()
         initUI()
-        observeCoins()
+        setupWalletObservers()
         intializePhonpe()
         checkReferralOffer()
 
@@ -213,6 +202,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
             CFPaymentGatewayService.getInstance().setCheckoutCallback(this)
         } catch (e: CFException) {
             e.printStackTrace()
+            FirebaseCrashlytics.getInstance().recordException(e)
         }
 
 
@@ -235,22 +225,27 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 
 
     fun intializePhonpe(){
+        try {
+            val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+            val userId = userData?.id?.toString().orEmpty()
+            val isInitialized = PhonePeKt.init(
+                context = this,
+                merchantId = "SU2505161111008337542920", // Replace in PROD
+                flowId = userId,
+                phonePeEnvironment = PhonePeEnvironment.RELEASE, // Use RELEASE in prod
+                enableLogging = true,
+                appId = null
+            )
 
-        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        var userId = userData?.id.toString()
-        val isInitialized = PhonePeKt.init(
-            context = this,
-            merchantId = "SU2505161111008337542920", // Replace in PROD
-            flowId = userId,
-            phonePeEnvironment = PhonePeEnvironment.RELEASE, // Use RELEASE in prod
-            enableLogging = true,
-            appId = null
-        )
-
-        if (isInitialized) {
-            isPhonePeInitialized = true
-        } else {
-            Log.e("PhonePe", "SDK Initialization Failed")
+            if (isInitialized) {
+                isPhonePeInitialized = true
+            } else {
+                Log.e("PhonePe", "SDK Initialization Failed")
+                showAppToast("PhonePe SDK init failed", Toast.LENGTH_SHORT)
+            }
+        } catch (e: Exception) {
+            Log.e("PhonePe", "init failed", e)
+            FirebaseCrashlytics.getInstance().recordException(e)
             showAppToast("PhonePe SDK init failed", Toast.LENGTH_SHORT)
         }
     }
@@ -268,7 +263,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         Log.d("SelectedCoinID", " $coinId")
 
         val request = Request.Builder()
-            .url("https://himaapp.in/api/phonepe/live/create-order") // Should return { token, orderId }
+            .url("${Config.API_ROOT}phonepe/live/create-order") // Should return { token, orderId }
             .post(formBody)
             .build()
 
@@ -333,7 +328,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         val body = RequestBody.create(mediaType, json)
 
         val request = Request.Builder()
-            .url("https://himaapp.in/api/phonepe/live/check-status")
+            .url("${Config.API_ROOT}phonepe/live/check-status")
             .post(body) // ✅ Correct method
             .addHeader("Content-Type", "application/json")
             .build()
@@ -363,7 +358,6 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                     runOnUiThread{
                         showAppToast("Payment Successful", Toast.LENGTH_LONG)
                         user_id?.let { WalletViewModel.addCoins(it, coin_id, 1, order_id, "Coins purchased") }
-                        observeAddCoins()
                         updatePurchaseOnMeta()
                     }
 
@@ -385,45 +379,43 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         return activities.isNotEmpty()
     }
 
-    fun observeAddCoins(){
-        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-
-        WalletViewModel.navigateToMain.observe(this, Observer { shouldNavigate ->
-
-            if (shouldNavigate) {
-                showAppToast("Coin purchased successfully", Toast.LENGTH_SHORT)
-                userData?.id?.let { profileViewModel.getUsers(it) }
-
-                profileViewModel.getUserLiveData.observe(this, Observer {
-                    it?.data?.let { it1 ->
-                        BaseApplication.getInstance()?.getPrefs()
-                            ?.setUserData(it1)
-                    }
-                    binding.tvCoins.text = it?.data?.coins.toString()
-                    WalletViewModel._navigateToMain.postValue(false)
-                })
-            } else {
-
-                profileViewModel.getUserLiveData.observe(this, Observer {
-                    it?.data?.let { it1 ->
-                        BaseApplication.getInstance()?.getPrefs()
-                            ?.setUserData(it1)
-                    }
-                    binding.tvCoins.text = it?.data?.coins.toString()
-
-                })
+    /**
+     * Single registration for profile + navigate observers. Nested observers caused duplicate
+     * emissions and NPEs when touching [binding] after teardown (Crashlytics #1).
+     */
+    private fun setupWalletObservers() {
+        profileViewModel.getUserLiveData.observe(this, Observer { response ->
+            if (isFinishing || isDestroyed) return@Observer
+            try {
+                response?.data?.let { u ->
+                    BaseApplication.getInstance()?.getPrefs()?.setUserData(u)
+                }
+                val coins = response?.data?.coins
+                Log.d("coinsUpdated_", "${coins ?: 0}")
+                binding.tvCoins.text = (coins ?: 0).toString()
+            } catch (e: Exception) {
+                Log.e("WalletActivity", "getUserLiveData observer", e)
+                FirebaseCrashlytics.getInstance().recordException(e)
             }
         })
-    }
 
-
-    fun observeCoins(){
-        profileViewModel.getUserLiveData.observe(this, Observer {
-            it?.data?.let { it1 ->
-                BaseApplication.getInstance()?.getPrefs()?.setUserData(it1)
+        WalletViewModel.navigateToMain.observe(this, Observer { shouldNavigate ->
+            if (isFinishing || isDestroyed) return@Observer
+            if (!shouldNavigate) return@Observer
+            try {
+                showAppToast("Coin purchased successfully", Toast.LENGTH_SHORT)
+                if (pendingPurchaseMetaFromPlayBilling) {
+                    updatePurchaseOnMeta()
+                    pendingPurchaseMetaFromPlayBilling = false
+                }
+                BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
+                    profileViewModel.getUsers(it)
+                }
+                WalletViewModel._navigateToMain.postValue(false)
+            } catch (e: Exception) {
+                Log.e("WalletActivity", "navigateToMain observer", e)
+                FirebaseCrashlytics.getInstance().recordException(e)
             }
-            Log.d("coinsUpdated_","$${it?.data?.coins.toString()}")
-            binding.tvCoins.text = it?.data?.coins.toString()
         })
     }
 
@@ -1110,7 +1102,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         val body = RequestBody.create(mediaType, json)
 
         val request = Request.Builder()
-            .url("https://himaapp.in/api/cashfree/create-order")
+            .url("${Config.API_ROOT}cashfree/create-order")
             .post(body) // ✅ POST request like PhonePe example
             .addHeader("Content-Type", "application/json")
             .build()
@@ -1161,7 +1153,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         val client = OkHttpClient()
 
         val request = Request.Builder()
-            .url("https://himaapp.in/api/cashfree/check-order-status?order_id=$orderId")
+            .url("${Config.API_ROOT}cashfree/check-order-status?order_id=$orderId")
             .get() // ✅ This endpoint uses GET (based on your Postman test)
             .addHeader("Content-Type", "application/json")
             .build()
@@ -1191,7 +1183,6 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                         runOnUiThread {
                             showAppToast("Payment Successful", Toast.LENGTH_LONG)
                             user_id?.let { WalletViewModel.add_coins_cashfree(it, coin_id, 1, order_id, "Coins purchased") }
-                            observeAddCoins()
                             updatePurchaseOnMeta()
                         }
                     } else {
@@ -1387,30 +1378,8 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                             preferences.setSelectedPlanId(java.lang.String.valueOf(pointsIdInt))
                             preferences.setSelectedOrderId(java.lang.String.valueOf(random4Digit))
                             WalletViewModel.tryCoins(userId, pointsIdInt, 0, random4Digit, "try")
+                            pendingPurchaseMetaFromPlayBilling = true
                             bm.purchaseProduct(pointsId)
-                            WalletViewModel.navigateToMain.observe(this, Observer { shouldNavigate ->
-                                if (shouldNavigate) {
-                                    showAppToast("Coin purchased successfully", Toast.LENGTH_SHORT)
-                                    userData?.id?.let { profileViewModel.getUsers(it) }
-                                    updatePurchaseOnMeta()
-                                    profileViewModel.getUserLiveData.observe(this, Observer {
-                                        it?.data?.let { it1 ->
-                                            BaseApplication.getInstance()?.getPrefs()
-                                                ?.setUserData(it1)
-                                        }
-                                        binding.tvCoins.text = it?.data?.coins.toString()
-                                        WalletViewModel._navigateToMain.postValue(false)
-                                    })
-                                } else {
-                                    profileViewModel.getUserLiveData.observe(this, Observer {
-                                        it?.data?.let { it1 ->
-                                            BaseApplication.getInstance()?.getPrefs()
-                                                ?.setUserData(it1)
-                                        }
-                                        binding.tvCoins.text = it?.data?.coins.toString()
-                                    })
-                                }
-                            })
                             }
                         }
 

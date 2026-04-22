@@ -6,7 +6,9 @@ import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
 import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.R
 import com.gmwapp.hima.databinding.ActivityGrantPermissionsBinding
+import com.gmwapp.hima.utils.applySystemBarInsets
 import com.gmwapp.hima.utils.setOnSingleClickListener
 
 class GrantPermissionsActivity : BaseActivity() {
@@ -16,6 +18,7 @@ class GrantPermissionsActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityGrantPermissionsBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        applySystemBarInsets(binding.root, R.color.white)
         initUI()
     }
 

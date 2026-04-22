@@ -9,11 +9,13 @@ import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
+import androidx.core.content.ContextCompat
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Observer
 import com.bumptech.glide.Glide
 import com.cashfree.pg.api.CFPaymentGatewayService
@@ -36,6 +38,7 @@ import com.gmwapp.hima.retrofit.responses.CoinsResponseData
 import com.gmwapp.hima.retrofit.responses.NewRazorpayLinkResponse
 import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.utils.AppEventLogger
+import com.gmwapp.hima.utils.Config
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.viewmodels.UpiPaymentViewModel
 import com.gmwapp.hima.viewmodels.WalletViewModel
@@ -95,6 +98,9 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
     private var currentOffer: String? = null
     private var isCouponApplied: Boolean = false
 
+    /** Google Play billing: [updatePurchaseOnMeta] when [WalletViewModel.navigateToMain] fires. */
+    private var pendingPurchaseMetaFromPlayBilling = false
+
     private val activityResultLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -119,6 +125,8 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         super.onCreate(savedInstanceState)
         binding = ActivityPaymentBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
 
         enableEdgeToEdge()
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
@@ -130,7 +138,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         getPaymentGateway()
         initUI()
         startPayment()
-        observeAddCoins()
+        setupPaymentWalletObservers()
         intializePhonpe()
 
     }
@@ -508,38 +516,11 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
                                 if (pointsIdInt != null) {
                                     WalletViewModel.tryCoins(userId, pointsIdInt, 0, random4Digit, "try")
                                 }
+                                pendingPurchaseMetaFromPlayBilling = true
                                 billingManager!!.purchaseProduct(
                                     // "coin_14",
                                     coinID,
                                 )
-                                WalletViewModel.navigateToMain.observe(this, Observer { shouldNavigate ->
-
-                                    if (shouldNavigate) {
-                                        showAppToast("Coin purchased successfully", Toast.LENGTH_SHORT)
-                                        userData?.id?.let { profileViewModel.getUsers(it) }
-
-                                        updatePurchaseOnMeta()
-
-                                        profileViewModel.getUserLiveData.observe(this, Observer {
-                                            it.data?.let { it1 ->
-                                                BaseApplication.getInstance()?.getPrefs()
-                                                    ?.setUserData(it1)
-                                            }
-                                           // binding.tvCoins.text = it.data?.coins.toString()
-                                            WalletViewModel._navigateToMain.postValue(false)
-                                        })
-                                    } else {
-
-                                        profileViewModel.getUserLiveData.observe(this, Observer {
-                                            it.data?.let { it1 ->
-                                                BaseApplication.getInstance()?.getPrefs()
-                                                    ?.setUserData(it1)
-                                            }
-                                           // binding.tvCoins.text = it.data?.coins.toString()
-
-                                        })
-                                    }
-                                })
                             }
 
                             "razorpay" -> {
@@ -660,7 +641,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         val body = RequestBody.create(mediaType, json)
 
         val request = Request.Builder()
-            .url("https://himaapp.in/api/phonepe/live/check-status")
+            .url("${Config.API_ROOT}phonepe/live/check-status")
             .post(body) // ✅ Correct method
             .addHeader("Content-Type", "application/json")
             .build()
@@ -712,7 +693,6 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
                             showAppToast("Payment Successful", Toast.LENGTH_LONG)
                             if (coin_id.isNotEmpty() && order_id.isNotEmpty()) {
                                 user_id?.let { WalletViewModel.addCoins(it, coin_id, 1, order_id, "Coins purchased") }
-                                observeAddCoins()
                                 updatePurchaseOnMeta()
                             } else {
                                 Log.e("PhonePeError", "Missing coin_id or order_id. coin_id=$coin_id, order_id=$order_id")
@@ -776,7 +756,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         Log.d("PhonePeRequest", "Coupon ID: $couponIdToPass")
 
         val request = Request.Builder()
-            .url("https://himaapp.in/api/phonepe/live/create-order") // Should return { token, orderId }
+            .url("${Config.API_ROOT}phonepe/live/create-order") // Should return { token, orderId }
             .post(formBody)
             .build()
 
@@ -839,33 +819,34 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         return activities.isNotEmpty()
     }
 
-    fun observeAddCoins(){
-        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+    /** Single observers — avoids nested LiveData leaks (same pattern as [WalletActivity]). */
+    private fun setupPaymentWalletObservers() {
+        profileViewModel.getUserLiveData.observe(this, Observer { response ->
+            if (isFinishing || isDestroyed) return@Observer
+            try {
+                response?.data?.let { u ->
+                    BaseApplication.getInstance()?.getPrefs()?.setUserData(u)
+                }
+            } catch (e: Exception) {
+                Log.e("PaymentActivity", "getUserLiveData", e)
+            }
+        })
 
         WalletViewModel.navigateToMain.observe(this, Observer { shouldNavigate ->
-
-            if (shouldNavigate) {
+            if (isFinishing || isDestroyed) return@Observer
+            if (!shouldNavigate) return@Observer
+            try {
                 showAppToast("Coin purchased successfully", Toast.LENGTH_SHORT)
-                userData?.id?.let { profileViewModel.getUsers(it) }
-
-                profileViewModel.getUserLiveData.observe(this, Observer {
-                    it.data?.let { it1 ->
-                        BaseApplication.getInstance()?.getPrefs()
-                            ?.setUserData(it1)
-                    }
-//                    binding.tvCoins.text = it.data?.coins.toString()
-                    WalletViewModel._navigateToMain.postValue(false)
-                })
-            } else {
-
-                profileViewModel.getUserLiveData.observe(this, Observer {
-                    it.data?.let { it1 ->
-                        BaseApplication.getInstance()?.getPrefs()
-                            ?.setUserData(it1)
-                    }
-//                    binding.tvCoins.text = it.data?.coins.toString()
-
-                })
+                if (pendingPurchaseMetaFromPlayBilling) {
+                    updatePurchaseOnMeta()
+                    pendingPurchaseMetaFromPlayBilling = false
+                }
+                BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
+                    profileViewModel.getUsers(it)
+                }
+                WalletViewModel._navigateToMain.postValue(false)
+            } catch (e: Exception) {
+                Log.e("PaymentActivity", "navigateToMain", e)
             }
         })
     }
@@ -964,7 +945,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         Log.d("CashfreeRequest", "Request Body: $json")
 
         val request = Request.Builder()
-            .url("https://himaapp.in/api/cashfree/create-order")
+            .url("${Config.API_ROOT}cashfree/create-order")
             .post(body)
             .addHeader("Content-Type", "application/json")
             .build()
@@ -1015,7 +996,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         val client = OkHttpClient()
 
         val request = Request.Builder()
-            .url("https://himaapp.in/api/cashfree/check-order-status?order_id=$orderId")
+            .url("${Config.API_ROOT}cashfree/check-order-status?order_id=$orderId")
             .get()
             .addHeader("Content-Type", "application/json")
             .build()
@@ -1044,7 +1025,6 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
                         runOnUiThread {
                             showAppToast("Payment Successful", Toast.LENGTH_LONG)
                             user_id?.let { WalletViewModel.add_coins_cashfree(it, coin_id, 1, order_id, "Coins purchased") }
-                            observeAddCoins()
                             updatePurchaseOnMeta()
                         }
                     } else {

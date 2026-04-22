@@ -237,14 +237,44 @@ class DPreferences(context: Context) {
         return mPrefsRead.getString(key, null)
     }
 
+    fun getBoolPref(key: String, default: Boolean = true): Boolean {
+        return try {
+            mPrefsRead.getBoolean(key, default)
+        } catch (e: Exception) {
+            default
+        }
+    }
+
+    fun setBoolPref(key: String, value: Boolean) {
+        try {
+            mPrefsWrite.putBoolean(key, value).apply()
+        } catch (e: Exception) {
+            e.message?.let { Log.e("DPreferences", it) }
+        }
+    }
 
 
 
+
+
+    fun setSelectedIplTeam(teamName: String?) {
+        if (teamName == null) {
+            mPrefsWrite.remove(SELECTED_IPL_TEAM)
+        } else {
+            mPrefsWrite.putString(SELECTED_IPL_TEAM, teamName)
+        }
+        mPrefsWrite.apply()
+    }
+
+    fun getSelectedIplTeam(): String? {
+        return mPrefsRead.getString(SELECTED_IPL_TEAM, null)
+    }
 
     companion object {
         private const val AUTHENTICATION_TOKEN: String = "authentication_token"
         private const val SETTINGS_DATA: String = "settings_data"
         private const val USER_DATA = "user_data"
         private const val PREFS = "Hima"
+        private const val SELECTED_IPL_TEAM = "selected_ipl_team"
     }
 }

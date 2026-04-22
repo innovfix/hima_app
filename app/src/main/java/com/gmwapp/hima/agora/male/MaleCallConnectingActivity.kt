@@ -9,6 +9,7 @@ import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
+import androidx.core.content.ContextCompat
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -20,10 +21,13 @@ import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
-import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityMaleCallConnectingBinding
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.app.ActivityCompat
+import com.gmwapp.hima.viewmodels.AgoraViewModel
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -35,6 +39,7 @@ import kotlinx.coroutines.launch
 class MaleCallConnectingActivity : AppCompatActivity() {
     private lateinit var binding : ActivityMaleCallConnectingBinding
     private val fcmNotificationViewModel: FcmNotificationViewModel by viewModels()
+    private val agoraViewModel: AgoraViewModel by viewModels()
     var callType: String? = null
     var receiverId: Int = -1
     var receiverImg : String? = null
@@ -44,6 +49,9 @@ class MaleCallConnectingActivity : AppCompatActivity() {
     private var fromChat: Boolean = false
     private var chatPeerUserId: Int = -1
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
+    private var currentCallChannelName: String? = null
+    private var prefetchedAgoraToken: String? = null
+    private var prefetchedAgoraAppId: String? = null
     private lateinit var progressBar: ProgressBar
     private val handler = Handler(Looper.getMainLooper())
     private var progressStatus = 0
@@ -78,6 +86,7 @@ class MaleCallConnectingActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding =ActivityMaleCallConnectingBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        window.statusBarColor = ContextCompat.getColor(this, R.color.black)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
@@ -87,6 +96,11 @@ class MaleCallConnectingActivity : AppCompatActivity() {
         FcmUtils.isUserAvailable=1
 
         Log.d("FcmUtils.isUserAvailable","${FcmUtils.isUserAvailable}")
+
+        // Pre-request RECORD_AUDIO so the permission dialog is out of the way before the call screen
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 100)
+        }
 
         // Read intent extras immediately (outside coroutine) so they're available for onBackPressed
         callType = intent.getStringExtra(DConstants.CALL_TYPE)
@@ -360,12 +374,22 @@ class MaleCallConnectingActivity : AppCompatActivity() {
 
             } else {
 
+                val safeCoinStatus = it?.coin_status ?: 1
                 it?.message?.let { message ->
                     if (message.startsWith("Insufficient coins")) {
-                        val intent = Intent(this@MaleCallConnectingActivity, WalletActivity::class.java)
-                        Toast.makeText(this@MaleCallConnectingActivity, message, Toast.LENGTH_LONG).show()
-                        startActivity(intent)
-                        finish()
+                        if (safeCoinStatus == 0) {
+                            val intent = Intent(this@MaleCallConnectingActivity, MainActivity::class.java).apply {
+                                putExtra("show_paywall_insufficient", true)
+                                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                            }
+                            startActivity(intent)
+                            finish()
+                        } else {
+                            val intent = Intent(this@MaleCallConnectingActivity, com.gmwapp.hima.activities.WalletActivity::class.java)
+                            Toast.makeText(this@MaleCallConnectingActivity, message, Toast.LENGTH_LONG).show()
+                            startActivity(intent)
+                            finish()
+                        }
                     } else {
                         Toast.makeText(this@MaleCallConnectingActivity, message, Toast.LENGTH_LONG).show()
                         // Return to ChatActivityInHouse if call was initiated from chat
@@ -419,14 +443,30 @@ class MaleCallConnectingActivity : AppCompatActivity() {
     }
 
     fun sendCallNotification(senderId:Int, receiverId:Int, callType:String, message:String) {
+        if (currentCallChannelName == null) {
+            currentCallChannelName = generateUniqueChannelName(senderId)
+            prefetchAgoraToken(currentCallChannelName!!)
+        }
         fcmNotificationViewModel.sendNotification(
             senderId = senderId,
             receiverId = receiverId,
             callType = callType,
-            channelName = generateUniqueChannelName(senderId),
+            channelName = currentCallChannelName!!,
             message = message
         )
         observeNotificationResponse()
+    }
+
+    private fun prefetchAgoraToken(channelName: String) {
+        Log.d("AgoraTiming", "prefetchAgoraToken started at ${System.currentTimeMillis()}")
+        agoraViewModel.agoraTokenLiveData.observe(this) { response ->
+            if (response != null && response.success == true && !response.token.isNullOrEmpty()) {
+                prefetchedAgoraToken = response.token
+                prefetchedAgoraAppId = response.app_id
+                Log.d("AgoraTiming", "prefetchAgoraToken received at ${System.currentTimeMillis()}")
+            }
+        }
+        agoraViewModel.getAgoraToken(channelName, 0, "publisher", 3600)
     }
 
     fun observeNotificationResponse() {
@@ -461,6 +501,8 @@ class MaleCallConnectingActivity : AppCompatActivity() {
                             putExtra("CHANNEL_NAME", channelName)
                             putExtra("RECEIVER_ID", receiverId)
                             putExtra("CALL_ID", callId)
+                            prefetchedAgoraToken?.let { putExtra("AGORA_TOKEN", it) }
+                            prefetchedAgoraAppId?.let { putExtra("AGORA_APP_ID", it) }
                             Log.d("RECEIVER_ID","$receiverId")
                         }
                         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -473,8 +515,9 @@ class MaleCallConnectingActivity : AppCompatActivity() {
                         val intent = Intent(this, MaleVideoCallingActivity::class.java).apply {
                                 putExtra("CHANNEL_NAME", channelName)
                                 putExtra("RECEIVER_ID", receiverId)
-                                 putExtra("CALL_ID", callId)
-
+                                putExtra("CALL_ID", callId)
+                                prefetchedAgoraToken?.let { putExtra("AGORA_TOKEN", it) }
+                                prefetchedAgoraAppId?.let { putExtra("AGORA_APP_ID", it) }
                         }
                             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                             startActivity(intent)

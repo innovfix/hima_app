@@ -12,8 +12,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.CreatorWarningsAdapter
 import com.gmwapp.hima.databinding.ActivityCreatorWarningsBinding
+import com.gmwapp.hima.utils.applySystemBarInsets
 import com.gmwapp.hima.viewmodels.CreatorWarningsViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -27,6 +29,7 @@ class CreatorWarningsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityCreatorWarningsBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        applySystemBarInsets(binding.root, R.color.white, darkStatusBarIcons = true)
 
         setupToolbar()
         setupObservers()

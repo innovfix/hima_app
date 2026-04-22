@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="92dp"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="12dp"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:paddingTop="4dp"
+    android:paddingBottom="4dp">
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        app:cardCornerRadius="32dp"
+        app:cardElevation="2dp"
+        xmlns:app="http://schemas.android.com/apk/res-auto">
+
+        <ImageView
+            android:id="@+id/iv_creator_avatar"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="Creator avatar"
+            android:scaleType="centerCrop" />
+    </androidx.cardview.widget.CardView>
+
+    <TextView
+        android:id="@+id/tv_creator_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:ellipsize="end"
+        android:fontFamily="@font/poppins_semibold"
+        android:gravity="center"
+        android:maxLines="1"
+        android:textColor="@color/black"
+        android:textSize="12sp" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <View
+            android:layout_width="7dp"
+            android:layout_height="7dp"
+            android:background="@drawable/discovery_online_dot" />
+
+        <TextView
+            android:id="@+id/tv_joined_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:fontFamily="@font/poppins_medium"
+            android:text="Joined"
+            android:textColor="@color/green"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tv_joined_time"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1dp"
+        android:fontFamily="@font/poppins_regular"
+        android:gravity="center"
+        android:textColor="@color/grey_medium"
+        android:textSize="10sp" />
+
+</LinearLayout>

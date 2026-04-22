@@ -26,7 +26,6 @@ import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
 import android.view.WindowManager
 import androidx.lifecycle.MutableLiveData
-import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.android.installreferrer.api.InstallReferrerClient
 import com.android.installreferrer.api.InstallReferrerStateListener
@@ -57,11 +56,17 @@ import com.appsflyer.AppsFlyerConversionListener;
 import com.gmwapp.hima.activities.ChatActivityInHouse
 import com.gmwapp.hima.activities.ChatListActivity
 import com.gmwapp.hima.activities.MainActivity
+import com.gmwapp.hima.activities.NewLoginActivity
+import com.gmwapp.hima.dagger.UnauthorizedEvent
 import com.gmwapp.hima.fragments.FriendsTabFragment
 import com.gmwapp.hima.socket.SocketManager
 import com.onesignal.notifications.INotificationClickEvent
 import com.onesignal.notifications.INotificationClickListener
+import org.greenrobot.eventbus.EventBus
+import org.greenrobot.eventbus.Subscribe
+import org.greenrobot.eventbus.ThreadMode
 import org.json.JSONObject
+import android.widget.Toast
 
 
 @HiltAndroidApp
@@ -82,7 +87,7 @@ class BaseApplication : Application(), Configuration.Provider {
     private var appConnectivityManager: ConnectivityManager? = null
     private var appNetworkCallback: ConnectivityManager.NetworkCallback? = null
     // val ONESIGNAL_APP_ID = "2c7d72ae-8f09-48ea-a3c8-68d9c913c592"
-    val ONESIGNAL_APP_ID = "5cd4154a-1ece-4c3b-b6af-e88bafee64cd"
+    val ONESIGNAL_APP_ID = "50cedb09-a202-455f-8c7b-683f4958df43"
 
     //val testingOneSingalAppId = "b5aee4f0-ef38-4116-a04d-ee279ee1f11f"
     private lateinit var sharedPreferences: SharedPreferences
@@ -99,6 +104,10 @@ class BaseApplication : Application(), Configuration.Provider {
     var messageCameWhenIsAlive = 0
     var freeCoinsStatusApiCalled = false
 
+    // Tracks how many activities are currently in the started state.
+    // Used to detect when the app moves between background and foreground.
+    private var startedActivityCount = 0
+
     private val lifecycleCallbacks: ActivityLifecycleCallbacks =
         object : ActivityLifecycleCallbacks {
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
@@ -114,6 +123,14 @@ class BaseApplication : Application(), Configuration.Provider {
             override fun onActivityStarted(activity: Activity) {
                 currentActivity = activity
                 Log.d("myCurrentActivity","$currentActivity")
+
+                // App entered foreground (count went 0 -> 1).
+                // If a push notification was received in the last 5 min and not yet
+                // counted, record an "open" conversion.
+                if (startedActivityCount == 0) {
+                    checkAndTrackNotificationOpen()
+                }
+                startedActivityCount++
             }
 
             override fun onActivityResumed(activity: Activity) {
@@ -130,6 +147,9 @@ class BaseApplication : Application(), Configuration.Provider {
             }
 
             override fun onActivityStopped(p0: Activity) {
+                if (startedActivityCount > 0) {
+                    startedActivityCount--
+                }
             }
 
             override fun onActivitySaveInstanceState(p0: Activity, p1: Bundle) {
@@ -142,9 +162,6 @@ class BaseApplication : Application(), Configuration.Provider {
             }
 
         }
-
-    @Inject
-    lateinit var workerFactory: HiltWorkerFactory
 
     @Inject
     lateinit var fcmNotificationRepository: FcmNotificationRepository
@@ -162,6 +179,23 @@ class BaseApplication : Application(), Configuration.Provider {
 
         lateinit var firebaseAnalytics: FirebaseAnalytics
             private set
+
+        /**
+         * DND check that can be called from notification listeners (FCM + OneSignal).
+         */
+        fun isDndActiveStatic(userData: com.gmwapp.hima.retrofit.responses.UserData?): Boolean {
+            if (userData == null) return false
+            if ((userData.dnd_enabled ?: 0) != 1) return false
+            val until = userData.dnd_until ?: return false
+            return try {
+                val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", java.util.Locale.US)
+                val expiry = sdf.parse(until) ?: return false
+                expiry.time > System.currentTimeMillis()
+            } catch (e: Exception) {
+                Log.e("DND", "Failed to parse dnd_until=$until: ${e.message}")
+                false
+            }
+        }
 
 
 
@@ -202,6 +236,10 @@ class BaseApplication : Application(), Configuration.Provider {
         FacebookSdk.sdkInitialize(applicationContext)
         AppEventsLogger.activateApp(this)
 
+        // Snapchat App Ads Kit - Install Tracking
+        SnapInitHelper.init(this, listOf(getString(R.string.snap_app_id)))
+        Log.d("SnapchatSDK", "Snapchat App Ads Kit initialized for install tracking")
+
         // ========== GET DEBUG KEY HASH FOR META ==========
         try {
             val info: PackageInfo = packageManager.getPackageInfo(
@@ -240,6 +278,18 @@ class BaseApplication : Application(), Configuration.Provider {
 
         // OneSignal Initialization
         OneSignal.initWithContext(this, ONESIGNAL_APP_ID)
+
+        // ====== DND: suppress OneSignal notifications when DND is active ======
+        OneSignal.Notifications.addForegroundLifecycleListener(object : com.onesignal.notifications.INotificationLifecycleListener {
+            override fun onWillDisplay(event: com.onesignal.notifications.INotificationWillDisplayEvent) {
+                val userData = getInstance()?.getPrefs()?.getUserData()
+                if (isDndActiveStatic(userData)) {
+                    Log.d("OneSignal_DND", "DND is active — suppressing OneSignal notification")
+                    // preventDefault() stops OneSignal from displaying the notification
+                    event.preventDefault()
+                }
+            }
+        })
 
         // Create the same channel ID as your OneSignal dashboard
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -293,6 +343,17 @@ class BaseApplication : Application(), Configuration.Provider {
             override fun onClick(event: INotificationClickEvent) {
                 // Parsed additionalData
                 val data = event.notification.additionalData
+
+                // Track notification tap conversion (fire-and-forget)
+                try {
+                    val notifId = data?.optInt("notification_id", 0) ?: 0
+                    if (notifId > 0) {
+                        trackNotificationConversion(notifId, "click")
+                    }
+                } catch (e: Exception) {
+                    Log.e("NotifConversion", "click tracking failed: ${e.message}")
+                }
+
                 if (data != null) {
                     val user_id = data.optInt("user_id")
                     val prefs = getSharedPreferences("my_app_prefs", Context.MODE_PRIVATE)
@@ -459,8 +520,31 @@ class BaseApplication : Application(), Configuration.Provider {
 
         registerActivityLifecycleCallbacks(lifecycleCallbacks)
 
+        // Listen for auth failures surfaced by the OkHttp interceptor (401 or a 302 to
+        // /login). Without this, a stale bearer token leaves the user stuck — every API
+        // silently fails and they'd have to clear app data to recover.
+        if (!EventBus.getDefault().isRegistered(this)) {
+            EventBus.getDefault().register(this)
+        }
 
+    }
 
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    fun onUnauthorizedEvent(event: UnauthorizedEvent) {
+        // Guard: if we've already logged the user out (or they were never logged in),
+        // a stray late-arriving 401 from an in-flight request shouldn't trigger another
+        // toast + navigation.
+        val prefs = getPrefs() ?: return
+        if (prefs.getUserData() == null) return
+
+        Log.w("Unauthorized", "Session expired — clearing data and routing to login")
+        prefs.clearUserData()
+        Toast.makeText(this, "Session expired, please log in again", Toast.LENGTH_LONG).show()
+
+        val intent = Intent(this, NewLoginActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        startActivity(intent)
     }
 
     fun getCurrentActivity(): Activity? {
@@ -491,6 +575,94 @@ class BaseApplication : Application(), Configuration.Provider {
         return null
     }
 
+    /**
+     * Fire-and-forget POST to /api/notification-conversions to record that the user
+     * either tapped a push notification (action="click") or opened the app within the
+     * conversion window after receiving one (action="open").
+     *
+     * Marks the notification as counted in SharedPreferences so we don't double-count.
+     */
+    fun trackNotificationConversion(notificationId: Int, action: String) {
+        if (notificationId <= 0) return
+
+        // Avoid double counting: if we already posted a conversion for this notif, skip.
+        val trackPrefs = applicationContext.getSharedPreferences("notif_track", Context.MODE_PRIVATE)
+        val lastNotifId = trackPrefs.getInt("last_notif_id", 0)
+        val alreadyCounted = trackPrefs.getBoolean("last_notif_counted", false)
+        if (lastNotifId == notificationId && alreadyCounted) {
+            Log.d("NotifConversion", "Skip notif=$notificationId — already counted")
+            return
+        }
+        trackPrefs.edit().putBoolean("last_notif_counted", true).apply()
+
+        val userId = try {
+            getPrefs()?.getUserData()?.id ?: 0
+        } catch (e: Exception) {
+            0
+        }
+
+        Thread {
+            try {
+                val client = okhttp3.OkHttpClient.Builder()
+                    .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+                    .readTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+                    .build()
+
+                val formBuilder = okhttp3.FormBody.Builder()
+                    .add("notification_id", notificationId.toString())
+                    .add("action", action)
+                if (userId > 0) {
+                    formBuilder.add("user_id", userId.toString())
+                }
+
+                // BuildConfig.BASE_URL points at "<host>/api/auth/" — strip the auth/
+                // suffix so this endpoint also works correctly on demo + prod builds.
+                val apiRoot = BuildConfig.BASE_URL.removeSuffix("auth/")
+                val request = okhttp3.Request.Builder()
+                    .url("${apiRoot}notification-conversions")
+                    .post(formBuilder.build())
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    Log.d(
+                        "NotifConversion",
+                        "Posted notif=$notificationId action=$action user=$userId -> HTTP ${response.code} url=${request.url}"
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e("NotifConversion", "Failed to post conversion: ${e.message}")
+                // On failure, allow retry on next foreground.
+                trackPrefs.edit().putBoolean("last_notif_counted", false).apply()
+            }
+        }.start()
+    }
+
+    /**
+     * Called from ActivityLifecycleCallbacks when the app comes to foreground.
+     * If a push notification was received in the last 5 minutes and the user
+     * opened the app directly (without tapping the notification), record an
+     * "open" conversion so it shows up in the dashboard tracker.
+     */
+    private fun checkAndTrackNotificationOpen() {
+        try {
+            val prefs = applicationContext.getSharedPreferences("notif_track", Context.MODE_PRIVATE)
+            val notifId = prefs.getInt("last_notif_id", 0)
+            val notifTime = prefs.getLong("last_notif_time", 0L)
+            val counted = prefs.getBoolean("last_notif_counted", false)
+
+            if (notifId <= 0 || notifTime <= 0L || counted) return
+
+            val ageMs = System.currentTimeMillis() - notifTime
+            val windowMs = 5 * 60 * 1000L // 5 minutes
+            if (ageMs in 0..windowMs) {
+                Log.d("NotifConversion", "App foregrounded ${ageMs}ms after notif=$notifId — recording open")
+                trackNotificationConversion(notifId, "open")
+            }
+        } catch (e: Exception) {
+            Log.e("NotifConversion", "checkAndTrackNotificationOpen failed: ${e.message}")
+        }
+    }
+
     fun playIncomingCallSound() {
         // Stop any previous ringtone first
         stopRingtone()
@@ -506,7 +678,19 @@ class BaseApplication : Application(), Configuration.Provider {
                 setAudioAttributes(audioAttributes)
                 setDataSource(applicationContext, ringtoneUri)
                 isLooping = true
-                setOnPreparedListener { start() } // start only after prepared
+                setOnPreparedListener { mp ->
+                    try {
+                        if (mediaPlayer === mp) {
+                            mp.start()
+                        }
+                    } catch (e: IllegalStateException) {
+                        Log.w("MediaPlayer", "start() after release or invalid state", e)
+                        stopRingtone()
+                    } catch (e: Exception) {
+                        Log.e("MediaPlayer", "start() failed", e)
+                        stopRingtone()
+                    }
+                }
                 setOnCompletionListener { stopRingtone() } // safety
                 setOnErrorListener { _, _, _ ->
                     stopRingtone()
@@ -696,7 +880,7 @@ class BaseApplication : Application(), Configuration.Provider {
 
 
     override val workManagerConfiguration: Configuration
-        get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
+        get() = Configuration.Builder().build()
 
 
     fun setIncomingCall(senderId: Int, callType: String, channelName: String, callId: Int) {

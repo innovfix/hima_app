@@ -4,11 +4,11 @@ import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.os.Build
 import android.os.Bundle
 import android.view.View
-import android.view.WindowInsetsController
 import androidx.activity.viewModels
+import androidx.core.content.ContextCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.gmwapp.hima.BaseApplication
@@ -34,17 +34,9 @@ class TransactionsActivity : BaseActivity() {
         binding = ActivityTransactionsBinding.inflate(layoutInflater)
         setContentView(binding.root)
         
-        // Set status bar color to pink theme
-        window.statusBarColor = resources.getColor(R.color.pink)
-        
-        // Make status bar icons light (white) to show on pink background
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            window.insetsController?.setSystemBarsAppearance(0, WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS)
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            @Suppress("DEPRECATION")
-            window.decorView.systemUiVisibility = window.decorView.systemUiVisibility and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
-        }
-        
+        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
+
         initUI()
     }
 

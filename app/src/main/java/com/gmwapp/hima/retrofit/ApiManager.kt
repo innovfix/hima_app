@@ -2,6 +2,9 @@ package com.gmwapp.hima.retrofit
 
 import com.gmwapp.hima.activities.RetrofitClient
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
+import com.gmwapp.hima.retrofit.responses.AiOnboardingCompleteResponse
+import com.gmwapp.hima.retrofit.responses.AiOnboardingReplyResponse
+import com.gmwapp.hima.retrofit.responses.AiOnboardingStartResponse
 import com.gmwapp.hima.retrofit.responses.AddCoinsResponse
 import com.gmwapp.hima.retrofit.responses.AddPointsResponse
 import com.gmwapp.hima.retrofit.responses.AppUpdateResponse
@@ -13,6 +16,15 @@ import com.gmwapp.hima.retrofit.responses.SubqueriesResponse
 import com.gmwapp.hima.retrofit.responses.SubmitTicketResponse
 import com.gmwapp.hima.retrofit.responses.TicketsListResponse
 import com.gmwapp.hima.retrofit.responses.BlockUserResponse
+import com.gmwapp.hima.retrofit.responses.IplRoomsListResponse
+import com.gmwapp.hima.retrofit.responses.IplRoomCreateResponse
+import com.gmwapp.hima.retrofit.responses.IplRoomJoinResponse
+import com.gmwapp.hima.retrofit.responses.IplRoomLeaveResponse
+import com.gmwapp.hima.retrofit.responses.IplRoomDetailResponse
+import com.gmwapp.hima.retrofit.responses.IplRoomReactionResponse
+import com.gmwapp.hima.retrofit.responses.IplRoomMuteResponse
+import com.gmwapp.hima.retrofit.responses.UpdateIplTeamResponse
+import com.gmwapp.hima.retrofit.responses.IplMatchSuggestionsResponse
 import com.gmwapp.hima.retrofit.responses.CheckBlockStatusResponse
 import com.gmwapp.hima.retrofit.responses.CreatorWarningsResponse
 import com.gmwapp.hima.retrofit.responses.CallFemaleUserResponse
@@ -30,6 +42,7 @@ import com.gmwapp.hima.retrofit.responses.FcmTokenResponse
 import com.gmwapp.hima.retrofit.responses.FemaleCallAttendResponse
 import com.gmwapp.hima.retrofit.responses.FemaleNotificationPreferenceRequest
 import com.gmwapp.hima.retrofit.responses.FemaleNotificationPreferenceResponse
+import com.gmwapp.hima.retrofit.responses.FemaleDiscoveryResponse
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponse
 import com.gmwapp.hima.retrofit.responses.FirstCallUpdateResponse
 import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
@@ -83,6 +96,7 @@ import com.gmwapp.hima.retrofit.responses.SendMessageResponse
 import com.gmwapp.hima.retrofit.responses.MarkReadResponse
 import com.gmwapp.hima.retrofit.responses.MarkMessagesReadResponse
 import com.gmwapp.hima.retrofit.responses.ChatHistoryResponse
+import com.gmwapp.hima.retrofit.responses.ChatAttachmentUploadResponse
 import com.gmwapp.hima.retrofit.responses.MyChatResponse
 import com.gmwapp.hima.retrofit.responses.FallbackSendMessageResponse
 import com.gmwapp.hima.retrofit.responses.AddReactionResponse
@@ -98,20 +112,26 @@ import com.gmwapp.hima.retrofit.responses.InstallReferrerResponse
 import com.gmwapp.hima.retrofit.responses.FirstInstallResponse
 import com.gmwapp.hima.retrofit.responses.TrackingInfoResponse
 import com.gmwapp.hima.retrofit.responses.AgoraTokenResponse
+import com.gmwapp.hima.retrofit.responses.IcebreakerQuestionsResponse
 import com.gmwapp.hima.retrofit.responses.LudoFcmResponse
 import com.gmwapp.hima.retrofit.responses.GetFemaleNotificationPreferenceRequest
 import com.gmwapp.hima.retrofit.responses.GetFemaleNotificationPreferenceResponse
+import com.gmwapp.hima.retrofit.responses.ListCreatorOnlineNotificationsRequest
+import com.gmwapp.hima.retrofit.responses.ListCreatorOnlineNotificationsResponse
 import com.gmwapp.hima.retrofit.responses.CheckRatingEligibilityResponse
 import com.gmwapp.hima.retrofit.responses.SubmitRatingResponse
 import com.gmwapp.hima.retrofit.responses.MyWarningsResponse
 import com.gmwapp.hima.retrofit.responses.MissedCallCountResponse
+import com.gmwapp.hima.retrofit.responses.PaywallVideoContentResponse
 import com.gmwapp.hima.retrofit.responses.StarCreatorSpeechResponse
 import com.gmwapp.hima.retrofit.responses.StarCreatorSubmitResponse
 import com.gmwapp.hima.utils.Helper
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.ResponseBody
 import retrofit2.Call
 import retrofit2.Response
 import retrofit2.Retrofit
@@ -123,6 +143,7 @@ import retrofit2.http.POST
 import retrofit2.http.Part
 import retrofit2.http.Query
 import retrofit2.http.Body
+import java.io.File
 import javax.inject.Inject
 
 class ApiManager @Inject constructor(private val retrofit: Retrofit) {
@@ -197,6 +218,31 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<TrackingInfoResponse> = getApiInterface().trackingInfo(savedAddress, userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getPaywallVideoContent(
+        userId: Int,
+        callback: NetworkCallback<PaywallVideoContentResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<PaywallVideoContentResponse> = getApiInterface().getPaywallVideoContent(userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun trackingInfoRaw(
+        savedAddress: String,
+        userId: Int,
+        callback: NetworkCallback<ResponseBody>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<ResponseBody> = getApiInterface().trackingInfoRaw(savedAddress, userId)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -342,6 +388,18 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<FemaleUsersResponse> = getApiInterface().getFemaleUsers(userId, filter)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getFemaleDiscovery(
+        userId: Int,
+        callback: NetworkCallback<FemaleDiscoveryResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<FemaleDiscoveryResponse> = getApiInterface().getFemaleDiscovery(userId)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1045,6 +1103,26 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun listCreatorOnlineNotifications(
+        userId: Int,
+        onlyOnline: Int? = null,
+        search: String? = null,
+        callback: NetworkCallback<ListCreatorOnlineNotificationsResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<ListCreatorOnlineNotificationsResponse> =
+                getApiInterface().listCreatorOnlineNotifications(
+                    ListCreatorOnlineNotificationsRequest(
+                        userId = userId,
+                        onlyOnline = onlyOnline,
+                        search = search
+                    )
+                )
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
 
     fun createUpiPayment(
         userId: Int,
@@ -1256,14 +1334,57 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    // TODO: Backend must implement `chats/upload_attachment` and return a
+    // public URL in `data.url`. Until then this call will fail server-side.
+    fun uploadChatAttachment(
+        userId: Int,
+        toUserId: Int,
+        messageType: String,
+        file: File,
+        callback: NetworkCallback<ChatAttachmentUploadResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val plain = "text/plain".toMediaTypeOrNull()
+            val mimeType = when (messageType.lowercase()) {
+                "image" -> "image/jpeg"
+                "audio" -> "audio/mp4"
+                else -> "application/octet-stream"
+            }.toMediaTypeOrNull()
+
+            val filePart = MultipartBody.Part.createFormData(
+                "file",
+                file.name,
+                file.asRequestBody(mimeType)
+            )
+
+            val apiCall: Call<ChatAttachmentUploadResponse> = getApiInterface().uploadChatAttachment(
+                userId.toString().toRequestBody(plain),
+                toUserId.toString().toRequestBody(plain),
+                messageType.toRequestBody(plain),
+                filePart
+            )
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun fallbackSendMessage(
         fromUserId: Int,
         toUserId: Int,
         message: String,
+        messageType: String? = null,
+        attachmentUrl: String? = null,
         callback: NetworkCallback<FallbackSendMessageResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<FallbackSendMessageResponse> = getApiInterface().fallbackSendMessage(fromUserId, toUserId, message)
+            val apiCall: Call<FallbackSendMessageResponse> = getApiInterface().fallbackSendMessage(
+                fromUserId,
+                toUserId,
+                message,
+                messageType,
+                attachmentUrl
+            )
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1377,6 +1498,38 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<MyChatResponse> = getApiInterface().getMyChat(userId, search, limit, offset)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getMyChatFriends(
+        userId: Int,
+        search: String?,
+        limit: Int,
+        offset: Int,
+        callback: NetworkCallback<MyChatResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<MyChatResponse> =
+                getApiInterface().getMyChatFriends(userId, search, limit, offset)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getMyChatGeneral(
+        userId: Int,
+        search: String?,
+        limit: Int,
+        offset: Int,
+        callback: NetworkCallback<MyChatResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<MyChatResponse> =
+                getApiInterface().getMyChatGeneral(userId, search, limit, offset)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1554,6 +1707,45 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<GetRemainingTimeResponse> = getApiInterface().getRemainingTime(userId, callType)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun toggleDnd(
+        userId: Int,
+        enabled: Int,
+        durationHours: Int,
+        callback: NetworkCallback<com.gmwapp.hima.retrofit.responses.ToggleDndResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().toggleDnd(userId, enabled, durationHours)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun trackRandomCallFailure(userId: Int, callType: String) {
+        if (!Helper.checkNetworkConnection()) return
+        val apiCall = getApiInterface().trackRandomCallFailure(userId, callType)
+        apiCall.enqueue(object : retrofit2.Callback<okhttp3.ResponseBody> {
+            override fun onResponse(call: Call<okhttp3.ResponseBody>, response: retrofit2.Response<okhttp3.ResponseBody>) {
+                android.util.Log.d("RandomCallFailure", "Tracked: code=${response}")
+            }
+            override fun onFailure(call: Call<okhttp3.ResponseBody>, t: Throwable) {
+                android.util.Log.e("RandomCallFailure", "Track failed: ${t.message}")
+            }
+        })
+    }
+
+    fun getIcebreakerQuestions(
+        userId: Int,
+        callback: NetworkCallback<IcebreakerQuestionsResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<IcebreakerQuestionsResponse> = getApiInterface().getIcebreakerQuestions(userId)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -1746,6 +1938,180 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
             callback.onNoNetwork()
         }
     }
+
+    // ===== IPL Rooms =====
+
+    fun getIplRooms(userId: Int, language: String? = null, limit: Int = 10, offset: Int = 0, callback: NetworkCallback<IplRoomsListResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().getIplRooms(userId, language, limit, offset)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun createIplRoom(userId: Int, roomName: String, teamA: String, teamB: String, creatorTeam: String, callback: NetworkCallback<IplRoomCreateResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().createIplRoom(userId, roomName, teamA, teamB, creatorTeam)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun joinIplRoom(userId: Int, roomId: Int, callback: NetworkCallback<IplRoomJoinResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().joinIplRoom(userId, roomId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun leaveIplRoom(userId: Int, roomId: Int, callback: NetworkCallback<IplRoomLeaveResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().leaveIplRoom(userId, roomId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getIplRoomDetails(roomId: Int, callback: NetworkCallback<IplRoomDetailResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().getIplRoomDetails(roomId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun sendIplReaction(userId: Int, roomId: Int, reactionType: String, callback: NetworkCallback<IplRoomReactionResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().sendIplReaction(userId, roomId, reactionType)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun toggleIplMute(userId: Int, roomId: Int, isMuted: Int, callback: NetworkCallback<IplRoomMuteResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().toggleIplMute(userId, roomId, isMuted)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun getIplMatchSuggestions(callback: NetworkCallback<IplMatchSuggestionsResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().getIplMatchSuggestions()
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun joinIplRoomByCode(userId: Int, inviteCode: String, callback: NetworkCallback<IplRoomJoinResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().joinIplRoomByCode(userId, inviteCode)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun joinIplRoomRandom(userId: Int, callback: NetworkCallback<IplRoomJoinResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().joinIplRoomRandom(userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun listenerJoin(userId: Int, roomId: Int, callback: NetworkCallback<IplRoomLeaveResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().listenerJoin(userId, roomId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun listenerLeave(userId: Int, roomId: Int, callback: NetworkCallback<IplRoomLeaveResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().listenerLeave(userId, roomId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun closeIplRoom(userId: Int, roomId: Int, callback: NetworkCallback<IplRoomLeaveResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().closeIplRoom(userId, roomId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun updateIplTeam(userId: Int, iplTeam: String, callback: NetworkCallback<UpdateIplTeamResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().updateIplTeam(userId, iplTeam)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun lookupRoomByCode(inviteCode: String, callback: NetworkCallback<IplRoomJoinResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().lookupRoomByCode(inviteCode)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun lookupRoomRandom(userId: Int, callback: NetworkCallback<IplRoomJoinResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().lookupRoomRandom(userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    // AI Onboarding
+    fun aiOnboardingStart(userId: Int, concern: String, callback: NetworkCallback<AiOnboardingStartResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().aiOnboardingStart(userId, concern)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun aiOnboardingReply(sessionId: Int, userMessage: String, callback: NetworkCallback<AiOnboardingReplyResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().aiOnboardingReply(sessionId, userMessage)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun aiOnboardingComplete(sessionId: Int, callback: NetworkCallback<AiOnboardingCompleteResponse>) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall = getApiInterface().aiOnboardingComplete(sessionId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
 }
 
 interface ApiInterface {
@@ -1774,6 +2140,19 @@ interface ApiInterface {
         @Field("saved_address") savedAddress: String,
         @Field("user_id") userId: Int
     ): Call<TrackingInfoResponse>
+
+    @FormUrlEncoded
+    @POST("paywall_video_content")
+    fun getPaywallVideoContent(
+        @Field("user_id") userId: Int
+    ): Call<PaywallVideoContentResponse>
+
+    @FormUrlEncoded
+    @POST("tracking_info")
+    fun trackingInfoRaw(
+        @Field("saved_address") savedAddress: String,
+        @Field("user_id") userId: Int
+    ): Call<ResponseBody>
 
     @FormUrlEncoded
     @POST("appsettings_list")
@@ -1871,6 +2250,12 @@ interface ApiInterface {
         @Field("user_id") userId: Int,
         @Field("filter") filter: String?
     ): Call<FemaleUsersResponse>
+
+    @FormUrlEncoded
+    @POST("female_discovery")
+    fun getFemaleDiscovery(
+        @Field("user_id") userId: Int
+    ): Call<FemaleDiscoveryResponse>
 
     @FormUrlEncoded
     @POST("random_user")
@@ -2119,6 +2504,27 @@ interface ApiInterface {
         @Field("user_id") userId: Int, @Field("call_type") callType:String
     ): Call<GetRemainingTimeResponse>
 
+    @FormUrlEncoded
+    @POST("track_random_call_failure")
+    fun trackRandomCallFailure(
+        @Field("user_id") userId: Int,
+        @Field("call_type") callType: String
+    ): Call<okhttp3.ResponseBody>
+
+    @FormUrlEncoded
+    @POST("toggle_dnd")
+    fun toggleDnd(
+        @Field("user_id") userId: Int,
+        @Field("enabled") enabled: Int,
+        @Field("duration_hours") durationHours: Int
+    ): Call<com.gmwapp.hima.retrofit.responses.ToggleDndResponse>
+
+    @FormUrlEncoded
+    @POST("icebreaker_questions")
+    fun getIcebreakerQuestions(
+        @Field("user_id") userId: Int
+    ): Call<IcebreakerQuestionsResponse>
+
     @POST("settings_list")
     fun getSettings(): Call<SettingsResponse>
 
@@ -2232,6 +2638,11 @@ interface ApiInterface {
     fun getFemaleNotificationPreference(
         @Body request: GetFemaleNotificationPreferenceRequest
     ): Call<GetFemaleNotificationPreferenceResponse>
+
+    @POST("list_creator_online_notifications")
+    fun listCreatorOnlineNotifications(
+        @Body request: ListCreatorOnlineNotificationsRequest
+    ): Call<ListCreatorOnlineNotificationsResponse>
 
     @FormUrlEncoded
     @POST("explaination_video_list")
@@ -2453,6 +2864,15 @@ interface ApiInterface {
         @Field("message_type") messageType: String = "text"
     ): Call<SendMessageResponse>
 
+    @Multipart
+    @POST("chats/upload_attachment")
+    fun uploadChatAttachment(
+        @Part("user_id") userId: RequestBody,
+        @Part("to_user_id") toUserId: RequestBody,
+        @Part("message_type") messageType: RequestBody,
+        @Part file: MultipartBody.Part
+    ): Call<ChatAttachmentUploadResponse>
+
     @FormUrlEncoded
     @POST("chats/mark-read")
     fun markRead(
@@ -2487,6 +2907,24 @@ interface ApiInterface {
     ): Call<MyChatResponse>
 
     @FormUrlEncoded
+    @POST("my_chat/friends")
+    fun getMyChatFriends(
+        @Field("user_id") userId: Int,
+        @Field("search") search: String?,
+        @Field("limit") limit: Int,
+        @Field("offset") offset: Int
+    ): Call<MyChatResponse>
+
+    @FormUrlEncoded
+    @POST("my_chat/general")
+    fun getMyChatGeneral(
+        @Field("user_id") userId: Int,
+        @Field("search") search: String?,
+        @Field("limit") limit: Int,
+        @Field("offset") offset: Int
+    ): Call<MyChatResponse>
+
+    @FormUrlEncoded
     @POST("chat_block_user")
     fun blockChatUser(
         @Field("user_id") userId: Int,
@@ -2505,7 +2943,9 @@ interface ApiInterface {
     fun fallbackSendMessage(
         @Field("from_user_id") fromUserId: Int,
         @Field("to_user_id") toUserId: Int,
-        @Field("message") message: String
+        @Field("message") message: String,
+        @Field("message_type") messageType: String? = null,
+        @Field("attachment_url") attachmentUrl: String? = null
     ): Call<FallbackSendMessageResponse>
 
     @FormUrlEncoded
@@ -2599,5 +3039,139 @@ interface ApiInterface {
         @Field("star_count") starCount: Int,
         @Field("description") description: String?
     ): Call<SubmitRatingResponse>
+
+    // ===== IPL Rooms =====
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-list")
+    fun getIplRooms(
+        @Field("user_id") userId: Int,
+        @Field("language") language: String? = null,
+        @Field("limit") limit: Int = 10,
+        @Field("offset") offset: Int = 0
+    ): Call<IplRoomsListResponse>
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-create")
+    fun createIplRoom(
+        @Field("user_id") userId: Int,
+        @Field("room_name") roomName: String,
+        @Field("team_a") teamA: String,
+        @Field("team_b") teamB: String,
+        @Field("creator_team") creatorTeam: String
+    ): Call<IplRoomCreateResponse>
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-join")
+    fun joinIplRoom(
+        @Field("user_id") userId: Int,
+        @Field("room_id") roomId: Int
+    ): Call<IplRoomJoinResponse>
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-leave")
+    fun leaveIplRoom(
+        @Field("user_id") userId: Int,
+        @Field("room_id") roomId: Int
+    ): Call<IplRoomLeaveResponse>
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-details")
+    fun getIplRoomDetails(
+        @Field("room_id") roomId: Int
+    ): Call<IplRoomDetailResponse>
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-reaction")
+    fun sendIplReaction(
+        @Field("user_id") userId: Int,
+        @Field("room_id") roomId: Int,
+        @Field("reaction_type") reactionType: String
+    ): Call<IplRoomReactionResponse>
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-mute")
+    fun toggleIplMute(
+        @Field("user_id") userId: Int,
+        @Field("room_id") roomId: Int,
+        @Field("is_muted") isMuted: Int
+    ): Call<IplRoomMuteResponse>
+
+    @POST("ipl-rooms-matches")
+    fun getIplMatchSuggestions(): Call<IplMatchSuggestionsResponse>
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-join-by-code")
+    fun joinIplRoomByCode(
+        @Field("user_id") userId: Int,
+        @Field("invite_code") inviteCode: String
+    ): Call<IplRoomJoinResponse>
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-join-random")
+    fun joinIplRoomRandom(
+        @Field("user_id") userId: Int
+    ): Call<IplRoomJoinResponse>
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-close")
+    fun closeIplRoom(
+        @Field("user_id") userId: Int,
+        @Field("room_id") roomId: Int
+    ): Call<IplRoomLeaveResponse>
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-listener-join")
+    fun listenerJoin(
+        @Field("user_id") userId: Int,
+        @Field("room_id") roomId: Int
+    ): Call<IplRoomLeaveResponse>
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-listener-leave")
+    fun listenerLeave(
+        @Field("user_id") userId: Int,
+        @Field("room_id") roomId: Int
+    ): Call<IplRoomLeaveResponse>
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-lookup-code")
+    fun lookupRoomByCode(
+        @Field("invite_code") inviteCode: String
+    ): Call<IplRoomJoinResponse>
+
+    @FormUrlEncoded
+    @POST("ipl-rooms-lookup-random")
+    fun lookupRoomRandom(
+        @Field("user_id") userId: Int
+    ): Call<IplRoomJoinResponse>
+
+    @FormUrlEncoded
+    @POST("update_ipl_team")
+    fun updateIplTeam(
+        @Field("user_id") userId: Int,
+        @Field("ipl_team") iplTeam: String
+    ): Call<UpdateIplTeamResponse>
+
+    // AI Onboarding
+    @FormUrlEncoded
+    @POST("ai_onboarding_start")
+    fun aiOnboardingStart(
+        @Field("user_id") userId: Int,
+        @Field("concern") concern: String
+    ): Call<AiOnboardingStartResponse>
+
+    @FormUrlEncoded
+    @POST("ai_onboarding_reply")
+    fun aiOnboardingReply(
+        @Field("session_id") sessionId: Int,
+        @Field("user_message") userMessage: String
+    ): Call<AiOnboardingReplyResponse>
+
+    @FormUrlEncoded
+    @POST("ai_onboarding_complete")
+    fun aiOnboardingComplete(
+        @Field("session_id") sessionId: Int
+    ): Call<AiOnboardingCompleteResponse>
 
 }

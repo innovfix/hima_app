@@ -2,6 +2,7 @@ package com.gmwapp.hima.activities
 
 import com.gmwapp.hima.utils.showAppToast
 
+import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.os.Build
@@ -486,6 +487,20 @@ class UserProfileDetailActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Keeps [ChatListAdapter] bell state in sync: it reads `notify_online_prefs` / `notify_<id>` only.
+     */
+    private fun mirrorNotifyPrefToLocal(femaleUserId: Int, enabled: Boolean) {
+        if (femaleUserId <= 0) return
+        com.gmwapp.hima.utils.NotifyOnlinePrefsHelper.setSubscribedWithMeta(
+            this,
+            femaleUserId,
+            enabled,
+            displayedUserName,
+            userImage
+        )
+    }
+
     private fun updateFemaleNotificationPreference(isEnabled: Boolean) {
         val maleUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
         if (maleUserId == 0 || userId == 0) {
@@ -511,6 +526,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
 
                     if (response.isSuccessful && response.body()?.success == true) {
                         showAppToast(response.body()?.message ?: "Preference updated successfully.", Toast.LENGTH_SHORT)
+                        mirrorNotifyPrefToLocal(userId, isEnabled)
                         isUpdatingNotifyPreference = false
                         return
                     }
@@ -562,6 +578,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
                         isUpdatingNotifyPreference = true
                         binding.swNotifyOnline.isChecked = isEnabled
                         isUpdatingNotifyPreference = false
+                        mirrorNotifyPrefToLocal(userId, isEnabled)
                     } else {
                         // Keep default state (off) if API fails
                         isUpdatingNotifyPreference = true
@@ -931,14 +948,16 @@ class UserProfileDetailActivity : AppCompatActivity() {
     private fun updateUIBasedOnFriendStatus() {
         // Always hide call buttons
         binding.llCallButtons.visibility = View.GONE
-        
+
+        // Send Friend Request button is hidden everywhere now (UI request).
+        // The friend-request flow itself still works if triggered elsewhere.
+        binding.btnSendFriendRequest.visibility = View.GONE
+
         when (currentFriendStatus) {
             FriendStatus.NOT_FRIENDS -> {
-                // Show send friend request button
-                binding.btnSendFriendRequest.visibility = View.VISIBLE
+                // Send friend request button intentionally kept hidden.
                 binding.llAcceptRejectButtons.visibility = View.GONE
                 binding.cvFriendStatus.visibility = View.GONE
-                binding.btnSendFriendRequest.isEnabled = true
             }
             
             FriendStatus.REQUEST_SENT -> {

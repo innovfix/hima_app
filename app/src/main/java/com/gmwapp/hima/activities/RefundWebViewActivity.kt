@@ -12,6 +12,7 @@ import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.databinding.ActivityRefundWebViewBinding
 import com.gmwapp.hima.databinding.ActivityWebviewBinding
+import com.gmwapp.hima.utils.applySystemBarInsets
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -23,6 +24,9 @@ class RefundWebViewActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityRefundWebViewBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        applySystemBarInsets(binding.root, R.color.white, darkStatusBarIcons = true)
+        binding.includeProfileToolbar.tvFlowTitle.text = getString(R.string.refund_and_cancellation)
+        binding.includeProfileToolbar.cvBack.setOnClickListener { finish() }
         binding.wvPrivacyPolicy.getSettings().setJavaScriptEnabled(true);
 
         val prefs = BaseApplication.getInstance()?.getPrefs()

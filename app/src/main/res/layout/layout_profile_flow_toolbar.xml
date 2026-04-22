@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/profile_flow_toolbar_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="56dp"
+    android:background="@color/white"
+    android:elevation="2dp"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="16dp"
+    android:paddingTop="8dp"
+    android:paddingEnd="16dp"
+    android:paddingBottom="8dp">
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cv_back"
+        android:layout_width="42dp"
+        android:layout_height="42dp"
+        app:cardBackgroundColor="#F8F9FA"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="1dp">
+
+        <ImageView
+            android:id="@+id/iv_back"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center"
+            android:contentDescription="@string/edit"
+            android:rotation="180"
+            android:src="@drawable/right_arrow"
+            app:tint="#374151" />
+    </androidx.cardview.widget.CardView>
+
+    <TextView
+        android:id="@+id/tv_flow_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:fontFamily="@font/poppins_semibold"
+        android:maxLines="1"
+        android:textColor="@color/black_light"
+        android:textSize="18sp" />
+</LinearLayout>

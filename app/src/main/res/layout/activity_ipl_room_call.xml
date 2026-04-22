@@ -1,0 +1,537 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="@drawable/ipl_stadium_call_background"
+        android:keepScreenOn="true">
+
+        <!-- ===== TOP BAR ===== -->
+        <LinearLayout
+            android:id="@+id/top_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="44dp"
+            android:paddingBottom="8dp"
+            android:gravity="center_vertical">
+
+            <ImageView
+                android:id="@+id/iv_back"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@drawable/ic_baseline_arrow_back_ios_24"
+                android:padding="4dp"
+                android:contentDescription="Back"
+                app:tint="@color/white"/>
+
+            <TextView
+                android:id="@+id/tv_room_name"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="12dp"
+                android:fontFamily="@font/poppins_semibold"
+                android:textColor="@color/white"
+                android:textSize="18sp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                tools:text="MI vs CSK"/>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:background="@drawable/bg_ipl_timer"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:paddingVertical="5dp"
+                android:gravity="center_vertical">
+
+                <ImageView
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:src="@drawable/ic_timer_professional"
+                    android:layout_marginEnd="4dp"
+                    android:contentDescription="Timer"
+                    app:tint="#A5D6A7"/>
+
+                <TextView
+                    android:id="@+id/tv_timer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="00:00"
+                    android:textColor="#A5D6A7"
+                    android:textSize="12sp"
+                    android:fontFamily="@font/poppins_semibold"/>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tv_member_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_participant_card"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="5dp"
+                android:textColor="@color/white"
+                android:textSize="11sp"
+                android:fontFamily="@font/poppins_semibold"
+                tools:text="3/4"/>
+
+            <TextView
+                android:id="@+id/tv_listener_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_participant_card"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="5dp"
+                android:textColor="#4CAF50"
+                android:textSize="11sp"
+                android:fontFamily="@font/poppins_semibold"
+                android:visibility="gone"
+                tools:text="👁 5 listening"/>
+        </LinearLayout>
+
+        <!-- ===== TEAM VS HEADER ===== -->
+        <LinearLayout
+            android:id="@+id/team_vs_header"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_gravity="center_horizontal"
+            android:paddingVertical="4dp">
+
+            <FrameLayout
+                android:layout_width="32dp"
+                android:layout_height="32dp">
+                <View
+                    android:id="@+id/view_header_team_a"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="@drawable/bg_team_circle"/>
+                <TextView
+                    android:id="@+id/tv_header_team_a"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:textColor="@color/white"
+                    android:textSize="10sp"
+                    android:fontFamily="@font/poppins_bold"
+                    tools:text="MI"/>
+            </FrameLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="8dp"
+                android:text="@string/vs_label"
+                android:textColor="#80FFFFFF"
+                android:textSize="11sp"
+                android:fontFamily="@font/poppins_bold"/>
+
+            <FrameLayout
+                android:layout_width="32dp"
+                android:layout_height="32dp">
+                <View
+                    android:id="@+id/view_header_team_b"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="@drawable/bg_team_circle"/>
+                <TextView
+                    android:id="@+id/tv_header_team_b"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:textColor="@color/white"
+                    android:textSize="10sp"
+                    android:fontFamily="@font/poppins_bold"
+                    tools:text="CSK"/>
+            </FrameLayout>
+        </LinearLayout>
+
+        <!-- ===== INVITE CODE (visible for creator) ===== -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="6dp"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tv_invite_code"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_participant_card"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="6dp"
+                android:textColor="#A5D6A7"
+                android:textSize="13sp"
+                android:fontFamily="@font/poppins_bold"
+                android:visibility="gone"
+                tools:text="Code: AB3X9K"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_share_code"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginStart="8dp"
+                android:text="Share"
+                android:textColor="#A5D6A7"
+                android:textSize="12sp"
+                android:fontFamily="@font/poppins_semibold"
+                android:visibility="gone"
+                app:icon="@drawable/baseline_arrow_forward_24"
+                app:iconSize="16dp"
+                app:iconTint="#A5D6A7"
+                app:iconGravity="end"/>
+        </LinearLayout>
+
+        <!-- ===== JOIN NOTIFICATION ===== -->
+        <TextView
+            android:id="@+id/tv_join_notification"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginVertical="4dp"
+            android:background="@drawable/bg_participant_card"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="4dp"
+            android:textColor="#B0FFFFFF"
+            android:textSize="11sp"
+            android:fontFamily="@font/poppins_medium"
+            android:visibility="gone"
+            tools:text="Rohit Fan joined"/>
+
+        <!-- ===== 2x2 PARTICIPANT GRID (fills remaining space) ===== -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/participants_grid"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginVertical="4dp">
+
+            <include
+                android:id="@+id/participant_1"
+                layout="@layout/item_ipl_participant"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_marginEnd="5dp"
+                android:layout_marginBottom="5dp"
+                app:layout_constraintWidth_percent="0.48"
+                app:layout_constraintHeight_percent="0.48"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/participant_2"
+                app:layout_constraintBottom_toTopOf="@id/participant_3"/>
+
+            <include
+                android:id="@+id/participant_2"
+                layout="@layout/item_ipl_participant"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_marginStart="5dp"
+                android:layout_marginBottom="5dp"
+                app:layout_constraintWidth_percent="0.48"
+                app:layout_constraintHeight_percent="0.48"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintStart_toEndOf="@id/participant_1"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintBottom_toTopOf="@id/participant_4"/>
+
+            <include
+                android:id="@+id/participant_3"
+                layout="@layout/item_ipl_participant"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_marginEnd="5dp"
+                android:layout_marginTop="5dp"
+                app:layout_constraintWidth_percent="0.48"
+                app:layout_constraintHeight_percent="0.48"
+                app:layout_constraintTop_toBottomOf="@id/participant_1"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/participant_4"
+                app:layout_constraintBottom_toBottomOf="parent"/>
+
+            <include
+                android:id="@+id/participant_4"
+                layout="@layout/item_ipl_participant"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_marginStart="5dp"
+                android:layout_marginTop="5dp"
+                app:layout_constraintWidth_percent="0.48"
+                app:layout_constraintHeight_percent="0.48"
+                app:layout_constraintTop_toBottomOf="@id/participant_2"
+                app:layout_constraintStart_toEndOf="@id/participant_3"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"/>
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <!-- ===== JOIN TO SPEAK BUTTON ===== -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_join_to_speak"
+            android:layout_width="wrap_content"
+            android:layout_height="44dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginVertical="6dp"
+            android:text="@string/join_to_speak"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            android:fontFamily="@font/poppins_semibold"
+            android:textAllCaps="false"
+            android:paddingHorizontal="28dp"
+            app:backgroundTint="#4CAF50"
+            app:cornerRadius="22dp"
+            android:visibility="visible"/>
+
+        <!-- ===== REACTIONS BAR ===== -->
+        <LinearLayout
+            android:id="@+id/reactions_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="24dp">
+
+            <LinearLayout
+                android:id="@+id/btn_reaction_four"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginHorizontal="4dp"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:background="@drawable/bg_reaction_four"
+                android:paddingVertical="6dp"
+                android:clickable="true"
+                android:focusable="true">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="4"
+                    android:textColor="@color/white"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/poppins_bold"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/reaction_four"
+                    android:textColor="#D0FFFFFF"
+                    android:textSize="9sp"
+                    android:fontFamily="@font/poppins_semibold"
+                    android:layout_marginTop="-3dp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/btn_reaction_six"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginHorizontal="4dp"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:background="@drawable/bg_reaction_six"
+                android:paddingVertical="6dp"
+                android:clickable="true"
+                android:focusable="true">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="6"
+                    android:textColor="@color/white"
+                    android:textSize="18sp"
+                    android:fontFamily="@font/poppins_bold"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/reaction_six"
+                    android:textColor="#D0FFFFFF"
+                    android:textSize="9sp"
+                    android:fontFamily="@font/poppins_semibold"
+                    android:layout_marginTop="-3dp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/btn_reaction_wicket"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginHorizontal="4dp"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:background="@drawable/bg_reaction_wicket"
+                android:paddingVertical="6dp"
+                android:clickable="true"
+                android:focusable="true">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🏏"
+                    android:textSize="18sp"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/reaction_wicket"
+                    android:textColor="#D0FFFFFF"
+                    android:textSize="9sp"
+                    android:fontFamily="@font/poppins_semibold"
+                    android:layout_marginTop="-3dp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/btn_reaction_great"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginHorizontal="4dp"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:background="@drawable/bg_reaction_great"
+                android:paddingVertical="6dp"
+                android:clickable="true"
+                android:focusable="true">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="👏"
+                    android:textSize="18sp"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/reaction_great"
+                    android:textColor="#D0FFFFFF"
+                    android:textSize="9sp"
+                    android:fontFamily="@font/poppins_semibold"
+                    android:layout_marginTop="-3dp"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ===== BOTTOM CONTROLS (hidden until Join to Speak) ===== -->
+        <LinearLayout
+            android:id="@+id/controls_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingTop="8dp"
+            android:paddingBottom="32dp"
+            android:paddingHorizontal="48dp"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center">
+                <FrameLayout
+                    android:layout_width="52dp"
+                    android:layout_height="52dp">
+                    <ImageView
+                        android:id="@+id/btn_mute"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/professional_control_button_bg"
+                        android:src="@drawable/unmute_img"
+                        android:padding="13dp"
+                        android:scaleType="fitCenter"
+                        android:contentDescription="Microphone"/>
+                </FrameLayout>
+                <TextView
+                    android:id="@+id/tv_mute_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Mic"
+                    android:textColor="#CCFFFFFF"
+                    android:textSize="10sp"
+                    android:layout_marginTop="4dp"
+                    android:fontFamily="sans-serif"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center">
+                <FrameLayout
+                    android:layout_width="56dp"
+                    android:layout_height="56dp">
+                    <ImageView
+                        android:id="@+id/btn_leave"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/professional_end_call_bg"
+                        android:src="@drawable/endcall"
+                        android:padding="14dp"
+                        android:scaleType="fitCenter"
+                        android:contentDescription="Leave Room"/>
+                </FrameLayout>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/leave_room"
+                    android:textColor="#E53935"
+                    android:textSize="10sp"
+                    android:layout_marginTop="4dp"
+                    android:fontFamily="sans-serif-medium"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center">
+                <FrameLayout
+                    android:layout_width="52dp"
+                    android:layout_height="52dp">
+                    <ImageView
+                        android:id="@+id/btn_speaker"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/professional_control_button_bg"
+                        android:src="@drawable/speakeron_img"
+                        android:padding="13dp"
+                        android:scaleType="fitCenter"
+                        android:contentDescription="Speaker"/>
+                </FrameLayout>
+                <TextView
+                    android:id="@+id/tv_speaker_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Speaker"
+                    android:textColor="#CCFFFFFF"
+                    android:textSize="10sp"
+                    android:layout_marginTop="4dp"
+                    android:fontFamily="sans-serif"/>
+            </LinearLayout>
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- ===== FLOATING REACTION OVERLAY ===== -->
+    <FrameLayout
+        android:id="@+id/fl_reaction_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="false"
+        android:focusable="false"/>
+
+</FrameLayout>

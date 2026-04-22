@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/team_item_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_ipl_team_grid_item"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground">
+
+    <!-- Team Color Circle with Abbreviation -->
+    <FrameLayout
+        android:layout_width="48dp"
+        android:layout_height="48dp">
+
+        <View
+            android:id="@+id/team_color_circle"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_team_circle" />
+
+        <TextView
+            android:id="@+id/tv_team_abbreviation"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:fontFamily="@font/poppins_bold"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            android:text="MI" />
+    </FrameLayout>
+
+    <!-- Team Name -->
+    <TextView
+        android:id="@+id/tv_team_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:fontFamily="@font/poppins_medium"
+        android:gravity="center"
+        android:maxLines="2"
+        android:text="Mumbai Indians"
+        android:textColor="@color/black_light"
+        android:textSize="11sp" />
+
+    <!-- Selected Check -->
+    <ImageView
+        android:id="@+id/iv_selected_check"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_marginTop="4dp"
+        android:src="@drawable/ic_check_circle"
+        android:visibility="gone"
+        android:contentDescription="Selected" />
+
+</LinearLayout>

@@ -13,6 +13,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.viewpager2.adapter.FragmentStateAdapter
@@ -48,6 +49,7 @@ class ChatListActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityChatListBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
 
         initializeViews()
         setupUserId()
@@ -163,6 +165,9 @@ class ChatListActivity : AppCompatActivity() {
     private fun setupViewPager() {
         val adapter = ChatPagerAdapter(this)
         binding.viewPager.adapter = adapter
+        // Disable horizontal swiping between tabs — UI request, tabs are hidden
+        // and the user should stay on the Chat tab.
+        binding.viewPager.isUserInputEnabled = false
 
         TabLayoutMediator(binding.tabLayout, binding.viewPager) { tab, position ->
             tab.text = when (position) {

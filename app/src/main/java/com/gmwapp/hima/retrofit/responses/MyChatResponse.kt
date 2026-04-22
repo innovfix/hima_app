@@ -42,7 +42,15 @@ data class ChatUser(
     @SerializedName("describe_yourself")
     val describeYourself: String?,
     val voice: String?,
-    val status: Int?
+    val status: Int?,
+    @SerializedName("audio_status")
+    val audioStatus: Int? = 1,
+    @SerializedName("video_status")
+    val videoStatus: Int? = 1,
+    @SerializedName("coin_per_min_audio")
+    val coinPerMinAudio: Int? = 10,
+    @SerializedName("coin_per_min_video")
+    val coinPerMinVideo: Int? = 60
 )
 
 data class LastMessage(

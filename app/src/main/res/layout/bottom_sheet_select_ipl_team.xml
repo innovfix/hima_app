@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/white"
+    android:orientation="vertical"
+    android:paddingBottom="24dp">
+
+    <!-- Handle Bar -->
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_ipl_team_grid_item" />
+
+    <!-- Title -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="16dp"
+        android:fontFamily="@font/poppins_bold"
+        android:text="@string/choose_your_ipl_team"
+        android:textColor="@color/black"
+        android:textSize="18sp" />
+
+    <!-- Subtitle -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="16dp"
+        android:fontFamily="@font/poppins_medium"
+        android:text="@string/ipl_team_subtitle"
+        android:textColor="@color/grey_medium"
+        android:textSize="13sp" />
+
+    <!-- Teams Grid -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_teams"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:clipToPadding="false"
+        android:overScrollMode="never" />
+
+    <!-- Remove Team Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_remove_team"
+        style="@style/Widget.MaterialComponents.Button.TextButton"
+        android:layout_width="wrap_content"
+        android:layout_height="40dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="12dp"
+        android:fontFamily="@font/poppins_medium"
+        android:text="@string/remove_team_badge"
+        android:textColor="@color/grey_medium"
+        android:textSize="13sp"
+        app:rippleColor="@color/light_grey" />
+
+</LinearLayout>

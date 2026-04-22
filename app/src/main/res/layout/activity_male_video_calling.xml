@@ -168,24 +168,38 @@
             android:gravity="center"
             android:layout_marginEnd="24dp">
 
-            <!-- Female Avatar with Professional Border -->
-            <androidx.cardview.widget.CardView
+            <!-- Female Avatar with Team Color Border -->
+            <FrameLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                app:cardCornerRadius="60dp"
-                app:cardElevation="12dp"
                 android:layout_marginBottom="12dp">
 
-                <ImageView
-                    android:id="@+id/iv_female_user"
-                    android:layout_width="110dp"
-                    android:layout_height="110dp"
-                    android:scaleType="centerCrop"
-                    android:padding="3dp"
-                    android:background="#FFFFFF"
-                    android:contentDescription="Female User"/>
+                <View
+                    android:id="@+id/female_team_ring"
+                    android:layout_width="120dp"
+                    android:layout_height="120dp"
+                    android:layout_gravity="center"
+                    android:visibility="gone"
+                    android:background="@drawable/bg_team_circle" />
 
-            </androidx.cardview.widget.CardView>
+                <androidx.cardview.widget.CardView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    app:cardCornerRadius="55dp"
+                    app:cardElevation="12dp">
+
+                    <ImageView
+                        android:id="@+id/iv_female_user"
+                        android:layout_width="106dp"
+                        android:layout_height="106dp"
+                        android:scaleType="centerCrop"
+                        android:padding="3dp"
+                        android:background="#FFFFFF"
+                        android:contentDescription="Female User"/>
+
+                </androidx.cardview.widget.CardView>
+            </FrameLayout>
 
             <!-- Female Name -->
             <TextView
@@ -200,6 +214,33 @@
                 android:ellipsize="end"
                 android:maxWidth="120dp"/>
 
+            <!-- Female IPL Team Badge -->
+            <LinearLayout
+                android:id="@+id/female_ipl_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/bg_ipl_call_team_badge"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <View
+                    android:id="@+id/female_ipl_dot"
+                    android:layout_width="12dp"
+                    android:layout_height="12dp"
+                    android:background="@drawable/bg_team_circle" />
+
+                <TextView
+                    android:id="@+id/tv_female_ipl_team"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+            </LinearLayout>
+
         </LinearLayout>
 
         <!-- Male User Section -->
@@ -210,24 +251,38 @@
             android:gravity="center"
             android:layout_marginStart="24dp">
 
-            <!-- Male Avatar with Professional Border -->
-            <androidx.cardview.widget.CardView
+            <!-- Male Avatar with Team Color Border -->
+            <FrameLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                app:cardCornerRadius="60dp"
-                app:cardElevation="12dp"
                 android:layout_marginBottom="12dp">
 
-                <ImageView
-                    android:id="@+id/iv_male_user"
-                    android:layout_width="110dp"
-                    android:layout_height="110dp"
-                    android:scaleType="centerCrop"
-                    android:padding="3dp"
-                    android:background="#FFFFFF"
-                    android:contentDescription="Male User"/>
+                <View
+                    android:id="@+id/male_team_ring"
+                    android:layout_width="120dp"
+                    android:layout_height="120dp"
+                    android:layout_gravity="center"
+                    android:visibility="gone"
+                    android:background="@drawable/bg_team_circle" />
 
-            </androidx.cardview.widget.CardView>
+                <androidx.cardview.widget.CardView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    app:cardCornerRadius="55dp"
+                    app:cardElevation="12dp">
+
+                    <ImageView
+                        android:id="@+id/iv_male_user"
+                        android:layout_width="106dp"
+                        android:layout_height="106dp"
+                        android:scaleType="centerCrop"
+                        android:padding="3dp"
+                        android:background="#FFFFFF"
+                        android:contentDescription="Male User"/>
+
+                </androidx.cardview.widget.CardView>
+            </FrameLayout>
 
             <!-- Male Name -->
             <TextView
@@ -241,6 +296,33 @@
                 android:maxLines="1"
                 android:ellipsize="end"
                 android:maxWidth="120dp"/>
+
+            <!-- Male IPL Team Badge -->
+            <LinearLayout
+                android:id="@+id/male_ipl_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/bg_ipl_call_team_badge"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <View
+                    android:id="@+id/male_ipl_dot"
+                    android:layout_width="12dp"
+                    android:layout_height="12dp"
+                    android:background="@drawable/bg_team_circle" />
+
+                <TextView
+                    android:id="@+id/tv_male_ipl_team"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:textColor="@color/white"
+                    android:textSize="10sp" />
+            </LinearLayout>
 
         </LinearLayout>
 

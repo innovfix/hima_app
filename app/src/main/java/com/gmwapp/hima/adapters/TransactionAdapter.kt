@@ -44,17 +44,27 @@ class TransactionAdapter(
         val callUserName = transaction.call_user_name
 
         // Set transaction details based on type
-        when (transaction.type) {
-            "add_coins" -> {
+        when {
+            // IPL Room transactions take priority over generic types
+            transaction.is_ipl_room -> {
+                val hostName = transaction.ipl_host_name?.takeIf { it.isNotBlank() } ?: "Host"
+                holder.binding.tvTransactionTitle.text = "IPL Room with $hostName"
+                val durationMin = transaction.ipl_duration_min ?: 0
+                val subtitle = if (durationMin > 0) "${transaction.date} · ${durationMin} min" else transaction.date
+                holder.binding.tvTransactionDate.text = subtitle
+                holder.binding.ivTransactionIcon.setImageResource(R.drawable.ic_audio_expense)
+                holder.binding.cvIconBackground.setCardBackgroundColor(android.graphics.Color.parseColor("#FFEBEE"))
+            }
+            transaction.type == "add_coins" -> {
                 holder.binding.tvTransactionTitle.text = "Wallet Recharge"
                 holder.binding.tvTransactionDate.text = transaction.date
                 holder.binding.ivTransactionIcon.setImageResource(R.drawable.ic_wallet_add)
                 holder.binding.cvIconBackground.setCardBackgroundColor(android.graphics.Color.parseColor("#E8F5E9"))
             }
-            "coins_deduction" -> {
+            transaction.type == "coins_deduction" -> {
                 holder.binding.tvTransactionTitle.text = "$callType session with $callUserName"
                 holder.binding.tvTransactionDate.text = "${transaction.date} · ${transaction.duration}"
-                
+
                 // Set icon based on call type
                 when (callType.lowercase()) {
                     "video" -> {
@@ -71,7 +81,7 @@ class TransactionAdapter(
                     }
                 }
             }
-            "refer_bonus" -> {
+            transaction.type == "refer_bonus" -> {
                 holder.binding.tvCoins.text = "+${transaction.coins}"
                 holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#10B981"))
                 holder.binding.tvTransactionTitle.text = "Referral Earning"
@@ -79,7 +89,7 @@ class TransactionAdapter(
                 holder.binding.ivTransactionIcon.setImageResource(R.drawable.ic_referral_bonus)
                 holder.binding.cvIconBackground.setCardBackgroundColor(android.graphics.Color.parseColor("#E8F5E9"))
             }
-            "send_gift" -> {
+            transaction.type == "send_gift" -> {
                 holder.binding.tvCoins.text = "-${transaction.coins}"
                 holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#EF4444"))
                 holder.binding.tvTransactionTitle.text = "Gift Sent"

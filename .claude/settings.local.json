@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Users/JP/AndroidStudioProjects/hima_app -iname *ipl* -o -iname *cricket* -o -iname *room*)"
+    ]
+  }
+}

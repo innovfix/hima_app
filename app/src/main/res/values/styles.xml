@@ -11,6 +11,13 @@
         </item>
     </style>
 
+    <style name="AlertDialogTransparent" parent="Theme.MaterialComponents.Dialog.Alert">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowMinWidthMajor">88%</item>
+        <item name="android:windowMinWidthMinor">88%</item>
+    </style>
+
     <style name="FullWidthDialog" parent="Theme.MaterialComponents.Light.Dialog">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowIsFloating">true</item>
@@ -131,13 +138,11 @@
     </style>
 
     <style name="BottomSheet" parent="@style/Widget.Design.BottomSheet.Modal">
-        <item name="android:typeface">monospace</item>
         <item name="android:background">@drawable/delete_background</item>
     </style>
 
     <style name="BaseBottomSheetDialog" parent="@style/Theme.Design.Light.BottomSheetDialog">
         <item name="android:windowIsFloating">false</item>
-        <item name="android:typeface">monospace</item>
         <item name="bottomSheetStyle">@style/BottomSheet</item>
     </style>
 

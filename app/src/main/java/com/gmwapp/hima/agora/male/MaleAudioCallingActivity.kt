@@ -69,6 +69,9 @@ import com.gmwapp.hima.viewmodels.AgoraViewModel
 import com.gmwapp.hima.agora.services.CallingService
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.utils.AppEventLogger
+import com.gmwapp.hima.utils.CallAudioFocusHelper
+import com.gmwapp.hima.utils.CallAudioRouter
+import com.gmwapp.hima.utils.CallPhoneStateHelper
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
@@ -79,6 +82,7 @@ import com.gmwapp.hima.viewmodels.CallDropStatusViewModel
 import com.gmwapp.hima.viewmodels.LudoFcmViewModel
 import com.gmwapp.hima.workers.CallUpdateWorker
 import com.google.firebase.analytics.FirebaseAnalytics
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.hilt.android.AndroidEntryPoint
 import io.agora.rtc2.video.VideoCanvas
 import retrofit2.Call
@@ -174,6 +178,11 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private var isMuted = false
     private var isSpeakerOn = true
 
+    private var audioFocusHelper: CallAudioFocusHelper? = null
+    private var audioRouter: CallAudioRouter? = null
+    private var phoneStateHelper: CallPhoneStateHelper? = null
+    private var mutedByInterrupt = false
+
     var maleUserId = 0
     private var storedRemainingTime: String? = null
     private var storedVideoRemainingTime: String? = null
@@ -228,17 +237,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     private val PERMISSION_REQ_ID = 22
 
-    private val REQUESTED_PERMISSIONS = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-        arrayOf(
-            Manifest.permission.RECORD_AUDIO,
-            Manifest.permission.CAMERA,
-        )
-    } else {
-        arrayOf(
-            Manifest.permission.RECORD_AUDIO,
-            Manifest.permission.CAMERA
-        )
-    }
+    private val REQUESTED_PERMISSIONS = arrayOf(
+        Manifest.permission.RECORD_AUDIO
+    )
 
 
     private fun checkSelfPermission(): Boolean {
@@ -269,8 +270,57 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
             // Enable only audio module (Disable video)
             agoraEngine!!.enableAudio()
+            // Configure audio profile BEFORE joinChannel to avoid mid-session track reset
+            agoraEngine!!.setAudioProfile(Constants.AUDIO_PROFILE_SPEECH_STANDARD, Constants.AUDIO_SCENARIO_DEFAULT)
+            agoraEngine!!.enableAudioVolumeIndication(200, 3, true)
+            // Set the SDK's default audio route + explicit current route so users hear
+            // audio in the expected output immediately (also helps Bluetooth/headset).
+            agoraEngine!!.setDefaultAudioRoutetoSpeakerphone(true)
+            agoraEngine!!.setEnableSpeakerphone(isSpeakerOn)
+            Log.d("AgoraTiming", "MaleAudio setupAudioSDKEngine done at ${System.currentTimeMillis()}")
+
+            audioRouter?.release()
+            audioRouter = CallAudioRouter(this).also {
+                it.init()
+                if (isSpeakerOn) it.forceSpeaker() else it.useDefaultRoute()
+            }
+
+            setupCallInterruptHandlers()
         } catch (e: Exception) {
             showMessage(e.toString())
+        }
+    }
+
+    private fun setupCallInterruptHandlers() {
+        if (audioFocusHelper == null) {
+            audioFocusHelper = CallAudioFocusHelper(
+                context = this,
+                onFocusLost = { muteForInterrupt(true) },
+                onFocusGained = { muteForInterrupt(false) }
+            ).also { it.request() }
+        }
+        if (phoneStateHelper == null) {
+            phoneStateHelper = CallPhoneStateHelper(
+                context = this,
+                onCellularCallActive = { muteForInterrupt(true) },
+                onCellularCallEnded = { muteForInterrupt(false) }
+            ).also { it.register() }
+        }
+    }
+
+    private fun muteForInterrupt(muted: Boolean) {
+        runOnUiThread {
+            if (muted) {
+                if (!mutedByInterrupt && !isMuted) {
+                    mutedByInterrupt = true
+                    agoraEngine?.muteLocalAudioStream(true)
+                }
+            } else {
+                if (mutedByInterrupt) {
+                    mutedByInterrupt = false
+                    if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
+                }
+            }
         }
     }
 
@@ -280,6 +330,13 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding = ActivityMaleAudioCallingBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Keep the call screen visible across lockscreen so users who lock
+        // the phone mid-call can resume immediately.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        }
         
         // ✅ Restrict screenshots and screen recording
         window.setFlags(
@@ -314,9 +371,28 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             "MaleAudioCallingLog",
             "Channel: $channelName, Receiver: $receiverId, callId : $callId"
         )
+        Log.d("AgoraTiming", "MaleAudio onCreate at ${System.currentTimeMillis()}")
 
-        // Get token from backend
-        getAgoraTokenFromBackend()
+        // Use pre-fetched token from connecting/accept screen if available, else fetch from backend
+        val intentToken = intent.getStringExtra("AGORA_TOKEN")
+        val intentAppId = intent.getStringExtra("AGORA_APP_ID")
+        if (!intentToken.isNullOrEmpty() && !intentAppId.isNullOrEmpty()) {
+            Log.d("AgoraTiming", "MaleAudio using pre-fetched token at ${System.currentTimeMillis()}")
+            token = intentToken
+            appId = intentAppId
+            if (!checkSelfPermission()) {
+                ActivityCompat.requestPermissions(
+                    this@MaleAudioCallingActivity,
+                    REQUESTED_PERMISSIONS,
+                    PERMISSION_REQ_ID
+                )
+            } else {
+                setupAudioSDKEngine()
+                joinChannel(binding.JoinButton)
+            }
+        } else {
+            getAgoraTokenFromBackend()
+        }
 
         onAddcoinClicked()
         binding.btnMuteUnmute.setOnClickListener {
@@ -336,6 +412,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         userAvatarViewModel.getUserAvatar(receiverId)
 
         userData?.let { setMyAvatar(it.image, it.name) }
+        setupIplTeamBadges()
 
         handleCallSwitch()
 
@@ -854,7 +931,14 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             .load(image)
             .apply(RequestOptions.circleCropTransform())
             .into(binding.ivMaleUser)
+    }
 
+    private fun setupIplTeamBadges() {
+        // IPL badges hidden — no longer shown during calls.
+        binding.maleIplBadge.visibility = View.GONE
+        binding.maleTeamRing.visibility = View.GONE
+        binding.femaleIplBadge.visibility = View.GONE
+        binding.femaleTeamRing.visibility = View.GONE
     }
 
     private fun avatarObservers() {
@@ -924,11 +1008,13 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == PERMISSION_REQ_ID) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            val allGranted = grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }
+            if (allGranted) {
                 setupAudioSDKEngine()
                 joinChannel(binding.JoinButton) // Automatically join the channel
             } else {
-                ActivityCompat.requestPermissions(this, REQUESTED_PERMISSIONS, PERMISSION_REQ_ID)
+                showMessage("Microphone permission is required for audio calls")
+                finish()
             }
         }
     }
@@ -971,7 +1057,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private val mRtcEventHandler: IRtcEngineEventHandler = object : IRtcEngineEventHandler() {
         override fun onJoinChannelSuccess(channel: String, uid: Int, elapsed: Int) {
             isJoined = true
-         //   showMessage("Joined Channel $channel")
+            Log.d("AgoraTiming", "MaleAudio onJoinChannelSuccess at ${System.currentTimeMillis()}")
             startTimeoutTracking()
         }
 
@@ -991,13 +1077,13 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         override fun onUserJoined(uid: Int, elapsed: Int) {
           //  showMessage("Remote user joined $uid")
             isRemoteUserJoined = true
+            Log.d("AgoraTiming", "MaleAudio onUserJoined at ${System.currentTimeMillis()}")
             Log.d("videoUid", "$uid")
             videoUid = uid
             startTime = dateFormat.format(Date()) // Set call end time in IST
             startCallingService()
             getRemainingTime()
             initVosk()
-            agoraEngine?.setAudioProfile(Constants.AUDIO_PROFILE_SPEECH_STANDARD, Constants.AUDIO_SCENARIO_DEFAULT)
 
 //            agoraEngine?.registerAudioFrameObserver(audioFrameObserver)
 
@@ -1028,8 +1114,6 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
 
 
-
-            agoraEngine?.enableAudioVolumeIndication(200, 3, true)
 
         }
 
@@ -1160,8 +1244,11 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             options.channelProfile = Constants.CHANNEL_PROFILE_COMMUNICATION
             options.clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
             options.autoSubscribeAudio = true
-            options.autoSubscribeVideo = true  // ✅ Ensure video is OFF
+            options.autoSubscribeVideo = false
+            options.publishMicrophoneTrack = true
+            options.publishCameraTrack = false
 
+            Log.d("AgoraTiming", "MaleAudio joinChannel at ${System.currentTimeMillis()}")
             agoraEngine!!.joinChannel(token, channelName, uid, options)
             Log.d("AgoraTag", "Joined channel: $channelName with token: $token")
 
@@ -1184,20 +1271,38 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             finish()
         } else {
             stopCountdown()
-            agoraEngine?.leaveChannel()
+            try {
+                agoraEngine?.stopPreview()
+            } catch (e: Exception) {
+                Log.e("MaleAudioCalling", "stopPreview in leaveChannel", e)
+                FirebaseCrashlytics.getInstance().recordException(e)
+            }
+            try {
+                agoraEngine?.leaveChannel()
+            } catch (e: Exception) {
+                Log.e("MaleAudioCalling", "leaveChannel", e)
+                FirebaseCrashlytics.getInstance().recordException(e)
+            }
           //  showMessage("You left the channel")
             isJoined = false
 
-            RtcEngine.destroy()
+            try {
+                RtcEngine.destroy()
+            } catch (e: Exception) {
+                Log.e("MaleAudioCalling", "RtcEngine.destroy in leaveChannel", e)
+                FirebaseCrashlytics.getInstance().recordException(e)
+            }
             agoraEngine = null
 
             updateCallEndDetails()
 
-
-            val intent = Intent(this@MaleAudioCallingActivity, MainActivity::class.java)
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            startActivity(intent)
-            finish()
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (isFinishing || isDestroyed) return@postDelayed
+                val intent = Intent(this@MaleAudioCallingActivity, MainActivity::class.java)
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                startActivity(intent)
+                finish()
+            }, 50L)
         }
 
     }
@@ -1234,14 +1339,41 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         stopCountdown()
-        agoraEngine?.apply {
-            leaveChannel()
+        try {
+            agoraEngine?.let { engine ->
+                try {
+                    engine.stopPreview()
+                } catch (e: Exception) {
+                    Log.e("MaleAudioCalling", "stopPreview in onDestroy", e)
+                    FirebaseCrashlytics.getInstance().recordException(e)
+                }
+                try {
+                    engine.leaveChannel()
+                } catch (e: Exception) {
+                    Log.e("MaleAudioCalling", "leaveChannel in onDestroy", e)
+                    FirebaseCrashlytics.getInstance().recordException(e)
+                }
+            }
+        } catch (e: Exception) {
+            FirebaseCrashlytics.getInstance().recordException(e)
         }
         cancelTimeoutTracking()
         stopCallingService()
 
+        audioFocusHelper?.abandon()
+        audioFocusHelper = null
+        audioRouter?.release()
+        audioRouter = null
+        phoneStateHelper?.unregister()
+        phoneStateHelper = null
+
         Thread {
-            RtcEngine.destroy()
+            try {
+                RtcEngine.destroy()
+            } catch (e: Exception) {
+                Log.e("MaleAudioCalling", "RtcEngine.destroy in onDestroy", e)
+                FirebaseCrashlytics.getInstance().recordException(e)
+            }
             agoraEngine = null
         }.start()
 
@@ -1456,6 +1588,15 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         Log.d("resumedtag", "resumed")
         newRemainingTime()
         startCallingService()
+
+        if (isJoined && ContextCompat.checkSelfPermission(
+                this, Manifest.permission.RECORD_AUDIO
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            showMessage("Microphone permission was revoked. Ending call.")
+            agoraEngine?.leaveChannel()
+            finish()
+        }
     }
 
     private fun onAddcoinClicked() {
@@ -1475,7 +1616,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     // Function to toggle speaker on/off
     private fun toggleSpeaker() {
         isSpeakerOn = !isSpeakerOn
-        agoraEngine?.setEnableSpeakerphone(isSpeakerOn)  // Enable or disable speakerphone
+        if (isSpeakerOn) audioRouter?.forceSpeaker() else audioRouter?.useDefaultRoute()
+        agoraEngine?.setEnableSpeakerphone(isSpeakerOn)
         val speakerIcon = if (isSpeakerOn) R.drawable.speakeron_img else R.drawable.speakeroff_img
         binding.btnSpeaker.setImageResource(speakerIcon)
     }
@@ -1846,11 +1988,32 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         binding.ivMaleUser.visibility = View.GONE
         binding.tvFemaleName.visibility = View.GONE
         binding.tvMaleName.visibility = View.GONE
+        // Hide the parent avatars container too — the surrounding CardView
+        // / FrameLayout still showed a residual rounded shape on the left
+        // (female side) after switching to video.
+        binding.usersContainer.visibility = View.GONE
 
 
         runOnUiThread {
             // Enable video module
             agoraEngine?.enableVideo()
+
+            // Critical: the original joinChannel used audio-only ChannelMediaOptions
+            // (publishCameraTrack = false, autoSubscribeVideo = false). Those options
+            // persist unless we explicitly flip them here, so the camera track never
+            // reaches the peer even after enableVideo(). Update them before setting up
+            // the local surface so the track is publishing by the time the canvas binds.
+            agoraEngine?.enableLocalVideo(true)
+            agoraEngine?.muteLocalVideoStream(false)
+            agoraEngine?.updateChannelMediaOptions(ChannelMediaOptions().apply {
+                autoSubscribeAudio = true
+                autoSubscribeVideo = true
+                publishMicrophoneTrack = true
+                publishCameraTrack = true
+                clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
+            })
+            agoraEngine?.startPreview()
+            Log.d("AgoraTiming", "MaleAudio switched to VIDEO at ${System.currentTimeMillis()}")
 
             // Set up the local video view
             val localContainer = binding.localVideoViewContainer
@@ -2140,11 +2303,26 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         binding.ivMaleUser.visibility = View.VISIBLE
         binding.tvFemaleName.visibility = View.VISIBLE
         binding.tvMaleName.visibility = View.VISIBLE
+        // Re-show parent container that we hid when switching to video.
+        binding.usersContainer.visibility = View.VISIBLE
 
 
         runOnUiThread {
-            // Enable video module
+            // Stop publishing and capturing camera, and mirror the audio-only
+            // ChannelMediaOptions from the original joinChannel so bandwidth +
+            // camera LED stop when the user goes back to audio mode.
+            agoraEngine?.muteLocalVideoStream(true)
+            agoraEngine?.enableLocalVideo(false)
+            agoraEngine?.updateChannelMediaOptions(ChannelMediaOptions().apply {
+                autoSubscribeAudio = true
+                autoSubscribeVideo = false
+                publishMicrophoneTrack = true
+                publishCameraTrack = false
+                clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
+            })
+            agoraEngine?.stopPreview()
             agoraEngine?.disableVideo()
+            Log.d("AgoraTiming", "MaleAudio switched back to AUDIO at ${System.currentTimeMillis()}")
 
             // Hide local video view
             binding.localVideoViewContainer.removeAllViews()

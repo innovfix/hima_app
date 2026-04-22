@@ -13,11 +13,13 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.MyWarningsAdapter
 import com.gmwapp.hima.databinding.ActivityMyWarningsBinding
 import com.gmwapp.hima.databinding.BottomSheetWarningHistoryBinding
 import com.gmwapp.hima.retrofit.responses.MyWarningItem
 import com.gmwapp.hima.viewmodels.MyWarningsViewModel
+import androidx.core.view.WindowInsetsControllerCompat
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -32,6 +34,9 @@ class MyWarningsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMyWarningsBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        // Pink header (bg_warning_header_pink) extends under status bar via
+        // fitsSystemWindows=true on the header LinearLayout. LIGHT icons.
+        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = false
 
         binding.cvBack.setOnClickListener {
             val messageCameWhenIsAlive = BaseApplication.getInstance()?.messageCameWhenIsAlive ?: 0

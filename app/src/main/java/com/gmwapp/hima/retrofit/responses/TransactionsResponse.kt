@@ -19,6 +19,9 @@ data class TransactionsResponseData(
     val call_type: String,
     val duration: String,
     val call_user_name: String,
-
+    val reason: String? = null,
+    val is_ipl_room: Boolean = false,
+    val ipl_host_name: String? = null,
+    val ipl_duration_min: Int? = null,
 )
 

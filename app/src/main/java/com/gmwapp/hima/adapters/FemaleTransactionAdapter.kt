@@ -100,6 +100,23 @@ class FemaleTransactionAdapter(
                 holder.binding.cvIconBackground.setCardBackgroundColor(android.graphics.Color.parseColor("#E8F5E9"))
                 Log.d("femaleTrasactionLog", "onBindViewHolder: Set referral icon, amount=+₹$formattedCoins")
             }
+            "ipl_room" -> {
+                // IPL Room income - credit (positive)
+                val formattedCoins = formatDouble(transaction.coins)
+                holder.binding.tvCoins.text = "$rupeeSymbol$formattedCoins"
+                holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#10B981"))
+                // Title from backend: "IPL Room with {UserName}"
+                holder.binding.tvTransactionTitle.text = transaction.title ?: "IPL Room Income"
+                // Build subtitle: date · duration only (skip room name)
+                val reason = transaction.description ?: ""
+                val durationMatch = Regex("- (\\d+ min)").find(reason)
+                val durationText = durationMatch?.groupValues?.get(1) ?: ""
+                val subtitle = listOf(transaction.date, durationText).filter { it.isNotEmpty() }.joinToString(" · ")
+                holder.binding.tvTransactionDate.text = subtitle.ifEmpty { transaction.date }
+                holder.binding.ivTransactionIcon.setImageResource(R.drawable.ic_audio_expense)
+                holder.binding.cvIconBackground.setCardBackgroundColor(android.graphics.Color.parseColor("#E8F5E9"))
+                Log.d("femaleTrasactionLog", "onBindViewHolder: Set ipl_room icon, amount=+₹$formattedCoins")
+            }
             "gift_received" -> {
                 // Gift received - credit (positive)
                 val formattedCoins = formatDouble(transaction.coins)

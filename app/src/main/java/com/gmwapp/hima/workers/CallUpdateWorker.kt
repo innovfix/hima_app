@@ -2,78 +2,71 @@ package com.gmwapp.hima.workers
 
 import android.content.Context
 import android.util.Log
-import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.BuildConfig
 import com.gmwapp.hima.constants.DConstants
-import com.gmwapp.hima.repositories.FemaleUsersRepositories
-import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
-import com.gmwapp.hima.retrofit.responses.UpdateConnectedCallResponse
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
+import okhttp3.FormBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.util.concurrent.TimeUnit
 
-
-@HiltWorker
-class CallUpdateWorker @AssistedInject constructor(
-    val femaleUsersRepositories: FemaleUsersRepositories,
-    @Assisted appContext: Context,
-    @Assisted val workerParams: WorkerParameters
+class CallUpdateWorker(
+    appContext: Context,
+    workerParams: WorkerParameters
 ) : CoroutineWorker(appContext, workerParams) {
+
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(100, TimeUnit.SECONDS)
+        .readTimeout(100, TimeUnit.SECONDS)
+        .build()
 
     override suspend fun doWork(): Result {
         return withContext(Dispatchers.IO) {
             try {
-                var updateConnectedCall: Response<UpdateConnectedCallResponse>? = null
-
                 Log.d("CallUpdateWorkerCheck", "Starting worker execution")
 
-                if (workerParams.inputData.getBoolean(DConstants.IS_INDIVIDUAL, false)) {
-                    Log.d("CallUpdateWorkerCheck", "Updating Individual Call")
-                    val userId = workerParams.inputData.getInt(DConstants.USER_ID, 0)
-                    val callId = workerParams.inputData.getInt(DConstants.CALL_ID, 0)
-                    val startedTime = workerParams.inputData.getString(DConstants.STARTED_TIME).toString()
-                    val endedTime = workerParams.inputData.getString(DConstants.ENDED_TIME).toString()
+                val userId = inputData.getInt(DConstants.USER_ID, 0)
+                val callId = inputData.getInt(DConstants.CALL_ID, 0)
+                val startedTime = inputData.getString(DConstants.STARTED_TIME) ?: ""
+                val endedTime = inputData.getString(DConstants.ENDED_TIME) ?: ""
+                val isIndividual = inputData.getBoolean(DConstants.IS_INDIVIDUAL, false)
 
-                    Log.d("CallUpdateWorkerCheck", "User ID: $userId, Call ID: $callId, Started Time: $startedTime, Ended Time: $endedTime")
-                    updateConnectedCall = femaleUsersRepositories.individualUpdateConnectedCall(
-                        workerParams.inputData.getInt(DConstants.USER_ID, 0),
-                        workerParams.inputData.getInt(DConstants.CALL_ID, 0),
-                        workerParams.inputData.getString(DConstants.STARTED_TIME).toString(),
-                        workerParams.inputData.getString(DConstants.ENDED_TIME).toString(),
-                    )
+                Log.d("CallUpdateWorkerCheck", "User ID: $userId, Call ID: $callId, Started Time: $startedTime, Ended Time: $endedTime")
+
+                val endpoint = if (isIndividual) {
+                    Log.d("CallUpdateWorkerCheck", "Updating Individual Call")
+                    "individual_update_connected_call"
                 } else {
                     Log.d("CallUpdateWorkerCheck", "Updating Group Call")
-                    val userId = workerParams.inputData.getInt(DConstants.USER_ID, 0)
-                    val callId = workerParams.inputData.getInt(DConstants.CALL_ID, 0)
-                    val startedTime = workerParams.inputData.getString(DConstants.STARTED_TIME).toString()
-                    val endedTime = workerParams.inputData.getString(DConstants.ENDED_TIME).toString()
-
-                    Log.d("CallUpdateWorkerCheck", "User ID: $userId, Call ID: $callId, Started Time: $startedTime, Ended Time: $endedTime")
-
-                    updateConnectedCall = femaleUsersRepositories.updateConnectedCall(
-                        workerParams.inputData.getInt(DConstants.USER_ID, 0),
-                        workerParams.inputData.getInt(DConstants.CALL_ID, 0),
-                        workerParams.inputData.getString(DConstants.STARTED_TIME).toString(),
-                        workerParams.inputData.getString(DConstants.ENDED_TIME).toString(),
-                    )
+                    "update_connected_call"
                 }
 
-                return@withContext if (updateConnectedCall.isSuccessful) {
-                    if (updateConnectedCall.body()?.success == true) {
-                        Log.d("CallUpdateWorkerCheck", "Call update successful")
-                        Result.success()
-                    } else {
-                        Log.e("CallUpdateWorkerCheck", "Call update failed: ${updateConnectedCall.body()?.message}")
-                        Result.failure()
-                    }
+                val body = FormBody.Builder()
+                    .add("user_id", userId.toString())
+                    .add("call_id", callId.toString())
+                    .add("started_time", startedTime)
+                    .add("ended_time", endedTime)
+                    .build()
+
+                val authToken = com.gmwapp.hima.BaseApplication.getInstance()?.getPrefs()?.getAuthenticationToken() ?: ""
+                val request = Request.Builder()
+                    .url("${BuildConfig.BASE_URL}$endpoint")
+                    .post(body)
+                    .header("Authorization", "Bearer $authToken")
+                    .build()
+
+                val response = client.newCall(request).execute()
+                val responseBody = response.body?.string() ?: ""
+                Log.d("CallUpdateWorkerCheck", "Response code: ${response.code}, body: $responseBody")
+
+                if (response.isSuccessful) {
+                    Log.d("CallUpdateWorkerCheck", "Call update successful")
+                    Result.success()
                 } else {
-                    Log.e("CallUpdateWorkerCheck", "API call failed: ${updateConnectedCall.errorBody()?.string()}")
+                    Log.e("CallUpdateWorkerCheck", "Call update failed with code: ${response.code}")
                     Result.failure()
                 }
             } catch (e: Exception) {
@@ -83,70 +76,3 @@ class CallUpdateWorker @AssistedInject constructor(
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//@HiltWorker
-//class CallUpdateWorker @AssistedInject constructor(
-//    val femaleUsersRepositories: FemaleUsersRepositories,
-//    @Assisted appContext: Context,
-//    @Assisted val workerParams: WorkerParameters
-//) : CoroutineWorker(appContext, workerParams) {
-//
-//    override suspend fun doWork(): Result {
-//        return withContext(Dispatchers.IO) {
-//            try {
-//                var updateConnectedCall: Response<UpdateConnectedCallResponse>? = null
-//                if (workerParams.inputData.getBoolean(DConstants.IS_INDIVIDUAL, false)) {
-//                    updateConnectedCall = femaleUsersRepositories.individualUpdateConnectedCall(
-//                        workerParams.inputData.getInt(DConstants.USER_ID, 0),
-//                        workerParams.inputData.getInt(DConstants.CALL_ID, 0),
-//                        workerParams.inputData.getString(DConstants.STARTED_TIME).toString(),
-//                        workerParams.inputData.getString(DConstants.ENDED_TIME).toString(),
-//                    )
-//                } else {
-//                    updateConnectedCall = femaleUsersRepositories.updateConnectedCall(
-//                        workerParams.inputData.getInt(DConstants.USER_ID, 0),
-//                        workerParams.inputData.getInt(DConstants.CALL_ID, 0),
-//                        workerParams.inputData.getString(DConstants.STARTED_TIME).toString(),
-//                        workerParams.inputData.getString(DConstants.ENDED_TIME).toString(),
-//                    )
-//                }
-//
-//                if (updateConnectedCall.isSuccessful == true) {
-//                    if (updateConnectedCall.body()?.success == true) {
-//                        Result.success()
-//                    } else {
-//                        Result.failure()
-//                    }
-//                } else {
-//                    Result.failure()
-//                }
-//            } catch (e: Exception) {
-//                Result.failure()
-//            }
-//
-//        }
-//    }
-//}
-
-
-// Agora Setup

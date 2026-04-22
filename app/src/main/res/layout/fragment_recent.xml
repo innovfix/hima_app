@@ -42,48 +42,6 @@
                     android:text="@string/recent_calls"
                     android:textColor="@color/black_light"
                     android:textSize="22sp" />
-
-                <!-- Chat Icon Button (Top Right) -->
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/card_chat"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:clickable="true"
-                    android:focusable="true"
-                    app:cardCornerRadius="14dp"
-                    app:cardElevation="2dp"
-                    app:strokeWidth="0dp"
-                    app:cardBackgroundColor="@color/colorAccent"
-                    app:rippleColor="@color/white">
-
-                    <FrameLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent">
-
-                        <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:layout_gravity="center"
-                            android:src="@drawable/ic_chat_bubble"
-                            app:tint="@color/white" />
-
-                        <!-- Unread Badge -->
-                        <TextView
-                            android:id="@+id/tv_unread_badge"
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
-                            android:layout_gravity="top|end"
-                            android:layout_marginTop="2dp"
-                            android:layout_marginEnd="2dp"
-                            android:background="@drawable/circle_bg_red"
-                            android:fontFamily="@font/poppins_bold"
-                            android:gravity="center"
-                            android:text="3"
-                            android:textColor="@color/white"
-                            android:textSize="10sp"
-                            android:visibility="gone" />
-                    </FrameLayout>
-                </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
 
             <!-- Filter Chips Row -->

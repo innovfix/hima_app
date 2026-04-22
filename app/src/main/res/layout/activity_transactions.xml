@@ -5,9 +5,9 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FAFAFA"
+    android:background="@color/white"
     android:fitsSystemWindows="true"
-    tools:context=".activities.LoginActivity">
+    tools:context=".activities.TransactionsActivity">
 
     <!-- Professional Header Section with White Background -->
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -18,8 +18,8 @@
         android:elevation="3dp"
         android:paddingTop="16dp"
         android:paddingBottom="16dp"
-        android:paddingStart="20dp"
-        android:paddingEnd="20dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -65,9 +65,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/transactions"
-                android:textColor="#111827"
+                android:textColor="@color/black_light"
                 android:fontFamily="@font/poppins_semibold"
-                android:textSize="20sp"
+                android:textSize="18sp"
                 android:letterSpacing="-0.01" />
 
             <TextView
@@ -75,7 +75,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="View your transaction history"
-                android:textColor="#6B7280"
+                android:textColor="@color/grey_medium"
                 android:fontFamily="@font/poppins_regular"
                 android:textSize="12sp"
                 android:layout_marginTop="0dp" />

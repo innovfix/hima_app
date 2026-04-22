@@ -11,12 +11,12 @@
     app:cardCornerRadius="16dp"
     app:cardElevation="1dp"
     app:cardBackgroundColor="@color/white"
-    app:rippleColor="@color/grey_light">
+    app:rippleColor="@color/light_grey">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp">
+        android:padding="12dp">
 
         <!-- User Image with Online Indicator -->
         <FrameLayout
@@ -60,9 +60,11 @@
             android:text="User Name"
             android:textColor="@color/black_light"
             android:textSize="16sp"
-            app:layout_constraintEnd_toStartOf="@id/tv_time"
+            app:layout_constraintEnd_toStartOf="@id/iv_notify_bell"
             app:layout_constraintStart_toEndOf="@id/fl_image_container"
             app:layout_constraintTop_toTopOf="@id/fl_image_container"
+            app:layout_constraintBottom_toTopOf="@id/tv_last_message"
+            app:layout_constraintVertical_chainStyle="packed"
             tools:text="Sarah Johnson" />
 
         <!-- Last Message -->
@@ -71,10 +73,10 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="12dp"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="2dp"
             android:layout_marginEnd="8dp"
             android:fontFamily="@font/poppins_regular"
-            android:maxLines="2"
+            android:maxLines="1"
             android:ellipsize="end"
             android:text="Last message preview..."
             android:textColor="@color/grey_medium"
@@ -85,36 +87,200 @@
             app:layout_constraintTop_toBottomOf="@id/tv_user_name"
             tools:text="Hey! How are you doing today?" />
 
-        <!-- Time -->
+        <!-- Unread Count Badge — inline with the time, to its left, so it never
+             collides with the call buttons row below. -->
+        <TextView
+            android:id="@+id/tv_unread_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="18dp"
+            android:minHeight="18dp"
+            android:layout_marginEnd="6dp"
+            android:background="@drawable/circle_bg_red"
+            android:fontFamily="@font/poppins_bold"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:paddingHorizontal="5dp"
+            android:text="3"
+            android:textColor="@color/white"
+            android:textSize="10sp"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@id/tv_time"
+            app:layout_constraintEnd_toStartOf="@id/tv_time"
+            app:layout_constraintTop_toTopOf="@id/tv_time"
+            tools:text="5"
+            tools:visibility="visible" />
+
+        <!-- Notify-when-online bell icon — subscribes the current user to get
+             a notification when this creator comes online. Tap toggles on/off. -->
+        <ImageView
+            android:id="@+id/iv_notify_bell"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginEnd="4dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:contentDescription="@string/notify_bell_default_desc"
+            android:focusable="true"
+            android:padding="6dp"
+            android:src="@drawable/ic_notifications_off"
+            app:layout_constraintEnd_toStartOf="@id/btn_chat_free"
+            app:layout_constraintTop_toTopOf="@id/btn_chat_free"
+            app:layout_constraintBottom_toBottomOf="@id/btn_chat_free"
+            app:tint="@color/chat_list_bell_inactive" />
+
+        <!-- Free Chat indicator (top-right, small text) — tells users chatting here is free -->
+        <LinearLayout
+            android:id="@+id/btn_chat_free"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/button_chat_free"
+            android:foreground="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="5dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/tv_user_name">
+
+            <ImageView
+                android:layout_width="13dp"
+                android:layout_height="13dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_chat_bubble"
+                app:tint="@color/chat_list_free_badge_text" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:fontFamily="@font/poppins_bold"
+                android:includeFontPadding="false"
+                android:letterSpacing="0.03"
+                android:text="@string/chat_free_label"
+                android:textColor="@color/chat_list_free_badge_text"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <!-- Time — baseline-aligned with the last message so short ("1m") and
+             long ("Just now", "Yesterday") values always sit on the same row
+             without overlapping the message preview. -->
         <TextView
             android:id="@+id/tv_time"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
             android:fontFamily="@font/poppins_regular"
+            android:maxLines="1"
             android:text="2m"
             android:textColor="@color/grey_medium"
             android:textSize="11sp"
+            app:layout_constraintBaseline_toBaselineOf="@id/tv_last_message"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@id/tv_user_name"
-            tools:text="10:30 AM" />
+            tools:text="Just now" />
 
-        <!-- Unread Count Badge -->
-        <TextView
-            android:id="@+id/tv_unread_count"
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:layout_marginTop="4dp"
-            android:background="@drawable/circle_bg_red"
-            android:fontFamily="@font/poppins_bold"
-            android:gravity="center"
-            android:text="3"
-            android:textColor="@color/white"
-            android:textSize="11sp"
-            android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="@id/tv_last_message"
+        <!-- Audio & Video Call Buttons -->
+        <LinearLayout
+            android:id="@+id/call_buttons_row"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
             app:layout_constraintEnd_toEndOf="parent"
-            tools:text="5"
-            tools:visibility="visible" />
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/fl_image_container">
+
+            <LinearLayout
+                android:id="@+id/btn_audio_call"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/button_audio_gradient"
+                android:foreground="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:paddingHorizontal="10dp">
+
+                <ImageView
+                    android:id="@+id/iv_audio_icon"
+                    android:layout_width="15dp"
+                    android:layout_height="15dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_phone"
+                    app:tint="@color/white" />
+
+                <ImageView
+                    android:id="@+id/iv_audio_coin"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:layout_marginStart="6dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/coin_d" />
+
+                <TextView
+                    android:id="@+id/tv_audio_rate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    android:fontFamily="@font/poppins_semibold"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:text="10/min"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    tools:text="10/min" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/btn_video_call"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/button_video_gradient"
+                android:foreground="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:paddingHorizontal="10dp">
+
+                <ImageView
+                    android:id="@+id/iv_video_icon"
+                    android:layout_width="17dp"
+                    android:layout_height="17dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/baseline_video_chat_24"
+                    app:tint="@color/white" />
+
+                <ImageView
+                    android:id="@+id/iv_video_coin"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:layout_marginStart="6dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/coin_d" />
+
+                <TextView
+                    android:id="@+id/tv_video_rate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    android:fontFamily="@font/poppins_semibold"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:text="60/min"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    tools:text="60/min" />
+            </LinearLayout>
+        </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
