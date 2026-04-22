@@ -281,31 +281,31 @@
                     android:orientation="horizontal"
                     android:paddingHorizontal="8dp">
 
-                    <ImageView
-                        android:id="@+id/iv_audio"
-                        android:layout_width="16dp"
-                        android:layout_height="16dp"
-                        android:layout_marginEnd="4dp"
-                        android:src="@drawable/ic_phone_premium"
-                        app:tint="@color/white" />
-
-                    <ImageView
-                        android:id="@+id/iv_audio_coin"
-                        android:layout_width="13dp"
-                        android:layout_height="13dp"
-                        android:layout_marginEnd="3dp"
-                        android:src="@drawable/coin_d" />
-
                     <TextView
                         android:id="@+id/tv_iv_audio"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:layout_marginEnd="6dp"
                         android:fontFamily="@font/poppins_bold"
-                        android:text="10/min"
+                        android:text="₹1"
                         android:textColor="@color/white"
-                        android:textSize="11sp"
+                        android:textSize="12sp"
                         android:includeFontPadding="false"
                         android:letterSpacing="0.01" />
+
+                    <ImageView
+                        android:id="@+id/iv_audio_coin"
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:visibility="gone"
+                        android:src="@drawable/coin_d" />
+
+                    <ImageView
+                        android:id="@+id/iv_audio"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/ic_phone_premium"
+                        app:tint="@color/white" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -332,31 +332,31 @@
                     android:orientation="horizontal"
                     android:paddingHorizontal="8dp">
 
-                    <ImageView
-                        android:id="@+id/iv_video"
-                        android:layout_width="16dp"
-                        android:layout_height="16dp"
-                        android:layout_marginEnd="4dp"
-                        android:src="@drawable/ic_video_premium"
-                        app:tint="@color/white" />
-
-                    <ImageView
-                        android:id="@+id/iv_video_coin"
-                        android:layout_width="13dp"
-                        android:layout_height="13dp"
-                        android:layout_marginEnd="3dp"
-                        android:src="@drawable/coin_d" />
-
                     <TextView
                         android:id="@+id/tv_video"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:layout_marginEnd="6dp"
                         android:fontFamily="@font/poppins_bold"
-                        android:text="60/min"
+                        android:text="₹1"
                         android:textColor="@color/white"
-                        android:textSize="11sp"
+                        android:textSize="12sp"
                         android:includeFontPadding="false"
                         android:letterSpacing="0.01" />
+
+                    <ImageView
+                        android:id="@+id/iv_video_coin"
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:visibility="gone"
+                        android:src="@drawable/coin_d" />
+
+                    <ImageView
+                        android:id="@+id/iv_video"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/ic_video_premium"
+                        app:tint="@color/white" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>

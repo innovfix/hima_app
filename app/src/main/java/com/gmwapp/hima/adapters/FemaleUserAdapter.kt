@@ -130,9 +130,9 @@ class FemaleUserAdapter(
             }
         }
 
-        // Set per-user audio/video rates
-        holder.binding.tvIvAudio.text = "${femaleUser.coin_per_min_audio ?: 10}/min"
-        holder.binding.tvVideo.text = "${femaleUser.coin_per_min_video ?: 60}/min"
+        // Trial offer: both buttons advertise ₹1
+        holder.binding.tvIvAudio.text = "₹1"
+        holder.binding.tvVideo.text = "₹1"
 
         // Remove numbers from name - show only alphabets
         val nameWithoutNumbers = femaleUser.name.replace(Regex("[0-9]"), "")

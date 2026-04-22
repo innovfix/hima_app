@@ -26,6 +26,7 @@ import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.BaseApplication.Companion.getInstance
 import com.gmwapp.hima.agora.male.MaleCallConnectingActivity
 import com.gmwapp.hima.R
+import com.gmwapp.hima.activities.DummySubscriptionActivity
 import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.adapters.FemaleUserAdapter
 import com.gmwapp.hima.agora.AgoraRandomCallActivity
@@ -34,6 +35,7 @@ import com.gmwapp.hima.callbacks.NetworkRetryable
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentHomeBinding
+import com.gmwapp.hima.dialogs.BottomSheetTrialOffer
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponseData
 import com.gmwapp.hima.utils.Helper
 import com.gmwapp.hima.utils.setOnSingleClickListener
@@ -84,9 +86,10 @@ class HomeFragment : BaseFragment(), NetworkRetryable {
 
     private fun initUI() {
         binding.clCoins.setOnSingleClickListener {
-            val intent = Intent(context, WalletActivity::class.java)
-            startActivity(intent)
+            startActivity(android.content.Intent(requireContext(), WalletActivity::class.java))
         }
+
+        refreshFreeCallFab()
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val language = userData?.language
@@ -254,36 +257,20 @@ class HomeFragment : BaseFragment(), NetworkRetryable {
                         it.data,
                         object : OnItemSelectionListener<FemaleUsersResponseData> {
                             override fun onItemSelected(data: FemaleUsersResponseData) {
-                                val intent = Intent(context, MaleCallConnectingActivity::class.java)
-                                intent.putExtra(DConstants.CALL_TYPE, "audio")
-                                intent.putExtra(DConstants.RECEIVER_ID, data.id)
-                                intent.putExtra(DConstants.RECEIVER_NAME, data.name)
-                                intent.putExtra(DConstants.CALL_ID, 0)
-                                intent.putExtra(DConstants.IMAGE, data.image)
-                                intent.putExtra(DConstants.IS_RECEIVER_DETAILS_AVAILABLE, true)
-                                intent.putExtra(
-                                    DConstants.TEXT,
-                                    getString(R.string.wait_user_hint, data.name)
-                                )
-                                FcmUtils.isUserAvailable=1
-                                startActivity(intent)
+                                if (isSubscriptionActive()) {
+                                    startCallActivity(data, DConstants.AUDIO)
+                                } else {
+                                    showTrialOfferSheet()
+                                }
                             }
                         },
                         object : OnItemSelectionListener<FemaleUsersResponseData> {
                             override fun onItemSelected(data: FemaleUsersResponseData) {
-                                val intent = Intent(context, MaleCallConnectingActivity::class.java)
-                                intent.putExtra(DConstants.CALL_TYPE, "video")
-                                intent.putExtra(DConstants.RECEIVER_ID, data.id)
-                                intent.putExtra(DConstants.RECEIVER_NAME, data.name)
-                                intent.putExtra(DConstants.CALL_ID, 0)
-                                intent.putExtra(DConstants.IMAGE, data.image)
-                                intent.putExtra(DConstants.IS_RECEIVER_DETAILS_AVAILABLE, true)
-                                intent.putExtra(
-                                    DConstants.TEXT,
-                                    getString(R.string.wait_user_hint, data.name)
-                                )
-                                FcmUtils.isUserAvailable=1
-                                startActivity(intent)
+                                if (isSubscriptionActive()) {
+                                    startCallActivity(data, DConstants.VIDEO)
+                                } else {
+                                    showTrialOfferSheet()
+                                }
                             }
                         }
                     )
@@ -315,6 +302,45 @@ class HomeFragment : BaseFragment(), NetworkRetryable {
         refreshMaleHomeNetworkPlaceholder()
 
         initFab()
+    }
+
+    private fun showTrialOfferSheet() {
+        if (!isAdded) return
+        val existing = childFragmentManager.findFragmentByTag(BottomSheetTrialOffer.TAG)
+        if (existing is BottomSheetTrialOffer && existing.isAdded) return
+        BottomSheetTrialOffer.newInstance().apply {
+            setOnTryNowClickListener {
+                val ctx = context ?: return@setOnTryNowClickListener
+                startActivity(Intent(ctx, DummySubscriptionActivity::class.java))
+            }
+        }.show(childFragmentManager, BottomSheetTrialOffer.TAG)
+    }
+
+    private fun refreshFreeCallFab() {
+        if (!isAdded) return
+        val active = requireContext()
+            .getSharedPreferences(DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE)
+            .getBoolean(DummySubscriptionActivity.KEY_ACTIVE, false)
+        binding.fabFreeCall.visibility = if (active) View.VISIBLE else View.GONE
+    }
+
+    private fun isSubscriptionActive(): Boolean {
+        return requireContext()
+            .getSharedPreferences(DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE)
+            .getBoolean(DummySubscriptionActivity.KEY_ACTIVE, false)
+    }
+
+    private fun startCallActivity(data: FemaleUsersResponseData, callType: String) {
+        val intent = Intent(requireContext(), MaleCallConnectingActivity::class.java).apply {
+            putExtra(DConstants.CALL_TYPE, callType)
+            putExtra(DConstants.RECEIVER_ID, data.id)
+            putExtra(DConstants.RECEIVER_NAME, data.name)
+            putExtra(DConstants.CALL_ID, 0)
+            putExtra(DConstants.IMAGE, data.image)
+            putExtra(DConstants.IS_RECEIVER_DETAILS_AVAILABLE, true)
+            putExtra(DConstants.TEXT, "Connecting to ${data.name}…")
+        }
+        startActivity(intent)
     }
 
     private fun refreshMaleHomeNetworkPlaceholder() {
@@ -455,6 +481,14 @@ class HomeFragment : BaseFragment(), NetworkRetryable {
     }
 
     fun initFab() {
+        binding.fabFreeCall.setOnClickListener {
+            val intent = Intent(requireContext(), AgoraRandomCallActivity::class.java)
+            intent.putExtra(DConstants.CALL_TYPE, DConstants.AUDIO)
+            intent.putExtra("RANDOM_FILTER", filterType)
+            intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            startActivity(intent)
+        }
+
         binding.fabRandom.extend()
         binding.fabAudio.hide()
         binding.fabVideo.hide()
@@ -554,7 +588,9 @@ class HomeFragment : BaseFragment(), NetworkRetryable {
         if (FcmUtils.isUserAvailable==0){
             userData?.let { loadFemaleUsers(it.id) }
         }
-        
+
+        refreshFreeCallFab()
+
         // Sync selected filter button styles when resuming
         updateFilterButtonStyles()
 
