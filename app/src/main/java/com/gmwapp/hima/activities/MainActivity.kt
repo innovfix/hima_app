@@ -394,13 +394,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 //           OneSignal.User.pushSubscription.optIn()
 //        }
 
-        // Call user-install-referrer API if user is logged in, gender is male, and install referrer data exists
+        // Call user-install-referrer API once we have a logged-in user, regardless of
+        // gender, so attribution data is captured for everyone.
         userData?.id?.let { userId ->
-            if (userData.gender == DConstants.MALE) {
-                val savedResponseData = BaseApplication.getInstance()?.getPrefs()?.getString("install_referrer_response_data")
-                if (!savedResponseData.isNullOrEmpty()) {
-                    callUserInstallReferrerApi(userId, savedResponseData)
-                }
+            val savedResponseData = BaseApplication.getInstance()?.getPrefs()?.getString("install_referrer_response_data")
+            if (!savedResponseData.isNullOrEmpty()) {
+                callUserInstallReferrerApi(userId, savedResponseData)
             }
         }
 

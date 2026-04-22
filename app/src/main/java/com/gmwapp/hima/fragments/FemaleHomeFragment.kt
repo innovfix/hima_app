@@ -66,11 +66,18 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
-import kotlin.random.Random
 
 
 @AndroidEntryPoint
 class FemaleHomeFragment : BaseFragment(), Refreshable {
+    companion object {
+        // Two-minute-duration tracking only applies to users registered after this
+        // date. Move to server-side remote config when we have that infrastructure.
+        private const val TWO_MIN_DURATION_CUTOFF_YEAR = 2026
+        private const val TWO_MIN_DURATION_CUTOFF_MONTH = Calendar.JANUARY
+        private const val TWO_MIN_DURATION_CUTOFF_DAY = 8
+    }
+
     private val OVERLAY_REQUEST_CODE: Int = 2
     private var mContext: Context? = null
     private val CALL_PERMISSIONS_REQUEST_CODE = 1
@@ -89,7 +96,7 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
     private lateinit var sharedPreferences: SharedPreferences
     private var isPermissionDenied: Boolean = false
      var whataspplink : String = ""
-    private val dateFormat = SimpleDateFormat("HH:mm:ss").apply {
+    private val dateFormat = SimpleDateFormat("HH:mm:ss", Locale.US).apply {
         timeZone = TimeZone.getTimeZone("Asia/Kolkata") // Set to IST time zone
     }
     private val requestPermissionLauncher = registerForActivityResult(
@@ -469,7 +476,7 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
 //        }
 
         binding.whatsapp.setOnClickListener {
-            if (whataspplink.isNotEmpty() && whataspplink!=null){
+            if (whataspplink.isNotEmpty()) {
                 openWhatsAppGroup(whataspplink)
             }
         }
@@ -489,15 +496,13 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         refreshIplBanner()
 
         if (userData != null) {
-            // Disable listeners before initial setup to avoid triggering API calls
-            binding.sAudio.setOnCheckedChangeListener(null)
-            binding.sVideo.setOnCheckedChangeListener(null)
-            
-            binding.sAudio.isChecked = userData.audio_status == 1
-            binding.sVideo.isChecked = userData.video_status == 1
+            // Set initial state before the listener is attached (via setupSwitchListeners
+            // at the end of initUI), so no null-check juggling here.
+            setupSwitchListeners(userData)
+            syncSwitchesSilently(userData)
         }
 
-        binding.tvCoins.text = "₹" + userData?.balance.toString()
+        binding.tvCoins.text = "₹" + (userData?.balance?.toString() ?: "0")
 
         // Star Creator banner
         binding.clStarCreatorBanner.visibility =
@@ -505,9 +510,14 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
 
         Log.d("femaleuserdata", "${userData?.name} , ${userData?.language}")
 
-        femaleUsersViewModel.getReports(userData?.id!!)
-        femaleUsersViewModel.getFemaleUsers(userData.id)
-        femaleUsersViewModel.getFemaleDiscovery(userData.id)
+        val uid = userData?.id
+        if (uid != null) {
+            femaleUsersViewModel.getReports(uid)
+            femaleUsersViewModel.getFemaleUsers(uid)
+            femaleUsersViewModel.getFemaleDiscovery(uid)
+        } else {
+            Log.e("FemaleHomeFragment", "userData or id is null, skipping initial data fetch")
+        }
 
         femaleUsersViewModel.femaleUsersResponseLiveData.observe(viewLifecycleOwner, Observer { response ->
             if (response != null && response.success) {
@@ -535,22 +545,27 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
             }
         })
 
-        femaleUsersViewModel.femaleDiscoveryErrorLiveData.observe(viewLifecycleOwner, Observer {
-            binding.cvFemaleDiscovery.visibility = View.GONE
+        femaleUsersViewModel.femaleDiscoveryErrorLiveData.observe(viewLifecycleOwner, Observer { err ->
+            // Only react to fresh, non-blank error events so a re-delivered stale
+            // error after a configuration change doesn't hide a populated card.
+            if (!err.isNullOrBlank()) {
+                binding.cvFemaleDiscovery.visibility = View.GONE
+            }
         })
 
         femaleUsersViewModel.reportResponseLiveData.observe(viewLifecycleOwner, Observer {
-            if (it != null && it.success) {
+            val report = it?.data?.firstOrNull()
+            if (it != null && it.success && report != null) {
 
                 Log.d("reportResponseLiveData", "$it")
-                Log.d("first_call", "${it.data[0].first_call}")
+                Log.d("first_call", "${report.first_call}")
 
 
-                binding.tvApproxEarnings.text = it.data[0].today_earnings.toString()
-                binding.tvTotalCalls.text = it.data[0].today_calls.toString()
+                binding.tvApproxEarnings.text = "₹${report.today_earnings ?: 0}"
+                binding.tvTotalCalls.text = (report.today_calls ?: 0).toString()
 
                 // Load call rates image if available
-                it.data[0].call_rates?.let { imageUrl ->
+                report.call_rates?.let { imageUrl ->
                     if (imageUrl.isNotEmpty()) {
                         binding.ivCallRates.visibility = View.VISIBLE
                         binding.cvCallRates.visibility = View.VISIBLE
@@ -566,7 +581,7 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                     binding.cvCallRates.visibility = View.GONE
                 }
 
-                var firstCall = it.data[0].first_call
+                var firstCall = report.first_call
                 if (firstCall==1){
                    var femaleuserid= BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
 
@@ -602,26 +617,16 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                 it?.message?.takeIf { msg -> msg.isNotBlank() }?.let { msg ->
                     Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
                 }
-                // Temporarily disable listeners before reverting switch state
-                binding.sAudio.setOnCheckedChangeListener(null)
-                binding.sVideo.setOnCheckedChangeListener(null)
-                binding.sAudio.isChecked = prefs.getUserData()?.audio_status == 1
-                binding.sVideo.isChecked = prefs.getUserData()?.video_status == 1
-                // Re-enable listeners
-                setupSwitchListeners(userData)
+                // Revert switches without triggering the listener roundtrip
+                syncSwitchesSilently(prefs.getUserData())
             }
         })
         femaleUsersViewModel.updateCallStatusErrorLiveData.observe(viewLifecycleOwner, Observer {
             if (it != null) {
                 showErrorMessage(it)
             }
-            // Temporarily disable listeners before reverting switch state
-            binding.sAudio.setOnCheckedChangeListener(null)
-            binding.sVideo.setOnCheckedChangeListener(null)
-            binding.sAudio.isChecked = prefs.getUserData()?.audio_status == 1
-            binding.sVideo.isChecked = prefs.getUserData()?.video_status == 1
-            // Re-enable listeners
-            setupSwitchListeners(userData)
+            // Revert switches without triggering the listener roundtrip
+            syncSwitchesSilently(prefs.getUserData())
         })
         
         // Observe female talk duration response
@@ -678,7 +683,6 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         binding.cvFemaleDiscovery.visibility = View.VISIBLE
         binding.llDiscoveryCreators.removeAllViews()
         val displayCreators = creators.take(12)
-        val sortedMinutes = List(displayCreators.size) { Random.nextInt(1, 10) }.sorted()
 
         displayCreators.forEachIndexed { index, (name, avatar) ->
             val itemView = layoutInflater.inflate(
@@ -691,7 +695,9 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
             val tvTime = itemView.findViewById<TextView>(R.id.tv_joined_time)
 
             tvName.text = name
-            tvTime.text = "${sortedMinutes[index]} min ago"
+            // Real "last seen" data not yet exposed by API; show neutral online-indicator
+            // instead of a fabricated duration to avoid misleading users.
+            tvTime.text = "online"
 
             if (avatar.isNullOrBlank()) {
                 ivAvatar.setBackgroundResource(R.drawable.circle_bg_grey)
@@ -713,34 +719,60 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         }
     }
 
+    // Flag used by syncSwitchesSilently() to tell the switch listeners to skip the
+    // API call on a programmatic state change (rebuilding state from server data).
+    private var isProgrammaticSwitchUpdate = false
+
     private fun setupSwitchListeners(userData: UserData?) {
         if (userData != null) {
-            binding.sAudio.setOnCheckedChangeListener({ buttonView, isChecked ->
+            binding.sAudio.setOnCheckedChangeListener { _, isChecked ->
+                if (isProgrammaticSwitchUpdate) return@setOnCheckedChangeListener
                 userData.id.let { userId ->
                     femaleUsersViewModel.updateCallStatus(
                         userId, DConstants.AUDIO, if (isChecked) 1 else 0
                     )
                 }
-            })
-            binding.sVideo.setOnCheckedChangeListener({ buttonView, isChecked ->
+            }
+            binding.sVideo.setOnCheckedChangeListener { _, isChecked ->
+                if (isProgrammaticSwitchUpdate) return@setOnCheckedChangeListener
                 userData.id.let { userId ->
                     femaleUsersViewModel.updateCallStatus(
                         userId, DConstants.VIDEO, if (isChecked) 1 else 0
                     )
                 }
-            })
+            }
         }
     }
+
+    /**
+     * Reset both call-status switches to reflect server-side state without firing
+     * the onCheckedChangeListener. Replaces the old detach / set / re-attach
+     * churn with a single flag guard so we never leak listeners.
+     */
+    private fun syncSwitchesSilently(userData: UserData?) {
+        isProgrammaticSwitchUpdate = true
+        try {
+            binding.sAudio.isChecked = userData?.audio_status == 1
+            binding.sVideo.isChecked = userData?.video_status == 1
+        } finally {
+            isProgrammaticSwitchUpdate = false
+        }
+    }
+
+    private var earningsObserverRegistered = false
 
     fun updateEarnings(){
         BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
             profileViewModel.getUsers(it)
         }
 
-        profileViewModel.getUserLiveData.observe(this, Observer {
+        if (earningsObserverRegistered) return
+        earningsObserverRegistered = true
+
+        profileViewModel.getUserLiveData.observe(viewLifecycleOwner, Observer {
             val prefs = BaseApplication.getInstance()?.getPrefs()
             prefs?.setUserData(it?.data)
-            binding.tvCoins.text = "₹" + it?.data?.balance.toString()
+            binding.tvCoins.text = "₹" + (it?.data?.balance?.toString() ?: "0")
 
             // Refresh Star Creator banner from latest API data
             binding.clStarCreatorBanner.visibility =
@@ -750,17 +782,8 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
             refreshIplBanner()
 
             if (it?.data != null) {
-                // Temporarily remove listeners to avoid triggering API calls when updating UI
-                binding.sAudio.setOnCheckedChangeListener(null)
-                binding.sVideo.setOnCheckedChangeListener(null)
-                
-                // Update switch states from fresh API data
-                binding.sAudio.isChecked = it.data.audio_status == 1
-                binding.sVideo.isChecked = it.data.video_status == 1
-                
-                // Re-attach listeners after UI update
-                val userData = prefs?.getUserData()
-                setupSwitchListeners(userData)
+                // Use the programmatic-update flag instead of detaching listeners
+                syncSwitchesSilently(it.data)
             }
         })
     }
@@ -852,9 +875,14 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         Log.d("FemaleHomeFragment", "🔍 checkAndLogTwoMinDuration called for user ${userData.id}")
         Log.d("FemaleHomeFragment", "🔍 Function entry - userData.id: ${userData.id}, created_at: ${userData.created_at}")
         
-        // Check if account was created after 8 Jan 2026
+        // Check if account was created after the configured cutoff
         val cutoffDate = Calendar.getInstance().apply {
-            set(2026, Calendar.JANUARY, 8, 0, 0, 0)
+            set(
+                TWO_MIN_DURATION_CUTOFF_YEAR,
+                TWO_MIN_DURATION_CUTOFF_MONTH,
+                TWO_MIN_DURATION_CUTOFF_DAY,
+                0, 0, 0
+            )
             set(Calendar.MILLISECOND, 0)
         }
         
@@ -862,7 +890,9 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         Log.d("FemaleHomeFragment", "📅 User created_at: ${userData.created_at}")
         
         val userCreatedAt = try {
-            val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            // Server always emits the fixed English date format; pin the Locale so the
+            // parser still works in locales with non-ASCII digit shapes.
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
             val parsedDate = userData.created_at?.let { dateFormat.parse(it) }
             if (parsedDate == null) {
                 Log.e("FemaleHomeFragment", "❌ created_at is null, returning early")

@@ -197,6 +197,9 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 updateIplBadge()
                 refreshDndUi()
                 refreshStarCreatorVisibility()
+                // KYC state derived here instead of a separate login() call.
+                isPanVerified = !fresh.pancard_name.isNullOrEmpty()
+                    && !fresh.pancard_number.isNullOrEmpty()
             }
         }
 
@@ -351,23 +354,12 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
     }
 
     fun panVerification(){
-        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-
-        userData?.let { loginViewModel.login(it.mobile,"0","0") }
-        loginViewModel.loginResponseLiveData.observe(viewLifecycleOwner, Observer {
-            // ✅ Add null check before accessing properties
-            if (it == null) {
-                Log.w("ProfileFemaleFragment", "LoginResponse is null")
-                return@Observer
-            }
-
-            if (it.success) {
-                if (!it.data?.pancard_name.isNullOrEmpty()&& !it.data?.pancard_number.isNullOrEmpty()){
-                    isPanVerified = true
-                }
-
-            }
-        })
+        // KYC status is now derived from profileViewModel.getUserLiveData (see
+        // initUI). Keeping this function as a no-op shim to avoid churning
+        // callers until the next cleanup commit.
+        val cached = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        isPanVerified = !cached?.pancard_name.isNullOrEmpty()
+            && !cached?.pancard_number.isNullOrEmpty()
     }
 
     fun whatsapp(){

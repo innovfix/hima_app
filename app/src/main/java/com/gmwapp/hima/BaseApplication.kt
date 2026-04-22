@@ -1080,48 +1080,65 @@ class BaseApplication : Application(), Configuration.Provider {
         }
     }
     
+    // Lazily constructed once per app-process. Previously a fresh Retrofit + OkHttp
+    // was built for every install-referrer call, which wasted memory and connection
+    // pools.
+    @Volatile
+    private var cachedApiManager: com.gmwapp.hima.retrofit.ApiManager? = null
+
     private fun getApiManager(): com.gmwapp.hima.retrofit.ApiManager? {
-        return try {
-            val okHttpClientBuilder = okhttp3.OkHttpClient.Builder()
-            if (com.gmwapp.hima.BuildConfig.DEBUG) {
-                val loggingInterceptor = okhttp3.logging.HttpLoggingInterceptor()
-                loggingInterceptor.level = okhttp3.logging.HttpLoggingInterceptor.Level.BODY
-                okHttpClientBuilder.addInterceptor(loggingInterceptor)
+        cachedApiManager?.let { return it }
+        return synchronized(this) {
+            cachedApiManager ?: try {
+                val okHttpClientBuilder = okhttp3.OkHttpClient.Builder()
+                if (com.gmwapp.hima.BuildConfig.DEBUG) {
+                    val loggingInterceptor = okhttp3.logging.HttpLoggingInterceptor()
+                    loggingInterceptor.level = okhttp3.logging.HttpLoggingInterceptor.Level.BODY
+                    okHttpClientBuilder.addInterceptor(loggingInterceptor)
+                }
+                val okHttpClient = okHttpClientBuilder.build()
+
+                val gson = com.google.gson.GsonBuilder().setLenient().create()
+                val retrofit = retrofit2.Retrofit.Builder()
+                    .baseUrl(com.gmwapp.hima.BuildConfig.BASE_URL)
+                    .addConverterFactory(retrofit2.converter.gson.GsonConverterFactory.create(gson))
+                    .client(okHttpClient)
+                    .build()
+
+                com.gmwapp.hima.retrofit.ApiManager(retrofit).also { cachedApiManager = it }
+            } catch (e: Exception) {
+                Log.e("BaseApplication", "Failed to create ApiManager: ${e.message}")
+                null
             }
-            val okHttpClient = okHttpClientBuilder.build()
-            
-            val gson = com.google.gson.GsonBuilder().setLenient().create()
-            val retrofit = retrofit2.Retrofit.Builder()
-                .baseUrl(com.gmwapp.hima.BuildConfig.BASE_URL)
-                .addConverterFactory(retrofit2.converter.gson.GsonConverterFactory.create(gson))
-                .client(okHttpClient)
-                .build()
-            
-            com.gmwapp.hima.retrofit.ApiManager(retrofit)
-        } catch (e: Exception) {
-            Log.e("BaseApplication", "Failed to create ApiManager: ${e.message}")
-            null
         }
     }
 
     // Helper function to parse UTM parameters
     private fun parseUtmParameters(referrerUrl: String): Map<String, String> {
         val params = mutableMapOf<String, String>()
-        
+
         try {
-            val parts = referrerUrl.split("&")
-            for (part in parts) {
-                val keyValue = part.split("=")
-                if (keyValue.size == 2) {
-                    val key = keyValue[0]
-                    val value = URLDecoder.decode(keyValue[1], "UTF-8")
+            // Strip any leading "?" and split on "&" — values that themselves contain
+            // "=" are preserved by using the first "=" as the delimiter, not split().
+            val cleaned = referrerUrl.trimStart('?')
+            for (part in cleaned.split("&")) {
+                if (part.isEmpty()) continue
+                val idx = part.indexOf('=')
+                if (idx <= 0) continue
+                val rawKey = part.substring(0, idx)
+                val rawValue = part.substring(idx + 1)
+                try {
+                    val key = URLDecoder.decode(rawKey, "UTF-8")
+                    val value = URLDecoder.decode(rawValue, "UTF-8")
                     params[key] = value
+                } catch (e: Exception) {
+                    params[rawKey] = rawValue
                 }
             }
         } catch (e: Exception) {
             Log.e("AppDownloadSoruce", "Error parsing UTM: ${e.message}")
         }
-        
+
         return params
     }
 

@@ -1203,8 +1203,12 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 
     /** Fetches payment gateway type from backend (safe to call from onResume). */
     fun checkIndividualPaymentType() {
+        // Previously this called loginViewModel.login(mobile, "0", "0") with dummy
+        // OTP args just to pull the fresh payment_type from the server. That
+        // triggered an unnecessary login side-effect. We now refresh via the
+        // profile fetch which returns the same payment_type field.
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        userData?.let { loginViewModel.login(it.mobile, "0", "0") }
+        userData?.id?.let { profileViewModel.getUsers(it) }
     }
 
     private fun checkReferralOffer() {
@@ -1217,13 +1221,20 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                 response: Response<CheckReferralOfferResponse>
             ) {
                 val responseBody = response.body()
-                Log.d("CheckReferralOffer", "Response: success=${responseBody?.success}, show_dialog=${responseBody?.show_dialog}, coin_id=${responseBody?.coin_id}")
-                
-                if (responseBody != null && responseBody.show_dialog) {
+                if (com.gmwapp.hima.BuildConfig.DEBUG) {
+                    Log.d("CheckReferralOffer", "Response: success=${responseBody?.success}, show_dialog=${responseBody?.show_dialog}, coin_id=${responseBody?.coin_id}")
+                }
+
+                // Guard: only show the dialog when the backend actually returned a
+                // usable coin package id, otherwise the "Buy Now" button becomes a no-op.
+                if (responseBody != null && responseBody.show_dialog
+                    && (responseBody.coin_id ?: 0) > 0
+                    && (responseBody.offer_coins ?: 0) > 0
+                    && (responseBody.offer_price ?: 0) > 0) {
                     runOnUiThread {
                         showReferralOfferDialog(
-                            responseBody.offer_coins,
-                            responseBody.offer_price,
+                            responseBody.offer_coins ?: 0,
+                            responseBody.offer_price ?: 0,
                             responseBody.coin_id ?: 0
                         )
                     }

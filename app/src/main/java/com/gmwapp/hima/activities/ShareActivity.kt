@@ -20,11 +20,9 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
-import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
-import com.gmwapp.hima.databinding.ActivityNewLoginBinding
 import com.gmwapp.hima.databinding.ActivityShareBinding
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.LoginViewModel
@@ -36,9 +34,8 @@ class ShareActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityShareBinding
     val profileViewModel: ProfileViewModel by viewModels()
-    val viewModel: LoginViewModel by viewModels()
-     var downloadLink : String = ""
     private val loginViewModel: LoginViewModel by viewModels()
+    var downloadLink: String = ""
     private  var isPanCardVerified = false
     private var disclaimerText: String = ""
 
@@ -60,7 +57,7 @@ class ShareActivity : AppCompatActivity() {
         binding.shareLink.isEnabled = false
 
 
-        viewModel.appUpdate()
+        loginViewModel.appUpdate()
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         userData?.id?.let { profileViewModel.getUsers(it) }
@@ -98,18 +95,24 @@ class ShareActivity : AppCompatActivity() {
             binding.textView6.text = "How to get money ?"
             binding.tvGetFreeCoin.text = "Get Money"
             binding.tvShare.text = "Share & Get Money"
-            userData?.let { loginViewModel.login(it.mobile,"0","0") }
             binding.coinH.setImageResource(R.drawable.ruppee_coin)
             binding.ivCoin.setImageResource(R.drawable.ruppee_coin)
             binding.ivCoin2.setImageResource(R.drawable.ruppee_coin)
 
-            panVerificationObserver()
+            // NOTE: KYC status now derived from profileViewModel.getUserLiveData
+            // (same UserData shape includes pancard_name/pancard_number) rather
+            // than triggering a side-effectful login() with dummy OTP args.
         }
 
         profileViewModel.getUserLiveData.observe(this) { response ->
             response?.data?.let { userData ->
-                binding.tvInvites.text = userData.total_referrals.toString()
-                binding.tvInvitecode.text = userData.refer_code.toString()
+                binding.tvInvites.text = userData.total_referrals ?: "0"
+                binding.tvInvitecode.text = userData.refer_code ?: ""
+
+                // Derive KYC state directly from this response so we don't need a
+                // separate login() roundtrip.
+                isPanCardVerified = !userData.pancard_name.isNullOrEmpty()
+                    && !userData.pancard_number.isNullOrEmpty()
 
                 if (userData?.gender=="female"){
                     binding.tvCoinEarned.text = userData.referral_amount_gained.toString()
@@ -137,21 +140,30 @@ class ShareActivity : AppCompatActivity() {
             } ?: Log.e("referral", "RegisterResponse is null")
         }
 
-        viewModel.appUpdateResponseLiveData.observe(this, Observer {
+        loginViewModel.appUpdateResponseLiveData.observe(this, Observer {
             if (it != null && it.success) {
-                 downloadLink = it.data[0].link
-                binding.shareLink.isEnabled = true // Enable only when link is available
-
-                Log.d("downloadlink","$downloadLink")
+                val firstLink = it.data.firstOrNull()?.link
+                if (!firstLink.isNullOrEmpty()) {
+                    downloadLink = firstLink
+                    binding.shareLink.isEnabled = true // Enable only when link is available
+                    Log.d("downloadlink", downloadLink)
+                } else {
+                    Log.e("downloadlink", "appUpdate response has no link")
+                }
             }
         })
 
         binding.shareLink.setOnClickListener {
+            val currentInviteCode = binding.tvInvitecode.text?.toString().orEmpty()
+            if (currentInviteCode.isEmpty() || downloadLink.isEmpty()) {
+                showAppToast("Please wait, still loading your invite details", Toast.LENGTH_SHORT)
+                return@setOnClickListener
+            }
 
             if (userData?.gender=="female") {
                 if (isPanCardVerified){
 
-                    val referralCode = binding.tvInvitecode.text // your stored invite code
+                    val referralCode = binding.tvInvitecode.text?.toString().orEmpty() // your stored invite code
                     val message =
                         "Join Hima App and make real \nfriends!❤\uFE0F\n" + "Use my code $referralCode to sign up. \n \n Download now: $downloadLink"
 
@@ -194,16 +206,9 @@ class ShareActivity : AppCompatActivity() {
     }
 
 
-    fun panVerificationObserver(){
-
-        loginViewModel.loginResponseLiveData.observe(this, Observer {
-
-            if (it.success) {
-                if (!it.data?.pancard_name.isNullOrEmpty()&& !it.data?.pancard_number.isNullOrEmpty()){
-                    isPanCardVerified = true
-                }
-
-            }
-        })
-    }
+    // Previously this function observed loginResponseLiveData to set
+    // isPanCardVerified. That path required calling login(mobile, "0", "0") just
+    // to fetch pancard fields, which fired an OTP-login side effect on the
+    // backend. KYC is now derived from profileViewModel.getUserLiveData above,
+    // so this helper is no longer needed.
 }

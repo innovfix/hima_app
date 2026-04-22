@@ -72,6 +72,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.math.BigInteger
@@ -95,6 +96,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
     private var otp: Int? = null
     private var mobile: String? = null
     private var truecallerCodeVerifier: String? = "0"
+    private var pendingReferCodeToApply: String? = null
     private var timer: CountDownTimer?=null
     private var sendOtpEnabledTint: ColorStateList? = null
     private var verifyOtpEnabledTint: ColorStateList? = null
@@ -503,10 +505,13 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             }
         })
 
-        // Automatically move the ViewPager every 2 seconds
+        // Automatically move the ViewPager every 2 seconds while the activity is
+        // alive. lifecycleScope already auto-cancels on destroy, but we also
+        // guard against the view being recreated or adapter emptied.
         lifecycleScope.launch {
-            while (true) {
+            while (isActive) {
                 delay(2000) // Wait for 2 seconds
+                if (adapter.itemCount <= 0) continue
                 val currentItem = binding.viewPagerOnboarding.currentItem
                 val nextItem = (currentItem + 1) % adapter.itemCount
                 binding.viewPagerOnboarding.setCurrentItem(nextItem, true) // Smooth transition
@@ -528,8 +533,11 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         binding.btnSendOtp.setOnClickListener {
             closeKeyboard()
 
-            val mobile = binding.etMobileNumber.text.toString()
-            val countryCode = binding.tvCountryCode.text.toString().toInt()
+            val mobile = binding.etMobileNumber.text.toString().trim()
+            // Country code field may be shown as "+91" etc. Strip non-digits before parsing.
+            val countryCode = binding.tvCountryCode.text.toString()
+                .filter { it.isDigit() }
+                .toIntOrNull() ?: 91
             val mobileRegex = Regex("^[6-9]\\d{9}$")
 
             when {
@@ -958,21 +966,23 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
 
         binding.applyReferral.setOnClickListener {
-            val mobile = binding.etMobileNumber.text.toString()
+            val mobile = binding.etMobileNumber.text.toString().trim()
 
             val mobileRegex = Regex("^[6-9]\\d{9}$")
-            var refercode = binding.etReferCode.text.toString()
+            val refercode = binding.etReferCode.text.toString().trim()
 
             // Validation logic
             if (TextUtils.isEmpty(mobile) || !mobile.matches(mobileRegex)) {
                 showSnackbar("Enter a valid 10-digit mobile number")
-            }else if (binding.etReferCode.text.isEmpty()){
+            } else if (refercode.isEmpty()) {
                 showSnackbar("Referral code can't be empty")
-            }else{
+            } else {
                 binding.applyReferral.setText("")
                 binding.applyReferral.isEnabled = false
                 binding.pbApplyReferralLoader.visibility = View.VISIBLE
-                referralCodeViewModel.checkReferCode(mobile,refercode)
+                // Snapshot the code sent so we save the verified value, not a later edit
+                pendingReferCodeToApply = refercode
+                referralCodeViewModel.checkReferCode(mobile, refercode)
             }
         }
         binding.applyReferral.isEnabled = false
@@ -990,7 +1000,10 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                     binding.applyReferral.setText("Applied")
                     binding.applyReferral.isEnabled = false
                     showAppToast("Refer code applied successfully", Toast.LENGTH_SHORT)
-                    val referCode = binding.etReferCode.text.toString()
+                    // Persist the code that was actually sent + verified, not whatever
+                    // the user typed afterwards while the request was in flight.
+                    val referCode = pendingReferCodeToApply
+                        ?: binding.etReferCode.text.toString().trim()
                     DPreferences(this).setReferralCode(referCode)
                     val savedReferCode = DPreferences(this).getReferralCode()
                     Log.d("savedReferCode","$savedReferCode")
@@ -1000,8 +1013,16 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                     showSnackbar(it.message ?: "Failed to apply referral code")
                 }
             }
+        }
 
-
+        // Also handle network / other error case so the loader doesn't stay up forever.
+        referralCodeViewModel.referCodeErrorLiveData.observe(this) { errorMessage ->
+            if (!errorMessage.isNullOrEmpty()) {
+                binding.pbApplyReferralLoader.visibility = View.GONE
+                binding.applyReferral.setText("Apply")
+                binding.applyReferral.isEnabled = true
+                showSnackbar(errorMessage)
+            }
         }
 
     }
