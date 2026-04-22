@@ -54,8 +54,15 @@ class GetNameActivity : BaseActivity() {
         avatarId = intent.getIntExtra(DConstants.AVATAR_ID, 0)
         language = intent.getStringExtra(DConstants.LANGUAGE) ?: "Tamil"
 
+        val cached = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         if (userId == 0) {
-            userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+            userId = cached?.id ?: 0
+        }
+        // Prod update_profile requires a valid avatar_id. If the previous
+        // screens didn't forward one, fall back to the user's stored avatar,
+        // then to a safe default.
+        if (avatarId == 0) {
+            avatarId = cached?.avatar_id?.takeIf { it > 0 } ?: 1
         }
 
         initUI()

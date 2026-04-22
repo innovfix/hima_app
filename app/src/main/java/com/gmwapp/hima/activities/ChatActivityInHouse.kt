@@ -106,6 +106,12 @@ class ChatActivityInHouse : AppCompatActivity() {
 
     private lateinit var chatAdapter: ChatAdapter
     private val messages = mutableListOf<ChatMessage>()
+
+    // Quick reply bar — only shown to creators (females) when the peer's
+    // recent messages match one of the AI-onboarding concerns.
+    private var quickReplyBar: android.widget.HorizontalScrollView? = null
+    private var quickReplyChips: List<TextView> = emptyList()
+    private var quickReplyShown: Boolean = false
     
     private val socketManager = SocketManager.getInstance()
     
@@ -277,6 +283,13 @@ class ChatActivityInHouse : AppCompatActivity() {
     private fun initializeViews() {
         rvMessages = findViewById(R.id.rv_messages)
         etMessage = findViewById(R.id.et_message)
+        quickReplyBar = findViewById(R.id.quick_reply_bar)
+        quickReplyChips = listOf(
+            findViewById(R.id.chip_reply_1),
+            findViewById(R.id.chip_reply_2),
+            findViewById(R.id.chip_reply_3),
+            findViewById(R.id.chip_reply_4)
+        )
         btnSend = findViewById(R.id.btn_send)
         btnMic = findViewById(R.id.btn_mic)
         ivAttach = findViewById(R.id.iv_attach)
@@ -1303,13 +1316,14 @@ class ChatActivityInHouse : AppCompatActivity() {
                             
                             messages.clear()
                             messages.addAll(sortedMessages)
-                            
+
                             // Reactions are now loaded from API response, no need to apply stored reactions
-                            
+
                             // Add header at top (position 0) and at date boundaries
                             updateTopHeader(messages)
-                            
+
                             chatAdapter.notifyDataSetChanged()
+                            maybeShowQuickReplies()
                             
                             // Log message order for debugging - show ALL sorted messages
                             Log.d("ChatPagination", "═══════════════════════════════════════")
@@ -1585,6 +1599,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         // Clear input immediately
         etMessage.setText("")
         etMessage.requestFocus()
+        hideQuickReplies()
 
         // Show message optimistically (WhatsApp style - add to bottom)
         val currentTime = Date()
@@ -2689,9 +2704,117 @@ class ChatActivityInHouse : AppCompatActivity() {
      */
     private fun extractNameOnly(username: String): String {
         if (username.isEmpty()) return username
-        
+
         // Remove trailing digits
         return username.replace(Regex("\\d+$"), "").trim()
+    }
+
+    // ============================================================
+    // Quick reply cards — shown only to creators (females) when the
+    // peer's recent messages suggest an AI-onboarding concern.
+    // Gives the creator 4 tappable warm-response templates scoped to
+    // that concern, pre-filling the input so they can review & send.
+    // ============================================================
+
+    private fun maybeShowQuickReplies() {
+        val myGender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender.orEmpty()
+        if (!myGender.equals("Female", ignoreCase = true)) {
+            hideQuickReplies()
+            return
+        }
+        // Don't re-show once the creator has already replied in this chat.
+        val iHaveReplied = messages.any { it.isSentByMe && !it.isDateHeader }
+        if (iHaveReplied) {
+            hideQuickReplies()
+            return
+        }
+        // Require at least one message from the peer — otherwise there's
+        // nothing to reply to. Fall back to "loneliness" templates if no
+        // concern keyword matches, since those are the most universally
+        // warm openers.
+        val peerHasSpoken = messages.any { !it.isSentByMe && !it.isDateHeader }
+        if (!peerHasSpoken) {
+            hideQuickReplies()
+            return
+        }
+        val concern = detectConcernFromPeer() ?: "loneliness"
+        showQuickReplies(concern)
+    }
+
+    private fun detectConcernFromPeer(): String? {
+        // Scan peer's recent messages for concern keywords. Earliest
+        // messages (the onboarding icebreaker) are the most reliable
+        // signal, but we check the first several peer messages.
+        val peerText = messages
+            .asSequence()
+            .filter { !it.isSentByMe && !it.isDateHeader }
+            .take(5)
+            .joinToString(" ") { it.message }
+            .lowercase()
+        if (peerText.isBlank()) return null
+        return when {
+            listOf("breakup", "break-up", "break up").any { it in peerText } -> "breakup"
+            listOf(
+                "loneliness", "lonely", "alone",
+                "thanimai", "akela", "ontari", "ekanatha",
+                "okola", "eka ", "ekalaa", "kalla"
+            ).any { it in peerText } -> "loneliness"
+            listOf("stress", "tension").any { it in peerText } -> "stress"
+            listOf("bore", "boring").any { it in peerText } -> "boredom"
+            else -> null
+        }
+    }
+
+    private fun showQuickReplies(concern: String) {
+        val templates = quickReplyTemplates(concern)
+        val bar = quickReplyBar ?: return
+        quickReplyChips.forEachIndexed { index, chip ->
+            val text = templates.getOrNull(index) ?: return@forEachIndexed
+            chip.text = text
+            chip.setOnClickListener {
+                etMessage.setText(text)
+                etMessage.setSelection(etMessage.text?.length ?: 0)
+                etMessage.requestFocus()
+            }
+        }
+        bar.visibility = View.VISIBLE
+        quickReplyShown = true
+    }
+
+    private fun hideQuickReplies() {
+        if (!quickReplyShown) return
+        quickReplyBar?.visibility = View.GONE
+        quickReplyShown = false
+    }
+
+    private fun quickReplyTemplates(concern: String): List<String> {
+        return when (concern) {
+            "breakup" -> listOf(
+                "Kashtapadathinga 💙 Sollunga",
+                "Ennachu, konjam sollunga 🫂",
+                "Thani illa neenga, pesuvom 💙",
+                "Konjam deep breath edunga 🌿"
+            )
+            "loneliness" -> listOf(
+                "Naan inga irukken 💙 Pesalaam",
+                "Thanimai kashtam da 🫂 Sollunga",
+                "Ennachu ippo? Konjam pesunga ✨",
+                "Unga pidichadu enna sollunga 🌸"
+            )
+            "stress" -> listOf(
+                "Deep breath edunga 🌿 Sollunga",
+                "Ennachu, konjam share pannunga 🫂",
+                "Konjam konjama sollunga 💙",
+                "Rest edunga, naan inga irukken 🌟"
+            )
+            "boredom" -> listOf(
+                "Mood change pannuvom 🌟",
+                "Enna pannureenga ippo? 😊",
+                "Unga favourite paatu enna? 🎶",
+                "Vaanga, pesuvom 💙"
+            )
+            else -> emptyList()
+        }
     }
 }
 

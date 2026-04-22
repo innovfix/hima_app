@@ -36,6 +36,7 @@ class AiOnboardingActivity : AppCompatActivity() {
     private var userLanguage: String = "Tamil"
     private var currentStep: Int = 0
     private var selectedConcern: String = "loneliness"
+    private var lastUserReply: String = ""
 
     // Delivery animation (Screen 3): avatar glides down the list as each
     // matched creator's message is "delivered" one-by-one.
@@ -146,27 +147,24 @@ class AiOnboardingActivity : AppCompatActivity() {
             if (response.success) {
                 currentStep = response.step ?: currentStep
                 chatAdapter.hideTyping()
-                response.aiMessage?.let {
-                    chatAdapter.addMessage(AiChatMessage(it, isUser = false))
-                    scrollToBottom()
-                }
+                // Don't render the AI's reply — once user has spoken, jump
+                // straight into the delivery animation after a short beat
+                // so the flow doesn't feel rushed.
                 binding.tvTypingStatus.text = "Online"
-
-                // Single exchange enforced: after first reply, hide input bar
                 binding.inputBar.visibility = View.GONE
-                binding.btnLetsGo.visibility = View.VISIBLE
+                binding.btnLetsGo.visibility = View.GONE
+                deliveryHandler.postDelayed({ completeOnboarding() }, 900L)
             }
         })
 
         viewModel.completeLiveData.observe(this, Observer { response ->
             val creators = response?.matchedCreators ?: emptyList()
+            binding.loadingOverlay.visibility = View.GONE
             if (creators.isEmpty()) {
-                // No matches → skip the personalised animation and jump straight home.
-                binding.loadingOverlay.visibility = View.GONE
                 navigateToMain()
                 return@Observer
             }
-            startDeliveryAnimation(creators)
+            startInlineDelivery(creators)
         })
 
         viewModel.errorLiveData.observe(this, Observer { error ->
@@ -248,6 +246,7 @@ class AiOnboardingActivity : AppCompatActivity() {
         val message = binding.etMessage.text?.toString()?.trim() ?: return
         if (message.isEmpty()) return
 
+        lastUserReply = message
         chatAdapter.addMessage(AiChatMessage(message, isUser = true))
         binding.etMessage.setText("")
         binding.etMessage.isEnabled = false
@@ -281,9 +280,145 @@ class AiOnboardingActivity : AppCompatActivity() {
     }
 
     /**
-     * Show the personalised delivery screen: creator avatars populate in a
-     * list, a Hima-branded messenger bubble glides down the list, and each
-     * row ticks green one-by-one. After the last tick we navigate home.
+     * Inline delivery: stays on the chat screen, streams one creator card
+     * per message slot with typing → user-message-preview → ✓ sent animation
+     * driven by the view holder. When the last card finishes, route home.
+     */
+    private fun startInlineDelivery(creators: List<MatchedCreator>) {
+        if (creators.isEmpty()) {
+            navigateToMain()
+            return
+        }
+        isDeliveryRunning = true
+        binding.inputBar.visibility = View.GONE
+        binding.btnLetsGo.visibility = View.GONE
+        binding.tvTypingStatus.text = "Sending to your matches…"
+
+        val outbound = buildOutboundMessage(selectedConcern, userLanguage)
+
+        chatAdapter.addMessage(
+            AiChatMessage(text = "Sending your message to your matches ✨", isUser = false)
+        )
+        scrollToBottom()
+
+        val firstCardDelay = 1100L
+        val firstCardAnimationMs = 5200L
+        val subsequentStaggerMs = 850L
+        val tailMs = 2400L
+
+        deliveryHandler.postDelayed({
+            chatAdapter.addMessage(
+                AiChatMessage(
+                    text = "",
+                    isUser = false,
+                    creator = creators[0],
+                    userPreview = outbound,
+                    skipTyping = false
+                )
+            )
+            scrollToBottom()
+        }, firstCardDelay)
+
+        val afterFirst = firstCardDelay + firstCardAnimationMs
+        for (i in 1 until creators.size) {
+            deliveryHandler.postDelayed({
+                chatAdapter.addMessage(
+                    AiChatMessage(
+                        text = "",
+                        isUser = false,
+                        creator = creators[i],
+                        userPreview = outbound,
+                        skipTyping = true
+                    )
+                )
+                scrollToBottom()
+            }, afterFirst + (i - 1) * subsequentStaggerMs)
+        }
+
+        val totalMs = afterFirst +
+            (creators.size - 1).coerceAtLeast(0) * subsequentStaggerMs + tailMs
+        deliveryHandler.postDelayed({
+            isDeliveryRunning = false
+            navigateToMain()
+        }, totalMs)
+    }
+
+    private fun buildOutboundMessage(concern: String, language: String): String {
+        val table = mapOf(
+            "Tamil" to mapOf(
+                "breakup" to "Hi… romba kashtama iruku right now, breakup aachu 😔 Yaarakitta share panna mudiyala, pesuvoma?",
+                "loneliness" to "Hi… romba thanimai a feel aaguthu 😔 Yaarakitta pesa mudiyala, konjam pesuvoma?",
+                "stress" to "Hi… romba stress la iruken 😔 Yaarakitta share panna mudiyala, konjam pesuvoma?",
+                "boredom" to "Hi… romba bore adikuthu right now 😔 Konjam pesa aalu illa, pesuvoma?"
+            ),
+            "Hindi" to mapOf(
+                "breakup" to "Hi… abhi bohot kharab feel ho raha hai, breakup hua hai 😔 Kisi se share nahi kar pa raha, baat karogi?",
+                "loneliness" to "Hi… bahut akela feel ho raha hai 😔 Kisi se baat karne ka mann hai, thodi baat karogi?",
+                "stress" to "Hi… bahut stress mein hoon 😔 Share karne ka koi nahi, thodi baat karogi?",
+                "boredom" to "Hi… bahut bore ho raha hoon 😔 Baat karne wala koi nahi, thodi baat karogi?"
+            ),
+            "Telugu" to mapOf(
+                "breakup" to "Hi… chala badha ga undi right now, breakup ayindi 😔 Evariki chepalo teliyadu, konchem matladathara?",
+                "loneliness" to "Hi… chala ontarigaa feel avuthunnanu 😔 Evariki matladalo teliyadu, konchem matladathara?",
+                "stress" to "Hi… chala stress lo unna 😔 Share cheyyadaniki evaru ledu, konchem matladathara?",
+                "boredom" to "Hi… chala bore kotutundi 😔 Matladadaniki evaru ledu, konchem matladathara?"
+            ),
+            "Kannada" to mapOf(
+                "breakup" to "Hi… tumba kashta aagide right now, breakup aagide 😔 Yaaru jothe share maadalu aagtilla, swalpa matadthira?",
+                "loneliness" to "Hi… tumba ontige feel aagtide 😔 Yaaru jothe matadalu aagtilla, swalpa matadthira?",
+                "stress" to "Hi… tumba stress nalli iddini 😔 Share maadalu yaaru illa, swalpa matadthira?",
+                "boredom" to "Hi… tumba bore aagide 😔 Matadalu yaaru illa, swalpa matadthira?"
+            ),
+            "Malayalam" to mapOf(
+                "breakup" to "Hi… valare kashtam aanu right now, breakup aayi 😔 Aaronodum share cheyyan pattunnilla, kore samsaarikkamo?",
+                "loneliness" to "Hi… valare ekanatha tonunnu 😔 Aaronodum samsaarikkan pattunnilla, kore samsaarikkamo?",
+                "stress" to "Hi… valare stress aanu 😔 Share cheyyan aarumillla, kore samsaarikkamo?",
+                "boredom" to "Hi… valare boring aanu 😔 Samsaarikkan aarumillla, kore samsaarikkamo?"
+            ),
+            "Marathi" to mapOf(
+                "breakup" to "Hi… khoop tras hotoy right now, breakup zhala 😔 Konashi share karaycha nahi jamat, thoda bolshil ka?",
+                "loneliness" to "Hi… khoop ekle vatatay 😔 Konashi bolaycha nahi jamat, thoda bolshil ka?",
+                "stress" to "Hi… khoop stress madhye aahe 😔 Share karaycha koni nahi, thoda bolshil ka?",
+                "boredom" to "Hi… khoop bore hotoy 😔 Bolaycha koni nahi, thoda bolshil ka?"
+            ),
+            "Bengali" to mapOf(
+                "breakup" to "Hi… ekhon khub kharap lagche, breakup hoyeche 😔 Kaaro sathe share korte parchi na, ektu kotha bolbe?",
+                "loneliness" to "Hi… khub eka lagche 😔 Kaaro sathe kotha bolte parchi na, ektu kotha bolbe?",
+                "stress" to "Hi… khub stress e achhi 😔 Share korar keu nei, ektu kotha bolbe?",
+                "boredom" to "Hi… khub bore lagche 😔 Kotha bolar keu nei, ektu kotha bolbe?"
+            ),
+            "Assamese" to mapOf(
+                "breakup" to "Hi… bor dukh paisu right now, breakup hol 😔 Kaaro logot share koribo para nai, olop kotha patibane?",
+                "loneliness" to "Hi… bor okola lagise 😔 Kaaro logot kotha patibo para nai, olop kotha patibane?",
+                "stress" to "Hi… bor stress t ase 😔 Share koribo kunu nai, olop kotha patibane?",
+                "boredom" to "Hi… bor boring lagise 😔 Kotha patibo kunu nai, olop kotha patibane?"
+            ),
+            "Odia" to mapOf(
+                "breakup" to "Hi… bahut kashta lagucchi right now, breakup heichi 😔 Kahaku share kari paruni, tike katha heba?",
+                "loneliness" to "Hi… bahut ekalaa lagucchi 😔 Kahaku katha heipariuni, tike katha heba?",
+                "stress" to "Hi… bahut stress re achi 😔 Share karibaku kehi nahin, tike katha heba?",
+                "boredom" to "Hi… bahut bore lagucchi 😔 Katha hebaku kehi nahin, tike katha heba?"
+            ),
+            "Gujarati" to mapOf(
+                "breakup" to "Hi… hamna bahu takleef thai rahi chhe, breakup thayu chhe 😔 Kaoi sathe share nathi kari shakto, thodi vaat karishu?",
+                "loneliness" to "Hi… bahu ekla feel thay chhe 😔 Kaoi sathe vaat nathi kari shakto, thodi vaat karishu?",
+                "stress" to "Hi… bahu stress ma chhu 😔 Share karva maate kaoi nathi, thodi vaat karishu?",
+                "boredom" to "Hi… bahu bore thay chhe 😔 Vaat karva maate kaoi nathi, thodi vaat karishu?"
+            ),
+            "Punjabi" to mapOf(
+                "breakup" to "Hi… hun bahut takleef ho rahi hai, breakup ho gaya 😔 Kise naal share nahi kar sakda, thodi gal karangi?",
+                "loneliness" to "Hi… bahut kalla feel ho reha hai 😔 Kise naal gal nahi kar sakda, thodi gal karangi?",
+                "stress" to "Hi… bahut stress vich aan 😔 Share karan layi koi nahi, thodi gal karangi?",
+                "boredom" to "Hi… bahut bore ho reha aan 😔 Gal karan layi koi nahi, thodi gal karangi?"
+            )
+        )
+        val byConcern = table[language] ?: table["Tamil"]!!
+        return byConcern[concern] ?: byConcern["loneliness"]!!
+    }
+
+    /**
+     * Legacy separate-screen delivery — kept only so callers that still
+     * reference it compile; no longer used in the success path.
      */
     private fun startDeliveryAnimation(creators: List<MatchedCreator>) {
         isDeliveryRunning = true

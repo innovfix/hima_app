@@ -343,6 +343,40 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
+        <HorizontalScrollView
+            android:id="@+id/quick_reply_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:scrollbars="none"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/chip_reply_1"
+                    style="@style/QuickReplyChip" />
+
+                <TextView
+                    android:id="@+id/chip_reply_2"
+                    style="@style/QuickReplyChip"
+                    android:layout_marginStart="8dp" />
+
+                <TextView
+                    android:id="@+id/chip_reply_3"
+                    style="@style/QuickReplyChip"
+                    android:layout_marginStart="8dp" />
+
+                <TextView
+                    android:id="@+id/chip_reply_4"
+                    style="@style/QuickReplyChip"
+                    android:layout_marginStart="8dp" />
+            </LinearLayout>
+        </HorizontalScrollView>
+
         <LinearLayout
             android:id="@+id/recording_bar"
             android:layout_width="match_parent"
