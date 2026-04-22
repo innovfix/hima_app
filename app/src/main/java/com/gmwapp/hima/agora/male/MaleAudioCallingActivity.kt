@@ -422,6 +422,19 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     }
 
     private fun setupLudoInviteFlow() {
+        applyPlayLudoVisibility(
+            BaseApplication.getInstance()?.getPrefs()?.getUserData()?.play_ludo ?: false
+        )
+
+        profileViewModel.getUserLiveData.observe(this) { response ->
+            val fresh = response?.data ?: return@observe
+            BaseApplication.getInstance()?.getPrefs()?.setUserData(fresh)
+            applyPlayLudoVisibility(fresh.play_ludo ?: false)
+        }
+        if (maleUserId != 0) {
+            profileViewModel.getUsers(maleUserId)
+        }
+
         binding.ludoButtonCard.setOnSingleClickListener {
             showLudoInviteConfirmDialog()
         }
@@ -486,6 +499,10 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             }
             FcmUtils.clearLudoEvent()
         }
+    }
+
+    private fun applyPlayLudoVisibility(enabled: Boolean) {
+        binding.ludoButtonCard.visibility = if (enabled) View.VISIBLE else View.GONE
     }
 
     private fun showLudoInviteConfirmDialog() {
