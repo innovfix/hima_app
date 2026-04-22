@@ -190,6 +190,9 @@ class RecentCallsAdapter(
         }
         // Hide duration and time for favorites mode
         if (isFavouriteMode) {
+            holder.binding.main.setOnClickListener(null)
+            holder.binding.cardChatNow.visibility = View.GONE
+            holder.binding.cardChatNow.setOnClickListener(null)
             holder.binding.tvTime.visibility = View.GONE
             holder.binding.tvDuration.visibility = View.GONE
             holder.binding.llDuration.visibility = View.GONE
@@ -224,6 +227,12 @@ class RecentCallsAdapter(
             }
             // Remove click listener for non-favorite mode
             holder.binding.tvTime.setOnClickListener(null)
+
+            holder.binding.cardChatNow.visibility = View.GONE
+            holder.binding.cardChatNow.setOnClickListener(null)
+            holder.binding.main.setOnSingleClickListener {
+                openChatActivity(call)
+            }
         }
 
         Log.d("RecentCallUserName","${call.name}")

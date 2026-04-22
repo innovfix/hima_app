@@ -1,6 +1,5 @@
 package com.gmwapp.hima.agora
 
-import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -12,6 +11,8 @@ import com.gmwapp.hima.agora.female.FemaleCallAcceptActivity
 import com.gmwapp.hima.agora.female.FemaleVideoCallingActivity
 import com.gmwapp.hima.agora.male.MaleAudioCallingActivity
 import com.gmwapp.hima.agora.male.MaleVideoCallingActivity
+import com.gmwapp.hima.agora.telecom.HimaTelecomManager
+import android.telecom.DisconnectCause
 import com.gmwapp.hima.repositories.FcmNotificationRepository
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.FcmNotificationResponse
@@ -20,6 +21,12 @@ import javax.inject.Inject
 
 class CallActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        val extrasSummary = intent.extras?.let { b ->
+            b.keySet().joinToString(prefix = "[", postfix = "]") { k ->
+                "$k=${b.get(k)}"
+            }
+        } ?: "[]"
+        Log.d("HimaIncomingCall", "CallActionReceiver.onReceive action=${intent.action} extras=$extrasSummary")
 
         when (intent.action) {
             "ACTION_ACCEPT_CALL" -> {
@@ -57,7 +64,9 @@ class CallActionReceiver : BroadcastReceiver() {
                 }
 
                 BaseApplication.getInstance()?.stopRingtone()
-                (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(1)
+                HimaTelecomManager.markActive()
+                BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+                BaseApplication.getInstance()?.clearIncomingCall()
 
             }
 
@@ -71,6 +80,11 @@ class CallActionReceiver : BroadcastReceiver() {
                 val channelName = intent.getStringExtra("CHANNEL_NAME")
                 val callId = intent.getIntExtra("CALL_ID", -1)
 
+                // Instant UI feedback — do not wait for FCM round trip.
+                HimaTelecomManager.endActiveCall(DisconnectCause.REJECTED)
+                BaseApplication.getInstance()?.stopRingtone()
+                BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+                BaseApplication.getInstance()?.clearIncomingCall()
 
                 Log.d("CallReceiver", "Call Rejected: callType=$callType, senderId=$receiverId, channelName=$channelName, callId=$callId")
 
@@ -82,9 +96,10 @@ class CallActionReceiver : BroadcastReceiver() {
                         object : NetworkCallback<FcmNotificationResponse> {
                             override fun onResponse(call: retrofit2.Call<FcmNotificationResponse>, response: retrofit2.Response<FcmNotificationResponse>) {
                                 Log.d("FCMNotification", "Auto-reject sent: ${response.body()?.message}")
+                                HimaTelecomManager.endActiveCall(DisconnectCause.REJECTED)
                                 BaseApplication.getInstance()?.stopRingtone()
-                                val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                                notificationManager.cancel(1)
+                                BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+                                BaseApplication.getInstance()?.clearIncomingCall()
 
                                 val context = context.applicationContext
                                 val mainIntent = Intent(context, MainActivity::class.java).apply {
@@ -95,10 +110,18 @@ class CallActionReceiver : BroadcastReceiver() {
 
                             override fun onFailure(call: retrofit2.Call<FcmNotificationResponse>, t: Throwable) {
                                 Log.e("FCMNotification", "Error sending auto-reject: ${t.message}")
+                                HimaTelecomManager.endActiveCall(DisconnectCause.REJECTED)
+                                BaseApplication.getInstance()?.stopRingtone()
+                                BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+                                BaseApplication.getInstance()?.clearIncomingCall()
                             }
 
                             override fun onNoNetwork() {
                                 Log.e("FCMNotification", "No network for auto-reject")
+                                HimaTelecomManager.endActiveCall(DisconnectCause.REJECTED)
+                                BaseApplication.getInstance()?.stopRingtone()
+                                BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+                                BaseApplication.getInstance()?.clearIncomingCall()
                             }
                         }
                     )
@@ -144,7 +167,9 @@ class CallActionReceiver : BroadcastReceiver() {
                 }
 
                 BaseApplication.getInstance()?.stopRingtone()
-                (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(1)
+                HimaTelecomManager.markActive()
+                BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+                BaseApplication.getInstance()?.clearIncomingCall()
             }
 
             "ACTION_REJECT_CALL_MALE" -> {
@@ -156,6 +181,12 @@ class CallActionReceiver : BroadcastReceiver() {
                 val channelName = intent.getStringExtra("CHANNEL_NAME")
                 val callId = intent.getIntExtra("CALL_ID", -1)
 
+                // Instant UI feedback — do not wait for FCM round trip.
+                HimaTelecomManager.endActiveCall(DisconnectCause.REJECTED)
+                BaseApplication.getInstance()?.stopRingtone()
+                BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+                BaseApplication.getInstance()?.clearIncomingCall()
+
                 Log.d("CallReceiver_Male", "Call Rejected: callType=$callType, senderId=$receiverId, channelName=$channelName, callId=$callId")
 
                 val fcmNotificationRepository = (context.applicationContext as BaseApplication).fcmNotificationRepository
@@ -166,9 +197,10 @@ class CallActionReceiver : BroadcastReceiver() {
                         object : NetworkCallback<FcmNotificationResponse> {
                             override fun onResponse(call: retrofit2.Call<FcmNotificationResponse>, response: retrofit2.Response<FcmNotificationResponse>) {
                                 Log.d("FCMNotification_Male", "Auto-reject sent: ${response.body()?.message}")
+                                HimaTelecomManager.endActiveCall(DisconnectCause.REJECTED)
                                 BaseApplication.getInstance()?.stopRingtone()
-                                val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                                notificationManager.cancel(1)
+                                BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+                                BaseApplication.getInstance()?.clearIncomingCall()
 
                                 val context = context.applicationContext
                                 val mainIntent = Intent(context, MainActivity::class.java).apply {
@@ -179,10 +211,18 @@ class CallActionReceiver : BroadcastReceiver() {
 
                             override fun onFailure(call: retrofit2.Call<FcmNotificationResponse>, t: Throwable) {
                                 Log.e("FCMNotification_Male", "Error sending auto-reject: ${t.message}")
+                                HimaTelecomManager.endActiveCall(DisconnectCause.REJECTED)
+                                BaseApplication.getInstance()?.stopRingtone()
+                                BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+                                BaseApplication.getInstance()?.clearIncomingCall()
                             }
 
                             override fun onNoNetwork() {
                                 Log.e("FCMNotification_Male", "No network for auto-reject")
+                                HimaTelecomManager.endActiveCall(DisconnectCause.REJECTED)
+                                BaseApplication.getInstance()?.stopRingtone()
+                                BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+                                BaseApplication.getInstance()?.clearIncomingCall()
                             }
                         }
                     )

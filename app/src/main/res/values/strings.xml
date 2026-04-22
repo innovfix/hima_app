@@ -49,10 +49,14 @@
     <string name="peer_calls_blocked">You can\'t call this user.</string>
 
     <!-- Chat list card -->
+    <string name="chat_pin_action">Pin chat</string>
+    <string name="chat_unpin_action">Unpin chat</string>
+    <string name="chat_pinned_toast">Chat pinned</string>
+    <string name="chat_unpinned_toast">Chat unpinned</string>
+    <string name="chat_pin_limit_reached">You can pin up to 3 chats</string>
     <string name="chat_preview_no_messages">No messages yet</string>
     <string name="chat_preview_photo">📷 Photo</string>
     <string name="chat_preview_voice">🎤 Voice message</string>
-    <string name="chat_free_label">Chat • FREE</string>
     <string name="chat_add_friend_banner_title">Add %1$s as a friend?</string>
     <string name="chat_add_friend_yes">Yes</string>
     <string name="chat_add_friend_not_now">Not now</string>
@@ -61,6 +65,18 @@
     <string name="chat_add_friend_failure">Couldn\'t add friend. Please try again.</string>
     <string name="chat_history_error_generic">Server is busy. Please try again.</string>
     <string name="chat_history_retry">Tap to retry</string>
+    <string name="chat_reply_you">You</string>
+    <string name="chat_reply_clear">Clear reply</string>
+    <string name="chat_reply_header_line">↩ %1$s: %2$s</string>
+    <string name="chat_action_reply">Reply</string>
+    <string name="chat_action_add_reaction">Add reaction</string>
+    <string name="chat_action_delete">Delete</string>
+    <string name="chat_delete_title">Delete message?</string>
+    <string name="chat_delete_message">This will remove the message from your chat and the other person\'s chat. This can\'t be undone.</string>
+    <string name="chat_delete_confirm">Delete</string>
+    <string name="chat_message_deleted_toast">Message deleted</string>
+    <string name="chat_message_deleted_tombstone">This message was deleted</string>
+    <string name="chat_delete_failed">Couldn\'t delete the message. Try again.</string>
     <string name="call_unavailable">Unavailable</string>
     <string name="notify_bell_default_desc">Notify when online</string>
     <string name="notify_bell_on_desc">Notifications on for %s</string>
@@ -124,6 +140,7 @@
     <string name="please_try_again_later">Please try again later</string>
     <string name="invalid_phone_number_text">This phone number is invalid. Please try again.</string>
     <string name="your_avatar">Your Avatar</string>
+    <string name="swipe_to_choose_avatar">Swipe to choose</string>
     <string name="edit_profile">Edit Profile</string>
     <string name="user_name">Username</string>
     <string name="user_name_hint">Username must be 4-10 characters.</string>
@@ -496,4 +513,5 @@
     <string name="dnd_duration_24h">24 Hours</string>
     <string name="dnd_cancel">Cancel</string>
     <string name="dnd_fallback_local">Do Not Disturb saved on this device. The server did not recognize the DND endpoint yet (404) — notifications are muted locally until expiry.</string>
+    <string name="dnd_requires_calls_off">Turn off Audio calls and Video calls on your home screen first, then you can enable Do Not Disturb.</string>
 </resources>

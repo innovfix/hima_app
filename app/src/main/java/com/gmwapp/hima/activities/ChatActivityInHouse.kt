@@ -15,6 +15,7 @@ import android.os.SystemClock
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -26,6 +27,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.ContextCompat
@@ -33,8 +35,10 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.Observer
 import androidx.activity.viewModels
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.SimpleItemAnimator
 import androidx.cardview.widget.CardView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
@@ -45,6 +49,7 @@ import com.gmwapp.hima.adapters.ChatAdapter
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.models.ChatMessage
 import com.gmwapp.hima.models.ChatMessageApi
+import com.gmwapp.hima.models.MessageDeliveryStatus
 import com.gmwapp.hima.retrofit.ApiManager
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.ChatAttachmentUploadResponse
@@ -120,6 +125,13 @@ class ChatActivityInHouse : AppCompatActivity() {
 
     private lateinit var chatAdapter: ChatAdapter
     private val messages = mutableListOf<ChatMessage>()
+
+    private var layoutReplyPreview: View? = null
+    private var tvReplyAuthor: TextView? = null
+    private var tvReplySnippet: TextView? = null
+    private var ivReplyClose: ImageView? = null
+    /** Message the user is replying to (quoted in the next outgoing text). */
+    private var pendingReplyTo: ChatMessage? = null
     
     private val socketManager = SocketManager.getInstance()
     
@@ -321,6 +333,14 @@ class ChatActivityInHouse : AppCompatActivity() {
 
     private fun initializeViews() {
         rvMessages = findViewById(R.id.rv_messages)
+        layoutReplyPreview = findViewById(R.id.layout_reply_preview)
+        tvReplyAuthor = findViewById(R.id.tv_reply_author)
+        tvReplySnippet = findViewById(R.id.tv_reply_snippet)
+        ivReplyClose = findViewById(R.id.iv_reply_close)
+        ivReplyClose?.setOnClickListener {
+            pendingReplyTo = null
+            updateReplyPreviewUi()
+        }
         etMessage = findViewById(R.id.et_message)
         btnSend = findViewById(R.id.btn_send)
         btnMic = findViewById(R.id.btn_mic)
@@ -419,9 +439,13 @@ class ChatActivityInHouse : AppCompatActivity() {
             enableReactions = true,
             myUserId = myUserId,
             onReactionChanged = { message, reactionEmoji -> handleReactionUpdate(message, reactionEmoji) },
-            onReactionClick = { message, emoji -> showReactionDetails(message, emoji) }
+            onReactionClick = { message, emoji -> showReactionDetails(message, emoji) },
+            onMessageLongPress = { anchor, msg, pos -> showChatMessageContextMenu(anchor, msg, pos) }
         )
         rvMessages.apply {
+            setHasFixedSize(true)
+            setItemViewCacheSize(20)
+            (itemAnimator as? SimpleItemAnimator)?.supportsChangeAnimations = false
             // WhatsApp-style layout: messages anchored to bottom, newest at bottom
             // Messages are sorted oldest first (index 0 = oldest, index N = newest)
             // With stackFromEnd=true, RecyclerView shows the last item (newest) at bottom
@@ -455,6 +479,212 @@ class ChatActivityInHouse : AppCompatActivity() {
                 }
             })
         }
+        attachSwipeToReply()
+    }
+
+    private fun attachSwipeToReply() {
+        ItemTouchHelper(
+            object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.END) {
+                override fun onMove(
+                    recyclerView: RecyclerView,
+                    viewHolder: RecyclerView.ViewHolder,
+                    target: RecyclerView.ViewHolder
+                ) = false
+
+                override fun getSwipeDirs(
+                    recyclerView: RecyclerView,
+                    viewHolder: RecyclerView.ViewHolder
+                ): Int {
+                    val pos = viewHolder.bindingAdapterPosition
+                    if (pos == RecyclerView.NO_POSITION) return 0
+                    if (chatAdapter.isDateHeaderPosition(pos)) return 0
+                    return super.getSwipeDirs(recyclerView, viewHolder)
+                }
+
+                override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+                    val pos = viewHolder.bindingAdapterPosition
+                    if (pos != RecyclerView.NO_POSITION) {
+                        val msg = messages.getOrNull(pos)
+                        if (msg != null && !msg.isDateHeader) {
+                            beginReplyTo(msg)
+                        }
+                        chatAdapter.notifyItemChanged(pos)
+                    }
+                }
+            }
+        ).attachToRecyclerView(rvMessages)
+    }
+
+    private fun updateReplyPreviewUi() {
+        if (!isUiSafe()) return
+        val ref = pendingReplyTo
+        val layout = layoutReplyPreview ?: return
+        if (ref == null) {
+            layout.visibility = View.GONE
+            tvReplyAuthor?.text = ""
+            tvReplySnippet?.text = ""
+            return
+        }
+        layout.visibility = View.VISIBLE
+        tvReplyAuthor?.text = if (ref.isSentByMe) {
+            getString(R.string.chat_reply_you)
+        } else {
+            peerName
+        }
+        tvReplySnippet?.text = buildReplySnippetText(ref)
+    }
+
+    private fun buildReplySnippetText(msg: ChatMessage): String = when (msg.messageType.lowercase()) {
+        "image" -> getString(R.string.chat_preview_photo)
+        "audio" -> getString(R.string.chat_preview_voice)
+        else -> msg.message.trim().replace("\n", " ").take(160)
+    }
+
+    private fun buildReplyHeaderLine(ref: ChatMessage): String {
+        val author = if (ref.isSentByMe) getString(R.string.chat_reply_you) else peerName
+        val snippet = buildReplySnippetText(ref)
+        return getString(R.string.chat_reply_header_line, author, snippet)
+    }
+
+    private fun beginReplyTo(message: ChatMessage) {
+        if (message.isDateHeader) return
+        pendingReplyTo = message
+        updateReplyPreviewUi()
+        etMessage.requestFocus()
+        val imm = getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
+            as? android.view.inputmethod.InputMethodManager
+        imm?.showSoftInput(etMessage, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    private fun showChatMessageContextMenu(anchor: View, message: ChatMessage, position: Int) {
+        if (!isUiSafe()) return
+        if (message.isDateHeader) return
+        // Once deleted there's nothing to reply to, react to, or re-delete.
+        if (message.isDeleted) return
+        val popup = PopupMenu(this, anchor, Gravity.END)
+        menuInflater.inflate(R.menu.menu_chat_message, popup.menu)
+        // Delete-for-everyone is only offered to the sender of the message.
+        popup.menu.findItem(R.id.action_delete)?.isVisible = message.isSentByMe
+        popup.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.action_reply -> {
+                    beginReplyTo(message)
+                    true
+                }
+                R.id.action_reaction -> {
+                    chatAdapter.showReactionPopupForPosition(anchor, position)
+                    true
+                }
+                R.id.action_delete -> {
+                    confirmDeleteMessage(message)
+                    true
+                }
+                else -> false
+            }
+        }
+        popup.show()
+    }
+
+    private fun confirmDeleteMessage(message: ChatMessage) {
+        if (!isUiSafe()) return
+        // Defensive: the menu item is already hidden for received rows, but guard here too.
+        if (!message.isSentByMe || message.isDeleted) return
+        AlertDialog.Builder(this)
+            .setTitle(R.string.chat_delete_title)
+            .setMessage(R.string.chat_delete_message)
+            .setPositiveButton(R.string.chat_delete_confirm) { _, _ ->
+                performDeleteForEveryone(message)
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    /**
+     * Optimistically flips the bubble to a tombstone, then tries to propagate the delete
+     * via Socket.IO; if the socket is down it falls back to REST. On REST failure the
+     * local state is rolled back so the user can retry. `onNoNetwork` deliberately keeps
+     * the tombstone on-screen — once the server ships the feature, a reconciliation pass
+     * on reconnect/reload can surface any rows the server rejected.
+     */
+    private fun performDeleteForEveryone(message: ChatMessage) {
+        if (!isUiSafe()) return
+        if (!message.isSentByMe) return
+        if (message.isDeleted) return
+
+        val idForLog = message.id
+        markMessageDeletedLocally(message)
+        if (pendingReplyTo?.id == message.id) {
+            pendingReplyTo = null
+            updateReplyPreviewUi()
+        }
+
+        val delivered = socketManager.deleteMessage(myUserId, peerUserId, message.id)
+        Log.d("ChatDelete", "performDeleteForEveryone id=$idForLog via=socket delivered=$delivered")
+        if (delivered) {
+            showAppToast(getString(R.string.chat_message_deleted_toast), Toast.LENGTH_SHORT)
+            return
+        }
+
+        apiManager.deleteChatMessage(
+            myUserId,
+            peerUserId,
+            message.id,
+            object : NetworkCallback<com.gmwapp.hima.retrofit.responses.SimpleAckResponse> {
+                override fun onResponse(
+                    call: Call<com.gmwapp.hima.retrofit.responses.SimpleAckResponse>,
+                    response: Response<com.gmwapp.hima.retrofit.responses.SimpleAckResponse>
+                ) {
+                    val ok = response.isSuccessful &&
+                        (response.body()?.success != false)
+                    Log.d("ChatDelete", "performDeleteForEveryone id=$idForLog via=rest ok=$ok http=${response.code()}")
+                    if (ok) {
+                        if (isUiSafe()) {
+                            showAppToast(getString(R.string.chat_message_deleted_toast), Toast.LENGTH_SHORT)
+                        }
+                    } else {
+                        rollbackDeleteOnFailure(message)
+                    }
+                }
+
+                override fun onFailure(
+                    call: Call<com.gmwapp.hima.retrofit.responses.SimpleAckResponse>,
+                    t: Throwable
+                ) {
+                    Log.w("ChatDelete", "performDeleteForEveryone id=$idForLog via=rest FAILED: ${t.message}")
+                    rollbackDeleteOnFailure(message)
+                }
+
+                override fun onNoNetwork() {
+                    // Leave the tombstone in place so the user sees their intent was
+                    // accepted locally; the backend will not learn about it until the
+                    // socket reconnects — acceptable for MVP.
+                    Log.w("ChatDelete", "performDeleteForEveryone id=$idForLog via=rest NO_NETWORK — tombstone stays")
+                }
+            }
+        )
+    }
+
+    private fun markMessageDeletedLocally(message: ChatMessage) {
+        val index = messages.indexOfFirst { it.id == message.id && !it.isDateHeader }
+        if (index == -1) return
+        val current = messages[index]
+        if (current.isDeleted) return
+        messages[index] = current.copy(
+            isDeleted = true,
+            reactions = emptyMap(),
+            attachmentUrl = null
+        )
+        chatAdapter.notifyItemChanged(index)
+    }
+
+    private fun rollbackDeleteOnFailure(message: ChatMessage) {
+        if (!isUiSafe()) return
+        val index = messages.indexOfFirst { it.id == message.id && !it.isDateHeader }
+        if (index != -1 && messages[index].isDeleted) {
+            messages[index] = message
+            chatAdapter.notifyItemChanged(index)
+        }
+        showAppToast(getString(R.string.chat_delete_failed), Toast.LENGTH_SHORT)
     }
 
     private fun setupUserIds() {
@@ -474,6 +704,13 @@ class ChatActivityInHouse : AppCompatActivity() {
         if (myUserId == 0 || peerUserId == -1) {
             showAppToast("Error: Invalid user data", Toast.LENGTH_SHORT)
             finish()
+        } else {
+            // Opening this conversation clears any stacked chat-notification lines
+            // for this peer (WhatsApp parity) and removes the tray entry so it
+            // doesn't linger behind the now-open chat.
+            com.gmwapp.hima.utils.ChatNotificationStore.clear(this, peerUserId)
+            androidx.core.app.NotificationManagerCompat.from(this)
+                .cancel(com.gmwapp.hima.utils.ChatNotifications.notifIdFor(peerUserId))
         }
     }
 
@@ -896,12 +1133,11 @@ class ChatActivityInHouse : AppCompatActivity() {
             date = currentTime,
             messageType = messageType,
             attachmentUrl = localAttachmentUrl,
-            audioDurationMs = audioDurationMs
+            audioDurationMs = audioDurationMs,
+            deliveryStatus = MessageDeliveryStatus.SENDING
         )
 
-        messages.add(tempMessage)
-        updateTopHeader(messages)
-        chatAdapter.notifyDataSetChanged()
+        appendMessageWithOptionalDateHeader(tempMessage)
         rvMessages.post {
             rvMessages.smoothScrollToPosition(messages.size - 1)
         }
@@ -1014,8 +1250,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                                 messages[tempIndex] = realMessage
                                 messages[tempIndex].reactions = existingReactions
                                 messageSendMethod[realMessage.id] = "api"
-                                updateTopHeader(messages)
-                                chatAdapter.notifyDataSetChanged()
+                                chatAdapter.notifyItemChanged(tempIndex)
                             }
                             Log.d(
                                 "SocketIOCheck",
@@ -1140,45 +1375,69 @@ class ChatActivityInHouse : AppCompatActivity() {
             }
         }
 
+        // Use collect (not collectLatest) on SharedFlow event streams — collectLatest
+        // cancels the previous block when a new event arrives, which can drop UI work
+        // mid-flight when messages land back-to-back.
         lifecycleScope.launch {
-            socketManager.newMessage.collectLatest { message ->
-                message?.let {
-                    if (isSocketMessageForThisChat(it)) {
-                        handleNewMessage(it)
-                    }
+            socketManager.newMessage.collect { message ->
+                if (isSocketMessageForThisChat(message)) {
+                    handleNewMessage(message)
                 }
             }
         }
 
         lifecycleScope.launch {
-            socketManager.messageSent.collectLatest { message ->
-                message?.let {
-                    if (isSocketMessageForThisChat(it)) {
-                        val messageId = it.id.toString()
-                        messageSendMethod[messageId] = "socket"
-                        Log.d("SocketIOCheck", "✅ Message sent via SOCKET.IO - ID: $messageId")
-                        // Message already shown optimistically, just update status if needed
-                        logSocketIOStatus() // Log updated status
-                    }
+            socketManager.messageSent.collect { sock ->
+                if (!isSocketMessageForThisChat(sock)) return@collect
+                if (sock.fromUserId != myUserId) return@collect
+                val messageId = sock.id.toString()
+                messageSendMethod[messageId] = "socket"
+                Log.d("SocketIOCheck", "✅ Message sent via SOCKET.IO - ID: $messageId")
+                if (!isUiSafe()) return@collect
+                val idx = messages.indexOfFirst { m ->
+                    m.isSentByMe &&
+                        m.id == messageId &&
+                        m.deliveryStatus == MessageDeliveryStatus.SENT
+                }
+                if (idx != -1) {
+                    messages[idx] = messages[idx].copy(deliveryStatus = MessageDeliveryStatus.DELIVERED)
+                    chatAdapter.notifyItemChanged(idx)
+                }
+                logSocketIOStatus()
+            }
+        }
+
+        lifecycleScope.launch {
+            socketManager.messageError.collect { error ->
+                Log.e("SocketIOCheck", "Message error: $error")
+            }
+        }
+
+        lifecycleScope.launch {
+            socketManager.reactionUpdated.collect { reactionUpdate ->
+                if (reactionUpdate.chatId == chatId) {
+                    handleIncomingReaction(reactionUpdate)
                 }
             }
         }
 
         lifecycleScope.launch {
-            socketManager.messageError.collectLatest { error ->
-                error?.let {
-                    Log.e("SocketIOCheck", "Message error: $it")
+            socketManager.chatMessageDeleted.collect { deletedId ->
+                if (deletedId.isEmpty()) return@collect
+                val idx = messages.indexOfFirst { it.id == deletedId && !it.isDateHeader }
+                if (idx == -1) {
+                    Log.d("ChatDelete", "Ignoring message_deleted — id=$deletedId not in current window")
+                    return@collect
                 }
-            }
-        }
-
-        lifecycleScope.launch {
-            socketManager.reactionUpdated.collectLatest { reactionUpdate ->
-                reactionUpdate?.let {
-                    if (it.chatId == chatId) {
-                        handleIncomingReaction(it)
-                    }
-                }
+                val existing = messages[idx]
+                if (existing.isDeleted) return@collect
+                messages[idx] = existing.copy(
+                    isDeleted = true,
+                    reactions = emptyMap(),
+                    attachmentUrl = null
+                )
+                chatAdapter.notifyItemChanged(idx)
+                Log.d("ChatDelete", "✅ Applied remote tombstone for id=$deletedId idx=$idx")
             }
         }
     }
@@ -1814,9 +2073,8 @@ class ChatActivityInHouse : AppCompatActivity() {
                                     
                                     // Update headers - this will remove old header and add new one at top
                                     updateTopHeader(messages)
-                                    
-                                    // Notify adapter of all changes
-                                    chatAdapter.notifyDataSetChanged()
+                                    val insertedTotal = messages.size - oldSize
+                                    chatAdapter.notifyItemRangeInserted(0, insertedTotal)
                                     
                                     // Restore scroll position to prevent jumping (WhatsApp style)
                                     // The position shifts by the number of items we added
@@ -1916,10 +2174,19 @@ class ChatActivityInHouse : AppCompatActivity() {
             return
         }
         
-        val messageText = etMessage.text.toString().trim()
-        if (messageText.isEmpty()) {
+        val typed = etMessage.text.toString().trim()
+        if (typed.isEmpty()) {
             return
         }
+
+        val replyRef = pendingReplyTo
+        val bodyToSend = if (replyRef != null) {
+            "${buildReplyHeaderLine(replyRef)}\n$typed"
+        } else {
+            typed
+        }
+        pendingReplyTo = null
+        updateReplyPreviewUi()
 
         // Clear input immediately
         etMessage.setText("")
@@ -1929,19 +2196,15 @@ class ChatActivityInHouse : AppCompatActivity() {
         val currentTime = Date()
         val tempMessage = ChatMessage(
             id = "temp_${System.currentTimeMillis()}",
-            message = messageText,
+            message = bodyToSend,
             timestamp = timeFormat.format(currentTime),
             isSentByMe = true,
-            date = currentTime
+            date = currentTime,
+            deliveryStatus = MessageDeliveryStatus.SENDING
         )
         
-        // Add to end (newest at bottom)
-        messages.add(tempMessage)
-        
-        // Update headers (will add boundary header if date changed)
-        updateTopHeader(messages)
-        chatAdapter.notifyDataSetChanged()
-        
+        appendMessageWithOptionalDateHeader(tempMessage)
+
         // Smooth scroll to bottom to show new message
         rvMessages.post {
             rvMessages.smoothScrollToPosition(messages.size - 1)
@@ -1952,13 +2215,13 @@ class ChatActivityInHouse : AppCompatActivity() {
         if (socketManager.isConnected()) {
             messageSendMethod[tempMessageId] = "socket"
             // ⭐ Updated to use new signature: sendMessage(fromUserId, toUserId, message, messageType, attachmentUrl)
-            socketManager.sendMessage(myUserId, peerUserId, messageText, "text")
-            Log.d("SocketIOCheck", "🚀 Sending via SOCKET.IO - From: $myUserId, To: $peerUserId, Message: '$messageText'")
+            socketManager.sendMessage(myUserId, peerUserId, bodyToSend, "text")
+            Log.d("SocketIOCheck", "🚀 Sending via SOCKET.IO - From: $myUserId, To: $peerUserId, Message: '$bodyToSend'")
         } else {
             messageSendMethod[tempMessageId] = "api"
             Log.w("SocketIOCheck", "⚠️ Socket.IO NOT CONNECTED - Using fallback API")
             // Fallback to API
-            sendMessageViaAPI(messageText)
+            sendMessageViaAPI(bodyToSend)
         }
     }
 
@@ -1982,10 +2245,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                                 messages[tempIndex] = realMessage
                                 messages[tempIndex].reactions = existingReactions
                                 messageSendMethod[realMessage.id] = "api"
-                                
-                                // Update headers (will add boundary header if date changed)
-                                updateTopHeader(messages)
-                                chatAdapter.notifyDataSetChanged()
+                                chatAdapter.notifyItemChanged(tempIndex)
                             }
                             Log.d("SocketIOCheck", "✅ Message sent via fallback API - ID: ${fallbackMessage.id}")
                         }
@@ -2048,7 +2308,15 @@ class ChatActivityInHouse : AppCompatActivity() {
         val existingMessageIndex = messages.indexOfFirst { it.id == realMessageId }
         
         if (existingMessageIndex != -1) {
-            // Message already exists, skip
+            val existing = messages[existingMessageIndex]
+            if (existing.isSentByMe &&
+                socketMessage.isRead &&
+                existing.deliveryStatus != MessageDeliveryStatus.READ
+            ) {
+                messages[existingMessageIndex] =
+                    existing.copy(deliveryStatus = MessageDeliveryStatus.READ)
+                chatAdapter.notifyItemChanged(existingMessageIndex)
+            }
             return
         }
         
@@ -2065,29 +2333,31 @@ class ChatActivityInHouse : AppCompatActivity() {
             }
         }
         
-        val chatMessage = convertSocketMessageToChatMessage(socketMessage)
-        
+        var chatMessage = convertSocketMessageToChatMessage(socketMessage)
+        if (tempMessageIndex != -1 && isSentByMe) {
+            chatMessage = chatMessage.copy(
+                deliveryStatus = if (socketMessage.isRead) {
+                    MessageDeliveryStatus.READ
+                } else {
+                    MessageDeliveryStatus.SENT
+                }
+            )
+        }
+
         if (tempMessageIndex != -1) {
             // Replace temp message with real one
             val tempId = messages[tempMessageIndex].id
             val existingReactions = messages[tempMessageIndex].reactions
             messages[tempMessageIndex] = chatMessage
             messages[tempMessageIndex].reactions = existingReactions
-            
-            // Update headers (will add boundary header if date changed)
-            updateTopHeader(messages)
-            chatAdapter.notifyDataSetChanged()
-            
+            chatAdapter.notifyItemChanged(tempMessageIndex)
+
             messageSendMethod[realMessageId] = "socket"
             Log.d("ChatActivityInHouse", "Replaced temp message with real message ID: $realMessageId")
         } else {
             // New incoming message - add to end (newest at bottom - WhatsApp style)
-            messages.add(chatMessage)
-            
-            // Update headers (will add boundary header if date changed)
-            updateTopHeader(messages)
-            chatAdapter.notifyDataSetChanged()
-            
+            appendMessageWithOptionalDateHeader(chatMessage)
+
             // Smooth scroll to bottom to show new message
             rvMessages.post {
                 rvMessages.smoothScrollToPosition(messages.size - 1)
@@ -2105,12 +2375,23 @@ class ChatActivityInHouse : AppCompatActivity() {
         val timestampString = apiMsg.createdAt ?: apiMsg.timestamp
         val timestamp = parseTimestamp(timestampString)
         val isSentByMe = apiMsg.fromUserId == myUserId
-        
-        // Convert reactions from API to Map<userId, emoji>
-        val reactionsMap = apiMsg.reactions?.associate { it.userId to it.reactionEmoji } ?: emptyMap()
-        
+        val isDeleted = (apiMsg.isDeleted ?: 0) == 1
+
+        // Deleted rows carry no reactions / attachments on the client — the tombstone
+        // is a blank slate regardless of what the backend echoes back.
+        val reactionsMap = if (isDeleted) {
+            emptyMap()
+        } else {
+            apiMsg.reactions?.associate { it.userId to it.reactionEmoji } ?: emptyMap()
+        }
+
         Log.d("ChatTimeFix", "Message ID: ${apiMsg.id}, Using: ${if (apiMsg.createdAt != null) "created_at" else "timestamp"}, Value: $timestampString")
-        
+
+        val deliveryStatus = when {
+            !isSentByMe -> MessageDeliveryStatus.DELIVERED
+            apiMsg.isRead -> MessageDeliveryStatus.READ
+            else -> MessageDeliveryStatus.DELIVERED
+        }
         return ChatMessage(
             id = apiMsg.id.toString(),
             message = apiMsg.message,
@@ -2119,7 +2400,9 @@ class ChatActivityInHouse : AppCompatActivity() {
             date = timestamp,
             reactions = reactionsMap,
             messageType = apiMsg.messageType,
-            attachmentUrl = apiMsg.attachmentUrl
+            attachmentUrl = if (isDeleted) null else apiMsg.attachmentUrl,
+            deliveryStatus = deliveryStatus,
+            isDeleted = isDeleted
         )
     }
 
@@ -2135,6 +2418,11 @@ class ChatActivityInHouse : AppCompatActivity() {
             reactionsMap[userId] = emoji
         }
         
+        val deliveryStatus = when {
+            !isSentByMe -> MessageDeliveryStatus.DELIVERED
+            socketMsg.isRead -> MessageDeliveryStatus.READ
+            else -> MessageDeliveryStatus.DELIVERED
+        }
         return ChatMessage(
             id = socketMsg.id.toString(),
             message = socketMsg.message,
@@ -2143,7 +2431,8 @@ class ChatActivityInHouse : AppCompatActivity() {
             date = timestamp,
             reactions = reactionsMap,
             messageType = socketMsg.messageType,
-            attachmentUrl = socketMsg.attachmentUrl
+            attachmentUrl = socketMsg.attachmentUrl,
+            deliveryStatus = deliveryStatus
         )
     }
 
@@ -2158,6 +2447,11 @@ class ChatActivityInHouse : AppCompatActivity() {
         
         Log.d("ChatTimeFix", "Fallback Message ID: ${fallbackMsg.id}, Using: ${if (fallbackMsg.createdAt != null) "created_at" else "timestamp"}, Value: $timestampString")
         
+        val deliveryStatus = when {
+            !isSentByMe -> MessageDeliveryStatus.DELIVERED
+            fallbackMsg.isRead -> MessageDeliveryStatus.READ
+            else -> MessageDeliveryStatus.DELIVERED
+        }
         return ChatMessage(
             id = fallbackMsg.id.toString(),
             message = fallbackMsg.message,
@@ -2166,7 +2460,8 @@ class ChatActivityInHouse : AppCompatActivity() {
             date = timestamp,
             reactions = reactionsMap,
             messageType = fallbackMsg.messageType,
-            attachmentUrl = fallbackMsg.attachmentUrl
+            attachmentUrl = fallbackMsg.attachmentUrl,
+            deliveryStatus = deliveryStatus
         )
     }
 
@@ -2217,6 +2512,65 @@ class ChatActivityInHouse : AppCompatActivity() {
                 dateFormat.timeZone = istTimeZone
                 dateFormat.format(date)
             }
+        }
+    }
+
+    /** Last real message in the list (skips date headers). Used for incremental bottom appends. */
+    private fun lastNonHeaderMessage(): ChatMessage? {
+        var i = messages.size - 1
+        while (i >= 0) {
+            if (!messages[i].isDateHeader) return messages[i]
+            i--
+        }
+        return null
+    }
+
+    /**
+     * Append one message at the bottom with at most one new date header (no full list rebuild).
+     * For bulk loads use [updateTopHeader] + range/full notify instead.
+     */
+    private fun appendMessageWithOptionalDateHeader(newMsg: ChatMessage) {
+        val prev = lastNonHeaderMessage()
+        if (prev == null) {
+            if (newMsg.date != null) {
+                val header = ChatMessage(
+                    id = "header_top_${newMsg.date!!.time}_${newMsg.id}",
+                    message = "",
+                    timestamp = "",
+                    isSentByMe = false,
+                    date = newMsg.date,
+                    isDateHeader = true,
+                    dateHeaderText = getDateHeaderText(newMsg.date!!)
+                )
+                messages.add(header)
+                messages.add(newMsg)
+                chatAdapter.notifyItemRangeInserted(messages.size - 2, 2)
+            } else {
+                messages.add(newMsg)
+                chatAdapter.notifyItemInserted(messages.size - 1)
+            }
+            return
+        }
+        val needBoundary =
+            newMsg.date != null &&
+                prev.date != null &&
+                !isSameDay(prev.date, newMsg.date)
+        if (needBoundary && newMsg.date != null) {
+            val header = ChatMessage(
+                id = "header_${newMsg.date!!.time}_${newMsg.id}",
+                message = "",
+                timestamp = "",
+                isSentByMe = false,
+                date = newMsg.date,
+                isDateHeader = true,
+                dateHeaderText = getDateHeaderText(newMsg.date!!)
+            )
+            messages.add(header)
+            messages.add(newMsg)
+            chatAdapter.notifyItemRangeInserted(messages.size - 2, 2)
+        } else {
+            messages.add(newMsg)
+            chatAdapter.notifyItemInserted(messages.size - 1)
         }
     }
 
@@ -2368,6 +2722,15 @@ class ChatActivityInHouse : AppCompatActivity() {
             "LIFECYCLE onResume peer=$peerUserId suppressNextResume=$suppressNextResumeHistoryReload " +
                 "willCallLoadMessages=${!suppressNextResumeHistoryReload} elapsedSinceCreateMs=$elapsedSinceCreate instance=${hashCode()}"
         )
+
+        // Returning to this conversation clears the MessagingStyle stack for this peer
+        // so lines dismissed by the user (or arriving while the chat was briefly paused)
+        // don't reappear on the next push.
+        if (peerUserId > 0) {
+            com.gmwapp.hima.utils.ChatNotificationStore.clear(this, peerUserId)
+            androidx.core.app.NotificationManagerCompat.from(this)
+                .cancel(com.gmwapp.hima.utils.ChatNotifications.notifIdFor(peerUserId))
+        }
 
         // Mark messages as read using the new API with last message id if messages are loaded
         markMessagesAsReadIfAvailable()

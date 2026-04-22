@@ -42,6 +42,8 @@ import com.gmwapp.hima.PaymentWebViewActivity
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.agora.FcmUtils
+import com.gmwapp.hima.agora.telecom.HimaTelecomManager
+import android.telecom.DisconnectCause
 import com.gmwapp.hima.agora.male.MaleAudioCallingActivity
 import com.gmwapp.hima.agora.male.MaleVideoCallingActivity
 import com.gmwapp.hima.databinding.ActivityFemaleAudioCallingBinding
@@ -1376,6 +1378,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
     fun leaveChannel(view: View) {
         if (!isJoined) {
+            HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
            // showMessage("Join a channel first")
             val intent = Intent(this@FemaleAudioCallingActivity, MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -1405,6 +1408,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             }
             agoraEngine = null
 
+            HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
 
             updateCallEndDetails()
 
@@ -1511,6 +1515,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
         cancelTimeoutTracking()
         stopCallingService()
         stopCountdown()

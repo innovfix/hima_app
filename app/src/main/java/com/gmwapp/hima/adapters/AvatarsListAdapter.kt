@@ -28,10 +28,10 @@ class AvatarsListAdapter(
     }
 
     override fun onBindViewHolder(holder: ItemHolder, position: Int) {
-        val avatarsListData: AvatarsListData? = avatarsListData[position]
+        val item: AvatarsListData? = avatarsListData[position]
 
         Glide.with(activity)
-            .load(avatarsListData?.image)
+            .load(item?.image)
             .centerCrop()
             .into(holder.binding.ivAvatar)
 

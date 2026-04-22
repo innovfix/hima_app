@@ -32,6 +32,7 @@ import com.android.installreferrer.api.InstallReferrerStateListener
 import com.android.installreferrer.api.ReferrerDetails
 import com.facebook.FacebookSdk
 import com.facebook.appevents.AppEventsLogger
+import com.gmwapp.hima.agora.telecom.HimaTelecomManager
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.repositories.FcmNotificationRepository
 import com.gmwapp.hima.utils.DPreferences
@@ -197,10 +198,8 @@ class BaseApplication : Application(), Configuration.Provider {
             }
         }
 
-
-
-
-
+        /** Same id as [com.gmwapp.hima.agora.MyFirebaseMessagingService] CallStyle notification. */
+        private const val INCOMING_CALL_NOTIFICATION_ID = 1
     }
 
     override fun onCreate() {
@@ -211,6 +210,7 @@ class BaseApplication : Application(), Configuration.Provider {
         
         mInstance = this
         mPreferences = DPreferences(this)
+        HimaTelecomManager.registerPhoneAccountIfNeeded(this)
         registerAppNetworkConnectivity()
         FirebaseApp.initializeApp(this)
         
@@ -664,6 +664,7 @@ class BaseApplication : Application(), Configuration.Provider {
     }
 
     fun playIncomingCallSound() {
+        Log.d("HimaIncomingCall", "playIncomingCallSound: begin")
         // Stop any previous ringtone first
         stopRingtone()
 
@@ -673,7 +674,11 @@ class BaseApplication : Application(), Configuration.Provider {
                 .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                 .build()
 
-            val ringtoneUri = android.provider.Settings.System.DEFAULT_RINGTONE_URI
+            val ringtoneUri = RingtoneManager.getActualDefaultRingtoneUri(
+                applicationContext,
+                RingtoneManager.TYPE_RINGTONE
+            ) ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+                ?: android.provider.Settings.System.DEFAULT_RINGTONE_URI
             mediaPlayer = MediaPlayer().apply {
                 setAudioAttributes(audioAttributes)
                 setDataSource(applicationContext, ringtoneUri)
@@ -698,9 +703,11 @@ class BaseApplication : Application(), Configuration.Provider {
                 }
                 prepareAsync() // async is safe
             }
+            Log.d("HimaIncomingCall", "playIncomingCallSound: MediaPlayer prepareAsync submitted (looping=true)")
         } catch (e: Exception) {
             Log.e("MediaPlayer", "Error playing ringtone: ${e.message}")
             stopRingtone()
+            Log.d("HimaIncomingCall", "playIncomingCallSound: aborted after exception")
         }
     }
 
@@ -739,6 +746,12 @@ class BaseApplication : Application(), Configuration.Provider {
 
 
     fun stopRingtone() {
+        val wasPlaying = try {
+            mediaPlayer?.isPlaying == true
+        } catch (_: IllegalStateException) {
+            false
+        }
+        Log.d("HimaIncomingCall", "stopRingtone: begin wasPlaying=$wasPlaying")
         try {
             mediaPlayer?.let { player ->
                 if (player.isPlaying) {
@@ -751,6 +764,7 @@ class BaseApplication : Application(), Configuration.Provider {
             Log.e("MediaPlayer", "Error stopping ringtone: ${e.message}")
         } finally {
             mediaPlayer = null
+            Log.d("HimaIncomingCall", "stopRingtone: end released")
             Log.d("MediaPlayer", "Ringtone stopped and released safely.")
         }
     }
@@ -883,19 +897,54 @@ class BaseApplication : Application(), Configuration.Provider {
         get() = Configuration.Builder().build()
 
 
+    @Volatile
+    private var incomingCallSetAt: Long = 0L
+
+    /** Notification tag for the current CallStyle incoming notification (matches [callId]). */
+    @Volatile
+    private var lastIncomingCallTag: String? = null
+
     fun setIncomingCall(senderId: Int, callType: String, channelName: String, callId: Int) {
         this.senderId = senderId
         this.callTypeForSplashActivity = callType
         this.channelName = channelName
         this.callIdForSplashActivity = callId
         this.incomingCall = true
+        this.incomingCallSetAt = System.currentTimeMillis()
+        this.lastIncomingCallTag = callId.toString()
+    }
+
+    fun getLastIncomingCallTag(): String? = lastIncomingCallTag
+
+    /**
+     * Cancels the CallStyle incoming notification using [lastIncomingCallTag] when set,
+     * otherwise legacy `cancel(1)`.
+     */
+    fun cancelIncomingCallStyleNotification() {
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+        val tag = lastIncomingCallTag
+        if (tag != null) nm.cancel(tag, INCOMING_CALL_NOTIFICATION_ID)
+        else nm.cancel(INCOMING_CALL_NOTIFICATION_ID)
     }
 
     fun clearIncomingCall() {
         this.incomingCall = false
+        this.incomingCallSetAt = 0L
+        this.lastIncomingCallTag = null
     }
 
     fun isIncomingCall(): Boolean = incomingCall
+
+    /**
+     * True while an incoming call is pending/ringing within [maxAgeMs]. Default matches the
+     * CallStyle `setTimeoutAfter(35s)` with a small buffer, so a stale flag never permanently
+     * blocks new incoming calls.
+     */
+    fun isIncomingCallFresh(maxAgeMs: Long = 45_000L): Boolean {
+        if (!incomingCall) return false
+        val age = System.currentTimeMillis() - incomingCallSetAt
+        return age in 0..maxAgeMs
+    }
     fun getSenderIdForSplashActivity(): Int = senderId ?: -1
     fun getCallTypeForSplashActivity(): String = callTypeForSplashActivity.toString()
     fun getChannelName(): String = channelName.toString()

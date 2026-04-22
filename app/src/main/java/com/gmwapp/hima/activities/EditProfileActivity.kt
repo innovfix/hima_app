@@ -230,13 +230,12 @@ class EditProfileActivity : BaseActivity() {
             val layoutManager = binding.rvAvatars.layoutManager as CenterLayoutManager
             val visiblePosition = layoutManager.findFirstCompletelyVisibleItemPosition()
             
-            // Get the selected avatar ID, or use the current one if not changed
             val avatarId = if (visiblePosition >= 0) {
-                profileViewModel.avatarsListLiveData.value?.data?.get(visiblePosition)?.id
+                selectedAvatarIdForUpdate(visiblePosition)
             } else {
                 userData?.avatar_id
             }
-            
+
             userData?.let { it1 ->
                 avatarId?.let { it2 ->
                     binding.pbUpdateLoader.visibility = View.VISIBLE
@@ -350,19 +349,26 @@ class EditProfileActivity : BaseActivity() {
         })
         profileViewModel.avatarsListLiveData.observe(this, Observer {
             if (it.data != null) {
-                avatarsListAdapter = AvatarsListAdapter(
-                    this, it.data
-                )
+                val list = it.data
+                val index = list.find { avatar -> avatar?.id == userData?.avatar_id }
+                list.remove(index)
+                list.add(0, index)
+                avatarsListAdapter = AvatarsListAdapter(this, list)
                 binding.rvAvatars.setAdapter(avatarsListAdapter)
-                val index = it.data.find { it?.id == userData?.avatar_id }
-                it.data.remove(index)
-                it.data.add(0, index)
                 binding.rvAvatars.smoothScrollToPosition(0)
                 binding.rvAvatars.post {
                     avatarsListAdapter?.setSelectedPosition(0)
+                    updateButton()
                 }
             }
         })
+    }
+
+    private fun selectedAvatarIdForUpdate(visiblePosition: Int): Int? {
+        val prefsUser = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return null
+        val list = profileViewModel.avatarsListLiveData.value?.data
+        val item = list?.getOrNull(visiblePosition)
+        return item?.id ?: prefsUser.avatar_id
     }
 
     private fun updateButton() {
@@ -478,6 +484,7 @@ class EditProfileActivity : BaseActivity() {
                 Log.e("ProfileUpdate", "❌ Error in fallback query: ${e.message}")
             }
     }
+
 }
 
 

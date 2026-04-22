@@ -114,14 +114,16 @@
 
     <!-- Chat Interface Colors -->
     <color name="chat_background">#FAFBFC</color>
-    <color name="chat_bubble_sent">#FF2E88</color>
-    <color name="chat_bubble_sent_start">#FF4C9A</color>
-    <color name="chat_bubble_sent_end">#FF2E88</color>
+    <color name="chat_bubble_sent">#FFE3EE</color>
+    <color name="chat_bubble_sent_start">#FFE9F1</color>
+    <color name="chat_bubble_sent_end">#FFD4E4</color>
     <color name="chat_bubble_received">#FFFFFF</color>
     <color name="chat_bubble_received_stroke">#ECECEC</color>
-    <color name="chat_text_sent">#FFFFFF</color>
+    <color name="chat_read_receipt">#53BDEB</color>
+    <color name="chat_tick_on_bubble">#99A0A7B0</color>
+    <color name="chat_text_sent">#1F2937</color>
     <color name="chat_text_received">#1F2937</color>
-    <color name="chat_time_sent">#FFFFFF</color>
+    <color name="chat_time_sent">#6B7280</color>
     <color name="chat_time_received">#8A8F9A</color>
     <color name="chat_input_bg">#F9FAFB</color>
     <color name="chat_input_border">#E5E7EB</color>
@@ -131,7 +133,16 @@
     <color name="chat_action_pink_dark">#E90066</color>
     <color name="chat_attach_tint">#6B7280</color>
     <color name="chat_recording_red">#FF3B30</color>
-    
+
+    <!-- WhatsApp-style inline reply quote (rendered inside chat bubble) -->
+    <color name="chat_reply_quote_strip">#FF1381</color>
+    <color name="chat_reply_quote_strip_received">#9C1DF9</color>
+    <color name="chat_reply_quote_author">#C11063</color>
+    <color name="chat_reply_quote_author_received">#1F2937</color>
+    <color name="chat_reply_quote_snippet">#4B5563</color>
+    <color name="chat_reply_quote_bg_sent">#1FFF1381</color>
+    <color name="chat_reply_quote_bg_received">#0F000000</color>
+
     <!-- Premium Button Gradients -->
     <color name="audio_gradient_start">#9C1DF9</color>
     <color name="audio_gradient_center">#B947FF</color>

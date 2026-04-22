@@ -61,7 +61,11 @@ object FcmUtils {
 
 
     fun UpdateCallSwitch(message: String, senderId: Int) {
-        _updatedCallSwitch.postValue(Pair(message,senderId))
+        Log.d(
+            "MaleVideoEndFlow",
+            "FcmUtils.UpdateCallSwitch post message=$message senderId=$senderId"
+        )
+        _updatedCallSwitch.postValue(Pair(message, senderId))
     }
 
     fun clearCallSwitch() {

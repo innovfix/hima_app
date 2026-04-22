@@ -1,6 +1,7 @@
 package com.gmwapp.hima.adapters
 
 import android.app.Dialog
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
@@ -21,6 +22,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.gmwapp.hima.R
 import com.gmwapp.hima.models.ChatMessage
+import com.gmwapp.hima.models.MessageDeliveryStatus
 import com.gmwapp.hima.utils.ChatAudioPlayer
 
 class ChatAdapter(
@@ -28,10 +30,17 @@ class ChatAdapter(
     private val enableReactions: Boolean = false,
     private val myUserId: Int = 0,
     private val onReactionChanged: ((ChatMessage, String?) -> Unit)? = null,
-    private val onReactionClick: ((ChatMessage, String) -> Unit)? = null
+    private val onReactionClick: ((ChatMessage, String) -> Unit)? = null,
+    /** If set, long-press opens this menu instead of jumping straight to reactions. */
+    private val onMessageLongPress: ((anchor: View, message: ChatMessage, position: Int) -> Unit)? = null
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
+    init {
+        setHasStableIds(true)
+    }
+
     companion object {
+        const val PAYLOAD_AUDIO_PROGRESS = "audio_progress"
         private const val VIEW_TYPE_SENT_TEXT = 1
         private const val VIEW_TYPE_RECEIVED_TEXT = 2
         private const val VIEW_TYPE_DATE_HEADER = 3
@@ -44,6 +53,32 @@ class ChatAdapter(
 
     private var currentPopupWindow: PopupWindow? = null
     private lateinit var audioPlayer: ChatAudioPlayer
+
+    /** Parsed breakdown of an inline reply-prefixed message; display-time only. */
+    private data class InlineReply(val author: String, val snippet: String, val body: String)
+
+    /**
+     * Splits `↩ Author: snippet\n<body>` into its three parts. Returns null for regular
+     * text so the caller can fall back to rendering the message verbatim. The checks
+     * (leading arrow glyph, `": "` separator in the header, non-empty body on the next
+     * line) are strict on purpose: they keep normal messages that happen to contain a
+     * colon from being mis-rendered as quoted replies. Kept adapter-local so the
+     * `ChatMessage` model doesn't need new fields.
+     */
+    private fun parseInlineReply(raw: String): InlineReply? {
+        val nl = raw.indexOf('\n')
+        if (nl <= 0) return null
+        val head = raw.substring(0, nl)
+        if (!head.startsWith("↩ ")) return null
+        val afterArrow = head.removePrefix("↩ ")
+        val colon = afterArrow.indexOf(": ")
+        if (colon <= 0) return null
+        val author = afterArrow.substring(0, colon).trim()
+        val snippet = afterArrow.substring(colon + 2).trim()
+        val body = raw.substring(nl + 1)
+        if (author.isEmpty() || body.isEmpty()) return null
+        return InlineReply(author, snippet, body)
+    }
 
     override fun getItemViewType(position: Int): Int {
         val message = messages[position]
@@ -100,7 +135,30 @@ class ChatAdapter(
         }
     }
 
+    override fun onBindViewHolder(
+        holder: RecyclerView.ViewHolder,
+        position: Int,
+        payloads: MutableList<Any>
+    ) {
+        if (payloads.isNotEmpty() &&
+            holder is AudioMessageViewHolder &&
+            payloads.contains(PAYLOAD_AUDIO_PROGRESS)
+        ) {
+            holder.updateProgressOnly(messages[position])
+            return
+        }
+        super.onBindViewHolder(holder, position, payloads)
+    }
+
+    override fun getItemId(position: Int): Long {
+        val m = messages[position]
+        return m.id.hashCode().toLong() xor if (m.isDateHeader) 0xD000L else 0L
+    }
+
     override fun getItemCount(): Int = messages.size
+
+    fun isDateHeaderPosition(position: Int): Boolean =
+        messages.getOrNull(position)?.isDateHeader == true
 
     override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
         super.onDetachedFromRecyclerView(recyclerView)
@@ -195,7 +253,8 @@ class ChatAdapter(
                 notifyMessageChanged(messageId)
             },
             onProgressChanged = { messageId, _, _ ->
-                notifyMessageChanged(messageId)
+                val index = messages.indexOfFirst { it.id == messageId }
+                if (index != -1) notifyItemChanged(index, PAYLOAD_AUDIO_PROGRESS)
             }
         )
     }
@@ -206,17 +265,32 @@ class ChatAdapter(
     }
 
     private fun bindLongClick(anchor: View, itemView: View, positionProvider: () -> Int) {
-        if (enableReactions) {
-            itemView.setOnLongClickListener {
-                val pos = positionProvider()
-                if (pos != RecyclerView.NO_POSITION && pos != -1) {
-                    showReactionPopupForPosition(anchor, pos)
+        when {
+            onMessageLongPress != null -> {
+                itemView.setOnLongClickListener {
+                    val pos = positionProvider()
+                    if (pos == RecyclerView.NO_POSITION || pos == -1) return@setOnLongClickListener false
+                    val msg = messages.getOrNull(pos) ?: return@setOnLongClickListener false
+                    if (msg.isDateHeader) return@setOnLongClickListener false
+                    onMessageLongPress.invoke(anchor, msg, pos)
+                    true
                 }
-                true
+                itemView.isLongClickable = true
             }
-            itemView.isLongClickable = true
-        } else {
-            itemView.setOnLongClickListener(null)
+            enableReactions -> {
+                itemView.setOnLongClickListener {
+                    val pos = positionProvider()
+                    if (pos != RecyclerView.NO_POSITION && pos != -1) {
+                        showReactionPopupForPosition(anchor, pos)
+                    }
+                    true
+                }
+                itemView.isLongClickable = true
+            }
+            else -> {
+                itemView.setOnLongClickListener(null)
+                itemView.isLongClickable = false
+            }
         }
     }
 
@@ -261,6 +335,57 @@ class ChatAdapter(
         dialog.show()
     }
 
+    private fun bindDeliveryIndicator(itemView: View, message: ChatMessage) {
+        val pb = itemView.findViewById<ProgressBar>(R.id.pb_send_pending)
+        val iv = itemView.findViewById<ImageView>(R.id.iv_send_delivery)
+        if (pb == null || iv == null) return
+
+        if (!message.isSentByMe) {
+            pb.visibility = View.GONE
+            iv.visibility = View.GONE
+            return
+        }
+
+        val ctx = itemView.context
+        when (message.deliveryStatus) {
+            MessageDeliveryStatus.SENDING -> {
+                pb.visibility = View.VISIBLE
+                iv.visibility = View.GONE
+                iv.imageTintList = null
+            }
+            MessageDeliveryStatus.SENT -> {
+                pb.visibility = View.GONE
+                iv.visibility = View.VISIBLE
+                iv.setImageDrawable(
+                    ContextCompat.getDrawable(ctx, R.drawable.ic_chat_single_check)?.mutate()
+                )
+                iv.imageTintList = ColorStateList.valueOf(
+                    ContextCompat.getColor(ctx, R.color.chat_tick_on_bubble)
+                )
+            }
+            MessageDeliveryStatus.DELIVERED -> {
+                pb.visibility = View.GONE
+                iv.visibility = View.VISIBLE
+                iv.setImageDrawable(
+                    ContextCompat.getDrawable(ctx, R.drawable.ic_chat_double_check)?.mutate()
+                )
+                iv.imageTintList = ColorStateList.valueOf(
+                    ContextCompat.getColor(ctx, R.color.chat_tick_on_bubble)
+                )
+            }
+            MessageDeliveryStatus.READ -> {
+                pb.visibility = View.GONE
+                iv.visibility = View.VISIBLE
+                iv.setImageDrawable(
+                    ContextCompat.getDrawable(ctx, R.drawable.ic_chat_double_check)?.mutate()
+                )
+                iv.imageTintList = ColorStateList.valueOf(
+                    ContextCompat.getColor(ctx, R.color.chat_read_receipt)
+                )
+            }
+        }
+    }
+
     private fun formatDuration(durationMs: Long): String {
         val totalSeconds = (durationMs / 1000L).coerceAtLeast(0L)
         val minutes = totalSeconds / 60L
@@ -283,15 +408,83 @@ class ChatAdapter(
         private val tvMessage: TextView = itemView.findViewById(R.id.tv_message)
         private val tvTime: TextView = itemView.findViewById(R.id.tv_time)
         private val tvReaction: TextView = itemView.findViewById(R.id.tv_reaction)
+        private val layoutReplyQuote: View = itemView.findViewById(R.id.layout_reply_quote)
+        private val tvReplyQuoteAuthor: TextView =
+            itemView.findViewById(R.id.tv_reply_quote_author)
+        private val tvReplyQuoteSnippet: TextView =
+            itemView.findViewById(R.id.tv_reply_quote_snippet)
+        private val vReplyQuoteStrip: View = itemView.findViewById(R.id.v_reply_quote_strip)
 
         fun bind(message: ChatMessage) {
-            tvMessage.text = message.message
+            if (message.isDeleted) {
+                // Tombstone: italic, dimmed, no reactions/long-press/delivery ticks,
+                // no inline reply quote (the original body is irrelevant now).
+                layoutReplyQuote.visibility = View.GONE
+                tvMessage.text = itemView.context.getString(R.string.chat_message_deleted_tombstone)
+                tvMessage.setTypeface(tvMessage.typeface, Typeface.ITALIC)
+                tvMessage.alpha = 0.6f
+                tvTime.text = message.timestamp
+                tvReaction.visibility = View.GONE
+                itemView.setOnLongClickListener(null)
+                itemView.isLongClickable = false
+                tvMessage.setOnLongClickListener(null)
+                tvMessage.isLongClickable = false
+                return
+            }
+
+            // Reset any tombstone styling carried over by recycling.
+            tvMessage.setTypeface(Typeface.create(tvMessage.typeface, Typeface.NORMAL), Typeface.NORMAL)
+            tvMessage.alpha = 1f
+            itemView.isLongClickable = true
+            tvMessage.isLongClickable = true
+
+            val reply = parseInlineReply(message.message)
+            if (reply != null) {
+                layoutReplyQuote.visibility = View.VISIBLE
+                tvReplyQuoteAuthor.text = reply.author
+                tvReplyQuoteSnippet.text = reply.snippet
+                tvMessage.text = reply.body
+                applyQuoteTint(isSent)
+            } else {
+                layoutReplyQuote.visibility = View.GONE
+                tvMessage.text = message.message
+            }
             tvTime.text = message.timestamp
             bindReaction(tvReaction, message)
             bindLongClick(tvMessage, itemView) { bindingAdapterPosition }
             if (!isSent) {
                 tvMessage.setTextColor(ContextCompat.getColor(itemView.context, R.color.chat_text_received))
+            } else {
+                bindDeliveryIndicator(itemView, message)
             }
+        }
+
+        /**
+         * Retints the shared quote block so it reads correctly on both sender (pink) and
+         * receiver (white) bubbles — different strip color, author color, and a softer
+         * background overlay on each side.
+         */
+        private fun applyQuoteTint(isSent: Boolean) {
+            val ctx = itemView.context
+            val stripColorRes = if (isSent)
+                R.color.chat_reply_quote_strip
+            else
+                R.color.chat_reply_quote_strip_received
+            val authorColorRes = if (isSent)
+                R.color.chat_reply_quote_author
+            else
+                R.color.chat_reply_quote_author_received
+            val bgColorRes = if (isSent)
+                R.color.chat_reply_quote_bg_sent
+            else
+                R.color.chat_reply_quote_bg_received
+
+            vReplyQuoteStrip.setBackgroundColor(ContextCompat.getColor(ctx, stripColorRes))
+            tvReplyQuoteAuthor.setTextColor(ContextCompat.getColor(ctx, authorColorRes))
+            // Overlay color tint: leave the drawable shape (rounded corners) but override
+            // its solid fill so one drawable serves both bubble sides.
+            layoutReplyQuote.backgroundTintList =
+                ColorStateList.valueOf(ContextCompat.getColor(ctx, bgColorRes))
         }
     }
 
@@ -303,8 +496,37 @@ class ChatAdapter(
         private val imageView: ImageView = itemView.findViewById(R.id.iv_image)
         private val tvTime: TextView = itemView.findViewById(R.id.tv_time)
         private val tvReaction: TextView = itemView.findViewById(R.id.tv_reaction)
+        private val tvTombstone: TextView? = itemView.findViewById(R.id.tv_tombstone)
+        // Sent image has a chip LinearLayout around the time; received image has time as a
+        // standalone TextView (= tvTime). Either way we hide it when deleted.
+        private val layoutImageTimeChip: View? = itemView.findViewById(R.id.layout_image_time_chip)
 
         fun bind(message: ChatMessage) {
+            if (message.isDeleted) {
+                imageView.visibility = View.GONE
+                imageView.setOnClickListener(null)
+                layoutImageTimeChip?.visibility = View.GONE
+                tvTime.visibility = View.GONE
+                tvReaction.visibility = View.GONE
+                tvTombstone?.let {
+                    it.visibility = View.VISIBLE
+                    it.text = itemView.context.getString(R.string.chat_message_deleted_tombstone)
+                }
+                itemView.setOnLongClickListener(null)
+                itemView.isLongClickable = false
+                bubbleContainer.setOnLongClickListener(null)
+                bubbleContainer.isLongClickable = false
+                return
+            }
+
+            // Reset in case this holder was previously bound to a deleted row.
+            imageView.visibility = View.VISIBLE
+            layoutImageTimeChip?.visibility = View.VISIBLE
+            tvTime.visibility = View.VISIBLE
+            tvTombstone?.visibility = View.GONE
+            itemView.isLongClickable = true
+            bubbleContainer.isLongClickable = true
+
             val source = message.attachmentUrl ?: message.message
             tvTime.text = message.timestamp
             bindReaction(tvReaction, message)
@@ -321,6 +543,9 @@ class ChatAdapter(
                     openImagePreview(source, itemView)
                 }
             }
+            if (isSent) {
+                bindDeliveryIndicator(itemView, message)
+            }
         }
     }
 
@@ -334,8 +559,38 @@ class ChatAdapter(
         private val tvDuration: TextView = itemView.findViewById(R.id.tv_duration)
         private val tvTime: TextView = itemView.findViewById(R.id.tv_time)
         private val tvReaction: TextView = itemView.findViewById(R.id.tv_reaction)
+        private val tvTombstone: TextView? = itemView.findViewById(R.id.tv_tombstone)
+        private val layoutAudioPlayback: View? = itemView.findViewById(R.id.layout_audio_playback)
+        // Sent audio wraps the time row in a LinearLayout (for progress+ticks); received
+        // audio keeps time as a standalone TextView.
+        private val layoutAudioTime: View? = itemView.findViewById(R.id.layout_audio_time)
 
         fun bind(message: ChatMessage) {
+            if (message.isDeleted) {
+                layoutAudioPlayback?.visibility = View.GONE
+                layoutAudioTime?.visibility = View.GONE
+                tvTime.visibility = View.GONE
+                tvReaction.visibility = View.GONE
+                ivPlayPause.setOnClickListener(null)
+                tvTombstone?.let {
+                    it.visibility = View.VISIBLE
+                    it.text = itemView.context.getString(R.string.chat_message_deleted_tombstone)
+                }
+                itemView.setOnLongClickListener(null)
+                itemView.isLongClickable = false
+                bubbleContainer.setOnLongClickListener(null)
+                bubbleContainer.isLongClickable = false
+                return
+            }
+
+            // Reset view state after recycling a previously-deleted row.
+            layoutAudioPlayback?.visibility = View.VISIBLE
+            layoutAudioTime?.visibility = View.VISIBLE
+            tvTime.visibility = View.VISIBLE
+            tvTombstone?.visibility = View.GONE
+            itemView.isLongClickable = true
+            bubbleContainer.isLongClickable = true
+
             val source = message.attachmentUrl
             val durationMs = audioPlayer.getDuration(message.id, message.audioDurationMs)
             val progressMs = audioPlayer.getProgress(message.id).coerceAtLeast(0)
@@ -356,7 +611,7 @@ class ChatAdapter(
 
             ivPlayPause.setImageResource(if (isPlaying) R.drawable.pause else R.drawable.play)
             if (isSent) {
-                ivPlayPause.setColorFilter(ContextCompat.getColor(itemView.context, R.color.white))
+                ivPlayPause.setColorFilter(ContextCompat.getColor(itemView.context, R.color.chat_text_sent))
             } else {
                 ivPlayPause.setColorFilter(ContextCompat.getColor(itemView.context, R.color.chat_list_call_disabled_text))
             }
@@ -369,6 +624,34 @@ class ChatAdapter(
                 audioPlayer.toggle(message.id, source) { error ->
                     Toast.makeText(itemView.context, error, Toast.LENGTH_SHORT).show()
                 }
+            }
+            if (isSent) {
+                bindDeliveryIndicator(itemView, message)
+            }
+        }
+
+        fun updateProgressOnly(message: ChatMessage) {
+            val durationMs = audioPlayer.getDuration(message.id, message.audioDurationMs)
+            val progressMs = audioPlayer.getProgress(message.id).coerceAtLeast(0)
+            if (durationMs > 0) {
+                progressAudio.max = durationMs.coerceAtLeast(1)
+                progressAudio.progress = progressMs.coerceAtMost(progressAudio.max)
+            } else {
+                progressAudio.max = 100
+                progressAudio.progress = 0
+            }
+            tvDuration.text = if (durationMs <= 0) "--:--" else formatDuration(durationMs.toLong())
+            ivPlayPause.setImageResource(
+                if (audioPlayer.isPlaying(message.id)) R.drawable.pause else R.drawable.play
+            )
+            if (isSent) {
+                ivPlayPause.setColorFilter(
+                    ContextCompat.getColor(itemView.context, R.color.chat_text_sent)
+                )
+            } else {
+                ivPlayPause.setColorFilter(
+                    ContextCompat.getColor(itemView.context, R.color.chat_list_call_disabled_text)
+                )
             }
         }
     }

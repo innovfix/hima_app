@@ -2,6 +2,21 @@ package com.gmwapp.hima.models
 
 import java.util.Date
 
+/**
+ * Outgoing message delivery / read UI (single tick = sent, double grey = received/delivered, double blue = seen).
+ * Ignored in the adapter when [isSentByMe] is false.
+ */
+enum class MessageDeliveryStatus {
+    /** Optimistic row before server/socket ack */
+    SENDING,
+    /** Single tick — accepted, not yet shown as delivered to peer */
+    SENT,
+    /** Double grey ticks — in thread / delivered, peer has not read */
+    DELIVERED,
+    /** Double blue ticks — peer read ([ChatMessageApi.isRead] / socket) */
+    READ,
+}
+
 data class ChatMessage(
     val id: String,
     val message: String,
@@ -13,7 +28,14 @@ data class ChatMessage(
     var reactions: Map<Int, String> = emptyMap(),  // Map of userId -> reactionEmoji (WhatsApp style)
     val messageType: String = "text",
     val attachmentUrl: String? = null,
-    val audioDurationMs: Long = 0L
+    val audioDurationMs: Long = 0L,
+    val deliveryStatus: MessageDeliveryStatus = MessageDeliveryStatus.DELIVERED,
+    /**
+     * True once this message has been deleted for everyone (via local tap or a remote
+     * `message_deleted` socket event / history flag). The adapter renders a tombstone
+     * bubble instead of the original content, and long-press/reactions are disabled.
+     */
+    val isDeleted: Boolean = false,
 )
 
 

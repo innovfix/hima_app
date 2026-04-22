@@ -2,7 +2,6 @@ package com.gmwapp.hima.agora.female
 
 import android.Manifest
 import android.app.KeyguardManager
-import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -12,6 +11,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.util.Log
+import android.view.WindowManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import android.view.animation.AnimationUtils
@@ -27,6 +27,8 @@ import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.agora.MyFirebaseMessagingService
+import com.gmwapp.hima.agora.telecom.HimaTelecomManager
+import android.telecom.DisconnectCause
 import com.gmwapp.hima.databinding.ActivityFemaleCallAcceptBinding
 import com.gmwapp.hima.viewmodels.AgoraViewModel
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
@@ -54,6 +56,25 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val km = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+        Log.d(
+            "HimaIncomingCall",
+            "FemaleCallAcceptActivity.onCreate flags=${intent.flags} action=${intent.action} keyguardLocked=${km.isKeyguardLocked}"
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+            (getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager)
+                .requestDismissKeyguard(this, null)
+        } else {
+            @Suppress("DEPRECATION")
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                    WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+            )
+        }
         enableEdgeToEdge()
         binding = ActivityFemaleCallAcceptBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -88,14 +109,6 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
             prefetchAgoraToken(channelName!!)
         }
 
-        // Allow the activity to show when the device is locked
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            setShowWhenLocked(true)
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            setTurnScreenOn(true)
-        }
-
         // Start pulse animations for the avatar rings
         startPulseAnimations()
 
@@ -111,7 +124,20 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
         val keyguardManager = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
         val isLocked = keyguardManager.isKeyguardLocked // Check if device is locked
 
-        BaseApplication.getInstance()?.clearIncomingCall()
+        val pendingTag = BaseApplication.getInstance()?.getLastIncomingCallTag()
+        val expectedTag = if (call_Id != 0) call_Id.toString() else null
+        val alreadyHandled = BaseApplication.getInstance()?.isIncomingCall() != true ||
+            (expectedTag != null && pendingTag != null && pendingTag != expectedTag)
+        if (alreadyHandled) {
+            Log.d(
+                "HimaIncomingCall",
+                "FemaleCallAcceptActivity: stale launch (pendingTag=$pendingTag expected=$expectedTag) -> finish"
+            )
+            BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+            finish()
+            return
+        }
+
         if (BaseApplication.getInstance()?.isRingtonePlaying() == false) {
             BaseApplication.getInstance()?.playIncomingCallSound()
         }
@@ -146,7 +172,9 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
 
                 if (callType == "audio") {
                     BaseApplication.getInstance()?.stopRingtone()
-                    getSystemService(NotificationManager::class.java)?.cancel(1)
+                    HimaTelecomManager.markActive()
+                    BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+                    BaseApplication.getInstance()?.clearIncomingCall()
                     val intent = Intent(this, FemaleAudioCallingActivity::class.java).apply {
                         putExtra("CHANNEL_NAME", channelName)
                         putExtra("RECEIVER_ID", receiverId)
@@ -160,7 +188,9 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
                     finish()
                 }else{
                     BaseApplication.getInstance()?.stopRingtone()
-                    getSystemService(NotificationManager::class.java)?.cancel(1)
+                    HimaTelecomManager.markActive()
+                    BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+                    BaseApplication.getInstance()?.clearIncomingCall()
                     val intent = Intent(this, FemaleVideoCallingActivity::class.java).apply {
                         putExtra("CHANNEL_NAME", channelName)
                         putExtra("RECEIVER_ID", receiverId)
@@ -180,15 +210,19 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
                 sendCallNotification(userId!!, receiverId, callType!!, channelName!!, "rejected")
 
                 if (isLocked) {
-                    val notificationManager = getSystemService(NotificationManager::class.java)
-                    notificationManager?.cancel(1)
+                    HimaTelecomManager.endActiveCall(DisconnectCause.REJECTED)
+                    BaseApplication.getInstance()?.stopRingtone()
+                    BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+                    BaseApplication.getInstance()?.clearIncomingCall()
                     finishAffinity()  // Closes all activities in the task
                     exitProcess(0)    // Force closes the app
                 }
 
 
+                HimaTelecomManager.endActiveCall(DisconnectCause.REJECTED)
                 BaseApplication.getInstance()?.stopRingtone()
-                getSystemService(NotificationManager::class.java)?.cancel(1)
+                BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+                BaseApplication.getInstance()?.clearIncomingCall()
                 val intent = Intent(this@FemaleCallAcceptActivity, MainActivity::class.java)
                     intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 startActivity(intent)

@@ -53,6 +53,8 @@ import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.activities.RatingActivity
 import com.gmwapp.hima.agora.FaceDetectVideoFrameObserver
 import com.gmwapp.hima.agora.FcmUtils
+import com.gmwapp.hima.agora.telecom.HimaTelecomManager
+import android.telecom.DisconnectCause
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityFemaleVideoCallingBinding
 import com.gmwapp.hima.databinding.ActivityMaleVideoCallingBinding
@@ -988,6 +990,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
 
         stopCallingService()
         cancelTimeoutTracking()
@@ -1471,6 +1474,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     fun leaveChannel(view: View) {
         if (!isJoined) {
+            HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
         //    showMessage("Join a channel first")
             val intent = Intent(this@FemaleVideoCallingActivity, MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -1494,6 +1498,8 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             if (localSurfaceView != null) localSurfaceView!!.visibility = View.GONE
             isJoined = false
             stopCountdown()
+
+            HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
 
             updateCallEndDetails()
             Handler(Looper.getMainLooper()).postDelayed({

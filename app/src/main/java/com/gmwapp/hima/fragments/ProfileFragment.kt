@@ -18,7 +18,6 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import com.bumptech.glide.Glide
-import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.activities.CommunityGuidelineActivity
 import com.gmwapp.hima.R
@@ -177,10 +176,16 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
             startActivity(intent)
         }
 
-        Glide.with(this)
-            .load(userData?.image)
-            .apply(RequestOptions.circleCropTransform())
-            .into(binding.ivProfile)
+        if (userData != null) {
+            Glide.with(this)
+                .load(userData.image)
+                .apply(com.bumptech.glide.request.RequestOptions.circleCropTransform())
+                .placeholder(R.drawable.logo)
+                .error(R.drawable.logo)
+                .into(binding.ivProfile)
+        } else {
+            Glide.with(this).clear(binding.ivProfile)
+        }
     }
 
     /**

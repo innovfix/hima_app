@@ -61,6 +61,8 @@ import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.adapters.GiftAdapter
 import com.gmwapp.hima.agora.FaceDetectVideoFrameObserver
 import com.gmwapp.hima.agora.FcmUtils
+import com.gmwapp.hima.agora.telecom.HimaTelecomManager
+import android.telecom.DisconnectCause
 import com.gmwapp.hima.agora.GiftBottomSheetFragment
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
@@ -1264,6 +1266,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     fun leaveChannel(view: View) {
         if (!isJoined) {
+            HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
           //  showMessage("Join a channel first")
             val intent = Intent(this@MaleAudioCallingActivity, MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -1293,6 +1296,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 FirebaseCrashlytics.getInstance().recordException(e)
             }
             agoraEngine = null
+
+            HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
 
             updateCallEndDetails()
 
@@ -1338,6 +1343,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
         stopCountdown()
         try {
             agoraEngine?.let { engine ->

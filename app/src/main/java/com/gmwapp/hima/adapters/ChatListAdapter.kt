@@ -3,12 +3,14 @@ package com.gmwapp.hima.adapters
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AnimationUtils
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
@@ -23,6 +25,7 @@ import com.gmwapp.hima.retrofit.ApiManager
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.FemaleNotificationPreferenceResponse
 import com.gmwapp.hima.utils.NotifyOnlinePrefsHelper
+import com.gmwapp.hima.utils.PinnedChatsPrefsHelper
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import retrofit2.Call
 import retrofit2.Response
@@ -38,7 +41,9 @@ class ChatListAdapter(
     // `set_female_notification_preference` endpoint. When null (e.g. older
     // callers), the adapter falls back to local-only SharedPreferences so
     // it still works without network/DI setup.
-    private val apiManager: ApiManager? = null
+    private val apiManager: ApiManager? = null,
+    /** When pin state changes, parent re-sorts the list (pinned first, max 3). */
+    private val onPinToggled: (() -> Unit)? = null,
 ) : RecyclerView.Adapter<ChatListAdapter.ViewHolder>() {
 
     // SharedPreferences bucket that tracks which creator user IDs the current
@@ -98,8 +103,66 @@ class ChatListAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(conversation: ChatConversation) {
+            val pinned = PinnedChatsPrefsHelper.isPinned(activity, conversation.userId)
+
             // Set user name (extract name only, remove trailing numbers)
             binding.tvUserName.text = extractNameOnly(conversation.userName)
+            val density = activity.resources.displayMetrics.density
+            if (pinned) {
+                val pinDp = (16 * density).toInt()
+                val d = ContextCompat.getDrawable(activity, R.drawable.ic_pin_filled)?.mutate()
+                d?.setTint(ContextCompat.getColor(activity, R.color.colorAccent))
+                d?.setBounds(0, 0, pinDp, pinDp)
+                binding.tvUserName.setCompoundDrawablesRelative(d, null, null, null)
+            } else {
+                binding.tvUserName.setCompoundDrawablesRelative(null, null, null, null)
+            }
+            binding.tvUserName.compoundDrawablePadding = (4 * density).toInt()
+
+            binding.ivPin.setImageResource(
+                if (pinned) R.drawable.ic_pin_filled else R.drawable.ic_pin_outline
+            )
+            binding.ivPin.imageTintList = ColorStateList.valueOf(
+                ContextCompat.getColor(
+                    activity,
+                    if (pinned) R.color.colorAccent else R.color.chat_list_bell_inactive
+                )
+            )
+            binding.ivPin.contentDescription = activity.getString(
+                if (pinned) R.string.chat_unpin_action else R.string.chat_pin_action
+            )
+
+            binding.ivPin.setOnSingleClickListener {
+                val uid = conversation.userId
+                if (PinnedChatsPrefsHelper.isPinned(activity, uid)) {
+                    PinnedChatsPrefsHelper.unpin(activity, uid)
+                    Toast.makeText(
+                        activity,
+                        activity.getString(R.string.chat_unpinned_toast),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    onPinToggled?.invoke()
+                } else {
+                    when (PinnedChatsPrefsHelper.tryPin(activity, uid)) {
+                        PinnedChatsPrefsHelper.PinResult.Added -> {
+                            Toast.makeText(
+                                activity,
+                                activity.getString(R.string.chat_pinned_toast),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            onPinToggled?.invoke()
+                        }
+                        PinnedChatsPrefsHelper.PinResult.AlreadyPinned -> Unit
+                        PinnedChatsPrefsHelper.PinResult.LimitReached -> {
+                            Toast.makeText(
+                                activity,
+                                activity.getString(R.string.chat_pin_limit_reached),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                }
+            }
 
             // Set user image
             Glide.with(activity)
@@ -194,10 +257,6 @@ class ChatListAdapter(
             }
             binding.btnVideoCall.setOnSingleClickListener {
                 if (showVideo) launchCall(conversation, "video")
-            }
-
-            binding.btnChatFree.setOnSingleClickListener {
-                onItemClick(conversation)
             }
 
             // Notify-when-online bell icon — tap to toggle subscription.

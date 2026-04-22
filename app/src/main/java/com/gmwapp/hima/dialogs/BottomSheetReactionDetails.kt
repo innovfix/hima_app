@@ -1,11 +1,14 @@
 package com.gmwapp.hima.dialogs
 
 import android.app.Dialog
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
@@ -89,73 +92,91 @@ class BottomSheetReactionDetails : BottomSheetDialogFragment() {
         // Setup filter buttons
         val llFilters = view.findViewById<android.widget.LinearLayout>(R.id.ll_reaction_filters)
         val btnAddReaction = view.findViewById<MaterialButton>(R.id.btn_add_reaction)
-        
+
+        val density = resources.displayMetrics.density
+        val padH = (14 * density).toInt()
+        val padV = (6 * density).toInt()
+        val cornerPx = (18 * density).toInt()
+        val minChipH = (36 * density).toInt()
+        val chipMarginEnd = (8 * density).toInt()
+        val accent = ContextCompat.getColor(requireContext(), R.color.colorAccent)
+        val textDark = android.graphics.Color.parseColor("#1F1F1F")
+        val chipSelectedBg = 0x33FF1383.toInt()
+        val chipUnselectedBg = 0xFFF3F4F6.toInt()
+
+        btnAddReaction.apply {
+            minWidth = 0
+            setInsetTop(0)
+            setInsetBottom(0)
+            minimumHeight = minChipH
+            ResourcesCompat.getFont(requireContext(), R.font.poppins_medium)?.let { typeface = it }
+        }
+
         // Add reaction button click
         btnAddReaction.setOnClickListener {
             onAddReaction?.invoke(message!!)
             dismiss()
         }
-        
+
         // Track selected filter
         var selectedEmojiFilter: String? = null
-        
+
         // Add filter button for each emoji
         uniqueEmojis.forEachIndexed { index, emoji ->
             val count = reactionsByEmoji[emoji]?.size ?: 0
+            val initiallySelected = index == 0
+            if (initiallySelected) {
+                selectedEmojiFilter = emoji
+            }
             val filterButton = MaterialButton(requireContext()).apply {
                 text = "$emoji $count"
-                textSize = 16f
+                textSize = 15f
                 minWidth = 0
-                setPadding(32, 16, 32, 16)
-                backgroundTintList = android.content.res.ColorStateList.valueOf(
-                    if (index == 0) {
-                        selectedEmojiFilter = emoji
-                        0xFFE8F5E9.toInt() // Light green for selected
-                    } else {
-                        0xFFF3F4F6.toInt() // Light grey for unselected
-                    }
+                setPadding(padH, padV, padH, padV)
+                setInsetTop(0)
+                setInsetBottom(0)
+                minimumHeight = minChipH
+                ResourcesCompat.getFont(requireContext(), R.font.poppins_medium)?.let { tf -> typeface = tf }
+                backgroundTintList = ColorStateList.valueOf(
+                    if (initiallySelected) chipSelectedBg else chipUnselectedBg
                 )
-                setTextColor(android.content.res.ColorStateList.valueOf(android.graphics.Color.BLACK))
-                
-                // Fix faded emoji colors - force full color rendering
+                setTextColor(
+                    ColorStateList.valueOf(if (initiallySelected) accent else textDark)
+                )
+
                 alpha = 1.0f
-                typeface = android.graphics.Typeface.DEFAULT
                 paintFlags = android.graphics.Paint.ANTI_ALIAS_FLAG or android.graphics.Paint.SUBPIXEL_TEXT_FLAG
-                
-                cornerRadius = 20
+
+                cornerRadius = cornerPx
                 strokeWidth = 0
                 elevation = 0f
-                
+
                 setOnClickListener {
-                    // Update selected filter
                     selectedEmojiFilter = if (selectedEmojiFilter == emoji) null else emoji
-                    
-                    // Update all button colors
+
                     for (i in 0 until llFilters.childCount) {
-                        val btn = llFilters.getChildAt(i) as? MaterialButton
-                        if (btn != null && btn != btnAddReaction) {
-                            val btnEmoji = uniqueEmojis.getOrNull(i - 1) // -1 because add button is first
-                            btn.backgroundTintList = android.content.res.ColorStateList.valueOf(
-                                if (btnEmoji == selectedEmojiFilter) {
-                                    0xFFE8F5E9.toInt()
-                                } else {
-                                    0xFFF3F4F6.toInt()
-                                }
-                            )
-                        }
+                        val btn = llFilters.getChildAt(i) as? MaterialButton ?: continue
+                        if (btn == btnAddReaction) continue
+                        val btnEmoji = uniqueEmojis.getOrNull(i - 1) ?: continue
+                        val selected = btnEmoji == selectedEmojiFilter
+                        btn.backgroundTintList = ColorStateList.valueOf(
+                            if (selected) chipSelectedBg else chipUnselectedBg
+                        )
+                        btn.setTextColor(
+                            ColorStateList.valueOf(if (selected) accent else textDark)
+                        )
                     }
-                    
-                    // Filter reactions (update adapter)
+
                     val reactionsMap = message?.reactions ?: emptyMap()
                     updateReactionList(recyclerView, reactionsMap, selectedEmojiFilter)
                 }
             }
-            
+
             val params = android.widget.LinearLayout.LayoutParams(
                 android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
                 android.view.ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply {
-                marginEnd = 8
+                marginEnd = chipMarginEnd
             }
             llFilters.addView(filterButton, params)
         }

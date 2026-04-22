@@ -93,6 +93,7 @@ import com.gmwapp.hima.retrofit.responses.CallDropStatusResponse
 import com.gmwapp.hima.retrofit.responses.ChatListResponse
 import com.gmwapp.hima.retrofit.responses.MessageListResponse
 import com.gmwapp.hima.retrofit.responses.SendMessageResponse
+import com.gmwapp.hima.retrofit.responses.SimpleAckResponse
 import com.gmwapp.hima.retrofit.responses.MarkReadResponse
 import com.gmwapp.hima.retrofit.responses.MarkMessagesReadResponse
 import com.gmwapp.hima.retrofit.responses.ChatHistoryResponse
@@ -1447,6 +1448,26 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     ) {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<MarkMessagesReadResponse> = getApiInterface().markMessagesRead(userId, receiverId, lastMessageId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    /**
+     * Delete-for-everyone fallback used when Socket.IO isn't connected at tap time.
+     * The sender must own the message; backend flips `is_deleted=1` and broadcasts
+     * `message_deleted` on its own, so on-success there's nothing else to do here.
+     */
+    fun deleteChatMessage(
+        fromUserId: Int,
+        toUserId: Int,
+        messageId: String,
+        callback: NetworkCallback<SimpleAckResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<SimpleAckResponse> =
+                getApiInterface().deleteChatMessage(fromUserId, toUserId, messageId)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -2908,6 +2929,14 @@ interface ApiInterface {
         @Field("receiver_id") receiverId: Int,
         @Field("last_message_id") lastMessageId: Int
     ): Call<MarkMessagesReadResponse>
+
+    @FormUrlEncoded
+    @POST("delete_chat_message")
+    fun deleteChatMessage(
+        @Field("from_user_id") fromUserId: Int,
+        @Field("to_user_id") toUserId: Int,
+        @Field("message_id") messageId: String
+    ): Call<SimpleAckResponse>
 
     @FormUrlEncoded
     @POST("chat_history")

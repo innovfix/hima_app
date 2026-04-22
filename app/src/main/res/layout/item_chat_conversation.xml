@@ -60,12 +60,29 @@
             android:text="User Name"
             android:textColor="@color/black_light"
             android:textSize="16sp"
-            app:layout_constraintEnd_toStartOf="@id/iv_notify_bell"
+            app:layout_constraintEnd_toStartOf="@id/iv_pin"
             app:layout_constraintStart_toEndOf="@id/fl_image_container"
             app:layout_constraintTop_toTopOf="@id/fl_image_container"
             app:layout_constraintBottom_toTopOf="@id/tv_last_message"
             app:layout_constraintVertical_chainStyle="packed"
             tools:text="Sarah Johnson" />
+
+        <!-- Pin chat (local, max 3) — to the left of notify bell -->
+        <ImageView
+            android:id="@+id/iv_pin"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginEnd="2dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:contentDescription="@string/chat_pin_action"
+            android:focusable="true"
+            android:padding="6dp"
+            android:src="@drawable/ic_pin_outline"
+            app:layout_constraintBottom_toBottomOf="@id/iv_notify_bell"
+            app:layout_constraintEnd_toStartOf="@id/iv_notify_bell"
+            app:layout_constraintTop_toTopOf="@id/iv_notify_bell"
+            app:tint="@color/chat_list_bell_inactive" />
 
         <!-- Last Message -->
         <TextView
@@ -124,45 +141,10 @@
             android:focusable="true"
             android:padding="6dp"
             android:src="@drawable/ic_notifications_off"
-            app:layout_constraintEnd_toStartOf="@id/btn_chat_free"
-            app:layout_constraintTop_toTopOf="@id/btn_chat_free"
-            app:layout_constraintBottom_toBottomOf="@id/btn_chat_free"
-            app:tint="@color/chat_list_bell_inactive" />
-
-        <!-- Free Chat indicator (top-right, small text) — tells users chatting here is free -->
-        <LinearLayout
-            android:id="@+id/btn_chat_free"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/button_chat_free"
-            android:foreground="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingHorizontal="10dp"
-            android:paddingVertical="5dp"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@id/tv_user_name">
-
-            <ImageView
-                android:layout_width="13dp"
-                android:layout_height="13dp"
-                android:contentDescription="@null"
-                android:src="@drawable/ic_chat_bubble"
-                app:tint="@color/chat_list_free_badge_text" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="5dp"
-                android:fontFamily="@font/poppins_bold"
-                android:includeFontPadding="false"
-                android:letterSpacing="0.03"
-                android:text="@string/chat_free_label"
-                android:textColor="@color/chat_list_free_badge_text"
-                android:textSize="11sp" />
-        </LinearLayout>
+            app:layout_constraintTop_toTopOf="@id/tv_user_name"
+            app:layout_constraintBottom_toBottomOf="@id/tv_user_name"
+            app:tint="@color/chat_list_bell_inactive" />
 
         <!-- Time — baseline-aligned with the last message so short ("1m") and
              long ("Just now", "Yesterday") values always sit on the same row

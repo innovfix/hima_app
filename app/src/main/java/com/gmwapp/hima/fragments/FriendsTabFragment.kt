@@ -1,5 +1,6 @@
 package com.gmwapp.hima.fragments
 
+import com.gmwapp.hima.utils.PinnedChatsPrefsHelper
 import com.gmwapp.hima.utils.showAppToast
 
 import android.content.Intent
@@ -64,6 +65,8 @@ class FriendsTabFragment : Fragment() {
     private lateinit var chatAdapter: ChatListAdapter
     private var friendsList = ArrayList<FriendData>()
     private var chatConversations = ArrayList<ChatConversation>()
+    /** Unsorted list from last my_chat API response; re-sorted when pin toggles. */
+    private var lastLoadedChatConversations: List<ChatConversation> = emptyList()
     private var tabType: Int = TYPE_FRIENDS
     private val friendRequestViewModel: FriendRequestViewModel by viewModels()
     private var requestIdMap = mutableMapOf<Int, Int>() // Maps friend_id to request_id
@@ -411,6 +414,15 @@ class FriendsTabFragment : Fragment() {
                 intent.putExtra("USER_NAME", conversation.userName)
                 intent.putExtra("USER_IMAGE", conversation.userImage)
                 startActivity(intent)
+            },
+            apiManager = apiManager,
+            onPinToggled = {
+                if (isAdded && isChatListTab()) {
+                    val refreshed = lastLoadedChatConversations.map { conv ->
+                        conv.copy(isPinned = PinnedChatsPrefsHelper.isPinned(requireContext(), conv.userId))
+                    }
+                    updateChatUI(sortChatConversationsForCurrentTab(refreshed))
+                }
             }
         )
         Log.d("FriendsTab", "✅ Chat adapter created")
@@ -579,6 +591,7 @@ class FriendsTabFragment : Fragment() {
             val chats = responseBody.data.chats
             Log.d("FriendsTab", "✅ Received ${chats.size} chats from API")
             val conversations = chats.map { mapChatItemToConversation(it) }
+            lastLoadedChatConversations = conversations
             val sorted = sortChatConversationsForCurrentTab(conversations)
             Log.d("FriendsTab", "✅ Converted to ${sorted.size} conversations")
             updateChatUI(sorted)
@@ -616,27 +629,46 @@ class FriendsTabFragment : Fragment() {
             videoStatus = u.videoStatus ?: 1,
             coinPerMinAudio = u.coinPerMinAudio ?: 10,
             coinPerMinVideo = u.coinPerMinVideo ?: 60,
-            language = u.language
+            language = u.language,
+            isPinned = if (isAdded) {
+                PinnedChatsPrefsHelper.isPinned(requireContext(), u.id.toString())
+            } else {
+                false
+            }
         )
     }
 
     private fun sortChatConversationsForCurrentTab(
         conversations: List<ChatConversation>
     ): List<ChatConversation> {
-        return if (tabType == TYPE_CHAT_FRIENDS) {
-            val withTime = conversations.filter { it.lastMessageTime != null }
+        if (!isAdded) return conversations
+        val ctx = requireContext()
+        val (pinnedConv, unpinned) = conversations.partition { it.isPinned }
+        val order = PinnedChatsPrefsHelper.getPinnedIds(ctx)
+        val sortedPinned = pinnedConv.sortedBy { conv ->
+            val i = order.indexOf(conv.userId)
+            if (i >= 0) i else Int.MAX_VALUE
+        }
+
+        val sortedUnpinned = if (tabType == TYPE_CHAT_FRIENDS) {
+            val withTime = unpinned.filter { it.lastMessageTime != null }
                 .sortedByDescending { it.lastMessageTime?.toDate()?.time ?: 0L }
-            val withoutTime = conversations.filter { it.lastMessageTime == null }
+            val withoutTime = unpinned.filter { it.lastMessageTime == null }
                 .sortedBy { it.userName.lowercase(Locale.getDefault()) }
             withTime + withoutTime
         } else {
-            conversations.sortedByDescending { it.lastMessageTime?.toDate()?.time ?: 0L }
+            unpinned.sortedByDescending { it.lastMessageTime?.toDate()?.time ?: 0L }
         }
+
+        return sortedPinned + sortedUnpinned
     }
     
     private fun updateChatUI(conversationsList: List<ChatConversation>) {
         if (!isAdded) return
-        
+        if (conversationsList.isEmpty()) {
+            lastLoadedChatConversations = emptyList()
+        }
+
         Log.d("FriendsTab", "📊 updateChatUI called with ${conversationsList.size} conversations")
         Log.d("FriendsTab", "Conversations: ${conversationsList.map { "${it.userName} (${it.userId})" }}")
         
