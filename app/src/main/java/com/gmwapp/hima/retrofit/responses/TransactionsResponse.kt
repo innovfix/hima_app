@@ -10,15 +10,15 @@ data class TransactionsResponseData(
     val id: Int,
     val user_id: Int,
     val type: String,
-    val amount: Int,
+    // Server returns amount as a decimal-formatted string (e.g. "3.00"), not Int.
+    val amount: String?,
     val coins: Int,
-    val payment_type: String,
+    val payment_type: String?,
     val datetime: String,
-    val user_name: String,
-    val date: String,
-    val call_type: String,
-    val duration: String,
-    val call_user_name: String,
-
+    val user_name: String?,
+    val date: String?,
+    val call_type: String?,
+    val duration: String?,
+    val call_user_name: String?,
 )
 

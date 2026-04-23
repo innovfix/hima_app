@@ -6,14 +6,17 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.view.WindowInsetsController
+import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.TransactionAdapter
+import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityTransactionsBinding
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.TransactionsViewModel
@@ -87,6 +90,23 @@ class TransactionsActivity : BaseActivity() {
                 binding.llNoRecords.visibility = View.GONE
                 binding.rvTransactions.visibility = View.VISIBLE
             } else if (transactionAdapter.itemCount == 0) {
+                binding.llNoRecords.visibility = View.VISIBLE
+                binding.rvTransactions.visibility = View.GONE
+            }
+        }
+
+        // Observe Error Data — covers network failure, non-JSON (HTML 500 / 302), or no-internet.
+        // Without this, any non-JSON server response leaves the screen blank with no feedback.
+        transactionsViewModel.transactionsErrorLiveData.observe(this) { error ->
+            isLoading = false
+            setLoading(false)
+            Log.e("TransactionsActivity", "onError: $error")
+            if (error != null && transactionAdapter.itemCount == 0) {
+                val msg = if (error == DConstants.NO_NETWORK)
+                    getString(R.string.no_internet_connection)
+                else
+                    getString(R.string.please_try_again_later)
+                Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
                 binding.llNoRecords.visibility = View.VISIBLE
                 binding.rvTransactions.visibility = View.GONE
             }
