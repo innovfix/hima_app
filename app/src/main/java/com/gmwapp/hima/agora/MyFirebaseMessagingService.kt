@@ -60,7 +60,46 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         Log.d("FCMNewToken", "New token: $token")
-        // Send this token to your backend server if needed.
+
+        // FirebaseMessagingService is not a Hilt entry point, so the ViewModel/repository
+        // graph isn't available here. Hand off to WorkManager so the registration survives
+        // process death and retries transient failures.
+        val prefs = BaseApplication.getInstance()?.getPrefs()
+        val userId = prefs?.getUserData()?.id ?: 0
+        val authToken = prefs?.getAuthenticationToken().orEmpty()
+        if (userId <= 0 || authToken.isBlank()) {
+            Log.d("FCMNewToken", "No signed-in user — skipping register (uid=$userId)")
+            return
+        }
+
+        val input = androidx.work.Data.Builder()
+            .putInt(com.gmwapp.hima.workers.FcmTokenRegisterWorker.KEY_USER_ID, userId)
+            .putString(com.gmwapp.hima.workers.FcmTokenRegisterWorker.KEY_TOKEN, token)
+            .putString(com.gmwapp.hima.workers.FcmTokenRegisterWorker.KEY_AUTH_TOKEN, authToken)
+            .build()
+
+        val constraints = androidx.work.Constraints.Builder()
+            .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+            .build()
+
+        val request = androidx.work.OneTimeWorkRequestBuilder<
+            com.gmwapp.hima.workers.FcmTokenRegisterWorker
+        >()
+            .setInputData(input)
+            .setConstraints(constraints)
+            .setBackoffCriteria(
+                androidx.work.BackoffPolicy.EXPONENTIAL,
+                30,
+                java.util.concurrent.TimeUnit.SECONDS
+            )
+            .build()
+
+        androidx.work.WorkManager.getInstance(applicationContext).enqueueUniqueWork(
+            "${com.gmwapp.hima.workers.FcmTokenRegisterWorker.WORK_NAME_PREFIX}$userId",
+            androidx.work.ExistingWorkPolicy.REPLACE,
+            request
+        )
+        Log.d("FCMNewToken", "Enqueued FcmTokenRegisterWorker for user=$userId")
     }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
@@ -803,12 +842,19 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
             // Clear stored login/session data.
             BaseApplication.getInstance()?.getPrefs()?.clearUserData()
+            // Wipe per-peer conversation shortcuts so the previous user's avatars
+            // don't stick around when a different account signs in on this device.
+            runCatching {
+                androidx.core.content.pm.ShortcutManagerCompat
+                    .removeAllDynamicShortcuts(applicationContext)
+            }
             try {
-                // Stop receiving/showing OneSignal notifications on login screens
+                // Detach external id so the (now logged-out) device stops
+                // receiving user-targeted pushes. Do NOT optOut() — that persists
+                // enabled=false server-side and blocks the next login on this device.
                 OneSignal.logout()
-                OneSignal.User.pushSubscription.optOut()
             } catch (e: Exception) {
-                Log.e("OneSignalLoginScreen", "Failed to optOut/logout: ${e.message}")
+                Log.e("OneSignalLoginScreen", "Failed to logout: ${e.message}")
             }
 
             // If app is visible, redirect to login; otherwise show a notification that opens login.

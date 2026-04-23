@@ -49,12 +49,17 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <!-- Logo container with animated ring -->
+        <!-- Logo container with animated ring.
+             alpha/scale start at 0 so the ObjectAnimator's scale-from-0 doesn't
+             render a full-size logo for one frame before the animation runs. -->
         <androidx.cardview.widget.CardView
             android:id="@+id/logoContainer"
             android:layout_width="160dp"
             android:layout_height="160dp"
             android:layout_gravity="center"
+            android:alpha="0"
+            android:scaleX="0"
+            android:scaleY="0"
             android:elevation="16dp"
             app:cardBackgroundColor="@color/colorPrimary"
             app:cardCornerRadius="80dp"

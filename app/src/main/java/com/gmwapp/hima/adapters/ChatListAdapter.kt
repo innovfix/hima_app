@@ -105,19 +105,10 @@ class ChatListAdapter(
         fun bind(conversation: ChatConversation) {
             val pinned = PinnedChatsPrefsHelper.isPinned(activity, conversation.userId)
 
-            // Set user name (extract name only, remove trailing numbers)
+            // Set user name (extract name only, remove trailing numbers).
+            // Pin state is shown only by iv_pin (filled/outline + tint), not a compound drawable on the name.
             binding.tvUserName.text = extractNameOnly(conversation.userName)
-            val density = activity.resources.displayMetrics.density
-            if (pinned) {
-                val pinDp = (16 * density).toInt()
-                val d = ContextCompat.getDrawable(activity, R.drawable.ic_pin_filled)?.mutate()
-                d?.setTint(ContextCompat.getColor(activity, R.color.colorAccent))
-                d?.setBounds(0, 0, pinDp, pinDp)
-                binding.tvUserName.setCompoundDrawablesRelative(d, null, null, null)
-            } else {
-                binding.tvUserName.setCompoundDrawablesRelative(null, null, null, null)
-            }
-            binding.tvUserName.compoundDrawablePadding = (4 * density).toInt()
+            binding.tvUserName.setCompoundDrawablesRelative(null, null, null, null)
 
             binding.ivPin.setImageResource(
                 if (pinned) R.drawable.ic_pin_filled else R.drawable.ic_pin_outline

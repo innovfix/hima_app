@@ -4,7 +4,9 @@ import com.gmwapp.hima.utils.showAppToast
 
 import android.Manifest
 import android.animation.ObjectAnimator
+import android.content.BroadcastReceiver
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -102,6 +104,7 @@ class ChatActivityInHouse : AppCompatActivity() {
     lateinit var historyCache: ChatHistoryMemoryCache
 
     private val femaleUsersViewModel: com.gmwapp.hima.viewmodels.FemaleUsersViewModel by viewModels()
+    private val profileViewModel: com.gmwapp.hima.viewmodels.ProfileViewModel by viewModels()
 
     private lateinit var rvMessages: RecyclerView
     private var layoutHistoryError: View? = null
@@ -143,6 +146,28 @@ class ChatActivityInHouse : AppCompatActivity() {
     private var previousSocketConnected: Boolean? = null
     
     private var isChatVisible = false
+
+    /**
+     * Catch-up fallback when a Socket.IO `new_message` event is missed.
+     * The OneSignal NSE broadcasts this when a chat push arrives for the peer
+     * whose thread is currently open; we respond by replaying `loadMessages()`,
+     * which de-duplicates against the current in-memory window.
+     */
+    private val chatRefreshReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: Intent?) {
+            val incomingPeer = intent?.getIntExtra("peer_id", -1) ?: -1
+            if (incomingPeer == peerUserId && isChatVisible && myUserId > 0) {
+                Log.d("RealtimeChat", "push-refresh broadcast peer=$incomingPeer — replaying loadMessages()")
+                loadMessages()
+            } else {
+                Log.d(
+                    "RealtimeChat",
+                    "push-refresh broadcast ignored peer=$incomingPeer (current=$peerUserId visible=$isChatVisible myUserId=$myUserId)"
+                )
+            }
+        }
+    }
+    private var chatRefreshReceiverRegistered = false
     private val mainHandler = Handler(Looper.getMainLooper())
 
     /** Delayed status log from [onCreate]; removed in [onDestroy] to avoid posting after activity is gone. */
@@ -169,6 +194,10 @@ class ChatActivityInHouse : AppCompatActivity() {
 
     /** Peer display name (for add-friend banner / toasts). */
     private var peerName: String = ""
+
+    // Blocks the profile-API avatar fetch from clobbering an avatar that intent extras
+    // or ChatNotificationStore already loaded correctly.
+    private var headerImageLoaded: Boolean = false
 
     private var isFriendWithPeer: Boolean = false
     private var isAddFriendBannerDismissedThisSession: Boolean = false
@@ -310,6 +339,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         initializeViews()
         setupRecyclerView()
         setupUserIds()
+        initPeerHeader()
         initAddFriendBanner()
         setupClickListeners()
         setupComposer()
@@ -380,18 +410,8 @@ class ChatActivityInHouse : AppCompatActivity() {
             cvRateBanner?.visibility = View.GONE
         }
 
-        val userName = intent.getStringExtra("USER_NAME") ?: "User"
-        peerName = extractNameOnly(userName)
-        val userImage = intent.getStringExtra("USER_IMAGE")
-
-        tvUserName.text = peerName
-
-        if (!userImage.isNullOrEmpty()) {
-            Glide.with(this)
-                .load(userImage)
-                .apply(RequestOptions.circleCropTransform())
-                .into(ivUser)
-        }
+        // Header (name + avatar) populated in [initPeerHeader], called after
+        // [setupUserIds] so peerUserId is available for the store / profile-API fallback.
 
         // Configure UI based on user gender
         // Always show back button for all users with consistent avatar margin
@@ -711,6 +731,71 @@ class ChatActivityInHouse : AppCompatActivity() {
             com.gmwapp.hima.utils.ChatNotificationStore.clear(this, peerUserId)
             androidx.core.app.NotificationManagerCompat.from(this)
                 .cancel(com.gmwapp.hima.utils.ChatNotifications.notifIdFor(peerUserId))
+        }
+    }
+
+    /**
+     * Populate [tvUserName] and [ivUser] with a best-effort answer in three layers:
+     *   1. Intent extras (cheapest — already in-process when the chat opens from FriendsTab / Home).
+     *   2. [ChatNotificationStore] — last-known name/image captured by the OneSignal NSE.
+     *      Covers the "tap push" path where extras can be blank because the payload from
+     *      [BaseApplication] click handler / [ChatNotifications] PendingIntent is incomplete.
+     *   3. `get_user` API — final fallback when neither above produced a name or avatar.
+     *
+     * Runs after [setupUserIds] so [peerUserId] is populated before the store/API lookups.
+     */
+    private fun initPeerHeader() {
+        val extrasName = intent.getStringExtra("USER_NAME")
+            ?.let { extractNameOnly(it) }
+            ?.takeIf { it.isNotBlank() && it != "User" }
+        val extrasImage = intent.getStringExtra("USER_IMAGE")?.takeIf { it.isNotBlank() }
+
+        var resolvedName = extrasName
+        var resolvedImage = extrasImage
+
+        if ((resolvedName == null || resolvedImage == null) && peerUserId > 0) {
+            val (storeName, storeImage) =
+                com.gmwapp.hima.utils.ChatNotificationStore.getMeta(this, peerUserId)
+            if (resolvedName == null) {
+                val cleaned = extractNameOnly(storeName).takeIf { it.isNotBlank() && it != "User" }
+                if (cleaned != null) resolvedName = cleaned
+            }
+            if (resolvedImage == null && !storeImage.isNullOrBlank()) {
+                resolvedImage = storeImage
+            }
+        }
+
+        peerName = resolvedName ?: "User"
+        tvUserName.text = peerName
+
+        if (!resolvedImage.isNullOrBlank()) {
+            headerImageLoaded = true
+            Glide.with(this)
+                .load(resolvedImage)
+                .apply(RequestOptions.circleCropTransform())
+                .into(ivUser)
+        }
+
+        val needsPeerProfileFetch = resolvedName == null || resolvedImage == null
+        if (needsPeerProfileFetch && peerUserId > 0) {
+            profileViewModel.getUserLiveData.observe(this) { response ->
+                val data = response?.data ?: return@observe
+                val fetchedName = extractNameOnly(data.name)
+                    .takeIf { it.isNotBlank() && it != "User" }
+                if (fetchedName != null && (peerName.isBlank() || peerName == "User")) {
+                    peerName = fetchedName
+                    tvUserName.text = fetchedName
+                }
+                val fetchedImage = data.image.takeIf { it.isNotBlank() }
+                if (fetchedImage != null && !headerImageLoaded) {
+                    headerImageLoaded = true
+                    Glide.with(this)
+                        .load(fetchedImage)
+                        .apply(RequestOptions.circleCropTransform())
+                        .into(ivUser)
+                }
+            }
+            profileViewModel.getUsers(peerUserId)
         }
     }
 
@@ -1380,7 +1465,12 @@ class ChatActivityInHouse : AppCompatActivity() {
         // mid-flight when messages land back-to-back.
         lifecycleScope.launch {
             socketManager.newMessage.collect { message ->
-                if (isSocketMessageForThisChat(message)) {
+                val matches = isSocketMessageForThisChat(message)
+                Log.d(
+                    "RealtimeChat",
+                    "activity newMessage.collect id=${message.id} from=${message.fromUserId} to=${message.toUserId} chatId=${message.chatId} matchesThread=$matches"
+                )
+                if (matches) {
                     handleNewMessage(message)
                 }
             }
@@ -2303,9 +2393,14 @@ class ChatActivityInHouse : AppCompatActivity() {
 
         val realMessageId = socketMessage.id.toString()
         val isSentByMe = socketMessage.fromUserId == myUserId
-        
+
         // Check if we already have this message (by ID)
         val existingMessageIndex = messages.indexOfFirst { it.id == realMessageId }
+
+        Log.d(
+            "RealtimeChat",
+            "handleNewMessage id=$realMessageId existingIdx=$existingMessageIndex isSentByMe=$isSentByMe"
+        )
         
         if (existingMessageIndex != -1) {
             val existing = messages[existingMessageIndex]
@@ -2716,6 +2811,20 @@ class ChatActivityInHouse : AppCompatActivity() {
         super.onResume()
         markedReadOnce = false
         isChatVisible = true
+        com.gmwapp.hima.utils.ActiveChatTracker.setActive(peerUserId)
+
+        if (!chatRefreshReceiverRegistered) {
+            val filter = IntentFilter(
+                com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_REFRESH
+            )
+            ContextCompat.registerReceiver(
+                this,
+                chatRefreshReceiver,
+                filter,
+                ContextCompat.RECEIVER_NOT_EXPORTED
+            )
+            chatRefreshReceiverRegistered = true
+        }
         val elapsedSinceCreate = SystemClock.elapsedRealtime() - activityCreatedAtElapsed
         Log.d(
             CHAT_REOPEN_LOG,
@@ -2775,6 +2884,13 @@ class ChatActivityInHouse : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         isChatVisible = false
+        com.gmwapp.hima.utils.ActiveChatTracker.clear()
+
+        if (chatRefreshReceiverRegistered) {
+            runCatching { unregisterReceiver(chatRefreshReceiver) }
+                .onFailure { Log.w("RealtimeChat", "unregisterReceiver failed: ${it.message}") }
+            chatRefreshReceiverRegistered = false
+        }
         val elapsedSinceCreate = SystemClock.elapsedRealtime() - activityCreatedAtElapsed
         Log.d(
             CHAT_REOPEN_LOG,

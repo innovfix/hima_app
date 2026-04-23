@@ -1,7 +1,9 @@
 package com.gmwapp.hima.onesignal
 
 import android.content.Context
+import android.content.Intent
 import android.util.Log
+import com.gmwapp.hima.utils.ActiveChatTracker
 import com.gmwapp.hima.utils.ChatNotificationStore
 import com.gmwapp.hima.utils.ChatNotifications
 import com.gmwapp.hima.utils.DPreferences
@@ -25,6 +27,10 @@ import org.json.JSONObject
 class OneSignalNotificationServiceExtension : INotificationServiceExtension {
 
     private val TAG = "OneSignalNSE_DND"
+
+    companion object {
+        const val ACTION_CHAT_REFRESH = "com.gmwapp.hima.ACTION_CHAT_REFRESH"
+    }
 
     override fun onNotificationReceived(event: INotificationReceivedEvent) {
         try {
@@ -79,6 +85,20 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
 
         val text = event.notification.body.orEmpty().trim()
         if (text.isBlank()) return
+
+        // WhatsApp-style behaviour: if the user is already looking at the chat
+        // for this peer, don't show a heads-up — broadcast a refresh signal so
+        // the open activity can catch up via REST in case the Socket.IO event
+        // was missed (reconnect gap, dropped event, etc.).
+        if (ActiveChatTracker.isActiveFor(peerId)) {
+            Log.d(TAG, "chat visible for peerId=$peerId — suppressing heads-up, broadcasting refresh")
+            val refresh = Intent(ACTION_CHAT_REFRESH)
+                .setPackage(context.packageName)
+                .putExtra("peer_id", peerId)
+            context.sendBroadcast(refresh)
+            event.preventDefault()
+            return
+        }
 
         // Fall back to previously-seen metadata if this follow-up push omits name/image.
         val (storedName, storedImage) = ChatNotificationStore.getMeta(context, peerId)

@@ -32,12 +32,14 @@ import com.android.installreferrer.api.InstallReferrerStateListener
 import com.android.installreferrer.api.ReferrerDetails
 import com.facebook.FacebookSdk
 import com.facebook.appevents.AppEventsLogger
+import com.gmwapp.hima.BuildConfig
 import com.gmwapp.hima.agora.telecom.HimaTelecomManager
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.repositories.CallStatusRepository
 import com.gmwapp.hima.repositories.FcmNotificationRepository
 import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.utils.Helper
+import com.gmwapp.hima.utils.OneSignalDiag
 import com.google.firebase.FirebaseApp
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.firestore.FirebaseFirestore
@@ -88,10 +90,8 @@ class BaseApplication : Application(), Configuration.Provider {
     val networkConnectedLiveData = MutableLiveData<Boolean>()
     private var appConnectivityManager: ConnectivityManager? = null
     private var appNetworkCallback: ConnectivityManager.NetworkCallback? = null
-    // val ONESIGNAL_APP_ID = "2c7d72ae-8f09-48ea-a3c8-68d9c913c592"
-    val ONESIGNAL_APP_ID = "50cedb09-a202-455f-8c7b-683f4958df43"
-
-    //val testingOneSingalAppId = "b5aee4f0-ef38-4116-a04d-ee279ee1f11f"
+    // Per-flavor OneSignal project id from app/build.gradle.kts (see app/build.gradle.kts productFlavors).
+    val ONESIGNAL_APP_ID: String = BuildConfig.ONESIGNAL_APP_ID
     private lateinit var sharedPreferences: SharedPreferences
 
     private var currentActivity: Activity? = null
@@ -282,6 +282,29 @@ class BaseApplication : Application(), Configuration.Provider {
 
         // OneSignal Initialization
         OneSignal.initWithContext(this, ONESIGNAL_APP_ID)
+        OneSignalDiag.installObserver(this)
+        OneSignalDiag.dump(this, "post_init")
+
+        // Idempotent subscribe. If an earlier build's logout/optOut-then-login churn
+        // left the device stuck with optedOut=true on OneSignal's servers, this line
+        // flips it back on next launch — login() and optIn() are safe no-ops when
+        // the state already matches, so running this every cold start is harmless.
+        runCatching {
+            val savedUserId = getPrefs()?.getUserData()?.id
+            if (savedUserId != null && savedUserId > 0) {
+                OneSignal.login(savedUserId.toString())
+                // Always re-assert opt-in. The local `optedIn` flag reads cached state
+                // and can be stale-true while the server still has enabled=false, so
+                // guarding on it was the bug that stranded users after re-login.
+                OneSignal.User.pushSubscription.optIn()
+                Log.d("OneSignalFix", "BaseApp idempotent subscribe: externalId=$savedUserId optedIn=${OneSignal.User.pushSubscription.optedIn}")
+                OneSignalDiag.dump(this, "post_login_immediate")
+                // OneSignal syncs asynchronously; snapshot again once the network round-trip has had time to land.
+                android.os.Handler(mainLooper).postDelayed({
+                    OneSignalDiag.dump(this, "post_login_delayed_3s")
+                }, 3000)
+            }
+        }.onFailure { Log.e("OneSignalFix", "BaseApp idempotent subscribe failed: ${it.message}") }
 
         // ====== DND: suppress OneSignal notifications when DND is active ======
         OneSignal.Notifications.addForegroundLifecycleListener(object : com.onesignal.notifications.INotificationLifecycleListener {

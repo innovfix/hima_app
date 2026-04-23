@@ -285,6 +285,10 @@ class SocketManager private constructor() {
                             fromUserId = messageData.optInt("from_user_id", 0).takeIf { it > 0 },
                             toUserId = messageData.optInt("to_user_id", 0).takeIf { it > 0 }
                         )
+                        Log.d(
+                            "RealtimeChat",
+                            "socket new_message RX id=${message.id} from=${message.fromUserId} to=${message.toUserId} chatId=${message.chatId} event=new_message"
+                        )
                         _newMessage.tryEmit(message)
                     }
                 } catch (e: Exception) {
@@ -362,6 +366,10 @@ class SocketManager private constructor() {
                             fromUserId = messageObj.optInt("from_user_id", 0).takeIf { it > 0 },
                             toUserId = messageObj.optInt("to_user_id", 0).takeIf { it > 0 },
                             reactions = if (reactionsList.isNotEmpty()) reactionsList else null
+                        )
+                        Log.d(
+                            "RealtimeChat",
+                            "socket new_message RX id=${message.id} from=${message.fromUserId} to=${message.toUserId} chatId=${message.chatId} event=chat_message"
                         )
                         _newMessage.tryEmit(message)
                         Log.d("SocketIOCheck", "📨 Chat message received: ${message.message}")

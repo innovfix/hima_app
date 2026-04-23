@@ -51,6 +51,7 @@ import com.gmwapp.hima.databinding.ActivityNewLoginBinding
 import com.gmwapp.hima.dialogs.BottomSheetCountry
 import com.gmwapp.hima.retrofit.responses.Country
 import com.gmwapp.hima.utils.DPreferences
+import com.gmwapp.hima.viewmodels.FcmTokenViewModel
 import com.gmwapp.hima.viewmodels.LoginViewModel
 import com.gmwapp.hima.viewmodels.ReferralCodeViewModel
 import com.gmwapp.hima.socket.SocketManager
@@ -91,6 +92,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
     private lateinit var binding: ActivityNewLoginBinding // Ensure you have view binding enabled
     private val loginViewModel: LoginViewModel by viewModels()
     private val referralCodeViewModel : ReferralCodeViewModel by viewModels()
+    private val fcmTokenViewModel: FcmTokenViewModel by viewModels()
 
     private var otp: Int? = null
     private var mobile: String? = null
@@ -772,7 +774,28 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                     it.data?.let { it1 ->
                         BaseApplication.getInstance()?.getPrefs()?.setUserData(it1)
                         BaseApplication.getInstance()?.getPrefs()?.setAuthenticationToken(it.token)
-                        
+
+                        // Bind this device to the user's external id *immediately* on OTP success.
+                        // Without this the subscription wouldn't be tagged until the user reached
+                        // Home, which was the original trigger for the churn we just deleted.
+                        runCatching {
+                            OneSignal.login(it1.id.toString())
+                            // Unconditional — the local `optedIn` flag can lie (cached true
+                            // before the server round-trip lands), so guarding on it leaves
+                            // users stuck with enabled=false on OneSignal's servers.
+                            OneSignal.User.pushSubscription.optIn()
+                            Log.d("OneSignalFix", "OTP success — login+optIn for externalId=${it1.id}")
+                            com.gmwapp.hima.utils.OneSignalDiag.dump(this, "after_fresh_login")
+                        }.onFailure {
+                            Log.e("OneSignalFix", "OTP-success OneSignal bind failed: ${it.message}")
+                        }
+
+                        // Female users routed to AlmostDone/VoiceIdentification never hit
+                        // MainActivity.updateFcmToken, so the backend keeps a stale "0" from
+                        // the previous logout — direct FCM pushes silently drop until reinstall.
+                        // Register here so every OTP success re-binds (uid, device token).
+                        registerFcmTokenForNewLogin(it1.id)
+
                         // Socket.IO will connect only when ChatActivityInHouse opens
                         Log.d("SocketIOCheck", "✅ Login successful - Socket.IO will connect when chat opens")
                     }
@@ -1061,6 +1084,24 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         circle2Rotate.start()
         circle2ScaleX.start()
         circle2ScaleY.start()
+    }
+
+    private fun registerFcmTokenForNewLogin(userId: Int) {
+        com.google.firebase.messaging.FirebaseMessaging.getInstance().token
+            .addOnCompleteListener { task ->
+                if (!task.isSuccessful) {
+                    Log.w("FCMToken", "OTP-success token fetch failed", task.exception)
+                    return@addOnCompleteListener
+                }
+                val token = task.result ?: return@addOnCompleteListener
+                // Drop any pending logout-invalidation for this user — otherwise the
+                // stale worker could race-reset the token we're about to register.
+                androidx.work.WorkManager.getInstance(applicationContext)
+                    .cancelUniqueWork(
+                        "${com.gmwapp.hima.workers.FcmTokenInvalidationWorker.WORK_NAME_PREFIX}$userId"
+                    )
+                fcmTokenViewModel.sendToken(userId, token)
+            }
     }
 
 

@@ -24,6 +24,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResult
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -97,6 +98,10 @@ class SplashScreenActivity : BaseActivity() {
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Route Android 12+ system splash through AndroidX so SplashTheme's
+        // windowSplashScreen* attributes apply reliably across API 31+ quirks.
+        // Must be called before super.onCreate().
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         binding = ActivitySplashScreenBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -111,22 +116,6 @@ class SplashScreenActivity : BaseActivity() {
     }
 
     private fun startSplashAnimations() {
-        // Ensure logo is visible using Glide for better image loading
-        try {
-            Glide.with(this)
-                .load(R.drawable.logo)
-                .into(binding.imageViewLogo)
-            binding.imageViewLogo.visibility = View.VISIBLE
-        } catch (e: Exception) {
-            Log.e("SplashScreen", "Error loading logo: ${e.message}")
-            // Fallback to direct resource loading
-            try {
-                binding.imageViewLogo.setImageResource(R.drawable.logo)
-            } catch (ex: Exception) {
-                Log.e("SplashScreen", "Fallback also failed: ${ex.message}")
-            }
-        }
-
         // Animate logo container with scale and fade
         val logoScaleX = ObjectAnimator.ofFloat(binding.logoContainer, "scaleX", 0f, 1f)
         val logoScaleY = ObjectAnimator.ofFloat(binding.logoContainer, "scaleY", 0f, 1f)

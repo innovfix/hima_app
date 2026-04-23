@@ -63,6 +63,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 //import im.zego.zegoexpress.constants.ZegoRoomStateChangedReason
 import kotlinx.coroutines.delay
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -144,6 +145,17 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
     /** While a toggle API call is in-flight, ignore stale GET /users that would snap switches back */
     private var pendingAudioStatus: Int? = null
     private var pendingVideoStatus: Int? = null
+
+    /** Pull-to-refresh: wait for profile (/users) + reports before hiding the indicator */
+    private var femaleHomeSwipeProfilePending = false
+    private var femaleHomeSwipeReportsPending = false
+    private val femaleHomeSwipeRefreshTimeout = Runnable {
+        femaleHomeSwipeProfilePending = false
+        femaleHomeSwipeReportsPending = false
+        if (::binding.isInitialized && isAdded) {
+            binding.swipeRefreshFemaleHome.isRefreshing = false
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -360,6 +372,48 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         }
     }
 
+    private fun finishFemaleHomeSwipeProfileIfPending() {
+        if (!femaleHomeSwipeProfilePending) return
+        femaleHomeSwipeProfilePending = false
+        maybeFinishFemaleHomeSwipeRefresh()
+    }
+
+    private fun finishFemaleHomeSwipeReportsIfPending() {
+        if (!femaleHomeSwipeReportsPending) return
+        femaleHomeSwipeReportsPending = false
+        maybeFinishFemaleHomeSwipeRefresh()
+    }
+
+    private fun maybeFinishFemaleHomeSwipeRefresh() {
+        if (!::binding.isInitialized || !isAdded) return
+        if (!femaleHomeSwipeProfilePending && !femaleHomeSwipeReportsPending) {
+            binding.swipeRefreshFemaleHome.removeCallbacks(femaleHomeSwipeRefreshTimeout)
+            binding.swipeRefreshFemaleHome.isRefreshing = false
+        }
+    }
+
+    /**
+     * Re-fetch balance, audio/video availability, today's earnings/calls, rates, discovery, badges.
+     * Used by pull-to-refresh; [userId] must be non-null.
+     */
+    private fun startFemaleHomeSwipeRefresh(userId: Int) {
+        femaleHomeSwipeProfilePending = true
+        femaleHomeSwipeReportsPending = true
+        binding.swipeRefreshFemaleHome.isRefreshing = true
+        binding.swipeRefreshFemaleHome.removeCallbacks(femaleHomeSwipeRefreshTimeout)
+        binding.swipeRefreshFemaleHome.postDelayed(femaleHomeSwipeRefreshTimeout, 8_000L)
+        binding.swipeRefreshFemaleHome.setColorSchemeColors(
+            ContextCompat.getColor(requireContext(), R.color.colorAccent)
+        )
+
+        femaleUsersViewModel.getReports(userId)
+        profileViewModel.getUsers(userId)
+        femaleUsersViewModel.getFemaleUsers(userId)
+        femaleUsersViewModel.getFemaleDiscovery(userId)
+        fetchBadgeList(userId)
+        accountViewModel.getSettings()
+    }
+
     private fun refreshIplBanner() {
         if (!::binding.isInitialized) return
         val iplEnabled = (BaseApplication.getInstance()?.getPrefs()?.getUserData()?.ipl_rooms_enabled ?: 0) == 1
@@ -441,52 +495,25 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         val isTagSet = sharedPreferences.getBoolean("isOneSignalTagSet", false)
 
 
-        CoroutineScope(Dispatchers.Main).launch {
-            delay(2000) // wait to ensure OneSignal is initialized fully
+        // Subscription is handled centrally in BaseApplication (and at OTP success).
+        // All that remains here is setting user-scoped tags and prompting for
+        // notification permission — without the logout/optOut churn that used to
+        // strand devices in the opted-out state.
+        if (userData?.id != null && userData.id > 0) {
+            OneSignal.User.addTag("gender", "female")
+            language?.let {
+                OneSignal.User.addTag("language", it)
+                OneSignal.User.addTag("gender_language", "female_$it")
+                Log.d("OneSignalTag", "tags set language=$it gender_language=female_$it")
+            }
 
-            // 1. FULL RESET before login
-            OneSignal.logout()
-            OneSignal.User.pushSubscription.optOut()
-
-            // 2. Fetch user ID
-            val userId = getInstance()?.getPrefs()?.getUserData()?.id.toString()
-
-            if (!userId.isNullOrEmpty() && userId != "null") {
-                Log.d("OneSignalFix", "Attempting clean login with userId: $userId")
-
-                // 3. Force fresh login
-                OneSignal.login(userId)
-
-                // 4. Re-subscribe and assign external ID
-                OneSignal.User.pushSubscription.optIn()
-
-                // 5. Prompt notification permission (Android 13+) — once per day only
-                val notifPrefs = requireContext().getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
-                val lastAsked = notifPrefs.getLong("notif_permission_last_asked", 0L)
-                if (System.currentTimeMillis() - lastAsked >= 24 * 60 * 60 * 1000L) {
-                    notifPrefs.edit().putLong("notif_permission_last_asked", System.currentTimeMillis()).apply()
+            val notifPrefs = requireContext().getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            val lastAsked = notifPrefs.getLong("notif_permission_last_asked", 0L)
+            if (System.currentTimeMillis() - lastAsked >= 24 * 60 * 60 * 1000L) {
+                notifPrefs.edit().putLong("notif_permission_last_asked", System.currentTimeMillis()).apply()
+                viewLifecycleOwner.lifecycleScope.launch {
                     OneSignal.Notifications.requestPermission(true)
                 }
-
-                OneSignal.User.addTag("gender", "female")
-                language?.let {
-                    OneSignal.User.addTag("language", it)
-                    Log.d("OneSignalTag", "Language tag added: $it")
-                }
-
-                language?.let {
-                    OneSignal.User.addTag("gender_language", "female_$it")
-                    Log.d("OneSignalTag", "female_$it")
-
-                }
-
-                // 6. Debug logs to confirm status
-                delay(1000)
-                Log.d("OneSignalFix", "externalId: ${OneSignal.User.externalId}")
-                Log.d("OneSignalFix", "pushToken: ${OneSignal.User.pushSubscription.token}")
-                Log.d("OneSignalFix", "optedIn: ${OneSignal.User.pushSubscription.optedIn}")
-            } else {
-                Log.e("OneSignalFix", "Invalid user ID: $userId")
             }
         }
 
@@ -569,6 +596,15 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         }
         refreshIplBanner()
 
+        binding.swipeRefreshFemaleHome.setOnRefreshListener {
+            val id = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
+            if (id == null) {
+                binding.swipeRefreshFemaleHome.isRefreshing = false
+            } else {
+                startFemaleHomeSwipeRefresh(id)
+            }
+        }
+
         if (userData != null) {
             // Disable listeners before initial setup to avoid triggering API calls
             binding.sAudio.setOnCheckedChangeListener(null)
@@ -621,62 +657,71 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         })
 
         femaleUsersViewModel.reportResponseLiveData.observe(viewLifecycleOwner, Observer {
-            if (it != null && it.success) {
+            try {
+                if (it != null && it.success) {
 
-                Log.d("reportResponseLiveData", "$it")
-                Log.d("first_call", "${it.data[0].first_call}")
+                    Log.d("reportResponseLiveData", "$it")
+                    Log.d("first_call", "${it.data[0].first_call}")
 
 
-                binding.tvApproxEarnings.text = it.data[0].today_earnings.toString()
-                binding.tvTotalCalls.text = it.data[0].today_calls.toString()
+                    binding.tvApproxEarnings.text = it.data[0].today_earnings.toString()
+                    binding.tvTotalCalls.text = it.data[0].today_calls.toString()
 
-                // Load call rates image if available
-                it.data[0].call_rates?.let { imageUrl ->
-                    if (imageUrl.isNotEmpty()) {
-                        binding.ivCallRates.visibility = View.VISIBLE
-                        binding.cvCallRates.visibility = View.VISIBLE
-                        Glide.with(requireContext())
-                            .load(imageUrl)
-                            .into(binding.ivCallRates)
-                    } else {
+                    // Load call rates image if available
+                    it.data[0].call_rates?.let { imageUrl ->
+                        if (imageUrl.isNotEmpty()) {
+                            binding.ivCallRates.visibility = View.VISIBLE
+                            binding.cvCallRates.visibility = View.VISIBLE
+                            Glide.with(requireContext())
+                                .load(imageUrl)
+                                .into(binding.ivCallRates)
+                        } else {
+                            binding.ivCallRates.visibility = View.GONE
+                            binding.cvCallRates.visibility = View.GONE
+                        }
+                    } ?: run {
                         binding.ivCallRates.visibility = View.GONE
                         binding.cvCallRates.visibility = View.GONE
                     }
-                } ?: run {
-                    binding.ivCallRates.visibility = View.GONE
-                    binding.cvCallRates.visibility = View.GONE
-                }
 
-                var firstCall = it.data[0].first_call
-                if (firstCall==1){
-                   var femaleuserid= BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
+                    var firstCall = it.data[0].first_call
+                    if (firstCall==1){
+                       var femaleuserid= BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
 
-                    val bundle = Bundle().apply {
-                        putString("user_id", "$femaleuserid") // optional: useful for debugging
-                        putString("first_call_status", "Received")
+                        val bundle = Bundle().apply {
+                            putString("user_id", "$femaleuserid") // optional: useful for debugging
+                            putString("first_call_status", "Received")
+                        }
+                        BaseApplication.firebaseAnalytics.logEvent("first_call", bundle)
+
+                        // Log to backend
+                        AppEventLogger.logEvent(
+                            context = requireContext(),
+                            eventName = "first_call",
+                            platform = "firebase",
+                            userId = femaleuserid,
+                            params = AppEventLogger.bundleToMap(bundle)
+                        )
+
+                        if (femaleuserid != null) {
+                            firstCallUpdateViewModel.updateFirstCallStatus(femaleuserid, 2)
+                        }
                     }
-                    BaseApplication.firebaseAnalytics.logEvent("first_call", bundle)
 
-                    // Log to backend
-                    AppEventLogger.logEvent(
-                        context = requireContext(),
-                        eventName = "first_call",
-                        platform = "firebase",
-                        userId = femaleuserid,
-                        params = AppEventLogger.bundleToMap(bundle)
-                    )
-
-                    if (femaleuserid != null) {
-                        firstCallUpdateViewModel.updateFirstCallStatus(femaleuserid, 2)
-                    }
+                } else {
+                    //  Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show()
                 }
-
-            } else {
-                //  Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show()
+            } finally {
+                finishFemaleHomeSwipeReportsIfPending()
             }
         })
 
+        femaleUsersViewModel.reportsErrorLiveData.observe(viewLifecycleOwner) {
+            finishFemaleHomeSwipeReportsIfPending()
+        }
+
         profileViewModel.getUserLiveData.observe(viewLifecycleOwner, Observer { response ->
+            finishFemaleHomeSwipeProfileIfPending()
             val data = response?.data ?: return@Observer
             if (!isAdded) return@Observer
             val prefsLocal = BaseApplication.getInstance()?.getPrefs() ?: return@Observer
@@ -1204,6 +1249,8 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         femaleUsersViewModel.getFemaleUsers(userId)
         femaleUsersViewModel.getFemaleDiscovery(userId)
         fetchBadgeList(userId)
+        updateEarnings()
+        accountViewModel.getSettings()
     }
 
 

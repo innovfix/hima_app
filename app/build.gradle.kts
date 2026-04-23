@@ -47,15 +47,24 @@ android {
     productFlavors {
         create("development") {
             dimension = "hima"
-          applicationIdSuffix = ".dev"
-           // buildConfigField( "String", "BASE_URL",  "\"http://192.168.29.190/hima-admin-panel/public/api/auth/\"")
-
-            buildConfigField( "String", "BASE_URL",  "\"https://demolivedb.himaapp.in/api/auth/\"")
+            applicationIdSuffix = ".dev"
+            // Demo backend + demo OneSignal project. The demo OneSignal dashboard
+            // (5cd4154a-...) needs its Android FCM config (Firebase service account
+            // JSON + sender id 1061192153396) completed before pushes actually
+            // deliver on this flavor — until then expect empty subscription
+            // records (token="", enabled=false). In-app behaviour is unaffected.
+            // buildConfigField("String", "BASE_URL", "\"http://192.168.29.190/hima-admin-panel/public/api/auth/\"")
+            buildConfigField("String", "BASE_URL", "\"https://demolivedb.himaapp.in/api/auth/\"")
+            buildConfigField("String", "ONESIGNAL_APP_ID", "\"5cd4154a-1ece-4c3b-b6af-e88bafee64cd\"")
         }
         create("production") {
             dimension = "hima"
-           buildConfigField( "String", "BASE_URL",  "\"https://himaapp.in/api/auth/\"")
-            //buildConfigField( "String", "BASE_URL",  "\"http://139.59.56.195/api/auth/\"")
+            isDefault = true
+            // productionDebug/Release: demolivedb backend + same OneSignal project the demo backend
+            // REST key uses (5cd4154a-...). For Play Store / himaapp.in, use a separate release
+            // branch or a release flavor with himaapp.in + 50cedb09-...
+            buildConfigField("String", "BASE_URL", "\"https://demolivedb.himaapp.in/api/auth/\"")
+            buildConfigField("String", "ONESIGNAL_APP_ID", "\"5cd4154a-1ece-4c3b-b6af-e88bafee64cd\"")
         }
     }
     compileOptions {
@@ -89,6 +98,7 @@ dependencies {
     val glideVersion = "4.11.0"
 
     implementation(libs.androidx.core.ktx)
+    implementation("androidx.core:core-splashscreen:1.0.1")
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))

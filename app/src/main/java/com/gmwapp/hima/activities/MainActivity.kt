@@ -471,6 +471,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
+        com.gmwapp.hima.utils.OneSignalDiag.dump(this, "post_perm_result.granted=$isGranted")
         if (isGranted) {
             // Permission granted, notifications will work
         } else {
@@ -1287,6 +1288,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
     override fun onResume() {
         super.onResume()
+
+        com.gmwapp.hima.utils.OneSignalDiag.dump(this, "main_activity_resumed")
 
         checkIndividualPaymentType()
         handleInsufficientCoinPaywallIntent()

@@ -2,7 +2,6 @@ package com.gmwapp.hima.fragments
 
 import android.content.Intent
 import android.os.Bundle
-import android.content.res.ColorStateList
 import android.os.Handler
 import android.os.Looper
 import android.text.Editable
@@ -12,7 +11,6 @@ import android.text.TextWatcher
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
 import android.util.Log
-import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -402,16 +400,8 @@ class RecentFragment : BaseFragment(), Refreshable {
                 setSpan(StyleSpan(android.graphics.Typeface.BOLD), label.length, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             }
             chip.text = span
-            chip.chipStrokeColor = ColorStateList.valueOf(red)
-            chip.chipStrokeWidth = TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP, 1.8f, ctx.resources.displayMetrics
-            )
         } else {
             chip.text = "Missed"
-            chip.chipStrokeColor = ContextCompat.getColorStateList(ctx, R.color.chip_stroke_selector)
-            chip.chipStrokeWidth = TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP, 1.2f, ctx.resources.displayMetrics
-            )
         }
     }
 

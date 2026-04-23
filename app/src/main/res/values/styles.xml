@@ -38,15 +38,22 @@
     </style>
 
     <!-- Professional Splash Screen Theme -->
-    <style name="SplashTheme" parent="Theme.MaterialComponents.Light.NoActionBar">
-        <item name="android:windowBackground">@drawable/splash_gradient_background</item>
-        <item name="android:windowDisablePreview">true</item>
-        <item name="android:statusBarColor" tools:targetApi="l">@color/pink_bold</item>
-        <item name="android:navigationBarColor">@color/pink_bold</item>
-        <item name="android:windowFullscreen">false</item>
-        <item name="android:windowDrawsSystemBarBackgrounds" tools:targetApi="lollipop">true</item>
-        <item name="android:windowTranslucentStatus">false</item>
-        <item name="android:windowTranslucentNavigation">false</item>
+    <!--
+        Parents Theme.SplashScreen so Android 12+ uses AndroidX's splash pipeline.
+        The system splash is unavoidable on API 31+, so we make it invisible:
+          - windowSplashScreenAnimatedIcon is 1x1 transparent (no logo).
+          - windowSplashScreenBackground matches the center of splash_gradient_background
+            (same pink) so there's no color flash when SplashScreenActivity takes over.
+          - windowSplashScreenAnimationDuration=0 dismisses the system splash ASAP.
+          - postSplashScreenTheme swaps to AppTheme when the activity is interactive.
+    -->
+    <style name="SplashTheme" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/pink</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon_transparent</item>
+        <item name="windowSplashScreenAnimationDuration">0</item>
+        <item name="postSplashScreenTheme">@style/AppTheme</item>
+        <item name="android:statusBarColor" tools:targetApi="l">@color/pink</item>
+        <item name="android:navigationBarColor">@color/pink</item>
     </style>
 
 <!--    &lt;!&ndash; Theme for dark mode &ndash;&gt;-->

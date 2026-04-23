@@ -62,8 +62,16 @@ class BottomSheetLogout : BottomSheetDialogFragment() {
             OneSignal.User.removeTag("gender")
             OneSignal.User.removeTag("language")
             OneSignal.User.removeTag("user_id")
+            com.gmwapp.hima.utils.OneSignalDiag.dump(requireContext(), "before_user_logout")
+            // Wipe per-peer conversation shortcuts so the previous user's avatars
+            // don't leak into whoever logs in next on this device.
+            runCatching {
+                androidx.core.content.pm.ShortcutManagerCompat
+                    .removeAllDynamicShortcuts(requireContext())
+            }
             OneSignal.logout()
-            OneSignal.User.pushSubscription.optOut()
+            // Do NOT optOut() — that persists enabled=false server-side for the whole
+            // device and blocks the next user on this phone from receiving pushes.
 
             performLogoutAndNavigate()
         }
