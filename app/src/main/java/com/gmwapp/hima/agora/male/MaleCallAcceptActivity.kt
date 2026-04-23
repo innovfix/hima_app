@@ -29,7 +29,10 @@ import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.agora.telecom.HimaTelecomManager
 import android.telecom.DisconnectCause
 import com.gmwapp.hima.databinding.ActivityMaleCallAcceptBinding
+import com.gmwapp.hima.retrofit.responses.CallEndReason
+import com.gmwapp.hima.retrofit.responses.CallEndedBy
 import com.gmwapp.hima.viewmodels.AgoraViewModel
+import com.gmwapp.hima.viewmodels.CallStatusViewModel
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.UserAvatarViewModel
 import com.gmwapp.hima.viewmodels.AccountViewModel
@@ -42,6 +45,7 @@ class MaleCallAcceptActivity : AppCompatActivity() {
     private val fcmNotificationViewModel: FcmNotificationViewModel by viewModels()
     private val accountViewModel: AccountViewModel by viewModels()
     private val agoraViewModel: AgoraViewModel by viewModels()
+    private val callStatusViewModel: CallStatusViewModel by viewModels()
 
     private var callType: String? = null
     private var receiverId: Int = -1
@@ -233,8 +237,18 @@ class MaleCallAcceptActivity : AppCompatActivity() {
                 // Call reject count API
                 userId?.let { maleUserId ->
                     accountViewModel.callRejectCount(maleUserId, receiverId)
+                    Log.d("CallStatus", "MaleAccept.reject → rejected/receiver self=$maleUserId peer=$receiverId callId=$call_Id")
+                    callStatusViewModel.saveCallStatus(
+                        userId = maleUserId,
+                        receivedUserId = receiverId,
+                        callId = call_Id,
+                        endReason = CallEndReason.REJECTED,
+                        endedBy = CallEndedBy.RECEIVER,
+                        endedByUserId = maleUserId,
+                        durationSeconds = 0,
+                    )
                 }
-                
+
                 sendCallNotification(userId!!, receiverId, callType!!, channelName!!, "rejected")
 
                 if (isLocked) {

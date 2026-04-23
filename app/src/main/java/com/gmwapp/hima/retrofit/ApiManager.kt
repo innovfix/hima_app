@@ -90,6 +90,8 @@ import com.gmwapp.hima.retrofit.responses.DefaultCouponResponse
 import com.gmwapp.hima.retrofit.responses.CallRejectCountResponse
 import com.gmwapp.hima.retrofit.responses.CallDropStatusRequest
 import com.gmwapp.hima.retrofit.responses.CallDropStatusResponse
+import com.gmwapp.hima.retrofit.responses.CallStatusRequest
+import com.gmwapp.hima.retrofit.responses.CallStatusResponse
 import com.gmwapp.hima.retrofit.responses.ChatListResponse
 import com.gmwapp.hima.retrofit.responses.MessageListResponse
 import com.gmwapp.hima.retrofit.responses.SendMessageResponse
@@ -1955,6 +1957,18 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun callStatus(
+        request: CallStatusRequest,
+        callback: NetworkCallback<CallStatusResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<CallStatusResponse> = getApiInterface().callStatus(request)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun checkRatingEligibility(
         userId: Int,
         callback: NetworkCallback<CheckRatingEligibilityResponse>
@@ -3081,6 +3095,11 @@ interface ApiInterface {
     fun callDropStatus(
         @Body request: CallDropStatusRequest
     ): Call<CallDropStatusResponse>
+
+    @POST("call_status")
+    fun callStatus(
+        @Body request: CallStatusRequest
+    ): Call<CallStatusResponse>
 
     @FormUrlEncoded
     @POST("submit_rating")

@@ -15,6 +15,10 @@ import com.gmwapp.hima.agora.telecom.HimaTelecomManager
 import android.telecom.DisconnectCause
 import com.gmwapp.hima.repositories.FcmNotificationRepository
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
+import com.gmwapp.hima.retrofit.responses.CallEndReason
+import com.gmwapp.hima.retrofit.responses.CallEndedBy
+import com.gmwapp.hima.retrofit.responses.CallStatusRequest
+import com.gmwapp.hima.retrofit.responses.CallStatusResponse
 import com.gmwapp.hima.retrofit.responses.FcmNotificationResponse
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -87,6 +91,8 @@ class CallActionReceiver : BroadcastReceiver() {
                 BaseApplication.getInstance()?.clearIncomingCall()
 
                 Log.d("CallReceiver", "Call Rejected: callType=$callType, senderId=$receiverId, channelName=$channelName, callId=$callId")
+
+                reportCallStatusRejected(context, userid, receiverId, callId)
 
                 val fcmNotificationRepository = (context.applicationContext as BaseApplication).fcmNotificationRepository
 
@@ -189,6 +195,8 @@ class CallActionReceiver : BroadcastReceiver() {
 
                 Log.d("CallReceiver_Male", "Call Rejected: callType=$callType, senderId=$receiverId, channelName=$channelName, callId=$callId")
 
+                reportCallStatusRejected(context, userid, receiverId, callId)
+
                 val fcmNotificationRepository = (context.applicationContext as BaseApplication).fcmNotificationRepository
 
                 if (userid != null && receiverId != null && callType != null && channelName != null) {
@@ -231,6 +239,45 @@ class CallActionReceiver : BroadcastReceiver() {
             // ========== END MALE CALL ACTIONS ==========
 
         }
+    }
+
+    private fun reportCallStatusRejected(
+        context: Context,
+        selfUserId: Int?,
+        peerUserId: Int,
+        callId: Int,
+    ) {
+        if (selfUserId == null || peerUserId <= 0 || callId <= 0) {
+            Log.w("CallStatus", "Skipping notification-reject call_status self=$selfUserId peer=$peerUserId callId=$callId")
+            return
+        }
+        Log.d("CallStatus", "NotificationReject → rejected/receiver self=$selfUserId peer=$peerUserId callId=$callId")
+        val repo = (context.applicationContext as BaseApplication).callStatusRepository
+        val request = CallStatusRequest(
+            userId = selfUserId,
+            receivedUserId = peerUserId,
+            callId = callId,
+            endReason = CallEndReason.REJECTED,
+            endedBy = CallEndedBy.RECEIVER,
+            endedByUserId = selfUserId,
+            durationSeconds = 0,
+        )
+        repo.callStatus(request, object : NetworkCallback<CallStatusResponse> {
+            override fun onResponse(
+                call: retrofit2.Call<CallStatusResponse>,
+                response: retrofit2.Response<CallStatusResponse>
+            ) {
+                Log.d("CallStatus", "Notification-reject posted url=${call.request().url} body=${response.body()}")
+            }
+
+            override fun onFailure(call: retrofit2.Call<CallStatusResponse>, t: Throwable) {
+                Log.e("CallStatus", "Notification-reject failure url=${call.request().url}", t)
+            }
+
+            override fun onNoNetwork() {
+                Log.w("CallStatus", "Notification-reject — no network")
+            }
+        })
     }
 }
 

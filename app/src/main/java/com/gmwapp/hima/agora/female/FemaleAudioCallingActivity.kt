@@ -87,7 +87,10 @@ import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.gmwapp.hima.viewmodels.UserAvatarViewModel
+import com.gmwapp.hima.retrofit.responses.CallEndReason
+import com.gmwapp.hima.retrofit.responses.CallEndedBy
 import com.gmwapp.hima.viewmodels.CallDropStatusViewModel
+import com.gmwapp.hima.viewmodels.CallStatusViewModel
 import com.gmwapp.hima.viewmodels.LudoFcmViewModel
 import com.gmwapp.hima.workers.CallUpdateWorker
 import io.agora.rtc2.IAudioFrameObserver
@@ -128,6 +131,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
     private val agoraViewModel: AgoraViewModel by viewModels()
     private val callDropStatusViewModel: CallDropStatusViewModel by viewModels()
+    private val callStatusViewModel: CallStatusViewModel by viewModels()
+    private val isCaller: Boolean by lazy { intent.getBooleanExtra("IS_CALLER", false) }
     private val ludoFcmViewModel: LudoFcmViewModel by viewModels()
 
     private var isVideoCallGoing : Boolean = false
@@ -2197,6 +2202,16 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                     receivedUserId = receiverId,
                     callId = call_Id,
                     callDropStatus = 1
+                )
+                val endedByRole = if (isCaller) CallEndedBy.CALLER else CallEndedBy.RECEIVER
+                Log.d("CallStatus", "FemaleAudio.hangup → ended/$endedByRole self=$userId peer=$receiverId callId=$call_Id isCaller=$isCaller")
+                callStatusViewModel.saveCallStatus(
+                    userId = userId,
+                    receivedUserId = receiverId,
+                    callId = call_Id,
+                    endReason = CallEndReason.ENDED,
+                    endedBy = endedByRole,
+                    endedByUserId = userId,
                 )
             } else {
                 Log.w(

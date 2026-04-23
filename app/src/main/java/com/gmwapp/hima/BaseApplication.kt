@@ -34,6 +34,7 @@ import com.facebook.FacebookSdk
 import com.facebook.appevents.AppEventsLogger
 import com.gmwapp.hima.agora.telecom.HimaTelecomManager
 import com.gmwapp.hima.constants.DConstants
+import com.gmwapp.hima.repositories.CallStatusRepository
 import com.gmwapp.hima.repositories.FcmNotificationRepository
 import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.utils.Helper
@@ -166,6 +167,9 @@ class BaseApplication : Application(), Configuration.Provider {
 
     @Inject
     lateinit var fcmNotificationRepository: FcmNotificationRepository
+
+    @Inject
+    lateinit var callStatusRepository: CallStatusRepository
 
     companion object {
         private var mInstance: BaseApplication? = null

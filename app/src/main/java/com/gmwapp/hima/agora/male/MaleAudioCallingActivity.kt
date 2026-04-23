@@ -80,7 +80,10 @@ import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.gmwapp.hima.viewmodels.GiftImageViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.viewmodels.UserAvatarViewModel
+import com.gmwapp.hima.retrofit.responses.CallEndReason
+import com.gmwapp.hima.retrofit.responses.CallEndedBy
 import com.gmwapp.hima.viewmodels.CallDropStatusViewModel
+import com.gmwapp.hima.viewmodels.CallStatusViewModel
 import com.gmwapp.hima.viewmodels.LudoFcmViewModel
 import com.gmwapp.hima.workers.CallUpdateWorker
 import com.google.firebase.analytics.FirebaseAnalytics
@@ -137,6 +140,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private val userAvatarViewModel: UserAvatarViewModel by viewModels()
     private val agoraViewModel: AgoraViewModel by viewModels()
     private val callDropStatusViewModel: CallDropStatusViewModel by viewModels()
+    private val callStatusViewModel: CallStatusViewModel by viewModels()
+    private val isCaller: Boolean by lazy { intent.getBooleanExtra("IS_CALLER", false) }
     private val ludoFcmViewModel: LudoFcmViewModel by viewModels()
 
     private var isSwitchingToAudio = false // ✅ Prevent multiple calls
@@ -1659,6 +1664,16 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                     receivedUserId = receiverId,
                     callId = callId,
                     callDropStatus = 1
+                )
+                val endedByRole = if (isCaller) CallEndedBy.CALLER else CallEndedBy.RECEIVER
+                Log.d("CallStatus", "MaleAudio.hangup → ended/$endedByRole self=$maleUserId peer=$receiverId callId=$callId isCaller=$isCaller")
+                callStatusViewModel.saveCallStatus(
+                    userId = maleUserId,
+                    receivedUserId = receiverId,
+                    callId = callId,
+                    endReason = CallEndReason.ENDED,
+                    endedBy = endedByRole,
+                    endedByUserId = maleUserId,
                 )
             } else {
                 Log.w(

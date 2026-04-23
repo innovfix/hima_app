@@ -2,14 +2,21 @@ package com.gmwapp.hima.fragments
 
 import android.content.Intent
 import android.os.Bundle
+import android.content.res.ColorStateList
 import android.os.Handler
 import android.os.Looper
 import android.text.Editable
+import android.text.SpannableString
+import android.text.Spanned
 import android.text.TextWatcher
+import android.text.style.ForegroundColorSpan
+import android.text.style.StyleSpan
 import android.util.Log
+import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.viewModels
@@ -382,10 +389,29 @@ class RecentFragment : BaseFragment(), Refreshable {
 
     private fun updateMissedChipCount(count: Int) {
         currentMissedCount = count.coerceAtLeast(0)
-        binding.chipMissed.text = if (currentMissedCount > 0) {
-            "Missed ($currentMissedCount)"
+        val chip = binding.chipMissed
+        val ctx = chip.context
+
+        if (currentMissedCount > 0) {
+            // Highlight the unread missed-call count in red so users notice it.
+            val label = "Missed "
+            val badge = "($currentMissedCount)"
+            val red = ContextCompat.getColor(ctx, R.color.chat_recording_red)
+            val span = SpannableString(label + badge).apply {
+                setSpan(ForegroundColorSpan(red), label.length, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                setSpan(StyleSpan(android.graphics.Typeface.BOLD), label.length, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+            chip.text = span
+            chip.chipStrokeColor = ColorStateList.valueOf(red)
+            chip.chipStrokeWidth = TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP, 1.8f, ctx.resources.displayMetrics
+            )
         } else {
-            "Missed"
+            chip.text = "Missed"
+            chip.chipStrokeColor = ContextCompat.getColorStateList(ctx, R.color.chip_stroke_selector)
+            chip.chipStrokeWidth = TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP, 1.2f, ctx.resources.displayMetrics
+            )
         }
     }
 

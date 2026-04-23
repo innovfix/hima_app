@@ -30,7 +30,10 @@ import com.gmwapp.hima.agora.MyFirebaseMessagingService
 import com.gmwapp.hima.agora.telecom.HimaTelecomManager
 import android.telecom.DisconnectCause
 import com.gmwapp.hima.databinding.ActivityFemaleCallAcceptBinding
+import com.gmwapp.hima.retrofit.responses.CallEndReason
+import com.gmwapp.hima.retrofit.responses.CallEndedBy
 import com.gmwapp.hima.viewmodels.AgoraViewModel
+import com.gmwapp.hima.viewmodels.CallStatusViewModel
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.UserAvatarViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -41,6 +44,7 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
     private lateinit var binding: ActivityFemaleCallAcceptBinding
     private val fcmNotificationViewModel: FcmNotificationViewModel by viewModels()
     private val agoraViewModel: AgoraViewModel by viewModels()
+    private val callStatusViewModel: CallStatusViewModel by viewModels()
 
     private var callType: String? = null
     private var receiverId: Int = -1
@@ -208,6 +212,18 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
 
             if (receiverId != -1 && !channelName.isNullOrEmpty() && !callType.isNullOrEmpty()) {
                 sendCallNotification(userId!!, receiverId, callType!!, channelName!!, "rejected")
+                userId?.let { selfId ->
+                    Log.d("CallStatus", "FemaleAccept.reject → rejected/receiver self=$selfId peer=$receiverId callId=$call_Id")
+                    callStatusViewModel.saveCallStatus(
+                        userId = selfId,
+                        receivedUserId = receiverId,
+                        callId = call_Id,
+                        endReason = CallEndReason.REJECTED,
+                        endedBy = CallEndedBy.RECEIVER,
+                        endedByUserId = selfId,
+                        durationSeconds = 0,
+                    )
+                }
 
                 if (isLocked) {
                     HimaTelecomManager.endActiveCall(DisconnectCause.REJECTED)

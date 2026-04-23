@@ -1412,7 +1412,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         hideBadge(recentUnreadDotTag)
 
         if (displayCount > 0) {
-            placeRecentBadge(displayCount)
+            val badgeColor = if (safeMissed > 0) R.color.chat_recording_red else R.color.colorAccent
+            placeRecentBadge(displayCount, badgeColor)
         } else {
             hideBadge(recentMissedDotTag)
         }
@@ -1449,7 +1450,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     }
 
     // Single badge on Recent tab — top-right of icon; reuses recentMissedDotTag TextView.
-    private fun placeRecentBadge(count: Int) {
+    private fun placeRecentBadge(count: Int, @androidx.annotation.ColorRes badgeColorRes: Int = R.color.colorAccent) {
         val rootView = window.decorView.findViewById<ViewGroup>(android.R.id.content)
         val dp = resources.displayMetrics.density
         val dotSize = (18 * dp).toInt()
@@ -1458,6 +1459,9 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             ?: makeBadgeDot(recentMissedDotTag)
         dot.text = count.coerceAtMost(99).toString()
         dot.visibility = View.VISIBLE
+        (dot.background as? GradientDrawable)?.setColor(
+            ContextCompat.getColor(this, badgeColorRes)
+        )
 
         binding.bottomNavigationView.post {
             val itemView = getRecentBottomNavItemView() ?: return@post
