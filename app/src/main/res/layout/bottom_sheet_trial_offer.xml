@@ -33,7 +33,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/_16sdp"
             android:fontFamily="@font/poppins_semibold"
-            android:text="Start your 2 day trial"
+            android:text="Start your free trial"
             android:textColor="@color/black"
             android:textSize="20sp"
             app:layout_constraintStart_toStartOf="parent"
@@ -152,7 +152,7 @@
             android:layout_marginTop="@dimen/_16sdp"
             android:backgroundTint="@color/pink"
             android:fontFamily="@font/poppins_semibold"
-            android:text="Try Now"
+            android:text="Try Now ₹1"
             android:textAllCaps="false"
             android:textColor="@color/white"
             android:textSize="16sp"
@@ -160,5 +160,19 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/llBenefits" />
+
+        <TextView
+            android:id="@+id/tvPurchaseCoins"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/_10sdp"
+            android:padding="@dimen/_6sdp"
+            android:fontFamily="@font/poppins_medium"
+            android:text="or purchase coins"
+            android:textColor="@color/pink"
+            android:textSize="13sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/btnTryNow" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.core.widget.NestedScrollView>

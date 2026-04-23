@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Hima — Old User vs New User Flow</title>
+<style>
+  :root {
+    --pink: #FF1381;
+    --pink-soft: #FFE5F1;
+    --ink: #1A1A2E;
+    --muted: #667085;
+    --line: #E6E8EC;
+    --bg: #FAFAFB;
+    --yellow: #FFD84D;
+    --green: #16A34A;
+    --red:   #E11D48;
+    --blue:  #2563EB;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.55;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 48px 28px 80px; }
+
+  header.hero {
+    text-align: center;
+    padding: 40px 24px 32px;
+    border-bottom: 1px solid var(--line);
+    background: #fff;
+  }
+  header.hero h1 {
+    font-size: 30px;
+    margin: 0 0 6px;
+    letter-spacing: -0.5px;
+  }
+  header.hero p {
+    color: var(--muted);
+    margin: 0;
+    font-size: 15px;
+  }
+  header.hero .pill {
+    display: inline-block;
+    margin-top: 14px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: var(--pink-soft);
+    color: var(--pink);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+
+  h2.section {
+    font-size: 22px;
+    margin: 56px 0 6px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--pink);
+    display: inline-block;
+  }
+  h3 {
+    font-size: 17px;
+    margin: 28px 0 10px;
+  }
+  p { margin: 0 0 12px; }
+  p.lead { color: var(--muted); max-width: 720px; margin-bottom: 28px; }
+
+  .flow-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 24px;
+  }
+  @media (max-width: 760px) {
+    .flow-grid { grid-template-columns: 1fr; }
+  }
+
+  .card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+  }
+  .card.new-user   { border-top: 4px solid var(--blue);   }
+  .card.old-user   { border-top: 4px solid var(--pink);   }
+  .card.dev-switch { border-top: 4px solid var(--yellow); }
+
+  .card h3.title {
+    font-size: 18px;
+    margin: 0 0 4px;
+  }
+  .card .sub {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 18px;
+  }
+
+  ol.steps { padding-left: 0; margin: 0; list-style: none; counter-reset: step; }
+  ol.steps li {
+    counter-increment: step;
+    position: relative;
+    padding: 12px 0 12px 44px;
+    border-bottom: 1px dashed var(--line);
+  }
+  ol.steps li:last-child { border-bottom: none; }
+  ol.steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0; top: 12px;
+    width: 28px; height: 28px;
+    background: var(--ink);
+    color: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600;
+  }
+  .card.new-user  ol.steps li::before { background: var(--blue); }
+  .card.old-user  ol.steps li::before { background: var(--pink); }
+
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .tag.ok   { background: #E7F7EE; color: var(--green); }
+  .tag.warn { background: #FFE6EC; color: var(--red);   }
+  .tag.info { background: #E4EEFF; color: var(--blue);  }
+
+  .screenshot {
+    margin-top: 14px;
+    background: #F3F4F6;
+    border: 1px dashed #C9CCD1;
+    border-radius: 10px;
+    padding: 18px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .screenshot strong {
+    display: block;
+    color: var(--ink);
+    font-size: 13px;
+    margin-bottom: 4px;
+  }
+
+  .callout {
+    margin: 24px 0;
+    background: #FFF9E5;
+    border: 1px solid #F5D88B;
+    border-radius: 12px;
+    padding: 16px 18px;
+    font-size: 14px;
+  }
+  .callout.warn {
+    background: #FFF1F3;
+    border-color: #FBB7C0;
+  }
+  .callout strong { display: block; margin-bottom: 4px; }
+
+  table.compare {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    font-size: 14px;
+  }
+  table.compare th, table.compare td {
+    padding: 14px 18px;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  table.compare thead th {
+    background: #F5F5F7;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--muted);
+  }
+  table.compare tr:last-child td { border-bottom: none; }
+  table.compare td:first-child { font-weight: 600; width: 24%; }
+
+  .footer-note {
+    margin-top: 60px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <h1>Hima — User Experience Flows</h1>
+  <p>How the app behaves for New Users vs Old Users, plus the temporary Profile switch.</p>
+  <span class="pill">Product Reference · Internal</span>
+</header>
+
+<div class="wrap">
+
+  <!-- OVERVIEW -->
+  <h2 class="section">Overview</h2>
+  <p class="lead">
+    Hima treats users in two distinct ways. A <strong>New User</strong> is someone who has never paid for talktime
+    and is offered a one-time trial subscription. An <strong>Old User</strong> is a returning user who already has
+    a wallet balance and is charged per minute for calls. The app decides which flow to show at every screen —
+    the home coin balance, the call buttons, and the recharge sheets all behave differently.
+  </p>
+
+  <table class="compare">
+    <thead>
+      <tr>
+        <th>What the user sees</th>
+        <th>New User</th>
+        <th>Old User</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Coin balance on Home</td>
+        <td>Always shown as <strong>0</strong></td>
+        <td>Actual wallet balance</td>
+      </tr>
+      <tr>
+        <td>Tap on coin balance</td>
+        <td>Opens the <em>Trial Offer</em> sheet</td>
+        <td>Opens the full <em>Wallet</em> screen</td>
+      </tr>
+      <tr>
+        <td>Tap on Audio / Video call</td>
+        <td>Opens the <em>Trial Offer</em> sheet</td>
+        <td>If balance is enough → call starts.<br>If not → <em>Insufficient Funds</em> sheet opens.</td>
+      </tr>
+      <tr>
+        <td>Primary call-to-action</td>
+        <td>“Try Now” → one-time subscription</td>
+        <td>“Add Coins” → recharge in place, or subscribe for unlimited calls</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- NEW USER + OLD USER FLOW CARDS -->
+  <h2 class="section">The two flows, side by side</h2>
+  <p class="lead">Each card walks through what a user sees and does, from opening the app to reaching a call.</p>
+
+  <div class="flow-grid">
+
+    <!-- NEW USER CARD -->
+    <div class="card new-user">
+      <h3 class="title">New User Flow <span class="tag info">Trial path</span></h3>
+      <div class="sub">A first-time user who has not yet subscribed.</div>
+
+      <ol class="steps">
+        <li>
+          <strong>Lands on Home.</strong>
+          The coin badge shows <strong>0</strong> even if the server returned a balance, because a new user hasn’t
+          made a real purchase yet.
+        </li>
+        <li>
+          <strong>Taps the coin badge.</strong>
+          The <em>Trial Offer</em> bottom sheet opens, explaining the one-time offer and benefits.
+        </li>
+        <li>
+          <strong>Taps an Audio or Video call button on a profile.</strong>
+          Instead of starting a call, the same <em>Trial Offer</em> sheet opens — the user must subscribe before
+          they can call.
+        </li>
+        <li>
+          <strong>Taps “Try Now”.</strong>
+          The app opens the subscription screen where the user completes the one-time purchase.
+          After purchase, the user is treated as an active subscriber.
+        </li>
+        <li>
+          <strong>After subscription.</strong>
+          The user can now start calls directly. The trial sheet no longer appears.
+        </li>
+      </ol>
+
+      <div class="screenshot">
+        <strong>📸 Screenshots to include</strong>
+        1. Home screen with coin badge at 0 &nbsp;·&nbsp;
+        2. Trial Offer bottom sheet &nbsp;·&nbsp;
+        3. Subscription screen with “Try Now” CTA
+      </div>
+    </div>
+
+    <!-- OLD USER CARD -->
+    <div class="card old-user">
+      <h3 class="title">Old User Flow <span class="tag warn">Recharge path</span></h3>
+      <div class="sub">A returning user who pays per minute from their wallet.</div>
+
+      <ol class="steps">
+        <li>
+          <strong>Lands on Home.</strong>
+          The coin badge shows the user’s actual wallet balance from the server.
+        </li>
+        <li>
+          <strong>Taps the coin badge.</strong>
+          The full <em>Wallet</em> screen opens, where the user can see transactions and recharge directly.
+        </li>
+        <li>
+          <strong>Taps an Audio or Video call button on a profile.</strong>
+          The app checks whether the balance covers at least one minute at that creator’s per-minute rate.
+          <span class="tag ok">If enough → call starts</span>
+          <span class="tag warn">If not → sheet opens</span>
+        </li>
+        <li>
+          <strong>Insufficient Funds sheet opens.</strong>
+          The sheet shows:
+          <br>• A title explaining the balance is too low to make the call.
+          <br>• A yellow <em>Subscribe Now</em> banner with unlimited chats, ₹399 talktime, one free call daily.
+          <br>• A <em>Talktime Recharge</em> grid identical to the Wallet screen’s coin packs.
+          <br>• An <em>Add Coins</em> button at the bottom.
+        </li>
+        <li>
+          <strong>Taps “Add Coins”.</strong>
+          Payment starts right inside the sheet — no redirect to the Wallet screen. The user completes payment
+          through the existing gateways (UPI / card / etc.) and returns to the app.
+        </li>
+        <li>
+          <strong>Alternatively, taps the yellow Subscribe banner.</strong>
+          The subscription screen opens so the user can switch to unlimited calls instead of one-time recharge.
+        </li>
+      </ol>
+
+      <div class="screenshot">
+        <strong>📸 Screenshots to include</strong>
+        1. Home screen with real coin balance &nbsp;·&nbsp;
+        2. Wallet screen &nbsp;·&nbsp;
+        3. Insufficient Funds bottom sheet (banner + coin grid + Add Coins) &nbsp;·&nbsp;
+        4. Payment gateway dialog
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CALL DECISION RULE -->
+  <h2 class="section">How the app decides what to show on a call tap</h2>
+  <p class="lead">
+    A simple three-way check runs every time an audio or video call button is tapped.
+  </p>
+
+  <table class="compare">
+    <thead>
+      <tr>
+        <th>User type</th>
+        <th>Condition</th>
+        <th>What happens</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>New User</td>
+        <td>Not yet subscribed</td>
+        <td>Trial Offer sheet <span class="tag info">subscribe to continue</span></td>
+      </tr>
+      <tr>
+        <td>New User</td>
+        <td>Subscription active</td>
+        <td>Call starts directly</td>
+      </tr>
+      <tr>
+        <td>Old User</td>
+        <td>Wallet balance covers the rate</td>
+        <td>Call starts directly <span class="tag ok">no sheet</span></td>
+      </tr>
+      <tr>
+        <td>Old User</td>
+        <td>Wallet balance is below the rate</td>
+        <td>Insufficient Funds sheet <span class="tag warn">recharge required</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- PROFILE SWITCH -->
+  <h2 class="section">Profile switch <span style="font-size:13px; color:var(--muted); font-weight:400;">(temporary)</span></h2>
+  <p class="lead">
+    While the backend does not yet return a reliable “new vs old” flag for every user, the Profile screen
+    includes a developer switch that lets the team flip any account between the two flows for testing.
+  </p>
+
+  <div class="card dev-switch">
+    <h3 class="title">How it is used today</h3>
+    <ol class="steps">
+      <li>
+        <strong>Open Profile.</strong>
+        A toggle labelled “New User Mode” is visible in the developer section of the screen.
+      </li>
+      <li>
+        <strong>Turn it ON.</strong>
+        The app behaves as if the signed-in account is a brand-new user — coin balance shows 0, and every
+        call tap opens the Trial Offer sheet.
+      </li>
+      <li>
+        <strong>Turn it OFF.</strong>
+        The app falls back to the normal Old User behaviour — real wallet balance, Wallet screen, and the
+        Insufficient Funds sheet when balance runs out.
+      </li>
+    </ol>
+
+    <div class="screenshot">
+      <strong>📸 Screenshots to include</strong>
+      1. Profile screen with the switch OFF (Old User) &nbsp;·&nbsp;
+      2. Profile screen with the switch ON (New User)
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <strong>To be removed after backend work</strong>
+    Once the backend starts returning a definitive signal for each account (whether the user is a new user
+    or a returning user with wallet history), this manual switch will be removed from the Profile screen.
+    The two flows themselves stay — only the toggle goes away. From that point on the app will decide the
+    flow automatically from the server response, and QA will no longer need to flip it by hand.
+  </div>
+
+  <!-- SUMMARY -->
+  <h2 class="section">Quick summary</h2>
+  <div class="card">
+    <ul style="margin:0; padding-left:18px; line-height:1.9;">
+      <li><strong>New User</strong> — always shown trial offer, one-time subscription unlocks calling.</li>
+      <li><strong>Old User</strong> — wallet-based, calls start if balance is enough, recharge sheet appears when it’s not.</li>
+      <li><strong>Recharge happens in place</strong> — the sheet completes payment without sending the user to the Wallet screen.</li>
+      <li><strong>Subscribe banner</strong> is always present in the old-user sheet as an upsell to unlimited calls.</li>
+      <li><strong>Profile switch</strong> is a temporary tool for QA and will be removed once the backend provides the flag.</li>
+    </ul>
+  </div>
+
+  <p class="footer-note">Hima App · Internal product reference · Replace the screenshot placeholders with captures from a connected device before sharing.</p>
+
+</div>
+
+</body>
+</html>

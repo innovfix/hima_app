@@ -9,10 +9,13 @@
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
+        android:layout_height="wrap_content"
+        android:minHeight="?attr/actionBarSize"
         android:background="@android:color/transparent"
         android:fitsSystemWindows="true"
+        android:fontFamily="@font/poppins_semibold"
         app:navigationIcon="@drawable/ic_arrow_back"
+        app:navigationIconTint="@color/black"
         app:title="Cancel Subscription"
         app:titleTextColor="@color/black"
         />

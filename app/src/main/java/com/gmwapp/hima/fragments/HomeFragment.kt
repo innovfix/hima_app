@@ -29,6 +29,7 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.DummySubscriptionActivity
 import com.gmwapp.hima.activities.IplRoomsActivity
 import com.gmwapp.hima.activities.WalletActivity
+import com.gmwapp.hima.utils.DevUserMode
 import com.gmwapp.hima.adapters.FemaleUserAdapter
 import com.gmwapp.hima.agora.AgoraRandomCallActivity
 import com.gmwapp.hima.agora.FcmUtils
@@ -102,7 +103,21 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
     private fun initUI() {
         binding.clCoins.setOnSingleClickListener {
-            startActivity(android.content.Intent(requireContext(), WalletActivity::class.java))
+            // Subscribed (any state) → open wallet directly; Wallet hides the banner on its own.
+            // New user (and not subscribed) → trial sheet; old user → wallet.
+            val isSubscribed = requireContext().getSharedPreferences(
+                DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE
+            ).getBoolean(DummySubscriptionActivity.KEY_ACTIVE, false)
+
+            if (!isSubscribed && DevUserMode.isNewUser(requireContext())) {
+                val sheet = BottomSheetTrialOffer()
+                sheet.setOnTryNowClickListener {
+                    startActivity(android.content.Intent(requireContext(), DummySubscriptionActivity::class.java))
+                }
+                sheet.show(parentFragmentManager, "trial_offer")
+            } else {
+                startActivity(android.content.Intent(requireContext(), WalletActivity::class.java))
+            }
         }
 
         // IPL Room Calls banner — male opens room list screen
@@ -260,7 +275,9 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         profileViewModel.getUserLiveData.observe(viewLifecycleOwner, Observer { response ->
             response?.data?.let { userData ->
                 BaseApplication.getInstance()?.getPrefs()?.setUserData(userData)
-                binding.tvCoins.text = userData.coins.toString()
+                // Dev switch forces the coin badge to 0 in new-user mode.
+                val displayCoins = if (DevUserMode.isNewUser(requireContext())) 0 else userData.coins
+                binding.tvCoins.text = displayCoins.toString()
                 Log.d("coinsvalue", "${userData.coins}")
                 Log.d("coinsvalue", "${userData.name}")
                 // Refresh IPL banner visibility once user data arrives from server
@@ -315,20 +332,12 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                         it.data,
                         object : OnItemSelectionListener<FemaleUsersResponseData> {
                             override fun onItemSelected(data: FemaleUsersResponseData) {
-                                if (isSubscriptionActive()) {
-                                    startCallActivity(data, DConstants.AUDIO)
-                                } else {
-                                    showTrialOfferSheet()
-                                }
+                                handleCallClick(data, DConstants.AUDIO)
                             }
                         },
                         object : OnItemSelectionListener<FemaleUsersResponseData> {
                             override fun onItemSelected(data: FemaleUsersResponseData) {
-                                if (isSubscriptionActive()) {
-                                    startCallActivity(data, DConstants.VIDEO)
-                                } else {
-                                    showTrialOfferSheet()
-                                }
+                                handleCallClick(data, DConstants.VIDEO)
                             }
                         }
                     )
@@ -362,16 +371,59 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         initFab()
     }
 
+    private fun handleCallClick(data: FemaleUsersResponseData, callType: String) {
+        val ctx = context ?: return
+        if (DevUserMode.isNewUser(ctx)) {
+            if (isSubscriptionActive()) {
+                startCallActivity(data, callType)
+            } else {
+                showTrialOfferSheet()
+            }
+            return
+        }
+        if (hasEnoughCoinsForCall(data, callType)) {
+            startCallActivity(data, callType)
+        } else {
+            showInsufficientFundsSheet()
+        }
+    }
+
+    private fun hasEnoughCoinsForCall(data: FemaleUsersResponseData, callType: String): Boolean {
+        val coins = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.coins ?: 0
+        val required = if (callType == DConstants.VIDEO) {
+            data.coin_per_min_video ?: 60
+        } else {
+            data.coin_per_min_audio ?: 10
+        }
+        return coins >= required
+    }
+
     private fun showTrialOfferSheet() {
         if (!isAdded) return
         val existing = childFragmentManager.findFragmentByTag(BottomSheetTrialOffer.TAG)
         if (existing is BottomSheetTrialOffer && existing.isAdded) return
         BottomSheetTrialOffer.newInstance().apply {
             setOnTryNowClickListener {
-                val ctx = context ?: return@setOnTryNowClickListener
-                startActivity(Intent(ctx, DummySubscriptionActivity::class.java))
+                val c = context ?: return@setOnTryNowClickListener
+                startActivity(Intent(c, DummySubscriptionActivity::class.java))
             }
         }.show(childFragmentManager, BottomSheetTrialOffer.TAG)
+    }
+
+    private fun showInsufficientFundsSheet() {
+        if (!isAdded) return
+        val tag = com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe.TAG
+        val existing = childFragmentManager.findFragmentByTag(tag)
+        if (existing is com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe && existing.isAdded) return
+        com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe.newInstance(
+            bannerOnly = false,
+            title = "You have insufficient talktime balance to make this call. Please recharge"
+        ).apply {
+            setOnSubscribeClickListener {
+                val c = context ?: return@setOnSubscribeClickListener
+                startActivity(Intent(c, DummySubscriptionActivity::class.java))
+            }
+        }.show(childFragmentManager, tag)
     }
 
     private fun refreshFreeCallFab() {
@@ -380,6 +432,13 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             .getSharedPreferences(DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE)
             .getBoolean(DummySubscriptionActivity.KEY_ACTIVE, false)
         binding.fabFreeCall.visibility = if (active) View.VISIBLE else View.GONE
+    }
+
+    private fun refreshCoinsDisplayFromCache() {
+        if (!isAdded || !::binding.isInitialized) return
+        val cached = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
+        val display = if (DevUserMode.isNewUser(requireContext())) 0 else cached.coins
+        binding.tvCoins.text = display.toString()
     }
 
     private fun isSubscriptionActive(): Boolean {
@@ -777,6 +836,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         }
 
         refreshFreeCallFab()
+        refreshCoinsDisplayFromCache()
 
         // Sync selected filter button styles when resuming
         updateFilterButtonStyles()

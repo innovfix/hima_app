@@ -4,6 +4,7 @@ import com.gmwapp.hima.utils.showAppToast
 
 import android.Manifest
 import android.animation.ObjectAnimator
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -111,6 +112,9 @@ class ChatActivityInHouse : AppCompatActivity() {
     private lateinit var btnSend: ImageButton
     private lateinit var btnMic: ImageButton
     private lateinit var ivAttach: ImageView
+    private var messageInputContainer: View? = null
+    private var subscribeLockContainer: View? = null
+    private var btnSubscribeUnlock: View? = null
     private lateinit var ivBack: ImageView
     private lateinit var cvBack: CardView
     private lateinit var ivMore: ImageView
@@ -313,6 +317,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         initAddFriendBanner()
         setupClickListeners()
         setupComposer()
+        applySubscriptionGate()
         connectSocket()
         suppressNextResumeHistoryReload = true
         activityCreatedAtElapsed = SystemClock.elapsedRealtime()
@@ -345,6 +350,10 @@ class ChatActivityInHouse : AppCompatActivity() {
         btnSend = findViewById(R.id.btn_send)
         btnMic = findViewById(R.id.btn_mic)
         ivAttach = findViewById(R.id.iv_attach)
+        messageInputContainer = findViewById(R.id.message_input_container)
+        subscribeLockContainer = findViewById(R.id.subscribe_lock_container)
+        btnSubscribeUnlock = findViewById(R.id.btn_subscribe_unlock)
+        btnSubscribeUnlock?.setOnClickListener { showTrialOfferSheet() }
         ivBack = findViewById(R.id.iv_back)
         cvBack = findViewById(R.id.cv_back)
         ivMore = findViewById(R.id.iv_more)
@@ -2732,6 +2741,10 @@ class ChatActivityInHouse : AppCompatActivity() {
                 .cancel(com.gmwapp.hima.utils.ChatNotifications.notifIdFor(peerUserId))
         }
 
+        // Re-check subscription: user may be returning from DummySubscriptionActivity.
+        applySubscriptionGate()
+
+
         // Mark messages as read using the new API with last message id if messages are loaded
         markMessagesAsReadIfAvailable()
         
@@ -3431,9 +3444,30 @@ class ChatActivityInHouse : AppCompatActivity() {
      */
     private fun extractNameOnly(username: String): String {
         if (username.isEmpty()) return username
-        
+
         // Remove trailing digits
         return username.replace(Regex("\\d+$"), "").trim()
+    }
+
+    private fun isSubscriptionActive(): Boolean = getSharedPreferences(
+        DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE
+    ).getBoolean(DummySubscriptionActivity.KEY_ACTIVE, false)
+
+    private fun applySubscriptionGate() {
+        val active = isSubscriptionActive()
+        messageInputContainer?.visibility = if (active) View.VISIBLE else View.GONE
+        subscribeLockContainer?.visibility = if (active) View.GONE else View.VISIBLE
+    }
+
+    private fun showTrialOfferSheet() {
+        val sheet = com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe.newInstance(
+            bannerOnly = true,
+            title = "Subscribe to unlock unlimited chats"
+        )
+        sheet.setOnSubscribeClickListener {
+            startActivity(Intent(this, DummySubscriptionActivity::class.java))
+        }
+        sheet.show(supportFragmentManager, com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe.TAG)
     }
 }
 

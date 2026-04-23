@@ -144,7 +144,32 @@ class ChatActivity : AppCompatActivity() {
         checkIfUserIsBlocked()  // Check block status before setting up listener
         setupClickListeners()
         observeNotificationResponse()
+        applySubscriptionGate()
         Log.d("checkPagiantion", "🏁 ChatActivity onCreate() completed")
+    }
+
+    private var messageInputContainer: View? = null
+    private var subscribeLockContainer: View? = null
+
+    private fun isSubscriptionActive(): Boolean = getSharedPreferences(
+        DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE
+    ).getBoolean(DummySubscriptionActivity.KEY_ACTIVE, false)
+
+    private fun applySubscriptionGate() {
+        val active = isSubscriptionActive()
+        messageInputContainer?.visibility = if (active) View.VISIBLE else View.GONE
+        subscribeLockContainer?.visibility = if (active) View.GONE else View.VISIBLE
+    }
+
+    private fun showTrialOfferSheet() {
+        val sheet = com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe.newInstance(
+            bannerOnly = true,
+            title = "Subscribe to unlock unlimited chats"
+        )
+        sheet.setOnSubscribeClickListener {
+            startActivity(android.content.Intent(this, DummySubscriptionActivity::class.java))
+        }
+        sheet.show(supportFragmentManager, com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe.TAG)
     }
 
     private fun initializeViews() {
@@ -152,6 +177,9 @@ class ChatActivity : AppCompatActivity() {
         etMessage = findViewById(R.id.et_message)
         btnSend = findViewById(R.id.btn_send)
         ivBack = findViewById(R.id.iv_back)
+        messageInputContainer = findViewById(R.id.message_input_container)
+        subscribeLockContainer = findViewById(R.id.subscribe_lock_container)
+        findViewById<View>(R.id.btn_subscribe_unlock)?.setOnClickListener { showTrialOfferSheet() }
         ivUser = findViewById(R.id.iv_user)
         tvUserName = findViewById(R.id.tv_user_name)
         tvUserStatus = findViewById(R.id.tv_user_status)
@@ -1462,6 +1490,9 @@ class ChatActivity : AppCompatActivity() {
         super.onResume()
         // User is now viewing the chat - mark it as visible
         isChatVisible = true
+
+        // Re-check subscription: user may be returning from DummySubscriptionActivity.
+        applySubscriptionGate()
         Log.d("ChatActivity", "Chat is now visible - marking pending messages as read")
         Log.d("lastseenlog", "📱 My User ID: $myUserId - Resuming chat with user $peerUserId")
 

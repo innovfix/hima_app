@@ -18,7 +18,11 @@ class DummySubscriptionActivity : AppCompatActivity() {
         val prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         binding.switchSubscription.isChecked = prefs.getBoolean(KEY_ACTIVE, false)
         binding.switchSubscription.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean(KEY_ACTIVE, isChecked).apply()
+            val editor = prefs.edit().putBoolean(KEY_ACTIVE, isChecked)
+            if (isChecked) {
+                editor.putBoolean(KEY_EVER_ACTIVE, true)
+            }
+            editor.apply()
             if (isChecked) {
                 finish()
             }
@@ -30,5 +34,6 @@ class DummySubscriptionActivity : AppCompatActivity() {
     companion object {
         const val PREFS = "TrialOfferPrefs"
         const val KEY_ACTIVE = "isSubscriptionActive"
+        const val KEY_EVER_ACTIVE = "hasEverSubscribed"
     }
 }

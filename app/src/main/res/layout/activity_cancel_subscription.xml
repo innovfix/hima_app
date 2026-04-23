@@ -9,13 +9,16 @@
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
+        android:layout_height="wrap_content"
+        android:minHeight="?attr/actionBarSize"
         android:background="@android:color/transparent"
         android:fitsSystemWindows="true"
+        android:fontFamily="@font/poppins_semibold"
         app:layout_constraintTop_toTopOf="parent"
         app:navigationIcon="@drawable/ic_arrow_back"
-        app:titleTextColor="@color/black"
-        app:title="Active Subscription" />
+        app:navigationIconTint="@color/black"
+        app:title="Active Subscription"
+        app:titleTextColor="@color/black" />
 
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/cvSubCard"
@@ -37,7 +40,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/poppins_semibold"
-                android:text="2 Day Trial Subscription"
+                android:text="Free Trial Subscription"
                 android:textColor="@color/black"
                 android:textSize="18sp" />
 
