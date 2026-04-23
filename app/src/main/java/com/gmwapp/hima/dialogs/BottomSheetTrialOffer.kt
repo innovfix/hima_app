@@ -1,12 +1,15 @@
 package com.gmwapp.hima.dialogs
 
 import android.app.Dialog
+import android.content.Intent
+import android.graphics.Paint
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import com.gmwapp.hima.R
+import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.databinding.BottomSheetTrialOfferBinding
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -35,6 +38,12 @@ class BottomSheetTrialOffer : BottomSheetDialogFragment() {
         binding = BottomSheetTrialOfferBinding.inflate(inflater, container, false)
         binding.btnTryNow.setOnSingleClickListener {
             onTryNowClick?.invoke()
+            dismissAllowingStateLoss()
+        }
+        binding.tvPurchaseCoins.paintFlags =
+            binding.tvPurchaseCoins.paintFlags or Paint.UNDERLINE_TEXT_FLAG
+        binding.tvPurchaseCoins.setOnSingleClickListener {
+            startActivity(Intent(requireContext(), WalletActivity::class.java))
             dismissAllowingStateLoss()
         }
         return binding.root

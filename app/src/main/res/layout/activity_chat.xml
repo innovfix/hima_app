@@ -306,9 +306,17 @@
         android:paddingTop="12dp"
         android:paddingBottom="12dp"
         app:layout_constraintTop_toBottomOf="@id/banner_add_friend"
-        app:layout_constraintBottom_toTopOf="@id/message_input_container"
+        app:layout_constraintBottom_toTopOf="@id/bottom_bar_barrier"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Barrier so rv_messages sits above whichever of the two bottom containers is visible -->
+    <androidx.constraintlayout.widget.Barrier
+        android:id="@+id/bottom_bar_barrier"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:barrierDirection="top"
+        app:constraint_referenced_ids="message_input_container,subscribe_lock_container" />
 
     <!-- Date Divider Example (Optional) -->
     <TextView
@@ -464,6 +472,62 @@
                     android:visibility="gone" />
             </FrameLayout>
         </LinearLayout>
+    </LinearLayout>
+
+    <!-- Subscribe-to-unlock lock bar (shown when subscription is inactive) -->
+    <LinearLayout
+        android:id="@+id/subscribe_lock_container"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@color/white"
+        android:elevation="4dp"
+        android:orientation="vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="14dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btn_subscribe_unlock"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clickable="true"
+            android:focusable="true"
+            app:cardBackgroundColor="@color/colorAccent"
+            app:cardCornerRadius="28dp"
+            app:cardElevation="2dp"
+            app:rippleColor="#33FFFFFF">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:minHeight="52dp"
+                android:orientation="horizontal"
+                android:paddingHorizontal="20dp"
+                android:paddingVertical="12dp">
+
+                <ImageView
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_marginEnd="10dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_lock_closed"
+                    app:tint="@color/white" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/poppins_semibold"
+                    android:letterSpacing="0.01"
+                    android:text="Subscribe to unlock unlimited chats"
+                    android:textColor="@color/white"
+                    android:textSize="14sp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

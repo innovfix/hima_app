@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HIma — New User Subscription & Cancellation Flow</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #F5F6F8;
+    color: #1A1A2E;
+    line-height: 1.5;
+    padding: 40px 20px;
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+  header {
+    background: linear-gradient(135deg, #FF1381, #C11063);
+    color: white;
+    padding: 40px 32px;
+    border-radius: 20px;
+    margin-bottom: 40px;
+    box-shadow: 0 8px 24px rgba(255, 19, 129, 0.25);
+  }
+  header h1 { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
+  header p { font-size: 16px; opacity: 0.9; }
+  .badge-row { margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .badge {
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    padding: 6px 14px;
+    border-radius: 14px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .step {
+    background: white;
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 28px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 32px;
+    align-items: start;
+  }
+  @media (max-width: 800px) {
+    .step { grid-template-columns: 1fr; }
+  }
+  .phone-frame {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    max-width: 320px;
+  }
+  .phone-frame img {
+    width: 100%;
+    height: auto;
+    border-radius: 24px;
+    border: 4px solid #1A1A2E;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    display: block;
+  }
+  .annotation {
+    position: absolute;
+    pointer-events: none;
+  }
+  .arrow {
+    position: absolute;
+    font-size: 34px;
+    color: #FF1381;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    animation: bounce 1.5s infinite;
+  }
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+  .label {
+    position: absolute;
+    background: #FF1381;
+    color: white;
+    padding: 5px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 12px;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(255,19,129,0.4);
+  }
+  .step-body h2 {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: #1A1A2E;
+  }
+  .step-number {
+    display: inline-block;
+    background: #FF1381;
+    color: white;
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    text-align: center;
+    border-radius: 50%;
+    font-weight: 700;
+    margin-right: 10px;
+    vertical-align: middle;
+  }
+  .sub { color: #757575; font-size: 13px; margin-bottom: 16px; }
+  .desc { font-size: 14px; color: #374151; margin-bottom: 14px; }
+  .action-box {
+    background: #FFF0F7;
+    border-left: 4px solid #FF1381;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+  }
+  .action-box strong { color: #C11063; }
+  .tech {
+    background: #F5F6F8;
+    border: 1px solid #E5E7EB;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: #4B5563;
+    margin-top: 10px;
+    word-break: break-all;
+  }
+  .result {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    background: #E6F7F0;
+    border-left: 4px solid #019A66;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-top: 12px;
+    font-size: 13px;
+    color: #014C33;
+  }
+  .result strong { color: #019A66; }
+  footer {
+    text-align: center;
+    padding: 24px;
+    color: #9CA3AF;
+    font-size: 13px;
+    margin-top: 40px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>HIma — New User Subscription & Cancellation Flow</h1>
+    <p>Full walkthrough: a new user (coins = 0) starts a trial, uses it, then cancels</p>
+    <div class="badge-row">
+      <span class="badge">Variant: Development Debug</span>
+      <span class="badge">Detection: coins == 0 → new user</span>
+      <span class="badge">Flow: Home → Trial → Active → Cancel → Feedback → Unsubscribed</span>
+    </div>
+  </header>
+
+  <!-- STEP 1 -->
+  <div class="step">
+    <div class="phone-frame">
+      <img src="01_home.png" alt="Home — new user">
+      <!-- Arrow pointing to coin badge top-right -->
+      <span class="arrow" style="top: 4%; right: 4%;">⬈</span>
+      <span class="label" style="top: 1%; right: 22%;">coins = 0</span>
+      <span class="label" style="bottom: 15%; left: 30%; background: #2388F2;">No Free Call chip</span>
+    </div>
+    <div class="step-body">
+      <h2><span class="step-number">1</span>Home — New User Entry</h2>
+      <p class="sub">Screen: <code>HomeFragment</code></p>
+      <p class="desc">
+        A brand-new user sees the wallet balance <strong>0</strong> in the top-right coin badge.
+        The creator list is visible (Sujatha, Aaradhana, Ishwarya...). The green
+        <em>Free Call 1 min</em> chip is <strong>not</strong> shown because the trial
+        subscription is OFF.
+      </p>
+      <div class="action-box">
+        <strong>Detection rule:</strong> <code>userData.coins == 0</code> → treated as new user.
+        Temporary frontend logic until backend adds a dedicated flag.
+      </div>
+      <div class="tech">
+        HomeFragment.kt — reads <code>BaseApplication.getInstance()?.getPrefs()?.getUserData()?.coins</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step">
+    <div class="phone-frame">
+      <img src="02_trial_sheet.png" alt="Trial bottom sheet">
+      <span class="arrow" style="top: 8%; right: 8%;">⬈</span>
+      <span class="label" style="top: 4%; right: 28%;">Tap triggered this</span>
+      <span class="arrow" style="bottom: 6%; left: 40%; color: #019A66;">⬇</span>
+      <span class="label" style="bottom: 1%; left: 32%; background: #019A66;">Try Now opens step 3</span>
+    </div>
+    <div class="step-body">
+      <h2><span class="step-number">2</span>Trial Offer Bottom Sheet</h2>
+      <p class="sub">Component: <code>BottomSheetTrialOffer</code></p>
+      <p class="desc">
+        Tapping the <strong>coin badge (0)</strong> — or any creator's audio / video call button —
+        opens this modal with the trial offer:
+        <em>"Start your free trial"</em> for <strong>₹1</strong>.
+        Benefits listed: <strong>Unlimited Chats</strong> and <strong>Daily Free 1 Call</strong>.
+      </p>
+      <div class="action-box">
+        <strong>Triggers (both open the same sheet):</strong><br>
+        • Coin badge top-right (HomeFragment.clCoins)<br>
+        • Any user card's Audio / Video call button (FemaleUserAdapter → onAudioListener / onVideoListener)
+      </div>
+      <div class="result">
+        <span>✅</span>
+        <div><strong>Next:</strong> Tap the pink <em>Try Now</em> button to proceed.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="step">
+    <div class="phone-frame">
+      <img src="03_dummy_subscription.png" alt="Dummy Subscription Activity">
+      <span class="arrow" style="top: 15%; right: 8%;">⬅</span>
+      <span class="label" style="top: 18%; right: 22%;">Toggle ON</span>
+      <span class="label" style="top: 4%; left: 4%; background: #2388F2;">Back arrow</span>
+    </div>
+    <div class="step-body">
+      <h2><span class="step-number">3</span>Subscription Screen — Activate</h2>
+      <p class="sub">Screen: <code>DummySubscriptionActivity</code></p>
+      <p class="desc">
+        The <strong>2 Day Trial Subscription</strong> screen with an ON/OFF toggle.
+        Description: <em>When ON, a Free Call 1 Min button appears on Home. When OFF, it is hidden.</em>
+      </p>
+      <div class="action-box">
+        <strong>Action:</strong> Toggle the switch to <strong>ON</strong>. The activity
+        auto-finishes and returns to the Home screen.
+      </div>
+      <div class="tech">
+        SharedPreferences: <code>TrialOfferPrefs / isSubscriptionActive = true</code>
+      </div>
+      <div class="result">
+        <span>✅</span>
+        <div><strong>Subscription activated.</strong> User returns to Home.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="step">
+    <div class="phone-frame">
+      <img src="04_home_active.png" alt="Home with Free Call chip">
+      <span class="arrow" style="bottom: 9%; left: 1%; color: #019A66;">⬅</span>
+      <span class="label" style="bottom: 11%; left: 18%; background: #019A66;">Free Call chip</span>
+    </div>
+    <div class="step-body">
+      <h2><span class="step-number">4</span>Home — Subscription Active</h2>
+      <p class="sub">Screen: <code>HomeFragment</code> (post-activation)</p>
+      <p class="desc">
+        The green <strong>Free Call 1 min · trial active</strong> chip now appears
+        pinned to the <strong>bottom-left edge</strong> — flat left corners, rounded right,
+        green stroke — clearly visible above the bottom navigation bar.
+      </p>
+      <div class="action-box">
+        <strong>Behavior:</strong><br>
+        • Tapping the chip → <code>AgoraRandomCallActivity</code> (free audio call)<br>
+        • Tapping any creator's call button → directly starts the call (no trial sheet)<br>
+        • Tapping the coin badge → opens WalletActivity (for coin purchases)
+      </div>
+      <div class="result">
+        <span>✨</span>
+        <div>The FAB remains visible on Home as long as subscription is active.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 5 -->
+  <div class="step">
+    <div class="phone-frame">
+      <img src="05_profile_active.png" alt="Profile with Active Subscription">
+      <span class="arrow" style="top: 60%; left: -4%; color: #019A66;">➡</span>
+      <span class="label" style="top: 63%; left: 10%; background: #019A66;">Active Subscription</span>
+    </div>
+    <div class="step-body">
+      <h2><span class="step-number">5</span>Profile — Active Subscription Card</h2>
+      <p class="sub">Screen: <code>ProfileFragment</code></p>
+      <p class="desc">
+        In the Profile tab, scroll to the Settings &amp; Support section to find the
+        <strong>Active Subscription</strong> card. It shows a green phone icon with
+        <em>Active · Tap to manage</em> subtitle.
+      </p>
+      <div class="action-box">
+        <strong>Dynamic states (same card):</strong><br>
+        • Subscribed → <em>Active · Tap to manage</em> (green) → opens <code>CancelSubscriptionActivity</code><br>
+        • Unsubscribed → <em>Start 2-day trial for ₹1</em> (pink) → opens the trial bottom sheet
+      </div>
+      <div class="result">
+        <span>✅</span>
+        <div>From here, the user can manage / cancel their subscription.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION DIVIDER -->
+  <div style="background: linear-gradient(135deg, #DC2626, #991B1B); color:white; padding:28px 32px; border-radius:16px; margin: 40px 0 28px;">
+    <h2 style="font-size:24px; font-weight:700; margin-bottom:6px;">Cancellation Flow</h2>
+    <p style="opacity:0.9; font-size:14px;">From <em>Active Subscription</em> card → confirm → feedback → back to unsubscribed home.</p>
+  </div>
+
+  <!-- STEP 6 -->
+  <div class="step">
+    <div class="phone-frame">
+      <img src="06_cancel_subscription.png" alt="Active Subscription — Cancel">
+      <span class="arrow" style="top: 38%; left: -4%; color: #DC2626;">➡</span>
+      <span class="label" style="top: 41%; left: 10%; background: #DC2626;">Cancel Subscription</span>
+      <span class="label" style="top: 18%; left: 30%; background: #019A66;">Status: Active</span>
+    </div>
+    <div class="step-body">
+      <h2><span class="step-number" style="background:#DC2626;">6</span>Active Subscription Screen</h2>
+      <p class="sub">Screen: <code>CancelSubscriptionActivity</code></p>
+      <p class="desc">
+        Reached from Profile → <strong>Active Subscription</strong> card.
+        Shows plan details: <strong>2 Day Trial Subscription</strong>, status
+        <em>Active</em>, price <strong>₹1</strong>, renewal <strong>₹399 / 10 days</strong>,
+        benefits <em>Unlimited Chats · Free Call Daily</em>.
+      </p>
+      <div class="action-box">
+        <strong>Action:</strong> Tap the red <strong>Cancel Subscription</strong> button
+        to open the confirmation bottom sheet.
+      </div>
+      <div class="tech">
+        Entry intent: <code>ProfileFragment → Intent(CancelSubscriptionActivity)</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 7 -->
+  <div class="step">
+    <div class="phone-frame">
+      <img src="07_cancel_confirm_sheet.png" alt="Cancel confirmation bottom sheet">
+      <span class="arrow" style="bottom: 20%; left: 40%; color: #FF1381;">⬆</span>
+      <span class="label" style="bottom: 27%; left: 28%; background: #FF1381;">Keep (dismiss)</span>
+      <span class="arrow" style="bottom: 3%; left: 40%; color: #DC2626;">⬆</span>
+      <span class="label" style="bottom: 10%; left: 24%; background: #DC2626;">Confirm → proceed</span>
+    </div>
+    <div class="step-body">
+      <h2><span class="step-number" style="background:#DC2626;">7</span>Cancel Confirmation Sheet</h2>
+      <p class="sub">Component: <code>BottomSheetCancelConfirm</code></p>
+      <p class="desc">
+        A modal warns the user: <em>"You will lose access to your Free Calls and other
+        benefits immediately."</em> Two choices are offered.
+      </p>
+      <div class="action-box">
+        <strong>Choices:</strong><br>
+        • <strong style="color:#FF1381;">Keep Subscription</strong> — dismisses the sheet, nothing changes.<br>
+        • <strong style="color:#DC2626;">Confirm Cancel</strong> — navigates to the feedback screen (Step 8).
+      </div>
+      <div class="result">
+        <span>⚠️</span>
+        <div>Cancellation is not final yet — user must still submit feedback in the next step.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 8 -->
+  <div class="step">
+    <div class="phone-frame">
+      <img src="08_feedback_page.png" alt="Cancel feedback page">
+      <span class="arrow" style="top: 25%; left: -4%; color: #DC2626;">➡</span>
+      <span class="label" style="top: 28%; left: 10%; background: #DC2626;">Pick a reason</span>
+      <span class="arrow" style="bottom: 4%; left: 40%; color: #DC2626;">⬆</span>
+      <span class="label" style="bottom: 11%; left: 22%; background: #DC2626;">Disabled until selected</span>
+    </div>
+    <div class="step-body">
+      <h2><span class="step-number" style="background:#DC2626;">8</span>Cancellation Feedback</h2>
+      <p class="sub">Screen: <code>CancelFeedbackActivity</code></p>
+      <p class="desc">
+        <strong>"Why are you cancelling?"</strong> — single-select radio list.
+        Options: <em>It's too expensive · I'm not using it enough · Poor call quality ·
+        Found a better app · Other reason.</em> The bottom red CTA
+        <strong>Cancel Subscription</strong> stays disabled until a reason is chosen.
+      </p>
+      <div class="action-box">
+        <strong>Validation:</strong> The CTA calls
+        <code>radioGroup.checkedRadioButtonId</code> — if <code>-1</code>, a toast
+        <em>"Please select a reason"</em> is shown and the flow is blocked.
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 9 -->
+  <div class="step">
+    <div class="phone-frame">
+      <img src="08_feedback_selected.png" alt="Feedback selected — Found a better app">
+      <span class="arrow" style="top: 46%; left: -4%; color: #019A66;">➡</span>
+      <span class="label" style="top: 49%; left: 10%; background: #019A66;">Selected</span>
+      <span class="arrow" style="bottom: 4%; left: 40%; color: #DC2626;">⬆</span>
+      <span class="label" style="bottom: 11%; left: 24%; background: #DC2626;">Tap to finalize</span>
+    </div>
+    <div class="step-body">
+      <h2><span class="step-number" style="background:#DC2626;">9</span>Confirm & Finalize</h2>
+      <p class="sub">Screen: <code>CancelFeedbackActivity</code> (selected state)</p>
+      <p class="desc">
+        Once a reason is selected (e.g. <em>Found a better app</em>), the radio turns
+        <strong>teal</strong> and the bottom CTA becomes fully active.
+        Tapping <strong>Cancel Subscription</strong> finalizes the teardown:
+      </p>
+      <div class="tech">
+        SharedPreferences: <code>TrialOfferPrefs / isSubscriptionActive = false</code><br>
+        Toast: <em>"Subscription cancelled"</em><br>
+        Navigation: <code>Intent(MainActivity) · FLAG_ACTIVITY_CLEAR_TOP | FLAG_ACTIVITY_SINGLE_TOP</code> → <code>finish()</code>
+      </div>
+      <div class="action-box">
+        <strong>Post-cancel state:</strong><br>
+        • Home — green <em>Free Call</em> chip is removed<br>
+        • Profile — card flips back to pink <em>Start 2-day trial for ₹1</em><br>
+        • Tapping the coin badge or any creator's call button reopens the trial bottom sheet (Step 2)
+      </div>
+      <div class="result">
+        <span>🔁</span>
+        <div><strong>Loop closed.</strong> User is back to the new-user entry state and can restart the trial any time.</div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    HIma App · New User + Cancellation Flow Documentation · Captured from Development Debug build · Branch <strong>autopay-north</strong>
+  </footer>
+
+</div>
+</body>
+</html>

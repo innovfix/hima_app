@@ -24,7 +24,6 @@ import androidx.core.content.ContextCompat
 import com.gmwapp.hima.activities.CancelSubscriptionActivity
 import com.gmwapp.hima.activities.CommunityGuidelineActivity
 import com.gmwapp.hima.activities.DummySubscriptionActivity
-import com.gmwapp.hima.dialogs.BottomSheetTrialOffer
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.AccountPrivacyActivity
 import com.gmwapp.hima.activities.ManageNotificationsActivity
@@ -43,6 +42,7 @@ import com.gmwapp.hima.databinding.FragmentProfileBinding
 import com.gmwapp.hima.dialogs.BottomSheetLogout
 import com.gmwapp.hima.dialogs.BottomSheetSelectIplTeam
 import com.gmwapp.hima.models.IplTeam
+import com.gmwapp.hima.utils.DevUserMode
 import com.gmwapp.hima.utils.DndController
 import com.gmwapp.hima.utils.UserDataDndMerge
 import com.gmwapp.hima.utils.setOnSingleClickListener
@@ -351,6 +351,21 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
     override fun onResume() {
         super.onResume()
         refreshActiveSubscriptionCard()
+        refreshDevUserTypeSwitch()
+    }
+
+    private fun refreshDevUserTypeSwitch() {
+        val ctx = context ?: return
+        // Temporarily detach the listener so we don't re-save on programmatic set.
+        binding.switchDevUserType.setOnCheckedChangeListener(null)
+        binding.switchDevUserType.isChecked = DevUserMode.isNewUser(ctx)
+        binding.tvDevUserTypeStatus.text =
+            if (binding.switchDevUserType.isChecked) "Current: New user" else "Current: Old user"
+        binding.switchDevUserType.setOnCheckedChangeListener { _, isChecked ->
+            DevUserMode.setNewUser(ctx, isChecked)
+            binding.tvDevUserTypeStatus.text =
+                if (isChecked) "Current: New user" else "Current: Old user"
+        }
     }
 
     private fun refreshActiveSubscriptionCard() {
@@ -361,6 +376,7 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
         val active = prefs.getBoolean(DummySubscriptionActivity.KEY_ACTIVE, false)
 
         if (active) {
+            binding.cvActiveSubscription.visibility = View.VISIBLE
             binding.activeSubIcon.setCardBackgroundColor(
                 ContextCompat.getColor(ctx, R.color.green).let {
                     android.graphics.Color.argb(30, android.graphics.Color.red(it), android.graphics.Color.green(it), android.graphics.Color.blue(it))
@@ -374,20 +390,8 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 startActivity(Intent(ctx, CancelSubscriptionActivity::class.java))
             }
         } else {
-            binding.activeSubIcon.setCardBackgroundColor(
-                android.graphics.Color.parseColor("#FFF0F7")
-            )
-            binding.ivActiveSubIcon.setColorFilter(ContextCompat.getColor(ctx, R.color.pink))
-            binding.tvActiveSubLabel.text = "Subscribe"
-            binding.tvActiveSubStatus.text = "Start 2-day trial for ₹1"
-            binding.tvActiveSubStatus.setTextColor(ContextCompat.getColor(ctx, R.color.pink))
-            binding.cvActiveSubscription.setOnClickListener {
-                val sheet = BottomSheetTrialOffer()
-                sheet.setOnTryNowClickListener {
-                    startActivity(Intent(ctx, DummySubscriptionActivity::class.java))
-                }
-                sheet.show(parentFragmentManager, "trial_offer")
-            }
+            binding.cvActiveSubscription.visibility = View.GONE
+            binding.cvActiveSubscription.setOnClickListener(null)
         }
     }
 
