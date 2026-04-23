@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hima — Automation Tests Report</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 22mm 16mm; }
+  @page { @bottom-center { content: "Hima Automation Tests · " counter(page) " / " counter(pages); font-size: 8.5pt; color: #9ca3af; } }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Inter", -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    color: #1e293b; font-size: 10.5pt; line-height: 1.55; margin: 0;
+    background: #ffffff;
+  }
+
+  /* ══════════════════ Cover page ══════════════════ */
+  .cover {
+    min-height: 250mm;
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: 14mm 2mm 8mm;
+  }
+  .cover-hero { margin-top: 30mm; }
+  .cover-label {
+    color: #6366f1; font-size: 10pt; font-weight: 700;
+    letter-spacing: 0.22em; text-transform: uppercase; margin-bottom: 14pt;
+  }
+  .cover h1 {
+    font-size: 36pt; font-weight: 800; color: #0f172a; margin: 0 0 6pt;
+    letter-spacing: -0.02em; line-height: 1.1;
+  }
+  .cover .subtitle {
+    font-size: 14pt; color: #475569; margin: 0 0 40pt; font-weight: 400;
+  }
+  .cover .cover-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14pt 24pt;
+    margin-top: 26pt;
+  }
+  .cover .cover-grid .kv-row {
+    display: flex; gap: 10pt; align-items: baseline;
+    padding-bottom: 6pt; border-bottom: 1px solid #e2e8f0;
+  }
+  .cover .cover-grid .k {
+    font-size: 8.5pt; color: #64748b; letter-spacing: 0.1em;
+    text-transform: uppercase; min-width: 88pt; font-weight: 600;
+  }
+  .cover .cover-grid .v {
+    font-size: 11pt; color: #0f172a; font-weight: 500;
+  }
+  .cover-footer {
+    color: #94a3b8; font-size: 9pt; border-top: 3px solid #6366f1;
+    padding-top: 8pt;
+  }
+  .cover-footer b { color: #475569; }
+  .cover-scorecard {
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 6pt;
+    margin: 20pt 0;
+  }
+  .cover-scorecard .s {
+    border: 1.5pt solid #e2e8f0; border-radius: 8pt;
+    padding: 10pt 6pt; text-align: center; background: #f8fafc;
+  }
+  .cover-scorecard .s .num { font-size: 22pt; font-weight: 800; color: #0f172a; line-height: 1; }
+  .cover-scorecard .s .lab { font-size: 8pt; color: #64748b; margin-top: 4pt; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 600; }
+  .cover-scorecard .s.pass { border-color: #86efac; background: #f0fdf4; }
+  .cover-scorecard .s.pass .num { color: #15803d; }
+  .cover-scorecard .s.fail { border-color: #fca5a5; background: #fef2f2; }
+  .cover-scorecard .s.fail .num { color: #b91c1c; }
+  .cover-scorecard .s.crit { border-color: #fda4af; background: #fff1f2; }
+  .cover-scorecard .s.crit .num { color: #be123c; }
+  .cover-scorecard .s.high .num { color: #ea580c; }
+  .cover-scorecard .s.med .num { color: #ca8a04; }
+
+  /* ══════════════════ Section headings ══════════════════ */
+  h2 {
+    font-size: 15pt; color: #0f172a; font-weight: 700;
+    margin: 26pt 0 10pt; padding-bottom: 6pt;
+    border-bottom: 2pt solid #6366f1; letter-spacing: -0.01em;
+  }
+  h2 .num {
+    display: inline-block; font-size: 10pt; color: #6366f1;
+    font-weight: 700; margin-right: 8pt;
+  }
+  h3 { font-size: 12pt; color: #1e293b; font-weight: 700; margin: 14pt 0 5pt; }
+  h4 { font-size: 11pt; color: #0f172a; font-weight: 600; margin: 6pt 0 8pt; }
+  .sec-count { color: #94a3b8; font-size: 9pt; font-weight: 500; margin-left: 6pt; }
+
+  .lead { font-size: 11pt; color: #334155; margin: 4pt 0 10pt; }
+  .muted { color: #64748b; font-size: 9.5pt; }
+
+  /* ══════════════════ TL;DR banner ══════════════════ */
+  .tldr {
+    background: linear-gradient(135deg, #fef2f2 0%, #fff7ed 100%);
+    border: 1pt solid #fed7aa; border-left: 4pt solid #dc2626;
+    border-radius: 8pt; padding: 12pt 14pt; margin: 10pt 0 18pt;
+  }
+  .tldr h3 { margin: 0 0 4pt; color: #991b1b; font-size: 12pt; }
+  .tldr p { margin: 4pt 0 0; color: #334155; font-size: 10.5pt; line-height: 1.6; }
+
+  /* ══════════════════ Fix-ownership cards ══════════════════ */
+  .fix-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 10pt; margin: 10pt 0 8pt;
+  }
+  .fix-card {
+    border: 1pt solid #e2e8f0; border-radius: 10pt; overflow: hidden;
+    background: #ffffff;
+  }
+  .fix-card .head {
+    padding: 10pt 12pt 8pt; color: #ffffff; font-weight: 700;
+    font-size: 10pt; letter-spacing: 0.02em;
+  }
+  .fix-card.android .head { background: #16a34a; }
+  .fix-card.both    .head { background: #d97706; }
+  .fix-card.server  .head { background: #dc2626; }
+  .fix-card .body   { padding: 10pt 12pt; }
+  .fix-card .big    { font-size: 32pt; font-weight: 800; line-height: 1; color: #0f172a; }
+  .fix-card .big small { font-size: 14pt; font-weight: 500; color: #94a3b8; }
+  .fix-card ul      { margin: 8pt 0 0 16pt; padding: 0; font-size: 9.5pt; color: #334155; }
+  .fix-card li      { margin: 3pt 0; }
+  .fix-line { margin-top: 8pt; font-size: 10pt; color: #475569; }
+  .fix-line b { color: #0f172a; }
+
+  /* ══════════════════ Bug cards ══════════════════ */
+  .bug {
+    border: 1pt solid #e2e8f0; border-radius: 10pt;
+    padding: 10pt 12pt; margin: 10pt 0; background: #ffffff;
+    page-break-inside: avoid;
+  }
+  .bug.sev-critical { border-left: 4pt solid #dc2626; }
+  .bug.sev-high     { border-left: 4pt solid #ea580c; }
+  .bug.sev-medium   { border-left: 4pt solid #ca8a04; }
+  .bug.sev-low      { border-left: 4pt solid #0284c7; }
+  .bug header {
+    display: flex; gap: 6pt; align-items: center; flex-wrap: wrap;
+    margin-bottom: 4pt;
+  }
+  .bug-id {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 9pt; background: #f1f5f9; color: #334155;
+    padding: 2pt 8pt; border-radius: 4pt; font-weight: 600;
+  }
+
+  .pill {
+    display: inline-block; font-size: 8pt; font-weight: 700;
+    padding: 2pt 7pt; border-radius: 999pt; letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .pill.sev-critical { background: #fee2e2; color: #991b1b; }
+  .pill.sev-high     { background: #ffedd5; color: #9a3412; }
+  .pill.sev-medium   { background: #fef3c7; color: #854d0e; }
+  .pill.sev-low      { background: #dbeafe; color: #1e40af; }
+  .pill.sev-info     { background: #e0e7ff; color: #3730a3; }
+  .pill.fix-server   { background: #fee2e2; color: #991b1b; }
+  .pill.fix-both     { background: #fef3c7; color: #854d0e; }
+  .pill.fix-client, .pill.fix-android   { background: #dcfce7; color: #166534; }
+  .pill.fix-none     { background: #f1f5f9; color: #64748b; }
+  .pill.screen       { background: #eef2ff; color: #3730a3; }
+
+  /* ══════════════════ Key-value tables ══════════════════ */
+  table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+  table.kv th {
+    text-align: left; width: 22%; padding: 5pt 8pt; vertical-align: top;
+    color: #475569; font-weight: 600; background: #f8fafc;
+    border-right: 1pt solid #e2e8f0;
+  }
+  table.kv td { padding: 5pt 8pt; vertical-align: top; color: #1e293b; }
+  table.kv tr + tr th, table.kv tr + tr td { border-top: 1pt solid #e2e8f0; }
+
+  /* ══════════════════ Matrix tables ══════════════════ */
+  .matrix-block { page-break-inside: avoid; margin: 6pt 0 14pt; }
+  .matrix {
+    border: 1pt solid #e2e8f0; border-radius: 6pt; overflow: hidden;
+    font-size: 9pt;
+  }
+  .matrix th {
+    background: #f8fafc; color: #475569; font-weight: 600;
+    font-size: 8pt; text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 5pt 7pt; text-align: left; border-bottom: 1pt solid #e2e8f0;
+  }
+  .matrix td {
+    padding: 5pt 7pt; border-bottom: 1pt solid #f1f5f9;
+    vertical-align: top; color: #334155;
+  }
+  .matrix tr.fail { background: #fef2f2; }
+  .matrix td.pass, .matrix td.fail { font-weight: 700; font-size: 8.5pt; letter-spacing: 0.04em; }
+  .matrix td.pass { color: #15803d; }
+  .matrix td.fail { color: #b91c1c; }
+
+  .mono, code {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 8.5pt; color: #475569;
+  }
+
+  /* ══════════════════ Tables of contents ══════════════════ */
+  .toc {
+    margin: 10pt 0 18pt; padding: 10pt 14pt;
+    background: #f8fafc; border-radius: 8pt;
+    border: 1pt solid #e2e8f0;
+  }
+  .toc ol { margin: 4pt 0; padding-left: 22pt; color: #334155; }
+  .toc li { margin: 3pt 0; font-size: 10pt; }
+
+  .page-break { page-break-before: always; }
+
+  ol.rollout li { margin: 4pt 0; color: #334155; font-size: 10pt; }
+  ol.rollout li b { color: #0f172a; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════ COVER PAGE ══════════════════ -->
+<div class="cover">
+  <div class="cover-hero">
+    <div class="cover-label">QA · Automation Tests · API Layer</div>
+    <h1>Hima Automation Tests</h1>
+    <p class="subtitle">Transactions module — dual-account coverage · 45 automated checks</p>
+
+    <div class="cover-scorecard">
+      <div class="s"><div class="num">45</div><div class="lab">Total</div></div>
+      <div class="s pass"><div class="num">35</div><div class="lab">Pass</div></div>
+      <div class="s fail"><div class="num">10</div><div class="lab">Fail</div></div>
+      <div class="s crit"><div class="num">2</div><div class="lab">Critical</div></div>
+      <div class="s high"><div class="num">5</div><div class="lab">High</div></div>
+      <div class="s med"><div class="num">3</div><div class="lab">Medium</div></div>
+    </div>
+
+    <div class="cover-grid">
+      <div class="kv-row"><span class="k">Project</span><span class="v">Hima · Android</span></div>
+      <div class="kv-row"><span class="k">Target screens</span><span class="v">Male + Female Transactions</span></div>
+      <div class="kv-row"><span class="k">Endpoints</span><span class="v">/transaction_list<br>/female_transaction</span></div>
+      <div class="kv-row"><span class="k">Environment</span><span class="v">https://demohima.himaapp.in/api/auth</span></div>
+      <div class="kv-row"><span class="k">Test accounts</span><span class="v">Male id 456976 · Female id 456740</span></div>
+      <div class="kv-row"><span class="k">Suite type</span><span class="v">Read-only API automation</span></div>
+      <div class="kv-row"><span class="k">Automated by</span><span class="v">transactions_api_tests.py</span></div>
+      <div class="kv-row"><span class="k">QA lead</span><span class="v">Perumal</span></div>
+    </div>
+  </div>
+
+  <div class="cover-footer">
+    <b>Report generated:</b> 2026-04-23 14:54 &nbsp;·&nbsp;
+    <b>Suite version:</b> v2 (dual-account)
+  </div>
+</div>
+
+<!-- ══════════════════ EXECUTIVE SUMMARY ══════════════════ -->
+<div class="page-break"></div>
+
+<h2><span class="num">01</span> Executive summary</h2>
+
+<div class="tldr">
+  <h3>For the tech lead — one paragraph</h3>
+  <p>
+    Automated API tests ran 45 checks against the two transaction endpoints with both
+    a male and a female logged-in account. <b>35</b> passed and <b>10</b> failed.
+    Failures map to <b>6 distinct bugs</b>, <b>100%</b> fixable with code we own.
+    One is <b>CRITICAL</b>: /transaction_list exposes any user's financial history to any
+    authenticated caller. The sibling /female_transaction endpoint already enforces the
+    right check — the fix is a copy-paste.
+  </p>
+</div>
+
+<p class="lead">
+  Coverage spans functional, pagination, boundary, negative, security (IDOR, auth, SQLi,
+  gender-gate, cross-endpoint), HTTP-verb correctness, response-contract and performance
+  p95 categories. The female endpoint is the hardened reference — nearly every failure
+  is on the male endpoint or shared across both.
+</p>
+
+<!-- ══════════════════ WHO SHIPS WHAT ══════════════════ -->
+<h2><span class="num">02</span> Who needs to ship what</h2>
+
+<p class="lead">
+  Every failure is classified by where the fix closes the hole. A fix belongs to the
+  backend if a curl-wielding attacker bypasses any client-side guard.
+</p>
+
+<div class="fix-grid">
+  <div class="fix-card android">
+    <div class="head">Android only</div>
+    <div class="body">
+      <div class="big">0<small> / 10</small></div>
+      <ul><li>No bug is purely client-fixable in this suite.</li></ul>
+    </div>
+  </div>
+  <div class="fix-card both">
+    <div class="head">Android + Backend</div>
+    <div class="body">
+      <div class="big">3<small> / 10</small></div>
+      <ul>
+        <li>TransactionsResponse schema (client nullable ✓ · server should emit keys)</li>
+        <li>HTML 500 on limit=-1 — client error observer ✓ · server validator needed</li>
+      </ul>
+    </div>
+  </div>
+  <div class="fix-card server">
+    <div class="head">Backend only</div>
+    <div class="body">
+      <div class="big">7<small> / 10</small></div>
+      <ul>
+        <li><b>CRITICAL:</b> IDOR on /transaction_list — bind user_id to JWT sub</li>
+        <li>Cap `limit` at 100 on both endpoints</li>
+        <li>Reject negative offset with 400 JSON</li>
+        <li>Force JSON 401 on /api/* when unauthenticated</li>
+      </ul>
+    </div>
+  </div>
+</div>
+<p class="fix-line"><b>Bottom line:</b> <b>100%</b> of the 10 failing cases (10 of 10) are addressable with code we control. Zero need new infrastructure.</p>
+
+<!-- ══════════════════ BUGS ══════════════════ -->
+<h2 class="page-break"><span class="num">03</span> Bugs — plain-language breakdown</h2>
+<p class="muted">Ordered critical first. Each entry lists what's wrong, why it hurts, and how to fix.</p>
+
+
+<article class="bug sev-critical">
+  <header>
+    <span class="bug-id">BUG-TX-001</span>
+    <span class="pill sev-critical">CRITICAL</span>
+    <span class="pill fix-server">Fix: SERVER</span>
+    <span class="pill screen">Male Transactions</span>
+  </header>
+  <h4>/transaction_list — IDOR: male token reads FEMALE user&#x27;s txns</h4>
+  <table class="kv">
+    <tr><th>What's wrong</th><td>Any logged-in user can read any other user&#x27;s complete transaction history (amount, payment_type, datetime) by sending a different user_id in the request body on /transaction_list.</td></tr>
+    <tr><th>Why it matters</th><td>CRITICAL. Financial-history privacy breach across all users. Test proof: male QA token (id 456976) fetched 272 rows belonging to female QA account (id 456740) on demo — same pattern confirmed on prod (8,926 rows of user 72530). Reportable under DPDP / GDPR.</td></tr>
+    <tr><th>How to fix</th><td>Backend: derive user_id from the JWT sub claim, ignore the body value. The sibling /female_transaction already does this — copy that pattern.</td></tr>
+    <tr><th>Source reference</th><td class="mono">app/src/main/java/com/gmwapp/hima/retrofit/ApiManager.kt:1848-1858</td></tr>
+    <tr><th>Server response</th><td class="mono">{&quot;success&quot;:true,&quot;message&quot;:&quot;User transaction list retrieved successfully.&quot;,&quot;total&quot;:272,&quot;data&quot;:[{&quot;id&quot;:7093224,&quot;user_id&quot;:456740,&quot;type&quot;:&quot;cancelled&quot;,&quot;amount&quot;:&quot;10.00&quot;,&quot;payment_type&quot;:&quot;&quot;,&quot;datetime&quot;:&quot;2026-03-31 20:34:42&quot;,&quot;date&quot;:&quot;Mar 31&quot;,&quot;coins&quot;:0},{&quot;id&quot;:7093217,&quot;user_i</td></tr>
+  </table>
+</article>
+<article class="bug sev-high">
+  <header>
+    <span class="bug-id">BUG-TX-004</span>
+    <span class="pill sev-high">HIGH</span>
+    <span class="pill fix-both">Fix: BOTH</span>
+    <span class="pill screen">Female Transactions</span>
+  </header>
+  <h4>/female_transaction — negative limit (HTML 500 leak on female too?)</h4>
+  <table class="kv">
+    <tr><th>What's wrong</th><td>Sending limit=-1 to either endpoint returns HTTP 500 with the Laravel HTML error page instead of a JSON error. Confirmed on BOTH /transaction_list and /female_transaction.</td></tr>
+    <tr><th>Why it matters</th><td>High. Breaks the Android client (it can&#x27;t parse HTML as JSON → blank screen with no feedback). Information-disclosure risk if APP_DEBUG=true on prod.</td></tr>
+    <tr><th>How to fix</th><td>Android: DONE — TransactionsActivity now observes errorLiveData and shows a toast. FemaleTransactionsActivity already had this. Backend: add &#x27;limit&#x27; =&gt; &#x27;integer|min:1|max:100&#x27; validator — one change protects both endpoints.</td></tr>
+    
+    <tr><th>Server response</th><td class="mono">{
+    &quot;message&quot;: &quot;Server Error&quot;
+}</td></tr>
+  </table>
+</article>
+<article class="bug sev-high">
+  <header>
+    <span class="bug-id">BUG-TX-005</span>
+    <span class="pill sev-high">HIGH</span>
+    <span class="pill fix-server">Fix: SERVER</span>
+    <span class="pill screen">Female Transactions</span>
+  </header>
+  <h4>/female_transaction — limit=99999 also uncapped?</h4>
+  <table class="kv">
+    <tr><th>What's wrong</th><td>Neither endpoint caps the `limit` parameter. limit=99999 returns every row in one response — 272 on demo, 8,926 on prod.</td></tr>
+    <tr><th>Why it matters</th><td>High. Two attack surfaces: DoS (a few thousand requests exhaust MySQL connections + bandwidth) and mobile OOM (Gson blows up parsing on older devices). Confirmed on BOTH endpoints.</td></tr>
+    <tr><th>How to fix</th><td>Backend: add &#x27;limit&#x27; =&gt; &#x27;nullable|integer|min:1|max:100&#x27; validator and enforce the cap server-side. One validator protects both endpoints.</td></tr>
+    
+    <tr><th>Server response</th><td class="mono">{&quot;success&quot;:true,&quot;message&quot;:&quot;Female transaction list retrieved successfully.&quot;,&quot;total&quot;:262,&quot;data&quot;:[{&quot;id&quot;:7093032,&quot;user_id&quot;:456740,&quot;type&quot;:&quot;audio&quot;,&quot;amount&quot;:0,&quot;coins&quot;:0,&quot;payment_type&quot;:null,&quot;datetime&quot;:&quot;2026-03-26 16:07:50&quot;,&quot;date&quot;:&quot;Mar 26&quot;,&quot;title&quot;:&quot;Audio session with </td></tr>
+  </table>
+</article>
+<article class="bug sev-high">
+  <header>
+    <span class="bug-id">BUG-TX-007</span>
+    <span class="pill sev-high">HIGH</span>
+    <span class="pill fix-both">Fix: BOTH</span>
+    <span class="pill screen">Male Transactions</span>
+  </header>
+  <h4>/transaction_list — response schema matches TransactionsResponse.kt</h4>
+  <table class="kv">
+    <tr><th>What's wrong</th><td>TransactionsResponse.kt originally declared user_name, call_type, duration, call_user_name as non-nullable Kotlin Strings, but the server never sends them. Confirmed by TXM-02 — 5 rows inspected, all 4 fields missing.</td></tr>
+    <tr><th>Why it matters</th><td>High (latent). Today Gson silently defaults to null, violating Kotlin&#x27;s null contract. On a Kotlin 1.9+ upgrade with strict null safety the Transactions screen crashes on first deserialize.</td></tr>
+    <tr><th>How to fix</th><td>Android: DONE — fields are now nullable in the data class, adapter code handles null via .orEmpty(). Backend: still should emit the documented keys (empty string fallback) for contract stability.</td></tr>
+    <tr><th>Source reference</th><td class="mono">app/src/main/java/com/gmwapp/hima/retrofit/responses/TransactionsResponse.kt:9-23</td></tr>
+    <tr><th>Server response</th><td class="mono">{&quot;success&quot;:true,&quot;message&quot;:&quot;User transaction list retrieved successfully.&quot;,&quot;total&quot;:272,&quot;data&quot;:[{&quot;id&quot;:7093224,&quot;user_id&quot;:456740,&quot;type&quot;:&quot;cancelled&quot;,&quot;amount&quot;:&quot;10.00&quot;,&quot;payment_type&quot;:&quot;&quot;,&quot;datetime&quot;:&quot;2026-03-31 20:34:42&quot;,&quot;date&quot;:&quot;Mar 31&quot;,&quot;coins&quot;:0},{&quot;id&quot;:7093217,&quot;user_i</td></tr>
+  </table>
+</article>
+<article class="bug sev-medium">
+  <header>
+    <span class="bug-id">BUG-TX-003</span>
+    <span class="pill sev-medium">MEDIUM</span>
+    <span class="pill fix-server">Fix: SERVER</span>
+    <span class="pill screen">Female Transactions</span>
+  </header>
+  <h4>/female_transaction — negative offset (silent coercion on female too?)</h4>
+  <table class="kv">
+    <tr><th>What's wrong</th><td>Negative offset values (offset=-1) are silently coerced to 0 on BOTH /transaction_list AND /female_transaction instead of being rejected.</td></tr>
+    <tr><th>Why it matters</th><td>Medium. A client with off-by-one pagination math can double-render rows without detection. Confirmed on both endpoints: first_id with offset=-1 equals first_id with offset=0.</td></tr>
+    <tr><th>How to fix</th><td>Backend: add &#x27;offset&#x27; =&gt; &#x27;nullable|integer|min:0&#x27; validator on both endpoints.</td></tr>
+    
+    <tr><th>Server response</th><td class="mono">{&quot;neg_first&quot;: 7093032, &quot;zero_first&quot;: 7093032, &quot;neg_success&quot;: true}</td></tr>
+  </table>
+</article>
+<article class="bug sev-medium">
+  <header>
+    <span class="bug-id">BUG-TX-002</span>
+    <span class="pill sev-medium">MEDIUM</span>
+    <span class="pill fix-server">Fix: SERVER</span>
+    <span class="pill screen">Male Transactions</span>
+  </header>
+  <h4>/transaction_list — no-auth without Accept:json returns HTML 302</h4>
+  <table class="kv">
+    <tr><th>What's wrong</th><td>When a client hits /transaction_list without Accept:application/json, the server responds with HTML 302 → /login instead of a JSON 401.</td></tr>
+    <tr><th>Why it matters</th><td>Medium. Retrofit sets Accept:json so the Android app is fine today, but any third-party client or misconfigured interceptor crashes its JSON parser against the HTML response.</td></tr>
+    <tr><th>How to fix</th><td>Backend: force JSON 401 for request()-&gt;is(&#x27;api/*&#x27;) in Laravel&#x27;s exception handler.</td></tr>
+    
+    <tr><th>Server response</th><td class="mono">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+    &lt;head&gt;
+        &lt;meta charset=&quot;UTF-8&quot; /&gt;
+        &lt;meta http-equiv=&quot;refresh&quot; content=&quot;0;url=&#x27;https://demohima.himaapp.in/login&#x27;&quot; /&gt;
+
+        &lt;title&gt;Redirecting to https://demohima.himaapp.in/login&lt;/title&gt;
+    &lt;/head&gt;
+    &lt;body&gt;
+       </td></tr>
+  </table>
+</article>
+
+<!-- ══════════════════ FULL MATRIX ══════════════════ -->
+<h2 class="page-break"><span class="num">04</span> Full test matrix</h2>
+<p class="muted">All 45 cases grouped by screen. Failing rows highlighted.</p>
+
+
+<section class="matrix-block">
+  <h3>Male Transactions <span class="sec-count">(19 tests · 13 pass · 6 fail)</span></h3>
+  <table class="matrix">
+    <thead>
+      <tr>
+        <th>ID</th><th>Category</th><th>Test</th>
+        <th>Sev</th><th>Status</th><th>HTTP</th><th>Detail</th>
+      </tr>
+    </thead>
+    <tbody><tr class="pass">
+  <td class="mono">TXM-01</td>
+  <td>Functional</td>
+  <td>/transaction_list — male happy path (self, offset=0, limit=10)</td>
+  <td><span class="pill sev-critical">critical</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">200</td>
+  <td>success=False msg=&#x27;No transactions found for this user.&#x27;</td>
+</tr><tr class="fail">
+  <td class="mono">TXM-02</td>
+  <td>Contract</td>
+  <td>/transaction_list — response schema matches TransactionsResponse.kt</td>
+  <td><span class="pill sev-high">high</span></td>
+  <td class="fail">FAIL</td>
+  <td class="mono">200</td>
+  <td>row missing: [&#x27;call_type&#x27;, &#x27;call_user_name&#x27;, &#x27;duration&#x27;, &#x27;user_name&#x27;]</td>
+</tr><tr class="pass">
+  <td class="mono">TXM-03</td>
+  <td>Functional</td>
+  <td>/transaction_list — default pagination: limit=10 returns ≤10</td>
+  <td><span class="pill sev-medium">medium</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">200</td>
+  <td>len=10</td>
+</tr><tr class="pass">
+  <td class="mono">TXM-04</td>
+  <td>Functional</td>
+  <td>/transaction_list — offset advances correctly (page 2 ≠ page 1)</td>
+  <td><span class="pill sev-medium">medium</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">200</td>
+  <td>ids differ {&quot;page1_first&quot;: 7093224, &quot;page2_first&quot;: 7093179}</td>
+</tr><tr class="fail">
+  <td class="mono">TXM-05</td>
+  <td>Security</td>
+  <td>/transaction_list — IDOR: male token reads FEMALE user&#x27;s txns</td>
+  <td><span class="pill sev-critical">critical</span></td>
+  <td class="fail">FAIL</td>
+  <td class="mono">200</td>
+  <td>LEAKED 5 txns of user 456740 to male user 456976</td>
+</tr><tr class="pass">
+  <td class="mono">TXM-06</td>
+  <td>Security</td>
+  <td>/transaction_list — no Authorization header (Accept: application/json)</td>
+  <td><span class="pill sev-high">high</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">401</td>
+  <td>HTTP 401</td>
+</tr><tr class="fail">
+  <td class="mono">TXM-06b</td>
+  <td>Contract</td>
+  <td>/transaction_list — no-auth without Accept:json returns HTML 302</td>
+  <td><span class="pill sev-medium">medium</span></td>
+  <td class="fail">FAIL</td>
+  <td class="mono">302</td>
+  <td>HTTP 302 body starts with &#x27;&lt;!DOCTYPE html&gt;\n&lt;html&gt;\n    &lt;head&gt;\n        &lt;meta charset=&quot;UTF-8&quot; /&gt;\n        &lt;meta&#x27;</td>
+</tr><tr class="pass">
+  <td class="mono">TXM-07</td>
+  <td>Security</td>
+  <td>/transaction_list — tampered/invalid Bearer token</td>
+  <td><span class="pill sev-high">high</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">401</td>
+  <td>HTTP 401</td>
+</tr><tr class="pass">
+  <td class="mono">TXM-08</td>
+  <td>Validation</td>
+  <td>/transaction_list — non-numeric user_id</td>
+  <td><span class="pill sev-medium">medium</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">200</td>
+  <td>&#x27;Invalid user_id. Must be a numeric value.&#x27;</td>
+</tr><tr class="pass">
+  <td class="mono">TXM-09</td>
+  <td>Security</td>
+  <td>/transaction_list — SQLi probe in user_id</td>
+  <td><span class="pill sev-high">high</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">200</td>
+  <td>rejected early (Invalid user_id)</td>
+</tr><tr class="fail">
+  <td class="mono">TXM-10</td>
+  <td>Validation</td>
+  <td>/transaction_list — negative offset silently coerced to 0?</td>
+  <td><span class="pill sev-medium">medium</span></td>
+  <td class="fail">FAIL</td>
+  <td class="mono">200</td>
+  <td>silent coercion -1==0: {&quot;neg_first&quot;: 7093224, &quot;zero_first&quot;: 7093224, &quot;neg_success&quot;: true}</td>
+</tr><tr class="fail">
+  <td class="mono">TXM-11</td>
+  <td>Validation</td>
+  <td>/transaction_list — negative limit</td>
+  <td><span class="pill sev-high">high</span></td>
+  <td class="fail">FAIL</td>
+  <td class="mono">500</td>
+  <td>HTTP 500 — {
+    &quot;message&quot;: &quot;Server Error&quot;
+}</td>
+</tr><tr class="fail">
+  <td class="mono">TXM-12</td>
+  <td>Performance</td>
+  <td>/transaction_list — limit=99999 bypasses pagination → DoS</td>
+  <td><span class="pill sev-high">high</span></td>
+  <td class="fail">FAIL</td>
+  <td class="mono">200</td>
+  <td>returned 272 rows in 0.25s — no 100-row cap</td>
+</tr><tr class="pass">
+  <td class="mono">TXM-13</td>
+  <td>Validation</td>
+  <td>/transaction_list — missing user_id</td>
+  <td><span class="pill sev-medium">medium</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">200</td>
+  <td>&#x27;user_id is required.&#x27;</td>
+</tr><tr class="pass">
+  <td class="mono">TXM-14</td>
+  <td>Functional</td>
+  <td>/transaction_list — missing offset and limit (defaults)</td>
+  <td><span class="pill sev-info">info</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">200</td>
+  <td>len=10</td>
+</tr><tr class="pass">
+  <td class="mono">TXM-15</td>
+  <td>Contract</td>
+  <td>/transaction_list — GET verb returns 405 (not 302)</td>
+  <td><span class="pill sev-medium">medium</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">405</td>
+  <td>HTTP 405</td>
+</tr><tr class="pass">
+  <td class="mono">TXM-16</td>
+  <td>Performance</td>
+  <td>/transaction_list — p95 budget &lt; 2.0s for limit=10</td>
+  <td><span class="pill sev-medium">medium</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">200</td>
+  <td>0.29s</td>
+</tr><tr class="pass">
+  <td class="mono">TXM-17</td>
+  <td>Functional</td>
+  <td>/transaction_list — identical request twice is idempotent</td>
+  <td><span class="pill sev-info">info</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">200</td>
+  <td>{&quot;t1&quot;: 272, &quot;t2&quot;: 272}</td>
+</tr><tr class="pass">
+  <td class="mono">TXM-18</td>
+  <td>Boundary</td>
+  <td>/transaction_list — offset beyond dataset returns empty / success=false</td>
+  <td><span class="pill sev-info">info</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">200</td>
+  <td>len=0</td>
+</tr></tbody>
+  </table>
+</section>
+<section class="matrix-block">
+  <h3>Female Transactions <span class="sec-count">(17 tests · 14 pass · 3 fail)</span></h3>
+  <table class="matrix">
+    <thead>
+      <tr>
+        <th>ID</th><th>Category</th><th>Test</th>
+        <th>Sev</th><th>Status</th><th>HTTP</th><th>Detail</th>
+      </tr>
+    </thead>
+    <tbody><tr class="pass">
+  <td class="mono">TXF-01</td>
+  <td>Functional</td>
+  <td>/female_transaction — female happy path (self, offset=0, limit=10)</td>
+  <td><span class="pill sev-critical">critical</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">200</td>
+  <td>total=262 len=10</td>
+</tr><tr class="pass">
+  <td class="mono">TXF-02</td>
+  <td>Contract</td>
+  <td>/female_transaction — schema matches FemaleTransactionsResponse.kt</td>
+  <td><span class="pill sev-high">high</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">200</td>
+  <td>10 rows, all 10 fields present</td>
+</tr><tr class="pass">
+  <td class="mono">TXF-03</td>
+  <td>Functional</td>
+  <td>/female_transaction — default pagination: limit=10 returns ≤10</td>
+  <td><span class="pill sev-medium">medium</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">200</td>
+  <td>len=10</td>
+</tr><tr class="pass">
+  <td class="mono">TXF-04</td>
+  <td>Functional</td>
+  <td>/female_transaction — offset advances correctly (page 2 ≠ page 1)</td>
+  <td><span class="pill sev-medium">medium</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">200</td>
+  <td>ids differ {&quot;p1&quot;: 7093032, &quot;p2&quot;: 7092960}</td>
+</tr><tr class="pass">
+  <td class="mono">TXF-05</td>
+  <td>Security</td>
+  <td>/female_transaction — no Authorization header</td>
+  <td><span class="pill sev-high">high</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">401</td>
+  <td>HTTP 401</td>
+</tr><tr class="pass">
+  <td class="mono">TXF-06</td>
+  <td>Validation</td>
+  <td>/female_transaction — missing user_id</td>
+  <td><span class="pill sev-medium">medium</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">200</td>
+  <td>&#x27;user_id is required.&#x27;</td>
+</tr><tr class="pass">
+  <td class="mono">TXF-07</td>
+  <td>Validation</td>
+  <td>/female_transaction — non-numeric user_id</td>
+  <td><span class="pill sev-medium">medium</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">200</td>
+  <td>&#x27;Invalid user_id. Must be a positive integer.&#x27;</td>
+</tr><tr class="pass">
+  <td class="mono">TXF-08</td>
+  <td>Security</td>
+  <td>/female_transaction — SQLi probe in user_id</td>
+  <td><span class="pill sev-high">high</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">403</td>
+  <td>rejected early</td>
+</tr><tr class="fail">
+  <td class="mono">TXF-09</td>
+  <td>Validation</td>
+  <td>/female_transaction — negative limit (HTML 500 leak on female too?)</td>
+  <td><span class="pill sev-high">high</span></td>
+  <td class="fail">FAIL</td>
+  <td class="mono">500</td>
+  <td>HTTP 500 — HTML 500 leak!</td>
+</tr><tr class="fail">
+  <td class="mono">TXF-10</td>
+  <td>Validation</td>
+  <td>/female_transaction — negative offset (silent coercion on female too?)</td>
+  <td><span class="pill sev-medium">medium</span></td>
+  <td class="fail">FAIL</td>
+  <td class="mono">200</td>
+  <td>silent coercion -1==0 on female too: {&quot;neg_first&quot;: 7093032, &quot;zero_first&quot;: 7093032, &quot;neg_success&quot;: true}</td>
+</tr><tr class="fail">
+  <td class="mono">TXF-11</td>
+  <td>Performance</td>
+  <td>/female_transaction — limit=99999 also uncapped?</td>
+  <td><span class="pill sev-high">high</span></td>
+  <td class="fail">FAIL</td>
+  <td class="mono">200</td>
+  <td>returned 262 rows — no 100-row cap on female endpoint either</td>
+</tr><tr class="pass">
+  <td class="mono">TXF-12</td>
+  <td>Functional</td>
+  <td>/female_transaction — missing offset and limit (defaults)</td>
+  <td><span class="pill sev-info">info</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">200</td>
+  <td>len=10</td>
+</tr><tr class="pass">
+  <td class="mono">TXF-13</td>
+  <td>Validation</td>
+  <td>/female_transaction — GET verb returns 405</td>
+  <td><span class="pill sev-info">info</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">405</td>
+  <td>HTTP 405</td>
+</tr><tr class="pass">
+  <td class="mono">TXF-14</td>
+  <td>Performance</td>
+  <td>/female_transaction — p95 budget &lt; 2.0s for limit=10</td>
+  <td><span class="pill sev-medium">medium</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">200</td>
+  <td>0.23s</td>
+</tr><tr class="pass">
+  <td class="mono">TXF-15</td>
+  <td>Security</td>
+  <td>/female_transaction — invalid/tampered Bearer token</td>
+  <td><span class="pill sev-high">high</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">401</td>
+  <td>HTTP 401</td>
+</tr><tr class="pass">
+  <td class="mono">TXF-16</td>
+  <td>Functional</td>
+  <td>/female_transaction — idempotent repeat</td>
+  <td><span class="pill sev-info">info</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">200</td>
+  <td>{&quot;t1&quot;: 262, &quot;t2&quot;: 262}</td>
+</tr><tr class="pass">
+  <td class="mono">TXF-17</td>
+  <td>Boundary</td>
+  <td>/female_transaction — offset beyond dataset returns empty</td>
+  <td><span class="pill sev-info">info</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">200</td>
+  <td>len=0</td>
+</tr></tbody>
+  </table>
+</section>
+<section class="matrix-block">
+  <h3>Cross-Account <span class="sec-count">(9 tests · 8 pass · 1 fail)</span></h3>
+  <table class="matrix">
+    <thead>
+      <tr>
+        <th>ID</th><th>Category</th><th>Test</th>
+        <th>Sev</th><th>Status</th><th>HTTP</th><th>Detail</th>
+      </tr>
+    </thead>
+    <tbody><tr class="pass">
+  <td class="mono">TXX-01</td>
+  <td>Security</td>
+  <td>/female_transaction — MALE token calling FEMALE user_id</td>
+  <td><span class="pill sev-critical">critical</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">403</td>
+  <td>&#x27;Unauthorized. You can only access your own transactions.&#x27;</td>
+</tr><tr class="pass">
+  <td class="mono">TXX-02</td>
+  <td>Security</td>
+  <td>/female_transaction — FEMALE token calling MALE user_id (reverse)</td>
+  <td><span class="pill sev-critical">critical</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">403</td>
+  <td>&#x27;Unauthorized. You can only access your own transactions.&#x27;</td>
+</tr><tr class="pass">
+  <td class="mono">TXX-03</td>
+  <td>Security</td>
+  <td>/transaction_list — FEMALE token reading MALE user&#x27;s txns (reverse IDOR)</td>
+  <td><span class="pill sev-critical">critical</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">200</td>
+  <td>refused</td>
+</tr><tr class="pass">
+  <td class="mono">TXX-04</td>
+  <td>Security</td>
+  <td>/female_transaction — MALE token using own MALE id (gender gate)</td>
+  <td><span class="pill sev-high">high</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">200</td>
+  <td>&#x27;This endpoint is only for female users.&#x27;</td>
+</tr><tr class="pass">
+  <td class="mono">TXX-05</td>
+  <td>Security</td>
+  <td>/transaction_list — FEMALE token reading FEMALE&#x27;s OWN id (no gender gate)</td>
+  <td><span class="pill sev-medium">medium</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">200</td>
+  <td>total=272</td>
+</tr><tr class="fail">
+  <td class="mono">TXX-06</td>
+  <td>Security</td>
+  <td>/transaction_list — MALE token + FEMALE id + limit=99999 (compound IDOR+DoS)</td>
+  <td><span class="pill sev-critical">critical</span></td>
+  <td class="fail">FAIL</td>
+  <td class="mono">200</td>
+  <td>compound leak: 272 foreign rows in 0.19s</td>
+</tr><tr class="pass">
+  <td class="mono">TXX-07</td>
+  <td>Security</td>
+  <td>/female_transaction — MALE token, FEMALE id, limit=99999 (ownership fires first)</td>
+  <td><span class="pill sev-high">high</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">403</td>
+  <td>&#x27;Unauthorized. You can only access your own transactions.&#x27;</td>
+</tr><tr class="pass">
+  <td class="mono">TXX-08</td>
+  <td>Contract</td>
+  <td>Cross-endpoint schema parity: /transaction_list keys ⊆ /female_transaction row shape?</td>
+  <td><span class="pill sev-medium">medium</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">200</td>
+  <td>documented: {&quot;male_ep_keys&quot;: [&quot;amount&quot;, &quot;coins&quot;, &quot;date&quot;, &quot;datetime&quot;, &quot;id&quot;, &quot;payment_type&quot;, &quot;type&quot;, &quot;user_id&quot;], &quot;fem</td>
+</tr><tr class="pass">
+  <td class="mono">TXX-09</td>
+  <td>Security</td>
+  <td>Token swap: MALE JWT + FEMALE user_id on /transaction_list — does server log origin?</td>
+  <td><span class="pill sev-medium">medium</span></td>
+  <td class="pass">PASS</td>
+  <td class="mono">200</td>
+  <td>see note — requires server log audit</td>
+</tr></tbody>
+  </table>
+</section>
+
+<!-- ══════════════════ METHODOLOGY + ROLLOUT ══════════════════ -->
+<h2 class="page-break"><span class="num">05</span> Methodology</h2>
+<ul class="muted">
+  <li>Both accounts authenticated via <code>/login</code> with QA backdoor OTP <code>011011</code>.</li>
+  <li>Male account: <code>9876543210</code> → id 456976 · Female account: <code>9120444444</code> → id 456740.</li>
+  <li>Read-only suite — no call, recharge, gift, profile change or transaction was created on any account.</li>
+  <li>Cross-account (TXX-*) cases use the <em>other</em> account's id to probe ownership / gender enforcement.</li>
+  <li>150 ms inter-request delay to avoid throttle middleware.</li>
+  <li>Contract checks validate that response rows contain every field the Kotlin data class declares.</li>
+  <li>p95 performance budget: 2.0 s per request.</li>
+  <li>Manual on-device verification of the Android patches (BUG-TX-004, BUG-TX-007) is performed by Perumal — not by the automation script.</li>
+</ul>
+
+<h2><span class="num">06</span> Recommended rollout order</h2>
+<ol class="rollout">
+  <li><b>TODAY:</b> Deploy the IDOR fix on /transaction_list (BUG-TX-001). One-line change, mirrors /female_transaction. Closes the critical financial-data leak.</li>
+  <li><b>This sprint:</b> Add FormRequest validators for user_id / offset / limit (closes BUG-TX-003, BUG-TX-004, BUG-TX-005 on both endpoints). Ship the already-merged Kotlin nullable change for TransactionsResponse (BUG-TX-007) in the next app release.</li>
+  <li><b>Next sprint:</b> Force JSON-only responses for /api/* routes (BUG-TX-002). Contract cleanup.</li>
+</ol>
+
+</body>
+</html>

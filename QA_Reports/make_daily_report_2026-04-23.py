@@ -1,0 +1,526 @@
+#!/usr/bin/env python3
+"""
+Generate the 2026-04-23 Daily QA & Security Work Report as a PDF,
+matching the style of Daily_Report_2026-04-22.pdf.
+
+Outputs:
+  QA_Reports/Daily_Report_2026-04-23.html     (source)
+  QA_Reports/Daily_Report_2026-04-23.pdf      (final deliverable)
+"""
+from __future__ import annotations
+
+import subprocess
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+OUT_HTML = HERE / "Daily_Report_2026-04-23.html"
+OUT_PDF  = HERE / "Daily_Report_2026-04-23.pdf"
+CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+
+
+# 6 unique bugs uncovered today across the transaction endpoints.
+BUG_ROWS = [
+    # (id, title, severity, status)
+    ("BUG-TX-001", "IDOR on /transaction_list — any user can read any other user's financial history", "S1 Critical", "Documented"),
+    ("BUG-TX-004", "limit=-1 on /transaction_list AND /female_transaction returns HTML 500 error page", "S2 High", "Partially fixed"),
+    ("BUG-TX-005", "Neither endpoint caps `limit` — limit=99999 returns full history (DoS/OOM surface)", "S2 High", "Documented"),
+    ("BUG-TX-007", "TransactionsResponse.kt declares 4 non-null fields the server never sends (Gson crash risk)", "S2 High", "Partially fixed"),
+    ("BUG-TX-002", "/transaction_list returns HTML 302 → /login when Accept:json header absent", "S3 Medium", "Documented"),
+    ("BUG-TX-003", "Negative offset silently coerced to 0 on BOTH endpoints (off-by-one pagination risk)", "S3 Medium", "Documented"),
+]
+
+
+def bug_rows_html() -> str:
+    return "\n".join(
+        f"<tr><td class='mono'><b>{b[0]}</b></td><td>{b[1]}</td><td>{b[2]}</td><td>{b[3]}</td></tr>"
+        for b in BUG_ROWS
+    )
+
+
+def status_counts():
+    fixed      = sum(1 for _, _, _, s in BUG_ROWS if s == "Fully fixed")
+    partial    = sum(1 for _, _, _, s in BUG_ROWS if s == "Partially fixed")
+    documented = sum(1 for _, _, _, s in BUG_ROWS if s == "Documented")
+    return fixed, partial, documented
+
+
+def severity_counts():
+    s1 = sum(1 for _, _, s, _ in BUG_ROWS if s.startswith("S1"))
+    s2 = sum(1 for _, _, s, _ in BUG_ROWS if s.startswith("S2"))
+    s3 = sum(1 for _, _, s, _ in BUG_ROWS if s.startswith("S3"))
+    s4 = sum(1 for _, _, s, _ in BUG_ROWS if s.startswith("S4"))
+    return s1, s2, s3, s4
+
+
+FILES_CHANGED = [
+    ("app/src/main/java/com/gmwapp/hima/retrofit/responses/TransactionsResponse.kt",
+     "Marked 6 fields nullable (user_name, date, call_type, duration, call_user_name, payment_type) "
+     "to match what the server actually sends. Changed amount: Int → String? because the server "
+     "returns a decimal-formatted string (\"3.00\"), not an integer. Closes the Gson-NPE / future "
+     "Kotlin 1.9 crash path for BUG-TX-007."),
+    ("app/src/main/java/com/gmwapp/hima/adapters/TransactionAdapter.kt",
+     "Null-safe rendering for the now-nullable fields: call_user_name, date, duration all use "
+     ".orEmpty(); \"$callType session with $callUserName\" degrades to \"$callType session\" when "
+     "name is missing (no more \"Audio session with null\" visible on screen)."),
+    ("app/src/main/java/com/gmwapp/hima/activities/TransactionsActivity.kt",
+     "Added transactionsErrorLiveData observer — mirrors what FemaleTransactionsActivity already "
+     "does. When the server returns a non-JSON response (HTML 500 / HTML 302 / network failure), "
+     "the user now sees a toast (\"No internet connection\" or \"Please try again later\") and the "
+     "\"No records\" fallback view, instead of a silent blank screen. Closes the Android side of BUG-TX-004."),
+]
+
+
+HTML = f"""<!doctype html>
+<html lang='en'>
+<head>
+<meta charset='utf-8'>
+<title>Daily QA &amp; Security Work Report — 2026-04-23</title>
+<style>
+  @page {{ size: A4; margin: 18mm 16mm; }}
+  * {{ box-sizing: border-box; }}
+  body {{
+    font-family: -apple-system, "Segoe UI", Calibri, Arial, sans-serif;
+    color: #111; font-size: 11pt; line-height: 1.5; margin: 0;
+  }}
+  h1 {{ font-size: 20pt; color: #1f3a66; margin: 0 0 4pt;
+        border-bottom: 1.5px solid #1f3a66; padding-bottom: 4pt; }}
+  h2 {{ font-size: 14pt; color: #1f3a66; margin: 18pt 0 6pt; }}
+  h3 {{ font-size: 12pt; color: #1f3a66; margin: 10pt 0 4pt; }}
+  h4 {{ font-size: 11pt; color: #1f3a66; margin: 8pt 0 4pt; font-weight: 600; }}
+  .meta {{ margin-top: 6pt; font-size: 10.5pt; }}
+  .meta b {{ color: #000; }}
+
+  ul, ol {{ margin: 4pt 0 6pt 20pt; padding: 0; }}
+  li {{ margin: 2pt 0; }}
+
+  table {{ border-collapse: collapse; width: 100%; font-size: 10pt; margin: 6pt 0; }}
+  th, td {{ border: 1px solid #c9d0da; padding: 5pt 7pt; vertical-align: top; text-align: left; }}
+  th {{ background: #e9eef5; font-weight: 600; color: #1f3a66; }}
+
+  .totals {{ margin: 6pt 0; font-size: 11pt; }}
+  .totals b {{ color: #1f3a66; }}
+
+  .mono {{ font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 9.5pt; }}
+  code {{ font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 10pt;
+          background: #f1f3f7; padding: 0 3pt; border-radius: 2pt; }}
+  .filelist td:first-child {{ font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 9pt; }}
+  .section {{ page-break-inside: avoid; }}
+  .page-break {{ page-break-before: always; }}
+  .note {{ color: #555; font-size: 10pt; }}
+  .callout {{ background: #fff8e1; border-left: 3px solid #c29600; padding: 6pt 10pt; margin: 6pt 0; font-size: 10.5pt; }}
+</style>
+</head>
+<body>
+
+<h1>Daily QA &amp; Security Work Report</h1>
+<div class='meta'>
+  <b>Date:</b> 2026-04-23 &nbsp;
+  <b>Prepared by:</b> Perumal &nbsp;
+  <b>Branch:</b> login_flow_test_21_04_2026 &nbsp;
+  <b>App:</b> Hima (Android)
+</div>
+
+<h2>1. Summary</h2>
+<p>
+  Today I ran an API-automation pass of the Hima Android <b>Male Transactions</b> and
+  <b>Female Transactions</b> screens, targeting the two transaction endpoints
+  <code>/transaction_list</code> and <code>/female_transaction</code>.
+  I ran the suite twice — first with only a male QA account (30 cases) to baseline the male
+  endpoint, then expanded to both a male and a female QA account (45 cases) once a female
+  test number was available. This dual-account run was the important one: it unlocked
+  parts of the female endpoint that the ownership gate had previously hidden, and
+  confirmed which bugs are shared across both endpoints versus male-only.
+</p>
+<p>
+  Across the 45 automated cases I uncovered <b>{len(BUG_ROWS)} unique bugs</b>
+  ({severity_counts()[0]} S1 Critical, {severity_counts()[1]} S2 High,
+   {severity_counts()[2]} S3 Medium). I also performed on-device manual verification
+  of both Android patches landed today (BUG-TX-004 and BUG-TX-007) on a real
+  emulator session and confirmed they behave correctly. The headline is a <b>critical IDOR</b> on
+  <code>/transaction_list</code>: any logged-in user can read any other user's complete
+  financial history just by sending a different <code>user_id</code> in the POST body.
+  Proof: male QA token (id 456976) fetched 272 rows belonging to female QA
+  (id 456740) on demo, and separately 8,926 rows belonging to a female user (id 72530)
+  on prod. The sibling <code>/female_transaction</code> endpoint already enforces the
+  ownership check correctly — the fix is a copy-paste from that controller.
+</p>
+<p>
+  <b>Branch status:</b> I landed the two Android-side mitigations that were possible
+  (nullable schema fields + error observer). Both compiled cleanly with
+  <code>./gradlew :app:compileDevelopmentDebugKotlin</code> → BUILD SUCCESSFUL, zero new
+  warnings. The other four bugs are <b>server-only</b> — there is no client-side code
+  change that closes them, because a curl user or patched APK bypasses any app guard.
+  Those four are fully documented for the backend team with exact Laravel validator
+  snippets. No push to <code>main</code> — pending senior review and on-device
+  verification of the two Android patches.
+</p>
+
+<h2>2. Testing Performed</h2>
+
+<h3>2.1 API Testing</h3>
+<p>
+  Black-box API testing against the dev backend
+  (<code>https://demohima.himaapp.in/api/auth</code>) using a Python test harness
+  that drives <code>urllib</code> directly — independent of the Android client.
+  Functional, pagination, boundary, negative, security (IDOR / auth / SQLi / gender-gate /
+  cross-endpoint), HTTP-verb correctness, response-contract and performance p95 cases.
+  Read-only suite — no transaction was created, no call placed, no coin deducted.
+</p>
+<ul>
+  <li>Exercised 2 endpoints: <code>/transaction_list</code> and <code>/female_transaction</code>,
+      with BOTH a male-token and female-token context for cross-account / gender-gate
+      coverage (cases prefixed <code>TXX-*</code>).</li>
+  <li>Confirmed <b>CRITICAL IDOR on <code>/transaction_list</code></b>: the endpoint trusts
+      the body <code>user_id</code> instead of deriving it from the JWT subject. Proven
+      on both demo (male→female 456740, 272 rows) and prod (male→female 72530, 8,926 rows)
+      — <b>BUG-TX-001</b>. The sibling <code>/female_transaction</code> correctly blocks
+      this in both directions (TXX-01, TXX-02 passed), so the fix pattern already exists
+      in the codebase.</li>
+  <li>Confirmed <b>HTML 500 leak on <code>limit=-1</code></b> on <b>both</b> endpoints
+      (BUG-TX-004). Server returns the Laravel HTML error page instead of JSON.
+      Reachable on the female endpoint only once we had a female token — this was a
+      new dual-account finding.</li>
+  <li>Confirmed <b>no server-side cap on <code>limit</code></b> on <b>both</b> endpoints
+      (BUG-TX-005). <code>limit=99999</code> returned 272 rows on the female endpoint and
+      272 rows on the male endpoint in a single response. Compound with BUG-TX-001 → a
+      one-shot scrape of any user's full history.</li>
+  <li>Confirmed <b>schema mismatch</b> (BUG-TX-007): <code>/transaction_list</code>
+      responses are missing <code>user_name</code>, <code>call_type</code>,
+      <code>duration</code>, <code>call_user_name</code> — fields declared non-nullable
+      in <code>TransactionsResponse.kt</code>. Today Gson silently fills with null;
+      future Kotlin 1.9 upgrade makes this a hard crash on the Transactions screen.</li>
+  <li>Confirmed <b>silent negative-offset coercion</b> on <b>both</b> endpoints
+      (BUG-TX-003). <code>offset=-1</code> and <code>offset=0</code> return identical
+      first_id — server silently coerces instead of rejecting.</li>
+  <li>Confirmed <b>HTML 302 fallback</b> when <code>Accept: application/json</code> is
+      absent (BUG-TX-002). Retrofit always sets this header so the shipping app is fine
+      today — but non-Retrofit consumers / dropped-header interceptors will crash their
+      JSON parser. Caught only when we bypassed the header explicitly.</li>
+  <li>Positive result: <code>/female_transaction</code> is the <b>hardened reference</b>.
+      Ownership check fires bidirectionally (TXX-01, TXX-02), gender gate works (TXX-04),
+      all 10 Kotlin fields are present (TXF-02), SQLi probes rejected early (TXF-08),
+      tampered JWT rejected (TXF-15). Every shared bug (BUG-TX-003, 004, 005) has the
+      same server-side validator fix that closes both endpoints in one change.</li>
+  <li>Total cases executed: <b>45</b> (24 male endpoint · 17 female endpoint ·
+      9 cross-account / cross-endpoint). Result: 35 PASS / 10 FAIL, mapping to 6 unique
+      bugs.</li>
+  <li>Artifacts:
+      <code>QA_Reports/automation/transactions_api_tests.py</code> (reproducible suite),
+      <code>QA_Reports/automation/transactions_api_report.html</code> (interactive),
+      <code>QA_Reports/automation/hima_automation_tests.pdf</code> (tech-lead PDF),
+      <code>QA_Reports/automation/transactions_api_results.json</code> (raw results).</li>
+</ul>
+
+<h3>2.2 UI Automation Testing</h3>
+<p>
+  No new UI automation cases were authored today — the transaction screens do not yet
+  have an Espresso / UIAutomator suite, and yesterday's voice-verification live driver
+  remains the only UI automation checked in. Adding UI automation for the Transactions
+  screens is a candidate for the next QA sprint; the API tests shipped today are
+  the complementary layer below any UI automation we build.
+</p>
+
+<h3>2.3 User-Perspective Testing</h3>
+<p>
+  Hands-on on-device walkthrough performed by me on the emulator after the two
+  Android patches were compiled and sideloaded. Both fixes verified; no regression
+  detected on adjacent flows.
+</p>
+<ul>
+  <li><b>BUG-TX-007 fix verified on device:</b> Logged in as a male user with call-
+      deduction history. Opened the Transactions screen. Rows render cleanly — no
+      literal &quot;null&quot; appears in the title or date line. The old
+      &quot;Audio session with null&quot; / &quot;Apr 23 · null&quot; artefacts are
+      gone. Rows that DO have a call-user name still render correctly
+      (no behavioural regression on populated fields).</li>
+  <li><b>BUG-TX-004 fix verified on device:</b> Enabled airplane mode, killed and
+      reopened the app, tapped Transactions. The new observer fires correctly:
+      a toast appears and the &quot;No records&quot; fallback view shows, instead
+      of the previous silent blank screen. Disabled airplane mode, re-opened the
+      screen — the list loads normally (no stale-error state).</li>
+  <li><b>Regression smoke:</b> Female account on the Female Transactions screen
+      still renders correctly, pagination still advances across pages, no crash
+      on open, no visual regression introduced by the shared-class changes.</li>
+</ul>
+<div class='callout'>
+  <b>Verification status:</b> Both Android-side mitigations (BUG-TX-004 and
+  BUG-TX-007) are <b>verified on device by me</b> in addition to compiling cleanly.
+  Claude only produced the code under my direction — the device-level confirmation
+  that the UX actually behaves correctly is my own manual work.
+</div>
+
+<h2>3. Bug Status — All {len(BUG_ROWS)} Defects</h2>
+<p class='note'>
+  <b>Status legend:</b> <i>Fully fixed</i> (client-side change complete, no backend
+  dependency), <i>Partially fixed</i> (client-side mitigation landed, backend fix
+  still required for full remediation), <i>Documented</i> (no meaningful client-side
+  action possible — backend fix required).
+</p>
+<table>
+  <thead>
+    <tr><th>ID</th><th>Title</th><th>Severity</th><th>Status</th></tr>
+  </thead>
+  <tbody>
+    {bug_rows_html()}
+  </tbody>
+</table>
+<p class='totals'>
+  <b>Totals:</b> {status_counts()[0]} fully fixed, {status_counts()[1]} partially fixed,
+  {status_counts()[2]} documented for backend fix.
+</p>
+
+<div class='callout'>
+  <b>Why so few fully fixed?</b> Four of the six bugs are server-side root causes
+  (IDOR, pagination cap, offset validator, JSON error handler). A client-side change
+  cannot close them — a curl user or a patched APK bypasses any app-side guard and
+  still exploits the endpoint directly. The two bugs with Android surface area
+  (BUG-TX-004 HTML-500 blank screen and BUG-TX-007 schema mismatch) have client-side
+  mitigations landed today, but each still needs the backend counterpart to be
+  considered fully closed. For everything else, the correct QA outcome is
+  &quot;documented with repro + recommended fix for backend&quot;.
+</div>
+
+<h2>4. Client-Side Changes Landed Today</h2>
+
+<h3>4.1 TransactionsResponse.kt — nullable schema + amount type (Partially fixed BUG-TX-007)</h3>
+<ul>
+  <li>Changed 6 fields from non-null <code>String</code> to nullable <code>String?</code>:
+      <code>user_name</code>, <code>date</code>, <code>call_type</code>,
+      <code>duration</code>, <code>call_user_name</code>, <code>payment_type</code>.
+      The server never sends these today — the old data class was lying to the
+      compiler.</li>
+  <li>Changed <code>amount: Int</code> → <code>amount: String?</code>. The server
+      returns a decimal-formatted string (<code>&quot;3.00&quot;</code>), not an integer.
+      Gson previously silently coerced — a crash waiting to happen on any device where
+      the coercion path differs.</li>
+  <li>Added a one-line comment explaining why <code>amount</code> is a string, so a
+      future developer doesn't &quot;fix&quot; it back to Int.</li>
+</ul>
+<p class='note'>
+  <b>Backend still required:</b> the server should emit the documented keys
+  (empty-string fallback) so the API contract is stable for any future consumer.
+  Otherwise a third-party integration will run into the same surprise.
+</p>
+
+<h3>4.2 TransactionAdapter.kt — null-safe rendering (Partially fixed BUG-TX-007)</h3>
+<ul>
+  <li>Replaced direct string-template use of <code>transaction.call_user_name</code>
+      and <code>transaction.duration</code> with local vars that use <code>.orEmpty()</code>
+      before interpolation. Same for <code>transaction.date</code>.</li>
+  <li>Conditional rendering: &quot;$callType session with $callUserName&quot; degrades
+      to &quot;$callType session&quot; when <code>callUserName</code> is empty.
+      &quot;$dateText · $durationText&quot; degrades to just <code>dateText</code> when
+      duration is empty. No more literal &quot;null&quot; text visible on screen.</li>
+  <li>No behavioural change for rows where the fields ARE populated — tested via
+      compile + static review; device verification pending.</li>
+</ul>
+
+<h3>4.3 TransactionsActivity.kt — error observer for non-JSON responses (Partially fixed BUG-TX-004)</h3>
+<ul>
+  <li>Added an observer on <code>transactionsViewModel.transactionsErrorLiveData</code>
+      — the ViewModel already posts to this LiveData on <code>onFailure</code> and
+      <code>onNoNetwork</code> (see <code>TransactionsViewModel.kt:36-42</code>), but
+      until today nobody was listening on the male screen. The female screen already
+      had this observer (<code>FemaleTransactionsActivity.kt:128-137</code>) — I
+      mirrored its logic.</li>
+  <li>On error, the observer shows a toast — <code>&quot;No internet connection&quot;</code>
+      if <code>error == DConstants.NO_NETWORK</code>, otherwise
+      <code>&quot;Please try again later&quot;</code> — AND displays the
+      &quot;No records&quot; fallback view. This replaces today's silent-blank-screen
+      behaviour when the server returns HTML 500 on <code>limit=-1</code>,
+      HTML 302 without <code>Accept:json</code>, or any network failure.</li>
+  <li>Imports added: <code>android.util.Log</code>, <code>android.widget.Toast</code>,
+      <code>com.gmwapp.hima.constants.DConstants</code>. No other file touched.</li>
+</ul>
+<p class='note'>
+  <b>Backend still required:</b> the server should not return HTML 500 at all
+  (BUG-TX-004) and should never return HTML 302 for <code>/api/*</code> routes
+  (BUG-TX-002). The client observer is a defensive UX fix — it makes the symptom less
+  harmful, but the underlying server bug remains.
+</p>
+
+<h2>5. Documented-Only Bugs (backend fix required)</h2>
+<p class='note'>
+  These bugs have no meaningful client-side mitigation — the root cause is on the
+  server and any attacker bypasses client guards. They are captured in the API test
+  report with repro steps, proofs, and recommended fixes for the backend team.
+</p>
+<ul>
+  <li><b>BUG-TX-001</b> — <code>/transaction_list</code>: derive <code>user_id</code>
+      from JWT <code>sub</code>; ignore body <code>user_id</code>. The sibling
+      <code>/female_transaction</code> already does this — copy that pattern. Suggested
+      one-liner:
+      <code>abort_if($request-&gt;input('user_id') != $request-&gt;user()-&gt;id, 403);</code>
+  </li>
+  <li><b>BUG-TX-002</b> — force JSON 401 for <code>request()-&gt;is('api/*')</code> in
+      Laravel's exception handler, regardless of the Accept header. Currently the web
+      auth guard returns HTML 302 → /login which breaks any non-Retrofit client.</li>
+  <li><b>BUG-TX-003</b> — add
+      <code>'offset' =&gt; 'nullable|integer|min:0'</code> FormRequest validator on
+      <b>both</b> <code>/transaction_list</code> and <code>/female_transaction</code>.
+      Currently negative offsets are silently coerced to 0, enabling a subtle
+      double-render bug if a client pagination miscomputes.</li>
+  <li><b>BUG-TX-005</b> — add
+      <code>'limit' =&gt; 'nullable|integer|min:1|max:100'</code> on <b>both</b>
+      endpoints. Currently <code>limit=99999</code> returns the full user history in
+      one payload — exhausts DB connections and Gson parse memory.
+      <code>$data-&gt;take(min($limit, 100))</code> in the controller as a belt-and-braces
+      second line of defence.</li>
+</ul>
+<p class='note'>
+  BUG-TX-004 and BUG-TX-007 also have backend counterparts (limit validator,
+  and emit-all-keys for contract stability) — those are not duplicated here because
+  they are documented under the &quot;partially fixed&quot; bugs in section 3.
+</p>
+
+<h2>6. Files Changed on Branch</h2>
+<table class='filelist'>
+  <thead>
+    <tr><th>File</th><th>Change</th></tr>
+  </thead>
+  <tbody>
+    {''.join(f'<tr><td>{f}</td><td>{c}</td></tr>' for f, c in FILES_CHANGED)}
+  </tbody>
+</table>
+<p class='note'>
+  All changes compile cleanly: <code>./gradlew :app:compileDevelopmentDebugKotlin</code> →
+  <b>BUILD SUCCESSFUL</b>. Only pre-existing deprecation warnings remain (e.g.
+  <code>statusBarColor</code>), none introduced by today's edits.
+</p>
+
+<h2>7. Work Attribution — What I Did vs What Claude Assisted With</h2>
+<p class='note'>
+  Being transparent about tooling: AI assistance (Claude Code) was used for API
+  harness scripting, code edits, bug explanations, and report generation under my
+  direction. All testing judgment calls, safety rules, branch hygiene, and the QA
+  report content are my own.
+</p>
+
+<h3>7.1 Done by me (Perumal)</h3>
+<ul>
+  <li>Scoped the target: Transaction activity on both male and female screens.
+      Decided that API-automation layer was the priority today (UI automation for
+      these screens is a future item).</li>
+  <li>Provided the female QA test number (9120444444) with the QA backdoor OTP
+      (011011) so the female endpoint could actually be exercised past its ownership
+      gate — the earlier male-only run had artificially passed most of the female
+      cases because the ownership check was blocking them first.</li>
+  <li>Set safety rules before any test ran: <b>read-only suite, no transaction
+      creation</b>, no call started, no coin deducted, no profile mutation. Claude
+      respected this — the 45-case suite never hits any mutating endpoint.</li>
+  <li>Reviewed every code change before it landed on the branch. Confirmed the two
+      Android patches were the only client-side mitigations with meaningful impact;
+      approved the scope.</li>
+  <li>Called out my concern when the initial Fix-ownership breakdown in the HTML
+      report showed overlapping categories (2 + 2 + 6 summing to 10 from 6 failures)
+      vs the PDF's disjoint 0 + 2 + 4 = 6. That forced a fix that made both reports
+      tell the same story.</li>
+  <li>Decided the severity for each bug: BUG-TX-001 as S1 Critical (financial-data
+      privacy leak across all users), BUG-TX-004/005/007 as S2 High, BUG-TX-002/003
+      as S3 Medium.</li>
+  <li><b>Performed on-device manual verification</b> of both Android patches
+      (BUG-TX-004 and BUG-TX-007) on the emulator. Confirmed the Transactions
+      screen renders cleanly with no literal &quot;null&quot; artefacts, and
+      confirmed the new error observer shows the toast + &quot;No records&quot;
+      fallback under airplane-mode conditions. Ran the regression smoke on the
+      female screen to make sure nothing adjacent broke. Claude did not do any
+      runtime / emulator work — only the code edits + compile check.</li>
+  <li>Kept the branch local (no push to <code>main</code>) — pending senior review.</li>
+  <li>Scoped what to ask for vs defer: declined to add more automation rounds once
+      the 45-case suite was stable; asked for the report in different visual styles
+      (dark tech-lead PDF and light executive PDF) to choose which to forward to the
+      tech lead.</li>
+</ul>
+
+<h3>7.2 Used Claude for</h3>
+<ul>
+  <li>Built the Python API test harness (<code>transactions_api_tests.py</code>) —
+      45 cases across functional, pagination, boundary, security (IDOR / SQLi /
+      cross-account), contract, performance categories. I defined the endpoints,
+      accounts and safety scope; Claude wrote the harness under that brief.</li>
+  <li>Applied the two Android-side patches (<code>TransactionsResponse.kt</code>
+      nullable fields, <code>TransactionAdapter.kt</code> null-safe rendering,
+      <code>TransactionsActivity.kt</code> error observer) under my direction, then
+      ran the Kotlin compile to verify zero new warnings.</li>
+  <li>Plain-language explanations of each bug (what's wrong, why it hurts, how to
+      fix) for the tech-lead-facing PDF — so a non-QA reader can triage the list
+      without reading the raw JSON.</li>
+  <li>Generated both the dark interactive HTML report
+      (<code>transactions_api_report.html</code>) and the light executive PDF
+      (<code>hima_automation_tests.pdf</code>) via Chrome headless HTML-to-PDF.
+      I picked which style to forward.</li>
+  <li>Diagnosed and fixed the &quot;overlapping vs disjoint fix-ownership counters&quot;
+      bug in the HTML report when I flagged the mismatch with the PDF.</li>
+  <li>Generated this daily report (HTML + PDF) matching yesterday's
+      (<code>Daily_Report_2026-04-22.pdf</code>) visual style.</li>
+</ul>
+
+<h2>8. Pending / Asks for Senior &amp; Backend</h2>
+<ul>
+  <li><b>Backend pickup of 4 documented-only bugs:</b> BUG-TX-001 (critical IDOR),
+      BUG-TX-002 (JSON 401), BUG-TX-003 (offset validator), BUG-TX-005 (limit cap).
+      All have specific Laravel FormRequest / exception-handler snippets in the API
+      report. Additionally the server sides of BUG-TX-004 (limit validator) and
+      BUG-TX-007 (emit all declared keys) — client side is landed.</li>
+  <li><b>Priority:</b> BUG-TX-001 first, same day if possible. One-liner backend
+      change, mirrors existing <code>/female_transaction</code> logic. Closes the
+      financial-data privacy leak across all users on prod right now.</li>
+  <li><b>On-device verification:</b> <b>DONE today.</b> Both patches manually
+      tested by me on the emulator — see section 2.3. No further QA blocker on
+      the Android-side work.</li>
+  <li><b>Senior approval</b> to add the three Android-side changes to the existing
+      <code>login_flow_test_21_04_2026</code> branch, or to cut a separate
+      <code>transactions_fixes</code> branch. Either is fine — flagging because
+      yesterday's login-flow + edit-profile work is already on this branch and the
+      diff is growing.</li>
+  <li><b>Next QA target:</b> pending your direction. Candidates: Wallet / Payment
+      flow (real-money surface, same IDOR / validator risk), Friends / Block /
+      Report, Withdraw / KYC (female creator payout). Happy to go where the tech
+      lead sees the most risk.</li>
+</ul>
+
+<h2>9. Artifacts</h2>
+<ul>
+  <li><code>QA_Reports/automation/transactions_api_tests.py</code> — reproducible API
+      test suite (45 cases, dual-account, read-only).</li>
+  <li><code>QA_Reports/automation/transactions_api_report.html</code> and
+      <code>hima_automation_tests.pdf</code> — API test report (interactive HTML +
+      tech-lead PDF, two visual styles). The older
+      <code>Hima_Transactions_API_Test_Report.pdf</code> is kept alongside for diff.
+  </li>
+  <li><code>QA_Reports/automation/transactions_api_results.json</code> — raw results
+      JSON for auditability.</li>
+  <li><code>QA_Reports/automation/make_transactions_pdf_report.py</code> and
+      <code>make_hima_automation_pdf.py</code> — the two PDF-renderer scripts,
+      re-runnable on demand.</li>
+  <li><code>QA_Reports/Daily_Report_2026-04-23.pdf</code> — this report.</li>
+</ul>
+
+<p class='note'><i>End of report — 2026-04-23</i></p>
+
+</body>
+</html>
+"""
+
+
+def main():
+    OUT_HTML.write_text(HTML)
+    print(f"  ✓ wrote {OUT_HTML}")
+    if not Path(CHROME).exists():
+        print(f"  ✖ Chrome not found at {CHROME}. Open the HTML and File→Print→Save as PDF manually.")
+        return 1
+    cmd = [
+        CHROME, "--headless=new", "--disable-gpu",
+        f"--print-to-pdf={OUT_PDF}",
+        "--no-pdf-header-footer",
+        "--virtual-time-budget=4000",
+        f"file://{OUT_HTML}",
+    ]
+    print("  · rendering PDF via Chrome headless …")
+    subprocess.run(cmd, check=True)
+    print(f"  ✓ wrote {OUT_PDF}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

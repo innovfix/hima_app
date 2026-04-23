@@ -1,0 +1,25 @@
+04-22 15:43:10.527   706  1760 W ActivityTaskManager: Force removing ActivityRecord{152720321 u0 com.gmwapp.hima.dev/com.gmwapp.hima.activities.VoiceIdentificationActivity t50 f}}: app died, no saved state
+04-22 15:43:11.510   706   732 W ActivityTaskManager: Unable to send transaction to client proc com.gmwapp.hima.dev: no app thread
+04-22 15:43:12.213   706   732 W ActivityTaskManager: Unable to send transaction to client proc com.gmwapp.hima.dev: no app thread
+04-22 15:43:13.100   706  1965 W WindowManager: Exception thrown during dispatchAppVisibility Window{dcb3c14 u0 com.gmwapp.hima.dev/com.gmwapp.hima.activities.VoiceIdentificationActivity}
+04-22 15:43:13.125   706  1965 W WindowManager: Exception thrown during dispatchAppVisibility Window{73d2a33 u0 com.gmwapp.hima.dev/com.gmwapp.hima.activities.VoiceIdentificationActivity}
+04-22 15:43:15.638  8379  8379 W Monkey  : args: [-p, com.gmwapp.hima.dev, -c, android.intent.category.LAUNCHER, 1]
+04-22 15:43:15.757  8379  8379 W Monkey  :  arg: "com.gmwapp.hima.dev"
+04-22 15:43:15.757  8379  8379 W Monkey  : data="com.gmwapp.hima.dev"
+04-22 15:43:32.516  8405  8405 W re-initialized>: type=1400 audit(0.0:208): avc:  granted  { execute } for  path="/data/data/com.gmwapp.hima.dev/code_cache/startup_agents/4d42d08a-agent.so" dev="dm-53" ino=369536 scontext=u:r:untrusted_app:s0:c214,c256,c512,c768 tcontext=u:object_r:app_data_file:s0:c214,c256,c512,c768 tclass=file app=com.gmwapp.hima.dev
+04-22 15:43:33.105  8405  8405 W gmwapp.hima.dev: hiddenapi: DexFile /data/data/com.gmwapp.hima.dev/code_cache/.studio/instruments-855ca6dc.jar is in boot class path but is not in a known location
+04-22 15:43:56.514   706  8513 E ActivityManager: ANR in com.gmwapp.hima.dev
+04-22 15:43:56.514   706  8513 E ActivityManager: Reason: Process ProcessRecord{8a7debe 8405:com.gmwapp.hima.dev/u0a214} failed to complete startup
+04-22 15:43:56.514   706  8513 E ActivityManager:   69% 8405/com.gmwapp.hima.dev: 45% user + 24% kernel / faults: 33422 minor 167 major
+04-22 15:43:56.873   706   738 W ActivityManager: Failed to clear dns cache for: com.gmwapp.hima.dev
+04-22 15:43:56.978   706  1910 W ActivityTaskManager: ProcessRecord{8a7debe 8405:com.gmwapp.hima.dev/u0a214} is removed with pending start ActivityRecord{31267649 u0 com.gmwapp.hima.dev/com.gmwapp.hima.activities.SplashScreenActivity t51}
+04-22 15:43:57.465   706   794 W UsageStatsService: Unexpected activity event reported! (com.gmwapp.hima.dev/com.gmwapp.hima.activities.SplashScreenActivity event : 23 instanceId : 119089364)
+04-22 15:44:32.513  8610  8610 W Monkey  : args: [-p, com.gmwapp.hima.dev, -c, android.intent.category.LAUNCHER, 1]
+04-22 15:44:32.608  8610  8610 W Monkey  :  arg: "com.gmwapp.hima.dev"
+04-22 15:44:32.608  8610  8610 W Monkey  : data="com.gmwapp.hima.dev"
+04-22 15:44:33.896  8626  8626 W re-initialized>: type=1400 audit(0.0:211): avc:  granted  { execute } for  path="/data/data/com.gmwapp.hima.dev/code_cache/startup_agents/4d42d08a-agent.so" dev="dm-53" ino=369536 scontext=u:r:untrusted_app:s0:c214,c256,c512,c768 tcontext=u:object_r:app_data_file:s0:c214,c256,c512,c768 tclass=file app=com.gmwapp.hima.dev
+04-22 15:44:33.977  8626  8626 W gmwapp.hima.dev: hiddenapi: DexFile /data/data/com.gmwapp.hima.dev/code_cache/.studio/instruments-855ca6dc.jar is in boot class path but is not in a known location
+04-22 15:44:46.088   706  1915 W PackageConfigPersister: App-specific configuration not found for packageName: com.gmwapp.hima.dev and userId: 0
+04-22 15:44:46.749   706  1920 W ActivityTaskManager: Duplicate finish request for r=ActivityRecord{151339570 u0 com.gmwapp.hima.dev/com.gmwapp.hima.activities.SplashScreenActivity t52 f}}
+04-22 15:44:49.233   706  1008 W PackageConfigPersister: App-specific configuration not found for packageName: com.gmwapp.hima.dev and userId: 0
+04-22 15:44:51.461   706  1008 W PackageConfigPersister: App-specific configuration not found for packageName: com.gmwapp.hima.dev and userId: 0

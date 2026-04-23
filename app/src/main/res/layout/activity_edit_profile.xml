@@ -25,6 +25,9 @@
             android:layout_height="42dp"
             android:layout_centerVertical="true"
             android:layout_marginStart="8dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:contentDescription="@string/back"
             app:cardCornerRadius="12dp"
             app:cardElevation="1dp"
             app:cardBackgroundColor="#F8F9FA">
@@ -34,7 +37,7 @@
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:layout_gravity="center"
-                android:contentDescription="@string/account_privacy"
+                android:importantForAccessibility="no"
                 android:rotation="180"
                 android:src="@drawable/right_arrow"
                 app:tint="#374151" />

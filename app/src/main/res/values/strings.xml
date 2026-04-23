@@ -280,6 +280,10 @@
     <string name="back">Back</string>
     <string name="selected_file">Selected file</string>
 
+    <string name="discard_changes_message">You have unsaved changes. If you leave now, your edits will be lost.</string>
+    <string name="discard">Discard</string>
+    <string name="keep_editing">Keep editing</string>
+
     <string name="become_star_creator_title">Become star creator</string>
     <string name="become_star_creator_subtitle">Apply now and earn more</string>
 

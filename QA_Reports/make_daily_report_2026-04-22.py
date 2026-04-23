@@ -1,0 +1,527 @@
+#!/usr/bin/env python3
+"""
+Generate the 2026-04-22 Daily QA & Security Work Report as a PDF,
+matching the style of Daily_Report_2026-04-21.pdf.
+
+Outputs:
+  QA_Reports/Daily_Report_2026-04-22.html     (source)
+  QA_Reports/Daily_Report_2026-04-22.pdf      (final deliverable)
+"""
+from __future__ import annotations
+
+import subprocess
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+OUT_HTML = HERE / "Daily_Report_2026-04-22.html"
+OUT_PDF  = HERE / "Daily_Report_2026-04-22.pdf"
+CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+
+
+BUG_ROWS = [
+    # (id, title, severity, status)
+    ("BUG-EP-005", "IDOR on /user_validations — accepts foreign user_id", "S1 Critical", "Documented"),
+    ("BUG-EP-010", "IDOR on /update_profile — can overwrite another user's profile", "S1 Critical", "Documented"),
+    ("BUG-EP-015", "/update_profile returns HTTP 500 HTML on second name change", "S1 Critical", "Documented"),
+    ("BUG-VV-006", "IDOR on /update_voice — verified overwriting of another user's voice", "S1 Critical", "Documented"),
+    ("BUG-EP-012", "/update_profile accepts missing name field (wipes display name)", "S2 High", "Documented"),
+    ("BUG-EP-017", "/user_validations returns HTML 500 Server Error page for certain accounts", "S2 High", "Documented"),
+    ("BUG-VV-002", "/speech_text reachable without authentication", "S2 High", "Documented"),
+    ("UI-BUG-001", "Edit Profile toast renders raw HTML error pages from server", "S2 High", "Partially fixed"),
+    ("E-05", "Update button remains tappable during /update_profile request (double-fire)", "S3 Medium", "Fully fixed"),
+    ("E-06", "Name field fires /user_validations on every keystroke (no debounce)", "S3 Medium", "Fully fixed"),
+    ("E-07", "updateButton() reads SharedPreferences on every avatar scroll tick", "S3 Medium", "Fully fixed"),
+    ("BUG-EP-008", "/avatar_list reachable without authentication", "S3 Medium", "Documented"),
+    ("BUG-EP-013", "/update_profile accepts 30 interests (client caps at 5)", "S3 Medium", "Documented"),
+    ("BUG-EP-018", "No rate limit on /user_validations (7+ crashes logged in 20 s)", "S3 Medium", "Documented"),
+    ("BUG-VV-008", "/update_voice accepts 10 MB upload with no size/MIME cap", "S3 Medium", "Partially fixed"),
+    ("E-04", "Back icon (cv_back) missing accessibility contentDescription", "S4 Low", "Fully fixed"),
+    ("E-08", "Back press on Edit Profile discards unsaved edits silently", "S4 Low", "Fully fixed"),
+]
+
+
+def bug_rows_html() -> str:
+    return "\n".join(
+        f"<tr><td class='mono'><b>{b[0]}</b></td><td>{b[1]}</td><td>{b[2]}</td><td>{b[3]}</td></tr>"
+        for b in BUG_ROWS
+    )
+
+
+def status_counts():
+    fixed = sum(1 for _, _, _, s in BUG_ROWS if s == "Fully fixed")
+    partial = sum(1 for _, _, _, s in BUG_ROWS if s == "Partially fixed")
+    documented = sum(1 for _, _, _, s in BUG_ROWS if s == "Documented")
+    return fixed, partial, documented
+
+
+def severity_counts():
+    s1 = sum(1 for _, _, s, _ in BUG_ROWS if s.startswith("S1"))
+    s2 = sum(1 for _, _, s, _ in BUG_ROWS if s.startswith("S2"))
+    s3 = sum(1 for _, _, s, _ in BUG_ROWS if s.startswith("S3"))
+    s4 = sum(1 for _, _, s, _ in BUG_ROWS if s.startswith("S4"))
+    return s1, s2, s3, s4
+
+
+FILES_CHANGED = [
+    ("app/src/main/java/com/gmwapp/hima/activities/VoiceIdentificationActivity.kt",
+     "Explicit audio/mpeg MIME on voice upload; 5 MB client-side size guard; safer null/empty file handling."),
+    ("app/src/main/java/com/gmwapp/hima/dialogs/BottomSheetVoiceIdentification.kt",
+     "CountDownTimer reduced 1 hour → 30 seconds; onFinish() now auto-stops the recording and shows a toast."),
+    ("app/src/main/res/layout/activity_edit_profile.xml",
+     "Added contentDescription='@string/back' + clickable/focusable on cv_back; moved accessibility away from inner icon."),
+    ("app/src/main/res/values/strings.xml",
+     "Added strings: discard_changes_message, discard, keep_editing."),
+    ("app/src/main/java/com/gmwapp/hima/activities/EditProfileActivity.kt",
+     "5 fixes: (E-05) Update button disabled while request in flight; (E-06) 300 ms debounce on name validator; "
+     "(E-07) cached originalName / originalAvatarId / interests / userId in onCreate — no more prefs reads on scroll; "
+     "(E-08) unsaved-edits AlertDialog on cv_back click and onBackPressedDispatcher; "
+     "(UI-BUG-001) safeServerMessage() sanitizer — filters HTML / stack traces / overlong server strings before display."),
+]
+
+
+HTML = f"""<!doctype html>
+<html lang='en'>
+<head>
+<meta charset='utf-8'>
+<title>Daily QA & Security Work Report — 2026-04-22</title>
+<style>
+  @page {{ size: A4; margin: 18mm 16mm; }}
+  * {{ box-sizing: border-box; }}
+  body {{
+    font-family: -apple-system, "Segoe UI", Calibri, Arial, sans-serif;
+    color: #111; font-size: 11pt; line-height: 1.5; margin: 0;
+  }}
+  h1 {{ font-size: 20pt; color: #1f3a66; margin: 0 0 4pt;
+        border-bottom: 1.5px solid #1f3a66; padding-bottom: 4pt; }}
+  h2 {{ font-size: 14pt; color: #1f3a66; margin: 18pt 0 6pt; }}
+  h3 {{ font-size: 12pt; color: #1f3a66; margin: 10pt 0 4pt; }}
+  h4 {{ font-size: 11pt; color: #1f3a66; margin: 8pt 0 4pt; font-weight: 600; }}
+  .meta {{ margin-top: 6pt; font-size: 10.5pt; }}
+  .meta b {{ color: #000; }}
+
+  ul, ol {{ margin: 4pt 0 6pt 20pt; padding: 0; }}
+  li {{ margin: 2pt 0; }}
+
+  table {{ border-collapse: collapse; width: 100%; font-size: 10pt; margin: 6pt 0; }}
+  th, td {{ border: 1px solid #c9d0da; padding: 5pt 7pt; vertical-align: top; text-align: left; }}
+  th {{ background: #e9eef5; font-weight: 600; color: #1f3a66; }}
+
+  .totals {{ margin: 6pt 0; font-size: 11pt; }}
+  .totals b {{ color: #1f3a66; }}
+
+  .mono {{ font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 9.5pt; }}
+  code {{ font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 10pt;
+          background: #f1f3f7; padding: 0 3pt; border-radius: 2pt; }}
+  .filelist td:first-child {{ font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 9pt; }}
+  .section {{ page-break-inside: avoid; }}
+  .page-break {{ page-break-before: always; }}
+  .note {{ color: #555; font-size: 10pt; }}
+</style>
+</head>
+<body>
+
+<h1>Daily QA &amp; Security Work Report</h1>
+<div class='meta'>
+  <b>Date:</b> 2026-04-22 &nbsp;
+  <b>Prepared by:</b> Perumal &nbsp;
+  <b>Branch:</b> login_flow_test_21_04_2026 &nbsp;
+  <b>App:</b> Hima (Android)
+</div>
+
+<h2>1. Summary</h2>
+<p>
+  Today I ran a full QA + security pass of the Hima Android <b>Edit Profile</b> and
+  <b>Voice Verification</b> screens across three testing tracks
+  (API testing, UI automation, user-perspective testing),
+  executed 64 automated test cases plus a full manual walkthrough,
+  uncovered {len(BUG_ROWS)} bugs
+  ({severity_counts()[0]} S1 Critical, {severity_counts()[1]} S2 High,
+   {severity_counts()[2]} S3 Medium, {severity_counts()[3]} S4 Low),
+  and landed client-side fixes on branch
+  <code>login_flow_test_21_04_2026</code> for every bug that has a meaningful
+  client-side mitigation. Bugs whose root cause is server-side are fully
+  documented for the backend team.
+</p>
+<p>
+  <b>Branch status:</b> all fixes compiled cleanly with
+  <code>./gradlew :app:compileDevelopmentDebugKotlin</code> and were verified
+  by re-running the automated suite (static 12/12 PASS, live voice 10/10 PASS).
+  Manual on-device testing by me confirmed the HTML-in-toast bug was real and
+  that the client sanitizer now replaces the HTML with &quot;Please try again
+  later&quot; exactly as intended. No push to <code>main</code> — pending senior review.
+</p>
+
+<h2>2. Testing Performed</h2>
+
+<h3>2.1 API Testing</h3>
+<p>
+  Black-box API testing against the dev backend
+  (<code>https://demohima.himaapp.in/api/auth</code>) using a Python test harness
+  that drives <code>urllib</code> directly — independent of the Android client.
+  Positive, validation, security, boundary and performance cases per endpoint.
+</p>
+<ul>
+  <li>Exercised 5 endpoints: <code>/user_validations</code>, <code>/avatar_list</code>,
+      <code>/update_profile</code>, <code>/speech_text</code>, <code>/update_voice</code>.</li>
+  <li>Confirmed <b>IDOR on three mutating endpoints</b>: <code>/user_validations</code>,
+      <code>/update_profile</code>, <code>/update_voice</code> all accept a foreign
+      <code>user_id</code> in the request body instead of deriving it from the JWT subject
+      (BUG-EP-005, BUG-EP-010, BUG-VV-006). The <code>/update_voice</code> IDOR was
+      proven with a real overwrite of another user's voice recording.</li>
+  <li>Confirmed <code>/avatar_list</code> and <code>/speech_text</code> are reachable
+      without authentication at all (BUG-EP-008, BUG-VV-002).</li>
+  <li>Confirmed <code>/update_profile</code> crashes to HTTP 500 HTML on the
+      second name change and on 30-interest payloads, instead of returning JSON errors
+      (BUG-EP-015, BUG-EP-013).</li>
+  <li>Confirmed <code>/update_profile</code> accepts missing <code>name</code> field —
+      blanks out the display name (BUG-EP-012).</li>
+  <li>Confirmed <code>/update_voice</code> accepts a 10 MB file with no size or
+      MIME cap server-side (BUG-VV-008); server does reject WAV in favour of MP3
+      (VV-UV-11 positive case).</li>
+  <li>Total cases executed: <b>42</b>. Artifacts:
+      <code>QA_Reports/automation/edit_profile_voice_api_tests.py</code> (source,
+      reproducible) and
+      <code>QA_Reports/automation/Hima_EditProfile_Voice_API_Report.pdf</code>.</li>
+</ul>
+
+<h3>2.2 UI Automation Testing</h3>
+<p>
+  Scripted UI automation driven via <code>adb shell input</code> and
+  <code>uiautomator dump</code>, plus a deterministic static analyser parsing the
+  layout XML and activity Kotlin source for standard Android UX and performance
+  anti-patterns.
+</p>
+<ul>
+  <li><b>Voice Verification (live UI on emulator-5554):</b> 10 test cases — all
+      PASS. Verified the new 30-second auto-stop fix works on device by holding
+      the mic button past the cap (V-06), verified rapid-tap resilience (V-07),
+      and verified graceful handling under airplane mode (V-10).</li>
+  <li><b>Edit Profile (static UI + code analysis):</b> 12 checks covering
+      <code>maxLength</code>, <code>inputType</code>, accessibility labels,
+      button-disabled-while-loading, text-watcher debouncing,
+      <code>SharedPreferences</code> reads on scroll, unsaved-edits guard,
+      <code>Html.fromHtml</code> on name fields, interests cap, and observer
+      wiring. Initial run surfaced 5 failures (E-04, E-05, E-06, E-07, E-08).
+      All 5 fixed in the same session; re-run shows <b>12/12 PASS</b>.</li>
+  <li>Why static for Edit Profile: the test account
+      (mobile 9876543210) fell into the terminal &ldquo;Almost done — under
+      review&rdquo; state for female creators during API testing, blocking
+      navigation to the home screen. Static analysis caught the same category
+      of issues a live Espresso pass would.</li>
+  <li>Total automated cases: <b>22</b>. Artifacts:
+      <code>QA_Reports/ui_automation/run_voice_tests.py</code>,
+      <code>QA_Reports/ui_automation/run_edit_profile_static.py</code>,
+      <code>QA_Reports/ui_automation/Hima_UI_Automation_Report.pdf</code>.</li>
+</ul>
+
+<h3>2.3 User-Perspective Testing</h3>
+<p>
+  Hands-on walkthrough on the emulator after the fixes were compiled, following
+  the manual test plan (E-05, E-06, E-07, E-08 sub-cases A&ndash;D, E-04 TalkBack,
+  R-1 to R-5 regression smoke).
+</p>
+<ul>
+  <li>Confirmed on device that the 30-second voice auto-stop fix behaves
+      correctly (matches V-06).</li>
+  <li>Confirmed the Update button disable, debounced validation, unsaved-edits
+      dialog, and accessibility label all behave as designed.</li>
+  <li><b>Caught a new bug during manual testing:</b> entering certain names
+      (e.g. &ldquo;imabiu&rdquo;) caused the app to display a raw Laravel
+      <code>&lt;!DOCTYPE html&gt;</code> 500 error page inside the in-field
+      toast and hint text (UI-BUG-001). Logcat evidence captured; the Android
+      side has been fixed defensively (sanitizer filters any non-user-friendly
+      server response), and the underlying server crash has been raised as
+      BUG-EP-017 for the backend team.</li>
+  <li>Observed 7 repeated HTTP 500 responses on <code>/user_validations</code>
+      within 20 seconds with no server-side throttling &mdash; raised as
+      BUG-EP-018.</li>
+  <li>Regression smoke passed on all remaining paths; the user confirmed
+      &ldquo;all other tests are fine, only the HTML error was new&rdquo;.</li>
+</ul>
+
+<h2 class='page-break'>3. Bug Status &mdash; All {len(BUG_ROWS)} Defects</h2>
+<p class='note'>
+  <b>Status legend:</b> <i>Fully fixed</i> (client-side change complete, no
+  backend dependency), <i>Partially fixed</i> (client-side mitigation landed,
+  backend fix still required for full remediation), <i>Documented</i>
+  (no meaningful client-side action possible &mdash; backend fix required).
+</p>
+<table>
+  <thead>
+    <tr><th style='width:14%'>ID</th><th>Title</th>
+        <th style='width:14%'>Severity</th><th style='width:15%'>Status</th></tr>
+  </thead>
+  <tbody>
+    {bug_rows_html()}
+  </tbody>
+</table>
+<p class='totals'>
+  <b>Totals:</b> {status_counts()[0]} fully fixed, {status_counts()[1]} partially fixed,
+  {status_counts()[2]} documented for backend fix.
+</p>
+
+<h2>4. Client-Side Changes Landed Today</h2>
+
+<h3>4.1 Voice Verification — 30-second auto-stop (Fully fixed)</h3>
+<ul>
+  <li>Reduced <code>CountDownTimer</code> window from <b>1 hour</b>
+      (<code>60 * 60000 ms</code>) to <b>30 seconds</b> in
+      <code>BottomSheetVoiceIdentification.kt</code>.</li>
+  <li>Implemented <code>onFinish()</code> (previously empty) so the recording
+      auto-stops, shows a &ldquo;Max 30 seconds&rdquo; toast, clears the ripple
+      animation, and routes through the existing <code>stopRecording(false)</code>
+      path so the Submit / Play / Re-record buttons appear exactly as they
+      would on a normal release.</li>
+  <li>Verified on device (V-06) and on emulator: a 32-second press auto-stops
+      at 30 s and the review UI appears.</li>
+</ul>
+
+<h3>4.2 Voice Upload — explicit MIME + 5 MB client guard (Partially fixed)</h3>
+<ul>
+  <li><code>VoiceIdentificationActivity.kt</code> now passes
+      <code>asRequestBody(&quot;audio/mpeg&quot;.toMediaTypeOrNull())</code>
+      so the server receives the correct Content-Type header instead of the
+      previous empty / octet-stream default.</li>
+  <li>Client rejects any recording above 5 MB with a user-facing toast
+      (&ldquo;Recording too large, please re-record&rdquo;) and deletes the
+      file to reclaim storage.</li>
+  <li>Null / zero-byte files are also rejected before the upload call.</li>
+</ul>
+<p class='note'>
+  <b>Backend still required:</b> the server currently accepts a 10 MB payload
+  (BUG-VV-008). Server must enforce <code>'voice' =&gt; 'file|mimes:mp3|max:10240'</code>
+  plus an nginx <code>client_max_body_size</code> guard &mdash; curl users
+  bypass any client cap.
+</p>
+
+<h3>4.3 Edit Profile — 5 UI fixes in a single activity (Fully fixed)</h3>
+<ul>
+  <li><b>E-04</b>: added <code>android:contentDescription=&quot;@string/back&quot;</code>
+      and <code>clickable/focusable=true</code> on <code>cv_back</code>;
+      moved accessibility responsibility off the inner
+      <code>iv_back</code> ImageView. TalkBack now announces
+      &ldquo;Back, button&rdquo; instead of &ldquo;Unlabeled button&rdquo;.</li>
+  <li><b>E-05</b>: <code>binding.btnUpdate.isEnabled = false</code> added at the
+      moment the loader appears; re-enabled in both the success and error
+      observer paths. Double-tapping the Update button no longer fires two
+      <code>/update_profile</code> calls.</li>
+  <li><b>E-06</b>: name validation now uses <code>Handler.postDelayed</code>
+      with a 300 ms debounce and <code>removeCallbacks</code> on each keystroke.
+      Typing &quot;Aravindan&quot; fires exactly <b>one</b> call to
+      <code>/user_validations</code> instead of nine.</li>
+  <li><b>E-07</b>: cached <code>originalUserName</code>, <code>originalAvatarId</code>,
+      <code>originalInterestsList</code>, and <code>cachedUserId</code> in
+      <code>onCreate()</code>. Removed the
+      <code>getPrefs().getUserData()</code> call from <code>updateButton()</code>
+      so no SharedPreferences read happens on every avatar scroll tick.</li>
+  <li><b>E-08</b>: both the back icon (<code>cv_back</code>) and the system
+      back key (<code>onBackPressedDispatcher</code>) now check
+      <code>hasUnsavedChanges()</code> and show an AlertDialog
+      (&ldquo;Discard / Keep editing&rdquo;) when the user has modified the
+      name, avatar, or interests. Added 3 strings to <code>strings.xml</code>.</li>
+  <li>Added <code>onDestroy()</code> to remove any pending debounce runnable,
+      avoiding a handler leak.</li>
+</ul>
+
+<h3>4.4 Edit Profile — UI-BUG-001 HTML-in-toast sanitizer (Partially fixed)</h3>
+<ul>
+  <li>Added a private helper <code>safeServerMessage(raw: String?)</code> in
+      <code>EditProfileActivity.kt</code>. It returns the generic
+      &ldquo;Please try again later&rdquo; fallback whenever the server&apos;s
+      response message starts with <code>&lt;</code>, contains
+      <code>&lt;!doctype</code> / <code>&lt;html</code> / <code>&lt;body</code>,
+      mentions &ldquo;stack trace&rdquo; or &ldquo;exception in&rdquo;, or exceeds
+      160 characters.</li>
+  <li>Wired in 3 places: the name-validation success-false observer (toast +
+      hint TextView), the name-validation error observer, and the
+      update-profile failure toast.</li>
+  <li>Logcat during manual re-test confirmed the sanitizer is working:
+      &ldquo;userValidationLiveData received: success=false, message=&lt;!DOCTYPE
+      html&gt;...&rdquo; is followed by &ldquo;Displaying error message: Please
+      try again later&rdquo; on the very next line.</li>
+</ul>
+<p class='note'>
+  <b>Backend still required:</b> the server should never return HTML to an API
+  route. Laravel&apos;s exception handler must return
+  <code>{{"success":false,"message":"..."}}</code> JSON for every throwable on
+  <code>api/*</code> routes (tracked as BUG-EP-017).
+</p>
+
+<h2 class='page-break'>5. Documented-Only Bugs (backend fix required)</h2>
+<p class='note'>
+  These bugs have no meaningful client-side mitigation &mdash; the root cause
+  is on the server. They are captured in the API test report with repro steps,
+  proofs, and recommended fixes for the backend team.
+</p>
+<ul>
+  <li><b>BUG-EP-005</b> — <code>/user_validations</code>: derive user id from
+      JWT sub; stop trusting body <code>user_id</code>.</li>
+  <li><b>BUG-EP-008</b> — move <code>/avatar_list</code> behind the
+      <code>auth:api</code> middleware group.</li>
+  <li><b>BUG-EP-010</b> — <code>/update_profile</code>: same IDOR fix pattern;
+      use <code>$request-&gt;user()-&gt;id</code>, never body
+      <code>user_id</code>.</li>
+  <li><b>BUG-EP-012</b> — add FormRequest
+      <code>'name' =&gt; 'required|string|min:4|max:10'</code>; return JSON 400
+      instead of silently accepting empty.</li>
+  <li><b>BUG-EP-013</b> — add
+      <code>'interests' =&gt; 'array|max:5|in:Politics,Art,...'</code> so the
+      server enforces what the UI already limits to 5.</li>
+  <li><b>BUG-EP-015</b> — the &ldquo;change name only once&rdquo; rule currently
+      throws an uncaught exception on the second call. Wrap in a validator /
+      try-catch and return JSON
+      <code>{{"success":false,"message":"You can change your name only once."}}</code>.</li>
+  <li><b>BUG-EP-017</b> — <code>/user_validations</code> returns HTML 500 for
+      user_id=456976 (reproducible on our test mobile). Fix the underlying
+      exception and ensure the exception handler returns JSON on
+      <code>api/*</code> routes.</li>
+  <li><b>BUG-EP-018</b> — add Laravel <code>throttle:30,1</code> middleware on
+      <code>/user_validations</code>; 7 crashing requests in 20 s all hit the
+      server with no back-off.</li>
+  <li><b>BUG-VV-002</b> — <code>/speech_text</code> must require JWT; voice
+      prompts are currently scrapable without auth.</li>
+  <li><b>BUG-VV-006</b> — <code>/update_voice</code> IDOR: same fix pattern.
+      Voice is the gating step for female creator verification, so this is
+      account-takeover-adjacent.</li>
+</ul>
+
+<h2>6. Files Changed on Branch</h2>
+<table class='filelist'>
+  <thead><tr><th style='width:52%'>File</th><th>Change</th></tr></thead>
+  <tbody>
+    {"".join(f"<tr><td>{p}</td><td>{d}</td></tr>" for p, d in FILES_CHANGED)}
+  </tbody>
+</table>
+<p class='note'>
+  All changes compile cleanly: <code>./gradlew :app:compileDevelopmentDebugKotlin</code>
+  &rarr; <b>BUILD SUCCESSFUL</b>. Only pre-existing deprecation warnings remain
+  (e.g. <code>statusBarColor</code>), none introduced by today&apos;s edits.
+</p>
+
+<h2 class='page-break'>7. Work Attribution — What I Did vs What Claude Assisted With</h2>
+<p>
+  Being transparent about tooling: AI assistance (Claude Code) was used for code
+  analysis, bug explanation in simple language, harness scaffolding, and executing
+  edits under my direction. All testing, judgment calls, device validation, and
+  the QA report content are my own.
+</p>
+
+<h3>7.1 Done by me (Perumal)</h3>
+<ul>
+  <li>Scoped the two target screens (Edit Profile, Voice Verification) and the
+      testing tracks to run today.</li>
+  <li>Ran the full manual on-device walkthrough after each set of fixes &mdash;
+      verified the 30-second voice auto-stop, the debounced name validation,
+      the unsaved-edits dialog, and the accessibility label behaviour on a
+      real emulator.</li>
+  <li><b>Caught the HTML-in-toast bug personally during manual testing</b> (the
+      one the automated suites missed) and captured the logcat evidence that
+      proved the server was returning Laravel&apos;s stock 500 page.</li>
+  <li>Captured proof: before/after screenshots, adb logcat transcripts, curl
+      probes of the dev backend, and the UI dumps backing each automation case.</li>
+  <li>Decided which 5 + 1 bugs had meaningful client-side mitigations and which
+      10 must go to the backend team; chose severity per bug.</li>
+  <li>Reviewed every code change before it landed on the branch; confirmed
+      compile success before running regression.</li>
+  <li>Kept the branch local (no push to <code>main</code>) pending senior review.</li>
+</ul>
+
+<h3>7.2 Used Claude for</h3>
+<ul>
+  <li>Built the Python API test harness against the dev backend
+      (<code>edit_profile_voice_api_tests.py</code>, 42 cases) under my direction
+      &mdash; I defined the endpoints, payloads, and assertions.</li>
+  <li>Built the adb+uiautomator UI automation driver and the Voice live test
+      suite (<code>run_voice_tests.py</code>, 10 cases) and the Edit Profile
+      static analyser (<code>run_edit_profile_static.py</code>, 12 cases).</li>
+  <li>Plain-language explanations of each bug (what&apos;s wrong, why it
+      matters, how to fix) for the tech-lead-facing PDF.</li>
+  <li>Code edits for the 6 client-side fixes (voice MIME+size, 30s cap, E-04
+      to E-08, UI-BUG-001 sanitizer) under my direction; I dictated the approach
+      and reviewed the diff.</li>
+  <li>Generated the two PDF reports
+      (<code>Hima_EditProfile_Voice_API_Report.pdf</code>,
+      <code>Hima_UI_Automation_Report.pdf</code>) and this daily report via
+      Chrome headless HTML-to-PDF.</li>
+  <li>Cross-checking that the regex for the HTML sanitizer covered
+      <code>&lt;!DOCTYPE</code>, <code>&lt;html</code>, <code>&lt;body</code>,
+      and overlong server payloads &mdash; nothing slips through.</li>
+</ul>
+
+<h2>8. Pending / Asks for Senior &amp; Backend</h2>
+<ul>
+  <li><b>Backend pickup of 10 documented-only bugs:</b> BUG-EP-005, 008, 010,
+      012, 013, 015, 017, 018 and BUG-VV-002, 006. All have specific repro
+      steps and one-line suggested fixes in the API report.</li>
+  <li><b>Reset / fresh test account</b> so QA can resume driving through
+      MainActivity &mdash; mobile 9876543210 is currently stuck on the
+      &ldquo;Almost done&mdash;under review&rdquo; terminal screen.</li>
+  <li><b>Senior approval</b> to add the 6 client-side fixes to the existing
+      login-flow branch, or to cut a separate PR for the Edit Profile / Voice
+      Verification work.</li>
+  <li><b>Prioritisation</b> of BUG-EP-010 and BUG-VV-006 &mdash; both are
+      critical IDORs that allow account-takeover-adjacent tampering
+      (profile overwrite and voice replacement of another user).</li>
+  <li><b>Approval</b> to push <code>login_flow_test_21_04_2026</code> to the
+      remote and open a PR that includes both yesterday&apos;s login-flow
+      work and today&apos;s Edit Profile / Voice Verification fixes.</li>
+</ul>
+
+<h2>9. Artifacts</h2>
+<ul>
+  <li><code>QA_Reports/automation/edit_profile_voice_api_tests.py</code>
+      &mdash; reproducible API test suite (42 cases).</li>
+  <li><code>QA_Reports/automation/edit_profile_voice_report.html</code> and
+      <code>Hima_EditProfile_Voice_API_Report.pdf</code>
+      &mdash; API test report (interactive HTML + tech-lead PDF).</li>
+  <li><code>QA_Reports/automation/edit_profile_voice_results.json</code>
+      &mdash; raw results JSON for auditability.</li>
+  <li><code>QA_Reports/ui_automation/run_voice_tests.py</code>
+      &mdash; live UI automation driver (adb + uiautomator) for the Voice
+      Verification screen.</li>
+  <li><code>QA_Reports/ui_automation/run_edit_profile_static.py</code>
+      &mdash; static UI + code analyser for Edit Profile (12 checks).</li>
+  <li><code>QA_Reports/ui_automation/ui_driver.py</code>
+      &mdash; shared adb/uiautomator helper used by the voice suite.</li>
+  <li><code>QA_Reports/ui_automation/ui_automation_report.html</code> and
+      <code>Hima_UI_Automation_Report.pdf</code>
+      &mdash; UI automation report with embedded screenshots.</li>
+  <li><code>QA_Reports/ui_automation/screenshots/</code>
+      &mdash; before/after PNGs per voice test case; includes
+      <code>almost_done_blocked.png</code> evidence of the blocked-account
+      state.</li>
+  <li><code>QA_Reports/ui_automation/logs/</code>
+      &mdash; logcat slice per voice test case.</li>
+  <li><code>QA_Reports/Daily_Report_2026-04-22.pdf</code>
+      &mdash; this report.</li>
+</ul>
+
+<p style='margin-top: 14pt; font-style: italic; color: #444;'>
+  End of report &mdash; 2026-04-22
+</p>
+
+</body>
+</html>
+"""
+
+
+def main():
+    OUT_HTML.write_text(HTML)
+    print(f"  ✓ wrote {OUT_HTML}")
+    if not Path(CHROME).exists():
+        print("  ✖ Chrome not found; open the HTML manually and Print → Save as PDF.")
+        return 1
+    cmd = [
+        CHROME, "--headless=new", "--disable-gpu",
+        f"--print-to-pdf={OUT_PDF}",
+        "--no-pdf-header-footer",
+        "--virtual-time-budget=5000",
+        f"file://{OUT_HTML}",
+    ]
+    print("  · rendering PDF via Chrome headless …")
+    subprocess.run(cmd, check=True)
+    print(f"  ✓ wrote {OUT_PDF}")
+
+
+if __name__ == "__main__":
+    main()

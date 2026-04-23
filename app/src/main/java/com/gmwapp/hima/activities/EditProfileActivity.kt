@@ -2,12 +2,16 @@ package com.gmwapp.hima.activities
 
 import com.gmwapp.hima.utils.showAppToast
 
+import android.app.AlertDialog
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
 import android.view.View
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
@@ -45,6 +49,12 @@ class EditProfileActivity : BaseActivity() {
     private val selectedInterests: ArrayList<String> = ArrayList()
     private var isValidUserName = true
     private var originalUserName: String? = null
+    private var originalAvatarId: Int? = null
+    private var originalInterestsList: List<String> = emptyList()
+    private var cachedUserId: Int? = null
+    private val nameValidatorHandler = Handler(Looper.getMainLooper())
+    private var pendingNameValidator: Runnable? = null
+    private val nameDebounceMs = 300L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,11 +67,28 @@ class EditProfileActivity : BaseActivity() {
             insets
         }
         initUI()
+
+        onBackPressedDispatcher.addCallback(this) {
+            binding.cvBack.performClick()
+        }
+    }
+
+    override fun onDestroy() {
+        pendingNameValidator?.let { nameValidatorHandler.removeCallbacks(it) }
+        super.onDestroy()
     }
 
     private fun initUI() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         originalUserName = userData?.name
+        originalAvatarId = userData?.avatar_id
+        cachedUserId = userData?.id
+        originalInterestsList = userData?.interests
+            ?.removeSurrounding("[", "]")
+            ?.split(",")
+            ?.map { it.trim() }
+            ?.filter { it.isNotEmpty() }
+            ?: emptyList()
         binding.etUserName.setText(userData?.name)
         val sharedPreferences = getSharedPreferences("UserPrefs", MODE_PRIVATE)
 
@@ -81,7 +108,21 @@ class EditProfileActivity : BaseActivity() {
         binding.tvPreferredLanguage.text = userData?.language
         //  binding.btnUpdate.setBackgroundResource(R.drawable.d_button_bg_disabled)
         binding.cvBack.setOnClickListener(View.OnClickListener {
-            finish()
+            if (hasUnsavedChanges()) {
+                AlertDialog.Builder(this)
+                    .setTitle(R.string.edit_profile)
+                    .setMessage(R.string.discard_changes_message)
+                    .setPositiveButton(R.string.discard) { dialog, _ ->
+                        dialog.dismiss()
+                        finish()
+                    }
+                    .setNegativeButton(R.string.keep_editing) { dialog, _ ->
+                        dialog.dismiss()
+                    }
+                    .show()
+            } else {
+                finish()
+            }
         })
         window.navigationBarColor = getColor(R.color.black_background)
 
@@ -91,6 +132,8 @@ class EditProfileActivity : BaseActivity() {
 
             override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
                 val text = s.toString()
+                pendingNameValidator?.let { nameValidatorHandler.removeCallbacks(it) }
+
                 if (text.length < 4) {
                     isValidUserName = false
                     binding.cvUserName.setBackgroundResource(R.drawable.d_button_bg_error)
@@ -100,12 +143,17 @@ class EditProfileActivity : BaseActivity() {
                     binding.tvUserNameHint.text = getString(R.string.user_name_hint)
                     binding.tvUserNameHint.setTextColor(getColor(android.R.color.white))
                     updateButton()
-                } else {
-                    userData?.id?.let {
-                        binding.pbUserNameLoader.visibility = View.VISIBLE
-                        profileViewModel.userValidation(it, text)
-                    }
+                    return
                 }
+
+                // Show loader immediately so user sees feedback; fire API after debounce
+                binding.pbUserNameLoader.visibility = View.VISIBLE
+                val uid = cachedUserId ?: return
+                val runnable = Runnable {
+                    profileViewModel.userValidation(uid, text)
+                }
+                pendingNameValidator = runnable
+                nameValidatorHandler.postDelayed(runnable, nameDebounceMs)
             }
 
             override fun afterTextChanged(s: Editable) {
@@ -237,6 +285,7 @@ class EditProfileActivity : BaseActivity() {
                 avatarId?.let { it2 ->
                     binding.pbUpdateLoader.visibility = View.VISIBLE
                     binding.btnUpdate.text = ""
+                    binding.btnUpdate.isEnabled = false
                     profileViewModel.updateProfile(
                         it1.id, it2, binding.etUserName.text.toString(), selectedInterests
                     )
@@ -271,13 +320,9 @@ class EditProfileActivity : BaseActivity() {
                 binding.ivSuccess.visibility = View.GONE
                 binding.ivWarning.visibility = View.VISIBLE
                 
-                // Get error message from API response
-                val errorMessage = if (response?.message != null && response.message.isNotEmpty()) {
-                    response.message
-                } else {
-                    getString(R.string.please_try_again_later)
-                }
-                
+                // Get error message from API response (sanitized)
+                val errorMessage = safeServerMessage(response?.message)
+
                 Log.d("EditProfile", "Displaying error message: $errorMessage")
                 
                 // Set error message in TextView
@@ -302,10 +347,8 @@ class EditProfileActivity : BaseActivity() {
             if (it == DConstants.NO_NETWORK) {
                 binding.tvUserNameHint.text = getString(R.string.please_try_again_later)
             } else {
-                // Display the error message from API or exception
-                val errorMessage = it?.takeIf { it.isNotEmpty() } 
-                    ?: getString(R.string.please_try_again_later)
-                binding.tvUserNameHint.text = errorMessage
+                // Display the sanitized error message from API or exception
+                binding.tvUserNameHint.text = safeServerMessage(it)
             }
             
             binding.tvUserNameHint.setTextColor(getColor(android.R.color.white))
@@ -340,8 +383,8 @@ class EditProfileActivity : BaseActivity() {
                 setResult(RESULT_OK)
                 finish()
             } else {
-                // Show error message from backend (e.g., "You can change your name only once.")
-                showAppToast(it.message ?: getString(R.string.please_try_again_later), Toast.LENGTH_LONG)
+                // Show sanitized error message from backend (e.g., "You can change your name only once.")
+                showAppToast(safeServerMessage(it.message), Toast.LENGTH_LONG)
             }
         })
         profileViewModel.avatarsListLiveData.observe(this, Observer {
@@ -361,38 +404,63 @@ class EditProfileActivity : BaseActivity() {
         })
     }
 
+    /**
+     * Returns a safe, user-facing message from a server response.
+     * Falls back to the generic retry string when the server returns
+     * an HTML page, a stack trace, or anything obviously non-user-friendly.
+     */
+    private fun safeServerMessage(raw: String?): String {
+        val fallback = getString(R.string.please_try_again_later)
+        if (raw.isNullOrBlank()) return fallback
+        val trimmed = raw.trim()
+        val lower = trimmed.lowercase()
+        if (trimmed.startsWith("<") ||
+            lower.startsWith("<!doctype") ||
+            lower.contains("<html") ||
+            lower.contains("<body") ||
+            lower.contains("stack trace") ||
+            lower.contains("exception in") ||
+            trimmed.length > 160
+        ) return fallback
+        return trimmed
+    }
+
+    private fun hasUnsavedChanges(): Boolean {
+        val typedName = binding.etUserName.text?.toString().orEmpty()
+        if (typedName != (originalUserName ?: "")) return true
+
+        val sameInterests =
+            selectedInterests.size == originalInterestsList.size &&
+                originalInterestsList.containsAll(selectedInterests)
+        if (!sameInterests) return true
+
+        val layoutManager = binding.rvAvatars.layoutManager as? CenterLayoutManager
+        val index = layoutManager?.findFirstCompletelyVisibleItemPosition() ?: -1
+        if (index >= 0) {
+            val visibleAvatar = profileViewModel.avatarsListLiveData.value?.data?.get(index)?.id
+            if (visibleAvatar != null && visibleAvatar != originalAvatarId) return true
+        }
+        return false
+    }
+
     private fun updateButton() {
+        val typedName = binding.etUserName.text?.toString().orEmpty()
+        val usernameChanged = typedName != (originalUserName ?: "")
 
+        val interestsChanged =
+            selectedInterests.size != originalInterestsList.size ||
+                !originalInterestsList.containsAll(selectedInterests)
 
-        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        val interests = userData?.interests?.split(",")
-        val layoutManager = binding.rvAvatars.layoutManager as CenterLayoutManager
-        val index = layoutManager.findFirstCompletelyVisibleItemPosition()
-        
-        val sameInterests = interests?.containsAll(selectedInterests) == true && interests.size == selectedInterests.size
-        
-        // Check if username has changed
-        val usernameChanged = userData?.name != binding.etUserName.text.toString()
-        
-        // Check if interests have changed
-        val interestsChanged = !sameInterests
-        
-        // Check if avatar has changed (only if index is valid)
+        val layoutManager = binding.rvAvatars.layoutManager as? CenterLayoutManager
+        val index = layoutManager?.findFirstCompletelyVisibleItemPosition() ?: -1
         val avatarChanged = if (index >= 0) {
-            profileViewModel.avatarsListLiveData.value?.data?.get(index)?.id != userData?.avatar_id
+            profileViewModel.avatarsListLiveData.value?.data?.get(index)?.id != originalAvatarId
         } else {
             false
         }
 
-        if (isValidUserName && (usernameChanged || interestsChanged || avatarChanged)) {
-            binding.btnUpdate.isEnabled = true
-//            showAppToast("1".toString(), Toast.LENGTH_LONG)
-            //   binding.btnUpdate.setBackgroundResource(R.drawable.d_button_bg_white)
-        } else {
-//            showAppToast("2", Toast.LENGTH_LONG)
-            binding.btnUpdate.isEnabled = false
-            //   binding.btnUpdate.setBackgroundResource(R.drawable.d_button_bg_disabled)
-        }
+        binding.btnUpdate.isEnabled =
+            isValidUserName && (usernameChanged || interestsChanged || avatarChanged)
     }
 
     // ✅ Update profile picture in Firebase for all chat threads
