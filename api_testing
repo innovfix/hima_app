@@ -1,0 +1,48 @@
+1. ✅ Functional Testing (Core)
+Correct request → correct response
+All endpoints working as expected
+HTTP status codes (200, 400, 401, 500 etc.)
+
+👉 If this fails, nothing else matters.
+
+2. 📦 Response Validation
+Response data is correct (not just success=true)
+Field values match expected logic
+No missing or extra fields
+3. 🧱 Schema Validation
+JSON structure is consistent
+Data types are correct (string, int, boolean)
+Required fields always present
+4. ❌ Negative Testing (Most people skip this — big mistake)
+Invalid inputs (wrong data types)
+Missing parameters
+Wrong formats (email, phone, etc.)
+Check proper error messages
+
+👉 This is where real bugs hide.
+
+5. 🔐 Authentication & Authorization
+API works only with valid token
+Invalid/expired token → should fail
+Role-based access (user vs admin)
+6. 🔗 Integration Testing
+API works properly with:
+Database
+Other services
+Third-party APIs
+
+👉 Example: Payment success → DB updated? User status changed?
+
+7. 🔁 Regression Testing
+Old APIs still working after new release
+No existing flows broken
+8. 🧪 Edge Cases
+Empty values
+Large payloads
+Boundary values (min/max limits)
+9. ⚡ Performance Basic Check (at least minimal)
+Response time acceptable (<2–3 sec ideally)
+API not timing out
+10. 🗄️ Data Validation (Important for your product)
+API response = actual DB data
+No mismatch or stale data

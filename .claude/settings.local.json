@@ -8,7 +8,13 @@
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('TOKEN:', d.get\\('token',''\\)\\); print\\('USER:', json.dumps\\(d.get\\('data',{}\\), indent=2\\)\\)\")",
       "Read(//c/Users/JP/.ssh/**)",
       "Bash(xargs grep *)",
-      "Bash(adb devices *)"
+      "Bash(adb devices *)",
+      "Bash(./gradlew :app:compileDebugKotlin)",
+      "Read(//c/Program Files/Android/Android Studio/jbr/bin/**)",
+      "Read(//c/Program Files/**)",
+      "Bash(where java *)",
+      "PowerShell($jbr = Get-ChildItem -Path \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\" -ErrorAction SilentlyContinue; if \\($jbr\\) { $env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:Path = \"$env:JAVA_HOME\\\\bin;$env:Path\"; & .\\\\gradlew.bat :app:compileDebugKotlin 2>&1 | Select-Object -Last 40 } else { \"no jbr\" })",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:Path = \"$env:JAVA_HOME\\\\bin;$env:Path\"; & .\\\\gradlew.bat :app:compileDevelopmentDebugKotlin 2>&1 | Select-Object -Last 50)"
     ]
   }
 }
