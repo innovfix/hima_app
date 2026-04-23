@@ -22,6 +22,9 @@ data class ChatMessageApi(
     val fromUserId: Int? = null,
     @SerializedName("to_user_id")
     val toUserId: Int? = null,
-    val reactions: List<MessageReaction>? = null  // Array of {user_id, reaction_emoji}
+    val reactions: List<MessageReaction>? = null,  // Array of {user_id, reaction_emoji}
+    /** 1 when the sender has deleted-for-everyone; backend also blanks `message`/`attachment_url`. */
+    @SerializedName("is_deleted")
+    val isDeleted: Int? = null
 )
 

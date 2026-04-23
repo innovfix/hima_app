@@ -26,6 +26,14 @@
             android:paddingBottom="6dp"
             android:elevation="1dp">
 
+            <include
+                android:id="@+id/layout_reply_quote"
+                layout="@layout/view_reply_quote"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="6dp"
+                android:visibility="gone" />
+
             <TextView
                 android:id="@+id/tv_message"
                 android:layout_width="wrap_content"

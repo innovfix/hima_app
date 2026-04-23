@@ -17,7 +17,6 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import com.bumptech.glide.Glide
-import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.activities.CommunityGuidelineActivity
 import com.gmwapp.hima.R
@@ -187,8 +186,16 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
         binding.tvSupportMail.text =
             supportMail
         binding.tvName.text = userData?.name
-        Glide.with(this).load(userData?.image).
-        apply(RequestOptions.circleCropTransform()).into(binding.ivProfile)
+        if (userData != null) {
+            Glide.with(this)
+                .load(userData.image)
+                .apply(com.bumptech.glide.request.RequestOptions.circleCropTransform())
+                .placeholder(R.drawable.logo)
+                .error(R.drawable.logo)
+                .into(binding.ivProfile)
+        } else {
+            Glide.with(this).clear(binding.ivProfile)
+        }
     }
 
     /**
@@ -209,7 +216,13 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
         updateIplBadge()
         iplRoomViewModel.getMatchSuggestions() // Fetch today's matches for team picker
 
-        dndController = DndController(this, binding.switchDnd, binding.tvDndStatus, profileViewModel)
+        dndController = DndController(
+            this,
+            binding.switchDnd,
+            binding.tvDndStatus,
+            profileViewModel,
+            requireCallsDisabledBeforeEnablingDnd = true
+        )
 
         // Refresh user data from server (handles auto-clear of expired ipl_team / dnd)
         val refreshUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id

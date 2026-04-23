@@ -53,6 +53,8 @@ import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.activities.RatingActivity
 import com.gmwapp.hima.agora.FaceDetectVideoFrameObserver
 import com.gmwapp.hima.agora.FcmUtils
+import com.gmwapp.hima.agora.telecom.HimaTelecomManager
+import android.telecom.DisconnectCause
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityFemaleVideoCallingBinding
 import com.gmwapp.hima.databinding.ActivityMaleVideoCallingBinding
@@ -72,7 +74,10 @@ import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.viewmodels.UserAvatarViewModel
+import com.gmwapp.hima.retrofit.responses.CallEndReason
+import com.gmwapp.hima.retrofit.responses.CallEndedBy
 import com.gmwapp.hima.viewmodels.CallDropStatusViewModel
+import com.gmwapp.hima.viewmodels.CallStatusViewModel
 import com.gmwapp.hima.viewmodels.LudoFcmViewModel
 import com.gmwapp.hima.workers.CallUpdateWorker
 import com.google.firebase.crashlytics.FirebaseCrashlytics
@@ -137,6 +142,8 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     private val userAvatarViewModel: UserAvatarViewModel by viewModels()
     private val agoraViewModel: AgoraViewModel by viewModels()
     private val callDropStatusViewModel: CallDropStatusViewModel by viewModels()
+    private val callStatusViewModel: CallStatusViewModel by viewModels()
+    private val isCaller: Boolean by lazy { intent.getBooleanExtra("IS_CALLER", false) }
     private val ludoFcmViewModel: LudoFcmViewModel by viewModels()
 
     private var storedVideoRemainingTime: String? = null
@@ -988,6 +995,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
 
         stopCallingService()
         cancelTimeoutTracking()
@@ -1471,6 +1479,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     fun leaveChannel(view: View) {
         if (!isJoined) {
+            HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
         //    showMessage("Join a channel first")
             val intent = Intent(this@FemaleVideoCallingActivity, MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -1494,6 +1503,8 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             if (localSurfaceView != null) localSurfaceView!!.visibility = View.GONE
             isJoined = false
             stopCountdown()
+
+            HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
 
             updateCallEndDetails()
             Handler(Looper.getMainLooper()).postDelayed({
@@ -1823,6 +1834,16 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                     receivedUserId = receiverId,
                     callId = call_Id,
                     callDropStatus = 1
+                )
+                val endedByRole = if (isCaller) CallEndedBy.CALLER else CallEndedBy.RECEIVER
+                Log.d("CallStatus", "FemaleVideo.hangup → ended/$endedByRole self=$userId peer=$receiverId callId=$call_Id isCaller=$isCaller")
+                callStatusViewModel.saveCallStatus(
+                    userId = userId,
+                    receivedUserId = receiverId,
+                    callId = call_Id,
+                    endReason = CallEndReason.ENDED,
+                    endedBy = endedByRole,
+                    endedByUserId = userId,
                 )
             } else {
                 Log.w(

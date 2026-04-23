@@ -50,6 +50,22 @@
                     android:text="10:31 AM"
                     android:textColor="@color/chat_time_sent"
                     android:textSize="10sp" />
+
+                <TextView
+                    android:id="@+id/tv_tombstone"
+                    android:layout_width="220dp"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:alpha="0.7"
+                    android:background="@drawable/chat_bubble_receiver"
+                    android:fontFamily="@font/poppins_regular"
+                    android:gravity="center"
+                    android:paddingHorizontal="14dp"
+                    android:paddingVertical="18dp"
+                    android:textColor="@color/chat_text_received"
+                    android:textSize="14sp"
+                    android:textStyle="italic"
+                    android:visibility="gone" />
             </FrameLayout>
         </com.google.android.material.card.MaterialCardView>
 

@@ -63,6 +63,7 @@ import com.gmwapp.hima.callbacks.NetworkRetryable
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.callbacks.Refreshable
 import com.gmwapp.hima.constants.DConstants
+import com.gmwapp.hima.utils.CallPermissionHelper
 import com.gmwapp.hima.databinding.ActivityMainBinding
 import com.gmwapp.hima.dialogs.BottomSheetWelcomeBonus
 import com.gmwapp.hima.dialogs.BottomSheetInsufficientCoinsPaywall
@@ -203,6 +204,9 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     private var recentUnreadCount: Int = 0
     private val recentMissedDotTag = "recent_missed_dot"
     private val recentUnreadDotTag = "recent_unread_dot"
+    private var chatFriendsUnread: Int = 0
+    private var chatGeneralUnread: Int = 0
+    private val chatUnreadDotTag = "chat_unread_dot"
     private val paywallVideoContentPrefsKey = "paywall_video_content_response"
     private val showPaywallInsufficientIntentKey = "show_paywall_insufficient"
 
@@ -330,6 +334,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 if (System.currentTimeMillis() - lastAskedTime >= oneDayMillis) {
                     requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
+            }
+        }
+
+        userData?.let { ud ->
+            if (ud.gender == DConstants.FEMALE || ud.gender == DConstants.MALE) {
+                CallPermissionHelper.maybePromptCallReliabilityPermissions(this)
             }
         }
 
@@ -1313,6 +1323,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         // Refresh bottom nav badge for missed calls
         loadRecentMissedCountBadge()
         loadRecentUnreadCountBadge()
+        loadChatUnreadCountBadge()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -1401,7 +1412,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         hideBadge(recentUnreadDotTag)
 
         if (displayCount > 0) {
-            placeRecentBadge(displayCount)
+            val badgeColor = if (safeMissed > 0) R.color.chat_recording_red else R.color.colorAccent
+            placeRecentBadge(displayCount, badgeColor)
         } else {
             hideBadge(recentMissedDotTag)
         }
@@ -1438,7 +1450,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     }
 
     // Single badge on Recent tab — top-right of icon; reuses recentMissedDotTag TextView.
-    private fun placeRecentBadge(count: Int) {
+    private fun placeRecentBadge(count: Int, @androidx.annotation.ColorRes badgeColorRes: Int = R.color.colorAccent) {
         val rootView = window.decorView.findViewById<ViewGroup>(android.R.id.content)
         val dp = resources.displayMetrics.density
         val dotSize = (18 * dp).toInt()
@@ -1447,6 +1459,9 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             ?: makeBadgeDot(recentMissedDotTag)
         dot.text = count.coerceAtMost(99).toString()
         dot.visibility = View.VISIBLE
+        (dot.background as? GradientDrawable)?.setColor(
+            ContextCompat.getColor(this, badgeColorRes)
+        )
 
         binding.bottomNavigationView.post {
             val itemView = getRecentBottomNavItemView() ?: return@post
@@ -1475,6 +1490,128 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     private fun hideBadge(tag: String) {
         val rootView = window.decorView.findViewById<ViewGroup>(android.R.id.content)
         rootView.findViewWithTag<TextView>(tag)?.visibility = View.GONE
+    }
+
+    fun refreshChatUnreadCountBadge() {
+        loadChatUnreadCountBadge()
+    }
+
+    // Lets CreatorChatFragment push its freshly-fetched counts up so the badge
+    // stays in sync as the creator reads messages, without a duplicate fetch.
+    fun updateChatUnreadCountBadge(friendsUnread: Int, generalUnread: Int) {
+        chatFriendsUnread = friendsUnread.coerceAtLeast(0)
+        chatGeneralUnread = generalUnread.coerceAtLeast(0)
+        updateChatBadge()
+    }
+
+    private fun loadChatUnreadCountBadge() {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
+        if (userData.gender != DConstants.FEMALE) return
+
+        apiManager.getMyChatFriends(userData.id, null, 100, 0, object : NetworkCallback<com.gmwapp.hima.retrofit.responses.MyChatResponse> {
+            override fun onResponse(
+                call: Call<com.gmwapp.hima.retrofit.responses.MyChatResponse>,
+                response: retrofit2.Response<com.gmwapp.hima.retrofit.responses.MyChatResponse>
+            ) {
+                chatFriendsUnread = if (response.isSuccessful && response.body()?.success == true) {
+                    response.body()?.data?.chats?.sumOf { it.unreadCount } ?: 0
+                } else {
+                    0
+                }
+                updateChatBadge()
+            }
+
+            override fun onFailure(call: Call<com.gmwapp.hima.retrofit.responses.MyChatResponse>, t: Throwable) {
+                chatFriendsUnread = 0
+                updateChatBadge()
+            }
+
+            override fun onNoNetwork() {
+                chatFriendsUnread = 0
+                updateChatBadge()
+            }
+        })
+
+        apiManager.getMyChatGeneral(userData.id, null, 100, 0, object : NetworkCallback<com.gmwapp.hima.retrofit.responses.MyChatResponse> {
+            override fun onResponse(
+                call: Call<com.gmwapp.hima.retrofit.responses.MyChatResponse>,
+                response: retrofit2.Response<com.gmwapp.hima.retrofit.responses.MyChatResponse>
+            ) {
+                chatGeneralUnread = if (response.isSuccessful && response.body()?.success == true) {
+                    response.body()?.data?.chats?.sumOf { it.unreadCount } ?: 0
+                } else {
+                    0
+                }
+                updateChatBadge()
+            }
+
+            override fun onFailure(call: Call<com.gmwapp.hima.retrofit.responses.MyChatResponse>, t: Throwable) {
+                chatGeneralUnread = 0
+                updateChatBadge()
+            }
+
+            override fun onNoNetwork() {
+                chatGeneralUnread = 0
+                updateChatBadge()
+            }
+        })
+    }
+
+    private fun updateChatBadge() {
+        val total = (chatFriendsUnread.coerceAtLeast(0) + chatGeneralUnread.coerceAtLeast(0))
+
+        binding.bottomNavigationView.removeBadge(R.id.chat)
+
+        if (total > 0) {
+            placeChatBadge(total)
+        } else {
+            hideBadge(chatUnreadDotTag)
+        }
+    }
+
+    private fun getChatBottomNavItemView(): BottomNavigationItemView? {
+        val menuView = binding.bottomNavigationView.getChildAt(0) as? BottomNavigationMenuView ?: return null
+        for (i in 0 until menuView.childCount) {
+            val item = menuView.getChildAt(i)
+            if (item is BottomNavigationItemView && item.itemData?.itemId == R.id.chat) {
+                return item
+            }
+        }
+        return null
+    }
+
+    private fun placeChatBadge(count: Int) {
+        val rootView = window.decorView.findViewById<ViewGroup>(android.R.id.content)
+        val dp = resources.displayMetrics.density
+        val dotSize = (18 * dp).toInt()
+
+        val dot = rootView.findViewWithTag<TextView>(chatUnreadDotTag)
+            ?: makeBadgeDot(chatUnreadDotTag)
+        dot.text = count.coerceAtMost(99).toString()
+        dot.visibility = View.VISIBLE
+
+        binding.bottomNavigationView.post {
+            val itemView = getChatBottomNavItemView() ?: return@post
+            val iconView = itemView.findViewById<View>(
+                com.google.android.material.R.id.navigation_bar_item_icon_view
+            ) ?: return@post
+
+            val iconPos = IntArray(2)
+            iconView.getLocationInWindow(iconPos)
+            val rootPos = IntArray(2)
+            rootView.getLocationInWindow(rootPos)
+
+            val iconLeft = iconPos[0] - rootPos[0]
+            val iconRight = iconLeft + iconView.width
+            val iconTop = iconPos[1] - rootPos[1]
+            val topMargin = iconTop - dotSize / 2
+
+            (dot.layoutParams as? FrameLayout.LayoutParams)?.let {
+                it.leftMargin = iconRight - dotSize / 2
+                it.topMargin = topMargin
+                dot.layoutParams = it
+            }
+        }
     }
 
     fun getSkuListID() {

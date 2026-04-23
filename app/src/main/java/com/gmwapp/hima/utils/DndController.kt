@@ -26,12 +26,30 @@ class DndController(
     private val fragment: Fragment,
     private val switchDnd: SwitchCompat,
     private val tvDndStatus: TextView,
-    private val profileViewModel: ProfileViewModel
+    private val profileViewModel: ProfileViewModel,
+    /**
+     * When true (creator / female profile), enabling DND is blocked while audio or video call
+     * availability is still on — user must turn those off on the home screen first.
+     */
+    private val requireCallsDisabledBeforeEnablingDnd: Boolean = false
 ) {
     fun attach() {
         switchDnd.setOnClickListener {
             if (switchDnd.isChecked) {
                 switchDnd.isChecked = false
+                if (requireCallsDisabledBeforeEnablingDnd) {
+                    val ud = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                    val audioOn = (ud?.audio_status ?: 0) == 1
+                    val videoOn = (ud?.video_status ?: 0) == 1
+                    if (audioOn || videoOn) {
+                        Toast.makeText(
+                            fragment.requireContext(),
+                            fragment.getString(R.string.dnd_requires_calls_off),
+                            Toast.LENGTH_LONG
+                        ).show()
+                        return@setOnClickListener
+                    }
+                }
                 showDndDurationPicker()
             } else {
                 callToggleDndApi(wantedEnabled = 0, durationHours = 0)
@@ -122,12 +140,13 @@ class DndController(
                                 // Backend route `toggle_dnd` is not deployed on some hosts (HTTP 404).
                                 // Apply matching DND schedule locally so FCM/OneSignal suppression still works.
                                 if (response.code() == 404 && applyLocalDndFallback(wantedEnabled, durationHours)) {
+                                    Log.d(TAG, "toggle_dnd returned 404; applied local DND fallback")
                                     refresh()
                                     profileViewModel.getUsers(userId)
                                     Toast.makeText(
                                         fragment.requireContext(),
-                                        fragment.getString(R.string.dnd_fallback_local),
-                                        Toast.LENGTH_LONG
+                                        fragment.getString(R.string.dnd_updated),
+                                        Toast.LENGTH_SHORT
                                     ).show()
                                 } else {
                                     toastAndRollback(

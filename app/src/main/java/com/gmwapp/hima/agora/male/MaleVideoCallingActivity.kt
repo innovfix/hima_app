@@ -53,6 +53,8 @@ import com.gmwapp.hima.utils.AppEventLogger
 import com.gmwapp.hima.activities.RatingActivity
 import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.agora.FcmUtils
+import com.gmwapp.hima.agora.telecom.HimaTelecomManager
+import android.telecom.DisconnectCause
 import com.gmwapp.hima.agora.GiftBottomSheetFragment
 import com.gmwapp.hima.viewmodels.GiftImageViewModel
 import com.gmwapp.hima.constants.DConstants
@@ -69,7 +71,10 @@ import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.viewmodels.UserAvatarViewModel
+import com.gmwapp.hima.retrofit.responses.CallEndReason
+import com.gmwapp.hima.retrofit.responses.CallEndedBy
 import com.gmwapp.hima.viewmodels.CallDropStatusViewModel
+import com.gmwapp.hima.viewmodels.CallStatusViewModel
 import com.gmwapp.hima.viewmodels.LudoFcmViewModel
 import com.gmwapp.hima.workers.CallUpdateWorker
 import com.google.firebase.crashlytics.FirebaseCrashlytics
@@ -77,6 +82,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import io.agora.rtc2.ChannelMediaOptions
 import io.agora.rtc2.Constants
 import io.agora.rtc2.IRtcEngineEventHandler
+import io.agora.rtc2.IRtcEngineEventHandler.RtcStats
 import io.agora.rtc2.video.VideoCanvas
 import retrofit2.Call
 import retrofit2.Response
@@ -114,6 +120,10 @@ import java.util.zip.ZipInputStream
 
 @AndroidEntryPoint
 class MaleVideoCallingActivity : AppCompatActivity() {
+
+    companion object {
+        private const val TAG_END = "MaleVideoEndFlow"
+    }
 
     lateinit var binding: ActivityMaleVideoCallingBinding
     var receiverId = 0
@@ -169,6 +179,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     private val userAvatarViewModel: UserAvatarViewModel by viewModels()
     private val agoraViewModel: AgoraViewModel by viewModels()
     private val callDropStatusViewModel: CallDropStatusViewModel by viewModels()
+    private val callStatusViewModel: CallStatusViewModel by viewModels()
+    private val isCaller: Boolean by lazy { intent.getBooleanExtra("IS_CALLER", false) }
     private val ludoFcmViewModel: LudoFcmViewModel by viewModels()
     private val giftImageViewModel: GiftImageViewModel by viewModels()
 
@@ -231,10 +243,14 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     private val timeoutRunnable = object : Runnable {
         override fun run() {
             elapsedTime++
-            Log.d("CallTimeoutTracking", "Seconds passed: $elapsedTime")
+            Log.d(
+                TAG_END,
+                "timeout tick=$elapsedTime isRemoteUserJoined=$isRemoteUserJoined isJoined=$isJoined"
+            )
 
             if (elapsedTime >=10) { // 20 seconds timeout
                 if (isRemoteUserJoined==false){
+                    Log.d(TAG_END, "timeout fired -> leaveChannel (remote never joined)")
                     Log.d("isUserJoinedTimer","Leave Button")
                     Toast.makeText(this@MaleVideoCallingActivity,"User did not join", Toast.LENGTH_LONG).show()
 
@@ -249,12 +265,38 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         }
     }
 
+    private val heartbeatHandler = Handler(Looper.getMainLooper())
+    private val heartbeatRunnable = object : Runnable {
+        override fun run() {
+            if (isFinishing) return
+            Log.d(
+                TAG_END,
+                "HB isJoined=$isJoined isRemoteUserJoined=$isRemoteUserJoined elapsedTime=$elapsedTime isDestroyed=$isDestroyed"
+            )
+            heartbeatHandler.postDelayed(this, 5000L)
+        }
+    }
+
+    private fun startHeartbeat() {
+        heartbeatHandler.removeCallbacks(heartbeatRunnable)
+        heartbeatHandler.post(heartbeatRunnable)
+    }
+
+    private fun stopHeartbeat() {
+        heartbeatHandler.removeCallbacks(heartbeatRunnable)
+    }
+
     fun startTimeoutTracking() {
+        Log.d(TAG_END, "startTimeoutTracking called")
         elapsedTime = 0  // Reset counter
         timeoutHandler.post(timeoutRunnable) // Start tracking
     }
 
     fun cancelTimeoutTracking() {
+        val caller = Throwable().stackTrace.getOrNull(2)
+            ?.let { "${it.className}.${it.methodName}:${it.lineNumber}" }
+            ?: "unknown"
+        Log.d(TAG_END, "cancelTimeoutTracking called from $caller")
         timeoutHandler.removeCallbacks(timeoutRunnable) // Stop tracking if call is accepted
         Log.d("isUserJoinedTimer","Cancelled")
     }
@@ -296,6 +338,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         if (appId == null) {
             Log.e("AgoraToken", "AppId is null, cannot initialize engine")
             showMessage("Failed to initialize call. Please try again.")
+            Log.d(TAG_END, "finish() from setupVideoSDKEngine.appIdNull")
             finish()
             return
         }
@@ -417,6 +460,10 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         receiverId = intent.getIntExtra("RECEIVER_ID", -1)
         callId = intent.getIntExtra("CALL_ID", 0)
 
+        Log.d(
+            TAG_END,
+            "onCreate channel=$channelName receiverId=$receiverId callId=$callId maleUserId=$maleUserId"
+        )
         Log.d("VideoCallingLog", "Channel: $channelName, Receiver: $receiverId, callId:$callId")
         Log.d("AgoraTiming", "MaleVideo onCreate at ${System.currentTimeMillis()}")
 
@@ -468,6 +515,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         getBlockWords()
         setupLudoInviteFlow()
         giftIconClicked()
+        startHeartbeat()
     }
 
     private fun giftIconClicked() {
@@ -543,6 +591,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 if (appId.isNullOrEmpty()) {
                     Log.e("AgoraToken", "AppId not received from backend")
                     showMessage("Failed to initialize call. Please try again.")
+                    Log.d(TAG_END, "finish() from getAgoraTokenFromBackend.appIdEmpty")
                     finish()
                     return@observe
                 }
@@ -562,6 +611,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             } else {
                 Log.e("AgoraToken", "Failed to get token: ${response?.message}")
                 showMessage("Failed to initialize call. Please try again.")
+                Log.d(TAG_END, "finish() from getAgoraTokenFromBackend.tokenFailed")
                 finish()
             }
         }
@@ -570,6 +620,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         agoraViewModel.agoraTokenErrorLiveData.observe(this) { error ->
             Log.e("AgoraToken", "Error: $error")
             showMessage(error ?: "Failed to initialize call. Please try again.")
+            Log.d(TAG_END, "finish() from getAgoraTokenFromBackend.tokenErrorLiveData")
             finish()
         }
 
@@ -906,7 +957,13 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        stopHeartbeat()
+        Log.d(
+            TAG_END,
+            "onDestroy isJoined=$isJoined isRemoteUserJoined=$isRemoteUserJoined elapsedTime=$elapsedTime isFinishing=$isFinishing"
+        )
         super.onDestroy()
+        HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
 
         stopCallingService()
         cancelTimeoutTracking()
@@ -965,6 +1022,10 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     private val mRtcEventHandler: IRtcEngineEventHandler = object : IRtcEngineEventHandler() {
         override fun onUserJoined(uid: Int, elapsed: Int) {
            // showMessage("Remote user joined $uid")
+            Log.d(
+                TAG_END,
+                "onUserJoined uid=$uid isRemoteUserJoined=$isRemoteUserJoined isJoined=$isJoined"
+            )
             Log.d("AgoraTiming", "MaleVideo onUserJoined at ${System.currentTimeMillis()}")
             startCallingService()
             isRemoteUserJoined= true
@@ -1022,6 +1083,10 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
         override fun onJoinChannelSuccess(channel: String, uid: Int, elapsed: Int) {
             isJoined = true
+            Log.d(
+                TAG_END,
+                "onJoinChannelSuccess uid=$uid channel=$channel isRemoteUserJoined=$isRemoteUserJoined elapsed=$elapsed"
+            )
             Log.d("AgoraTiming", "MaleVideo onJoinChannelSuccess at ${System.currentTimeMillis()}")
             startTimeoutTracking()
         }
@@ -1030,6 +1095,10 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
         override fun onUserOffline(uid: Int, reason: Int) {
           //  showMessage("Remote user offline $uid $reason")
+            Log.d(
+                TAG_END,
+                "onUserOffline uid=$uid reason=$reason isJoined=$isJoined isRemoteUserJoined=$isRemoteUserJoined"
+            )
             stopCountdown()
             updateCallEndDetails()
             runOnUiThread {
@@ -1038,10 +1107,43 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 }
             }
 
+            Log.d(TAG_END, "onUserOffline -> startActivity(MainActivity) then finish()")
             val intent = Intent(this@MaleVideoCallingActivity, MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             startActivity(intent)
+            Log.d(TAG_END, "finish() from onUserOffline")
             finish()
+        }
+
+        override fun onError(err: Int) {
+            Log.d(TAG_END, "onError err=$err isJoined=$isJoined isRemoteUserJoined=$isRemoteUserJoined")
+            super.onError(err)
+        }
+
+        override fun onConnectionStateChanged(state: Int, reason: Int) {
+            Log.d(
+                TAG_END,
+                "onConnectionStateChanged state=$state reason=$reason isJoined=$isJoined isRemoteUserJoined=$isRemoteUserJoined"
+            )
+            super.onConnectionStateChanged(state, reason)
+        }
+
+        override fun onConnectionLost() {
+            Log.d(TAG_END, "onConnectionLost isJoined=$isJoined isRemoteUserJoined=$isRemoteUserJoined")
+            super.onConnectionLost()
+        }
+
+        override fun onLeaveChannel(stats: RtcStats) {
+            Log.d(
+                TAG_END,
+                "onLeaveChannel totalDuration=${stats.totalDuration} txBytes=${stats.txBytes} rxBytes=${stats.rxBytes}"
+            )
+            super.onLeaveChannel(stats)
+        }
+
+        override fun onRejoinChannelSuccess(channel: String?, uid: Int, elapsed: Int) {
+            Log.d(TAG_END, "onRejoinChannelSuccess channel=$channel uid=$uid elapsed=$elapsed")
+            super.onRejoinChannelSuccess(channel, uid, elapsed)
         }
 
         override fun onUserMuteVideo(uid: Int, muted: Boolean) {
@@ -1396,13 +1498,22 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     }
 
     fun leaveChannel(view: View) {
+        Log.d(
+            TAG_END,
+            "leaveChannel() enter isJoined=$isJoined viewId=${view.id} isRemoteUserJoined=$isRemoteUserJoined"
+        )
         if (!isJoined) {
+            Log.d(TAG_END, "leaveChannel.notJoined path")
+            HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
          //   showMessage("Join a channel first")
             val intent = Intent(this@MaleVideoCallingActivity, MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             startActivity(intent)
+            Log.d(TAG_END, "leaveChannel finishing activity (notJoined)")
+            Log.d(TAG_END, "finish() from leaveChannel.notJoined")
             finish()
         } else {
+            Log.d(TAG_END, "leaveChannel.joined path")
             stopCountdown()
             try {
                 agoraEngine?.stopPreview()
@@ -1420,6 +1531,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             if (remoteSurfaceView != null) remoteSurfaceView!!.visibility = View.GONE
             if (localSurfaceView != null) localSurfaceView!!.visibility = View.GONE
             isJoined = false
+            HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
             updateCallEndDetails()
 
             Handler(Looper.getMainLooper()).postDelayed({
@@ -1427,6 +1539,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 val intent = Intent(this@MaleVideoCallingActivity, MainActivity::class.java)
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 startActivity(intent)
+                Log.d(TAG_END, "leaveChannel finishing activity (joined delayed)")
+                Log.d(TAG_END, "finish() from leaveChannel.joinedDelayed")
                 finish()
             }, 50L)
         }
@@ -1643,8 +1757,20 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     }
 
 
+    override fun onStart() {
+        super.onStart()
+        Log.d(
+            TAG_END,
+            "onStart isJoined=$isJoined isRemoteUserJoined=$isRemoteUserJoined elapsedTime=$elapsedTime isFinishing=$isFinishing"
+        )
+    }
+
     override fun onResume() {
         super.onResume()
+        Log.d(
+            TAG_END,
+            "onResume isJoined=$isJoined isRemoteUserJoined=$isRemoteUserJoined elapsedTime=$elapsedTime isFinishing=$isFinishing"
+        )
         Log.d("resumedtag","resumed")
         newRemainingTime()
         startCallingService()
@@ -1655,8 +1781,25 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         ) {
             showMessage("Microphone permission was revoked. Ending call.")
             agoraEngine?.leaveChannel()
+            Log.d(TAG_END, "finish() from onResume.micRevoked")
             finish()
         }
+    }
+
+    override fun onPause() {
+        Log.d(
+            TAG_END,
+            "onPause isJoined=$isJoined isRemoteUserJoined=$isRemoteUserJoined elapsedTime=$elapsedTime isFinishing=$isFinishing"
+        )
+        super.onPause()
+    }
+
+    override fun onStop() {
+        Log.d(
+            TAG_END,
+            "onStop isJoined=$isJoined isRemoteUserJoined=$isRemoteUserJoined elapsedTime=$elapsedTime isFinishing=$isFinishing"
+        )
+        super.onStop()
     }
     private fun onAddcoinClicked(){
         binding.timerContainer.setOnSingleClickListener {
@@ -1711,6 +1854,16 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                     receivedUserId = receiverId,
                     callId = callId,
                     callDropStatus = 1
+                )
+                val endedByRole = if (isCaller) CallEndedBy.CALLER else CallEndedBy.RECEIVER
+                Log.d("CallStatus", "MaleVideo.hangup → ended/$endedByRole self=$maleUserId peer=$receiverId callId=$callId isCaller=$isCaller")
+                callStatusViewModel.saveCallStatus(
+                    userId = maleUserId,
+                    receivedUserId = receiverId,
+                    callId = callId,
+                    endReason = CallEndReason.ENDED,
+                    endedBy = endedByRole,
+                    endedByUserId = maleUserId,
                 )
             } else {
                 Log.w(
@@ -1957,6 +2110,10 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         FcmUtils.updatedCallSwitch.observe(this, androidx.lifecycle.Observer { updatedCallSwitch ->
             if (updatedCallSwitch != null) {
                 val (switchType, receiverId) = updatedCallSwitch
+                Log.d(
+                    TAG_END,
+                    "switchAcceptance observed: switchType=$switchType receiverId=$receiverId this.receiverId=${this.receiverId}"
+                )
 
                 Log.d("CallswitchID", "$switchCallID")
 
@@ -2022,6 +2179,10 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         FcmUtils.updatedCallSwitch.observe(this, androidx.lifecycle.Observer { updatedCallSwitch ->
             if (updatedCallSwitch != null) {
                 val (switchType, newCallId) = updatedCallSwitch
+                Log.d(
+                    TAG_END,
+                    "switchRequest observed: switchType=$switchType newCallId=$newCallId this.receiverId=$receiverId"
+                )
 
                 val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
                 var userid = userData?.id

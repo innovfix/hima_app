@@ -63,6 +63,17 @@
             android:name="androidx.work.impl.WorkManagerInitializer"
             android:authorities="${applicationId}.workmanager-init"
             tools:node="remove" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <activity
             android:name=".activities.IplRoomsActivity"
             android:exported="false" />
@@ -146,7 +157,9 @@
         <activity
             android:name=".agora.female.FemaleCallAcceptActivity"
             android:exported="false"
-            android:launchMode="singleTop" />
+            android:launchMode="singleTop"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true" />
         <activity
             android:name=".agora.female.FemaleCallConnectingActivity"
             android:exported="false" />
@@ -173,7 +186,9 @@
         <activity
             android:name=".agora.male.MaleCallAcceptActivity"
             android:exported="true"
-            android:launchMode="singleTop" />
+            android:launchMode="singleTop"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true" />
         <activity
             android:name=".YoutubeRechargeActivity"
             android:exported="false" />
@@ -371,14 +386,29 @@
             </intent-filter>
         </service>
 
+        <service
+            android:name=".agora.telecom.HimaConnectionService"
+            android:exported="true"
+            android:permission="android.permission.BIND_TELECOM_CONNECTION_SERVICE">
+            <intent-filter>
+                <action android:name="android.telecom.ConnectionService" />
+            </intent-filter>
+        </service>
+
         <receiver
             android:name=".agora.CallActionReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="ACTION_ACCEPT_CALL" />
                 <action android:name="ACTION_REJECT_CALL" />
+                <action android:name="ACTION_ACCEPT_CALL_MALE" />
+                <action android:name="ACTION_REJECT_CALL_MALE" />
             </intent-filter>
         </receiver>
+
+        <receiver
+            android:name=".utils.ChatNotifDeleteReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Rounded translucent background for the inline reply quote block shown inside a
+     chat bubble. Solid color is overridden per-bubble in ChatAdapter (sent vs.
+     received) so we can reuse one drawable for both sides. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/chat_reply_quote_bg_sent" />
+    <corners android:radius="6dp" />
+</shape>

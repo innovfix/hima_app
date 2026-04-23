@@ -6,8 +6,12 @@ import android.util.Log
 import com.gmwapp.hima.utils.Config
 import io.socket.client.IO
 import io.socket.client.Socket
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONObject
 
@@ -34,23 +38,41 @@ class SocketManager private constructor() {
     private var isConnecting = false
     private val connectionLock = Any()
     
-    private val _newMessage = MutableStateFlow<ChatMessageSocket?>(null)
-    val newMessage: StateFlow<ChatMessageSocket?> = _newMessage.asStateFlow()
-    
-    private val _messageSent = MutableStateFlow<ChatMessageSocket?>(null)
-    val messageSent: StateFlow<ChatMessageSocket?> = _messageSent.asStateFlow()
-    
-    private val _messageError = MutableStateFlow<String?>(null)
-    val messageError: StateFlow<String?> = _messageError.asStateFlow()
-    
-    private val _chatUpdated = MutableStateFlow<ChatUpdatedEvent?>(null)
-    val chatUpdated: StateFlow<ChatUpdatedEvent?> = _chatUpdated.asStateFlow()
-    
-    private val _userTyping = MutableStateFlow<TypingEvent?>(null)
-    val userTyping: StateFlow<TypingEvent?> = _userTyping.asStateFlow()
-    
-    private val _reactionUpdated = MutableStateFlow<ReactionUpdateEvent?>(null)
-    val reactionUpdated: StateFlow<ReactionUpdateEvent?> = _reactionUpdated.asStateFlow()
+    // Event streams are SharedFlow (not StateFlow) — StateFlow conflates and de-duplicates
+    // by equality, which silently dropped messages when the server echoed the same payload
+    // twice or two replies arrived back-to-back. SharedFlow with replay=0 emits every event
+    // exactly once; the buffer absorbs rapid bursts, DROP_OLDEST avoids blocking emitters.
+    private fun <T> eventFlow(): MutableSharedFlow<T> = MutableSharedFlow(
+        replay = 0,
+        extraBufferCapacity = 64,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+
+    private val _newMessage = eventFlow<ChatMessageSocket>()
+    val newMessage: SharedFlow<ChatMessageSocket> = _newMessage.asSharedFlow()
+
+    private val _messageSent = eventFlow<ChatMessageSocket>()
+    val messageSent: SharedFlow<ChatMessageSocket> = _messageSent.asSharedFlow()
+
+    private val _messageError = eventFlow<String>()
+    val messageError: SharedFlow<String> = _messageError.asSharedFlow()
+
+    private val _chatUpdated = eventFlow<ChatUpdatedEvent>()
+    val chatUpdated: SharedFlow<ChatUpdatedEvent> = _chatUpdated.asSharedFlow()
+
+    private val _userTyping = eventFlow<TypingEvent>()
+    val userTyping: SharedFlow<TypingEvent> = _userTyping.asSharedFlow()
+
+    private val _reactionUpdated = eventFlow<ReactionUpdateEvent>()
+    val reactionUpdated: SharedFlow<ReactionUpdateEvent> = _reactionUpdated.asSharedFlow()
+
+    /**
+     * Emits the server-confirmed message id whenever a delete-for-everyone event
+     * lands (either triggered by this user or by the peer). The UI flips the
+     * matching row to the "This message was deleted" tombstone.
+     */
+    private val _chatMessageDeleted = eventFlow<String>()
+    val chatMessageDeleted: SharedFlow<String> = _chatMessageDeleted.asSharedFlow()
     
     /**
      * Connect to Socket.IO server using userId
@@ -263,7 +285,7 @@ class SocketManager private constructor() {
                             fromUserId = messageData.optInt("from_user_id", 0).takeIf { it > 0 },
                             toUserId = messageData.optInt("to_user_id", 0).takeIf { it > 0 }
                         )
-                        _newMessage.value = message
+                        _newMessage.tryEmit(message)
                     }
                 } catch (e: Exception) {
                     Log.e("SocketIOCheck", "Error parsing new_message: ${e.message}", e)
@@ -290,7 +312,7 @@ class SocketManager private constructor() {
                             fromUserId = messageData.optInt("from_user_id", 0).takeIf { it > 0 },
                             toUserId = messageData.optInt("to_user_id", 0).takeIf { it > 0 }
                         )
-                        _messageSent.value = message
+                        _messageSent.tryEmit(message)
                         Log.d("SocketIOCheck", "✅ Message sent confirmation received - ID: ${message.id}")
                     }
                 } catch (e: Exception) {
@@ -301,8 +323,8 @@ class SocketManager private constructor() {
             on("message_error") { args ->
                 try {
                     val errorObj = args[0] as? JSONObject
-                    val errorMessage = errorObj?.optString("error", "Unknown error")
-                    _messageError.value = errorMessage
+                    val errorMessage = errorObj?.optString("error", "Unknown error") ?: "Unknown error"
+                    _messageError.tryEmit(errorMessage)
                     Log.e("SocketIOCheck", "❌ Message error: $errorMessage")
                 } catch (e: Exception) {
                     Log.e("SocketIOCheck", "Error parsing message_error: ${e.message}", e)
@@ -341,7 +363,7 @@ class SocketManager private constructor() {
                             toUserId = messageObj.optInt("to_user_id", 0).takeIf { it > 0 },
                             reactions = if (reactionsList.isNotEmpty()) reactionsList else null
                         )
-                        _newMessage.value = message
+                        _newMessage.tryEmit(message)
                         Log.d("SocketIOCheck", "📨 Chat message received: ${message.message}")
                     }
                 } catch (e: Exception) {
@@ -367,7 +389,7 @@ class SocketManager private constructor() {
                         lastMessage = data?.optString("last_message", null),
                         lastMessageTime = data?.optString("last_message_time", null)
                     )
-                    _chatUpdated.value = event
+                    _chatUpdated.tryEmit(event)
                 } catch (e: Exception) {
                     Log.e("SocketIOCheck", "Error parsing chat_updated: ${e.message}", e)
                 }
@@ -381,7 +403,7 @@ class SocketManager private constructor() {
                         userId = data?.optInt("user_id", 0) ?: 0,
                         isTyping = data?.optBoolean("is_typing", false) ?: false
                     )
-                    _userTyping.value = event
+                    _userTyping.tryEmit(event)
                 } catch (e: Exception) {
                     Log.e("SocketIOCheck", "Error parsing user_typing: ${e.message}", e)
                 }
@@ -410,7 +432,7 @@ class SocketManager private constructor() {
                         reactionEmoji = data?.optString("reaction_emoji", null),
                         allReactions = reactionsList
                     )
-                    _reactionUpdated.value = event
+                    _reactionUpdated.tryEmit(event)
                     Log.d("SocketIOCheck", "✅ Reaction updated received - Message: ${event.messageId}, Reaction: ${event.reactionEmoji}")
                 } catch (e: Exception) {
                     Log.e("SocketIOCheck", "Error parsing reaction_updated: ${e.message}", e)
@@ -420,13 +442,55 @@ class SocketManager private constructor() {
             on("reaction_error") { args ->
                 try {
                     val errorObj = args[0] as? JSONObject
-                    val errorMessage = errorObj?.optString("error", "Unknown error")
+                    val errorMessage = errorObj?.optString("error", "Unknown error") ?: "Unknown error"
                     Log.e("SocketIOCheck", "❌ Reaction error: $errorMessage")
-                    _messageError.value = "Reaction error: $errorMessage"
+                    _messageError.tryEmit("Reaction error: $errorMessage")
                 } catch (e: Exception) {
                     Log.e("SocketIOCheck", "Error parsing reaction_error: ${e.message}", e)
                 }
             }
+
+            on("message_deleted") { args ->
+                try {
+                    val payload = args.firstOrNull() as? JSONObject ?: return@on
+                    val id = when {
+                        payload.has("message_id") && !payload.isNull("message_id") ->
+                            payload.opt("message_id")?.toString().orEmpty()
+                        else -> ""
+                    }
+                    if (id.isNotEmpty()) {
+                        _chatMessageDeleted.tryEmit(id)
+                        Log.d("ChatDelete", "Socket message_deleted received id=$id")
+                    }
+                } catch (e: Exception) {
+                    Log.e("ChatDelete", "Error parsing message_deleted: ${e.message}", e)
+                }
+            }
+        }
+    }
+
+    /**
+     * Emit a delete-for-everyone request for [messageId]. Returns false if the
+     * socket isn't connected so the caller can fall back to the REST endpoint.
+     * Server broadcasts `message_deleted` to both rooms on success.
+     */
+    fun deleteMessage(fromUserId: Int, toUserId: Int, messageId: String): Boolean {
+        if (!isConnected()) {
+            Log.w("ChatDelete", "deleteMessage: socket not connected — caller should use REST")
+            return false
+        }
+        return try {
+            val data = JSONObject().apply {
+                put("from_user_id", fromUserId)
+                put("to_user_id", toUserId)
+                put("message_id", messageId)
+            }
+            socket?.emit("delete_message", data)
+            Log.d("ChatDelete", "📤 delete_message emitted id=$messageId from=$fromUserId to=$toUserId")
+            true
+        } catch (e: Exception) {
+            Log.e("ChatDelete", "deleteMessage emit failed: ${e.message}", e)
+            false
         }
     }
     
@@ -461,10 +525,10 @@ class SocketManager private constructor() {
     fun sendMessage(fromUserId: Int, toUserId: Int, message: String, messageType: String = "text", attachmentUrl: String? = null) {
         if (!isConnected()) {
             Log.e("SocketIOCheck", "❌ Cannot send message: Socket.IO not connected")
-            _messageError.value = "Socket.IO not connected"
+            _messageError.tryEmit("Socket.IO not connected")
             return
         }
-        
+
         try {
             val data = JSONObject().apply {
                 put("from_user_id", fromUserId)
@@ -475,12 +539,12 @@ class SocketManager private constructor() {
                     put("attachment_url", attachmentUrl)
                 }
             }
-            
+
             socket?.emit("send_message", data)
             Log.d("SocketIOCheck", "📤 Sent message from $fromUserId to $toUserId: $message")
         } catch (e: Exception) {
             Log.e("SocketIOCheck", "Error sending message: ${e.message}", e)
-            _messageError.value = e.message ?: "Unknown error"
+            _messageError.tryEmit(e.message ?: "Unknown error")
         }
     }
     
@@ -595,10 +659,10 @@ class SocketManager private constructor() {
     fun sendReaction(userId: Int, messageId: Int, reactionEmoji: String?) {
         if (!isConnected()) {
             Log.e("SocketIOCheck", "❌ Cannot send reaction: Socket.IO not connected")
-            _messageError.value = "Socket.IO not connected"
+            _messageError.tryEmit("Socket.IO not connected")
             return
         }
-        
+
         try {
             val data = JSONObject().apply {
                 put("user_id", userId)
@@ -609,12 +673,12 @@ class SocketManager private constructor() {
                     put("reaction_emoji", JSONObject.NULL)
                 }
             }
-            
+
             socket?.emit("send_reaction", data)
             Log.d("SocketIOCheck", "📤 Sent reaction from $userId on message $messageId: $reactionEmoji")
         } catch (e: Exception) {
             Log.e("SocketIOCheck", "Error sending reaction: ${e.message}", e)
-            _messageError.value = e.message ?: "Unknown error"
+            _messageError.tryEmit(e.message ?: "Unknown error")
         }
     }
 }

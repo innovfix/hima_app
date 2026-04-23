@@ -61,6 +61,8 @@ import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.adapters.GiftAdapter
 import com.gmwapp.hima.agora.FaceDetectVideoFrameObserver
 import com.gmwapp.hima.agora.FcmUtils
+import com.gmwapp.hima.agora.telecom.HimaTelecomManager
+import android.telecom.DisconnectCause
 import com.gmwapp.hima.agora.GiftBottomSheetFragment
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
@@ -78,7 +80,10 @@ import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.gmwapp.hima.viewmodels.GiftImageViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.viewmodels.UserAvatarViewModel
+import com.gmwapp.hima.retrofit.responses.CallEndReason
+import com.gmwapp.hima.retrofit.responses.CallEndedBy
 import com.gmwapp.hima.viewmodels.CallDropStatusViewModel
+import com.gmwapp.hima.viewmodels.CallStatusViewModel
 import com.gmwapp.hima.viewmodels.LudoFcmViewModel
 import com.gmwapp.hima.workers.CallUpdateWorker
 import com.google.firebase.analytics.FirebaseAnalytics
@@ -135,6 +140,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private val userAvatarViewModel: UserAvatarViewModel by viewModels()
     private val agoraViewModel: AgoraViewModel by viewModels()
     private val callDropStatusViewModel: CallDropStatusViewModel by viewModels()
+    private val callStatusViewModel: CallStatusViewModel by viewModels()
+    private val isCaller: Boolean by lazy { intent.getBooleanExtra("IS_CALLER", false) }
     private val ludoFcmViewModel: LudoFcmViewModel by viewModels()
 
     private var isSwitchingToAudio = false // ✅ Prevent multiple calls
@@ -1264,6 +1271,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     fun leaveChannel(view: View) {
         if (!isJoined) {
+            HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
           //  showMessage("Join a channel first")
             val intent = Intent(this@MaleAudioCallingActivity, MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -1293,6 +1301,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 FirebaseCrashlytics.getInstance().recordException(e)
             }
             agoraEngine = null
+
+            HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
 
             updateCallEndDetails()
 
@@ -1338,6 +1348,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
         stopCountdown()
         try {
             agoraEngine?.let { engine ->
@@ -1653,6 +1664,16 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                     receivedUserId = receiverId,
                     callId = callId,
                     callDropStatus = 1
+                )
+                val endedByRole = if (isCaller) CallEndedBy.CALLER else CallEndedBy.RECEIVER
+                Log.d("CallStatus", "MaleAudio.hangup → ended/$endedByRole self=$maleUserId peer=$receiverId callId=$callId isCaller=$isCaller")
+                callStatusViewModel.saveCallStatus(
+                    userId = maleUserId,
+                    receivedUserId = receiverId,
+                    callId = callId,
+                    endReason = CallEndReason.ENDED,
+                    endedBy = endedByRole,
+                    endedByUserId = maleUserId,
                 )
             } else {
                 Log.w(

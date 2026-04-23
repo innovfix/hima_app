@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- WhatsApp-style quoted block shown inside a chat bubble. The parent LinearLayout
+     gets a rounded translucent background; the 3dp strip colors the left edge; the
+     inner vertical container holds the bold author on top and the one-line
+     ellipsized snippet below. Included in item_message_sent.xml and
+     item_message_received.xml; ChatAdapter toggles visibility and retints per side. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="@drawable/bg_reply_quote"
+    android:padding="6dp">
+
+    <View
+        android:id="@+id/v_reply_quote_strip"
+        android:layout_width="3dp"
+        android:layout_height="match_parent"
+        android:minHeight="32dp"
+        android:background="@color/chat_reply_quote_strip" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="8dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_reply_quote_author"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="@color/chat_reply_quote_author"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:fontFamily="@font/poppins_semibold" />
+
+        <TextView
+            android:id="@+id/tv_reply_quote_snippet"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:textColor="@color/chat_reply_quote_snippet"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:fontFamily="@font/poppins_regular" />
+    </LinearLayout>
+</LinearLayout>

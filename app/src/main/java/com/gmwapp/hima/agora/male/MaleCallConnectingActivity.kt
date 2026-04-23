@@ -27,7 +27,10 @@ import com.gmwapp.hima.databinding.ActivityMaleCallConnectingBinding
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
+import com.gmwapp.hima.retrofit.responses.CallEndReason
+import com.gmwapp.hima.retrofit.responses.CallEndedBy
 import com.gmwapp.hima.viewmodels.AgoraViewModel
+import com.gmwapp.hima.viewmodels.CallStatusViewModel
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -40,6 +43,7 @@ class MaleCallConnectingActivity : AppCompatActivity() {
     private lateinit var binding : ActivityMaleCallConnectingBinding
     private val fcmNotificationViewModel: FcmNotificationViewModel by viewModels()
     private val agoraViewModel: AgoraViewModel by viewModels()
+    private val callStatusViewModel: CallStatusViewModel by viewModels()
     var callType: String? = null
     var receiverId: Int = -1
     var receiverImg : String? = null
@@ -149,6 +153,16 @@ class MaleCallConnectingActivity : AppCompatActivity() {
                 
                 if (userId != null && receiverId != -1 && callType != null) {
                     sendCallNotification(userId!!, receiverId, callType!!, "callDeclined")
+                    Log.d("CallStatus", "MaleConnecting.cancel → not_answered/caller self=$userId peer=$receiverId callId=$callId")
+                    callStatusViewModel.saveCallStatus(
+                        userId = userId!!,
+                        receivedUserId = receiverId,
+                        callId = callId,
+                        endReason = CallEndReason.NOT_ANSWERED,
+                        endedBy = CallEndedBy.CALLER,
+                        endedByUserId = userId,
+                        durationSeconds = 0,
+                    )
                     FcmUtils.clearCallStatus()  // Clear before moving to MainActivity
 
                     if (fromChat && chatPeerUserId != -1) {
@@ -415,6 +429,16 @@ class MaleCallConnectingActivity : AppCompatActivity() {
         if (currentActivity is MaleCallConnectingActivity){
             if (userId != null && receiverId != -1 && callType != null) {
                 sendCallNotification(userId!!, receiverId, callType!!, "callDeclined")
+                Log.d("CallStatus", "MaleConnecting.timeout → not_answered/receiver self=$userId peer=$receiverId callId=$callId")
+                callStatusViewModel.saveCallStatus(
+                    userId = userId!!,
+                    receivedUserId = receiverId,
+                    callId = callId,
+                    endReason = CallEndReason.NOT_ANSWERED,
+                    endedBy = CallEndedBy.RECEIVER,
+                    endedByUserId = receiverId,
+                    durationSeconds = 0,
+                )
             }
             cancelTimeoutTracking()
             FcmUtils.clearCallStatus()  // Clear before moving to MainActivity
@@ -501,6 +525,7 @@ class MaleCallConnectingActivity : AppCompatActivity() {
                             putExtra("CHANNEL_NAME", channelName)
                             putExtra("RECEIVER_ID", receiverId)
                             putExtra("CALL_ID", callId)
+                            putExtra("IS_CALLER", true)
                             prefetchedAgoraToken?.let { putExtra("AGORA_TOKEN", it) }
                             prefetchedAgoraAppId?.let { putExtra("AGORA_APP_ID", it) }
                             Log.d("RECEIVER_ID","$receiverId")
@@ -516,6 +541,7 @@ class MaleCallConnectingActivity : AppCompatActivity() {
                                 putExtra("CHANNEL_NAME", channelName)
                                 putExtra("RECEIVER_ID", receiverId)
                                 putExtra("CALL_ID", callId)
+                                putExtra("IS_CALLER", true)
                                 prefetchedAgoraToken?.let { putExtra("AGORA_TOKEN", it) }
                                 prefetchedAgoraAppId?.let { putExtra("AGORA_APP_ID", it) }
                         }
@@ -528,7 +554,8 @@ class MaleCallConnectingActivity : AppCompatActivity() {
                     FcmUtils.clearCallStatus()  // Clear before moving to MainActivity
 
                     cancelTimeoutTracking()
-                    
+
+                    Log.d("CallStatus", "MaleConnecting.peerRejected (observed, no post — peer already posted) self=$userId peer=$receiverId callId=$callId")
                     Log.d("MaleCallConnecting", "Call rejected - fromChat=$fromChat, chatPeerUserId=$chatPeerUserId")
                     
                     if (fromChat && chatPeerUserId != -1) {

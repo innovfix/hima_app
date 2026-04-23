@@ -61,59 +61,65 @@
                         android:textColor="@color/black_light"
                         android:textSize="15sp" />
 
-                    <!-- Avatar Swipe with Indicators -->
-                    <RelativeLayout
+                    <!-- Avatar swipe + cartoonize progress -->
+                    <FrameLayout
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+                        android:layout_height="140dp"
                         android:layout_marginTop="16dp">
 
-                        <androidx.recyclerview.widget.RecyclerView
-                            android:id="@+id/rv_avatars"
+                        <RelativeLayout
                             android:layout_width="match_parent"
-                            android:layout_height="140dp"
-                            android:clipToPadding="false"
-                            android:paddingStart="0dp"
-                            android:paddingEnd="0dp"
-                            android:nestedScrollingEnabled="false"
-                            android:overScrollMode="never" />
+                            android:layout_height="match_parent">
 
-                        <!-- Left Arrow Indicator -->
-                        <ImageView
-                            android:id="@+id/iv_avatar_left"
-                            android:layout_width="32dp"
-                            android:layout_height="32dp"
-                            android:layout_alignParentStart="true"
-                            android:layout_centerVertical="true"
-                            android:layout_marginStart="16dp"
-                            android:alpha="0.6"
-                            android:background="@drawable/swipe_indicator_left"
-                            android:clickable="true"
-                            android:focusable="true"
-                            android:contentDescription="@string/previous_avatar" />
+                            <androidx.recyclerview.widget.RecyclerView
+                                android:id="@+id/rv_avatars"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:clipToPadding="false"
+                                android:paddingStart="0dp"
+                                android:paddingEnd="0dp"
+                                android:nestedScrollingEnabled="false"
+                                android:overScrollMode="never" />
 
-                        <!-- Right Arrow Indicator -->
-                        <ImageView
-                            android:id="@+id/iv_avatar_right"
-                            android:layout_width="32dp"
-                            android:layout_height="32dp"
-                            android:layout_alignParentEnd="true"
-                            android:layout_centerVertical="true"
-                            android:layout_marginEnd="16dp"
-                            android:alpha="0.6"
-                            android:background="@drawable/swipe_indicator_right"
-                            android:clickable="true"
-                            android:focusable="true"
-                            android:contentDescription="@string/next_avatar" />
+                            <!-- Left Arrow Indicator -->
+                            <ImageView
+                                android:id="@+id/iv_avatar_left"
+                                android:layout_width="32dp"
+                                android:layout_height="32dp"
+                                android:layout_alignParentStart="true"
+                                android:layout_centerVertical="true"
+                                android:layout_marginStart="16dp"
+                                android:alpha="0.6"
+                                android:background="@drawable/swipe_indicator_left"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:contentDescription="@string/previous_avatar" />
 
-                    </RelativeLayout>
+                            <!-- Right Arrow Indicator -->
+                            <ImageView
+                                android:id="@+id/iv_avatar_right"
+                                android:layout_width="32dp"
+                                android:layout_height="32dp"
+                                android:layout_alignParentEnd="true"
+                                android:layout_centerVertical="true"
+                                android:layout_marginEnd="16dp"
+                                android:alpha="0.6"
+                                android:background="@drawable/swipe_indicator_right"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:contentDescription="@string/next_avatar" />
+
+                        </RelativeLayout>
+
+                    </FrameLayout>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center_horizontal"
-                        android:layout_marginTop="12dp"
+                        android:layout_marginTop="10dp"
                         android:fontFamily="@font/poppins_regular"
-                        android:text="Swipe to choose"
+                        android:text="@string/swipe_to_choose_avatar"
                         android:textColor="#9CA3AF"
                         android:textSize="12sp" />
 

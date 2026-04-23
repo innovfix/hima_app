@@ -26,7 +26,10 @@ import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityFemaleCallConnectingBinding
+import com.gmwapp.hima.retrofit.responses.CallEndReason
+import com.gmwapp.hima.retrofit.responses.CallEndedBy
 import com.gmwapp.hima.viewmodels.AgoraViewModel
+import com.gmwapp.hima.viewmodels.CallStatusViewModel
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -38,6 +41,7 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
     private lateinit var binding : ActivityFemaleCallConnectingBinding
     private val fcmNotificationViewModel: FcmNotificationViewModel by viewModels()
     private val agoraViewModel: AgoraViewModel by viewModels()
+    private val callStatusViewModel: CallStatusViewModel by viewModels()
     var callType: String? = null
     var receiverId: Int = -1
     var receiverImg : String? = null
@@ -141,6 +145,16 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                 Log.d("FemaleCallConnectingActivity", "onBackPressed called via Dispatcher")
                 if (!designOnly && userId != null && receiverId != -1 && callType != null) {
                     sendCallNotification(userId!!, receiverId, callType!!, "callDeclined")
+                    Log.d("CallStatus", "FemaleConnecting.cancel → not_answered/caller self=$userId peer=$receiverId callId=$callId")
+                    callStatusViewModel.saveCallStatus(
+                        userId = userId!!,
+                        receivedUserId = receiverId,
+                        callId = callId,
+                        endReason = CallEndReason.NOT_ANSWERED,
+                        endedBy = CallEndedBy.CALLER,
+                        endedByUserId = userId,
+                        durationSeconds = 0,
+                    )
                     FcmUtils.clearCallStatus()  // Clear before moving to MainActivity
 
                     Log.d("NavigationDebug", "Redirecting to MainActivity due to back pressed when user id is not null")
@@ -408,6 +422,7 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                     intent.putExtra("CHANNEL_NAME", channelName)  // Use stored channel name
                     intent.putExtra("RECEIVER_ID", this.receiverId)
                     intent.putExtra("CALL_ID", callId)
+                    intent.putExtra("IS_CALLER", true)
                     prefetchedAgoraToken?.let { intent.putExtra("AGORA_TOKEN", it) }
                     prefetchedAgoraAppId?.let { intent.putExtra("AGORA_APP_ID", it) }
                     
@@ -418,6 +433,7 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                     isRunning = false
                     FcmUtils.clearCallStatus()
                     FcmUtils.shouldRefreshCallList = 1
+                    Log.d("CallStatus", "FemaleConnecting.peerRejected (observed, no post — peer already posted) self=$userId peer=$receiverId callId=$callId status=$status")
                     Toast.makeText(
                         this@FemaleCallConnectingActivity,
                         "${receiverName?.trimEnd { it.isDigit() }} is busy",
@@ -446,6 +462,16 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
      //   Toast.makeText(this, "$receiverName is not responding", Toast.LENGTH_SHORT).show()
         if (!designOnly && userId != null && callType != null) {
             sendCallNotification(userId!!, receiverId, callType!!, "callDeclined")
+            Log.d("CallStatus", "FemaleConnecting.timeout → not_answered/receiver self=$userId peer=$receiverId callId=$callId")
+            callStatusViewModel.saveCallStatus(
+                userId = userId!!,
+                receivedUserId = receiverId,
+                callId = callId,
+                endReason = CallEndReason.NOT_ANSWERED,
+                endedBy = CallEndedBy.RECEIVER,
+                endedByUserId = receiverId,
+                durationSeconds = 0,
+            )
             FcmUtils.clearCallStatus()
         }
         val intent = Intent(this@FemaleCallConnectingActivity, MainActivity::class.java)

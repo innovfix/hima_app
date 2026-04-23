@@ -26,6 +26,14 @@
             android:paddingBottom="6dp"
             android:elevation="1dp">
 
+            <include
+                android:id="@+id/layout_reply_quote"
+                layout="@layout/view_reply_quote"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="6dp"
+                android:visibility="gone" />
+
             <TextView
                 android:id="@+id/tv_message"
                 android:layout_width="wrap_content"
@@ -55,6 +63,24 @@
                     android:alpha="0.82"
                     android:letterSpacing="0.02"
                     android:fontFamily="@font/poppins_regular" />
+
+                <ProgressBar
+                    android:id="@+id/pb_send_pending"
+                    style="?android:attr/progressBarStyleSmall"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:layout_marginStart="6dp"
+                    android:indeterminateTint="@color/chat_time_sent"
+                    android:visibility="gone" />
+
+                <ImageView
+                    android:id="@+id/iv_send_delivery"
+                    android:layout_width="wrap_content"
+                    android:layout_height="14dp"
+                    android:layout_marginStart="4dp"
+                    android:adjustViewBounds="true"
+                    android:contentDescription="@null"
+                    android:visibility="gone" />
             </LinearLayout>
         </LinearLayout>
 

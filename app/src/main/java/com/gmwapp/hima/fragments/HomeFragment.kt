@@ -41,6 +41,7 @@ import com.gmwapp.hima.databinding.FragmentHomeBinding
 import com.gmwapp.hima.dialogs.BottomSheetTrialOffer
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponseData
 import com.gmwapp.hima.utils.Helper
+import com.gmwapp.hima.utils.PinnedChatsPrefsHelper
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.onesignal.OneSignal
@@ -60,6 +61,10 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
     @javax.inject.Inject
     lateinit var myChatsApiManager: com.gmwapp.hima.retrofit.ApiManager
+
+    /** Last my-chats payload (unsorted); re-sorted on pin toggle. */
+    private var homeMyChatsRawConversations: List<com.gmwapp.hima.models.ChatConversation> = emptyList()
+    private var homeMyChatsAdapter: com.gmwapp.hima.adapters.ChatListAdapter? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -556,7 +561,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         val strokeWidthPx = (1 * resources.displayMetrics.density).toInt()
         val pinkColor   = resources.getColorStateList(R.color.colorAccent, null)
         val goldColor   = android.content.res.ColorStateList.valueOf(0xFFFFC107.toInt())
-        val purpleColor = android.content.res.ColorStateList.valueOf(0xFF9C27B0.toInt())
+        val chatsFreeGreen = android.content.res.ColorStateList.valueOf(0xFF10B981.toInt())
         val whiteColor  = resources.getColorStateList(R.color.white, null)
         val greyColor   = resources.getColor(R.color.grey_medium, null)
         val whiteText   = resources.getColor(R.color.white, null)
@@ -573,7 +578,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         // Highlight selected
         when (filterType) {
             "my_chats" -> binding.btnFilterMyChats.apply {
-                backgroundTintList = purpleColor
+                backgroundTintList = chatsFreeGreen
                 setTextColor(whiteText)
                 strokeWidth = 0
             }
@@ -619,6 +624,23 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                         }
     }
 
+    private fun sortMyChatsPinnedFirst(
+        raw: List<com.gmwapp.hima.models.ChatConversation>,
+        ctx: Context
+    ): List<com.gmwapp.hima.models.ChatConversation> {
+        val refreshed = raw.map {
+            it.copy(isPinned = PinnedChatsPrefsHelper.isPinned(ctx, it.userId))
+        }
+        val base = refreshed.sortedByDescending { it.lastMessageTime?.seconds ?: 0 }
+        val (pinned, unpinned) = base.partition { it.isPinned }
+        val order = PinnedChatsPrefsHelper.getPinnedIds(ctx)
+        val sortedPinned = pinned.sortedBy { conv ->
+            val i = order.indexOf(conv.userId)
+            if (i >= 0) i else Int.MAX_VALUE
+        }
+        return sortedPinned + unpinned
+    }
+
     private fun loadMyChats(userId: Int) {
         setLoading(true)
         myChatsApiManager.getMyChat(userId, null, 100, 0, object : com.gmwapp.hima.retrofit.callbacks.NetworkCallback<com.gmwapp.hima.retrofit.responses.MyChatResponse> {
@@ -629,7 +651,8 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 setLoading(false)
                 binding.swipeRefreshLayout.isRefreshing = false
                 val chats = response.body()?.data?.chats ?: emptyList()
-                val conversations = chats.mapNotNull { item ->
+                val activityCtx = activity ?: return
+                val mapped = chats.mapNotNull { item ->
                     try {
                         val ts = try {
                             val fmt = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
@@ -652,16 +675,20 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                             videoStatus = item.user.videoStatus ?: 1,
                             coinPerMinAudio = item.user.coinPerMinAudio ?: 10,
                             coinPerMinVideo = item.user.coinPerMinVideo ?: 60,
-                            language = item.user.language
+                            language = item.user.language,
+                            isPinned = PinnedChatsPrefsHelper.isPinned(activityCtx, item.user.id.toString())
                         )
                     } catch (_: Exception) { null }
-                }.sortedByDescending { it.lastMessageTime?.seconds ?: 0 }
+                }
+                homeMyChatsRawConversations = mapped
+                val conversations = sortMyChatsPinnedFirst(mapped, activityCtx)
 
-                val activityCtx = activity ?: return
-                val adapter = com.gmwapp.hima.adapters.ChatListAdapter(
+                lateinit var chatListAdapter: com.gmwapp.hima.adapters.ChatListAdapter
+                chatListAdapter = com.gmwapp.hima.adapters.ChatListAdapter(
                     activityCtx,
                     ArrayList(conversations),
                     { conv ->
+                        chatListAdapter.markConversationAsRead(conv.userId)
                         val intent = Intent(activityCtx, com.gmwapp.hima.activities.ChatActivityInHouse::class.java).apply {
                             putExtra("USER_ID", conv.userId.toIntOrNull() ?: -1)
                             putExtra("USER_NAME", conv.userName)
@@ -669,10 +696,17 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                         }
                         startActivity(intent)
                     },
-                    myChatsApiManager
+                    myChatsApiManager,
+                    onPinToggled = {
+                        activity?.let { ctx ->
+                            val sorted = sortMyChatsPinnedFirst(homeMyChatsRawConversations, ctx)
+                            homeMyChatsAdapter?.updateConversations(ArrayList(sorted))
+                        }
+                    }
                 )
+                homeMyChatsAdapter = chatListAdapter
                 binding.rvProfiles.layoutManager = LinearLayoutManager(activity, LinearLayoutManager.VERTICAL, false)
-                binding.rvProfiles.adapter = adapter
+                binding.rvProfiles.adapter = chatListAdapter
                 binding.rvProfiles.visibility = View.VISIBLE
             }
 

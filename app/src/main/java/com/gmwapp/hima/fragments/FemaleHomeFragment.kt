@@ -127,6 +127,8 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         val userData = getInstance()?.getPrefs()?.getUserData()
             ?: return@registerForActivityResult
         if (granted) {
+            promptPostNotificationsIfNeededForCalls()
+            pendingAudioStatus = 1
             femaleUsersViewModel.updateCallStatus(userData.id, DConstants.AUDIO, 1)
             binding.sAudio.setOnCheckedChangeListener(null)
             binding.sAudio.isChecked = true
@@ -138,6 +140,10 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
 
     private var startTime: String = ""
     private var endTime: String = ""
+
+    /** While a toggle API call is in-flight, ignore stale GET /users that would snap switches back */
+    private var pendingAudioStatus: Int? = null
+    private var pendingVideoStatus: Int? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -227,6 +233,24 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
 //        }
     }
 
+    /** While audio/video are on, incoming CallStyle needs POST_NOTIFICATIONS on Android 13+. */
+    private fun promptPostNotificationsIfNeededForCalls() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        if (!isAdded) return
+        if (ContextCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
+            startActivity(Intent(context, GrantPermissionsActivity::class.java))
+        } else {
+            requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
     private fun askNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(
@@ -239,12 +263,22 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                 val intent = Intent(context, GrantPermissionsActivity::class.java)
                 startActivity(intent)
             } else {
-                // Only initial request — once per day
-                val notifPrefs = requireContext().getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
-                val lastAsked = notifPrefs.getLong("notif_permission_last_asked", 0L)
-                if (System.currentTimeMillis() - lastAsked >= 24 * 60 * 60 * 1000L) {
-                    notifPrefs.edit().putLong("notif_permission_last_asked", System.currentTimeMillis()).apply()
+                val ud = getInstance()?.getPrefs()?.getUserData()
+                val callsOn =
+                    (ud?.audio_status ?: 0) == 1 || (ud?.video_status ?: 0) == 1
+                if (callsOn) {
+                    // Incoming calls need CallStyle notifications; do not throttle while calls are enabled.
                     requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    val notifPrefs =
+                        requireContext().getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                    val lastAsked = notifPrefs.getLong("notif_permission_last_asked", 0L)
+                    if (System.currentTimeMillis() - lastAsked >= 24 * 60 * 60 * 1000L) {
+                        notifPrefs.edit()
+                            .putLong("notif_permission_last_asked", System.currentTimeMillis())
+                            .apply()
+                        requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
                 }
             }
         } else {
@@ -642,33 +676,67 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
             }
         })
 
-        femaleUsersViewModel.updateCallStatusResponseLiveData.observe(viewLifecycleOwner, Observer {
-            if (it != null && it.success) {
-                prefs.setUserData(it.data)
+        profileViewModel.getUserLiveData.observe(viewLifecycleOwner, Observer { response ->
+            val data = response?.data ?: return@Observer
+            if (!isAdded) return@Observer
+            val prefsLocal = BaseApplication.getInstance()?.getPrefs() ?: return@Observer
+            prefsLocal.setUserData(data)
+            binding.tvCoins.text = "₹" + data.balance.toString()
+            binding.clStarCreatorBanner.visibility =
+                if (data.star == 1) View.VISIBLE else View.GONE
+            refreshIplBanner()
+
+            val shouldSetAudio = pendingAudioStatus == null || pendingAudioStatus == data.audio_status
+            val shouldSetVideo = pendingVideoStatus == null || pendingVideoStatus == data.video_status
+            if (shouldSetAudio || shouldSetVideo) {
+                binding.sAudio.setOnCheckedChangeListener(null)
+                binding.sVideo.setOnCheckedChangeListener(null)
+                if (shouldSetAudio) {
+                    binding.sAudio.isChecked = data.audio_status == 1
+                    pendingAudioStatus = null
+                }
+                if (shouldSetVideo) {
+                    binding.sVideo.isChecked = data.video_status == 1
+                    pendingVideoStatus = null
+                }
+                setupSwitchListeners(data)
+            }
+        })
+
+        femaleUsersViewModel.updateCallStatusResponseLiveData.observe(viewLifecycleOwner, Observer { resp ->
+            val data = resp?.data
+            if (resp != null && resp.success && data != null) {
+                prefs.setUserData(data)
+                binding.sAudio.setOnCheckedChangeListener(null)
+                binding.sVideo.setOnCheckedChangeListener(null)
+                binding.sAudio.isChecked = data.audio_status == 1
+                binding.sVideo.isChecked = data.video_status == 1
+                setupSwitchListeners(data)
             } else {
-                it?.message?.takeIf { msg -> msg.isNotBlank() }?.let { msg ->
+                resp?.message?.takeIf { msg -> msg.isNotBlank() }?.let { msg ->
                     Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
                 }
-                // Temporarily disable listeners before reverting switch state
                 binding.sAudio.setOnCheckedChangeListener(null)
                 binding.sVideo.setOnCheckedChangeListener(null)
                 binding.sAudio.isChecked = prefs.getUserData()?.audio_status == 1
                 binding.sVideo.isChecked = prefs.getUserData()?.video_status == 1
-                // Re-enable listeners
-                setupSwitchListeners(userData)
+                setupSwitchListeners(prefs.getUserData())
             }
+            pendingAudioStatus = null
+            pendingVideoStatus = null
         })
-        femaleUsersViewModel.updateCallStatusErrorLiveData.observe(viewLifecycleOwner, Observer {
-            if (it != null) {
-                showErrorMessage(it)
+        femaleUsersViewModel.updateCallStatusErrorLiveData.observe(viewLifecycleOwner, Observer { msg ->
+            if (!msg.isNullOrBlank()) {
+                showErrorMessage(msg)
+                binding.sAudio.setOnCheckedChangeListener(null)
+                binding.sVideo.setOnCheckedChangeListener(null)
+                binding.sAudio.isChecked = prefs.getUserData()?.audio_status == 1
+                binding.sVideo.isChecked = prefs.getUserData()?.video_status == 1
+                setupSwitchListeners(prefs.getUserData())
+                femaleUsersViewModel.updateCallStatusErrorLiveData.value = null
             }
-            // Temporarily disable listeners before reverting switch state
-            binding.sAudio.setOnCheckedChangeListener(null)
-            binding.sVideo.setOnCheckedChangeListener(null)
-            binding.sAudio.isChecked = prefs.getUserData()?.audio_status == 1
-            binding.sVideo.isChecked = prefs.getUserData()?.video_status == 1
-            // Re-enable listeners
-            setupSwitchListeners(userData)
+            pendingAudioStatus = null
+            pendingVideoStatus = null
         })
         
         // Observe female talk duration response
@@ -771,6 +839,8 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                 audioCallEnablePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                 return@setOnCheckedChangeListener
             }
+            pendingAudioStatus = if (isChecked) 1 else 0
+            if (isChecked) promptPostNotificationsIfNeededForCalls()
             femaleUsersViewModel.updateCallStatus(
                 userData.id,
                 DConstants.AUDIO,
@@ -786,6 +856,8 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                 startActivity(Intent(requireContext(), GrantPermissionsActivity::class.java))
                 return@setOnCheckedChangeListener
             }
+            pendingVideoStatus = if (isChecked) 1 else 0
+            if (isChecked) promptPostNotificationsIfNeededForCalls()
             femaleUsersViewModel.updateCallStatus(
                 userData.id,
                 DConstants.VIDEO,
@@ -798,33 +870,6 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
             profileViewModel.getUsers(it)
         }
-
-        profileViewModel.getUserLiveData.observe(this, Observer {
-            val prefs = BaseApplication.getInstance()?.getPrefs()
-            prefs?.setUserData(it?.data)
-            binding.tvCoins.text = "₹" + it?.data?.balance.toString()
-
-            // Refresh Star Creator banner from latest API data
-            binding.clStarCreatorBanner.visibility =
-                if (it?.data?.star == 1) View.VISIBLE else View.GONE
-
-            // Refresh IPL banner visibility once user data arrives from server
-            refreshIplBanner()
-
-            if (it?.data != null) {
-                // Temporarily remove listeners to avoid triggering API calls when updating UI
-                binding.sAudio.setOnCheckedChangeListener(null)
-                binding.sVideo.setOnCheckedChangeListener(null)
-                
-                // Update switch states from fresh API data
-                binding.sAudio.isChecked = it.data.audio_status == 1
-                binding.sVideo.isChecked = it.data.video_status == 1
-                
-                // Re-attach listeners after UI update
-                val userData = prefs?.getUserData()
-                setupSwitchListeners(userData)
-            }
-        })
     }
 
     override fun onResume() {

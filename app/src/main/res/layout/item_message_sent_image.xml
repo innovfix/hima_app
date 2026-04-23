@@ -36,19 +36,61 @@
                     android:scaleType="centerCrop"
                     android:src="@drawable/small_profile" />
 
-                <TextView
-                    android:id="@+id/tv_time"
+                <LinearLayout
+                    android:id="@+id/layout_image_time_chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="bottom|end"
                     android:layout_margin="8dp"
                     android:background="@drawable/chat_image_time_chip"
-                    android:fontFamily="@font/poppins_regular"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
                     android:paddingHorizontal="8dp"
-                    android:paddingVertical="4dp"
-                    android:text="10:31 AM"
-                    android:textColor="@color/chat_time_sent"
-                    android:textSize="10sp" />
+                    android:paddingVertical="4dp">
+
+                    <TextView
+                        android:id="@+id/tv_time"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/poppins_regular"
+                        android:text="10:31 AM"
+                        android:textColor="@color/chat_time_sent"
+                        android:textSize="10sp" />
+
+                    <ProgressBar
+                        android:id="@+id/pb_send_pending"
+                        style="?android:attr/progressBarStyleSmall"
+                        android:layout_width="14dp"
+                        android:layout_height="14dp"
+                        android:layout_marginStart="6dp"
+                        android:indeterminateTint="@color/chat_time_sent"
+                        android:visibility="gone" />
+
+                    <ImageView
+                        android:id="@+id/iv_send_delivery"
+                        android:layout_width="wrap_content"
+                        android:layout_height="14dp"
+                        android:layout_marginStart="4dp"
+                        android:adjustViewBounds="true"
+                        android:contentDescription="@null"
+                        android:visibility="gone" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tv_tombstone"
+                    android:layout_width="220dp"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:alpha="0.7"
+                    android:background="@drawable/chat_bubble_sender"
+                    android:fontFamily="@font/poppins_regular"
+                    android:gravity="center"
+                    android:paddingHorizontal="14dp"
+                    android:paddingVertical="18dp"
+                    android:textColor="@color/chat_text_sent"
+                    android:textSize="14sp"
+                    android:textStyle="italic"
+                    android:visibility="gone" />
             </FrameLayout>
         </com.google.android.material.card.MaterialCardView>
 

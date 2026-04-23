@@ -20,7 +20,9 @@ data class ChatConversation(
     val videoStatus: Int = 1,
     val coinPerMinAudio: Int = 10,
     val coinPerMinVideo: Int = 60,
-    val language: String? = null
+    val language: String? = null,
+    /** Local pin state for list sorting; from [com.gmwapp.hima.utils.PinnedChatsPrefsHelper]. */
+    val isPinned: Boolean = false,
 )
 
 

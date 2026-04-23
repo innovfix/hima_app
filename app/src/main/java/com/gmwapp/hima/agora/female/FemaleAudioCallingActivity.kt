@@ -42,6 +42,8 @@ import com.gmwapp.hima.PaymentWebViewActivity
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.agora.FcmUtils
+import com.gmwapp.hima.agora.telecom.HimaTelecomManager
+import android.telecom.DisconnectCause
 import com.gmwapp.hima.agora.male.MaleAudioCallingActivity
 import com.gmwapp.hima.agora.male.MaleVideoCallingActivity
 import com.gmwapp.hima.databinding.ActivityFemaleAudioCallingBinding
@@ -85,7 +87,10 @@ import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.gmwapp.hima.viewmodels.UserAvatarViewModel
+import com.gmwapp.hima.retrofit.responses.CallEndReason
+import com.gmwapp.hima.retrofit.responses.CallEndedBy
 import com.gmwapp.hima.viewmodels.CallDropStatusViewModel
+import com.gmwapp.hima.viewmodels.CallStatusViewModel
 import com.gmwapp.hima.viewmodels.LudoFcmViewModel
 import com.gmwapp.hima.workers.CallUpdateWorker
 import io.agora.rtc2.IAudioFrameObserver
@@ -126,6 +131,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
     private val agoraViewModel: AgoraViewModel by viewModels()
     private val callDropStatusViewModel: CallDropStatusViewModel by viewModels()
+    private val callStatusViewModel: CallStatusViewModel by viewModels()
+    private val isCaller: Boolean by lazy { intent.getBooleanExtra("IS_CALLER", false) }
     private val ludoFcmViewModel: LudoFcmViewModel by viewModels()
 
     private var isVideoCallGoing : Boolean = false
@@ -1376,6 +1383,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
     fun leaveChannel(view: View) {
         if (!isJoined) {
+            HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
            // showMessage("Join a channel first")
             val intent = Intent(this@FemaleAudioCallingActivity, MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -1405,6 +1413,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             }
             agoraEngine = null
 
+            HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
 
             updateCallEndDetails()
 
@@ -1511,6 +1520,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
         cancelTimeoutTracking()
         stopCallingService()
         stopCountdown()
@@ -2192,6 +2202,16 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                     receivedUserId = receiverId,
                     callId = call_Id,
                     callDropStatus = 1
+                )
+                val endedByRole = if (isCaller) CallEndedBy.CALLER else CallEndedBy.RECEIVER
+                Log.d("CallStatus", "FemaleAudio.hangup → ended/$endedByRole self=$userId peer=$receiverId callId=$call_Id isCaller=$isCaller")
+                callStatusViewModel.saveCallStatus(
+                    userId = userId,
+                    receivedUserId = receiverId,
+                    callId = call_Id,
+                    endReason = CallEndReason.ENDED,
+                    endedBy = endedByRole,
+                    endedByUserId = userId,
                 )
             } else {
                 Log.w(

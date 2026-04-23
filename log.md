@@ -1,0 +1,4 @@
+026-04-23 10:05:14.537 16721-16721 CallStatus              com.gmwapp.hima.dev                  D  FemaleAccept.reject → rejected/receiver self=73 peer=72 callId=46815721
+2026-04-23 10:05:14.708 16721-16721 CallStatus              com.gmwapp.hima.dev                  D  Saved url=https://demolivedb.himaapp.in/api/auth/call_status body=CallStatusResponse(success=false, message=Not available, data=null)
+2026-04-23 10:05:29.867 16721-16721 CallStatus              com.gmwapp.hima.dev                  D  FemaleAccept.reject → rejected/receiver self=73 peer=72 callId=46815782
+2026-04-23 10:05:30.025 16721-16721 CallStatus              com.gmwapp.hima.dev                  D  Saved url=https://demolivedb.himaapp.in/api/auth/call_status body=CallStatusResponse(success=false, message=Not available, data=null)

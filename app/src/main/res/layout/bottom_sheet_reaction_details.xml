@@ -25,12 +25,11 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="24dp"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="16dp"
         android:layout_marginEnd="24dp"
         android:text="2 reactions"
         android:textColor="#1F1F1F"
-        android:textSize="20sp"
-        android:textStyle="bold"
+        android:textSize="18sp"
         android:fontFamily="@font/poppins_semibold"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -42,8 +41,10 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="24dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="12dp"
         android:layout_marginEnd="24dp"
+        android:paddingTop="2dp"
+        android:paddingBottom="2dp"
         android:scrollbars="none"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -64,15 +65,17 @@
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
                 android:minWidth="0dp"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:paddingTop="8dp"
-                android:paddingBottom="8dp"
-                android:text="➕"
-                android:textSize="20sp"
-                android:backgroundTint="#F3F4F6"
+                android:minHeight="36dp"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp"
+                android:text="+"
+                android:textSize="18sp"
+                android:fontFamily="@font/poppins_semibold"
+                app:backgroundTint="@color/grey_extra_light"
                 android:textColor="#1F1F1F"
-                app:cornerRadius="20dp"
+                app:cornerRadius="18dp"
                 app:strokeWidth="0dp"
                 app:elevation="0dp" />
 
@@ -81,20 +84,28 @@
         </LinearLayout>
     </HorizontalScrollView>
 
+    <View
+        android:id="@+id/divider_reaction_filters"
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginEnd="24dp"
+        android:background="#EEF0F3"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/hsv_reaction_filters" />
+
     <!-- RecyclerView for Users List -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_reaction_users"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="8dp"
         android:nestedScrollingEnabled="false"
         android:maxHeight="400dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/hsv_reaction_filters" />
+        app:layout_constraintTop_toBottomOf="@id/divider_reaction_filters" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
-
-
-
-

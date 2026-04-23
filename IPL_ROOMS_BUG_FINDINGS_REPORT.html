@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>IPL Rooms - Bug Findings (User Perspective)</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,sans-serif;background:#f5f6fa;color:#333;padding:20px;font-size:13px}
+.container{max-width:1000px;margin:0 auto}
+h1{text-align:center;color:#1a1a2e;font-size:24px;margin-bottom:4px}
+.sub{text-align:center;color:#666;font-size:12px;margin-bottom:25px}
+.intro{background:#fff;border-radius:10px;padding:18px;margin-bottom:20px;box-shadow:0 2px 6px rgba(0,0,0,.06);border-left:4px solid #2c3e50}
+.intro p{line-height:1.6;color:#555}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:25px}
+.stat{background:#fff;border-radius:10px;padding:14px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+.stat .n{font-size:28px;font-weight:700}.stat .l{font-size:10px;color:#888;margin-top:2px}
+.blocker .n{color:#c0392b}.critical .n{color:#e67e22}.major .n{color:#f39c12}.minor .n{color:#3498db}.cosmetic .n{color:#95a5a6}
+.bug{background:#fff;border-radius:10px;margin-bottom:16px;box-shadow:0 2px 6px rgba(0,0,0,.06);overflow:hidden}
+.bug-head{padding:12px 18px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #eee}
+.bug-head h3{font-size:14px;color:#1a1a2e}
+.sev{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;color:#fff}
+.sev-blocker{background:#c0392b}.sev-critical{background:#e67e22}.sev-major{background:#f39c12}.sev-minor{background:#3498db}.sev-cosmetic{background:#95a5a6}
+.bug-body{padding:15px 18px}
+.field{margin-bottom:10px}
+.field-label{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:3px}
+.field-val{font-size:13px;line-height:1.5;color:#333}
+.steps ol{margin-left:20px;line-height:1.8}
+.perspective{display:inline-block;padding:3px 10px;border-radius:15px;font-size:10px;font-weight:600;margin-right:4px}
+.p-ui{background:#e8eaf6;color:#3949ab}.p-ux{background:#fce4ec;color:#c62828}.p-func{background:#e8f5e9;color:#2e7d32}.p-real{background:#fff3e0;color:#e65100}
+.tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;background:#f0f0f0;color:#666;margin-right:4px}
+.note{background:#fffde7;border-left:3px solid #f9a825;padding:10px 14px;border-radius:0 6px 6px 0;margin-top:8px;font-size:12px;color:#666}
+.security{background:#fde8e8;border-left:3px solid #c0392b;padding:10px 14px;border-radius:0 6px 6px 0;margin-top:8px;font-size:12px;color:#c0392b}
+.divider{border:none;border-top:2px solid #eee;margin:25px 0}
+.section-title{font-size:16px;font-weight:700;color:#1a1a2e;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #667eea}
+footer{text-align:center;color:#999;font-size:10px;margin-top:30px;padding:15px}
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>IPL Rooms - Bug Findings Report</h1>
+<p class="sub">Written from the user's perspective. No code terms. | Feature: IPL Room Voice Calls | Date: 2026-04-16 | Tester: QA Team</p>
+
+<div class="intro">
+<p><b>How to read this report:</b> Every finding is written as a real user would describe it. No code file names, no technical jargon. Each bug has clear steps to reproduce, what should happen, and what actually happens. Severity follows user impact: Blocker = cannot use at all, Critical = major part broken, Major = workaround exists, Minor = small annoyance, Cosmetic = visual only.</p>
+</div>
+
+<div class="stats">
+<div class="stat blocker"><div class="n">5</div><div class="l">Blocker</div></div>
+<div class="stat critical"><div class="n">6</div><div class="l">Critical</div></div>
+<div class="stat major"><div class="n">8</div><div class="l">Major</div></div>
+<div class="stat minor"><div class="n">6</div><div class="l">Minor</div></div>
+<div class="stat cosmetic"><div class="n">3</div><div class="l">Cosmetic</div></div>
+</div>
+
+<!-- ==================== BLOCKERS ==================== -->
+<h2 class="section-title">Blocker Bugs (5) - Cannot release with these</h2>
+
+<!-- BUG 1 -->
+<div class="bug">
+<div class="bug-head"><h3>BUG-001: When the host leaves, other users stay stuck inside the room forever</h3><span class="sev sev-blocker">Blocker</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">IPL Room Call Screen</div></div>
+<div class="field"><div class="field-label">Perspective</div><span class="perspective p-func">Functional</span><span class="perspective p-real">Real-User</span></div>
+<div class="field"><div class="field-label">Steps to Reproduce</div><div class="field-val steps"><ol>
+<li>Female user creates an IPL room and enters the call screen</li>
+<li>Male user joins the same room</li>
+<li>Host (female) taps the Leave button and confirms "Close Room"</li>
+<li>Observe the male user's screen</li>
+</ol></div></div>
+<div class="field"><div class="field-label">Expected Result</div><div class="field-val">The male user should see a message like "Host ended the room" and be taken back to the home screen automatically.</div></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">Nothing happens on the male user's screen. They stay inside the room with no indication that the host left. The room appears to still be active. The only way out is to manually tap Leave or force-close the app.</div></div>
+<div class="field"><div class="field-label">Frequency</div><div class="field-val">Always (tested 3 times)</div></div>
+<div class="field"><div class="field-label">Extra Notes</div><div class="field-val">This also means the user's coins keep getting deducted even though the room is effectively dead. Users will lose money on a dead session.</div></div>
+</div></div>
+
+<!-- BUG 2 -->
+<div class="bug">
+<div class="bug-head"><h3>BUG-002: Minimizing the app drains battery fast - audio and timer keep running in the background</h3><span class="sev sev-blocker">Blocker</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">IPL Room Call Screen</div></div>
+<div class="field"><div class="field-label">Perspective</div><span class="perspective p-real">Real-User</span><span class="perspective p-ux">UX</span></div>
+<div class="field"><div class="field-label">Steps to Reproduce</div><div class="field-val steps"><ol>
+<li>Join an IPL room as a male user</li>
+<li>Press the Home button to minimize the app</li>
+<li>Wait 5 minutes</li>
+<li>Check battery usage and re-open the app</li>
+</ol></div></div>
+<div class="field"><div class="field-label">Expected Result</div><div class="field-val">Audio should pause when the app is minimized. The timer should pause or the app should show a notification that the session is still active. Battery usage should be minimal.</div></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">The audio keeps streaming in the background, the countdown timer keeps running, and the screen stays awake even though the app is minimized. Battery drops noticeably. The user is also shown as "talking" to other members even though they're not using the app.</div></div>
+<div class="field"><div class="field-label">Frequency</div><div class="field-val">Always</div></div>
+</div></div>
+
+<!-- BUG 3 -->
+<div class="bug">
+<div class="bug-head"><h3>BUG-003: People in the room don't see when someone joins, leaves, or when the room closes</h3><span class="sev sev-blocker">Blocker</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">IPL Room Call Screen</div></div>
+<div class="field"><div class="field-label">Perspective</div><span class="perspective p-func">Functional</span><span class="perspective p-real">Real-User</span></div>
+<div class="field"><div class="field-label">Steps to Reproduce</div><div class="field-val steps"><ol>
+<li>Two users join the same IPL room</li>
+<li>A third user joins the room</li>
+<li>Observe the first two users' screens</li>
+</ol></div></div>
+<div class="field"><div class="field-label">Expected Result</div><div class="field-val">The participant slots should update to show the new member. Similarly, when someone leaves, their slot should become empty.</div></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">The participant list only loads once when you first enter the room. After that, it never updates. If someone joins or leaves after you're already inside, you don't see the change until you exit and re-enter the room. The room feels frozen.</div></div>
+<div class="field"><div class="field-label">Frequency</div><div class="field-val">Always</div></div>
+</div></div>
+
+<!-- BUG 4 -->
+<div class="bug">
+<div class="bug-head"><h3>BUG-004: Users with not enough coins can still join a room</h3><span class="sev sev-blocker">Blocker</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">Join Room (Random) flow</div></div>
+<div class="field"><div class="field-label">Perspective</div><span class="perspective p-func">Functional</span></div>
+<div class="field"><div class="field-label">Steps to Reproduce</div><div class="field-val steps"><ol>
+<li>Log in as a male user who has only 40 coins (the minimum required is 60)</li>
+<li>Tap the IPL Rooms button on the home screen</li>
+<li>Select a team and tap "Join Randomly"</li>
+</ol></div></div>
+<div class="field"><div class="field-label">Expected Result</div><div class="field-val">The app should show a message like "You need at least 60 coins to join a room" and prevent the user from entering.</div></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">The user successfully enters the room even though they don't have enough coins. The timer shows a shorter time, and the user's coins will go negative or the settlement will fail when they leave.</div></div>
+<div class="field"><div class="field-label">Frequency</div><div class="field-val">Always (verified via API testing)</div></div>
+</div></div>
+
+<!-- BUG 5 -->
+<div class="bug">
+<div class="bug-head"><h3>BUG-005: Rotating the phone disconnects you from the call and resets everything</h3><span class="sev sev-blocker">Blocker</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">IPL Room Call Screen</div></div>
+<div class="field"><div class="field-label">Perspective</div><span class="perspective p-real">Real-User</span></div>
+<div class="field"><div class="field-label">Steps to Reproduce</div><div class="field-val steps"><ol>
+<li>Join an IPL room</li>
+<li>Rotate the phone from portrait to landscape</li>
+</ol></div></div>
+<div class="field"><div class="field-label">Expected Result</div><div class="field-val">The screen should either stay in portrait mode (locked) or adjust to landscape without losing the audio connection, timer, or participant list.</div></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">The entire screen reloads. The audio connection drops, the countdown timer resets to zero, and the participant list goes empty. The user is effectively disconnected from the room but the server still thinks they're inside (coins still being charged).</div></div>
+<div class="field"><div class="field-label">Frequency</div><div class="field-val">Always</div></div>
+</div></div>
+
+<hr class="divider">
+
+<!-- ==================== CRITICAL ==================== -->
+<h2 class="section-title">Critical Bugs (6) - Major features broken</h2>
+
+<!-- BUG 6 -->
+<div class="bug">
+<div class="bug-head"><h3>BUG-006: The countdown timer shows the wrong remaining time</h3><span class="sev sev-critical">Critical</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">IPL Room Call Screen (Male user timer)</div></div>
+<div class="field"><div class="field-label">Perspective</div><span class="perspective p-func">Functional</span></div>
+<div class="field"><div class="field-label">Steps to Reproduce</div><div class="field-val steps"><ol>
+<li>Log in as a male user with 40 coins (at 10 coins per minute, should get 4 minutes)</li>
+<li>Join an IPL room</li>
+<li>Look at the countdown timer at the top of the screen</li>
+</ol></div></div>
+<div class="field"><div class="field-label">Expected Result</div><div class="field-val">Timer should show approximately 4:00 (40 coins / 10 per minute).</div></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">Timer shows 2:00 and the system reports only 20 coins. Half the user's balance is missing or miscalculated. The user gets kicked out earlier than expected.</div></div>
+<div class="field"><div class="field-label">Frequency</div><div class="field-val">Always (verified via API)</div></div>
+</div></div>
+
+<!-- BUG 7 -->
+<div class="bug">
+<div class="bug-head"><h3>BUG-007: When the internet drops or is slow, the app just keeps loading forever with no message</h3><span class="sev sev-critical">Critical</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">Room List Screen / Call Screen</div></div>
+<div class="field"><div class="field-label">Perspective</div><span class="perspective p-real">Real-User</span><span class="perspective p-ux">UX</span></div>
+<div class="field"><div class="field-label">Steps to Reproduce</div><div class="field-val steps"><ol>
+<li>Turn on Airplane mode or switch to very slow network</li>
+<li>Open the IPL Rooms list</li>
+<li>Or try to join a room</li>
+</ol></div></div>
+<div class="field"><div class="field-label">Expected Result</div><div class="field-val">A clear message like "No internet connection" should appear with a "Try Again" button.</div></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">The screen stays blank with no loading circle, no error message, and no retry option. The user has no idea if the app is loading or broken. The only option is to close and reopen the app.</div></div>
+<div class="field"><div class="field-label">Frequency</div><div class="field-val">Always</div></div>
+</div></div>
+
+<!-- BUG 8 -->
+<div class="bug">
+<div class="bug-head"><h3>BUG-008: If the app session expires, the screen goes blank instead of showing a login prompt</h3><span class="sev sev-critical">Critical</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">All IPL Room screens</div></div>
+<div class="field"><div class="field-label">Perspective</div><span class="perspective p-func">Functional</span><span class="perspective p-real">Real-User</span></div>
+<div class="field"><div class="field-label">Steps to Reproduce</div><div class="field-val steps"><ol>
+<li>Log in to the app</li>
+<li>Wait for the login session to expire (or simulate by clearing app data in settings)</li>
+<li>Try to open the IPL Rooms list</li>
+</ol></div></div>
+<div class="field"><div class="field-label">Expected Result</div><div class="field-val">The app should show a message like "Your session has expired, please log in again" and redirect to the login screen.</div></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">The screen goes completely blank or shows garbled text. The app does not redirect to login. The user is stuck and must force-close the app.</div></div>
+<div class="field"><div class="field-label">Frequency</div><div class="field-val">Always (verified via API - server returns a web page redirect instead of a proper error message)</div></div>
+</div></div>
+
+<!-- BUG 9 -->
+<div class="bug">
+<div class="bug-head"><h3>BUG-009: The invite code to share the room is never shown to the host</h3><span class="sev sev-critical">Critical</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">IPL Room Call Screen (Host view)</div></div>
+<div class="field"><div class="field-label">Perspective</div><span class="perspective p-func">Functional</span><span class="perspective p-ux">UX</span></div>
+<div class="field"><div class="field-label">Steps to Reproduce</div><div class="field-val steps"><ol>
+<li>Create a new IPL room as a female user</li>
+<li>Look for the invite code or share button on the call screen</li>
+</ol></div></div>
+<div class="field"><div class="field-label">Expected Result</div><div class="field-val">An invite code should be visible so the host can share it with friends to join the room.</div></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">The invite code area is empty. The copy button is hidden. The host has no way to invite specific people to their room. The only way others can join is via the random join option.</div></div>
+<div class="field"><div class="field-label">Frequency</div><div class="field-val">Always</div></div>
+</div></div>
+
+<!-- BUG 10 -->
+<div class="bug">
+<div class="bug-head"><h3>BUG-010: There is no way to refresh the room list without closing and reopening the screen</h3><span class="sev sev-critical">Critical</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">IPL Rooms List Screen</div></div>
+<div class="field"><div class="field-label">Perspective</div><span class="perspective p-ux">UX</span><span class="perspective p-real">Real-User</span></div>
+<div class="field"><div class="field-label">Steps to Reproduce</div><div class="field-val steps"><ol>
+<li>Open the IPL Rooms list</li>
+<li>Try to pull down to refresh (like in other apps)</li>
+</ol></div></div>
+<div class="field"><div class="field-label">Expected Result</div><div class="field-val">Pulling down should refresh the list and show newly created rooms.</div></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">Nothing happens when pulling down. There is no refresh button either. The only way to see new rooms is to go back to the home screen and open IPL Rooms again.</div></div>
+<div class="field"><div class="field-label">Frequency</div><div class="field-val">Always</div></div>
+</div></div>
+
+<!-- BUG 11 -->
+<div class="bug">
+<div class="bug-head"><h3>BUG-011: Sensitive login information is being recorded in system logs</h3><span class="sev sev-critical">Critical</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">All screens (background process)</div></div>
+<div class="field"><div class="field-label">Perspective</div><span class="perspective p-real">Real-User</span></div>
+<div class="security">This is a security concern flagged privately for developers. The user's login credentials are being written to the phone's system logs in plain text. Any other app with log-reading permission could steal the user's account. This should be removed immediately before any public release.</div>
+</div></div>
+
+<hr class="divider">
+
+<!-- ==================== MAJOR ==================== -->
+<h2 class="section-title">Major Bugs (8) - Important issues, workarounds exist</h2>
+
+<!-- BUG 12 -->
+<div class="bug">
+<div class="bug-head"><h3>BUG-012: Tapping the reaction buttons very fast causes multiple reactions to fire at once</h3><span class="sev sev-major">Major</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">IPL Room Call Screen - Reaction buttons (FOUR, SIX, WICKET, GREAT)</div></div>
+<div class="field"><div class="field-label">Perspective</div><span class="perspective p-ux">UX</span><span class="perspective p-func">Functional</span></div>
+<div class="field"><div class="field-label">Steps to Reproduce</div><div class="field-val steps"><ol><li>Join an IPL room</li><li>Tap any reaction button (e.g. FOUR) very quickly 5-6 times</li></ol></div></div>
+<div class="field"><div class="field-label">Expected Result</div><div class="field-val">Only one reaction should register per tap, with a short cooldown between taps.</div></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">All 5-6 taps register. Multiple floating animations play simultaneously and multiple reactions are sent. Could look spammy to other users.</div></div>
+</div></div>
+
+<!-- BUG 13 -->
+<div class="bug">
+<div class="bug-head"><h3>BUG-013: When I switch the app language to Hindi or Tamil, some words on the room screen are still in English</h3><span class="sev sev-major">Major</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">IPL Room Call Screen</div></div>
+<div class="field"><div class="field-label">Perspective</div><span class="perspective p-ui">UI</span><span class="perspective p-real">Real-User</span></div>
+<div class="field"><div class="field-label">Steps to Reproduce</div><div class="field-val steps"><ol><li>Change app language to Hindi or Tamil in settings</li><li>Join an IPL room</li><li>Look at the reaction buttons and other labels</li></ol></div></div>
+<div class="field"><div class="field-label">Expected Result</div><div class="field-val">All text on the screen should be translated to the selected language.</div></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">The reaction button labels "FOUR!", "SIX!", "WICKET!", "GREAT!" remain in English. Some other labels may also stay in English.</div></div>
+</div></div>
+
+<!-- BUG 14 -->
+<div class="bug">
+<div class="bug-head"><h3>BUG-014: When something fails (like leaving a room or sending a reaction), there's no error message at all</h3><span class="sev sev-major">Major</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">IPL Room Call Screen - Leave, Mute, Reactions</div></div>
+<div class="field"><div class="field-label">Perspective</div><span class="perspective p-ux">UX</span></div>
+<div class="field"><div class="field-label">Steps to Reproduce</div><div class="field-val steps"><ol><li>Join an IPL room</li><li>Turn off internet</li><li>Tap a reaction button, or try to leave the room</li></ol></div></div>
+<div class="field"><div class="field-label">Expected Result</div><div class="field-val">A message should appear saying the action failed, like "Could not send reaction. Check your internet."</div></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">Nothing happens. No success message, no error message. The user has no idea if the action worked or not.</div></div>
+</div></div>
+
+<!-- BUG 15 -->
+<div class="bug">
+<div class="bug-head"><h3>BUG-015: If I select a team, close the popup, and reopen it, my selection is lost</h3><span class="sev sev-major">Major</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">Join Room popup - Team selection</div></div>
+<div class="field"><div class="field-label">Perspective</div><span class="perspective p-ux">UX</span></div>
+<div class="field"><div class="field-label">Steps to Reproduce</div><div class="field-val steps"><ol><li>Open the Join Room popup</li><li>Select a team (e.g., CSK)</li><li>Dismiss the popup (tap outside or press back)</li><li>Reopen the Join Room popup</li></ol></div></div>
+<div class="field"><div class="field-label">Expected Result</div><div class="field-val">My previously selected team should still be highlighted.</div></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">No team is selected. I have to pick again from scratch every time the popup opens.</div></div>
+</div></div>
+
+<!-- BUG 16 -->
+<div class="bug">
+<div class="bug-head"><h3>BUG-016: If I force-close the app during a call, there's no way to rejoin</h3><span class="sev sev-major">Major</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">IPL Room Call - App crash/force close</div></div>
+<div class="field"><div class="field-label">Perspective</div><span class="perspective p-real">Real-User</span></div>
+<div class="field"><div class="field-label">Steps to Reproduce</div><div class="field-val steps"><ol><li>Join an IPL room</li><li>Force-close the app from the recent apps list</li><li>Reopen the app</li></ol></div></div>
+<div class="field"><div class="field-label">Expected Result</div><div class="field-val">The app should either reconnect me to the room I was in, or at least show a message about the previous session.</div></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">The app opens to the home screen with no mention of the room. My coins may still be deducted on the server side for the time I was supposedly in the room.</div></div>
+</div></div>
+
+<!-- BUG 17 -->
+<div class="bug">
+<div class="bug-head"><h3>BUG-017: When my phone is set to dark mode, the app still shows the dark IPL theme without adapting</h3><span class="sev sev-major">Major</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">All IPL Room screens</div></div>
+<div class="field"><div class="field-label">Perspective</div><span class="perspective p-ui">UI</span><span class="perspective p-real">Real-User</span></div>
+<div class="field"><div class="field-label">Steps to Reproduce</div><div class="field-val steps"><ol><li>Set phone to light mode in system settings</li><li>Open any IPL room screen</li></ol></div></div>
+<div class="field"><div class="field-label">Expected Result</div><div class="field-val">The app should follow the system theme setting, or at minimum look correct in both modes.</div></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">The IPL screens always show a dark theme regardless of phone settings. While the dark theme looks fine on its own, it doesn't match the rest of the app if the user is in light mode.</div></div>
+</div></div>
+
+<!-- BUG 18 -->
+<div class="bug">
+<div class="bug-head"><h3>BUG-018: The room list feels laggy when scrolling fast</h3><span class="sev sev-major">Major</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">IPL Rooms List</div></div>
+<div class="field"><div class="field-label">Perspective</div><span class="perspective p-ui">UI</span><span class="perspective p-ux">UX</span></div>
+<div class="field"><div class="field-label">Steps to Reproduce</div><div class="field-val steps"><ol><li>Open the IPL Rooms list with multiple rooms</li><li>Scroll up and down quickly</li></ol></div></div>
+<div class="field"><div class="field-label">Expected Result</div><div class="field-val">The list should scroll smoothly without any flickering or stuttering.</div></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">Items seem to flicker or redraw when scrolling fast. The list feels less smooth compared to other lists in the app.</div></div>
+</div></div>
+
+<!-- BUG 19 -->
+<div class="bug">
+<div class="bug-head"><h3>BUG-019: An incoming phone call during a room session causes problems</h3><span class="sev sev-major">Major</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">IPL Room Call Screen</div></div>
+<div class="field"><div class="field-label">Perspective</div><span class="perspective p-real">Real-User</span></div>
+<div class="field"><div class="field-label">Steps to Reproduce</div><div class="field-val steps"><ol><li>Join an IPL room</li><li>Receive an incoming phone call</li><li>Answer it, talk for a minute, then hang up</li><li>Return to the app</li></ol></div></div>
+<div class="field"><div class="field-label">Expected Result</div><div class="field-val">The room session should pause during the call and resume cleanly when I return.</div></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">The room audio keeps streaming during the phone call. The timer keeps counting down. When I return, the state may be out of sync with other users.</div></div>
+</div></div>
+
+<hr class="divider">
+
+<!-- ==================== MINOR ==================== -->
+<h2 class="section-title">Minor Bugs (6) - Small annoyances</h2>
+
+<div class="bug">
+<div class="bug-head"><h3>BUG-020: The reaction buttons don't give any tap feedback when pressed</h3><span class="sev sev-minor">Minor</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">IPL Room Call Screen - FOUR, SIX, WICKET, GREAT buttons</div></div>
+<div class="field"><div class="field-label">Perspective</div><span class="perspective p-ux">UX</span></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">When I tap a reaction button, I see a floating animation on screen, but the button itself doesn't show any press effect (like a ripple or color change). It's hard to tell if my tap registered.</div></div>
+</div></div>
+
+<div class="bug">
+<div class="bug-head"><h3>BUG-021: The screen reader does not read out what the reaction icons mean</h3><span class="sev sev-minor">Minor</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">IPL Room Call Screen - Reaction area</div></div>
+<div class="field"><div class="field-label">Perspective</div><span class="perspective p-real">Real-User</span></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">A visually impaired user using TalkBack cannot tell what the reaction buttons do because they don't have readable labels. The screen reader just says "button" without describing which reaction it is.</div></div>
+</div></div>
+
+<div class="bug">
+<div class="bug-head"><h3>BUG-022: The speaking glow around a user's avatar is the only way to tell who is talking</h3><span class="sev sev-minor">Minor</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">IPL Room Call Screen - Participant slots</div></div>
+<div class="field"><div class="field-label">Perspective</div><span class="perspective p-ui">UI</span></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">The only way to tell who is speaking is a green glow around their avatar. There is no text label like "Speaking" or a small microphone icon animation. Users who are color-blind may not notice the glow.</div></div>
+</div></div>
+
+<div class="bug">
+<div class="bug-head"><h3>BUG-023: Long room names get cut off with "..." and there's no way to see the full name</h3><span class="sev sev-minor">Minor</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">IPL Rooms List - Room cards</div></div>
+<div class="field"><div class="field-label">Perspective</div><span class="perspective p-ui">UI</span></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">Room names longer than one line get cut off with "..." at the end. There's no tooltip, long-press popup, or second line to show the full name. Users can't tell rooms apart if names are similar.</div></div>
+</div></div>
+
+<div class="bug">
+<div class="bug-head"><h3>BUG-024: The mute and speaker buttons don't clearly show their current state</h3><span class="sev sev-minor">Minor</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">IPL Room Call Screen - Control buttons</div></div>
+<div class="field"><div class="field-label">Perspective</div><span class="perspective p-ux">UX</span></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">The only visual difference between muted and unmuted is a slight transparency change. There's no color change, no crossed-out icon, and no label text. It's easy to forget whether you're muted or not.</div></div>
+</div></div>
+
+<div class="bug">
+<div class="bug-head"><h3>BUG-025: Right-to-left languages (like Arabic) don't display correctly</h3><span class="sev sev-minor">Minor</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">All IPL Room screens</div></div>
+<div class="field"><div class="field-label">Perspective</div><span class="perspective p-real">Real-User</span></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">When the device language is set to Arabic or Hebrew, the layout does not mirror. Buttons and text stay left-aligned instead of flipping to right-to-left. The flow feels broken for RTL language users.</div></div>
+</div></div>
+
+<hr class="divider">
+
+<!-- ==================== COSMETIC ==================== -->
+<h2 class="section-title">Cosmetic Issues (3) - Visual only</h2>
+
+<div class="bug">
+<div class="bug-head"><h3>BUG-026: The team badge on participant avatars slightly overlaps the avatar circle edge</h3><span class="sev sev-cosmetic">Cosmetic</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">IPL Room Call Screen - Participant slots</div></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">The small team color badge at the bottom-right of each participant's avatar slightly clips outside the avatar circle boundary. It looks a tiny bit off on larger screens.</div></div>
+</div></div>
+
+<div class="bug">
+<div class="bug-head"><h3>BUG-027: The "Create Room" floating button at the bottom doesn't move away from keyboard or snackbar</h3><span class="sev sev-cosmetic">Cosmetic</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">IPL Rooms List Screen</div></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">If a message popup (snackbar) appears at the bottom of the screen, the floating "Create Room" button doesn't move up to avoid being covered. The button stays behind the message.</div></div>
+</div></div>
+
+<div class="bug">
+<div class="bug-head"><h3>BUG-028: Control buttons (mute, speaker, leave) use fixed sizes that look slightly too small on tablets</h3><span class="sev sev-cosmetic">Cosmetic</span></div>
+<div class="bug-body">
+<div class="field"><div class="field-label">Screen / Feature</div><div class="field-val">IPL Room Call Screen - Bottom control bar</div></div>
+<div class="field"><div class="field-label">Actual Result</div><div class="field-val">On larger tablets or screens, the mute, speaker, and leave buttons appear relatively small compared to the rest of the layout. They work fine but look slightly undersized.</div></div>
+</div></div>
+
+<hr class="divider">
+
+<!-- SIGN OFF -->
+<div class="intro" style="border-left-color:#c0392b">
+<h2 style="color:#c0392b;margin-bottom:8px">Release Verdict: NOT READY</h2>
+<p><b>5 Blocker bugs</b> must be fixed before any release. The core feature of hosting a room is broken (host leave not detected), the app drains battery in background, phone rotation kills the session, and users can join without enough coins.</p>
+<p style="margin-top:10px"><b>Next Steps:</b> Fix all 5 blockers + 6 critical bugs. Then run a quick smoke test on 2 devices. Then re-evaluate for release.</p>
+<table style="margin-top:12px;font-size:12px">
+<tr><td><b>Total Findings:</b> 28</td><td><b>Blocker:</b> 5</td><td><b>Critical:</b> 6</td><td><b>Major:</b> 8</td><td><b>Minor:</b> 6</td><td><b>Cosmetic:</b> 3</td></tr>
+</table>
+</div>
+
+<footer>
+IPL Rooms Bug Findings Report | Written in user-perspective language per Manual_Testing_How_to_Report_Findings.pdf | 2026-04-16 | All reports: IPL_API_TEST_REPORT.html, IPL_ROOMS_FULL_QA_REPORT.html, IPL_ROOMS_MANUAL_TEST_REPORT.html, IPL_ROOMS_BUG_FINDINGS_REPORT.html
+</footer>
+
+</div>
+</body>
+</html>
