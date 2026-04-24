@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="6dp">
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:cardBackgroundColor="@color/white"
+        app:cardCornerRadius="18dp"
+        app:cardElevation="2dp"
+        app:strokeColor="#EEEEEE"
+        app:strokeWidth="1dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="14dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <de.hdodenhof.circleimageview.CircleImageView
+                    android:id="@+id/iv_creator_avatar"
+                    android:layout_width="42dp"
+                    android:layout_height="42dp"
+                    android:src="@drawable/small_profile"
+                    app:civ_border_color="#FFE5F1"
+                    app:civ_border_width="2dp" />
+
+                <TextView
+                    android:id="@+id/tv_creator_name"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/poppins_semibold"
+                    android:textColor="#1F2937"
+                    android:textSize="15sp"
+                    tools:text="Dharini" />
+
+                <TextView
+                    android:id="@+id/tv_sent_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/poppins_semibold"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="4dp"
+                    android:text="✓ Sent"
+                    android:textColor="#16A34A"
+                    android:textSize="11sp"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
+            </LinearLayout>
+
+            <FrameLayout
+                android:id="@+id/preview_bubble"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_chat_input"
+                android:minHeight="40dp"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="10dp">
+
+                <LinearLayout
+                    android:id="@+id/typing_dots_container"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_vertical"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:id="@+id/dot1"
+                        android:layout_width="7dp"
+                        android:layout_height="7dp"
+                        android:alpha="0.3"
+                        android:background="@drawable/bg_typing_dot" />
+
+                    <View
+                        android:id="@+id/dot2"
+                        android:layout_width="7dp"
+                        android:layout_height="7dp"
+                        android:layout_marginStart="5dp"
+                        android:alpha="0.3"
+                        android:background="@drawable/bg_typing_dot" />
+
+                    <View
+                        android:id="@+id/dot3"
+                        android:layout_width="7dp"
+                        android:layout_height="7dp"
+                        android:layout_marginStart="5dp"
+                        android:alpha="0.3"
+                        android:background="@drawable/bg_typing_dot" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tv_message_preview"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/poppins_regular"
+                    android:textColor="#111827"
+                    android:textSize="14sp"
+                    android:visibility="gone"
+                    tools:text="romba bore ah iruku"
+                    tools:visibility="visible" />
+            </FrameLayout>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+</FrameLayout>
