@@ -60,6 +60,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         Log.d("FCMNewToken", "New token: $token")
+        Log.d("CreatorCallDiag", "FCM.onNewToken tokenPrefix=${token.take(12)}…")
 
         // FirebaseMessagingService is not a Hilt entry point, so the ViewModel/repository
         // graph isn't available here. Hand off to WorkManager so the registration survives
@@ -108,10 +109,20 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         Log.d("FCM", "From: ${remoteMessage.from}")
         Log.d("FCM_Data_Complete", "From: ${remoteMessage.data}")
         Log.d("FCM_Message", "Message data payload: ${remoteMessage.data["message"]}")
+        // Single-line catch-all so `adb logcat -s CreatorCallDiag` can confirm
+        // whether any FCM at all is reaching this device during a call test.
+        Log.d(
+            "CreatorCallDiag",
+            "FCM.rx priority=${remoteMessage.priority} from=${remoteMessage.from} " +
+                "userId=${userData?.id} gender=$gender type=${remoteMessage.data["type"]} " +
+                "message=${remoteMessage.data["message"]} channel=${remoteMessage.data["channelName"]} " +
+                "callId=${remoteMessage.data["call_id"]}"
+        )
 
         // DND check: drop ALL incoming notifications when DND is active and not yet expired
         if (BaseApplication.isDndActiveStatic(userData)) {
             Log.d("FCM", "DND is active, dropping notification.")
+            Log.d("CreatorCallDiag", "FCM.rx.dndDropped userId=${userData?.id}")
             return
         }
 
@@ -147,6 +158,13 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 type == "game_end" ||
                 message == "game_end"
             ) {
+                // App-side kill-switch: drop Ludo pushes entirely when the
+                // feature is disabled so no background work runs and no stale
+                // FcmUtils.ludoEvent updates can surface the invite dialog.
+                if (!com.gmwapp.hima.utils.FeatureFlags.LUDO_ENABLED) {
+                    Log.d("FCM", "Ludo feature disabled — dropping $type / $message")
+                    return
+                }
                 val ludoInviteId = remoteMessage.data["invite_id"]
                 val roomCode = remoteMessage.data["room_code"]
                 val fromUserId = remoteMessage.data["from_user_id"]?.toIntOrNull()
@@ -236,10 +254,16 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
 
                     if (gender == "female") {
+                        // Belt-and-suspenders: the currentActivity check is the
+                        // primary gate but it goes null briefly during activity
+                        // transitions / permission dialogs. isInActiveCall() is
+                        // explicitly flipped in each CallingActivity.onCreate /
+                        // onDestroy so it stays true across those dips.
                         if (currentActivity is FemaleCallAcceptActivity ||
                             currentActivity is FemaleAudioCallingActivity ||
                             currentActivity is FemaleVideoCallingActivity ||
-                            currentActivity is com.gmwapp.hima.activities.IplRoomCallActivity) {
+                            currentActivity is com.gmwapp.hima.activities.IplRoomCallActivity ||
+                            BaseApplication.getInstance()?.isInActiveCall() == true) {
 
                             Log.d("FCM", "User is already in a call. Ignoring incoming call notification.")
 
@@ -344,7 +368,8 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                         if (currentActivity?.javaClass == MaleCallAcceptActivity ||
                             currentActivity?.javaClass == MaleAudioCallingActivity ||
                             currentActivity?.javaClass == MaleVideoCallingActivity ||
-                            currentActivity?.javaClass == IplRoomCallActivity) {
+                            currentActivity?.javaClass == IplRoomCallActivity ||
+                            BaseApplication.getInstance()?.isInActiveCall() == true) {
 
                             Log.d("FCM", "Male user is already in a call. Ignoring incoming call notification.")
 

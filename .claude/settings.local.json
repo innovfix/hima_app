@@ -14,7 +14,11 @@
       "Read(//c/Program Files/**)",
       "Bash(where java *)",
       "PowerShell($jbr = Get-ChildItem -Path \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\" -ErrorAction SilentlyContinue; if \\($jbr\\) { $env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:Path = \"$env:JAVA_HOME\\\\bin;$env:Path\"; & .\\\\gradlew.bat :app:compileDebugKotlin 2>&1 | Select-Object -Last 40 } else { \"no jbr\" })",
-      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:Path = \"$env:JAVA_HOME\\\\bin;$env:Path\"; & .\\\\gradlew.bat :app:compileDevelopmentDebugKotlin 2>&1 | Select-Object -Last 50)"
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:Path = \"$env:JAVA_HOME\\\\bin;$env:Path\"; & .\\\\gradlew.bat :app:compileDevelopmentDebugKotlin 2>&1 | Select-Object -Last 50)",
+      "PowerShell(Get-Command *)",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:Path = \"$env:JAVA_HOME\\\\bin;$env:Path\"; & .\\\\gradlew.bat :app:compileDebugKotlin --console=plain -q 2>&1 | Select-Object -Last 120)",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:Path = \"$env:JAVA_HOME\\\\bin;$env:Path\"; & .\\\\gradlew.bat :app:compileDevelopmentDebugKotlin --console=plain 2>&1 | Select-Object -Last 150)",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\"; $env:Path = \"$env:JAVA_HOME\\\\bin;$env:Path\"; & .\\\\gradlew.bat :app:compileDevelopmentDebugKotlin --console=plain --rerun-tasks 2>&1 | Select-Object -Last 120)"
     ]
   }
 }

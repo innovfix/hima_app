@@ -45,6 +45,18 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
                 return
             }
 
+            // If the user is already inside an Agora call, drop any server-side
+            // OneSignal call push before it can ring a second time. The FCM
+            // CallStyle path already guards on `currentActivity`, but OneSignal
+            // pushes are separate and would otherwise stack in the tray.
+            if (com.gmwapp.hima.BaseApplication.getInstance()?.isInActiveCall() == true &&
+                isCallPush(event.notification)
+            ) {
+                Log.d(TAG, "In active call — suppressing OneSignal call push")
+                event.preventDefault()
+                return
+            }
+
             // Save notification_id + receive timestamp for conversion tracking.
             // Used later when user opens the app directly (without tapping the notification).
             try {
@@ -120,6 +132,30 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
             Log.e(TAG, "Chat notif post failed for peerId=$peerId: ${e.message}")
             // On failure don't preventDefault — let OneSignal show its default.
         }
+    }
+
+    /**
+     * Conservative heuristic for "this push is about an incoming call."
+     * Matches either (a) structured `additionalData` keys the backend attaches
+     * to call pushes, or (b) free-text titles/bodies when the payload is less
+     * structured. Anything else (wallet, friend request, chat, Ludo, etc.) is
+     * left alone.
+     */
+    private fun isCallPush(notif: com.onesignal.notifications.IDisplayableNotification): Boolean {
+        val data = notif.additionalData
+        if (data != null) {
+            val keys = arrayOf("callType", "channelName", "call_id", "senderId")
+            if (keys.any { data.has(it) && !data.isNull(it) }) return true
+            val type = data.optString("type", "").lowercase()
+            if (type.startsWith("call") || type.contains("incoming")) return true
+        }
+        val title = notif.title.orEmpty().lowercase()
+        val body = notif.body.orEmpty().lowercase()
+        val haystack = "$title $body"
+        return haystack.contains("video call from") ||
+            haystack.contains("audio call from") ||
+            haystack.contains("wants to talk to you") ||
+            haystack.contains("incoming call")
     }
 
     /** OneSignal payload keys vary by server; try the usual peer-id aliases. */

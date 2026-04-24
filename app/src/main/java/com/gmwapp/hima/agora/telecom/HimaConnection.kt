@@ -3,6 +3,7 @@ package com.gmwapp.hima.agora.telecom
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.telecom.CallAudioState
 import android.telecom.Connection
 import android.telecom.DisconnectCause
 import android.telecom.TelecomManager
@@ -176,6 +177,28 @@ class HimaConnection(
                     putExtra("CALL_ID", callId)
                 }
             else -> null
+        }
+    }
+
+    /**
+     * Forwards an explicit user audio-route choice to Telecom. On self-managed
+     * connections (Samsung Android 16 being the problem case), Telecom's
+     * `CallAudioRouteController` owns the baseline route and will override
+     * anything we set via `AudioManager.setCommunicationDevice`. The only API
+     * the OEM stack respects is [Connection.setAudioRoute], so call it first
+     * whenever the user picks Earpiece / Speaker / Bluetooth.
+     */
+    fun applyRouteFromApp(route: com.gmwapp.hima.utils.CallAudioRouter.AudioRoute) {
+        val telecomRoute = when (route) {
+            com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE -> CallAudioState.ROUTE_EARPIECE
+            com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER -> CallAudioState.ROUTE_SPEAKER
+            com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.BLUETOOTH -> CallAudioState.ROUTE_BLUETOOTH
+        }
+        try {
+            setAudioRoute(telecomRoute)
+            Log.d("CallAudioRoute", "HimaConnection.setAudioRoute($route) -> telecomRoute=$telecomRoute ok")
+        } catch (e: Exception) {
+            Log.e("CallAudioRoute", "HimaConnection.setAudioRoute failed: ${e.message}", e)
         }
     }
 

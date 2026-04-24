@@ -101,7 +101,8 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
     private fun updateIplBadge() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        val iplEnabled = (userData?.ipl_rooms_enabled ?: 0) == 1
+        val iplEnabled = com.gmwapp.hima.utils.FeatureFlags.IPL_ENABLED &&
+            (userData?.ipl_rooms_enabled ?: 0) == 1
 
         if (!iplEnabled) {
             binding.iplTeamBadge.visibility = View.GONE

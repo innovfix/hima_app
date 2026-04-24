@@ -45,8 +45,11 @@ class TransactionAdapter(
 
         // Set transaction details based on type
         when {
-            // IPL Room transactions take priority over generic types
-            transaction.is_ipl_room -> {
+            // IPL Room transactions take priority over generic types — but only
+            // when the app-side kill-switch is on. With FeatureFlags.IPL_ENABLED=false
+            // these rows fall through to the generic call-deduction rendering below
+            // so existing history shows up without IPL branding.
+            transaction.is_ipl_room && com.gmwapp.hima.utils.FeatureFlags.IPL_ENABLED -> {
                 val hostName = transaction.ipl_host_name?.takeIf { it.isNotBlank() } ?: "Host"
                 holder.binding.tvTransactionTitle.text = "IPL Room with $hostName"
                 val durationMin = transaction.ipl_duration_min ?: 0

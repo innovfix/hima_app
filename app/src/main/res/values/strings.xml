@@ -1,6 +1,11 @@
 <!DOCTYPE resources [<!ENTITY appname "HI ma">]>
 <resources>
     <string name="app_name">&appname;</string>
+    <string name="call_reconnecting">Reconnecting…</string>
+    <string name="call_route_earpiece">Earpiece</string>
+    <string name="call_route_speaker">Speaker</string>
+    <string name="call_route_bluetooth">Bluetooth</string>
+    <string name="call_route_title">Audio output</string>
     <string name="login_to_get_started">Login to get started</string>
     <string name="you_will_receive_an_otp_on_this_number">You will receive an OTP on this number.</string>
     <string name="send_otp">Send OTP</string>

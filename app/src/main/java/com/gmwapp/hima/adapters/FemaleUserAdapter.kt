@@ -67,11 +67,12 @@ class FemaleUserAdapter(
         val nameWithoutNumbers = femaleUser.name.replace(Regex("[0-9]"), "")
         holder.binding.tvName.text = nameWithoutNumbers
 
-        // IPL team chip (top-right of name row). The whole chip is tinted with
-        // the team's primary color so dark teams (MI, GT, KKR) stay visible.
-        // Text color flips between white and black based on luminance for contrast.
+        // IPL team chip (top-right of name row). Whole chip tinted with the
+        // team's primary color; text color flips on luminance for contrast.
+        // FeatureFlags.IPL_ENABLED gates this entirely so the chip never shows
+        // while the feature is off, regardless of what the server sends.
         val iplTeamAbbr = femaleUser.ipl_team
-        val iplTeam = if (!iplTeamAbbr.isNullOrEmpty()) {
+        val iplTeam = if (com.gmwapp.hima.utils.FeatureFlags.IPL_ENABLED && !iplTeamAbbr.isNullOrEmpty()) {
             IplTeam.values().find { it.abbreviation == iplTeamAbbr }
         } else null
         if (iplTeam != null) {

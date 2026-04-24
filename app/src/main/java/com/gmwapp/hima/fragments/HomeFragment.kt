@@ -95,7 +95,10 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
     private fun refreshIplBanner() {
         if (!::binding.isInitialized) return
-        val iplEnabled = (BaseApplication.getInstance()?.getPrefs()?.getUserData()?.ipl_rooms_enabled ?: 0) == 1
+        // FeatureFlags.IPL_ENABLED is an app-side kill-switch that overrides the
+        // server flag — when false the banner stays GONE regardless of ipl_rooms_enabled.
+        val iplEnabled = com.gmwapp.hima.utils.FeatureFlags.IPL_ENABLED &&
+            (BaseApplication.getInstance()?.getPrefs()?.getUserData()?.ipl_rooms_enabled ?: 0) == 1
         binding.cardIplRooms.visibility = if (iplEnabled) android.view.View.VISIBLE else android.view.View.GONE
     }
 

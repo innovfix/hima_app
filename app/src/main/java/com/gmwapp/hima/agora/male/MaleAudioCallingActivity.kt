@@ -142,6 +142,14 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private val callDropStatusViewModel: CallDropStatusViewModel by viewModels()
     private val callStatusViewModel: CallStatusViewModel by viewModels()
     private val isCaller: Boolean by lazy { intent.getBooleanExtra("IS_CALLER", false) }
+
+    /**
+     * Last explicit audio-route choice (button tap, BT plug, or save/restore).
+     * Kept separately from `isSpeakerOn` because Earpiece and Bluetooth both
+     * leave speakerphone off — only `currentAudioRoute` distinguishes them.
+     */
+    private var currentAudioRoute: com.gmwapp.hima.utils.CallAudioRouter.AudioRoute =
+        com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE
     private val ludoFcmViewModel: LudoFcmViewModel by viewModels()
 
     private var isSwitchingToAudio = false // ✅ Prevent multiple calls
@@ -188,6 +196,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private var audioFocusHelper: CallAudioFocusHelper? = null
     private var audioRouter: CallAudioRouter? = null
     private var phoneStateHelper: CallPhoneStateHelper? = null
+    private var btWatcher: com.gmwapp.hima.utils.BluetoothCallWatcher? = null
     private var mutedByInterrupt = false
 
     var maleUserId = 0
@@ -287,10 +296,18 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             Log.d("AgoraTiming", "MaleAudio setupAudioSDKEngine done at ${System.currentTimeMillis()}")
 
             audioRouter?.release()
-            audioRouter = CallAudioRouter(this).also {
-                it.init()
-                if (isSpeakerOn) it.forceSpeaker() else it.useDefaultRoute()
+            audioRouter = CallAudioRouter(this).also { it.init() }
+            val btNow = audioRouter?.isBluetoothConnected() == true
+            val initial = when {
+                btNow -> com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.BLUETOOTH
+                isSpeakerOn -> com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER
+                else -> com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE
             }
+            Log.d(
+                "CallAudioRoute",
+                "Activity.setup initialRoute=$initial btConnected=$btNow isSpeakerOn=$isSpeakerOn"
+            )
+            applyAudioRoute(initial)
 
             setupCallInterruptHandlers()
         } catch (e: Exception) {
@@ -313,6 +330,26 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 onCellularCallEnded = { muteForInterrupt(false) }
             ).also { it.register() }
         }
+        if (btWatcher == null) {
+            btWatcher = com.gmwapp.hima.utils.BluetoothCallWatcher(this) { connected ->
+                Log.d(
+                    "CallAudioRoute",
+                    "Activity.btChange connected=$connected currentRoute=$currentAudioRoute"
+                )
+                if (connected) {
+                    // BT headset just plugged in mid-call → auto-route to it.
+                    runOnUiThread {
+                        applyAudioRoute(com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.BLUETOOTH)
+                    }
+                } else if (currentAudioRoute == com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.BLUETOOTH) {
+                    // BT dropped while we were routing to it → fall back to Speaker
+                    // so the user isn't left staring at a silent call.
+                    runOnUiThread {
+                        applyAudioRoute(com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER)
+                    }
+                }
+            }.also { it.register() }
+        }
     }
 
     private fun muteForInterrupt(muted: Boolean) {
@@ -334,6 +371,11 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Flip in-call flag ASAP so any racing FCM / OneSignal push about to
+        // post another ring sees it and backs off. Sweep whatever is already
+        // in the tray in case a call push landed a moment before we opened.
+        BaseApplication.getInstance()?.markCallActive()
+        BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
         enableEdgeToEdge()
         binding = ActivityMaleAudioCallingBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -407,7 +449,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         }
 
         binding.btnSpeaker.setOnClickListener {
-            toggleSpeaker()
+            onSpeakerButtonClicked()
         }
 
         endcallBtn()
@@ -428,7 +470,14 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
         giftIconClicked()
         getBlockWords()
-        setupLudoInviteFlow()
+        if (com.gmwapp.hima.utils.FeatureFlags.LUDO_ENABLED) {
+            setupLudoInviteFlow()
+        } else {
+            // Feature disabled — hide the in-call entry point; setupLudoInviteFlow()
+            // also registers the FcmUtils.ludoEvent observer, so skipping it means
+            // stray Ludo pushes can't surface the receive-invite dialog either.
+            binding.ludoButtonCard.visibility = View.GONE
+        }
     }
 
     private fun setupLocalPreviewDrag() {
@@ -1068,6 +1117,26 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             startTimeoutTracking()
         }
 
+        override fun onNetworkQuality(uid: Int, txQuality: Int, rxQuality: Int) {
+            com.gmwapp.hima.utils.CallQualityUi.apply(
+                this@MaleAudioCallingActivity,
+                binding.ivSignalStrength,
+                binding.reconnectBanner,
+                rxQuality,
+                null
+            )
+        }
+
+        override fun onConnectionStateChanged(state: Int, reason: Int) {
+            com.gmwapp.hima.utils.CallQualityUi.apply(
+                this@MaleAudioCallingActivity,
+                binding.ivSignalStrength,
+                binding.reconnectBanner,
+                Constants.QUALITY_UNKNOWN,
+                state
+            )
+        }
+
         override fun onUserOffline(uid: Int, reason: Int) {
 
             updateCallEndDetails()
@@ -1348,6 +1417,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        BaseApplication.getInstance()?.markCallEnded()
+        BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
         HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
         stopCountdown()
         try {
@@ -1377,6 +1448,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         audioRouter = null
         phoneStateHelper?.unregister()
         phoneStateHelper = null
+        btWatcher?.unregister()
+        btWatcher = null
 
         Thread {
             try {
@@ -1626,11 +1699,101 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     // Function to toggle speaker on/off
     private fun toggleSpeaker() {
-        isSpeakerOn = !isSpeakerOn
-        if (isSpeakerOn) audioRouter?.forceSpeaker() else audioRouter?.useDefaultRoute()
+        Log.d("CallAudioRoute", "Activity.toggleSpeaker isSpeakerOn=$isSpeakerOn -> ${!isSpeakerOn}")
+        applyAudioRoute(
+            if (isSpeakerOn) com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE
+            else com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER
+        )
+    }
+
+    /**
+     * Show the 3-way audio-route picker when a Bluetooth headset is connected;
+     * otherwise fall back to the binary speaker toggle. Called from the speaker
+     * button click listener so the user only sees the extra chooser when it's
+     * actually useful.
+     */
+    private fun onSpeakerButtonClicked() {
+        val router = audioRouter
+        if (router != null && router.isBluetoothConnected()) {
+            com.gmwapp.hima.dialogs.BottomSheetAudioRoute.show(
+                supportFragmentManager,
+                router
+            ) { route -> applyAudioRoute(route) }
+        } else {
+            toggleSpeaker()
+        }
+    }
+
+    private fun applyAudioRoute(route: com.gmwapp.hima.utils.CallAudioRouter.AudioRoute) {
+        isSpeakerOn = route == com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER
+        currentAudioRoute = route
+
+        // 0) TELECOM-FIRST. On self-managed connections (Samsung One UI /
+        //    Android 16 hits this) the system Telecom service owns the
+        //    baseline audio route and silently overrides AudioManager. Route
+        //    through the Connection API first so Samsung's CallAudioRouteController
+        //    respects the choice; AudioManager fallback below handles the
+        //    non-Telecom path.
+        HimaTelecomManager.setAudioRoute(route)
+
+        // 1) Tell Agora. Agora's own routing flips Android's
+        //    `isSpeakerphoneOn` flag; when that runs AFTER our
+        //    `setCommunicationDevice` call it silently clears the explicit
+        //    communication device we just set and lets Android fall back to
+        //    the default route — which is usually Bluetooth when connected.
         agoraEngine?.setEnableSpeakerphone(isSpeakerOn)
-        val speakerIcon = if (isSpeakerOn) R.drawable.speakeron_img else R.drawable.speakeroff_img
-        binding.btnSpeaker.setImageResource(speakerIcon)
+
+        // 2) Force the explicit communication device — last write wins when
+        //    no Telecom connection is active.
+        when (route) {
+            com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE -> audioRouter?.forceEarpiece()
+            com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER -> audioRouter?.forceSpeaker()
+            com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.BLUETOOTH -> audioRouter?.forceBluetooth()
+        }
+
+        // 3) Icon reflects the actual chosen route (Speaker / BT / Earpiece).
+        binding.btnSpeaker.setImageResource(iconForRoute(route))
+
+        Log.d(
+            "CallAudioRoute",
+            "Activity.applyAudioRoute requested=$route actualAfter=${audioRouter?.currentRoute()} " +
+                "isSpeakerOn=$isSpeakerOn btConnected=${audioRouter?.isBluetoothConnected()}"
+        )
+    }
+
+    private fun iconForRoute(route: com.gmwapp.hima.utils.CallAudioRouter.AudioRoute): Int = when (route) {
+        com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER -> R.drawable.speakeron_img
+        com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.BLUETOOTH -> R.drawable.ic_bluetooth_audio
+        com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE -> R.drawable.speakeroff_img
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean("KEY_IS_MUTED", isMuted)
+        outState.putBoolean("KEY_IS_SPEAKER_ON", isSpeakerOn)
+        outState.putString("KEY_AUDIO_ROUTE", currentAudioRoute.name)
+        Log.d("CallAudioRoute", "Activity.saveState route=$currentAudioRoute isSpeakerOn=$isSpeakerOn")
+    }
+
+    override fun onRestoreInstanceState(savedInstanceState: Bundle) {
+        super.onRestoreInstanceState(savedInstanceState)
+        isMuted = savedInstanceState.getBoolean("KEY_IS_MUTED", false)
+        val restoredSpeakerOn = savedInstanceState.getBoolean("KEY_IS_SPEAKER_ON", false)
+        val restoredRoute = savedInstanceState.getString("KEY_AUDIO_ROUTE")?.let {
+            runCatching { com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.valueOf(it) }.getOrNull()
+        } ?: if (restoredSpeakerOn) com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER
+            else com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE
+        Log.d(
+            "CallAudioRoute",
+            "Activity.restoreState restoredRoute=$restoredRoute restoredSpeaker=$restoredSpeakerOn"
+        )
+        agoraEngine?.muteLocalAudioStream(isMuted)
+        binding.btnMuteUnmute.setImageResource(
+            if (isMuted) R.drawable.mute_img else R.drawable.unmute_img
+        )
+        // applyAudioRoute re-runs Agora + router + icon in one atomic call so
+        // there's no half-applied state after restore.
+        applyAudioRoute(restoredRoute)
     }
 
     private fun endcallBtn() {

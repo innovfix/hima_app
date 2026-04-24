@@ -89,9 +89,12 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
     private fun updateIplBadge() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        val iplEnabled = (userData?.ipl_rooms_enabled ?: 0) == 1
+        // FeatureFlags.IPL_ENABLED is an app-side kill-switch that overrides the
+        // server flag — when false the badge stays hidden and the picker is disabled.
+        val iplEnabled = com.gmwapp.hima.utils.FeatureFlags.IPL_ENABLED &&
+            (userData?.ipl_rooms_enabled ?: 0) == 1
 
-        // Hide badge entirely if IPL rooms are disabled by admin
+        // Hide badge entirely if IPL rooms are disabled by admin or the app flag
         if (!iplEnabled) {
             binding.iplTeamBadge.visibility = View.GONE
             return

@@ -11,3 +11,7 @@ local.properties
 # Production release files
 app/production/release/*.aab
 app/production/release/*.apk
+# Kotlin compiler caches
+.kotlin/
+# Android logcat captures dropped at repo root
+*.logcat

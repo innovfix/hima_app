@@ -130,4 +130,28 @@ object HimaTelecomManager {
             Log.e(INCOMING_CALL_LOG_TAG, "markActive: ${e.message}", e)
         }
     }
+
+    /**
+     * Asks the active self-managed [HimaConnection] to route audio via the
+     * Telecom API. Needed because on Samsung One UI / Android 16 the system
+     * `CallAudioRouteController` keeps re-applying its preferred baseline
+     * (usually Bluetooth when a headset is connected) and quietly overrides
+     * [android.media.AudioManager.setCommunicationDevice] changes. The
+     * Telecom route set from inside a self-managed [android.telecom.Connection]
+     * is treated as authoritative by the OEM stack.
+     *
+     * No-op when no self-managed connection exists (e.g. outgoing calls the
+     * app set up without going through Telecom) — the AudioManager-level
+     * routing in [com.gmwapp.hima.utils.CallAudioRouter] still runs as a
+     * fallback.
+     */
+    fun setAudioRoute(route: com.gmwapp.hima.utils.CallAudioRouter.AudioRoute) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val conn = HimaConnectionService.activeConnection
+        if (conn == null) {
+            Log.d("CallAudioRoute", "HimaTelecomManager.setAudioRoute($route) no active connection — skip")
+            return
+        }
+        conn.applyRouteFromApp(route)
+    }
 }

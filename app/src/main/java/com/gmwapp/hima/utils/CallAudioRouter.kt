@@ -70,6 +70,87 @@ class CallAudioRouter(context: Context) {
         }
     }
 
+    /** Force the built-in earpiece, even if a BT headset is connected. */
+    fun forceEarpiece() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val earpiece = am.availableCommunicationDevices
+                    .firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE }
+                if (earpiece != null) {
+                    val ok = am.setCommunicationDevice(earpiece)
+                    if (!ok) Log.w(TAG, "setCommunicationDevice(earpiece) returned false")
+                } else {
+                    am.clearCommunicationDevice()
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                if (am.isBluetoothScoOn) {
+                    am.stopBluetoothSco()
+                }
+                @Suppress("DEPRECATION")
+                am.isSpeakerphoneOn = false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "forceEarpiece", e)
+        }
+    }
+
+    /** Force a connected Bluetooth SCO headset. No-op if none is available. */
+    fun forceBluetooth() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val bt = am.availableCommunicationDevices.firstOrNull {
+                    it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                        it.type == AudioDeviceInfo.TYPE_BLE_HEADSET
+                }
+                if (bt != null) {
+                    val ok = am.setCommunicationDevice(bt)
+                    if (!ok) Log.w(TAG, "setCommunicationDevice(bt) returned false")
+                } else {
+                    Log.w(TAG, "forceBluetooth: no BT communication device available")
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                am.isSpeakerphoneOn = false
+                @Suppress("DEPRECATION")
+                am.startBluetoothSco()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "forceBluetooth", e)
+        }
+    }
+
+    /**
+     * Whether any Bluetooth (SCO or A2DP) headset is currently connected to the
+     * device. Public so UI code can decide whether to show the 3-way audio
+     * picker vs a binary speaker toggle.
+     */
+    fun isBluetoothConnected(): Boolean = isBluetoothHeadsetConnected()
+
+    enum class AudioRoute { EARPIECE, SPEAKER, BLUETOOTH }
+
+    /**
+     * Best-effort read of the currently-active communication audio route.
+     * Falls back to EARPIECE when the platform reports nothing specific —
+     * that's also what Android routes to by default in MODE_IN_COMMUNICATION.
+     */
+    @Suppress("DEPRECATION")
+    fun currentRoute(): AudioRoute {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val dev = am.communicationDevice ?: return AudioRoute.EARPIECE
+            return when (dev.type) {
+                AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> AudioRoute.SPEAKER
+                AudioDeviceInfo.TYPE_BLUETOOTH_SCO, AudioDeviceInfo.TYPE_BLE_HEADSET -> AudioRoute.BLUETOOTH
+                else -> AudioRoute.EARPIECE
+            }
+        }
+        return when {
+            am.isSpeakerphoneOn -> AudioRoute.SPEAKER
+            am.isBluetoothScoOn -> AudioRoute.BLUETOOTH
+            else -> AudioRoute.EARPIECE
+        }
+    }
+
     fun release() {
         if (!initialized) return
         try {

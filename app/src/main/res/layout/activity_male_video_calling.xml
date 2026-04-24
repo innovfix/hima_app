@@ -36,7 +36,22 @@
             android:id="@+id/local_video_view_container"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="@android:color/black"/>
+            android:background="@android:color/black">
+
+            <!-- Front/back camera flip — overlaid on the local preview so it
+                 only appears when the user is actively sending video. -->
+            <ImageButton
+                android:id="@+id/btn_camera_flip"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_gravity="bottom|end"
+                android:layout_margin="6dp"
+                android:background="#80000000"
+                android:contentDescription="Flip camera"
+                android:padding="6dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_camera_flip" />
+        </FrameLayout>
     </androidx.cardview.widget.CardView>
     
     <FrameLayout
@@ -144,6 +159,22 @@
             android:contentDescription="Menu"/>
 
     </LinearLayout>
+
+    <!-- "Reconnecting…" pill — toggled by CallQualityUi from Agora onConnectionStateChanged. -->
+    <TextView
+        android:id="@+id/reconnect_banner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/bg_reconnect_pill"
+        android:elevation="10dp"
+        android:text="@string/call_reconnecting"
+        android:textColor="@android:color/white"
+        android:textSize="12sp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/top_bar" />
 
     <!-- User Avatars Container (Center) -->
     <LinearLayout

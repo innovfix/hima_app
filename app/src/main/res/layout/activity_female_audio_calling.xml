@@ -145,6 +145,22 @@
 
     </LinearLayout>
 
+    <!-- "Reconnecting…" pill — toggled by CallQualityUi from Agora onConnectionStateChanged. -->
+    <TextView
+        android:id="@+id/reconnect_banner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/bg_reconnect_pill"
+        android:elevation="10dp"
+        android:text="@string/call_reconnecting"
+        android:textColor="@android:color/white"
+        android:textSize="12sp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/top_bar" />
+
     <!-- User Avatars Container (Center) -->
     <LinearLayout
         android:id="@+id/users_container"

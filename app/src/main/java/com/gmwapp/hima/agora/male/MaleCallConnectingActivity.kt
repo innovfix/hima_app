@@ -69,6 +69,7 @@ class MaleCallConnectingActivity : AppCompatActivity() {
             Log.d("CallTimeoutTracker", "Seconds passed: $elapsedTime")
 
             if (elapsedTime >= 20) { // 20 seconds timeout
+                Log.d("CreatorCallDiag", "MConn.timeoutFired elapsed=$elapsedTime -> disconnect (no answer)")
                 disconnectCall()
             } else {
                 timeoutHandler.postDelayed(this, 1000) // Update every second
@@ -506,10 +507,16 @@ class MaleCallConnectingActivity : AppCompatActivity() {
     }
 
     fun observeCallAcceptance() {
+        Log.d("CreatorCallDiag", "MConn.observer.attached userId=$userId receiverId=$receiverId callType=$callType")
         FcmUtils.callStatus.observe(this, Observer { callData ->
             if (callData != null) {  // Check if it's not null before destructuring
                 val (status, channelName) = callData
                 Log.d("callStatusData","$status")
+                val cur = BaseApplication.getInstance()?.getCurrentActivity()?.javaClass?.simpleName
+                Log.d(
+                    "CreatorCallDiag",
+                    "MConn.observer.fire status=$status channel=$channelName currentActivity=$cur"
+                )
 
                 if (status == "accepted") {
                     FcmUtils.clearCallStatus()  // Clear before moving to AudioCallingActivity

@@ -172,6 +172,11 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
         binding.accpet.setOnClickListener {
 
             if (receiverId != -1 && !channelName.isNullOrEmpty() && !callType.isNullOrEmpty()) {
+                Log.d(
+                    "CreatorCallDiag",
+                    "FAccept.click sender(female)=$userId receiver(male)=$receiverId " +
+                        "channel=$channelName callId=$call_Id callType=$callType"
+                )
                 sendCallNotification(userId!!, receiverId, callType!!, channelName!!, "accepted")
 
                 if (callType == "audio") {

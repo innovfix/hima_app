@@ -280,6 +280,14 @@ class BaseApplication : Application(), Configuration.Provider {
 
         sharedPreferences = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
 
+        // App-side feature kill-switches. Logged once per cold start so future
+        // confusion ("why is Ludo gone?") is answerable with `adb logcat -s FeatureFlags`.
+        Log.d(
+            "FeatureFlags",
+            "IPL_ENABLED=${com.gmwapp.hima.utils.FeatureFlags.IPL_ENABLED} " +
+                "LUDO_ENABLED=${com.gmwapp.hima.utils.FeatureFlags.LUDO_ENABLED}"
+        )
+
         // OneSignal Initialization
         OneSignal.initWithContext(this, ONESIGNAL_APP_ID)
         OneSignalDiag.installObserver(this)
@@ -306,15 +314,79 @@ class BaseApplication : Application(), Configuration.Provider {
             }
         }.onFailure { Log.e("OneSignalFix", "BaseApp idempotent subscribe failed: ${it.message}") }
 
-        // ====== DND: suppress OneSignal notifications when DND is active ======
+        // ====== Force FCM token resync on every app start =====================
+        // onNewToken only fires when Firebase rotates the device token. If the
+        // server-side mapping becomes stale for any other reason (user logged
+        // in on a second device and the backend stores one-token-per-user, a
+        // Samsung power-save kill that silently invalidates the mapping, etc.)
+        // the app would keep running with a dead mapping until reinstall.
+        // Re-push the current token on every cold start so a silently-stale
+        // mapping heals itself the next time the user opens the app.
+        runCatching {
+            val signedInUserId = getPrefs()?.getUserData()?.id ?: 0
+            val authToken = getPrefs()?.getAuthenticationToken().orEmpty()
+            if (signedInUserId > 0 && authToken.isNotBlank()) {
+                Log.d("CreatorCallDiag", "BaseApp.fcmTokenSync userId=$signedInUserId authToken=${authToken.take(8)}…")
+                com.google.firebase.messaging.FirebaseMessaging.getInstance().token
+                    .addOnSuccessListener { token ->
+                        Log.d("CreatorCallDiag", "BaseApp.fcmTokenSync tokenPrefix=${token?.take(12)}…")
+                        val input = androidx.work.Data.Builder()
+                            .putInt(com.gmwapp.hima.workers.FcmTokenRegisterWorker.KEY_USER_ID, signedInUserId)
+                            .putString(com.gmwapp.hima.workers.FcmTokenRegisterWorker.KEY_TOKEN, token ?: "")
+                            .putString(com.gmwapp.hima.workers.FcmTokenRegisterWorker.KEY_AUTH_TOKEN, authToken)
+                            .build()
+                        androidx.work.WorkManager.getInstance(applicationContext).enqueueUniqueWork(
+                            "${com.gmwapp.hima.workers.FcmTokenRegisterWorker.WORK_NAME_PREFIX}$signedInUserId",
+                            androidx.work.ExistingWorkPolicy.REPLACE,
+                            androidx.work.OneTimeWorkRequestBuilder<com.gmwapp.hima.workers.FcmTokenRegisterWorker>()
+                                .setInputData(input)
+                                .setConstraints(
+                                    androidx.work.Constraints.Builder()
+                                        .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                                        .build()
+                                )
+                                .setBackoffCriteria(
+                                    androidx.work.BackoffPolicy.EXPONENTIAL,
+                                    30,
+                                    java.util.concurrent.TimeUnit.SECONDS
+                                )
+                                .build()
+                        )
+                    }
+                    .addOnFailureListener {
+                        Log.e("CreatorCallDiag", "BaseApp.fcmTokenSync.failed ${it.message}")
+                    }
+            } else {
+                Log.d("CreatorCallDiag", "BaseApp.fcmTokenSync skipped userId=$signedInUserId authToken=${authToken.take(8)}…")
+            }
+        }.onFailure { Log.e("CreatorCallDiag", "BaseApp.fcmTokenSync threw: ${it.message}") }
+
+        // ====== DND + in-call: suppress OneSignal notifications when DND is
+        // active OR when the user is already inside a call and the push looks
+        // like another call notification. ======
         OneSignal.Notifications.addForegroundLifecycleListener(object : com.onesignal.notifications.INotificationLifecycleListener {
             override fun onWillDisplay(event: com.onesignal.notifications.INotificationWillDisplayEvent) {
                 val userData = getInstance()?.getPrefs()?.getUserData()
                 if (isDndActiveStatic(userData)) {
                     Log.d("OneSignal_DND", "DND is active — suppressing OneSignal notification")
-                    // preventDefault() stops OneSignal from displaying the notification
+                    event.preventDefault()
+                    return
+                }
+                if (isInActiveCall() && looksLikeCallPush(event.notification.additionalData)) {
+                    Log.d("OneSignal_InCall", "Already in active call — suppressing OneSignal call push")
                     event.preventDefault()
                 }
+            }
+
+            private fun looksLikeCallPush(additional: org.json.JSONObject?): Boolean {
+                if (additional == null) return false
+                // Any of these keys being present is a strong signal it's a
+                // call-type push (channelName + callType + call_id are all
+                // standard fields the backend attaches to call pushes).
+                val keys = arrayOf("callType", "channelName", "call_id", "senderId")
+                if (keys.any { additional.has(it) && !additional.isNull(it) }) return true
+                val type = additional.optString("type", "").lowercase()
+                return type.startsWith("call") || type.contains("incoming")
             }
         })
 
@@ -931,6 +1003,19 @@ class BaseApplication : Application(), Configuration.Provider {
     @Volatile
     private var lastIncomingCallTag: String? = null
 
+    /**
+     * True while the user is inside an Agora audio/video call (any of the four
+     * *CallingActivity classes have been onCreate'd but not yet onDestroy'd).
+     * Used to drop stray OneSignal / FCM call-style pushes so the device
+     * doesn't ring while a call is already in progress.
+     */
+    @Volatile
+    private var isCallActive: Boolean = false
+
+    fun markCallActive() { isCallActive = true }
+    fun markCallEnded() { isCallActive = false }
+    fun isInActiveCall(): Boolean = isCallActive
+
     fun setIncomingCall(senderId: Int, callType: String, channelName: String, callId: Int) {
         this.senderId = senderId
         this.callTypeForSplashActivity = callType
@@ -952,6 +1037,50 @@ class BaseApplication : Application(), Configuration.Provider {
         val tag = lastIncomingCallTag
         if (tag != null) nm.cancel(tag, INCOMING_CALL_NOTIFICATION_ID)
         else nm.cancel(INCOMING_CALL_NOTIFICATION_ID)
+    }
+
+    /**
+     * Bulk-cancels every outstanding incoming-call notification in the tray:
+     * the FCM `calls_v3` CallStyle path and any OneSignal server-side call
+     * push that happened to slip through before the NSE suppressor ran.
+     *
+     * Chat pushes share the OneSignal default channel so we do NOT cancel by
+     * channel wholesale — we only target notifications whose title/body/extras
+     * identify them as call pushes. See [looksLikeCallPush].
+     */
+    fun cancelAllIncomingCallNotifications() {
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+        // Always wipe the legacy CallStyle id + any tagged variant we know about.
+        runCatching {
+            val tag = lastIncomingCallTag
+            if (tag != null) nm.cancel(tag, INCOMING_CALL_NOTIFICATION_ID)
+            nm.cancel(INCOMING_CALL_NOTIFICATION_ID)
+        }
+        // Sweep the active tray for anything else that smells like a call push.
+        runCatching {
+            nm.activeNotifications?.forEach { sbn ->
+                val channel = sbn.notification?.channelId
+                if (channel == com.gmwapp.hima.agora.MyFirebaseMessagingService.CALLS_NOTIFICATION_CHANNEL_ID) {
+                    nm.cancel(sbn.tag, sbn.id)
+                    return@forEach
+                }
+                if (looksLikeCallPush(sbn.notification)) {
+                    nm.cancel(sbn.tag, sbn.id)
+                }
+            }
+        }
+    }
+
+    private fun looksLikeCallPush(notif: android.app.Notification?): Boolean {
+        if (notif == null) return false
+        val extras = notif.extras ?: return false
+        val title = (extras.getCharSequence(android.app.Notification.EXTRA_TITLE) ?: "").toString()
+        val body = (extras.getCharSequence(android.app.Notification.EXTRA_TEXT) ?: "").toString()
+        val haystack = (title + " " + body).lowercase()
+        return haystack.contains("video call from") ||
+            haystack.contains("audio call from") ||
+            haystack.contains("wants to talk to you") ||
+            haystack.contains("incoming call")
     }
 
     fun clearIncomingCall() {
