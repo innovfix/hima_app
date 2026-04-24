@@ -90,6 +90,7 @@ import com.gmwapp.hima.retrofit.ApiManager
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.utils.RatingPromptHelper
+import com.gmwapp.hima.utils.FeedbackFormHelper
 import com.gmwapp.hima.utils.AppEventLogger
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.FcmTokenViewModel
@@ -172,6 +173,9 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     lateinit var ratingPromptHelper: RatingPromptHelper
 
     @javax.inject.Inject
+    lateinit var feedbackFormHelper: FeedbackFormHelper
+
+    @javax.inject.Inject
     lateinit var apiManager: ApiManager
 
 
@@ -201,9 +205,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
     private var cashfreeLastOrderId: String = ""
     private var recentMissedCount: Int = 0
-    private var recentUnreadCount: Int = 0
     private val recentMissedDotTag = "recent_missed_dot"
-    private val recentUnreadDotTag = "recent_unread_dot"
     private var chatFriendsUnread: Int = 0
     private var chatGeneralUnread: Int = 0
     private val chatUnreadDotTag = "chat_unread_dot"
@@ -1321,11 +1323,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         // Check and show rating prompt if conditions are met
         userData?.id?.let { userId ->
             ratingPromptHelper.checkAndShowRatingPrompt(this, userId)
+            feedbackFormHelper.checkAndShowFeedback(this, userId)
         }
 
         // Refresh bottom nav badge for missed calls
         loadRecentMissedCountBadge()
-        loadRecentUnreadCountBadge()
         loadChatUnreadCountBadge()
     }
 
@@ -1366,57 +1368,14 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         })
     }
 
-    private fun loadRecentUnreadCountBadge() {
-        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
-        apiManager.getMyChat(userData.id, null, 100, 0, object : NetworkCallback<com.gmwapp.hima.retrofit.responses.MyChatResponse> {
-            override fun onResponse(
-                call: Call<com.gmwapp.hima.retrofit.responses.MyChatResponse>,
-                response: retrofit2.Response<com.gmwapp.hima.retrofit.responses.MyChatResponse>
-            ) {
-                val unread = if (response.isSuccessful &&
-                    response.body()?.success == true &&
-                    response.body()?.data != null
-                ) {
-                    response.body()?.data?.chats?.sumOf { it.unreadCount } ?: 0
-                } else {
-                    0
-                }
-                recentUnreadCount = unread
-                updateRecentBadge()
-            }
-
-            override fun onFailure(call: Call<com.gmwapp.hima.retrofit.responses.MyChatResponse>, t: Throwable) {
-                recentUnreadCount = 0
-                updateRecentBadge()
-            }
-
-            override fun onNoNetwork() {
-                recentUnreadCount = 0
-                updateRecentBadge()
-            }
-        })
-    }
-
     private fun updateRecentBadge() {
-        val safeMissed = recentMissedCount.coerceAtLeast(0)
-        val safeUnread = recentUnreadCount.coerceAtLeast(0)
+        val displayCount = recentMissedCount.coerceAtLeast(0)
 
         // Always remove native Material badge — we use a custom overlay for pixel-perfect placement.
         binding.bottomNavigationView.removeBadge(R.id.recent)
 
-        // Single-badge rule: missed calls win; unread chats are a fallback.
-        val displayCount = when {
-            safeMissed > 0 -> safeMissed
-            safeUnread > 0 -> safeUnread
-            else -> 0
-        }
-
-        // Legacy unread dot (from previous two-badge layout) — hide so no stale count lingers after upgrade.
-        hideBadge(recentUnreadDotTag)
-
         if (displayCount > 0) {
-            val badgeColor = if (safeMissed > 0) R.color.chat_recording_red else R.color.colorAccent
-            placeRecentBadge(displayCount, badgeColor)
+            placeRecentBadge(displayCount, R.color.chat_recording_red)
         } else {
             hideBadge(recentMissedDotTag)
         }

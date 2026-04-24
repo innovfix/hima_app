@@ -109,6 +109,8 @@ import com.gmwapp.hima.retrofit.responses.CheckFavoriteResponse
 import com.gmwapp.hima.retrofit.responses.CheckReferralOfferResponse
 import com.gmwapp.hima.retrofit.responses.RatingPromptResponse
 import com.gmwapp.hima.retrofit.responses.UpdateRatingPromptResponse
+import com.gmwapp.hima.retrofit.responses.FeedbackCheckResponse
+import com.gmwapp.hima.retrofit.responses.FeedbackSubmitResponse
 import com.gmwapp.hima.retrofit.responses.LogAppEventResponse
 import com.gmwapp.hima.retrofit.responses.GetFemaleTalkDurationResponse
 import com.gmwapp.hima.retrofit.responses.InstallReferrerResponse
@@ -1859,6 +1861,45 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    fun checkFeedback(
+        userId: Int,
+        callback: NetworkCallback<FeedbackCheckResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<FeedbackCheckResponse> = getApiInterface().checkFeedback(userId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun submitFeedback(
+        userId: Int,
+        formId: Int,
+        answersJson: String,
+        callback: NetworkCallback<FeedbackSubmitResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<FeedbackSubmitResponse> = getApiInterface().submitFeedback(userId, formId, answersJson)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
+    fun skipFeedback(
+        userId: Int,
+        formId: Int,
+        callback: NetworkCallback<FeedbackSubmitResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val apiCall: Call<FeedbackSubmitResponse> = getApiInterface().skipFeedback(userId, formId)
+            apiCall.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun logAppEvent(
         eventName: String,
         userId: Int?,
@@ -3045,6 +3086,27 @@ interface ApiInterface {
         @Field("user_id") userId: Int,
         @Field("rating_submitted") ratingSubmitted: Int = 0
     ): Call<UpdateRatingPromptResponse>
+
+    @FormUrlEncoded
+    @POST("feedback/check")
+    fun checkFeedback(
+        @Field("user_id") userId: Int
+    ): Call<FeedbackCheckResponse>
+
+    @FormUrlEncoded
+    @POST("feedback/submit")
+    fun submitFeedback(
+        @Field("user_id") userId: Int,
+        @Field("form_id") formId: Int,
+        @Field("answers") answers: String
+    ): Call<FeedbackSubmitResponse>
+
+    @FormUrlEncoded
+    @POST("feedback/skip")
+    fun skipFeedback(
+        @Field("user_id") userId: Int,
+        @Field("form_id") formId: Int
+    ): Call<FeedbackSubmitResponse>
 
     @FormUrlEncoded
     @POST("log-app-event")

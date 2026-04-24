@@ -64,6 +64,10 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     private var homeMyChatsRawConversations: List<com.gmwapp.hima.models.ChatConversation> = emptyList()
     private var homeMyChatsAdapter: com.gmwapp.hima.adapters.ChatListAdapter? = null
 
+    // Last-message timestamp (epoch seconds) at the moment a row was tapped.
+    // Used to mask stale unread counts returned by my_chat that race mark_read.
+    private val readChatLastMsgSeconds = mutableMapOf<String, Long>()
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
@@ -515,6 +519,9 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                             val date = item.lastMessage?.timestamp?.let { fmt.parse(it) }
                             date?.let { com.google.firebase.Timestamp(it) }
                         } catch (_: Exception) { null }
+                        val readUpTo = readChatLastMsgSeconds[item.user.id.toString()]
+                        val incomingSec = ts?.seconds ?: 0L
+                        val effectiveUnread = if (readUpTo != null && incomingSec <= readUpTo) 0 else item.unreadCount
                         com.gmwapp.hima.models.ChatConversation(
                             threadId = item.chatId,
                             userId = item.user.id.toString(),
@@ -523,7 +530,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                             lastMessage = item.lastMessage?.message ?: "",
                             lastMessageType = item.lastMessage?.messageType ?: "text",
                             lastMessageTime = ts,
-                            unreadCount = item.unreadCount,
+                            unreadCount = effectiveUnread,
                             // status == 1 from the backend means the creator is
                             // currently active — mirror the "All" tab's green dot.
                             isOnline = (item.user.status ?: 0) == 1,
@@ -544,6 +551,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                     activityCtx,
                     ArrayList(conversations),
                     { conv ->
+                        conv.lastMessageTime?.seconds?.let { readChatLastMsgSeconds[conv.userId] = it }
                         chatListAdapter.markConversationAsRead(conv.userId)
                         val intent = Intent(activityCtx, com.gmwapp.hima.activities.ChatActivityInHouse::class.java).apply {
                             putExtra("USER_ID", conv.userId.toIntOrNull() ?: -1)
