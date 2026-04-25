@@ -4,21 +4,26 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#F5F6F8"
+    android:fitsSystemWindows="true"
     android:orientation="vertical">
 
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:minHeight="?attr/actionBarSize"
-        android:background="@android:color/transparent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/white"
+        android:elevation="2dp"
         android:fitsSystemWindows="true"
-        android:fontFamily="@font/poppins_semibold"
-        app:navigationIcon="@drawable/ic_arrow_back"
-        app:navigationIconTint="@color/black"
-        app:title="Cancel Subscription"
-        app:titleTextColor="@color/black"
-        />
+        app:contentInsetLeft="0dp"
+        app:contentInsetStart="0dp"
+        app:contentInsetStartWithNavigation="0dp">
+
+        <include
+            android:id="@+id/include_profile_toolbar"
+            layout="@layout/layout_profile_flow_toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+    </com.google.android.material.appbar.MaterialToolbar>
 
     <ScrollView
         android:layout_width="match_parent"
@@ -69,6 +74,7 @@
                         android:id="@+id/rb_expensive"
                         android:layout_width="match_parent"
                         android:layout_height="52dp"
+                        android:buttonTint="@color/colorAccent"
                         android:fontFamily="@font/poppins_regular"
                         android:paddingStart="8dp"
                         android:text="It's too expensive"
@@ -84,6 +90,7 @@
                         android:id="@+id/rb_not_using"
                         android:layout_width="match_parent"
                         android:layout_height="52dp"
+                        android:buttonTint="@color/colorAccent"
                         android:fontFamily="@font/poppins_regular"
                         android:paddingStart="8dp"
                         android:text="I'm not using it enough"
@@ -99,6 +106,7 @@
                         android:id="@+id/rb_quality"
                         android:layout_width="match_parent"
                         android:layout_height="52dp"
+                        android:buttonTint="@color/colorAccent"
                         android:fontFamily="@font/poppins_regular"
                         android:paddingStart="8dp"
                         android:text="Poor call quality"
@@ -114,6 +122,7 @@
                         android:id="@+id/rb_better_app"
                         android:layout_width="match_parent"
                         android:layout_height="52dp"
+                        android:buttonTint="@color/colorAccent"
                         android:fontFamily="@font/poppins_regular"
                         android:paddingStart="8dp"
                         android:text="Found a better app"
@@ -129,6 +138,7 @@
                         android:id="@+id/rb_other"
                         android:layout_width="match_parent"
                         android:layout_height="52dp"
+                        android:buttonTint="@color/colorAccent"
                         android:fontFamily="@font/poppins_regular"
                         android:paddingStart="8dp"
                         android:text="Other reason"
@@ -154,7 +164,7 @@
         android:textAllCaps="false"
         android:textColor="@color/white"
         android:textSize="15sp"
-        app:backgroundTint="#E53935"
+        app:backgroundTint="@color/colorAccent"
         app:cornerRadius="26dp"
         app:strokeWidth="0dp" />
 

@@ -33,7 +33,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/_16sdp"
             android:fontFamily="@font/poppins_semibold"
-            android:text="Start your free trial"
+            android:text="Start your 10-day free trial"
             android:textColor="@color/black"
             android:textSize="20sp"
             app:layout_constraintStart_toStartOf="parent"
@@ -140,7 +140,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:layout_marginTop="@dimen/_10sdp"
-                android:text="Autopay ₹399 every 10 days unless cancelled"
+                android:text="Autopay ₹299 every 10 days unless cancelled"
                 android:textColor="#6B6B6B"
                 android:textSize="11sp" />
         </LinearLayout>
@@ -152,7 +152,7 @@
             android:layout_marginTop="@dimen/_16sdp"
             android:backgroundTint="@color/pink"
             android:fontFamily="@font/poppins_semibold"
-            android:text="Try Now ₹1"
+            android:text="Try 10 Days — ₹1"
             android:textAllCaps="false"
             android:textColor="@color/white"
             android:textSize="16sp"

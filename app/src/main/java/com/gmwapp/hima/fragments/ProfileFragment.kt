@@ -19,10 +19,8 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import com.bumptech.glide.Glide
 import com.gmwapp.hima.BaseApplication
-import androidx.core.content.ContextCompat
-import com.gmwapp.hima.activities.CancelSubscriptionActivity
 import com.gmwapp.hima.activities.CommunityGuidelineActivity
-import com.gmwapp.hima.activities.DummySubscriptionActivity
+import com.gmwapp.hima.activities.SettingsActivity
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.AccountPrivacyActivity
 import com.gmwapp.hima.activities.ManageNotificationsActivity
@@ -319,7 +317,9 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
             startActivity(intent)
         }
 
-        refreshActiveSubscriptionCard()
+        binding.cvSettings.setOnSingleClickListener {
+            startActivity(Intent(context, SettingsActivity::class.java))
+        }
 
         binding.cvLogout.setOnSingleClickListener {
             val bottomSheet = BottomSheetLogout()
@@ -355,8 +355,16 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
     override fun onResume() {
         super.onResume()
-        refreshActiveSubscriptionCard()
         refreshDevUserTypeSwitch()
+        refreshPremiumCrown()
+    }
+
+    private fun refreshPremiumCrown() {
+        val ctx = context ?: return
+        val active = ctx.getSharedPreferences(
+            com.gmwapp.hima.activities.DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE
+        ).getBoolean(com.gmwapp.hima.activities.DummySubscriptionActivity.KEY_ACTIVE, false)
+        binding.ivPremiumCrownProfile.visibility = if (active) View.VISIBLE else View.GONE
     }
 
     private fun refreshDevUserTypeSwitch() {
@@ -370,33 +378,6 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
             DevUserMode.setNewUser(ctx, isChecked)
             binding.tvDevUserTypeStatus.text =
                 if (isChecked) "Current: New user" else "Current: Old user"
-        }
-    }
-
-    private fun refreshActiveSubscriptionCard() {
-        val ctx = context ?: return
-        val prefs = ctx.getSharedPreferences(
-            DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE
-        )
-        val active = prefs.getBoolean(DummySubscriptionActivity.KEY_ACTIVE, false)
-
-        if (active) {
-            binding.cvActiveSubscription.visibility = View.VISIBLE
-            binding.activeSubIcon.setCardBackgroundColor(
-                ContextCompat.getColor(ctx, R.color.green).let {
-                    android.graphics.Color.argb(30, android.graphics.Color.red(it), android.graphics.Color.green(it), android.graphics.Color.blue(it))
-                }
-            )
-            binding.ivActiveSubIcon.setColorFilter(ContextCompat.getColor(ctx, R.color.green))
-            binding.tvActiveSubLabel.text = "Active Subscription"
-            binding.tvActiveSubStatus.text = "Active · Tap to manage"
-            binding.tvActiveSubStatus.setTextColor(ContextCompat.getColor(ctx, R.color.green))
-            binding.cvActiveSubscription.setOnClickListener {
-                startActivity(Intent(ctx, CancelSubscriptionActivity::class.java))
-            }
-        } else {
-            binding.cvActiveSubscription.visibility = View.GONE
-            binding.cvActiveSubscription.setOnClickListener(null)
         }
     }
 

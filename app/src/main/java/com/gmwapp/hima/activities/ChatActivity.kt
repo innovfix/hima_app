@@ -1,6 +1,7 @@
 package com.gmwapp.hima.activities
 
 import com.gmwapp.hima.utils.showAppToast
+import com.gmwapp.hima.activities.WalletActivity
 
 import android.os.Bundle
 import android.util.Log
@@ -150,15 +151,34 @@ class ChatActivity : AppCompatActivity() {
 
     private var messageInputContainer: View? = null
     private var subscribeLockContainer: View? = null
+    private var autopayFailedLockContainer: View? = null
 
     private fun isSubscriptionActive(): Boolean = getSharedPreferences(
         DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE
     ).getBoolean(DummySubscriptionActivity.KEY_ACTIVE, false)
 
+    private fun wasEverSubscribed(): Boolean = getSharedPreferences(
+        DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE
+    ).getBoolean(DummySubscriptionActivity.KEY_EVER_ACTIVE, false)
+
     private fun applySubscriptionGate() {
-        val active = isSubscriptionActive()
-        messageInputContainer?.visibility = if (active) View.VISIBLE else View.GONE
-        subscribeLockContainer?.visibility = if (active) View.GONE else View.VISIBLE
+        when {
+            isSubscriptionActive() -> {
+                messageInputContainer?.visibility = View.VISIBLE
+                subscribeLockContainer?.visibility = View.GONE
+                autopayFailedLockContainer?.visibility = View.GONE
+            }
+            wasEverSubscribed() -> {
+                messageInputContainer?.visibility = View.GONE
+                subscribeLockContainer?.visibility = View.GONE
+                autopayFailedLockContainer?.visibility = View.VISIBLE
+            }
+            else -> {
+                messageInputContainer?.visibility = View.GONE
+                subscribeLockContainer?.visibility = View.VISIBLE
+                autopayFailedLockContainer?.visibility = View.GONE
+            }
+        }
     }
 
     private fun showTrialOfferSheet() {
@@ -179,7 +199,11 @@ class ChatActivity : AppCompatActivity() {
         ivBack = findViewById(R.id.iv_back)
         messageInputContainer = findViewById(R.id.message_input_container)
         subscribeLockContainer = findViewById(R.id.subscribe_lock_container)
+        autopayFailedLockContainer = findViewById(R.id.autopay_failed_lock_container)
         findViewById<View>(R.id.btn_subscribe_unlock)?.setOnClickListener { showTrialOfferSheet() }
+        findViewById<View>(R.id.btn_buy_coins_unlock)?.setOnClickListener {
+            startActivity(android.content.Intent(this, WalletActivity::class.java))
+        }
         ivUser = findViewById(R.id.iv_user)
         tvUserName = findViewById(R.id.tv_user_name)
         tvUserStatus = findViewById(R.id.tv_user_status)

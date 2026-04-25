@@ -2,27 +2,25 @@ package com.gmwapp.hima.activities
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.gmwapp.hima.databinding.ActivityCancelFeedbackBinding
+import com.gmwapp.hima.utils.setOnSingleClickListener
 
 class CancelFeedbackActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityCancelFeedbackBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = Color.TRANSPARENT
-        WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars = true
         super.onCreate(savedInstanceState)
         binding = ActivityCancelFeedbackBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
 
-        binding.toolbar.setNavigationOnClickListener { finish() }
+        binding.includeProfileToolbar.tvFlowTitle.text = "Cancel Subscription"
+        binding.includeProfileToolbar.cvBack.setOnSingleClickListener { finish() }
 
         binding.btnCancelSubscription.setOnClickListener {
             if (binding.radioGroup.checkedRadioButtonId == -1) {

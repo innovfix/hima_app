@@ -19,6 +19,7 @@ import androidx.lifecycle.Observer
 import com.bumptech.glide.Glide
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.activities.CommunityGuidelineActivity
+import com.gmwapp.hima.activities.CreatorLevelActivity
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.AccountPrivacyActivity
 import com.gmwapp.hima.activities.MyWarningsActivity
@@ -313,6 +314,10 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
         binding.clStarCreatorApply.setOnSingleClickListener {
             val intent = Intent(context, StarCreatorApplicationActivity::class.java)
             startActivity(intent)
+        }
+
+        binding.cvCreatorLevelProfile.setOnSingleClickListener {
+            startActivity(Intent(context, CreatorLevelActivity::class.java))
         }
 
         binding.clTermsCondition.setOnSingleClickListener {

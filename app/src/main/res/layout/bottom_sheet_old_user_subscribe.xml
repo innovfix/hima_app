@@ -120,7 +120,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp"
                         android:fontFamily="@font/poppins_medium"
-                        android:text="₹399 Talktime"
+                        android:text="₹299 Talktime"
                         android:textColor="#1A1A2E"
                         android:textSize="14sp" />
                 </LinearLayout>
@@ -155,7 +155,7 @@
                     android:layout_height="48dp"
                     android:layout_marginTop="14dp"
                     android:fontFamily="@font/poppins_semibold"
-                    android:text="₹399 only"
+                    android:text="₹299 only"
                     android:textAllCaps="false"
                     android:textColor="@color/white"
                     android:textSize="15sp"

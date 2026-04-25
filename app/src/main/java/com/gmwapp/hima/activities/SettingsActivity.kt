@@ -1,0 +1,43 @@
+package com.gmwapp.hima.activities
+
+import android.content.Context
+import android.content.Intent
+import android.os.Bundle
+import android.view.View
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowInsetsControllerCompat
+import com.gmwapp.hima.databinding.ActivitySettingsBinding
+import com.gmwapp.hima.utils.setOnSingleClickListener
+
+class SettingsActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivitySettingsBinding
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivitySettingsBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
+
+        binding.includeProfileToolbar.tvFlowTitle.text = "Settings"
+        binding.includeProfileToolbar.cvBack.setOnSingleClickListener { finish() }
+
+        binding.cvActiveSubscription.setOnSingleClickListener {
+            startActivity(Intent(this, CancelSubscriptionActivity::class.java))
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        refreshSubscriptionState()
+    }
+
+    private fun refreshSubscriptionState() {
+        val prefs = getSharedPreferences(
+            DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE
+        )
+        val active = prefs.getBoolean(DummySubscriptionActivity.KEY_ACTIVE, false)
+        binding.cvActiveSubscription.visibility = if (active) View.VISIBLE else View.GONE
+        binding.cvNoSubscription.visibility = if (active) View.GONE else View.VISIBLE
+    }
+}

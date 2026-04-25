@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.gmwapp.hima.databinding.ActivityDummySubscriptionBinding
+import com.gmwapp.hima.utils.DummyDailyCoins
 
 class DummySubscriptionActivity : AppCompatActivity() {
 
@@ -24,6 +25,7 @@ class DummySubscriptionActivity : AppCompatActivity() {
             }
             editor.apply()
             if (isChecked) {
+                DummyDailyCoins.creditIfNewDay(this)
                 finish()
             }
         }

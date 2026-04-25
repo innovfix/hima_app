@@ -262,6 +262,8 @@
         <activity android:name=".activities.DummySubscriptionActivity" />
         <activity android:name=".activities.CancelSubscriptionActivity" />
         <activity android:name=".activities.CancelFeedbackActivity" />
+        <activity android:name=".activities.SettingsActivity" />
+        <activity android:name=".activities.CreatorLevelActivity" />
         <activity android:name=".activities.FemaleTransactionsActivity" />
         <activity android:name=".activities.AccountPrivacyActivity" />
         <activity android:name=".activities.ManageNotificationsActivity" />

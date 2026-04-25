@@ -30,6 +30,7 @@ import com.gmwapp.hima.activities.DummySubscriptionActivity
 import com.gmwapp.hima.activities.IplRoomsActivity
 import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.utils.DevUserMode
+import com.gmwapp.hima.utils.DummyDailyCoins
 import com.gmwapp.hima.adapters.FemaleUserAdapter
 import com.gmwapp.hima.agora.AgoraRandomCallActivity
 import com.gmwapp.hima.agora.FcmUtils
@@ -125,7 +126,6 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             startActivity(Intent(requireContext(), com.gmwapp.hima.activities.IplRoomsActivity::class.java))
         }
         refreshIplBanner()
-        refreshFreeCallFab()
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val language = userData?.language
@@ -426,22 +426,101 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         }.show(childFragmentManager, tag)
     }
 
-    private fun refreshFreeCallFab() {
-        if (!isAdded) return
-        val active = requireContext()
-            .getSharedPreferences(DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE)
-            .getBoolean(DummySubscriptionActivity.KEY_ACTIVE, false)
-        binding.fabFreeCall.visibility = if (active) View.VISIBLE else View.GONE
-    }
-
     private fun refreshCoinsDisplayFromCache() {
         if (!isAdded || !::binding.isInitialized) return
         val cached = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
-        val display = if (DevUserMode.isNewUser(requireContext())) 0 else cached.coins
-        binding.tvCoins.text = display.toString()
+        val base = if (DevUserMode.isNewUser(requireContext())) 0 else (cached.coins ?: 0)
+        val bonus = if (isSubscriptionActive()) DummyDailyCoins.getCoins(requireContext()) else 0
+        binding.tvCoins.text = (base + bonus).toString()
     }
 
-    private fun isSubscriptionActive(): Boolean {
+    private fun refreshPremiumCrown() {
+        if (!::binding.isInitialized) return
+        binding.ivPremiumCrownHome.visibility = if (isSubscriptionActive()) View.VISIBLE else View.GONE
+    }
+
+    private fun maybeShowDailyCoinsDialog() {
+        if (!isAdded) return
+        if (isSubscriptionActive()) {
+            if (DummyDailyCoins.hasPendingClaim(requireContext())) {
+                binding.root.post { if (isAdded) showDailyCoinsDialog() }
+            }
+        } else if (wasEverSubscribed() && !autopayDialogShownThisSession) {
+            autopayDialogShownThisSession = true
+            binding.root.post { if (isAdded) showAutopayFailedDialog() }
+        }
+    }
+
+    companion object {
+        private var autopayDialogShownThisSession = false
+    }
+
+    private val midnightHandler = Handler(Looper.getMainLooper())
+    private val midnightRunnable: Runnable = Runnable {
+        if (isAdded) {
+            maybeShowDailyCoinsDialog()
+            scheduleMidnightRefresh()
+        }
+    }
+
+    private fun msUntilMidnight(): Long {
+        val cal = java.util.Calendar.getInstance()
+        cal.add(java.util.Calendar.DAY_OF_MONTH, 1)
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        cal.set(java.util.Calendar.MINUTE, 0)
+        cal.set(java.util.Calendar.SECOND, 0)
+        cal.set(java.util.Calendar.MILLISECOND, 0)
+        return cal.timeInMillis - System.currentTimeMillis()
+    }
+
+    private fun scheduleMidnightRefresh() {
+        midnightHandler.removeCallbacks(midnightRunnable)
+        midnightHandler.postDelayed(midnightRunnable, msUntilMidnight())
+    }
+
+    private fun wasEverSubscribed(): Boolean {
+        return requireContext()
+            .getSharedPreferences(DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE)
+            .getBoolean(DummySubscriptionActivity.KEY_EVER_ACTIVE, false)
+    }
+
+    private fun showDailyCoinsDialog() {
+        val view = layoutInflater.inflate(R.layout.dialog_daily_coins, null)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setView(view)
+            .setCancelable(true)
+            .create()
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.window?.setDimAmount(0.5f)
+        view.findViewById<View>(R.id.btnAwesome).setOnClickListener {
+            DummyDailyCoins.claimCoins(requireContext())
+            dialog.dismiss()
+        }
+        dialog.setOnDismissListener {
+            refreshCoinsDisplayFromCache()
+        }
+        dialog.show()
+    }
+
+    private fun showAutopayFailedDialog() {
+        val view = layoutInflater.inflate(R.layout.dialog_autopay_failed, null)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setView(view)
+            .setCancelable(true)
+            .create()
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.window?.setDimAmount(0.5f)
+        view.findViewById<View>(R.id.btnBuyCoins).setOnClickListener {
+            dialog.dismiss()
+            startActivity(android.content.Intent(requireContext(), WalletActivity::class.java))
+        }
+        view.findViewById<View>(R.id.tvDismiss).setOnClickListener {
+            dialog.dismiss()
+        }
+        dialog.show()
+    }
+
+private fun isSubscriptionActive(): Boolean {
         return requireContext()
             .getSharedPreferences(DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE)
             .getBoolean(DummySubscriptionActivity.KEY_ACTIVE, false)
@@ -723,14 +802,6 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     }
 
     fun initFab() {
-        binding.fabFreeCall.setOnClickListener {
-            val intent = Intent(requireContext(), AgoraRandomCallActivity::class.java)
-            intent.putExtra(DConstants.CALL_TYPE, DConstants.AUDIO)
-            intent.putExtra("RANDOM_FILTER", filterType)
-            intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            startActivity(intent)
-        }
-
         binding.fabRandom.extend()
         binding.fabAudio.hide()
         binding.fabVideo.hide()
@@ -835,14 +906,21 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             }
         }
 
-        refreshFreeCallFab()
         refreshCoinsDisplayFromCache()
+        refreshPremiumCrown()
+        maybeShowDailyCoinsDialog()
+        scheduleMidnightRefresh()
 
         // Sync selected filter button styles when resuming
         updateFilterButtonStyles()
 
         checkFemaleStatus()
 
+    }
+
+    override fun onPause() {
+        super.onPause()
+        midnightHandler.removeCallbacks(midnightRunnable)
     }
 
     fun observeCoins() {
