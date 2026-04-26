@@ -56,19 +56,21 @@ class TicketsListActivity : BaseActivity() {
     }
 
     private fun initUI() {
-        binding.cvBack.setOnSingleClickListener {
+        // Both the back arrow and the hardware/gesture back key go through the
+        // same exit path to avoid the logic drifting (one fixed, the other not).
+        binding.cvBack.setOnSingleClickListener { exitToMainOrFinish() }
+    }
 
-            val messageCameWhenIsAlive = BaseApplication.getInstance()?.messageCameWhenIsAlive ?: 0
-
-            if (messageCameWhenIsAlive == 0) {
-                val intent = Intent(this, MainActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                }
-                startActivity(intent)
-                finish()
-            } else {
-                finish()
+    private fun exitToMainOrFinish() {
+        val messageCameWhenIsAlive = BaseApplication.getInstance()?.messageCameWhenIsAlive ?: 0
+        if (messageCameWhenIsAlive == 0) {
+            val intent = Intent(this, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             }
+            startActivity(intent)
+            finish()
+        } else {
+            finish()
         }
     }
 
@@ -143,19 +145,7 @@ class TicketsListActivity : BaseActivity() {
 
     private fun onBackPressedBtn() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                val messageCameWhenIsAlive = BaseApplication.getInstance()?.messageCameWhenIsAlive ?: 0
-
-                if (messageCameWhenIsAlive == 0) {
-                    val intent = Intent(this@TicketsListActivity, MainActivity::class.java).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    }
-                    startActivity(intent)
-                    finish()
-                } else {
-                    finish()
-                }
-            }
+            override fun handleOnBackPressed() { exitToMainOrFinish() }
         })
     }
 }

@@ -198,7 +198,7 @@ class HelpAndSupportActivity : BaseActivity() {
                     }
                     binding.tvActiveTickets.text = ticketText
                     // Set color to green for active tickets
-                    binding.tvActiveTickets.setTextColor(android.graphics.Color.parseColor("#4CAF50"))
+                    binding.tvActiveTickets.setTextColor(ContextCompat.getColor(this, android.R.color.holo_green_dark))
                 } else if (resolvedTicketsCount > 0) {
                     // Show resolved tickets if no active tickets but resolved tickets exist
                     val ticketText = if (resolvedTicketsCount == 1) {
@@ -208,17 +208,17 @@ class HelpAndSupportActivity : BaseActivity() {
                     }
                     binding.tvActiveTickets.text = ticketText
                     // Set color to gray for resolved tickets
-                    binding.tvActiveTickets.setTextColor(android.graphics.Color.parseColor("#757575"))
+                    binding.tvActiveTickets.setTextColor(ContextCompat.getColor(this, android.R.color.darker_gray))
                 } else {
                     // Show "No ticket raised" when no tickets available
                     binding.tvActiveTickets.text = "No ticket raised"
                     // Set color to gray for no tickets
-                    binding.tvActiveTickets.setTextColor(android.graphics.Color.parseColor("#9E9E9E"))
+                    binding.tvActiveTickets.setTextColor(ContextCompat.getColor(this, android.R.color.darker_gray))
                 }
             } else {
                 // Show "No ticket raised" on error or empty response
                 binding.tvActiveTickets.text = "No ticket raised"
-                binding.tvActiveTickets.setTextColor(android.graphics.Color.parseColor("#9E9E9E"))
+                binding.tvActiveTickets.setTextColor(ContextCompat.getColor(this, android.R.color.darker_gray))
             }
         })
 
@@ -227,7 +227,7 @@ class HelpAndSupportActivity : BaseActivity() {
             binding.tvYourTicketsTitle.visibility = android.view.View.VISIBLE
             binding.cvYourTickets.visibility = android.view.View.VISIBLE
             binding.tvActiveTickets.text = "No ticket raised"
-            binding.tvActiveTickets.setTextColor(android.graphics.Color.parseColor("#9E9E9E"))
+            binding.tvActiveTickets.setTextColor(ContextCompat.getColor(this, android.R.color.darker_gray))
             Log.e("HelpAndSupportActivity", "Error loading tickets: $error")
         })
 
@@ -254,7 +254,7 @@ class HelpAndSupportActivity : BaseActivity() {
                             categoriesList.add(otherQueriesCategory)
                         }
                         
-                        categoriesAdapter.notifyDataSetChanged()
+                        @Suppress("NotifyDataSetChanged") categoriesAdapter.notifyDataSetChanged()
                         binding.rvCategories.visibility = android.view.View.VISIBLE
                         binding.tvEmpty.visibility = android.view.View.GONE
                     } else {
@@ -267,7 +267,7 @@ class HelpAndSupportActivity : BaseActivity() {
                             updatedAt = ""
                         )
                         categoriesList.add(otherQueriesCategory)
-                        categoriesAdapter.notifyDataSetChanged()
+                        @Suppress("NotifyDataSetChanged") categoriesAdapter.notifyDataSetChanged()
                         binding.rvCategories.visibility = android.view.View.VISIBLE
                         binding.tvEmpty.visibility = android.view.View.GONE
                     }

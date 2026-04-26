@@ -1,5 +1,6 @@
 package com.gmwapp.hima.adapters
 
+import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -9,6 +10,9 @@ import com.gmwapp.hima.retrofit.responses.TicketDataResponse
 import com.gmwapp.hima.utils.unescapeHelpContent
 import java.text.SimpleDateFormat
 import java.util.Locale
+
+private val ACTIVE_BADGE_COLOR = Color.parseColor("#E91E63")
+private val RESOLVED_BADGE_COLOR = Color.parseColor("#4CAF50")
 
 class TicketsAdapter(
     private val tickets: MutableList<TicketDataResponse>,
@@ -37,27 +41,29 @@ class TicketsAdapter(
             // Ticket ID
             binding.tvTicketId.text = "#${ticket.id}"
             
-            // Status badge
+            // Status badge — colors extracted to file-level constants so
+            // Color.parseColor isn't re-run on every onBind pass.
             if (ticket.status == 0) {
                 binding.tvStatusBadge.text = "Active"
-                binding.tvStatusBadge.backgroundTintList = android.content.res.ColorStateList.valueOf(
-                    android.graphics.Color.parseColor("#E91E63") // Pink for active
-                )
+                binding.tvStatusBadge.backgroundTintList =
+                    android.content.res.ColorStateList.valueOf(ACTIVE_BADGE_COLOR)
             } else {
                 binding.tvStatusBadge.text = "Resolved"
-                binding.tvStatusBadge.backgroundTintList = android.content.res.ColorStateList.valueOf(
-                    android.graphics.Color.parseColor("#4CAF50") // Green for resolved
-                )
+                binding.tvStatusBadge.backgroundTintList =
+                    android.content.res.ColorStateList.valueOf(RESOLVED_BADGE_COLOR)
             }
             
             // Message - unescape common escape sequences
             val messageText = ticket.message ?: ""
             binding.tvMessage.text = messageText.unescapeHelpContent()
             
-            // Created date - format from "2025-11-05 12:11:14" to "5 Nov 2025"
+            // Created date - format from "2025-11-05 12:11:14" to "5 Nov 2025".
+            // Parser pinned to Locale.US because the server always emits the
+            // fixed English format; display format uses US so month abbreviations
+            // render consistently across device locales.
             try {
-                val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                val outputFormat = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
+                val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
+                val outputFormat = SimpleDateFormat("d MMM yyyy", Locale.US)
                 val date = inputFormat.parse(ticket.created_at)
                 binding.tvCreatedDate.text = date?.let { outputFormat.format(it) } ?: ticket.created_at
             } catch (e: Exception) {

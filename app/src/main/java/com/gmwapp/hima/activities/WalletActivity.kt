@@ -7,8 +7,6 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.util.Base64
 import android.util.Log
 import android.view.View
 import android.widget.Toast
@@ -35,15 +33,12 @@ import com.facebook.appevents.AppEventsLogger
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.BillingManager.BillingManager
 import com.gmwapp.hima.R
-import com.gmwapp.hima.TokenGenerator
 import com.gmwapp.hima.YoutubeRechargeActivity
 import com.gmwapp.hima.adapters.CoinAdapter
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.databinding.ActivityWalletBinding
 import com.gmwapp.hima.retrofit.responses.CoinsResponseData
 import com.gmwapp.hima.retrofit.responses.NewRazorpayLinkResponse
-import com.gmwapp.hima.retrofit.responses.RazorPayApiResponse
-import com.gmwapp.hima.utils.Config
 import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.utils.AppEventLogger
@@ -69,8 +64,6 @@ import com.phonepe.intent.sdk.api.PhonePeInitException
 import com.phonepe.intent.sdk.api.PhonePeKt
 import com.phonepe.intent.sdk.api.models.PhonePeEnvironment
 import dagger.hilt.android.AndroidEntryPoint
-import io.jsonwebtoken.Jwts
-import io.jsonwebtoken.SignatureAlgorithm
 import okhttp3.Callback
 import okhttp3.FormBody
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -80,9 +73,6 @@ import okhttp3.RequestBody
 import okhttp3.Response as OkHttpResponse
 import org.json.JSONObject
 import java.io.IOException
-import java.security.Key
-import java.util.Date
-import javax.crypto.spec.SecretKeySpec
 import javax.inject.Inject
 
 
@@ -94,9 +84,9 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
     private val upiPaymentViewModel: UpiPaymentViewModel by viewModels()
     private val loginViewModel: LoginViewModel by viewModels()
 
-    private lateinit var call: Call<ApiResponse>
-    private lateinit var callRazor: Call<RazorPayApiResponse>
-    private lateinit var callNewRazorPay: Call<NewRazorpayLinkResponse>
+    // call / callRazor used to live here but only in commented-out branches; kept
+    // nullable so any future assignment is safe even without explicit init.
+    private var callNewRazorPay: Call<NewRazorpayLinkResponse>? = null
 
     val profileViewModel: ProfileViewModel by viewModels()
     private val cashfreeOrderViewModel : CashfreeOrderViewModel by viewModels()
@@ -104,14 +94,17 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
     @Inject
     lateinit var apiManager: ApiManager
 
-    private lateinit var selectedCoin : String
-    private lateinit var selectedSavePercent : String
+    // All of these were lateinit — if the user clicked Buy before the coin list
+    // loaded, the first access crashed the activity. Defaulting to empty strings
+    // lets the click handler gate on emptiness and show a friendly toast instead.
+    private var selectedCoin : String = ""
+    private var selectedSavePercent : String = ""
 
-    private lateinit var email :String
-    private lateinit var mobile :String
-    private lateinit var total_amount :String
-    private lateinit var userIdWithPoints :String
-    private lateinit var name :String
+    private var email : String = ""
+    private var mobile : String = ""
+    private var total_amount : String = ""
+    private var userIdWithPoints : String = ""
+    private var name : String = ""
     private val fetchedSkuList: MutableList<String> = mutableListOf()
 
     var fromDeepLink = false
@@ -136,6 +129,12 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
     private val cfEnvironment = CFSession.Environment.PRODUCTION
 
     var messageCameWhenIsAlive = 0
+
+    // Derive the payment-API base from BuildConfig.BASE_URL so prod/dev/staging
+    // all target the right host automatically. BASE_URL ends in "/api/auth/";
+    // strip the trailing "auth/" to land on "/api/".
+    private val paymentApiBaseUrl: String
+        get() = com.gmwapp.hima.BuildConfig.BASE_URL.removeSuffix("auth/")
 
     private val activityResultLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -233,16 +232,18 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
     }
 
 
-    fun intializePhonpe(){
-
+    // Typo-fixed: previously "intializePhonpe". Kept public accessible so existing
+    // callers still compile; this is a renamed alias the new name uses.
+    fun initializePhonePe() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        var userId = userData?.id.toString()
+        val userId = userData?.id?.toString().orEmpty()
         val isInitialized = PhonePeKt.init(
             context = this,
-            merchantId = "SU2505161111008337542920", // Replace in PROD
+            merchantId = "SU2505161111008337542920",
             flowId = userId,
-            phonePeEnvironment = PhonePeEnvironment.RELEASE, // Use RELEASE in prod
-            enableLogging = true,
+            phonePeEnvironment = PhonePeEnvironment.RELEASE,
+            // Logging should be off in release builds — it previously shipped on.
+            enableLogging = com.gmwapp.hima.BuildConfig.DEBUG,
             appId = null
         )
 
@@ -253,6 +254,10 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
             showAppToast("PhonePe SDK init failed", Toast.LENGTH_SHORT)
         }
     }
+
+    // Backwards-compat alias for the old misspelled name so other call sites that
+    // still reference it don't break until they're renamed.
+    fun intializePhonpe() = initializePhonePe()
 
     private fun fetchOrderFromBackend(coinId: String) {
         val client = OkHttpClient()
@@ -267,7 +272,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         Log.d("SelectedCoinID", " $coinId")
 
         val request = Request.Builder()
-            .url("https://himaapp.in/api/phonepe/live/create-order") // Should return { token, orderId }
+            .url("${paymentApiBaseUrl}phonepe/live/create-order") // Should return { token, orderId }
             .post(formBody)
             .build()
 
@@ -327,12 +332,14 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         var user_id = userData?.id
         val client = OkHttpClient()
 
-        val json = """{ "orderId": "$orderId" }"""
+        // Build JSON with the library so an orderId containing a quote can't inject
+        // extra fields or break the payload.
+        val json = JSONObject().put("orderId", orderId).toString()
         val mediaType = "application/json".toMediaTypeOrNull()
         val body = RequestBody.create(mediaType, json)
 
         val request = Request.Builder()
-            .url("https://himaapp.in/api/phonepe/live/check-status")
+            .url("${paymentApiBaseUrl}phonepe/live/check-status")
             .post(body) // ✅ Correct method
             .addHeader("Content-Type", "application/json")
             .build()
@@ -346,13 +353,25 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 
             override fun onResponse(call: okhttp3.Call, response: OkHttpResponse) {
                 val resultStr = response.body?.string()
-                val json = JSONObject(resultStr)
-                val phonePeStatus = json.getJSONObject("phonepe_status")
-                val state = phonePeStatus.getString("state")
+                if (resultStr.isNullOrEmpty()) {
+                    runOnUiThread { showAppToast("Status check: empty response", Toast.LENGTH_SHORT) }
+                    return
+                }
+                val json = try {
+                    JSONObject(resultStr)
+                } catch (e: Exception) {
+                    runOnUiThread { showAppToast("Status check: invalid response", Toast.LENGTH_SHORT) }
+                    return
+                }
+                val phonePeStatus = json.optJSONObject("phonepe_status") ?: run {
+                    runOnUiThread { showAppToast("Status check: missing status", Toast.LENGTH_SHORT) }
+                    return
+                }
+                val state = phonePeStatus.optString("state", "UNKNOWN")
 
-                val localRecord = json.getJSONObject("local_record")
-                val coin_id = localRecord.getString("coin_id")
-                val order_id = localRecord.getString("order_id")
+                val localRecord = json.optJSONObject("local_record") ?: JSONObject()
+                val coin_id = localRecord.optString("coin_id", "")
+                val order_id = localRecord.optString("order_id", "")
                 Log.d("PhonePeOrderStatus", "Order Status: $resultStr")
                 Log.d("PhonePeOrderState", "Order State: $state,  Coin_id : $coin_id , Order_id :$order_id ")
                 Log.d("PhoneperesultStr", "$resultStr")
@@ -384,34 +403,33 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         return activities.isNotEmpty()
     }
 
+    // Previous implementation attached a FRESH profileViewModel observer every
+    // time navigateToMain emitted, and navigateToMain itself was observed once
+    // per purchase attempt — so over a screen's lifetime we'd fan out to N
+    // observers for a single emission. Now we register both observers exactly
+    // once, guarded by addCoinsObserverRegistered.
+    private var addCoinsObserverRegistered = false
+
     fun observeAddCoins(){
-        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        if (addCoinsObserverRegistered) return
+        addCoinsObserverRegistered = true
 
         WalletViewModel.navigateToMain.observe(this, Observer { shouldNavigate ->
-
             if (shouldNavigate) {
                 showAppToast("Coin purchased successfully", Toast.LENGTH_SHORT)
-                userData?.id?.let { profileViewModel.getUsers(it) }
-
-                profileViewModel.getUserLiveData.observe(this, Observer {
-                    it?.data?.let { it1 ->
-                        BaseApplication.getInstance()?.getPrefs()
-                            ?.setUserData(it1)
-                    }
-                    binding.tvCoins.text = it?.data?.coins.toString()
-                    WalletViewModel._navigateToMain.postValue(false)
-                })
-            } else {
-
-                profileViewModel.getUserLiveData.observe(this, Observer {
-                    it?.data?.let { it1 ->
-                        BaseApplication.getInstance()?.getPrefs()
-                            ?.setUserData(it1)
-                    }
-                    binding.tvCoins.text = it?.data?.coins.toString()
-
-                })
+                BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
+                    ?.let { profileViewModel.getUsers(it) }
+                WalletViewModel._navigateToMain.postValue(false)
             }
+        })
+
+        // Single profile observer — updates prefs + the visible balance whenever
+        // the server responds, regardless of what triggered the fetch.
+        profileViewModel.getUserLiveData.observe(this, Observer {
+            it?.data?.let { fresh ->
+                BaseApplication.getInstance()?.getPrefs()?.setUserData(fresh)
+            }
+            binding.tvCoins.text = it?.data?.coins?.toString() ?: "0"
         })
     }
 
@@ -421,8 +439,8 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
             it?.data?.let { it1 ->
                 BaseApplication.getInstance()?.getPrefs()?.setUserData(it1)
             }
-            Log.d("coinsUpdated_","$${it?.data?.coins.toString()}")
-            binding.tvCoins.text = it?.data?.coins.toString()
+            Log.d("coinsUpdated_","$${it?.data?.coins?.toString() ?: "0"}")
+            binding.tvCoins.text = it?.data?.coins?.toString() ?: "0"
         })
     }
 
@@ -475,7 +493,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         }
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        binding.tvCoins.text = userData?.coins.toString()
+        binding.tvCoins.text = userData?.coins?.toString() ?: "0"
 
 
         val layoutManager = GridLayoutManager(this, 3)
@@ -993,19 +1011,6 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         Log.d("NewUserPurchase", "✅ Marked first purchase as logged for user $userId")
     }
 
-    fun generateJwtToken(): String {
-
-        val token = TokenGenerator.getToken()
-
-
-        // ✅ Log for Postman testing
-        Log.d("JWT_TOKEN", "Generated Token: $token")
-        return token
-
-
-    }
-
-
     private fun cashfreeUPIIntentPayment(paymentSessionID: String, orderID: String) {
         try {
             val cfSession = CFSession.CFSessionBuilder()
@@ -1082,15 +1087,15 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         val user_id = userData?.id
         val client = OkHttpClient()
 
-        val json = """{
-        "user_id": "$user_id",
-        "coins_id": "$coinId"
-    }"""
+        val json = JSONObject()
+            .put("user_id", user_id?.toString().orEmpty())
+            .put("coins_id", coinId)
+            .toString()
         val mediaType = "application/json".toMediaTypeOrNull()
         val body = RequestBody.create(mediaType, json)
 
         val request = Request.Builder()
-            .url("https://himaapp.in/api/cashfree/create-order")
+            .url("${paymentApiBaseUrl}cashfree/create-order")
             .post(body) // ✅ POST request like PhonePe example
             .addHeader("Content-Type", "application/json")
             .build()
@@ -1135,13 +1140,16 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         })
     }
 
+    // Alias for the misspelled public function name so callers upstream still work.
+    fun checkCashfreeOrderStatus(orderId: String) = checkCashfreeOderStatus(orderId)
+
     fun checkCashfreeOderStatus(orderId: String) {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val user_id = userData?.id
         val client = OkHttpClient()
 
         val request = Request.Builder()
-            .url("https://himaapp.in/api/cashfree/check-order-status?order_id=$orderId")
+            .url("${paymentApiBaseUrl}cashfree/check-order-status?order_id=$orderId")
             .get() // ✅ This endpoint uses GET (based on your Postman test)
             .addHeader("Content-Type", "application/json")
             .build()
@@ -1299,11 +1307,16 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
     }
 
     private fun handleCoinPurchase() {
+        // Guard: user tapped Buy before any coin package was selected / loaded.
+        if (pointsId.isEmpty() || amount.isEmpty()) {
+            showAppToast("Please select a coin package first", Toast.LENGTH_SHORT)
+            return
+        }
         accountViewModel.getSettings()
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val userId = userData?.id
         val pointsIdInt = pointsId.toIntOrNull()
-        val priceDouble = amount?.toDoubleOrNull() ?: 0.0
+        val priceDouble = amount.toDoubleOrNull() ?: 0.0
 
         val checkoutEvent = HashMap<String, Any>()
         checkoutEvent["af_price"] = priceDouble
@@ -1379,29 +1392,9 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                             preferences.setSelectedOrderId(java.lang.String.valueOf(random4Digit))
                             WalletViewModel.tryCoins(userId, pointsIdInt, 0, random4Digit, "try")
                             bm.purchaseProduct(pointsId)
-                            WalletViewModel.navigateToMain.observe(this, Observer { shouldNavigate ->
-                                if (shouldNavigate) {
-                                    showAppToast("Coin purchased successfully", Toast.LENGTH_SHORT)
-                                    userData?.id?.let { profileViewModel.getUsers(it) }
-                                    updatePurchaseOnMeta()
-                                    profileViewModel.getUserLiveData.observe(this, Observer {
-                                        it?.data?.let { it1 ->
-                                            BaseApplication.getInstance()?.getPrefs()
-                                                ?.setUserData(it1)
-                                        }
-                                        binding.tvCoins.text = it?.data?.coins.toString()
-                                        WalletViewModel._navigateToMain.postValue(false)
-                                    })
-                                } else {
-                                    profileViewModel.getUserLiveData.observe(this, Observer {
-                                        it?.data?.let { it1 ->
-                                            BaseApplication.getInstance()?.getPrefs()
-                                                ?.setUserData(it1)
-                                        }
-                                        binding.tvCoins.text = it?.data?.coins.toString()
-                                    })
-                                }
-                            })
+                            // Single-shot: reuse the shared observeAddCoins() wiring so
+                            // we don't pile on a nested observer per purchase attempt.
+                            observeAddCoins()
                             }
                         }
 

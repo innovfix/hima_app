@@ -48,11 +48,15 @@ class SubqueryDetailActivity : BaseActivity() {
             insets
         }
 
-        subquery = intent.getParcelableExtra<SubqueryData>("subquery")
-            ?: run {
-                finish()
-                return
-            }
+        // getParcelableExtra(key) is deprecated on API 33+; prefer the typed
+        // overload so the classloader is explicit on Tiramisu and above.
+        val extracted: SubqueryData? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableExtra("subquery", SubqueryData::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableExtra("subquery") as? SubqueryData
+        }
+        subquery = extracted ?: run { finish(); return }
 
         initUI()
         setupYouTubePlayer()
@@ -245,9 +249,9 @@ class SubqueryDetailActivity : BaseActivity() {
         try {
             Log.d("YoutubeLoadingCheck", "Extracting Video ID from URL: $url")
             
-            // YouTube Shorts: https://www.youtube.com/shorts/VIDEO_ID
+            // YouTube Shorts: https://(www|m).youtube.com/shorts/VIDEO_ID
             // Extract exactly 11 characters after /shorts/ (stop at query params, fragments, or end)
-            val shortsPattern = Regex("youtube\\.com/shorts/([a-zA-Z0-9_-]{11})(?:[?&#]|$)")
+            val shortsPattern = Regex("(?:www|m)?\\.?youtube\\.com/shorts/([a-zA-Z0-9_-]{11})(?:[?&#]|$)")
             shortsPattern.find(url)?.let {
                 val videoId = it.groupValues[1]
                 if (videoId.length == 11) {
@@ -255,9 +259,9 @@ class SubqueryDetailActivity : BaseActivity() {
                     return videoId
                 }
             }
-            
-            // YouTube regular: https://www.youtube.com/watch?v=VIDEO_ID
-            val watchPattern = Regex("youtube\\.com/watch\\?v=([a-zA-Z0-9_-]{11})(?:[&?#]|$)")
+
+            // YouTube regular: https://(www|m).youtube.com/watch?v=VIDEO_ID
+            val watchPattern = Regex("(?:www|m)?\\.?youtube\\.com/watch\\?v=([a-zA-Z0-9_-]{11})(?:[&?#]|$)")
             watchPattern.find(url)?.let {
                 val videoId = it.groupValues[1]
                 if (videoId.length == 11) {
@@ -265,13 +269,23 @@ class SubqueryDetailActivity : BaseActivity() {
                     return videoId
                 }
             }
-            
-            // YouTube embed: https://www.youtube.com/embed/VIDEO_ID
-            val embedPattern = Regex("youtube\\.com/embed/([a-zA-Z0-9_-]{11})(?:[?&#]|$)")
+
+            // YouTube embed: https://(www|m).youtube.com/embed/VIDEO_ID
+            val embedPattern = Regex("(?:www|m)?\\.?youtube\\.com/embed/([a-zA-Z0-9_-]{11})(?:[?&#]|$)")
             embedPattern.find(url)?.let {
                 val videoId = it.groupValues[1]
                 if (videoId.length == 11) {
                     Log.d("YoutubeLoadingCheck", "Extracted Video ID from embed: $videoId (length: ${videoId.length})")
+                    return videoId
+                }
+            }
+
+            // YouTube legacy /v/ format: https://www.youtube.com/v/VIDEO_ID
+            val legacyVPattern = Regex("(?:www|m)?\\.?youtube\\.com/v/([a-zA-Z0-9_-]{11})(?:[?&#]|$)")
+            legacyVPattern.find(url)?.let {
+                val videoId = it.groupValues[1]
+                if (videoId.length == 11) {
+                    Log.d("YoutubeLoadingCheck", "Extracted Video ID from legacy /v/: $videoId")
                     return videoId
                 }
             }

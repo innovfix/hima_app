@@ -1,18 +1,17 @@
 package com.gmwapp.hima.adapters
 
 import android.app.Activity
-import android.graphics.Paint
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.gmwapp.hima.R
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.databinding.AdapterCoinBinding
 import com.gmwapp.hima.retrofit.responses.CoinsResponseData
 import com.gmwapp.hima.utils.setOnSingleClickListener
-//import com.zego.ve.Log
 
 
 class CoinAdapter(
@@ -53,24 +52,33 @@ class CoinAdapter(
             holder.binding.tvPopular.visibility = View.GONE
         }
 
-        // Update the UI based on selection
+        // Update the UI based on selection (ContextCompat instead of the
+        // deprecated resources.getColor(Int) overload).
         if (coin.isSelected == true) {
             holder.binding.cvCoin.strokeWidth = 3
-            holder.binding.cvCoin.strokeColor = activity.resources.getColor(R.color.pink)
+            holder.binding.cvCoin.strokeColor = ContextCompat.getColor(activity, R.color.pink)
             holder.binding.cvCoin.cardElevation = 6f
         } else {
             holder.binding.cvCoin.strokeWidth = 0
-            holder.binding.cvCoin.strokeColor = activity.resources.getColor(android.R.color.transparent)
+            holder.binding.cvCoin.strokeColor =
+                ContextCompat.getColor(activity, android.R.color.transparent)
             holder.binding.cvCoin.cardElevation = 2f
         }
 
-        // Handle item click
+        // Handle item click — narrow the notify to just the two affected rows
+        // (old-selected and new-selected) instead of repainting the entire grid.
         holder.binding.main.setOnSingleClickListener {
+            val previousSelectedIndex = coins.indexOfFirst { it.isSelected == true }
+            if (previousSelectedIndex == position) return@setOnSingleClickListener
+
             onItemSelectionListener.onItemSelected(coin)
-            coins.onEach { it.isSelected = false }
+            coins.forEach { it.isSelected = false }
             coin.isSelected = true
-            coins[position] = coin
-            notifyDataSetChanged()
+
+            if (previousSelectedIndex >= 0 && previousSelectedIndex != position) {
+                notifyItemChanged(previousSelectedIndex)
+            }
+            notifyItemChanged(position)
         }
 
 

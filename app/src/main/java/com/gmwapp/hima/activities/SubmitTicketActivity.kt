@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.text.Editable
+import android.text.InputFilter
 import android.text.TextUtils
 import android.text.TextWatcher
 import android.util.Log
@@ -44,7 +45,9 @@ class SubmitTicketActivity : BaseActivity() {
     ) { uri: Uri? ->
         uri?.let {
             if (selectedImages.size < 3) {
+                val insertIndex = selectedImages.size
                 selectedImages.add(it)
+                imageAdapter.notifyItemInserted(insertIndex)
                 updateImageRecyclerView()
             } else {
                 showAppToast("You can attach up to 3 images", Toast.LENGTH_SHORT)
@@ -92,6 +95,11 @@ class SubmitTicketActivity : BaseActivity() {
             }
         }
 
+        // Hard-limit the description field to 250 characters. Previously only
+        // the tvCharCount label reflected the number; the user could still type
+        // beyond the limit and the backend's new length cap would reject it.
+        binding.etDescription.filters = arrayOf(InputFilter.LengthFilter(250))
+
         // Character counter
         binding.etDescription.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -102,9 +110,15 @@ class SubmitTicketActivity : BaseActivity() {
             }
         })
 
-        // Setup RecyclerView for images
+        // Setup RecyclerView for images — remove notify is targeted to the
+        // removed row so Android can animate the shrink smoothly.
         imageAdapter = TicketImageAdapter(selectedImages) { position ->
+            if (position !in selectedImages.indices) return@TicketImageAdapter
             selectedImages.removeAt(position)
+            imageAdapter.notifyItemRemoved(position)
+            if (position < selectedImages.size) {
+                imageAdapter.notifyItemRangeChanged(position, selectedImages.size - position)
+            }
             updateImageRecyclerView()
         }
         binding.rvSelectedImages.layoutManager = GridLayoutManager(this, 3)
@@ -112,9 +126,10 @@ class SubmitTicketActivity : BaseActivity() {
     }
 
     private fun updateImageRecyclerView() {
+        // Don't fire notifyDataSetChanged here — callers already notified the
+        // adapter about the specific index that changed (add or remove).
         if (selectedImages.isNotEmpty()) {
             binding.rvSelectedImages.visibility = android.view.View.VISIBLE
-            imageAdapter.notifyDataSetChanged()
         } else {
             binding.rvSelectedImages.visibility = android.view.View.GONE
         }
@@ -204,15 +219,17 @@ class SubmitTicketActivity : BaseActivity() {
 
     private fun uriToFile(uri: Uri, index: Int): File {
         val inputStream: InputStream? = contentResolver.openInputStream(uri)
-        val file = File(cacheDir, "ticket_image_$index.jpg")
+        // Include a timestamp so concurrent or fast-retry submits don't reuse
+        // the same on-disk path and clobber each other's bytes.
+        val file = File(cacheDir, "ticket_image_${System.currentTimeMillis()}_$index.jpg")
         val outputStream = FileOutputStream(file)
-        
+
         inputStream?.use { input ->
             outputStream.use { output ->
                 input.copyTo(output)
             }
         }
-        
+
         return file
     }
 }
