@@ -19,6 +19,7 @@
             android:id="@+id/bubble_container"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="14dp"
             app:cardCornerRadius="18dp"
             app:cardElevation="1dp"
             app:strokeColor="@color/chat_bubble_received_stroke"
@@ -48,8 +49,8 @@
                     android:paddingHorizontal="8dp"
                     android:paddingVertical="4dp"
                     android:text="10:31 AM"
-                    android:textColor="@color/chat_time_sent"
-                    android:textSize="10sp" />
+                    android:textColor="@color/chat_time_received"
+                    android:textSize="11sp" />
 
                 <TextView
                     android:id="@+id/tv_tombstone"
@@ -76,7 +77,7 @@
             android:layout_alignEnd="@id/bubble_container"
             android:layout_below="@id/bubble_container"
             android:layout_marginEnd="-8dp"
-            android:layout_marginTop="-14dp"
+            android:layout_marginTop="-10dp"
             android:background="@drawable/bg_reaction_circle"
             android:elevation="3dp"
             android:gravity="center"

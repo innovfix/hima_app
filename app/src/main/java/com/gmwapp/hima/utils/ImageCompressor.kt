@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.net.Uri
+import android.os.Build
 import androidx.exifinterface.media.ExifInterface
 import java.io.File
 import java.io.FileOutputStream
@@ -17,6 +18,13 @@ object ImageCompressor {
         maxDimPx: Int = 1280,
         quality: Int = 75
     ): File {
+        val mimeType = context.contentResolver.getType(uri).orEmpty().lowercase()
+        if ((mimeType == "image/heic" || mimeType == "image/heif") &&
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.P
+        ) {
+            throw IllegalArgumentException("This image format is not supported on your device")
+        }
+
         val bounds = BitmapFactory.Options().apply {
             inJustDecodeBounds = true
         }
@@ -24,14 +32,14 @@ object ImageCompressor {
             BitmapFactory.decodeStream(input, null, bounds)
         }
 
-        val decodeOptions = BitmapFactory.Options().apply {
-            inSampleSize = calculateInSampleSize(bounds.outWidth, bounds.outHeight, maxDimPx)
-            inPreferredConfig = Bitmap.Config.ARGB_8888
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+            throw IllegalStateException("Unable to decode selected image")
         }
 
-        val decodedBitmap = context.contentResolver.openInputStream(uri)?.use { input ->
-            BitmapFactory.decodeStream(input, null, decodeOptions)
-        } ?: throw IllegalStateException("Unable to decode selected image")
+        val sampleSize = calculateInSampleSize(bounds.outWidth, bounds.outHeight, maxDimPx)
+        val decodedBitmap = decodeSampled(context, uri, sampleSize, Bitmap.Config.RGB_565)
+            ?: decodeSampled(context, uri, sampleSize, Bitmap.Config.ARGB_8888)
+            ?: throw IllegalStateException("Unable to decode selected image")
 
         val rotatedBitmap = applyExifRotation(context, uri, decodedBitmap)
         val finalBitmap = scaleDown(rotatedBitmap, maxDimPx)
@@ -63,6 +71,37 @@ object ImageCompressor {
             workingHeight /= 2
         }
         return sampleSize.coerceAtLeast(1)
+    }
+
+    private fun decodeSampled(
+        context: Context,
+        uri: Uri,
+        sampleSize: Int,
+        config: Bitmap.Config
+    ): Bitmap? {
+        return try {
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                BitmapFactory.decodeStream(
+                    input,
+                    null,
+                    BitmapFactory.Options().apply {
+                        inSampleSize = sampleSize
+                        inPreferredConfig = config
+                    }
+                )
+            }
+        } catch (oom: OutOfMemoryError) {
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                BitmapFactory.decodeStream(
+                    input,
+                    null,
+                    BitmapFactory.Options().apply {
+                        inSampleSize = (sampleSize * 2).coerceAtLeast(2)
+                        inPreferredConfig = Bitmap.Config.RGB_565
+                    }
+                )
+            }
+        }
     }
 
     private fun applyExifRotation(context: Context, uri: Uri, source: Bitmap): Bitmap {

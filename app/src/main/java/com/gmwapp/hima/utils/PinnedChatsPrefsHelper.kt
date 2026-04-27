@@ -60,4 +60,15 @@ object PinnedChatsPrefsHelper {
             saveOrdered(context, list)
         }
     }
+
+    /**
+     * Wipes the entire pinned-chats list. Call from logout, FCM `clear_data`, and
+     * 401 unauthorized so the next user on this device does not inherit pins from
+     * the previous account.
+     */
+    fun clearAll(context: Context) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .remove(KEY_ORDERED)
+            .apply()
+    }
 }

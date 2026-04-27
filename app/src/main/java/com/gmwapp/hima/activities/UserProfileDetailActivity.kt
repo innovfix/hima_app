@@ -40,6 +40,7 @@ import com.gmwapp.hima.retrofit.responses.AddFavoriteResponse
 import com.gmwapp.hima.retrofit.responses.CheckFavoriteResponse
 import com.gmwapp.hima.retrofit.responses.FemaleNotificationPreferenceResponse
 import com.gmwapp.hima.retrofit.responses.GetFemaleNotificationPreferenceResponse
+import com.gmwapp.hima.retrofit.responses.RegisterResponse
 import com.gmwapp.hima.retrofit.responses.RemoveFavoriteResponse
 import com.gmwapp.hima.retrofit.responses.ReportReason
 import com.google.android.material.appbar.AppBarLayout
@@ -98,12 +99,16 @@ class UserProfileDetailActivity : AppCompatActivity() {
 
         // Get data from intent
         getUserDataFromIntent()
-        
+
         // Setup toolbar
         setupToolbar()
-        
-        // Populate UI
+
+        // Populate UI from whatever extras we already have…
         populateUserData()
+        // …then refresh from the API so language / interests / about / age
+        // appear even when the launcher (chat list, notification, etc.) didn't
+        // pass them in the intent.
+        if (userId > 0) fetchProfileFromApi()
 
         // Show profile name in the top bar after collapsing
         setupToolbarTitleOnScroll()
@@ -363,6 +368,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
         // Set user name and age - remove trailing numbers from username
         binding.tvUserName.text = displayedUserName
         if (userAge > 0) {
+            binding.tvUserAge.visibility = View.VISIBLE
             binding.tvUserAge.text = "$userAge years old"
         } else {
             binding.tvUserAge.visibility = View.GONE
@@ -370,6 +376,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
 
         // Set language
         if (userLanguage.isNotEmpty()) {
+            binding.chipGroupLanguages.visibility = View.VISIBLE
             binding.chipLanguage.text = userLanguage
         } else {
             binding.chipGroupLanguages.visibility = View.GONE
@@ -377,6 +384,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
 
         // Set interests
         if (userInterests.isNotEmpty()) {
+            binding.rvInterests.visibility = View.VISIBLE
             setupInterests()
         } else {
             binding.rvInterests.visibility = View.GONE
@@ -552,6 +560,42 @@ class UserProfileDetailActivity : AppCompatActivity() {
                 }
             }
         )
+    }
+
+    /**
+     * Fills in language / interests / about / age / image from the backend.
+     * Callers (chat list, notification, push tap) often only pass id + name +
+     * image, so without this fetch the profile page shows blank "Languages" /
+     * "Interests" / "About Me" sections.
+     */
+    private fun fetchProfileFromApi() {
+        apiManager.getUser(userId, object : NetworkCallback<RegisterResponse> {
+            override fun onResponse(
+                call: Call<RegisterResponse>,
+                response: Response<RegisterResponse>
+            ) {
+                if (!response.isSuccessful) return
+                val data = response.body()?.data ?: return
+
+                if (userLanguage.isBlank()) userLanguage = data.language.orEmpty()
+                if (userInterests.isBlank()) userInterests = data.interests.orEmpty()
+                if (userAbout.isBlank()) userAbout = data.describe_yourself.orEmpty()
+                if (userAge <= 0) userAge = data.age ?: 0
+                if (userImage.isBlank() && data.image.isNotBlank()) userImage = data.image
+                if (audioStatus == 0) audioStatus = data.audio_status ?: 0
+                if (videoStatus == 0) videoStatus = data.video_status ?: 0
+
+                runOnUiThread { populateUserData() }
+            }
+
+            override fun onFailure(call: Call<RegisterResponse>, t: Throwable) {
+                Log.w("UserProfileDetail", "getUser failed: ${t.message}")
+            }
+
+            override fun onNoNetwork() {
+                Log.w("UserProfileDetail", "getUser skipped: no network")
+            }
+        })
     }
 
     private fun loadFemaleNotificationPreference() {

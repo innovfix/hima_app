@@ -21,7 +21,7 @@ object ChatNotificationStore {
 
     private const val TAG = "ChatNotifStore"
     private const val PREFS = "chat_notif_store"
-    private const val MAX_ENTRIES = 6
+    private const val MAX_ENTRIES = 8
 
     private fun prefs(ctx: Context) =
         ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -51,6 +51,15 @@ object ChatNotificationStore {
 
     fun clear(ctx: Context, peerId: Int) {
         prefs(ctx).edit().remove(historyKey(peerId)).apply()
+    }
+
+    /**
+     * Drop every cached message stack and per-peer name/avatar entry. Call from
+     * logout, FCM `clear_data`, and 401 unauthorized so the new account does not
+     * see the previous user's stacked notification content for shared peer ids.
+     */
+    fun clearAll(ctx: Context) {
+        prefs(ctx).edit().clear().apply()
     }
 
     fun saveMeta(ctx: Context, peerId: Int, name: String, image: String?) {

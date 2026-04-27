@@ -5,6 +5,7 @@ import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
 import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -20,10 +21,14 @@ import androidx.appcompat.widget.AppCompatImageView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.GlideException
+import com.bumptech.glide.request.RequestListener
+import com.bumptech.glide.request.target.Target
 import com.gmwapp.hima.R
 import com.gmwapp.hima.models.ChatMessage
 import com.gmwapp.hima.models.MessageDeliveryStatus
 import com.gmwapp.hima.utils.ChatAudioPlayer
+import com.gmwapp.hima.utils.showAppToast
 
 class ChatAdapter(
     private val messages: MutableList<ChatMessage>,
@@ -32,7 +37,8 @@ class ChatAdapter(
     private val onReactionChanged: ((ChatMessage, String?) -> Unit)? = null,
     private val onReactionClick: ((ChatMessage, String) -> Unit)? = null,
     /** If set, long-press opens this menu instead of jumping straight to reactions. */
-    private val onMessageLongPress: ((anchor: View, message: ChatMessage, position: Int) -> Unit)? = null
+    private val onMessageLongPress: ((anchor: View, message: ChatMessage, position: Int) -> Unit)? = null,
+    private val onReplyQuoteTap: ((ChatMessage) -> Unit)? = null
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     init {
@@ -181,6 +187,8 @@ class ChatAdapter(
     fun showReactionPopupForPosition(anchor: View, position: Int) {
         val safePosition = position.takeIf { it in messages.indices } ?: return
         val message = messages[safePosition]
+        if (message.isDateHeader || message.isDeleted) return
+        currentPopupWindow?.dismiss()
         val currentUserReaction = message.reactions[myUserId]
 
         val popupView = LayoutInflater.from(anchor.context)
@@ -303,10 +311,20 @@ class ChatAdapter(
             return
         }
 
-        val reactionText = reactions.values.distinct().joinToString("")
+        // T39: show per-emoji counts so two users tapping 👍 render as "👍 2"
+        // instead of a single 👍 (which loses the per-user signal).
+        // Sort by canonical REACTIONS order so the chip stays stable across refreshes.
+        val counts = reactions.values.groupingBy { it }.eachCount()
+        val reactionText = counts.entries
+            .sortedBy { entry ->
+                REACTIONS.indexOf(entry.key).let { idx -> if (idx == -1) Int.MAX_VALUE else idx }
+            }
+            .joinToString(" ") { entry ->
+                if (entry.value > 1) "${entry.key} ${entry.value}" else entry.key
+            }
         reactionView.setBackgroundResource(R.drawable.bg_reaction_circle)
         reactionView.typeface = Typeface.DEFAULT
-        reactionView.setTextColor(Color.BLACK)
+        reactionView.setTextColor(ContextCompat.getColor(reactionView.context, R.color.chat_text_received))
         reactionView.paintFlags = android.graphics.Paint.ANTI_ALIAS_FLAG or
             android.graphics.Paint.SUBPIXEL_TEXT_FLAG
         reactionView.alpha = 1.0f
@@ -386,6 +404,11 @@ class ChatAdapter(
         }
     }
 
+    private fun clearDeliveryIndicator(itemView: View) {
+        itemView.findViewById<ProgressBar>(R.id.pb_send_pending)?.visibility = View.GONE
+        itemView.findViewById<ImageView>(R.id.iv_send_delivery)?.visibility = View.GONE
+    }
+
     private fun formatDuration(durationMs: Long): String {
         val totalSeconds = (durationMs / 1000L).coerceAtLeast(0L)
         val minutes = totalSeconds / 60L
@@ -420,6 +443,8 @@ class ChatAdapter(
                 // Tombstone: italic, dimmed, no reactions/long-press/delivery ticks,
                 // no inline reply quote (the original body is irrelevant now).
                 layoutReplyQuote.visibility = View.GONE
+                layoutReplyQuote.setOnClickListener(null)
+                clearDeliveryIndicator(itemView)
                 tvMessage.text = itemView.context.getString(R.string.chat_message_deleted_tombstone)
                 tvMessage.setTypeface(tvMessage.typeface, Typeface.ITALIC)
                 tvMessage.alpha = 0.6f
@@ -445,8 +470,10 @@ class ChatAdapter(
                 tvReplyQuoteSnippet.text = reply.snippet
                 tvMessage.text = reply.body
                 applyQuoteTint(isSent)
+                layoutReplyQuote.setOnClickListener { onReplyQuoteTap?.invoke(message) }
             } else {
                 layoutReplyQuote.visibility = View.GONE
+                layoutReplyQuote.setOnClickListener(null)
                 tvMessage.text = message.message
             }
             tvTime.text = message.timestamp
@@ -506,6 +533,7 @@ class ChatAdapter(
                 imageView.visibility = View.GONE
                 imageView.setOnClickListener(null)
                 layoutImageTimeChip?.visibility = View.GONE
+                clearDeliveryIndicator(itemView)
                 tvTime.visibility = View.GONE
                 tvReaction.visibility = View.GONE
                 tvTombstone?.let {
@@ -535,10 +563,32 @@ class ChatAdapter(
             Glide.with(itemView)
                 .load(source)
                 .placeholder(R.drawable.ic_photo_library)
-                .error(R.drawable.ic_photo_library)
+                .error(R.drawable.ic_image_broken)
+                .listener(object : RequestListener<Drawable> {
+                    override fun onLoadFailed(
+                        e: GlideException?,
+                        model: Any?,
+                        target: Target<Drawable>,
+                        isFirstResource: Boolean
+                    ): Boolean {
+                        Log.w("ChatAdapter", "image load failed for message=${message.id}: ${e?.message}")
+                        return false
+                    }
+
+                    override fun onResourceReady(
+                        resource: Drawable,
+                        model: Any,
+                        target: Target<Drawable>?,
+                        dataSource: com.bumptech.glide.load.DataSource,
+                        isFirstResource: Boolean
+                    ): Boolean = false
+                })
                 .into(imageView)
 
             imageView.setOnClickListener {
+                // T21: dropped the redundant Glide.into(imageView) — the bubble
+                // already has the bitmap from the bind above; re-loading on tap
+                // triggered a second network fetch.
                 if (source.isNotBlank()) {
                     openImagePreview(source, itemView)
                 }
@@ -569,6 +619,7 @@ class ChatAdapter(
             if (message.isDeleted) {
                 layoutAudioPlayback?.visibility = View.GONE
                 layoutAudioTime?.visibility = View.GONE
+                clearDeliveryIndicator(itemView)
                 tvTime.visibility = View.GONE
                 tvReaction.visibility = View.GONE
                 ivPlayPause.setOnClickListener(null)
@@ -618,11 +669,14 @@ class ChatAdapter(
 
             ivPlayPause.setOnClickListener {
                 if (source.isNullOrBlank()) {
-                    Toast.makeText(itemView.context, "Audio unavailable", Toast.LENGTH_SHORT).show()
+                    itemView.context.showAppToast(
+                        itemView.context.getString(R.string.chat_audio_unavailable),
+                        Toast.LENGTH_SHORT
+                    )
                     return@setOnClickListener
                 }
                 audioPlayer.toggle(message.id, source) { error ->
-                    Toast.makeText(itemView.context, error, Toast.LENGTH_SHORT).show()
+                    itemView.context.showAppToast(error, Toast.LENGTH_SHORT)
                 }
             }
             if (isSent) {
@@ -656,4 +710,3 @@ class ChatAdapter(
         }
     }
 }
-

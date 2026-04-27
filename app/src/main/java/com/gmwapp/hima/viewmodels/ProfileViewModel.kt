@@ -114,11 +114,16 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
                         call: Call<RegisterResponse>, response: Response<RegisterResponse>
                     ) {
                         getUserLiveData.postValue(response.body())
-                        Log.d("getUserLiveData","${response.body()}")
+                        // T14: full response body contains user PII (name, image, language, etc.)
+                        if (com.gmwapp.hima.BuildConfig.DEBUG) {
+                            Log.d("getUserLiveData", "${response.body()}")
+                        } else {
+                            Log.d("getUserLiveData", "ok=${response.body()?.success} userId=${response.body()?.data?.id}")
+                        }
                     }
 
                     override fun onFailure(call: Call<RegisterResponse>, t: Throwable) {
-                        Log.d("getUserLiveData","${t.message}")
+                        Log.d("getUserLiveData", "${t.message}")
 
                     }
 

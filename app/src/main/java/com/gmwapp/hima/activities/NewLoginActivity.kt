@@ -94,6 +94,9 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
     private val referralCodeViewModel : ReferralCodeViewModel by viewModels()
     private val fcmTokenViewModel: FcmTokenViewModel by viewModels()
 
+    @javax.inject.Inject
+    lateinit var activeStatusReporter: com.gmwapp.hima.utils.ActiveStatusReporter
+
     private var otp: Int? = null
     private var mobile: String? = null
     private var truecallerCodeVerifier: String? = "0"
@@ -774,6 +777,16 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                     it.data?.let { it1 ->
                         BaseApplication.getInstance()?.getPrefs()?.setUserData(it1)
                         BaseApplication.getInstance()?.getPrefs()?.setAuthenticationToken(it.token)
+                        // Re-bind the in-memory chat-history cache to the freshly
+                        // signed-in user so any stale entries from a prior account
+                        // on this device are dropped before the chat list opens.
+                        runCatching {
+                            BaseApplication.getInstance()?.chatHistoryMemoryCache?.setOwner(it1.id)
+                        }
+                        // Bump users.datetime immediately on login. force=true so
+                        // any throttle window left over from a prior session in
+                        // the same process doesn't suppress this ping.
+                        runCatching { activeStatusReporter.reportActive(force = true) }
 
                         // Bind this device to the user's external id *immediately* on OTP success.
                         // Without this the subscription wouldn't be tagged until the user reached

@@ -8,12 +8,12 @@
         app:showAsAction="never" />
     <item
         android:id="@+id/action_block"
-        android:title="Block User"
+        android:title="@string/chat_block_user"
         android:icon="@drawable/baseline_close_24" />
     
     <item
         android:id="@+id/action_unblock"
-        android:title="Unblock User"
+        android:title="@string/chat_unblock_user"
         android:icon="@drawable/baseline_check_24"
         android:visible="false" />
 </menu>

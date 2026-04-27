@@ -82,6 +82,7 @@ import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import org.json.JSONObject
+import kotlin.math.abs
 import com.gmwapp.hima.activities.UserProfileDetailActivity
 import com.gmwapp.hima.utils.CallUnavailableFeedback
 import com.gmwapp.hima.utils.AudioRecorderController
@@ -95,6 +96,21 @@ class ChatActivityInHouse : AppCompatActivity() {
         /** Filter logcat: `adb logcat -s ChatReopenTrace` */
         private const val CHAT_REOPEN_LOG = "ChatReopenTrace"
         private val CHAT_REOPEN_VERBOSE: Boolean = BuildConfig.DEBUG
+        private const val STATE_MARKED_READ_ONCE = "state_marked_read_once"
+        private const val STATE_LAST_MARKED_READ_ID = "state_last_marked_read_id"
+        // T25: composer draft + reply target preserved across rotation.
+        private const val STATE_DRAFT_TEXT = "state_draft_text"
+        private const val STATE_REPLY_ID = "state_reply_id"
+        private const val MAX_MESSAGE_LENGTH = 2000
+
+        /**
+         * Skip the resume-time history reload if a populated list is already on
+         * screen and the snapshot is younger than this. Live socket events / FCM
+         * pushes drive any net-new lines while the chat is open; the resume reload
+         * exists for the case where the activity was paused long enough that the
+         * cache is stale.
+         */
+        private const val RESUME_RELOAD_FRESH_WINDOW_MS = 30_000L
     }
 
     @Inject
@@ -105,6 +121,12 @@ class ChatActivityInHouse : AppCompatActivity() {
 
     private val femaleUsersViewModel: com.gmwapp.hima.viewmodels.FemaleUsersViewModel by viewModels()
     private val profileViewModel: com.gmwapp.hima.viewmodels.ProfileViewModel by viewModels()
+    /**
+     * T1: kept so we can detach before each re-attach in [initPeerHeader]. Without
+     * this, switching peer via `onNewIntent` re-subscribes a new observer every
+     * time and the previous peer's late response would overwrite the new header.
+     */
+    private var profileObserver: Observer<RegisterResponse>? = null
 
     private lateinit var rvMessages: RecyclerView
     private var layoutHistoryError: View? = null
@@ -157,6 +179,11 @@ class ChatActivityInHouse : AppCompatActivity() {
         override fun onReceive(context: android.content.Context?, intent: Intent?) {
             val incomingPeer = intent?.getIntExtra("peer_id", -1) ?: -1
             if (incomingPeer == peerUserId && isChatVisible && myUserId > 0) {
+                if (isInitialHistoryLoading) {
+                    pendingPostInitialReload = true
+                    Log.d("RealtimeChat", "push-refresh peer=$incomingPeer deferred until initial history completes")
+                    return
+                }
                 Log.d("RealtimeChat", "push-refresh broadcast peer=$incomingPeer — replaying loadMessages()")
                 loadMessages()
             } else {
@@ -185,6 +212,14 @@ class ChatActivityInHouse : AppCompatActivity() {
     
     // Track message sending method
     private val messageSendMethod = mutableMapOf<String, String>() // messageId -> "socket" or "api"
+
+    private data class PendingOutgoingPayload(
+        val message: String,
+        val messageType: String,
+        val attachmentUrl: String?
+    )
+
+    private val pendingOutgoingByTempId = LinkedHashMap<String, PendingOutgoingPayload>()
     
     // Store last online status from API
     private var lastOnlineStatus: String? = null
@@ -206,6 +241,9 @@ class ChatActivityInHouse : AppCompatActivity() {
     private var tvBannerAddFriendTitle: TextView? = null
     private var btnBannerNotNow: TextView? = null
     private var btnBannerAcceptFriend: com.google.android.material.button.MaterialButton? = null
+    private var isFriendRequestInFlight = false
+    private var btnNewMessages: com.google.android.material.button.MaterialButton? = null
+    private var unseenIncomingCount = 0
     
     // Call buttons
     private lateinit var callButtonsContainer: View
@@ -239,9 +277,11 @@ class ChatActivityInHouse : AppCompatActivity() {
     private var currentHistoryCall: Call<ChatHistoryResponse>? = null
     private var currentMoreCall: Call<ChatHistoryResponse>? = null
     private var isInitialHistoryLoading = false
+    private var pendingPostInitialReload = false
     private val paginationLoadRequestId = AtomicInteger(0)
     /** Prevents duplicate mark-read on both [onBackPressed] and [onPause] in one exit. */
     private var markedReadOnce = false
+    private var lastMarkedReadMessageId: String? = null
     /** One silent retry after a transient network failure (per [loadMessages] chain). */
     private var historySilentRetryUsed = false
 
@@ -268,16 +308,23 @@ class ChatActivityInHouse : AppCompatActivity() {
     private val audioRecorderController by lazy { AudioRecorderController(cacheDir) }
     private var recordingPulseAnimator: ObjectAnimator? = null
     private var recordingStartY: Float = 0f
+    private var recordingStartX: Float = 0f
+    private var isRecording: Boolean = false
+    private var clearingTextDuringRecording = false
     private var cancelRecordingOnRelease = false
     private var recordingStartedAtMs: Long = 0L
     private val cancelRecordingThresholdPx by lazy { 72f * resources.displayMetrics.density }
+    private val activeAttachmentTempIds = mutableSetOf<String>()
+    private val activeAttachmentCalls = mutableMapOf<String, Call<*>>()
+    private val activeTextSendCalls = mutableListOf<Call<*>>()
     
-    // API returns timestamps in IST format: "2025-11-18 19:10:31"
+    // T19: explicit local timezone — server sends timestamps in device wall-clock
+    // (yyyy-MM-dd HH:mm:ss with no Z), so we parse/format in the device's locale.
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).apply {
-        timeZone = TimeZone.getTimeZone("Asia/Kolkata")
+        timeZone = TimeZone.getDefault()
     }
     private val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault()).apply {
-        timeZone = TimeZone.getTimeZone("Asia/Kolkata")
+        timeZone = TimeZone.getDefault()
     }
 
     private val recordingTicker = object : Runnable {
@@ -336,9 +383,18 @@ class ChatActivityInHouse : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_chat)
 
+        markedReadOnce = savedInstanceState?.getBoolean(STATE_MARKED_READ_ONCE) ?: false
+        lastMarkedReadMessageId = savedInstanceState?.getString(STATE_LAST_MARKED_READ_ID)
+
         initializeViews()
+        if (!setupUserIds()) return
         setupRecyclerView()
-        setupUserIds()
+        // Defensive: bind the cache to the current signed-in user. If the previous
+        // login on this device wasn't fully torn down, this drops any stale entries
+        // before we read them below.
+        if (myUserId > 0) {
+            historyCache.setOwner(myUserId)
+        }
         initPeerHeader()
         initAddFriendBanner()
         setupClickListeners()
@@ -356,9 +412,62 @@ class ChatActivityInHouse : AppCompatActivity() {
         setupCallStatusObservers()
         setupCallButtons()
         setupCallButtonListeners()
-        
+
+        // T25: restore composer state — draft text immediately; reply target after
+        // [loadMessages] succeeds (the original message is needed for `beginReplyTo`).
+        savedInstanceState?.getString(STATE_DRAFT_TEXT)?.let { draft ->
+            if (draft.isNotEmpty()) {
+                etMessage.setText(draft)
+                etMessage.setSelection(draft.length.coerceAtMost(etMessage.text?.length ?: 0))
+            }
+        }
+        pendingRestoreReplyId = savedInstanceState?.getString(STATE_REPLY_ID)
+
         // Log initial status (runnable cleared in onDestroy)
         mainHandler.postDelayed(logSocketStatusAfterDelay, 3000)
+    }
+
+    /** T25: deferred reply target restoration; applied once history fills the list. */
+    private var pendingRestoreReplyId: String? = null
+
+    private fun maybeApplyPendingRestoreReply() {
+        val id = pendingRestoreReplyId ?: return
+        val msg = messages.firstOrNull { !it.isDateHeader && it.id == id } ?: return
+        beginReplyTo(msg)
+        pendingRestoreReplyId = null
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        val oldPeerId = peerUserId
+        setIntent(intent)
+        if (!setupUserIds()) return
+        if (oldPeerId == peerUserId) {
+            // T3: same peer — still re-render the header so a push that arrived
+            // with updated USER_NAME / USER_IMAGE replaces stale extras. Skip the
+            // expensive socket/history work which is already correct.
+            initPeerHeader()
+            return
+        }
+
+        resetConversationStateForPeerChange()
+        if (myUserId > 0) {
+            historyCache.setOwner(myUserId)
+        }
+        initPeerHeader()
+        initAddFriendBanner()
+        connectSocket()
+        loadMessages()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBoolean(STATE_MARKED_READ_ONCE, markedReadOnce)
+        outState.putString(STATE_LAST_MARKED_READ_ID, lastMarkedReadMessageId)
+        // T25: persist the in-progress composer + reply target so a rotation
+        // (or backgrounded process restore) doesn't drop the user's draft.
+        outState.putString(STATE_DRAFT_TEXT, etMessage.text?.toString())
+        outState.putString(STATE_REPLY_ID, pendingReplyTo?.id)
+        super.onSaveInstanceState(outState)
     }
 
     private fun initializeViews() {
@@ -386,6 +495,10 @@ class ChatActivityInHouse : AppCompatActivity() {
         tvRecordingTimer = findViewById(R.id.tv_recording_timer)
         tvRecordingHint = findViewById(R.id.tv_recording_hint)
         vRecordingDot = findViewById(R.id.v_recording_dot)
+        btnNewMessages = findViewById(R.id.btn_new_messages)
+        btnNewMessages?.setOnClickListener {
+            scrollToBottomAndClearNewMessagePill()
+        }
         
         // Initialize call buttons
         callButtonsContainer = findViewById(R.id.call_buttons_container)
@@ -421,6 +534,9 @@ class ChatActivityInHouse : AppCompatActivity() {
         layoutParams.marginStart = marginInPx
         ivUser.layoutParams = layoutParams
 
+        // App is light-only — force a white status bar with dark icons regardless
+        // of the system uiMode. Removes the conditional dark-mode handling that
+        // T17 introduced.
         window.statusBarColor = ContextCompat.getColor(this, R.color.white)
         WindowInsetsControllerCompat(window, findViewById(R.id.main)).isAppearanceLightStatusBars = true
 
@@ -460,7 +576,8 @@ class ChatActivityInHouse : AppCompatActivity() {
             myUserId = myUserId,
             onReactionChanged = { message, reactionEmoji -> handleReactionUpdate(message, reactionEmoji) },
             onReactionClick = { message, emoji -> showReactionDetails(message, emoji) },
-            onMessageLongPress = { anchor, msg, pos -> showChatMessageContextMenu(anchor, msg, pos) }
+            onMessageLongPress = { anchor, msg, pos -> showChatMessageContextMenu(anchor, msg, pos) },
+            onReplyQuoteTap = { msg -> scrollToInlineReplyOriginal(msg) }
         )
         rvMessages.apply {
             setHasFixedSize(true)
@@ -495,6 +612,9 @@ class ChatActivityInHouse : AppCompatActivity() {
                             Log.d("ChatPagination", "🔄 Scroll detected - Loading more messages. First visible: $firstVisiblePosition")
                             loadMoreMessages()
                         }
+                        if (isRecyclerNearBottom()) {
+                            clearNewMessagePill()
+                        }
                     }
                 }
             })
@@ -517,7 +637,8 @@ class ChatActivityInHouse : AppCompatActivity() {
                 ): Int {
                     val pos = viewHolder.bindingAdapterPosition
                     if (pos == RecyclerView.NO_POSITION) return 0
-                    if (chatAdapter.isDateHeaderPosition(pos)) return 0
+                    val msg = messages.getOrNull(pos)
+                    if (msg == null || msg.isDateHeader || msg.isDeleted || isPendingMessage(msg)) return 0
                     return super.getSwipeDirs(recyclerView, viewHolder)
                 }
 
@@ -525,7 +646,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                     val pos = viewHolder.bindingAdapterPosition
                     if (pos != RecyclerView.NO_POSITION) {
                         val msg = messages.getOrNull(pos)
-                        if (msg != null && !msg.isDateHeader) {
+                        if (msg != null && !msg.isDateHeader && !msg.isDeleted && !isPendingMessage(msg)) {
                             beginReplyTo(msg)
                         }
                         chatAdapter.notifyItemChanged(pos)
@@ -566,8 +687,36 @@ class ChatActivityInHouse : AppCompatActivity() {
         return getString(R.string.chat_reply_header_line, author, snippet)
     }
 
+    private fun isPendingMessage(message: ChatMessage): Boolean =
+        message.id.startsWith("temp_") ||
+            message.deliveryStatus == MessageDeliveryStatus.SENDING
+
+    private fun parseInlineReplySnippet(raw: String): String? {
+        val firstLineEnd = raw.indexOf('\n')
+        if (firstLineEnd <= 0) return null
+        val header = raw.substring(0, firstLineEnd)
+        val separator = header.indexOf(": ")
+        if (separator <= 0) return null
+        return header.substring(separator + 2).trim().takeIf { it.isNotEmpty() }
+    }
+
+    private fun scrollToInlineReplyOriginal(message: ChatMessage) {
+        val snippet = parseInlineReplySnippet(message.message) ?: return
+        val targetIndex = messages.indexOfFirst { candidate ->
+            !candidate.isDateHeader &&
+                candidate.id != message.id &&
+                !candidate.isDeleted &&
+                candidate.message.contains(snippet, ignoreCase = true)
+        }
+        if (targetIndex != -1) {
+            rvMessages.smoothScrollToPosition(targetIndex)
+            chatAdapter.notifyItemChanged(targetIndex)
+        }
+    }
+
     private fun beginReplyTo(message: ChatMessage) {
-        if (message.isDateHeader) return
+        if (message.isDateHeader || message.isDeleted) return
+        if (isPendingMessage(message)) return
         pendingReplyTo = message
         updateReplyPreviewUi()
         etMessage.requestFocus()
@@ -581,6 +730,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         if (message.isDateHeader) return
         // Once deleted there's nothing to reply to, react to, or re-delete.
         if (message.isDeleted) return
+        if (isPendingMessage(message)) return
         val popup = PopupMenu(this, anchor, Gravity.END)
         menuInflater.inflate(R.menu.menu_chat_message, popup.menu)
         // Delete-for-everyone is only offered to the sender of the message.
@@ -609,6 +759,10 @@ class ChatActivityInHouse : AppCompatActivity() {
         if (!isUiSafe()) return
         // Defensive: the menu item is already hidden for received rows, but guard here too.
         if (!message.isSentByMe || message.isDeleted) return
+        if (isPendingMessage(message)) {
+            showAppToast(getString(R.string.chat_wait_until_sent_before_deleting), Toast.LENGTH_SHORT)
+            return
+        }
         AlertDialog.Builder(this)
             .setTitle(R.string.chat_delete_title)
             .setMessage(R.string.chat_delete_message)
@@ -630,6 +784,10 @@ class ChatActivityInHouse : AppCompatActivity() {
         if (!isUiSafe()) return
         if (!message.isSentByMe) return
         if (message.isDeleted) return
+        if (isPendingMessage(message)) {
+            showAppToast(getString(R.string.chat_wait_until_sent_before_deleting), Toast.LENGTH_SHORT)
+            return
+        }
 
         val idForLog = message.id
         markMessageDeletedLocally(message)
@@ -707,10 +865,16 @@ class ChatActivityInHouse : AppCompatActivity() {
         showAppToast(getString(R.string.chat_delete_failed), Toast.LENGTH_SHORT)
     }
 
-    private fun setupUserIds() {
+    private fun setupUserIds(): Boolean {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         myUserId = userData?.id ?: 0
         peerUserId = intent.getIntExtra("USER_ID", -1)
+
+        if (myUserId == 0 || peerUserId == -1) {
+            showAppToast("Error: Invalid user data", Toast.LENGTH_SHORT)
+            finish()
+            return false
+        }
 
         // Generate chat ID: smaller_id_larger_id
         chatId = if (myUserId < peerUserId) {
@@ -721,17 +885,15 @@ class ChatActivityInHouse : AppCompatActivity() {
 
         Log.d("ChatActivityInHouse", "MyUserId: $myUserId, PeerUserId: $peerUserId, ChatId: $chatId")
 
-        if (myUserId == 0 || peerUserId == -1) {
-            showAppToast("Error: Invalid user data", Toast.LENGTH_SHORT)
-            finish()
-        } else {
-            // Opening this conversation clears any stacked chat-notification lines
-            // for this peer (WhatsApp parity) and removes the tray entry so it
-            // doesn't linger behind the now-open chat.
-            com.gmwapp.hima.utils.ChatNotificationStore.clear(this, peerUserId)
-            androidx.core.app.NotificationManagerCompat.from(this)
-                .cancel(com.gmwapp.hima.utils.ChatNotifications.notifIdFor(peerUserId))
-        }
+        // T11: write to prefs as well so the NSE sees the active peer even in a separate process.
+        com.gmwapp.hima.utils.ActiveChatTracker.setActive(this, peerUserId)
+        // Opening this conversation clears any stacked chat-notification lines
+        // for this peer (WhatsApp parity) and removes the tray entry so it
+        // doesn't linger behind the now-open chat.
+        com.gmwapp.hima.utils.ChatNotificationStore.clear(this, peerUserId)
+        androidx.core.app.NotificationManagerCompat.from(this)
+            .cancel(com.gmwapp.hima.utils.ChatNotifications.notifIdFor(peerUserId))
+        return true
     }
 
     /**
@@ -778,8 +940,12 @@ class ChatActivityInHouse : AppCompatActivity() {
 
         val needsPeerProfileFetch = resolvedName == null || resolvedImage == null
         if (needsPeerProfileFetch && peerUserId > 0) {
-            profileViewModel.getUserLiveData.observe(this) { response ->
-                val data = response?.data ?: return@observe
+            // T1: detach the old observer before re-subscribing so a stale response
+            // for the previous peer can't overwrite the freshly-set header on a
+            // peer switch via `onNewIntent`.
+            profileObserver?.let { profileViewModel.getUserLiveData.removeObserver(it) }
+            val observer = Observer<RegisterResponse> { response ->
+                val data = response?.data ?: return@Observer
                 val fetchedName = extractNameOnly(data.name)
                     .takeIf { it.isNotBlank() && it != "User" }
                 if (fetchedName != null && (peerName.isBlank() || peerName == "User")) {
@@ -795,6 +961,8 @@ class ChatActivityInHouse : AppCompatActivity() {
                         .into(ivUser)
                 }
             }
+            profileObserver = observer
+            profileViewModel.getUserLiveData.observe(this, observer)
             profileViewModel.getUsers(peerUserId)
         }
     }
@@ -828,13 +996,11 @@ class ChatActivityInHouse : AppCompatActivity() {
             }
 
             override fun onFailure(call: Call<FriendRequestResponse>, t: Throwable) {
-                isFriendWithPeer = false
-                updateAddFriendUi()
+                Log.w("ChatFriends", "refreshFriendState failed: ${t.message}")
             }
 
             override fun onNoNetwork() {
-                isFriendWithPeer = false
-                updateAddFriendUi()
+                Log.w("ChatFriends", "refreshFriendState skipped: no network")
             }
         })
     }
@@ -852,10 +1018,15 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun acceptAsFriend() {
+        if (isFriendRequestInFlight) return
         val me = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
         val peer = peerUserId.takeIf { it > 0 } ?: return
+        isFriendRequestInFlight = true
+        btnBannerAcceptFriend?.isEnabled = false
         apiManager.sendFriendRequest(peer, me, 1, object : NetworkCallback<FriendRequestResponse> {
             override fun onResponse(call: Call<FriendRequestResponse>, response: Response<FriendRequestResponse>) {
+                isFriendRequestInFlight = false
+                btnBannerAcceptFriend?.isEnabled = true
                 val body = response.body()
                 if (response.isSuccessful && body?.success == true) {
                     isFriendWithPeer = true
@@ -867,10 +1038,14 @@ class ChatActivityInHouse : AppCompatActivity() {
             }
 
             override fun onFailure(call: Call<FriendRequestResponse>, t: Throwable) {
+                isFriendRequestInFlight = false
+                btnBannerAcceptFriend?.isEnabled = true
                 showAppToast(getString(R.string.chat_add_friend_failure), Toast.LENGTH_SHORT)
             }
 
             override fun onNoNetwork() {
+                isFriendRequestInFlight = false
+                btnBannerAcceptFriend?.isEnabled = true
                 showAppToast(getString(R.string.chat_add_friend_failure), Toast.LENGTH_SHORT)
             }
         })
@@ -878,8 +1053,14 @@ class ChatActivityInHouse : AppCompatActivity() {
 
     private fun handleReactionUpdate(message: ChatMessage, reactionEmoji: String?) {
         if (message.isDateHeader) return
-        
-        val messageId = message.id.toIntOrNull() ?: return
+        // T23: don't allow reactions on optimistic temp rows — server doesn't know
+        // about the temp id yet, so the call would 404.
+        if (message.id.startsWith("temp_")) return
+
+        // T23: parse as Long (paired with T4) so snowflake ids round-trip correctly,
+        // then narrow to Int for the existing socket/api signatures.
+        val messageIdLong = message.id.toLongOrNull() ?: return
+        val messageId = messageIdLong.toInt()
         
         // Send reaction to server via Socket.IO (with API fallback)
         if (socketManager.isConnected()) {
@@ -925,7 +1106,8 @@ class ChatActivityInHouse : AppCompatActivity() {
         val messageIndex = messages.indexOfFirst { it.id == messageId }
         if (messageIndex != -1) {
             val reactionsMap = reactions?.associate { it.userId to it.reactionEmoji } ?: emptyMap()
-            messages[messageIndex].reactions = reactionsMap
+            // M18: ChatMessage.reactions is val — copy() instead of mutating in place.
+            messages[messageIndex] = messages[messageIndex].copy(reactions = reactionsMap)
             chatAdapter.notifyItemChanged(messageIndex)
         }
     }
@@ -963,6 +1145,12 @@ class ChatActivityInHouse : AppCompatActivity() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
 
             override fun afterTextChanged(s: Editable?) {
+                if (isRecording && !clearingTextDuringRecording && !s.isNullOrEmpty()) {
+                    clearingTextDuringRecording = true
+                    s.clear()
+                    clearingTextDuringRecording = false
+                    return
+                }
                 updateComposerActionState()
             }
         })
@@ -986,6 +1174,11 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun updateComposerActionState() {
+        if (isRecording) {
+            btnMic.visibility = View.VISIBLE
+            btnSend.visibility = View.GONE
+            return
+        }
         val hasText = etMessage.text?.toString()?.trim().orEmpty().isNotEmpty()
         btnSend.visibility = if (hasText) View.VISIBLE else View.GONE
         btnMic.visibility = if (hasText) View.GONE else View.VISIBLE
@@ -1004,7 +1197,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         }
         contentView.findViewById<View>(R.id.row_camera)?.setOnClickListener {
             sheet.dismiss()
-            showAppToast("Camera option will be added next", Toast.LENGTH_SHORT)
+            showAppToast(getString(R.string.chat_camera_coming_soon_toast), Toast.LENGTH_SHORT)
         }
         sheet.show()
     }
@@ -1032,8 +1225,13 @@ class ChatActivityInHouse : AppCompatActivity() {
         )
     }
 
+    /** T44: guard so a rapid second pick doesn't spawn two optimistic rows / uploads. */
+    private var isPreparingImage = false
+
     private fun handlePickedImage(uri: Uri) {
         if (!canSendMediaPayload()) return
+        if (isPreparingImage) return
+        isPreparingImage = true
 
         lifecycleScope.launch {
             try {
@@ -1047,7 +1245,9 @@ class ChatActivityInHouse : AppCompatActivity() {
                 uploadAndSendAttachment(tempId, compressedFile, "image")
             } catch (e: Exception) {
                 Log.e("ChatMedia", "Image prepare failed: ${e.message}", e)
-                showAppToast("Couldn't prepare image", Toast.LENGTH_SHORT)
+                showAppToast(e.message ?: "Couldn't prepare image", Toast.LENGTH_SHORT)
+            } finally {
+                isPreparingImage = false
             }
         }
     }
@@ -1072,21 +1272,28 @@ class ChatActivityInHouse : AppCompatActivity() {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 if (!canSendMediaPayload()) return true
+                // T10: a second ACTION_DOWN while we're already recording would
+                // call AudioRecorderController.start() (which begins with cancel())
+                // and silently throw away the in-progress clip. Ignore it.
+                if (audioRecorderController.isRecording()) return true
                 if (!hasRecordAudioPermission()) {
                     audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                     return true
                 }
-                startAudioRecording(event.rawY)
+                startAudioRecording(event.rawX, event.rawY)
                 return true
             }
 
             MotionEvent.ACTION_MOVE -> {
                 if (!audioRecorderController.isRecording()) return true
-                cancelRecordingOnRelease = event.rawY < recordingStartY - cancelRecordingThresholdPx
+                val dx = abs(event.rawX - recordingStartX)
+                val dy = recordingStartY - event.rawY
+                cancelRecordingOnRelease = dy > cancelRecordingThresholdPx &&
+                    dx < cancelRecordingThresholdPx / 2f
                 tvRecordingHint.text = if (cancelRecordingOnRelease) {
-                    "Release to cancel"
+                    getString(R.string.chat_recording_release_cancel)
                 } else {
-                    "Slide up to cancel"
+                    getString(R.string.chat_recording_slide_cancel)
                 }
                 return true
             }
@@ -1103,7 +1310,7 @@ class ChatActivityInHouse : AppCompatActivity() {
 
             MotionEvent.ACTION_CANCEL -> {
                 if (audioRecorderController.isRecording()) {
-                    cancelAudioRecording(showToast = false)
+                    cancelAudioRecording(showToast = true)
                 }
                 return true
             }
@@ -1125,19 +1332,22 @@ class ChatActivityInHouse : AppCompatActivity() {
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    private fun startAudioRecording(touchStartY: Float) {
+    private fun startAudioRecording(touchStartX: Float, touchStartY: Float) {
         try {
             audioRecorderController.start()
+            isRecording = true
+            recordingStartX = touchStartX
             recordingStartY = touchStartY
             cancelRecordingOnRelease = false
             recordingStartedAtMs = SystemClock.elapsedRealtime()
-            tvRecordingTimer.text = "00:00"
-            tvRecordingHint.text = "Slide up to cancel"
+            tvRecordingTimer.text = getString(R.string.chat_recording_timer_zero)
+            tvRecordingHint.text = getString(R.string.chat_recording_slide_cancel)
             setRecordingUiVisible(true)
             mainHandler.removeCallbacks(recordingTicker)
             mainHandler.post(recordingTicker)
         } catch (e: Exception) {
             Log.e("ChatMedia", "Audio recording start failed: ${e.message}", e)
+            isRecording = false
             setRecordingUiVisible(false)
             showAppToast("Couldn't start recording", Toast.LENGTH_SHORT)
         }
@@ -1146,10 +1356,13 @@ class ChatActivityInHouse : AppCompatActivity() {
     private fun stopAudioRecordingAndSend() {
         try {
             val recordingResult = audioRecorderController.stop()
+            isRecording = false
             setRecordingUiVisible(false)
             if (recordingResult.durationMs < 1000L) {
                 recordingResult.file.delete()
-                showAppToast("Voice note is too short", Toast.LENGTH_SHORT)
+                // T45: hint the gesture instead of just saying "too short" — short
+                // taps are a common discoverability fail.
+                showAppToast("Hold to record", Toast.LENGTH_SHORT)
                 return
             }
 
@@ -1161,6 +1374,7 @@ class ChatActivityInHouse : AppCompatActivity() {
             uploadAndSendAttachment(tempId, recordingResult.file, "audio")
         } catch (e: Exception) {
             Log.e("ChatMedia", "Audio recording stop failed: ${e.message}", e)
+            isRecording = false
             setRecordingUiVisible(false)
             showAppToast("Couldn't save voice note", Toast.LENGTH_SHORT)
         }
@@ -1168,6 +1382,7 @@ class ChatActivityInHouse : AppCompatActivity() {
 
     private fun cancelAudioRecording(showToast: Boolean) {
         audioRecorderController.cancel()
+        isRecording = false
         setRecordingUiVisible(false)
         if (showToast) {
             showAppToast("Recording canceled", Toast.LENGTH_SHORT)
@@ -1176,13 +1391,16 @@ class ChatActivityInHouse : AppCompatActivity() {
 
     private fun setRecordingUiVisible(isVisible: Boolean) {
         recordingBar.visibility = if (isVisible) View.VISIBLE else View.GONE
+        etMessage.isEnabled = !isVisible
+        etMessage.isFocusable = !isVisible
+        etMessage.isFocusableInTouchMode = !isVisible
         if (isVisible) {
             startRecordingPulse()
         } else {
             stopRecordingPulse()
             mainHandler.removeCallbacks(recordingTicker)
-            tvRecordingTimer.text = "00:00"
-            tvRecordingHint.text = "Slide up to cancel"
+            tvRecordingTimer.text = getString(R.string.chat_recording_timer_zero)
+            tvRecordingHint.text = getString(R.string.chat_recording_slide_cancel)
         }
         updateComposerActionState()
     }
@@ -1209,7 +1427,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         audioDurationMs: Long = 0L
     ): String {
         val currentTime = Date()
-        val tempId = "temp_${System.currentTimeMillis()}"
+        val tempId = newTempMessageId()
         val tempMessage = ChatMessage(
             id = tempId,
             message = "",
@@ -1223,6 +1441,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         )
 
         appendMessageWithOptionalDateHeader(tempMessage)
+        rememberPendingOutgoing(tempId, "", messageType, localAttachmentUrl)
         rvMessages.post {
             rvMessages.smoothScrollToPosition(messages.size - 1)
         }
@@ -1240,11 +1459,61 @@ class ChatActivityInHouse : AppCompatActivity() {
         val index = messages.indexOfFirst { it.id == tempId }
         if (index == -1) return
         messages.removeAt(index)
-        chatAdapter.notifyItemRemoved(index)
+        pendingOutgoingByTempId.remove(tempId)
+        messageSendMethod.remove(tempId)
+        updateTopHeader(messages)
+        chatAdapter.notifyDataSetChanged()
+    }
+
+    private fun rememberPendingOutgoing(
+        tempId: String,
+        message: String,
+        messageType: String,
+        attachmentUrl: String? = null
+    ) {
+        pendingOutgoingByTempId[tempId] = PendingOutgoingPayload(
+            message = message,
+            messageType = messageType,
+            attachmentUrl = attachmentUrl
+        )
+    }
+
+    private fun replaceTempMessage(tempId: String, realMessage: ChatMessage, method: String): Boolean {
+        val tempIndex = messages.indexOfFirst { it.id == tempId }
+        if (tempIndex == -1) return false
+
+        val existingReactions = messages[tempIndex].reactions
+        // M18: ChatMessage.reactions is val — copy() instead of mutating in place.
+        messages[tempIndex] = realMessage.copy(reactions = existingReactions)
+        pendingOutgoingByTempId.remove(tempId)
+        messageSendMethod.remove(tempId)
+        messageSendMethod[realMessage.id] = method
+        rebuildMessagesWithHeaders(messages.filterNot { it.isDateHeader })
+        chatAdapter.notifyDataSetChanged()
+        return true
+    }
+
+    private fun failPendingOutgoing(tempId: String, userMessage: String) {
+        removeTempMessage(tempId)
+        showAppToast(userMessage, Toast.LENGTH_SHORT)
+    }
+
+    private fun failPendingOutgoingByMessage(messageText: String, userMessage: String) {
+        val tempId = pendingOutgoingByTempId.entries.firstOrNull { (_, payload) ->
+            payload.messageType == "text" && payload.message == messageText
+        }?.key ?: messages.firstOrNull {
+            it.id.startsWith("temp_") && it.isSentByMe && it.message == messageText
+        }?.id
+
+        if (tempId != null) {
+            failPendingOutgoing(tempId, userMessage)
+        } else {
+            showAppToast(userMessage, Toast.LENGTH_SHORT)
+        }
     }
 
     private fun uploadAndSendAttachment(tempId: String, file: File, messageType: String) {
-        apiManager.uploadChatAttachment(
+        val uploadCall = apiManager.uploadChatAttachment(
             userId = myUserId,
             toUserId = peerUserId,
             messageType = messageType,
@@ -1254,6 +1523,8 @@ class ChatActivityInHouse : AppCompatActivity() {
                     call: Call<ChatAttachmentUploadResponse>,
                     response: Response<ChatAttachmentUploadResponse>
                 ) {
+                    activeAttachmentTempIds.remove(tempId)
+                    activeAttachmentCalls.remove(tempId)
                     val remoteUrl = response.body()?.data?.url
                     val success = response.isSuccessful && response.body()?.success == true &&
                         !remoteUrl.isNullOrBlank()
@@ -1273,6 +1544,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                     updateTempMessage(tempId) { current ->
                         current.copy(attachmentUrl = remoteUrl)
                     }
+                    rememberPendingOutgoing(tempId, "", messageType, remoteUrl)
 
                     if (!socketManager.isConnected()) {
                         sendMediaViaFallbackAPI(tempId, messageType, remoteUrl!!)
@@ -1292,6 +1564,12 @@ class ChatActivityInHouse : AppCompatActivity() {
                 }
 
                 override fun onFailure(call: Call<ChatAttachmentUploadResponse>, t: Throwable) {
+                    activeAttachmentTempIds.remove(tempId)
+                    activeAttachmentCalls.remove(tempId)
+                    if (call.isCanceled) {
+                        file.delete()
+                        return
+                    }
                     removeTempMessage(tempId)
                     showAppToast("Couldn't upload attachment", Toast.LENGTH_SHORT)
                     file.delete()
@@ -1299,12 +1577,18 @@ class ChatActivityInHouse : AppCompatActivity() {
                 }
 
                 override fun onNoNetwork() {
+                    activeAttachmentTempIds.remove(tempId)
+                    activeAttachmentCalls.remove(tempId)
                     removeTempMessage(tempId)
                     showAppToast(DConstants.NO_NETWORK, Toast.LENGTH_SHORT)
                     file.delete()
                 }
             }
         )
+        if (uploadCall != null) {
+            activeAttachmentTempIds.add(tempId)
+            activeAttachmentCalls[tempId] = uploadCall
+        }
     }
 
     /**
@@ -1313,7 +1597,7 @@ class ChatActivityInHouse : AppCompatActivity() {
      */
     private fun sendMediaViaFallbackAPI(tempId: String, messageType: String, attachmentUrl: String) {
         messageSendMethod[tempId] = "api"
-        apiManager.fallbackSendMessage(
+        val apiCall = apiManager.fallbackSendMessage(
             fromUserId = myUserId,
             toUserId = peerUserId,
             message = "",
@@ -1324,18 +1608,16 @@ class ChatActivityInHouse : AppCompatActivity() {
                     call: Call<FallbackSendMessageResponse>,
                     response: Response<FallbackSendMessageResponse>
                 ) {
+                    activeTextSendCalls.remove(call)
                     if (response.isSuccessful) {
                         val responseBody = response.body()
                         if (responseBody?.success == true && responseBody.data?.message != null) {
                             val fallbackMessage = responseBody.data.message
                             val realMessage = convertFallbackMessageToChatMessage(fallbackMessage)
-                            val tempIndex = messages.indexOfFirst { it.id == tempId }
-                            if (tempIndex != -1) {
-                                val existingReactions = messages[tempIndex].reactions
-                                messages[tempIndex] = realMessage
-                                messages[tempIndex].reactions = existingReactions
-                                messageSendMethod[realMessage.id] = "api"
-                                chatAdapter.notifyItemChanged(tempIndex)
+                            val replaced = replaceTempMessage(tempId, realMessage, "api")
+                            if (!replaced) {
+                                Log.v("SocketIOCheck", "Fallback API returned after socket already replaced tempId=$tempId")
+                                return
                             }
                             Log.d(
                                 "SocketIOCheck",
@@ -1359,6 +1641,8 @@ class ChatActivityInHouse : AppCompatActivity() {
                 }
 
                 override fun onFailure(call: Call<FallbackSendMessageResponse>, t: Throwable) {
+                    activeTextSendCalls.remove(call)
+                    if (call.isCanceled) return
                     removeTempMessage(tempId)
                     showAppToast("Couldn't send attachment", Toast.LENGTH_SHORT)
                     Log.e(
@@ -1375,6 +1659,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                 }
             }
         )
+        apiCall?.let { activeTextSendCalls.add(it) }
     }
 
     private fun formatElapsedTime(elapsedMs: Long): String {
@@ -1420,7 +1705,7 @@ class ChatActivityInHouse : AppCompatActivity() {
             if (!isUiSafe()) return@post
             // Show status only if it's not null or empty
             if (!lastOnlineStatus.isNullOrEmpty()) {
-                tvUserStatus.text = lastOnlineStatus
+                tvUserStatus.text = formatLastOnlineStatus(lastOnlineStatus)
                 vOnlineIndicator.visibility = View.VISIBLE
             } else {
                 // Hide status if null or empty
@@ -1428,9 +1713,23 @@ class ChatActivityInHouse : AppCompatActivity() {
                 tvUserStatus.visibility = View.GONE
                 vOnlineIndicator.visibility = View.GONE
             }
-            
+
             // Removed: Update call buttons state based on online status
             // Buttons are now controlled only by check_call_availability API response
+        }
+    }
+
+    /**
+     * Backend sends strings like "active 6 hours ago" / "active 5 minutes ago" /
+     * "Online" / "Just now". Strip the redundant leading "active " so the header
+     * just reads "6 hours ago" — `Online` / `Just now` are passed through.
+     */
+    private fun formatLastOnlineStatus(raw: String): String {
+        val trimmed = raw.trim()
+        return when {
+            trimmed.startsWith("active ", ignoreCase = true) ->
+                trimmed.substring("active ".length).trim()
+            else -> trimmed
         }
     }
 
@@ -1481,16 +1780,20 @@ class ChatActivityInHouse : AppCompatActivity() {
                 if (!isSocketMessageForThisChat(sock)) return@collect
                 if (sock.fromUserId != myUserId) return@collect
                 val messageId = sock.id.toString()
-                messageSendMethod[messageId] = "socket"
                 Log.d("SocketIOCheck", "✅ Message sent via SOCKET.IO - ID: $messageId")
                 if (!isUiSafe()) return@collect
-                val idx = messages.indexOfFirst { m ->
-                    m.isSentByMe &&
-                        m.id == messageId &&
-                        m.deliveryStatus == MessageDeliveryStatus.SENT
+                messageSendMethod[messageId] = "socket"
+                if (messages.none { it.id == messageId }) {
+                    handleNewMessage(sock)
                 }
+                val idx = messages.indexOfFirst { m -> m.isSentByMe && m.id == messageId }
                 if (idx != -1) {
-                    messages[idx] = messages[idx].copy(deliveryStatus = MessageDeliveryStatus.DELIVERED)
+                    val nextStatus = if (sock.isRead) {
+                        MessageDeliveryStatus.READ
+                    } else {
+                        MessageDeliveryStatus.DELIVERED
+                    }
+                    messages[idx] = messages[idx].copy(deliveryStatus = nextStatus)
                     chatAdapter.notifyItemChanged(idx)
                 }
                 logSocketIOStatus()
@@ -1500,6 +1803,36 @@ class ChatActivityInHouse : AppCompatActivity() {
         lifecycleScope.launch {
             socketManager.messageError.collect { error ->
                 Log.e("SocketIOCheck", "Message error: $error")
+                if (!isUiSafe() || error.startsWith("Reaction error:")) return@collect
+                // T9: server doesn't echo a client_message_id yet, so we can't
+                // map a `message_error` back to a specific in-flight temp. To
+                // avoid mutating the wrong bubble when multiple sends are
+                // pending, only act when there is exactly ONE pending socket
+                // send. Otherwise surface a generic toast and leave the temps
+                // alone — `messageSent` / `newMessage` will still reconcile
+                // them when the socket recovers.
+                val socketPendings = pendingOutgoingByTempId.entries.filter { (tempId, _) ->
+                    messageSendMethod[tempId] == "socket"
+                }
+                if (socketPendings.size != 1) {
+                    if (socketPendings.size > 1) {
+                        showAppToast("Send failed", Toast.LENGTH_SHORT)
+                        Log.w(
+                            "SocketIOCheck",
+                            "messageError ambiguous — ${socketPendings.size} pending socket sends; not mutating temps"
+                        )
+                    }
+                    return@collect
+                }
+                val socketPending = socketPendings.first()
+                val tempId = socketPending.key
+                val payload = socketPending.value
+                if (payload.messageType == "text") {
+                    messageSendMethod[tempId] = "api"
+                    sendMessageViaAPI(tempId, payload.message)
+                } else {
+                    failPendingOutgoing(tempId, "Couldn't send attachment")
+                }
             }
         }
 
@@ -1526,6 +1859,10 @@ class ChatActivityInHouse : AppCompatActivity() {
                     reactions = emptyMap(),
                     attachmentUrl = null
                 )
+                if (pendingReplyTo?.id == deletedId) {
+                    pendingReplyTo = null
+                    updateReplyPreviewUi()
+                }
                 chatAdapter.notifyItemChanged(idx)
                 Log.d("ChatDelete", "✅ Applied remote tombstone for id=$deletedId idx=$idx")
             }
@@ -1545,7 +1882,8 @@ class ChatActivityInHouse : AppCompatActivity() {
                 reactionsMap[userId] = emoji
             }
             
-            messages[messageIndex].reactions = reactionsMap
+            // M18: ChatMessage.reactions is val — copy() instead of mutating in place.
+            messages[messageIndex] = messages[messageIndex].copy(reactions = reactionsMap)
             chatAdapter.notifyItemChanged(messageIndex)
             Log.d("ChatReactions", "✅ Updated reaction for message $messageId: $reactionsMap")
         }
@@ -1575,7 +1913,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                 val messageIndex = messages.indexOfFirst { it.id == msg.id }
                 if (messageIndex != -1) {
                     val viewHolder = rvMessages.findViewHolderForAdapterPosition(messageIndex)
-                    if (viewHolder != null && viewHolder.itemView != null) {
+                    if (viewHolder != null) {
                         val tvMessage = viewHolder.itemView.findViewById<TextView>(R.id.tv_message)
                         if (tvMessage != null) {
                             // Use the adapter's method to show reaction popup
@@ -1741,67 +2079,69 @@ class ChatActivityInHouse : AppCompatActivity() {
                                 "elapsedMs=$elapsedMs retryAfterHeader=$retryAfter url=${call.request().url}"
                         )
 
-                        // Log complete API response with chathisoryapi tag
-                        Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
-                        Log.d("chathisoryapi", "📥 COMPLETE CHAT HISTORY API RESPONSE")
-                        Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
-                        Log.d("chathisoryapi", "HTTP Status Code: ${response.code()}")
-                        Log.d("chathisoryapi", "Response Headers: ${response.headers()}")
-                        Log.d("chathisoryapi", "Request URL: ${call.request().url}")
-                        Log.d("chathisoryapi", "Request Method: ${call.request().method}")
-                        
-                        if (responseBody != null) {
-                            Log.d("chathisoryapi", "Response Success: ${responseBody.success}")
-                            Log.d("chathisoryapi", "Response Message: ${responseBody.message}")
-                            
-                            if (responseBody.data != null) {
-                                val data = responseBody.data
-                                Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
-                                Log.d("chathisoryapi", "📊 RESPONSE DATA:")
-                                Log.d("chathisoryapi", "Chat ID: ${data.chatId}")
-                                Log.d("chathisoryapi", "User ID: ${data.userId}")
-                                Log.d("chathisoryapi", "Receiver ID: ${data.receiverId}")
-                                Log.d("chathisoryapi", "Total Messages: ${data.totalMessages}")
-                                Log.d("chathisoryapi", "Returned Messages: ${data.returnedMessages}")
-                                Log.d("chathisoryapi", "Limit: ${data.limit}")
-                                Log.d("chathisoryapi", "Offset: ${data.offset}")
-                                Log.d("chathisoryapi", "Has More: ${data.hasMore}")
-                                Log.d("chathisoryapi", "Last Online: ${data.lastOnline}")
-                                Log.d("chathisoryapi", "Last Online Status: ${data.lastOnlineStatus}")
-                                Log.d("chathisoryapi", "I Have Blocked This User: ${data.iHaveBlockedThisUser}")
-                                Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
-                                
-                                val apiMessages = data.messages
-                                Log.d("chathisoryapi", "📨 MESSAGES COUNT: ${apiMessages.size}")
-                                Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
-                                
-                                // Log each message with complete details
-                                apiMessages.forEachIndexed { index, msg ->
+                        // Verbose chat-history dump (message bodies, names, attachment urls).
+                        // PII-heavy — debug builds only. Release smoke verifies no payloads in logcat.
+                        if (BuildConfig.DEBUG) {
+                            Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
+                            Log.d("chathisoryapi", "📥 COMPLETE CHAT HISTORY API RESPONSE")
+                            Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
+                            Log.d("chathisoryapi", "HTTP Status Code: ${response.code()}")
+                            Log.d("chathisoryapi", "Response Headers: ${response.headers()}")
+                            Log.d("chathisoryapi", "Request URL: ${call.request().url}")
+                            Log.d("chathisoryapi", "Request Method: ${call.request().method}")
+
+                            if (responseBody != null) {
+                                Log.d("chathisoryapi", "Response Success: ${responseBody.success}")
+                                Log.d("chathisoryapi", "Response Message: ${responseBody.message}")
+
+                                if (responseBody.data != null) {
+                                    val data = responseBody.data
+                                    Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
+                                    Log.d("chathisoryapi", "📊 RESPONSE DATA:")
+                                    Log.d("chathisoryapi", "Chat ID: ${data.chatId}")
+                                    Log.d("chathisoryapi", "User ID: ${data.userId}")
+                                    Log.d("chathisoryapi", "Receiver ID: ${data.receiverId}")
+                                    Log.d("chathisoryapi", "Total Messages: ${data.totalMessages}")
+                                    Log.d("chathisoryapi", "Returned Messages: ${data.returnedMessages}")
+                                    Log.d("chathisoryapi", "Limit: ${data.limit}")
+                                    Log.d("chathisoryapi", "Offset: ${data.offset}")
+                                    Log.d("chathisoryapi", "Has More: ${data.hasMore}")
+                                    Log.d("chathisoryapi", "Last Online: ${data.lastOnline}")
+                                    Log.d("chathisoryapi", "Last Online Status: ${data.lastOnlineStatus}")
+                                    Log.d("chathisoryapi", "I Have Blocked This User: ${data.iHaveBlockedThisUser}")
+                                    Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
+
+                                    val apiMessages = data.messages
+                                    Log.d("chathisoryapi", "📨 MESSAGES COUNT: ${apiMessages.size}")
+                                    Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
+
+                                    apiMessages.forEachIndexed { index, msg ->
+                                        Log.d("chathisoryapi", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                                        Log.d("chathisoryapi", "Message #${index + 1}:")
+                                        Log.d("chathisoryapi", "  ID: ${msg.id}")
+                                        Log.d("chathisoryapi", "  Chat ID: ${msg.chatId}")
+                                        Log.d("chathisoryapi", "  From User ID: ${msg.fromUserId}")
+                                        Log.d("chathisoryapi", "  From: ${msg.from}")
+                                        Log.d("chathisoryapi", "  To User ID: ${msg.toUserId}")
+                                        Log.d("chathisoryapi", "  To: ${msg.to}")
+                                        Log.d("chathisoryapi", "  Message: ${msg.message}")
+                                        Log.d("chathisoryapi", "  Message Type: ${msg.messageType}")
+                                        Log.d("chathisoryapi", "  Attachment URL: ${msg.attachmentUrl ?: "null"}")
+                                        Log.d("chathisoryapi", "  Is Read: ${msg.isRead}")
+                                        Log.d("chathisoryapi", "  Timestamp: ${msg.timestamp}")
+                                        Log.d("chathisoryapi", "  Created At: ${msg.createdAt ?: "null"}")
+                                        Log.d("chathisoryapi", "  ⭐ Using for display: ${msg.createdAt ?: msg.timestamp}")
+                                    }
                                     Log.d("chathisoryapi", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-                                    Log.d("chathisoryapi", "Message #${index + 1}:")
-                                    Log.d("chathisoryapi", "  ID: ${msg.id}")
-                                    Log.d("chathisoryapi", "  Chat ID: ${msg.chatId}")
-                                    Log.d("chathisoryapi", "  From User ID: ${msg.fromUserId}")
-                                    Log.d("chathisoryapi", "  From: ${msg.from}")
-                                    Log.d("chathisoryapi", "  To User ID: ${msg.toUserId}")
-                                    Log.d("chathisoryapi", "  To: ${msg.to}")
-                                    Log.d("chathisoryapi", "  Message: ${msg.message}")
-                                    Log.d("chathisoryapi", "  Message Type: ${msg.messageType}")
-                                    Log.d("chathisoryapi", "  Attachment URL: ${msg.attachmentUrl ?: "null"}")
-                                    Log.d("chathisoryapi", "  Is Read: ${msg.isRead}")
-                                    Log.d("chathisoryapi", "  Timestamp: ${msg.timestamp}")
-                                    Log.d("chathisoryapi", "  Created At: ${msg.createdAt ?: "null"}")
-                                    Log.d("chathisoryapi", "  ⭐ Using for display: ${msg.createdAt ?: msg.timestamp}")
+                                    Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
+                                    Log.d("chathisoryapi", "✅ END OF CHAT HISTORY API RESPONSE")
+                                    Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
+                                } else {
+                                    Log.d("chathisoryapi", "⚠️ Response data is null")
                                 }
-                                Log.d("chathisoryapi", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-                                Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
-                                Log.d("chathisoryapi", "✅ END OF CHAT HISTORY API RESPONSE")
-                                Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
                             } else {
-                                Log.d("chathisoryapi", "⚠️ Response data is null")
+                                Log.d("chathisoryapi", "⚠️ Response body is null")
                             }
-                        } else {
-                            Log.d("chathisoryapi", "⚠️ Response body is null")
                         }
                         
                         if (responseBody?.success == true && responseBody.data != null) {
@@ -1837,14 +2177,8 @@ class ChatActivityInHouse : AppCompatActivity() {
                             // This ensures: index 0 = oldest message, index N = newest message
                             // With stackFromEnd=true, newest (index N) will appear at bottom, oldest (index 0) at top
                             val sortedMessages = convertedMessages.sortedBy { it.date?.time ?: 0L }
-                            
-                            messages.clear()
-                            messages.addAll(sortedMessages)
-                            
-                            // Reactions are now loaded from API response, no need to apply stored reactions
-                            
-                            // Add header at top (position 0) and at date boundaries
-                            updateTopHeader(messages)
+
+                            mergeServerMessagesPreservingPending(sortedMessages)
                             
                             chatAdapter.notifyDataSetChanged()
                             
@@ -1863,8 +2197,18 @@ class ChatActivityInHouse : AppCompatActivity() {
                                 Log.d("ChatPagination", "  Last (index ${sortedMessages.size-1} - should be NEWEST): '${sortedMessages.last().message.take(30)}...' at ${sortedMessages.last().timestamp}, Date=${sortedMessages.last().date?.time}")
                             }
                             
-                            // Update pagination state
-                            currentOffset = data.offset + data.returnedMessages
+                            // Update pagination state. After C1 the visible list may
+                            // include older pages we've already paginated in; if we
+                            // reset currentOffset to (offset + returnedMessages) the
+                            // next loadMoreMessages() would refetch already-shown
+                            // pages. Use the count of distinct server-confirmed
+                            // messages currently in the list as the next offset.
+                            val confirmedCount = messages
+                                .count { !it.isDateHeader && !it.id.startsWith("temp_") }
+                            currentOffset = maxOf(
+                                confirmedCount,
+                                data.offset + data.returnedMessages
+                            )
                             hasMoreMessages = data.hasMore
                             
                             // Scroll to bottom (newest message) - WhatsApp style
@@ -1881,7 +2225,10 @@ class ChatActivityInHouse : AppCompatActivity() {
                             // Mark messages as read using the new API with last message id
                             if (apiMessages.isNotEmpty()) {
                                 // Get the last message id (newest message) from API messages
-                                val lastMessageId = apiMessages.maxByOrNull { it.id }?.id
+                                val lastMessageId = apiMessages
+                                    .filter { it.fromUserId != myUserId }
+                                    .maxByOrNull { it.id }
+                                    ?.id
                                 if (lastMessageId != null) {
                                     markMessagesAsReadWithLastMessageId(lastMessageId)
                                 }
@@ -1897,11 +2244,14 @@ class ChatActivityInHouse : AppCompatActivity() {
                             historyCache.putSnapshot(peerUserId, messages.toList())
                             historyCache.clearRateLimit(peerUserId, "SUCCESS")
                             hideHistoryErrorUi("MESSAGES_LOADED")
+                            // T25: now that history is in the list, restore reply target if rotated mid-reply.
+                            maybeApplyPendingRestoreReply()
                             Log.d(
                                 CHAT_REOPEN_LOG,
                                 "HISTORY LOADED req=$requestId peer=$peerUserId msgCount=${messages.size} hasMore=$hasMoreMessages fromCache=false elapsedMs=$elapsedMs"
                             )
                             isInitialHistoryLoading = false
+                            runPendingPostInitialReloadIfNeeded()
                         } else {
                             isInitialHistoryLoading = false
                             if (messages.isEmpty()) {
@@ -2038,6 +2388,13 @@ class ChatActivityInHouse : AppCompatActivity() {
             Log.d("ChatPagination", "⏸️ Skipping load more - isLoadingMore: $isLoadingMore, hasMoreMessages: $hasMoreMessages")
             return
         }
+        if (historyCache.shouldSkipFetch(peerUserId)) {
+            Log.d(
+                CHAT_REOPEN_LOG,
+                "PAGINATION RATE_LIMIT SKIP peer=$peerUserId cooldownRemainMs=${historyCache.cooldownRemainMs(peerUserId)}"
+            )
+            return
+        }
         
         isLoadingMore = true
         
@@ -2091,33 +2448,34 @@ class ChatActivityInHouse : AppCompatActivity() {
                         }
                         val responseBody = response.body()
                         
-                        // Log complete API response with chathisoryapi tag (for pagination)
-                        Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
-                        Log.d("chathisoryapi", "📥 PAGINATION - CHAT HISTORY API RESPONSE")
-                        Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
-                        Log.d("chathisoryapi", "HTTP Status Code: ${response.code()}")
-                        Log.d("chathisoryapi", "Request URL: ${call.request().url}")
-                        
-                        if (responseBody != null) {
-                            Log.d("chathisoryapi", "Response Success: ${responseBody.success}")
-                            Log.d("chathisoryapi", "Response Message: ${responseBody.message}")
-                            
-                            if (responseBody.data != null) {
-                                val data = responseBody.data
-                                Log.d("chathisoryapi", "Chat ID: ${data.chatId}")
-                                Log.d("chathisoryapi", "Total Messages: ${data.totalMessages}")
-                                Log.d("chathisoryapi", "Returned Messages: ${data.returnedMessages}")
-                                Log.d("chathisoryapi", "Limit: ${data.limit}, Offset: ${data.offset}")
-                                Log.d("chathisoryapi", "Has More: ${data.hasMore}")
-                                
-                                val apiMessages = data.messages
-                                Log.d("chathisoryapi", "📨 MESSAGES COUNT: ${apiMessages.size}")
-                                
-                                // Log each message with complete details
-                                apiMessages.forEachIndexed { index, msg ->
-                                    Log.d("chathisoryapi", "Message #${index + 1}: ID=${msg.id}, From=${msg.fromUserId}, To=${msg.toUserId}, Text='${msg.message}', Timestamp=${msg.timestamp}, Created At=${msg.createdAt ?: "null"}, ⭐ Using: ${msg.createdAt ?: msg.timestamp}")
+                        // Verbose pagination dump (message bodies, urls). Debug builds only.
+                        if (BuildConfig.DEBUG) {
+                            Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
+                            Log.d("chathisoryapi", "📥 PAGINATION - CHAT HISTORY API RESPONSE")
+                            Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
+                            Log.d("chathisoryapi", "HTTP Status Code: ${response.code()}")
+                            Log.d("chathisoryapi", "Request URL: ${call.request().url}")
+
+                            if (responseBody != null) {
+                                Log.d("chathisoryapi", "Response Success: ${responseBody.success}")
+                                Log.d("chathisoryapi", "Response Message: ${responseBody.message}")
+
+                                if (responseBody.data != null) {
+                                    val data = responseBody.data
+                                    Log.d("chathisoryapi", "Chat ID: ${data.chatId}")
+                                    Log.d("chathisoryapi", "Total Messages: ${data.totalMessages}")
+                                    Log.d("chathisoryapi", "Returned Messages: ${data.returnedMessages}")
+                                    Log.d("chathisoryapi", "Limit: ${data.limit}, Offset: ${data.offset}")
+                                    Log.d("chathisoryapi", "Has More: ${data.hasMore}")
+
+                                    val apiMessages = data.messages
+                                    Log.d("chathisoryapi", "📨 MESSAGES COUNT: ${apiMessages.size}")
+
+                                    apiMessages.forEachIndexed { index, msg ->
+                                        Log.d("chathisoryapi", "Message #${index + 1}: ID=${msg.id}, From=${msg.fromUserId}, To=${msg.toUserId}, Text='${msg.message}', Timestamp=${msg.timestamp}, Created At=${msg.createdAt ?: "null"}, ⭐ Using: ${msg.createdAt ?: msg.timestamp}")
+                                    }
+                                    Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
                                 }
-                                Log.d("chathisoryapi", "═══════════════════════════════════════════════════════════")
                             }
                         }
                         
@@ -2146,25 +2504,23 @@ class ChatActivityInHouse : AppCompatActivity() {
                                 // This ensures chronological order: oldest first, newest last
                                 val sortedOlderMessages = convertedMessages.sortedBy { it.date?.time ?: 0L }
                                 
-                                // Get the oldest message timestamp from existing messages
-                                val oldestExistingTimestamp = messages.firstOrNull()?.date?.time ?: Long.MAX_VALUE
+                                val existingNonHeaders = messages.filterNot { it.isDateHeader }
+                                val existingIds = existingNonHeaders.map { it.id }.toSet()
+                                val oldestExistingTimestamp = existingNonHeaders
+                                    .minOfOrNull { it.date?.time ?: Long.MAX_VALUE }
+                                    ?: Long.MAX_VALUE
                                 
                                 // Filter out any messages that are newer than our oldest existing message
                                 // (This prevents duplicates if API returns overlapping data)
                                 val filteredOlderMessages = sortedOlderMessages.filter { msg ->
                                     val msgTime = msg.date?.time ?: 0L
-                                    msgTime < oldestExistingTimestamp
+                                    msg.id !in existingIds && msgTime < oldestExistingTimestamp
                                 }
                                 
                                 if (filteredOlderMessages.isNotEmpty()) {
-                                    // Insert older messages at the beginning (oldest first)
                                     val oldSize = messages.size
-                                    messages.addAll(0, filteredOlderMessages)
-                                    
-                                    // Update headers - this will remove old header and add new one at top
-                                    updateTopHeader(messages)
-                                    val insertedTotal = messages.size - oldSize
-                                    chatAdapter.notifyItemRangeInserted(0, insertedTotal)
+                                    rebuildMessagesWithHeaders(existingNonHeaders + filteredOlderMessages)
+                                    chatAdapter.notifyDataSetChanged()
                                     
                                     // Restore scroll position to prevent jumping (WhatsApp style)
                                     // The position shifts by the number of items we added
@@ -2193,7 +2549,8 @@ class ChatActivityInHouse : AppCompatActivity() {
                                     )
                                 } else {
                                     Log.d("ChatPagination", "⚠️ All messages filtered (duplicates or newer than existing)")
-                                    hasMoreMessages = false
+                                    currentOffset = data.offset + data.returnedMessages
+                                    hasMoreMessages = data.hasMore
                                 }
                             } else {
                                 hasMoreMessages = false
@@ -2201,13 +2558,25 @@ class ChatActivityInHouse : AppCompatActivity() {
                             }
                         }
                     } else {
-                        Log.e("ChatPagination", "❌ Error loading more messages: ${response.code()}")
-                        Log.e("chathisoryapi", "❌ PAGINATION ERROR: HTTP ${response.code()}")
+                        val code = response.code()
+                        Log.e("ChatPagination", "❌ Error loading more messages: $code")
+                        Log.e("chathisoryapi", "❌ PAGINATION ERROR: HTTP $code")
                         Log.e("chathisoryapi", "Error Body: ${response.errorBody()?.string()}")
                         Log.e(
                             CHAT_REOPEN_LOG,
-                            "PAGINATION HTTP_ERROR req=$pageRequestId peer=$peerUserId code=${response.code()} elapsedMs=$elapsedMs"
+                            "PAGINATION HTTP_ERROR req=$pageRequestId peer=$peerUserId code=$code elapsedMs=$elapsedMs"
                         )
+                        if (code == 429) {
+                            val retryAfterHeader = response.headers()["Retry-After"]
+                            val serverCooldownMs = ChatHistoryMemoryCache.parseRetryAfterMs(retryAfterHeader)
+                            val cooldownMs = serverCooldownMs ?: ChatHistoryMemoryCache.DEFAULT_COOLDOWN_MS
+                            val source = if (serverCooldownMs != null) {
+                                "server(Retry-After=$retryAfterHeader)"
+                            } else {
+                                "default"
+                            }
+                            historyCache.recordRateLimit(peerUserId, cooldownMs, source)
+                        }
                     }
                     isLoadingMore = false
                 }
@@ -2258,22 +2627,26 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun sendMessage() {
-        // Check if user is blocked
-        if (iHaveBlockedThisUser) {
-            showAppToast("Please unblock to send message", Toast.LENGTH_SHORT)
-            return
-        }
+        if (!canSendMediaPayload()) return
         
         val typed = etMessage.text.toString().trim()
         if (typed.isEmpty()) {
+            // T24: still clear whitespace-only input so it doesn't linger after tap.
+            etMessage.setText("")
             return
         }
-
         val replyRef = pendingReplyTo
         val bodyToSend = if (replyRef != null) {
             "${buildReplyHeaderLine(replyRef)}\n$typed"
         } else {
             typed
+        }
+        // T8: enforce the limit on the actual outgoing body (which may include the
+        // reply header), not just the typed portion — otherwise a long quote +
+        // typed text can blow past the backend cap and silently fail.
+        if (bodyToSend.length > MAX_MESSAGE_LENGTH) {
+            showAppToast(getString(R.string.chat_message_too_long, MAX_MESSAGE_LENGTH), Toast.LENGTH_SHORT)
+            return
         }
         pendingReplyTo = null
         updateReplyPreviewUi()
@@ -2285,7 +2658,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         // Show message optimistically (WhatsApp style - add to bottom)
         val currentTime = Date()
         val tempMessage = ChatMessage(
-            id = "temp_${System.currentTimeMillis()}",
+            id = newTempMessageId(),
             message = bodyToSend,
             timestamp = timeFormat.format(currentTime),
             isSentByMe = true,
@@ -2302,74 +2675,70 @@ class ChatActivityInHouse : AppCompatActivity() {
 
         // Try Socket.IO first, fallback to API
         val tempMessageId = tempMessage.id
+        rememberPendingOutgoing(tempMessageId, bodyToSend, "text")
         if (socketManager.isConnected()) {
             messageSendMethod[tempMessageId] = "socket"
             // ⭐ Updated to use new signature: sendMessage(fromUserId, toUserId, message, messageType, attachmentUrl)
             socketManager.sendMessage(myUserId, peerUserId, bodyToSend, "text")
-            Log.d("SocketIOCheck", "🚀 Sending via SOCKET.IO - From: $myUserId, To: $peerUserId, Message: '$bodyToSend'")
+            if (BuildConfig.DEBUG) {
+                Log.d("SocketIOCheck", "🚀 Sending via SOCKET.IO - From: $myUserId, To: $peerUserId, Message: '$bodyToSend'")
+            } else {
+                Log.d("SocketIOCheck", "🚀 Sending via SOCKET.IO from=$myUserId to=$peerUserId len=${bodyToSend.length}")
+            }
         } else {
             messageSendMethod[tempMessageId] = "api"
             Log.w("SocketIOCheck", "⚠️ Socket.IO NOT CONNECTED - Using fallback API")
             // Fallback to API
-            sendMessageViaAPI(bodyToSend)
+            sendMessageViaAPI(tempMessageId, bodyToSend)
         }
     }
 
-    private fun sendMessageViaAPI(messageText: String) {
-        apiManager.fallbackSendMessage(
+    private fun sendMessageViaAPI(tempId: String, messageText: String) {
+        val apiCall = apiManager.fallbackSendMessage(
             fromUserId = myUserId,
             toUserId = peerUserId,
             message = messageText,
             callback = object : NetworkCallback<FallbackSendMessageResponse> {
                 override fun onResponse(call: Call<FallbackSendMessageResponse>, response: Response<FallbackSendMessageResponse>) {
+                    activeTextSendCalls.remove(call)
                     if (response.isSuccessful) {
                         val responseBody = response.body()
                         if (responseBody?.success == true && responseBody.data?.message != null) {
                             // Replace temp message with real one
                             val fallbackMessage = responseBody.data.message
                             val realMessage = convertFallbackMessageToChatMessage(fallbackMessage)
-                            val tempIndex = messages.indexOfFirst { it.id.startsWith("temp_") && it.message == messageText }
-                            if (tempIndex != -1) {
-                                val tempId = messages[tempIndex].id
-                                val existingReactions = messages[tempIndex].reactions
-                                messages[tempIndex] = realMessage
-                                messages[tempIndex].reactions = existingReactions
-                                messageSendMethod[realMessage.id] = "api"
-                                chatAdapter.notifyItemChanged(tempIndex)
+                            val replaced = replaceTempMessage(tempId, realMessage, "api")
+                            if (!replaced) {
+                                Log.v("SocketIOCheck", "Fallback API returned after socket already replaced tempId=$tempId")
+                                return
                             }
-                            Log.d("SocketIOCheck", "✅ Message sent via fallback API - ID: ${fallbackMessage.id}")
+                            Log.d("SocketIOCheck", "Message sent via fallback API - ID: ${fallbackMessage.id}")
+                        } else {
+                            failPendingOutgoing(
+                                tempId,
+                                responseBody?.message ?: "Couldn't send message"
+                            )
                         }
                     } else {
-                        // Remove temp message on error
-                        val tempIndex = messages.indexOfFirst { it.id.startsWith("temp_") && it.message == messageText }
-                        if (tempIndex != -1) {
-                            messages.removeAt(tempIndex)
-                            chatAdapter.notifyItemRemoved(tempIndex)
-                        }
+                        failPendingOutgoing(tempId, "Couldn't send message")
                         Log.e("SocketIOCheck", "Failed to send message via fallback API: ${response.code()}")
                     }
                 }
 
                 override fun onFailure(call: Call<FallbackSendMessageResponse>, t: Throwable) {
-                    // Remove temp message on error
-                    val tempIndex = messages.indexOfFirst { it.id.startsWith("temp_") && it.message == messageText }
-                    if (tempIndex != -1) {
-                        messages.removeAt(tempIndex)
-                        chatAdapter.notifyItemRemoved(tempIndex)
-                    }
+                    activeTextSendCalls.remove(call)
+                    if (call.isCanceled) return
+                    failPendingOutgoing(tempId, "Couldn't send message")
                     Log.e("SocketIOCheck", "Failed to send message via fallback API: ${t.message}", t)
                 }
 
                 override fun onNoNetwork() {
-                    val tempIndex = messages.indexOfFirst { it.id.startsWith("temp_") && it.message == messageText }
-                    if (tempIndex != -1) {
-                        messages.removeAt(tempIndex)
-                        chatAdapter.notifyItemRemoved(tempIndex)
-                    }
+                    failPendingOutgoing(tempId, DConstants.NO_NETWORK)
                     Log.e("SocketIOCheck", "No internet connection")
                 }
             }
         )
+        apiCall?.let { activeTextSendCalls.add(it) }
     }
 
     /**
@@ -2393,6 +2762,10 @@ class ChatActivityInHouse : AppCompatActivity() {
 
         val realMessageId = socketMessage.id.toString()
         val isSentByMe = socketMessage.fromUserId == myUserId
+        if (iHaveBlockedThisUser && !isSentByMe) {
+            Log.d("RealtimeChat", "dropping inbound message because peer is blocked")
+            return
+        }
 
         // Check if we already have this message (by ID)
         val existingMessageIndex = messages.indexOfFirst { it.id == realMessageId }
@@ -2417,15 +2790,10 @@ class ChatActivityInHouse : AppCompatActivity() {
         
         // Check if there's a temp message that should be replaced
         // This happens when we send a message and it comes back via Socket.IO
-        val tempMessageIndex = messages.indexOfFirst { 
-            it.id.startsWith("temp_") && 
-            it.isSentByMe == isSentByMe &&
-            if (socketMessage.messageType == "image" || socketMessage.messageType == "audio") {
-                it.messageType == socketMessage.messageType &&
-                    it.attachmentUrl == socketMessage.attachmentUrl
-            } else {
-                it.message == socketMessage.message
-            }
+        val tempMessageIndex = if (isSentByMe) {
+            findPendingTempIndexForSocket(socketMessage)
+        } else {
+            -1
         }
         
         var chatMessage = convertSocketMessageToChatMessage(socketMessage)
@@ -2442,20 +2810,20 @@ class ChatActivityInHouse : AppCompatActivity() {
         if (tempMessageIndex != -1) {
             // Replace temp message with real one
             val tempId = messages[tempMessageIndex].id
-            val existingReactions = messages[tempMessageIndex].reactions
-            messages[tempMessageIndex] = chatMessage
-            messages[tempMessageIndex].reactions = existingReactions
-            chatAdapter.notifyItemChanged(tempMessageIndex)
-
+            replaceTempMessage(tempId, chatMessage, "socket")
             messageSendMethod[realMessageId] = "socket"
             Log.d("ChatActivityInHouse", "Replaced temp message with real message ID: $realMessageId")
         } else {
-            // New incoming message - add to end (newest at bottom - WhatsApp style)
-            appendMessageWithOptionalDateHeader(chatMessage)
+            val wasNearBottom = isRecyclerNearBottom()
+            insertMessageChronologically(chatMessage)
 
-            // Smooth scroll to bottom to show new message
-            rvMessages.post {
-                rvMessages.smoothScrollToPosition(messages.size - 1)
+            if (isSentByMe || wasNearBottom) {
+                rvMessages.post {
+                    rvMessages.smoothScrollToPosition(messages.size - 1)
+                }
+            } else {
+                unseenIncomingCount += 1
+                updateNewMessagePill()
             }
         }
 
@@ -2527,7 +2895,10 @@ class ChatActivityInHouse : AppCompatActivity() {
             reactions = reactionsMap,
             messageType = socketMsg.messageType,
             attachmentUrl = socketMsg.attachmentUrl,
-            deliveryStatus = deliveryStatus
+            deliveryStatus = deliveryStatus,
+            // T6: carry through the server's tombstone flag so a socket-only delivery
+            // (no API refresh in flight) renders the deleted-bubble state immediately.
+            isDeleted = socketMsg.isDeleted
         )
     }
 
@@ -2575,17 +2946,17 @@ class ChatActivityInHouse : AppCompatActivity() {
         }
     }
 
-    // Helper function to check if two dates are on the same day (using IST timezone)
+    // T18: use the device's local timezone instead of hardcoding IST so a user
+    // outside Asia/Kolkata sees consistent "Today"/"Yesterday" headers and the
+    // chat-list timestamps line up with the thread headers.
     private fun isSameDay(date1: Date?, date2: Date?): Boolean {
         if (date1 == null || date2 == null) return false
-        val istTimeZone = TimeZone.getTimeZone("Asia/Kolkata")
-        val cal1 = Calendar.getInstance(istTimeZone).apply { time = date1 }
-        val cal2 = Calendar.getInstance(istTimeZone).apply { time = date2 }
+        val cal1 = Calendar.getInstance().apply { time = date1 }
+        val cal2 = Calendar.getInstance().apply { time = date2 }
         return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
                cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
     }
 
-    // Helper function to check if yesterday (using IST timezone)
     private fun isYesterday(today: Calendar, messageDate: Calendar): Boolean {
         val yesterday = today.clone() as Calendar
         yesterday.add(Calendar.DAY_OF_YEAR, -1)
@@ -2593,18 +2964,15 @@ class ChatActivityInHouse : AppCompatActivity() {
                yesterday.get(Calendar.DAY_OF_YEAR) == messageDate.get(Calendar.DAY_OF_YEAR)
     }
 
-    // Helper function to format date header (using IST timezone)
     private fun getDateHeaderText(date: Date): String {
-        val istTimeZone = TimeZone.getTimeZone("Asia/Kolkata")
-        val today = Calendar.getInstance(istTimeZone)
-        val messageDate = Calendar.getInstance(istTimeZone).apply { time = date }
-        
+        val today = Calendar.getInstance()
+        val messageDate = Calendar.getInstance().apply { time = date }
+
         return when {
-            isSameDay(today.time, date) -> "Today"
-            isYesterday(today, messageDate) -> "Yesterday"
+            isSameDay(today.time, date) -> getString(R.string.chat_date_today)
+            isYesterday(today, messageDate) -> getString(R.string.chat_date_yesterday)
             else -> {
                 val dateFormat = SimpleDateFormat("dd MMM", Locale.getDefault())
-                dateFormat.timeZone = istTimeZone
                 dateFormat.format(date)
             }
         }
@@ -2619,6 +2987,221 @@ class ChatActivityInHouse : AppCompatActivity() {
         }
         return null
     }
+
+    private fun sortedChatMessages(source: List<ChatMessage>): List<ChatMessage> {
+        return source
+            .filterNot { it.isDateHeader }
+            .sortedWith(
+                compareBy<ChatMessage> { it.date?.time ?: Long.MAX_VALUE }
+                    .thenBy { it.id.removePrefix("temp_").toIntOrNull() ?: Int.MAX_VALUE }
+                    .thenBy { it.id }
+            )
+    }
+
+    private fun rebuildMessagesWithHeaders(source: List<ChatMessage>) {
+        messages.clear()
+        messages.addAll(sortedChatMessages(source))
+        updateTopHeader(messages)
+    }
+
+    private fun pendingPayloadMatchesMessage(
+        pending: ChatMessage,
+        confirmed: ChatMessage
+    ): Boolean {
+        if (!pending.isSentByMe || !confirmed.isSentByMe) return false
+        if (pending.messageType != confirmed.messageType) return false
+        return when (pending.messageType.lowercase()) {
+            "image", "audio" -> {
+                val pendingRemote = pendingOutgoingByTempId[pending.id]?.attachmentUrl
+                !pendingRemote.isNullOrBlank() && pendingRemote == confirmed.attachmentUrl
+            }
+            else -> pending.message == confirmed.message
+        }
+    }
+
+    /**
+     * Folds a fresh server page into the live list **without** wiping previously
+     * loaded older pages or pending optimistic temps.
+     *
+     * The old behavior — `merged = serverMessages.toMutableList()` plus pending —
+     * truncated the list to the latest 10 messages on every refresh (resume,
+     * push-triggered reload, etc.), so a user who scrolled up to load 50 messages
+     * would lose pages 2..N as soon as the activity refreshed (C1).
+     *
+     * The fix: keep every existing non-header server-confirmed message that is
+     * NOT in the new page, then add the new page on top. Pending temps still get
+     * reconciled exactly as before — matched server messages absorb them, the
+     * rest tag along until the server confirms.
+     */
+    private fun mergeServerMessagesPreservingPending(serverMessages: List<ChatMessage>) {
+        val newServerIds = serverMessages.asSequence().map { it.id }.toHashSet()
+        val existingNonHeader = messages.filterNot { it.isDateHeader }
+        val existingTemps = existingNonHeader
+            .filter { it.id.startsWith("temp_") && pendingOutgoingByTempId.containsKey(it.id) }
+        val existingConfirmed = existingNonHeader
+            .filter { !it.id.startsWith("temp_") && it.id !in newServerIds }
+
+        // Seed: prior pages we already loaded + the fresh page. Order will be sorted below.
+        val merged = mutableListOf<ChatMessage>()
+        merged.addAll(existingConfirmed)
+        merged.addAll(serverMessages)
+
+        // Reconcile pending optimistic sends against the new page. Anything matched
+        // is absorbed (server copy wins); unmatched temps stay in the list.
+        val matchedServerIndexes = mutableSetOf<Int>()
+        existingTemps.forEach { pending ->
+            val serverIndex = serverMessages.indexOfFirst { confirmed ->
+                val index = serverMessages.indexOf(confirmed)
+                index !in matchedServerIndexes && pendingPayloadMatchesMessage(pending, confirmed)
+            }
+            if (serverIndex == -1) {
+                merged.add(pending)
+            } else {
+                matchedServerIndexes.add(serverIndex)
+                pendingOutgoingByTempId.remove(pending.id)
+                messageSendMethod.remove(pending.id)
+            }
+        }
+
+        // Dedupe by id (a message could exist in both `existingConfirmed` and the
+        // server page if a previous page overlapped — defensive even though the
+        // `id !in newServerIds` filter above should already cover it). Then sort
+        // by date asc, with numeric-id as the tiebreaker for same-millisecond rows.
+        val dedupedById = LinkedHashMap<String, ChatMessage>(merged.size)
+        merged.forEach { m ->
+            val existing = dedupedById[m.id]
+            if (existing == null || existing.id.startsWith("temp_")) {
+                dedupedById[m.id] = m
+            }
+        }
+        val sorted = dedupedById.values.sortedWith(
+            compareBy<ChatMessage> { it.date?.time ?: 0L }
+                .thenBy { it.id.toLongOrNull() ?: Long.MAX_VALUE }
+        )
+
+        // T7: when this user has blocked the peer, the API still returns the
+        // peer's incoming messages. Drop them so a blocked thread shows only
+        // the user's own outgoing history (parity with the socket-side filter).
+        val finalList = if (iHaveBlockedThisUser) sorted.filter { it.isSentByMe } else sorted
+        rebuildMessagesWithHeaders(finalList)
+    }
+
+    private fun findPendingTempIndexForSocket(socketMessage: ChatMessageSocket): Int {
+        val tempId = pendingOutgoingByTempId.entries.firstOrNull { (_, pending) ->
+            pending.messageType == socketMessage.messageType &&
+                when (socketMessage.messageType.lowercase()) {
+                    "image", "audio" -> pending.attachmentUrl == socketMessage.attachmentUrl
+                    else -> pending.message == socketMessage.message
+                }
+        }?.key ?: return -1
+        return messages.indexOfFirst { it.id == tempId }
+    }
+
+    private fun insertMessageChronologically(message: ChatMessage) {
+        val merged = messages.filterNot { it.isDateHeader }.toMutableList()
+        val existingIndex = merged.indexOfFirst { it.id == message.id }
+        if (existingIndex != -1) {
+            merged[existingIndex] = message
+        } else {
+            merged.add(message)
+        }
+        rebuildMessagesWithHeaders(merged)
+        chatAdapter.notifyDataSetChanged()
+    }
+
+    private fun newTempMessageId(): String =
+        "temp_${System.currentTimeMillis()}_${UUID.randomUUID().toString().take(8)}"
+
+    private fun isRecyclerNearBottom(): Boolean {
+        if (messages.isEmpty()) return true
+        val layoutManager = rvMessages.layoutManager as? LinearLayoutManager ?: return true
+        val lastVisible = layoutManager.findLastVisibleItemPosition()
+        if (lastVisible == RecyclerView.NO_POSITION) return true
+        return lastVisible >= messages.size - 2
+    }
+
+    private fun updateNewMessagePill() {
+        val count = unseenIncomingCount.coerceAtLeast(0)
+        val pill = btnNewMessages ?: return
+        if (count == 0) {
+            pill.visibility = View.GONE
+            return
+        }
+        pill.text = resources.getQuantityString(R.plurals.chat_new_messages, count, count)
+        pill.visibility = View.VISIBLE
+    }
+
+    private fun clearNewMessagePill() {
+        unseenIncomingCount = 0
+        updateNewMessagePill()
+    }
+
+    private fun scrollToBottomAndClearNewMessagePill() {
+        if (messages.isNotEmpty()) {
+            rvMessages.smoothScrollToPosition(messages.size - 1)
+        }
+        clearNewMessagePill()
+    }
+
+    private fun runPendingPostInitialReloadIfNeeded() {
+        if (!pendingPostInitialReload) return
+        pendingPostInitialReload = false
+        if (isUiSafe() && myUserId > 0 && peerUserId > 0) {
+            Log.d("RealtimeChat", "running deferred push-refresh reload after initial history")
+            loadMessages()
+        }
+    }
+
+    private fun cancelInFlightSendsForBlock() {
+        val pendingIds = pendingOutgoingByTempId.keys.toList()
+        activeTextSendCalls.forEach { it.cancel() }
+        activeTextSendCalls.clear()
+        activeAttachmentCalls.values.forEach { it.cancel() }
+        activeAttachmentCalls.clear()
+        activeAttachmentTempIds.clear()
+        pendingIds.forEach { removeTempMessage(it) }
+        if (pendingIds.isNotEmpty()) {
+            showAppToast(getString(R.string.chat_send_canceled), Toast.LENGTH_SHORT)
+        }
+    }
+
+    private fun resetConversationStateForPeerChange() {
+        currentHistoryCall?.cancel()
+        currentMoreCall?.cancel()
+        pendingThrottleHistoryRunnable?.let { mainHandler.removeCallbacks(it) }
+        pendingThrottleHistoryRunnable = null
+        pendingPostInitialReload = false
+        isInitialHistoryLoading = false
+        isLoadingMore = false
+        hasMoreMessages = true
+        currentOffset = 0
+        pendingReplyTo = null
+        updateReplyPreviewUi()
+        pendingOutgoingByTempId.clear()
+        messageSendMethod.clear()
+        // T2: peer-switch must also drop session-scoped flags so chat B does not
+        // inherit chat A's read/retry/banner state.
+        markedReadOnce = false
+        lastMarkedReadMessageId = null
+        historySilentRetryUsed = false
+        suppressNextResumeHistoryReload = true
+        isAddFriendBannerDismissedThisSession = false
+        activeAttachmentTempIds.clear()
+        messages.clear()
+        clearNewMessagePill()
+        if (::chatAdapter.isInitialized) {
+            chatAdapter.notifyDataSetChanged()
+        }
+    }
+
+    private fun latestReceivedMessageId(): String? =
+        messages
+            .asSequence()
+            .filterNot { it.isDateHeader }
+            .filterNot { it.isSentByMe }
+            .mapNotNull { it.id.toLongOrNull()?.takeIf { id -> id > 0L } }
+            .maxOrNull()
+            ?.toString()
 
     /**
      * Append one message at the bottom with at most one new date header (no full list rebuild).
@@ -2650,7 +3233,7 @@ class ChatActivityInHouse : AppCompatActivity() {
             newMsg.date != null &&
                 prev.date != null &&
                 !isSameDay(prev.date, newMsg.date)
-        if (needBoundary && newMsg.date != null) {
+        if (needBoundary) {
             val header = ChatMessage(
                 id = "header_${newMsg.date!!.time}_${newMsg.id}",
                 message = "",
@@ -2728,7 +3311,17 @@ class ChatActivityInHouse : AppCompatActivity() {
         }
     }
 
+    /** T20: cooldown so a burst of incoming messages doesn't spawn one mark-read call each. */
+    private var lastMarkedChatReadAt: Long = 0L
+    private val markChatReadCooldownMs = 2_000L
+
     private fun markMessagesAsRead() {
+        // T20: skip if the same call fired within the cooldown window.
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastMarkedChatReadAt < markChatReadCooldownMs) {
+            return
+        }
+        lastMarkedChatReadAt = now
         apiManager.markRead(
             userId = myUserId,
             chatId = chatId,
@@ -2752,7 +3345,13 @@ class ChatActivityInHouse : AppCompatActivity() {
         )
     }
 
-    private fun markMessagesAsReadWithLastMessageId(lastMessageId: Int) {
+    private fun markMessagesAsReadWithLastMessageId(lastMessageId: Long) {
+        // T20: skip when the server already knows about this id (or a newer one).
+        val alreadyMarked = lastMarkedReadMessageId?.toLongOrNull()
+        if (alreadyMarked != null && lastMessageId <= alreadyMarked) {
+            return
+        }
+        lastMarkedReadMessageId = lastMessageId.toString()
         apiManager.markMessagesRead(
             userId = myUserId,
             receiverId = peerUserId,
@@ -2791,27 +3390,29 @@ class ChatActivityInHouse : AppCompatActivity() {
      */
     private fun markMessagesAsReadIfAvailable() {
         if (messages.isNotEmpty() && myUserId > 0 && peerUserId > 0) {
-            // Get the last message id (newest message) from the messages list
-            val lastMessage = messages.maxByOrNull { 
-                // Extract numeric ID from message ID (handle both "temp_" prefixed and regular IDs)
-                val idStr = it.id.replace("temp_", "")
-                idStr.toIntOrNull() ?: 0
-            }
-            lastMessage?.let { msg ->
-                val messageId = msg.id.replace("temp_", "").toIntOrNull()
-                if (messageId != null && messageId > 0) {
-                    Log.d("ChatActivityInHouse", "Marking messages as read before leaving activity. Last message ID: $messageId")
-                    markMessagesAsReadWithLastMessageId(messageId)
-                }
+            // T4: messages with snowflake ids overflow Int — use Long.
+            val lastRealMessage = messages
+                .asSequence()
+                .filterNot { it.isDateHeader }
+                .filterNot { it.isSentByMe }
+                .mapNotNull { msg -> msg.id.toLongOrNull()?.takeIf { it > 0L } }
+                .maxOrNull()
+            if (lastRealMessage != null) {
+                if (lastMarkedReadMessageId == lastRealMessage.toString()) return
+                Log.d(
+                    "ChatActivityInHouse",
+                    "Marking messages as read before leaving activity. Last real message ID: $lastRealMessage"
+                )
+                markMessagesAsReadWithLastMessageId(lastRealMessage)
             }
         }
     }
 
     override fun onResume() {
         super.onResume()
-        markedReadOnce = false
         isChatVisible = true
-        com.gmwapp.hima.utils.ActiveChatTracker.setActive(peerUserId)
+        // T11: prefs-backed setter so the NSE (possibly cross-process) reads it.
+        com.gmwapp.hima.utils.ActiveChatTracker.setActive(this, peerUserId)
 
         if (!chatRefreshReceiverRegistered) {
             val filter = IntentFilter(
@@ -2874,6 +3475,17 @@ class ChatActivityInHouse : AppCompatActivity() {
             suppressNextResumeHistoryReload = false
             Log.d("ChatPagination", "Skipping duplicate history reload (first resume after onCreate)")
             Log.d(CHAT_REOPEN_LOG, "onResume SKIP extra loadMessages (first resume after onCreate) peer=$peerUserId")
+        } else if (messages.any { !it.isDateHeader } &&
+            historyCache.snapshotAgeMs(peerUserId) in 0L..RESUME_RELOAD_FRESH_WINDOW_MS
+        ) {
+            // C1: If we already have a populated list AND the cache is fresh (<30s),
+            // skip the resume reload entirely. The push-broadcast path or socket
+            // events will pick up anything new without truncating older pages.
+            Log.d(
+                CHAT_REOPEN_LOG,
+                "onResume SKIP loadMessages — list populated and cache age=" +
+                    "${historyCache.snapshotAgeMs(peerUserId)}ms < ${RESUME_RELOAD_FRESH_WINDOW_MS}ms peer=$peerUserId"
+            )
         } else {
             Log.d("ChatPagination", "onResume — refreshing chat history from server")
             Log.d(CHAT_REOPEN_LOG, "onResume TRIGGER loadMessages() peer=$peerUserId (returning to chat)")
@@ -2884,7 +3496,8 @@ class ChatActivityInHouse : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         isChatVisible = false
-        com.gmwapp.hima.utils.ActiveChatTracker.clear()
+        // T11: prefs-backed clear so cross-process readers also see "no chat open".
+        com.gmwapp.hima.utils.ActiveChatTracker.clear(this)
 
         if (chatRefreshReceiverRegistered) {
             runCatching { unregisterReceiver(chatRefreshReceiver) }
@@ -2899,7 +3512,10 @@ class ChatActivityInHouse : AppCompatActivity() {
         )
 
         if (audioRecorderController.isRecording()) {
-            cancelAudioRecording(showToast = false)
+            cancelAudioRecording(showToast = true)
+        }
+        if (::chatAdapter.isInitialized) {
+            chatAdapter.release()
         }
 
         // Fire both mark-read endpoints on exit so the inbox badge clears reliably
@@ -2914,7 +3530,9 @@ class ChatActivityInHouse : AppCompatActivity() {
 
     /** Single exit path so [onBackPressed] + [onPause] do not each fire mark-read APIs twice. */
     private fun markReadOnExit() {
-        if (markedReadOnce) return
+        val latestReceivedId = latestReceivedMessageId()
+        if (latestReceivedId == null || latestReceivedId == lastMarkedReadMessageId) return
+        if (markedReadOnce && latestReceivedId == lastMarkedReadMessageId) return
         markedReadOnce = true
         markMessagesAsReadIfAvailable()
         markMessagesAsRead()
@@ -2934,6 +3552,12 @@ class ChatActivityInHouse : AppCompatActivity() {
         mainHandler.removeCallbacks(retryHistoryRunnable)
         currentHistoryCall?.cancel()
         currentMoreCall?.cancel()
+        // T12: cancel any in-flight attachment uploads / sends so their callbacks
+        // don't run on a destroyed view tree.
+        activeAttachmentCalls.values.forEach { runCatching { it.cancel() } }
+        activeAttachmentCalls.clear()
+        activeTextSendCalls.forEach { runCatching { it.cancel() } }
+        activeTextSendCalls.clear()
         isInitialHistoryLoading = false
 
         mainHandler.removeCallbacks(logSocketStatusAfterDelay)
@@ -2946,6 +3570,10 @@ class ChatActivityInHouse : AppCompatActivity() {
         Log.d("SocketIOCheck", "👋 Leaving chat room (socket stays connected for app session)")
         Log.d("SocketIOCheck", "═══════════════════════════════════════")
         
+        // T1: detach our profile observer so a delayed LiveData emission can't fire on a destroyed activity.
+        profileObserver?.let { profileViewModel.getUserLiveData.removeObserver(it) }
+        profileObserver = null
+
         // Leave this chat room only — do not disconnect the global socket here.
         // Disconnecting on every close caused reconnect races when opening chat repeatedly (blank UI / failed loads).
         socketManager.leaveChat(chatId)
@@ -3013,67 +3641,22 @@ class ChatActivityInHouse : AppCompatActivity() {
         popupWindow.isOutsideTouchable = true
         popupWindow.isFocusable = true
 
-        val switchAudio = popupView.findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.switch_audio)
-        val switchVideo = popupView.findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.switch_video)
         val itemBlockUser = popupView.findViewById<TextView>(R.id.item_block_user)
-        callStatusAudioSwitch = switchAudio
-        callStatusVideoSwitch = switchVideo
-
-        // Get current user data
-        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        syncCallStatusTogglesFromPrefs()
-
-        // Audio switch listener
-        switchAudio?.setOnCheckedChangeListener { _, isChecked ->
-            if (isApplyingCallStatusToggleState) return@setOnCheckedChangeListener
-            val uid = userData?.id ?: return@setOnCheckedChangeListener
-
-            if (isChecked && !hasRecordAudioPermission()) {
-                isApplyingCallStatusToggleState = true
-                switchAudio.isChecked = false
-                isApplyingCallStatusToggleState = false
-                audioCallEnablePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                return@setOnCheckedChangeListener
-            }
-
-            Log.d("ChatActivityInHouse", "📞 Updating audio status: ${if (isChecked) "ON" else "OFF"}")
-            femaleUsersViewModel.updateCallStatus(
-                userId = uid,
-                callType = DConstants.AUDIO,
-                status = if (isChecked) 1 else 0
-            )
-        }
-
-        // Video switch listener
-        switchVideo?.setOnCheckedChangeListener { _, isChecked ->
-            if (isApplyingCallStatusToggleState) return@setOnCheckedChangeListener
-            val uid = userData?.id ?: return@setOnCheckedChangeListener
-
-            if (isChecked && (!hasCameraPermission() || !hasRecordAudioPermission())) {
-                isApplyingCallStatusToggleState = true
-                switchVideo.isChecked = false
-                isApplyingCallStatusToggleState = false
-                startActivity(Intent(this@ChatActivityInHouse, GrantPermissionsActivity::class.java))
-                return@setOnCheckedChangeListener
-            }
-
-            Log.d("ChatActivityInHouse", "📹 Updating video status: ${if (isChecked) "ON" else "OFF"}")
-            femaleUsersViewModel.updateCallStatus(
-                userId = uid,
-                callType = DConstants.VIDEO,
-                status = if (isChecked) 1 else 0
-            )
-        }
+        // Audio/Video toggles were removed from this overflow menu (managed in
+        // Profile's call-availability section). Keep references nulled so the
+        // permission-launcher callbacks don't try to flip a missing switch.
+        callStatusAudioSwitch = null
+        callStatusVideoSwitch = null
 
         // Block user click listener - show block or unblock based on status
         if (iHaveBlockedThisUser) {
-            itemBlockUser?.text = "Unblock User"
+            itemBlockUser?.text = getString(R.string.chat_unblock_user)
             itemBlockUser?.setOnClickListener {
                 popupWindow.dismiss()
                 showUnblockConfirmationDialog()
             }
         } else {
-            itemBlockUser?.text = "Block User"
+            itemBlockUser?.text = getString(R.string.chat_block_user)
             itemBlockUser?.setOnClickListener {
                 popupWindow.dismiss()
                 showBlockConfirmationDialog()
@@ -3214,9 +3797,9 @@ class ChatActivityInHouse : AppCompatActivity() {
         val btnBlock = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_block)
         
         // Update title and message text
-        titleTextView?.text = "Unblock User?"
-        messageTextView?.text = "Once you unblock this user, you'll be able to send and receive messages from them again."
-        btnBlock?.text = "Unblock"
+        titleTextView?.text = getString(R.string.chat_unblock_user_title)
+        messageTextView?.text = getString(R.string.chat_unblock_user_message)
+        btnBlock?.text = getString(R.string.chat_unblock_action)
 
         // Find the ImageView (icon) and change its background to dark pink
         fun findImageView(parent: android.view.ViewGroup): android.widget.ImageView? {
@@ -3268,6 +3851,8 @@ class ChatActivityInHouse : AppCompatActivity() {
                     if (response.isSuccessful) {
                         val responseBody = response.body()
                         if (responseBody?.success == true) {
+                            iHaveBlockedThisUser = true
+                            cancelInFlightSendsForBlock()
                             showAppToast(responseBody.message, Toast.LENGTH_SHORT)
                             Log.d("ChatActivityInHouse", "✅ User blocked successfully")
                             // Reload chat history to update blocked status
@@ -3303,6 +3888,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                     if (response.isSuccessful) {
                         val responseBody = response.body()
                         if (responseBody?.success == true) {
+                            iHaveBlockedThisUser = false
                             showAppToast(responseBody.message, Toast.LENGTH_SHORT)
                             Log.d("ChatActivityInHouse", "✅ User unblocked successfully")
                             // Reload chat history to update blocked status
@@ -3552,4 +4138,3 @@ class ChatActivityInHouse : AppCompatActivity() {
         return username.replace(Regex("\\d+$"), "").trim()
     }
 }
-

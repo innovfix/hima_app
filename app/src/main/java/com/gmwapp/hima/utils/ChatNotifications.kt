@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.Build
+import android.os.Looper
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -20,6 +21,7 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.ChatActivityInHouse
+import java.util.concurrent.TimeUnit
 
 /**
  * Posts per-conversation WhatsApp-style notifications: one stable notification id per
@@ -37,6 +39,10 @@ object ChatNotifications {
 
     private const val GROUP_KEY = "chat_messages"
 
+    /** T26: in-memory cache of shortcut ids we've already pushed this process. */
+    private val pushedShortcutIds = mutableSetOf<String>()
+    const val ACTION_CHAT_NOTIFICATIONS_BLOCKED = "com.gmwapp.hima.action.CHAT_NOTIFICATIONS_BLOCKED"
+
     /**
      * Stable per-peer id. Sets the top bit so it can't collide with the small
      * call-notification ids (1, 9901) used elsewhere in the app.
@@ -51,6 +57,9 @@ object ChatNotifications {
         entries: List<ChatNotificationStore.Entry>
     ) {
         if (entries.isEmpty()) return
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            Log.w(TAG, "show called on main thread; avatar load is blocking")
+        }
 
         // Peer avatar is best-effort. Glide's .submit().get() is a blocking call —
         // safe here because the NSE invokes us on a background worker thread.
@@ -94,13 +103,7 @@ object ChatNotifications {
         // promotion on API 30+ on several OEM skins.
         val style = NotificationCompat.MessagingStyle(mePerson)
             .setGroupConversation(false)
-        // Backend currently sends a rolling counter ("N new messages") as the push
-        // body rather than real chat text, so stacking every entry turns into a
-        // repetitive list. Show only the most recent entry so each push replaces
-        // the previous body in-place instead of accumulating lines. If backend
-        // starts sending real message text in contents.en, swap this back to
-        // `entries.forEach { ... }` to get full WhatsApp-style line stacking.
-        entries.lastOrNull()?.let { latest ->
+        entries.forEach { latest ->
             style.addMessage(
                 NotificationCompat.MessagingStyle.Message(latest.text, latest.ts, peerPerson)
             )
@@ -144,10 +147,21 @@ object ChatNotifications {
             .setLongLived(true)
             .setCategories(setOf("android.shortcut.conversation"))
             .build()
-        val shortcutPushed = runCatching {
-            ShortcutManagerCompat.pushDynamicShortcut(context, shortcut); true
-        }.getOrElse {
-            Log.w(TAG, "pushDynamicShortcut(peerId=$peerId) failed: ${it.message}"); false
+        // T26: skip the shortcut push when we've already published it this process
+        // OR it already exists on disk. Pushing on every notification was wasteful
+        // and triggered Android's per-app shortcut throttle on some OEMs.
+        val alreadyOnDisk = ShortcutManagerCompat.getDynamicShortcuts(context)
+            .any { it.id == shortcutId }
+        val shortcutPushed = if (shortcutId in pushedShortcutIds || alreadyOnDisk) {
+            true
+        } else {
+            runCatching {
+                ShortcutManagerCompat.pushDynamicShortcut(context, shortcut)
+                pushedShortcutIds.add(shortcutId)
+                true
+            }.getOrElse {
+                Log.w(TAG, "pushDynamicShortcut(peerId=$peerId) failed: ${it.message}"); false
+            }
         }
         // Definitive signal on whether Conversation promotion can happen for this
         // notification — if pushed=false or count=0, the OEM blocked shortcut
@@ -163,7 +177,7 @@ object ChatNotifications {
             .setStyle(style)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setAutoCancel(true)
-            .setOnlyAlertOnce(false)
+            .setOnlyAlertOnce(true)
             .setContentIntent(contentPi)
             .setDeleteIntent(deletePi)
             .setGroup(GROUP_KEY)
@@ -175,8 +189,8 @@ object ChatNotifications {
         // classic "app icon left, big icon right" layout and suppresses Conversation
         // promotion. Only set it on API 29 and earlier where there is no conversation
         // category and the avatar would otherwise not appear.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            peerBitmap?.let { builder.setLargeIcon(it) }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R || !shortcutPushed) {
+            builder.setLargeIcon(peerBitmap)
         }
 
         val notification = builder.build()
@@ -187,16 +201,40 @@ object ChatNotifications {
         dumpDiagnostics(context, peerId, shortcutId, shortcutPushed, notification, peerBitmap)
 
         if (!canPostNotifications(context)) {
+            context.sendBroadcast(Intent(ACTION_CHAT_NOTIFICATIONS_BLOCKED).setPackage(context.packageName))
             Log.w(TAG, "POST_NOTIFICATIONS not granted — skipping notify(peerId=$peerId)")
             return
         }
 
         try {
             NotificationManagerCompat.from(context).notify(notifIdFor(peerId), notification)
+            // T27: post a group-summary so multiple peers' notifications collapse
+            // into a single expandable row (Android < 7 requires the summary to
+            // appear; on 7+ the system still uses it for the bundle header).
+            postGroupSummary(context)
         } catch (e: SecurityException) {
             Log.w(TAG, "notify(peerId=$peerId) failed: ${e.message}")
         }
     }
+
+    /**
+     * T27: WhatsApp-style summary notification for the chat group key. Cheap to
+     * re-post (Android dedupes by id), so we just refresh it on every chat push.
+     */
+    private fun postGroupSummary(context: Context) {
+        val summary = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.logo)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setGroup(GROUP_KEY)
+            .setGroupSummary(true)
+            .setAutoCancel(true)
+            .build()
+        runCatching {
+            NotificationManagerCompat.from(context).notify(GROUP_SUMMARY_ID, summary)
+        }
+    }
+
+    private const val GROUP_SUMMARY_ID = 0x40FFFFFF
 
     /**
      * Log every precondition Android checks before promoting a MessagingStyle
@@ -212,6 +250,7 @@ object ChatNotifications {
      *   template=android.app.Notification$MessagingStyle,
      *   convoTitle=null, isGroupConvo=false.
      */
+    @android.annotation.SuppressLint("InlinedApi", "NewApi")
     private fun dumpDiagnostics(
         context: Context,
         peerId: Int,
@@ -220,6 +259,7 @@ object ChatNotifications {
         notification: android.app.Notification,
         peerBitmap: Bitmap?
     ) {
+        if (!com.gmwapp.hima.BuildConfig.DEBUG) return
         try {
             val sdk = Build.VERSION.SDK_INT
             val dynamic = ShortcutManagerCompat.getDynamicShortcuts(context)
@@ -267,13 +307,16 @@ object ChatNotifications {
     }
 
     private fun loadBitmap(context: Context, url: String): Bitmap? {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            Log.w(TAG, "loadBitmap called on main thread")
+        }
         return runCatching {
             Glide.with(context.applicationContext)
                 .asBitmap()
                 .load(url)
                 .apply(RequestOptions.circleCropTransform())
                 .submit(256, 256)
-                .get()
+                .get(2, TimeUnit.SECONDS)
         }.onFailure { Log.d(TAG, "peer avatar fetch failed: ${it.message}") }.getOrNull()
     }
 

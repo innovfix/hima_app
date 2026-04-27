@@ -270,7 +270,12 @@ class ChatActivity : AppCompatActivity() {
                 oldestTimestamp = timestamp
             }
 
-            Log.d("ChatActivity", "Message: from=$fromId, text=$text, timestamp=$timestamp")
+            // T14: legacy activity — keep the diagnostic but strip the message text in release.
+            if (com.gmwapp.hima.BuildConfig.DEBUG) {
+                Log.d("ChatActivity", "Message: from=$fromId, text=$text, timestamp=$timestamp")
+            } else {
+                Log.d("ChatActivity", "Message: from=$fromId len=${text?.length ?: 0} timestamp=$timestamp")
+            }
 
             // Filter messages if peer is blocked
             if (isPeerBlocked && fromId == peerUserId && blockTimestamp != null && timestamp != null) {

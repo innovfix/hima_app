@@ -47,6 +47,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.launch
 
 
@@ -690,12 +691,116 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 if (filterType == "my_chats") loadMyChats(uid) else loadFemaleUsers(uid)
             }
         }
-        
+
         // Sync selected filter button styles when resuming
         updateFilterButtonStyles()
 
         checkFemaleStatus()
 
+        // Realtime chat-list update for the my_chats filter.
+        if (filterType == "my_chats") {
+            registerHomeChatListRefreshReceiver()
+            startHomeCollectingSocketNewMessage()
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        unregisterHomeChatListRefreshReceiver()
+    }
+
+    /** Receiver for [ACTION_CHAT_LIST_REFRESH] while the my_chats filter is active. */
+    private var homeChatListRefreshReceiver: android.content.BroadcastReceiver? = null
+    private var homeChatListRefreshReceiverRegistered: Boolean = false
+
+    private fun registerHomeChatListRefreshReceiver() {
+        if (homeChatListRefreshReceiverRegistered) return
+        val ctx = context ?: return
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: android.content.Context?, intent: android.content.Intent?) {
+                if (!isAdded || intent == null) return
+                if (intent.action != com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_REFRESH) return
+                // Only act while the my_chats filter is the visible list.
+                if (filterType != "my_chats") return
+                val peerId = intent.getIntExtra(
+                    com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.EXTRA_PEER_ID,
+                    -1
+                )
+                if (peerId <= 0) return
+                val text = intent.getStringExtra(
+                    com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.EXTRA_LAST_MESSAGE
+                ).orEmpty()
+                val type = intent.getStringExtra(
+                    com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.EXTRA_MESSAGE_TYPE
+                ) ?: "text"
+                applyHomeIncoming(peerId, text, type)
+            }
+        }
+        val filter = android.content.IntentFilter(
+            com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_REFRESH
+        )
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            ctx.registerReceiver(
+                receiver,
+                filter,
+                android.content.Context.RECEIVER_NOT_EXPORTED
+            )
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            ctx.registerReceiver(receiver, filter)
+        }
+        homeChatListRefreshReceiver = receiver
+        homeChatListRefreshReceiverRegistered = true
+    }
+
+    private fun unregisterHomeChatListRefreshReceiver() {
+        if (!homeChatListRefreshReceiverRegistered) return
+        val ctx = context ?: return
+        val receiver = homeChatListRefreshReceiver ?: return
+        runCatching { ctx.unregisterReceiver(receiver) }
+        homeChatListRefreshReceiver = null
+        homeChatListRefreshReceiverRegistered = false
+    }
+
+    private fun applyHomeIncoming(peerId: Int, text: String, type: String) {
+        val adapter = homeMyChatsAdapter ?: return
+        val ts = com.google.firebase.Timestamp.now()
+        val suppressUnread = com.gmwapp.hima.utils.ActiveChatTracker.isActiveFor(context, peerId)
+        val handled = adapter.applyIncomingMessage(
+            peerUserId = peerId.toString(),
+            lastMessageText = text,
+            lastMessageType = type,
+            lastMessageTime = ts,
+            suppressUnreadIncrement = suppressUnread
+        )
+        if (!handled) {
+            BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let { loadMyChats(it) }
+        }
+    }
+
+    private fun startHomeCollectingSocketNewMessage() {
+        val owner = viewLifecycleOwner
+        owner.lifecycleScope.launch {
+            owner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED) {
+                com.gmwapp.hima.socket.SocketManager.getInstance().newMessage.collect { msg ->
+                    if (!isAdded || filterType != "my_chats") return@collect
+                    val mySelfId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+                    val peerId = msg.fromUserId ?: return@collect
+                    if (peerId == mySelfId) return@collect
+                    val previewType = msg.messageType.lowercase().ifBlank { "text" }
+                    val previewText = msg.message.ifBlank {
+                        when (previewType) {
+                            "image" -> "📷 Photo"
+                            "audio" -> "🎤 Voice message"
+                            "video" -> "📹 Video"
+                            "file" -> "📎 File"
+                            else -> ""
+                        }
+                    }
+                    applyHomeIncoming(peerId, previewText, previewType)
+                }
+            }
+        }
     }
 
     fun observeCoins() {

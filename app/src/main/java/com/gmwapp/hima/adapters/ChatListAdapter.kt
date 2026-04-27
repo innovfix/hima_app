@@ -75,15 +75,35 @@ class ChatListAdapter(
 
     override fun getItemCount(): Int = conversations.size
 
+    /**
+     * T16: replace the `notifyDataSetChanged()` rebuild with a `DiffUtil`-based
+     * dispatch so every `my_chat` refresh doesn't unbind every visible row,
+     * preserving scroll position and avoiding the avatar-flash on each tick.
+     *
+     * Kept the existing function shape (caller signature unchanged) instead of
+     * full `ListAdapter` migration to minimize blast radius.
+     */
     fun updateConversations(newConversations: List<ChatConversation>) {
+        val oldList = conversations.toList()
+        val diff = androidx.recyclerview.widget.DiffUtil.calculateDiff(
+            object : androidx.recyclerview.widget.DiffUtil.Callback() {
+                override fun getOldListSize(): Int = oldList.size
+                override fun getNewListSize(): Int = newConversations.size
+                override fun areItemsTheSame(oldPos: Int, newPos: Int): Boolean =
+                    oldList[oldPos].userId == newConversations[newPos].userId
+                override fun areContentsTheSame(oldPos: Int, newPos: Int): Boolean =
+                    oldList[oldPos] == newConversations[newPos]
+            }
+        )
         conversations.clear()
         conversations.addAll(newConversations)
-        notifyDataSetChanged()
+        diff.dispatchUpdatesTo(this)
     }
 
     fun clearConversations() {
+        val oldSize = conversations.size
         conversations.clear()
-        notifyDataSetChanged()
+        if (oldSize > 0) notifyItemRangeRemoved(0, oldSize)
     }
 
     /**
@@ -97,6 +117,54 @@ class ChatListAdapter(
             conversations[idx] = conversations[idx].copy(unreadCount = 0)
             notifyItemChanged(idx)
         }
+    }
+
+    /**
+     * Realtime in-place update for an incoming message. Updates last-message
+     * preview, type, timestamp, and bumps the unread badge — then re-orders so the
+     * row appears at the top of the unpinned section (pinned rows always stay
+     * first, in their stored order).
+     *
+     * - If the chat for [peerUserId] is currently open, the unread count stays at
+     *   0 (the thread has its own mark-read flow).
+     * - If [peerUserId] isn't in the list yet, returns `false` so the host can
+     *   trigger a full `loadData()` to pull the new conversation in from the API.
+     */
+    fun applyIncomingMessage(
+        peerUserId: String,
+        lastMessageText: String,
+        lastMessageType: String,
+        lastMessageTime: com.google.firebase.Timestamp,
+        suppressUnreadIncrement: Boolean = false
+    ): Boolean {
+        val idx = conversations.indexOfFirst { it.userId == peerUserId }
+        if (idx < 0) return false
+
+        val current = conversations[idx]
+        val nextUnread = if (suppressUnreadIncrement) 0 else current.unreadCount + 1
+        val updated = current.copy(
+            lastMessage = lastMessageText,
+            lastMessageType = lastMessageType,
+            lastMessageTime = lastMessageTime,
+            unreadCount = nextUnread
+        )
+
+        // Compute new order: pinned rows keep their stored order; unpinned rows
+        // are sorted by lastMessageTime desc. Apply via DiffUtil so the move
+        // animates and we don't blow away view state.
+        val newList = conversations.toMutableList()
+        newList[idx] = updated
+        val (pinned, unpinned) = newList.partition { it.isPinned }
+        val pinnedOrder = PinnedChatsPrefsHelper.getPinnedIds(activity)
+        val sortedPinned = pinned.sortedBy { conv ->
+            val i = pinnedOrder.indexOf(conv.userId)
+            if (i >= 0) i else Int.MAX_VALUE
+        }
+        val sortedUnpinned = unpinned.sortedByDescending {
+            it.lastMessageTime?.toDate()?.time ?: 0L
+        }
+        updateConversations(sortedPinned + sortedUnpinned)
+        return true
     }
 
     inner class ViewHolder(private val binding: ItemChatConversationBinding) :
@@ -168,10 +236,16 @@ class ChatListAdapter(
             binding.tvLastMessage.text = when (conversation.lastMessageType.lowercase()) {
                 "image" -> activity.getString(R.string.chat_preview_photo)
                 "audio" -> activity.getString(R.string.chat_preview_voice)
+                "video" -> activity.getString(R.string.chat_preview_video)
+                "file" -> activity.getString(R.string.chat_preview_file)
                 else -> if (conversation.lastMessage.isNotEmpty())
                     conversation.lastMessage
                 else
-                    activity.getString(R.string.chat_preview_no_messages)
+                    if (conversation.lastMessageType.equals("text", ignoreCase = true)) {
+                        activity.getString(R.string.chat_preview_no_messages)
+                    } else {
+                        activity.getString(R.string.chat_preview_unsupported)
+                    }
             }
 
             // Set time
@@ -181,7 +255,7 @@ class ChatListAdapter(
             if (conversation.unreadCount > 0) {
                 binding.tvUnreadCount.visibility = View.VISIBLE
                 binding.tvUnreadCount.text = if (conversation.unreadCount > 99) {
-                    "99+"
+                    activity.getString(R.string.chat_unread_overflow)
                 } else {
                     conversation.unreadCount.toString()
                 }
@@ -405,12 +479,12 @@ class ChatListAdapter(
 
             return when {
                 // Less than 1 minute ago
-                diffInMillis < TimeUnit.MINUTES.toMillis(1) -> "Just now"
+                diffInMillis < TimeUnit.MINUTES.toMillis(1) -> activity.getString(R.string.chat_time_just_now)
                 
                 // Less than 1 hour ago
                 diffInMillis < TimeUnit.HOURS.toMillis(1) -> {
                     val minutes = TimeUnit.MILLISECONDS.toMinutes(diffInMillis)
-                    "${minutes}m"
+                    activity.getString(R.string.chat_time_minutes_short, minutes)
                 }
                 
                 // Today
@@ -419,7 +493,7 @@ class ChatListAdapter(
                 }
                 
                 // Yesterday
-                isYesterday(messageTime, now) -> "Yesterday"
+                isYesterday(messageTime, now) -> activity.getString(R.string.chat_date_yesterday)
                 
                 // This week
                 diffInMillis < TimeUnit.DAYS.toMillis(7) -> {
@@ -451,14 +525,12 @@ class ChatListAdapter(
         }
 
         /**
-         * Extracts the name part from username by removing trailing numbers
-         * Examples: "Joy22" -> "Joy", "ZNKAK467" -> "ZNKAK"
+         * T34: only strip 6+ trailing digits (the auto-generated suffix shape) so
+         * names like `Agent007` or `Joy22` stay intact. `User123456` becomes `User`.
          */
         private fun extractNameOnly(username: String): String {
             if (username.isEmpty()) return username
-            
-            // Remove trailing digits
-            return username.replace(Regex("\\d+$"), "").trim()
+            return username.replace(Regex("\\d{6,}$"), "").trim()
         }
     }
 }

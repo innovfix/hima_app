@@ -32,19 +32,41 @@ class SocketManager private constructor() {
     private var currentUserId: Int? = null // Store current user ID for joining room after connection
     private val _isConnected = MutableStateFlow<Boolean>(false)
     val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
+    private val mainHandler = Handler(Looper.getMainLooper())
     
     // Synchronization lock to prevent multiple simultaneous connection attempts
     @Volatile
     private var isConnecting = false
     private val connectionLock = Any()
+
+    /**
+     * T5 watchdog: if neither EVENT_CONNECT nor EVENT_CONNECT_ERROR / EVENT_DISCONNECT
+     * arrives within this window, reset [isConnecting] and tear the socket down so the
+     * next [connect] call can start fresh instead of becoming a no-op forever.
+     */
+    private val connectWatchdogRunnable = Runnable {
+        synchronized(connectionLock) {
+            if (isConnecting) {
+                Log.w("SocketIOCheck", "⏰ connect watchdog fired — resetting isConnecting and disconnecting")
+                isConnecting = false
+                try {
+                    socket?.off()
+                    socket?.disconnect()
+                } catch (_: Exception) {}
+                socket = null
+                _isConnected.value = false
+            }
+        }
+    }
+    private val connectWatchdogMs = 15_000L
     
     // Event streams are SharedFlow (not StateFlow) — StateFlow conflates and de-duplicates
     // by equality, which silently dropped messages when the server echoed the same payload
     // twice or two replies arrived back-to-back. SharedFlow with replay=0 emits every event
-    // exactly once; the buffer absorbs rapid bursts, DROP_OLDEST avoids blocking emitters.
+    // exactly once in normal use; the larger buffer absorbs reconnect bursts.
     private fun <T> eventFlow(): MutableSharedFlow<T> = MutableSharedFlow(
         replay = 0,
-        extraBufferCapacity = 64,
+        extraBufferCapacity = 256,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
 
@@ -92,12 +114,27 @@ class SocketManager private constructor() {
                 return
             }
             
-            // If connection is already in progress, wait or return
+            // If connection is already in progress, decide based on whether the
+            // userId changed. T5: if it did (account switch), force a clean restart
+            // — otherwise the in-flight handshake's EVENT_CONNECT joins the new
+            // user's room on the *old* socket identity.
             if (isConnecting) {
-                Log.w("SocketIOCheck", "⚠️ Connection already in progress, skipping duplicate call")
-                // Update userId in case it changed
-                currentUserId = userId
-                return
+                if (currentUserId != null && currentUserId != userId) {
+                    Log.w("SocketIOCheck", "⚠️ connect() racing account switch ${currentUserId} → $userId — forcing restart")
+                    isConnecting = false
+                    mainHandler.removeCallbacks(connectWatchdogRunnable)
+                    try {
+                        socket?.off()
+                        socket?.disconnect()
+                    } catch (_: Exception) {}
+                    socket = null
+                    _isConnected.value = false
+                    // fall through to fresh connect below
+                } else {
+                    Log.w("SocketIOCheck", "⚠️ Connection already in progress, skipping duplicate call")
+                    currentUserId = userId
+                    return
+                }
             }
             
             // If socket exists but not connected, disconnect it first
@@ -143,7 +180,11 @@ class SocketManager private constructor() {
                     transports = arrayOf("polling", "websocket")  // Try polling first, then upgrade to websocket
                     reconnection = true
                     reconnectionDelay = 2000  // Increased delay to prevent rapid reconnection loops
-                    reconnectionAttempts = 5
+                    // T42: with Int.MAX_VALUE the `reconnect_failed` handler effectively
+                    // never fires, so the watchdog/recovery branch is dead. Cap at 30
+                    // attempts (~60s of retries) so a stalled link surfaces and
+                    // we re-arm a fresh socket instead of looping forever.
+                    reconnectionAttempts = 30
                     timeout = 20000
                     // Force new connection if we had an existing socket (to avoid reusing old connection)
                     forceNew = hadExistingSocket
@@ -152,17 +193,17 @@ class SocketManager private constructor() {
                 
                 socket = IO.socket(Config.SOCKET_URL, options)
                 setupListeners()
-                
+
                 Log.d("SocketIOCheck", "🔌 Attempting to connect to Socket.IO: ${Config.SOCKET_URL}${Config.SOCKET_PATH}")
+                // T5: arm watchdog so a stalled connect doesn't strand isConnecting=true forever.
+                mainHandler.removeCallbacks(connectWatchdogRunnable)
+                mainHandler.postDelayed(connectWatchdogRunnable, connectWatchdogMs)
                 socket?.connect()
                 
                 // Log connection attempt after a delay
-                Handler(Looper.getMainLooper()).postDelayed({
+                mainHandler.postDelayed({
                     val connected = socket?.connected() == true
                     Log.d("SocketIOCheck", "📊 Connection check after 3s: ${if (connected) "✅ CONNECTED" else "❌ STILL CONNECTING/FAILED"}")
-                    if (!connected) {
-                        isConnecting = false
-                    }
                 }, 3000)
                 
             } catch (e: Exception) {
@@ -203,31 +244,43 @@ class SocketManager private constructor() {
             off()
             on(Socket.EVENT_CONNECT) {
                 synchronized(connectionLock) {
+                    mainHandler.removeCallbacks(connectWatchdogRunnable)
                     Log.d("SocketIOCheck", "✅ Socket.IO CONNECTED successfully!")
                     _isConnected.value = true
                     isConnecting = false
-                    // Join user room after connection
-                    currentUserId?.let { userId ->
-                        Log.d("SocketIOCheck", "✅ Socket.IO CONNECTED - Joining user room...")
-                        // Small delay to ensure connection is fully established
-                        Handler(Looper.getMainLooper()).postDelayed({
-                            joinUserRoom(userId)
-                        }, 100)
+                    val userId = currentUserId
+                    if (userId == null || userId <= 0) {
+                        // T5: account was wiped (logout/clear) before this CONNECT landed —
+                        // disconnect immediately rather than joining the wrong user room.
+                        Log.w("SocketIOCheck", "⚠️ EVENT_CONNECT but currentUserId=null — disconnecting")
+                        try {
+                            socket?.off()
+                            socket?.disconnect()
+                        } catch (_: Exception) {}
+                        socket = null
+                        _isConnected.value = false
+                        return@synchronized
                     }
+                    Log.d("SocketIOCheck", "✅ Socket.IO CONNECTED - Joining user room...")
+                    mainHandler.postDelayed({
+                        joinUserRoom(userId)
+                    }, 100)
                 }
             }
-            
+
             on(Socket.EVENT_DISCONNECT) { args ->
                 synchronized(connectionLock) {
+                    mainHandler.removeCallbacks(connectWatchdogRunnable)
                     val reason = args.getOrNull(0)?.toString() ?: "Unknown"
                     Log.d("SocketIOCheck", "❌ Socket.IO DISCONNECTED - Reason: $reason")
                     _isConnected.value = false
                     isConnecting = false
                 }
             }
-            
+
             on(Socket.EVENT_CONNECT_ERROR) { args ->
                 synchronized(connectionLock) {
+                    mainHandler.removeCallbacks(connectWatchdogRunnable)
                     val error = args[0] as? Exception
                     val errorMessage = error?.message ?: args[0]?.toString() ?: "Unknown error"
                     Log.e("SocketIOCheck", "❌ Socket.IO CONNECTION ERROR: $errorMessage")
@@ -251,6 +304,16 @@ class SocketManager private constructor() {
             
             on("reconnect_failed") {
                 Log.e("SocketIOCheck", "❌ Reconnection FAILED - Max attempts reached")
+                val userId = currentUserId
+                if (userId != null) {
+                    mainHandler.postDelayed({
+                        if (!isConnected()) {
+                            Log.d("SocketIOCheck", "🔄 Restarting Socket.IO after reconnect_failed")
+                            disconnect()
+                            connect(userId)
+                        }
+                    }, 3000)
+                }
             }
             
             on("connected") { args ->
@@ -272,8 +335,9 @@ class SocketManager private constructor() {
                     val messageData = data?.optJSONObject("message")
                     
                     if (status && messageData != null) {
+                        // T4: parse id as Long. T6: forward server's `is_deleted` flag.
                         val message = ChatMessageSocket(
-                            id = messageData.optInt("id", 0),
+                            id = messageData.optLong("id", 0L),
                             chatId = messageData.optString("chat_id", ""),
                             from = messageData.optString("from", ""),
                             to = messageData.optString("to", ""),
@@ -283,7 +347,8 @@ class SocketManager private constructor() {
                             isRead = messageData.optInt("is_read", 0) == 1,
                             timestamp = messageData.optString("timestamp", ""),
                             fromUserId = messageData.optInt("from_user_id", 0).takeIf { it > 0 },
-                            toUserId = messageData.optInt("to_user_id", 0).takeIf { it > 0 }
+                            toUserId = messageData.optInt("to_user_id", 0).takeIf { it > 0 },
+                            isDeleted = messageData.optInt("is_deleted", 0) == 1
                         )
                         Log.d(
                             "RealtimeChat",
@@ -304,7 +369,7 @@ class SocketManager private constructor() {
                     
                     if (status == "success" && messageData != null) {
                         val message = ChatMessageSocket(
-                            id = messageData.optInt("id", 0),
+                            id = messageData.optLong("id", 0L),
                             chatId = messageData.optString("chat_id", ""),
                             from = messageData.optString("from", ""),
                             to = messageData.optString("to", ""),
@@ -314,7 +379,8 @@ class SocketManager private constructor() {
                             isRead = messageData.optInt("is_read", 0) == 1,
                             timestamp = messageData.optString("timestamp", ""),
                             fromUserId = messageData.optInt("from_user_id", 0).takeIf { it > 0 },
-                            toUserId = messageData.optInt("to_user_id", 0).takeIf { it > 0 }
+                            toUserId = messageData.optInt("to_user_id", 0).takeIf { it > 0 },
+                            isDeleted = messageData.optInt("is_deleted", 0) == 1
                         )
                         _messageSent.tryEmit(message)
                         Log.d("SocketIOCheck", "✅ Message sent confirmation received - ID: ${message.id}")
@@ -354,7 +420,7 @@ class SocketManager private constructor() {
                         }
                         
                         val message = ChatMessageSocket(
-                            id = messageObj.optInt("id", 0),
+                            id = messageObj.optLong("id", 0L),
                             chatId = messageObj.optString("chat_id", ""),
                             from = messageObj.optString("from", ""),
                             to = messageObj.optString("to", ""),
@@ -365,14 +431,20 @@ class SocketManager private constructor() {
                             timestamp = messageObj.optString("timestamp", ""),
                             fromUserId = messageObj.optInt("from_user_id", 0).takeIf { it > 0 },
                             toUserId = messageObj.optInt("to_user_id", 0).takeIf { it > 0 },
-                            reactions = if (reactionsList.isNotEmpty()) reactionsList else null
+                            reactions = if (reactionsList.isNotEmpty()) reactionsList else null,
+                            isDeleted = messageObj.optInt("is_deleted", 0) == 1
                         )
                         Log.d(
                             "RealtimeChat",
                             "socket new_message RX id=${message.id} from=${message.fromUserId} to=${message.toUserId} chatId=${message.chatId} event=chat_message"
                         )
                         _newMessage.tryEmit(message)
-                        Log.d("SocketIOCheck", "📨 Chat message received: ${message.message}")
+                        // T14: don't expose chat bodies in production logcat.
+                        if (com.gmwapp.hima.BuildConfig.DEBUG) {
+                            Log.d("SocketIOCheck", "📨 Chat message received: ${message.message}")
+                        } else {
+                            Log.d("SocketIOCheck", "📨 Chat message received id=${message.id} type=${message.messageType} len=${message.message.length}")
+                        }
                     }
                 } catch (e: Exception) {
                     Log.e("SocketIOCheck", "Error parsing chat message: ${e.message}", e)
@@ -433,8 +505,9 @@ class SocketManager private constructor() {
                         }
                     }
                     
+                    // T4: parse message_id as Long.
                     val event = ReactionUpdateEvent(
-                        messageId = data?.optInt("message_id", 0) ?: 0,
+                        messageId = data?.optLong("message_id", 0L) ?: 0L,
                         chatId = data?.optString("chat_id", "") ?: "",
                         userId = data?.optInt("user_id", 0) ?: 0,
                         reactionEmoji = data?.optString("reaction_emoji", null),
@@ -504,6 +577,7 @@ class SocketManager private constructor() {
     
     fun disconnect() {
         synchronized(connectionLock) {
+            mainHandler.removeCallbacks(connectWatchdogRunnable)
             try {
                 socket?.off() // Remove all listeners first
                 socket?.disconnect()
@@ -549,7 +623,11 @@ class SocketManager private constructor() {
             }
 
             socket?.emit("send_message", data)
-            Log.d("SocketIOCheck", "📤 Sent message from $fromUserId to $toUserId: $message")
+            if (com.gmwapp.hima.BuildConfig.DEBUG) {
+                Log.d("SocketIOCheck", "📤 Sent message from $fromUserId to $toUserId: $message")
+            } else {
+                Log.d("SocketIOCheck", "📤 Sent from=$fromUserId to=$toUserId type=$messageType len=${message.length}")
+            }
         } catch (e: Exception) {
             Log.e("SocketIOCheck", "Error sending message: ${e.message}", e)
             _messageError.tryEmit(e.message ?: "Unknown error")
@@ -692,8 +770,10 @@ class SocketManager private constructor() {
 }
 
 // Data classes for Socket.IO events
+// T4: ids must be Long — Int silently truncates snowflake-style backend ids and
+// breaks dedup, reactions, and delete once any id exceeds Int.MAX_VALUE.
 data class ChatMessageSocket(
-    val id: Int,
+    val id: Long,
     val chatId: String,
     val from: String,
     val to: String,
@@ -704,11 +784,14 @@ data class ChatMessageSocket(
     val timestamp: String,
     val fromUserId: Int?,
     val toUserId: Int?,
-    val reactions: List<Map<String, Any>>? = null  // Array of {user_id, reaction_emoji}
+    val reactions: List<Map<String, Any>>? = null,  // Array of {user_id, reaction_emoji}
+    // T6: server may signal a tombstone in the socket payload; carry it through so
+    // a user with no API refresh in flight still sees the deleted-bubble state.
+    val isDeleted: Boolean = false
 )
 
 data class ReactionUpdateEvent(
-    val messageId: Int,
+    val messageId: Long,
     val chatId: String,
     val userId: Int,
     val reactionEmoji: String?,

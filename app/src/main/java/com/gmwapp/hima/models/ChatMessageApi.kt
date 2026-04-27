@@ -2,8 +2,10 @@ package com.gmwapp.hima.models
 
 import com.google.gson.annotations.SerializedName
 
+// T4: id widened to Long to keep parity with the socket payload and avoid
+// truncation when the backend emits snowflake-style ids beyond Int.MAX_VALUE.
 data class ChatMessageApi(
-    val id: Int,
+    val id: Long,
     @SerializedName("chat_id")
     val chatId: String,
     val from: String,

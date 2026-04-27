@@ -18,8 +18,10 @@
             android:id="@+id/bubble_container"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="14dp"
             android:background="@drawable/chat_bubble_sender"
             android:maxWidth="280dp"
+            android:minWidth="56dp"
             android:orientation="vertical"
             android:paddingHorizontal="12dp"
             android:paddingTop="8dp"
@@ -38,7 +40,7 @@
                     android:layout_height="48dp"
                     android:background="@drawable/chat_audio_play_sent_bg"
                     android:clickable="true"
-                    android:contentDescription="@null"
+                    android:contentDescription="@string/chat_audio_play_pause_desc"
                     android:focusable="true"
                     android:padding="14dp"
                     android:src="@drawable/play" />
@@ -81,7 +83,7 @@
                     android:fontFamily="@font/poppins_regular"
                     android:text="10:31 AM"
                     android:textColor="@color/chat_time_sent"
-                    android:textSize="10sp" />
+                    android:textSize="11sp" />
 
                 <ProgressBar
                     android:id="@+id/pb_send_pending"
@@ -121,7 +123,7 @@
             android:layout_alignStart="@id/bubble_container"
             android:layout_below="@id/bubble_container"
             android:layout_marginStart="-8dp"
-            android:layout_marginTop="-14dp"
+            android:layout_marginTop="-10dp"
             android:background="@drawable/bg_reaction_circle"
             android:elevation="3dp"
             android:gravity="center"

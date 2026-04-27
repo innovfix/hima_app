@@ -276,7 +276,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         // Apply insets - no padding needed, fragments handle their own
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(0, 0, 0, 0)
+            binding.bottomNavigationView.setPadding(
+                binding.bottomNavigationView.paddingLeft,
+                binding.bottomNavigationView.paddingTop,
+                binding.bottomNavigationView.paddingRight,
+                systemBars.bottom
+            )
             insets
         }
         
@@ -555,9 +560,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
         userID?.toIntOrNull()?.let { offerViewModel.getOffer(it) }
         
-        // Show/hide bottom-nav items by gender: males see Favourite, females see Chat
+        // Favourite is shown to both genders. Chat tab stays creator-only.
+        // Female nav: Home, Chat, Recent, Favourite, Profile (5 items).
+        // Male nav:   Home, Recent, Favourite, Profile (4 items; Chat hidden).
         val userGender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
-        binding.bottomNavigationView.menu.findItem(R.id.favourite)?.isVisible = (userGender == DConstants.MALE)
+        binding.bottomNavigationView.menu.findItem(R.id.favourite)?.isVisible = true
         binding.bottomNavigationView.menu.findItem(R.id.chat)?.isVisible = (userGender == DConstants.FEMALE)
         
         binding.bottomNavigationView.setOnNavigationItemSelectedListener(this)
@@ -1329,6 +1336,61 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         // Refresh bottom nav badge for missed calls
         loadRecentMissedCountBadge()
         loadChatUnreadCountBadge()
+
+        // Realtime: keep the chat badge fresh on incoming pushes / socket events.
+        registerChatListBadgeReceiver()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        unregisterChatListBadgeReceiver()
+    }
+
+    private var chatListBadgeReceiver: android.content.BroadcastReceiver? = null
+    private var chatListBadgeReceiverRegistered: Boolean = false
+
+    private fun registerChatListBadgeReceiver() {
+        if (chatListBadgeReceiverRegistered) return
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: android.content.Context?, intent: android.content.Intent?) {
+                if (intent?.action != com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_REFRESH) return
+                val peerId = intent.getIntExtra(
+                    com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.EXTRA_PEER_ID,
+                    -1
+                )
+                // Skip optimistic bump if user is reading that thread.
+                if (peerId > 0 &&
+                    com.gmwapp.hima.utils.ActiveChatTracker.isActiveFor(this@MainActivity, peerId)
+                ) {
+                    return
+                }
+                // Optimistic bump on the friends bucket — `loadChatUnreadCountBadge`
+                // immediately afterward corrects the split if the peer actually
+                // belongs in `general`.
+                chatFriendsUnread = (chatFriendsUnread + 1).coerceAtLeast(0)
+                updateChatBadge()
+                loadChatUnreadCountBadge()
+            }
+        }
+        val filter = android.content.IntentFilter(
+            com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_REFRESH
+        )
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(receiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            registerReceiver(receiver, filter)
+        }
+        chatListBadgeReceiver = receiver
+        chatListBadgeReceiverRegistered = true
+    }
+
+    private fun unregisterChatListBadgeReceiver() {
+        if (!chatListBadgeReceiverRegistered) return
+        val receiver = chatListBadgeReceiver ?: return
+        runCatching { unregisterReceiver(receiver) }
+        chatListBadgeReceiver = null
+        chatListBadgeReceiverRegistered = false
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -1403,6 +1465,10 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             setTypeface(typeface, android.graphics.Typeface.BOLD)
             gravity = Gravity.CENTER
             includeFontPadding = false
+            // Start hidden — visibility flips on only after the post-runnable
+            // positions the dot. Otherwise it briefly flashes at (0,0) of the
+            // content root, which sits over the Home tab area.
+            visibility = View.INVISIBLE
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(ContextCompat.getColor(this@MainActivity, R.color.colorAccent))
@@ -1420,16 +1486,20 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         val dot = rootView.findViewWithTag<TextView>(recentMissedDotTag)
             ?: makeBadgeDot(recentMissedDotTag)
         dot.text = count.coerceAtMost(99).toString()
-        dot.visibility = View.VISIBLE
         (dot.background as? GradientDrawable)?.setColor(
             ContextCompat.getColor(this, badgeColorRes)
         )
 
         binding.bottomNavigationView.post {
-            val itemView = getRecentBottomNavItemView() ?: return@post
-            val iconView = itemView.findViewById<View>(
+            val itemView = getRecentBottomNavItemView()
+            val iconView = itemView?.findViewById<View>(
                 com.google.android.material.R.id.navigation_bar_item_icon_view
-            ) ?: return@post
+            )
+            if (iconView == null) {
+                // Tab not on screen — keep the dot hidden so it doesn't sit at (0,0).
+                dot.visibility = View.GONE
+                return@post
+            }
 
             val iconPos = IntArray(2)
             iconView.getLocationInWindow(iconPos)
@@ -1446,6 +1516,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 it.topMargin = topMargin
                 dot.layoutParams = it
             }
+            // Now that the dot is correctly positioned, reveal it.
+            dot.visibility = View.VISIBLE
         }
     }
 
@@ -1550,13 +1622,17 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         val dot = rootView.findViewWithTag<TextView>(chatUnreadDotTag)
             ?: makeBadgeDot(chatUnreadDotTag)
         dot.text = count.coerceAtMost(99).toString()
-        dot.visibility = View.VISIBLE
 
         binding.bottomNavigationView.post {
-            val itemView = getChatBottomNavItemView() ?: return@post
-            val iconView = itemView.findViewById<View>(
+            val itemView = getChatBottomNavItemView()
+            val iconView = itemView?.findViewById<View>(
                 com.google.android.material.R.id.navigation_bar_item_icon_view
-            ) ?: return@post
+            )
+            if (iconView == null) {
+                // Chat tab is hidden (e.g. male user) — don't leave a stray dot at (0,0).
+                dot.visibility = View.GONE
+                return@post
+            }
 
             val iconPos = IntArray(2)
             iconView.getLocationInWindow(iconPos)
@@ -1573,6 +1649,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 it.topMargin = topMargin
                 dot.layoutParams = it
             }
+            dot.visibility = View.VISIBLE
         }
     }
 

@@ -58,18 +58,10 @@ class BottomSheetLogout : BottomSheetDialogFragment() {
             // offline / kills the app / never reopens it.
             userId?.let { scheduleFcmTokenInvalidation(requireContext().applicationContext, it, authToken) }
 
-            OneSignal.User.removeTag("gender_language")
-            OneSignal.User.removeTag("gender")
-            OneSignal.User.removeTag("language")
-            OneSignal.User.removeTag("user_id")
+            // T32: route through the shared teardown so the order matches the 401 /
+            // clear_data paths exactly. Local diagnostic dump still happens here.
             com.gmwapp.hima.utils.OneSignalDiag.dump(requireContext(), "before_user_logout")
-            // Wipe per-peer conversation shortcuts so the previous user's avatars
-            // don't leak into whoever logs in next on this device.
-            runCatching {
-                androidx.core.content.pm.ShortcutManagerCompat
-                    .removeAllDynamicShortcuts(requireContext())
-            }
-            OneSignal.logout()
+            BaseApplication.getInstance()?.performGlobalSessionTeardown()
             // Do NOT optOut() — that persists enabled=false server-side for the whole
             // device and blocks the next user on this phone from receiving pushes.
 
@@ -107,6 +99,15 @@ class BottomSheetLogout : BottomSheetDialogFragment() {
     private fun performLogoutAndNavigate() {
         val prefs = BaseApplication.getInstance()?.getPrefs()
         prefs?.clearUserData()
+        // Wipe user-scoped chat caches/prefs so the next account on this device
+        // does not inherit the previous user's history, pins, or stacked
+        // notification content via shared peer ids.
+        runCatching {
+            BaseApplication.getInstance()?.chatHistoryMemoryCache?.clearAll()
+            val ctx = requireContext().applicationContext
+            com.gmwapp.hima.utils.PinnedChatsPrefsHelper.clearAll(ctx)
+            com.gmwapp.hima.utils.ChatNotificationStore.clearAll(ctx)
+        }
         val hostActivity = activity ?: return
         val intent = Intent(hostActivity, NewLoginActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK

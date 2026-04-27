@@ -131,6 +131,9 @@ class BaseApplication : Application(), Configuration.Provider {
                 // counted, record an "open" conversion.
                 if (startedActivityCount == 0) {
                     checkAndTrackNotificationOpen()
+                    // Heartbeat to bump users.datetime so the backend marks the
+                    // user as freshly active. Throttled internally to ~4 min.
+                    runCatching { activeStatusReporter.reportActive() }
                 }
                 startedActivityCount++
             }
@@ -170,6 +173,12 @@ class BaseApplication : Application(), Configuration.Provider {
 
     @Inject
     lateinit var callStatusRepository: CallStatusRepository
+
+    @Inject
+    lateinit var chatHistoryMemoryCache: com.gmwapp.hima.utils.ChatHistoryMemoryCache
+
+    @Inject
+    lateinit var activeStatusReporter: com.gmwapp.hima.utils.ActiveStatusReporter
 
     companion object {
         private var mInstance: BaseApplication? = null
@@ -213,7 +222,22 @@ class BaseApplication : Application(), Configuration.Provider {
         Log.d("SocketIOCheck", "🎯 BaseApplication.onCreate() STARTED - SocketIOCheck tag is working!")
         
         mInstance = this
+        // Force light theme app-wide. The app has no dark-mode design pass yet, so
+        // letting the system flip to night caused white-on-white headers and
+        // unreadable bubbles. Pin to NIGHT_NO so every screen inherits light tokens.
+        androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(
+            androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO
+        )
         mPreferences = DPreferences(this)
+        // Bind the in-memory chat-history cache to whoever was last signed in. If
+        // anything reads the cache before login (or by a different user) it will
+        // be empty until setOwner is re-called with the live id.
+        runCatching {
+            chatHistoryMemoryCache.setOwner(mPreferences?.getUserData()?.id ?: 0)
+        }
+        // Cold-start active heartbeat — fires for users already logged in so the
+        // first launch (before any foreground transition) counts.
+        runCatching { activeStatusReporter.reportActive() }
         HimaTelecomManager.registerPhoneAccountIfNeeded(this)
         registerAppNetworkConnectivity()
         FirebaseApp.initializeApp(this)
@@ -372,10 +396,186 @@ class BaseApplication : Application(), Configuration.Provider {
                     event.preventDefault()
                     return
                 }
-                if (isInActiveCall() && looksLikeCallPush(event.notification.additionalData)) {
-                    Log.d("OneSignal_InCall", "Already in active call — suppressing OneSignal call push")
-                    event.preventDefault()
+                val additional = event.notification.additionalData
+                if (additional?.optString("type", "") == "message") {
+                    val peerUserId = this@BaseApplication.parseMessageNotificationPeerUserId(additional)
+                    val lastMessage = event.notification.body.orEmpty().trim()
+                    val messageType = additional.optString("message_type", "text")
+                        .ifBlank { "text" }
+                    // Always tell the chat list / bottom-nav badge to refresh; the
+                    // thread-level suppression below only handles the open-thread case.
+                    if (peerUserId > 0) {
+                        val listRefresh = Intent(
+                            com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_REFRESH
+                        )
+                            .setPackage(packageName)
+                            .putExtra(
+                                com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.EXTRA_PEER_ID,
+                                peerUserId
+                            )
+                            .putExtra(
+                                com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.EXTRA_LAST_MESSAGE,
+                                lastMessage
+                            )
+                            .putExtra(
+                                com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.EXTRA_MESSAGE_TYPE,
+                                messageType
+                            )
+                        sendBroadcast(listRefresh)
+                    }
+                    if (com.gmwapp.hima.utils.ActiveChatTracker.isActiveFor(peerUserId)) {
+                        Log.d(
+                            "OneSignal_ForegroundChat",
+                            "chat visible for peerId=$peerUserId — suppressing foreground heads-up"
+                        )
+                        val refresh = Intent(
+                            com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_REFRESH
+                        )
+                            .setPackage(packageName)
+                            .putExtra("peer_id", peerUserId)
+                        sendBroadcast(refresh)
+                        event.preventDefault()
+                        return
+                    }
                 }
+                // Missed-call detection — needed up-front so we can exclude it
+                // from the in-call suppression below (a tiny race where
+                // isInActiveCall() is still true after a decline would
+                // otherwise eat the missed-call notification entirely).
+                val title = event.notification.title.orEmpty().lowercase()
+                val body = event.notification.body.orEmpty().lowercase()
+                val isMissedCall =
+                    additional?.optString("type", "")?.lowercase() == "missed_call" ||
+                        additional?.optString("type", "")?.lowercase() == "call_missed" ||
+                        title.contains("missed call") || body.contains("missed call")
+
+                if (isInActiveCall() &&
+                    looksLikeCallPush(event.notification.additionalData) &&
+                    !isMissedCall
+                ) {
+                    Log.d("OneSignal_InCall", "Already in active call — suppressing OneSignal incoming-call push")
+                    event.preventDefault()
+                    return
+                }
+
+                // Missed call: always render the rich custom notification regardless
+                // of foreground state so behaviour is identical to the killed-app
+                // path handled by the OneSignal NSE.
+                if (isMissedCall) {
+                    val missed = parseOneSignalMissedCallPayload(additional, event.notification)
+                    if (missed != null) {
+                        // Defer preventDefault until showMissed actually posts so
+                        // a throw inside the helper doesn't leave the user with
+                        // no notification at all.
+                        val posted = runCatching {
+                            com.gmwapp.hima.utils.CallNotifications.showMissed(
+                                applicationContext,
+                                missed
+                            )
+                        }.getOrElse {
+                            Log.e("OneSignal_Missed", "showMissed threw: ${it.message}", it)
+                            false
+                        }
+                        if (posted) {
+                            event.preventDefault()
+                            return
+                        }
+                        // else: fall through and let OneSignal show its default heads-up.
+                    }
+                }
+
+                // Incoming call: post the same CallStyle UI as the FCM path.
+                if (looksLikeCallPush(additional) && !isInActiveCall() && !isMissedCall) {
+                    val incoming = parseOneSignalIncomingCallPayload(additional, event.notification)
+                    if (incoming != null) {
+                        val posted = runCatching {
+                            com.gmwapp.hima.utils.CallNotifications.showIncoming(
+                                applicationContext,
+                                incoming
+                            )
+                            true
+                        }.getOrElse {
+                            Log.e("OneSignal_Incoming", "showIncoming threw: ${it.message}", it)
+                            false
+                        }
+                        if (posted) {
+                            event.preventDefault()
+                            return
+                        }
+                    }
+                }
+            }
+
+            private fun parseOneSignalIncomingCallPayload(
+                additional: org.json.JSONObject?,
+                notif: com.onesignal.notifications.IDisplayableNotification
+            ): com.gmwapp.hima.utils.CallNotifications.IncomingPayload? {
+                val data = additional ?: return null
+                val callType = optStringOrNull(data, "callType")
+                    ?: optStringOrNull(data, "call_type")
+                val senderId = data.optInt("senderId", 0).takeIf { it > 0 }
+                    ?: data.optInt("sender_id", 0).takeIf { it > 0 }
+                    ?: data.optInt("user_id", 0)
+                if (senderId <= 0) return null
+                val callId = data.optInt("call_id", 0)
+                val channelName = optStringOrNull(data, "channelName")
+                    ?: optStringOrNull(data, "channel_name")
+                    ?: "default_channel"
+                val callerName = optStringOrNull(data, "callerName")
+                    ?: optStringOrNull(data, "sender_name")
+                    ?: optStringOrNull(data, "name")
+                    ?: notif.title?.trim().orEmpty()
+                val callerImage = optStringOrNull(data, "callerImage")
+                    ?: optStringOrNull(data, "sender_image")
+                    ?: optStringOrNull(data, "image")
+                    ?: optStringOrNull(data, "avatar")
+                    ?: ""
+                val isMale = getInstance()?.getPrefs()?.getUserData()?.gender ==
+                    com.gmwapp.hima.constants.DConstants.MALE
+                return com.gmwapp.hima.utils.CallNotifications.IncomingPayload(
+                    isMale = isMale,
+                    callType = callType,
+                    senderId = senderId,
+                    callId = callId,
+                    channelName = channelName,
+                    callerName = callerName,
+                    callerImage = callerImage
+                )
+            }
+
+            private fun parseOneSignalMissedCallPayload(
+                additional: org.json.JSONObject?,
+                notif: com.onesignal.notifications.IDisplayableNotification
+            ): com.gmwapp.hima.utils.CallNotifications.MissedPayload? {
+                val data = additional ?: return null
+                val senderId = data.optInt("senderId", 0).takeIf { it > 0 }
+                    ?: data.optInt("sender_id", 0).takeIf { it > 0 }
+                    ?: data.optInt("user_id", 0)
+                if (senderId <= 0) return null
+                val callType = optStringOrNull(data, "callType")
+                    ?: optStringOrNull(data, "call_type")
+                    ?: "audio"
+                val callerName = optStringOrNull(data, "callerName")
+                    ?: optStringOrNull(data, "sender_name")
+                    ?: optStringOrNull(data, "name")
+                    ?: notif.title?.removePrefix("Missed call from")?.trim().orEmpty()
+                val callerImage = optStringOrNull(data, "callerImage")
+                    ?: optStringOrNull(data, "sender_image")
+                    ?: optStringOrNull(data, "image")
+                    ?: optStringOrNull(data, "avatar")
+                    ?: ""
+                return com.gmwapp.hima.utils.CallNotifications.MissedPayload(
+                    callType = callType,
+                    senderId = senderId,
+                    callerName = callerName,
+                    callerImage = callerImage
+                )
+            }
+
+            private fun optStringOrNull(data: org.json.JSONObject, key: String): String? {
+                if (!data.has(key) || data.isNull(key)) return null
+                val s = data.optString(key, "").trim()
+                return s.takeIf { it.isNotEmpty() }
             }
 
             private fun looksLikeCallPush(additional: org.json.JSONObject?): Boolean {
@@ -457,10 +657,14 @@ class BaseApplication : Application(), Configuration.Provider {
                     val user_id = data.optInt("user_id")
                     val prefs = getSharedPreferences("my_app_prefs", Context.MODE_PRIVATE)
                     prefs.edit().putString("notification_user_id", user_id.toString()).apply()
-                    Log.d("NotificationDataOneSingal", "$data")
+                    // T14: full additionalData / rawPayload contain PII — debug only.
+                    if (BuildConfig.DEBUG) {
+                        Log.d("NotificationDataOneSingal", "$data")
+                    }
                 } else {
-                    // Raw fallback
-                    Log.d("NotificationDataOneSingal", event.notification.rawPayload)
+                    if (BuildConfig.DEBUG) {
+                        Log.d("NotificationDataOneSingal", event.notification.rawPayload)
+                    }
                 }
 
 
@@ -637,6 +841,7 @@ class BaseApplication : Application(), Configuration.Provider {
         if (prefs.getUserData() == null) return
 
         Log.w("Unauthorized", "Session expired — clearing data and routing to login")
+        performGlobalSessionTeardown()
         prefs.clearUserData()
         Toast.makeText(this, "Session expired, please log in again", Toast.LENGTH_LONG).show()
 
@@ -644,6 +849,46 @@ class BaseApplication : Application(), Configuration.Provider {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
         startActivity(intent)
+    }
+
+    /**
+     * Single source of truth for "tear down everything tied to the current account
+     * on this device". Mirrors what `BottomSheetLogout` does so that 401 / clear_data
+     * paths don't leave stale OneSignal external-id, sockets, dynamic shortcuts, or
+     * cached chat content that the next user could see.
+     */
+    /**
+     * T32: same teardown order applies to BottomSheetLogout and FCM clear_data, so
+     * expose it here as the single source of truth instead of duplicating the
+     * sequence at each call site.
+     */
+    fun performGlobalSessionTeardown() {
+        SocketManager.getInstance().disconnect()
+        com.gmwapp.hima.utils.ActiveChatTracker.clear(this)
+        runCatching {
+            OneSignal.User.removeTag("gender_language")
+            OneSignal.User.removeTag("gender")
+            OneSignal.User.removeTag("language")
+            OneSignal.User.removeTag("user_id")
+            OneSignal.logout()
+        }.onFailure { Log.e("Unauthorized", "OneSignal teardown failed: ${it.message}") }
+        runCatching {
+            androidx.core.content.pm.ShortcutManagerCompat
+                .removeAllDynamicShortcuts(this)
+        }
+        runCatching {
+            chatHistoryMemoryCache.clearAll()
+            com.gmwapp.hima.utils.PinnedChatsPrefsHelper.clearAll(this)
+            com.gmwapp.hima.utils.ChatNotificationStore.clearAll(this)
+        }
+        // Drop the throttle so the next login fires the heartbeat immediately.
+        runCatching { activeStatusReporter.reset() }
+        // T13: `my_app_prefs` (set by the OneSignal click handler) survives the
+        // standard `clearUserData()` wipe — without this, the next user inherits
+        // the previous user's `notification_user_id` from the prior install.
+        runCatching {
+            getSharedPreferences("my_app_prefs", Context.MODE_PRIVATE).edit().clear().apply()
+        }
     }
 
     fun getCurrentActivity(): Activity? {
@@ -654,7 +899,7 @@ class BaseApplication : Application(), Configuration.Provider {
      * OneSignal `additionalData` keys vary by backend; try common names for the **other** user's id.
      */
     private fun parseMessageNotificationPeerUserId(data: JSONObject): Int {
-        val keys = arrayOf("user_id", "sender_id", "from_user_id", "senderId", "sender_user_id")
+        val keys = arrayOf("user_id", "peer_id", "sender_id", "from_user_id", "senderId", "sender_user_id")
         for (key in keys) {
             if (!data.has(key) || data.isNull(key)) continue
             val id = when (val raw = data.opt(key)) {

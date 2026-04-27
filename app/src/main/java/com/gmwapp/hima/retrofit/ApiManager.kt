@@ -313,6 +313,19 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    /** See `ApiInterface.updateActiveStatus`. */
+    fun updateActiveStatus(
+        userId: Int,
+        callback: NetworkCallback<com.gmwapp.hima.retrofit.responses.UpdateActiveStatusResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            val call = getApiInterface().updateActiveStatus(userId)
+            call.enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun getUserStatus(
         userId: String, callback: NetworkCallback<RegisterResponse>
     ) {
@@ -1368,7 +1381,7 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         messageType: String,
         file: File,
         callback: NetworkCallback<ChatAttachmentUploadResponse>
-    ) {
+    ): Call<ChatAttachmentUploadResponse>? {
         if (Helper.checkNetworkConnection()) {
             val plain = "text/plain".toMediaTypeOrNull()
             val mimeType = when (messageType.lowercase()) {
@@ -1390,8 +1403,10 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
                 filePart
             )
             apiCall.enqueue(callback)
+            return apiCall
         } else {
             callback.onNoNetwork()
+            return null
         }
     }
 
@@ -1402,7 +1417,7 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         messageType: String? = null,
         attachmentUrl: String? = null,
         callback: NetworkCallback<FallbackSendMessageResponse>
-    ) {
+    ): Call<FallbackSendMessageResponse>? {
         if (Helper.checkNetworkConnection()) {
             val apiCall: Call<FallbackSendMessageResponse> = getApiInterface().fallbackSendMessage(
                 fromUserId,
@@ -1412,8 +1427,10 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
                 attachmentUrl
             )
             apiCall.enqueue(callback)
+            return apiCall
         } else {
             callback.onNoNetwork()
+            return null
         }
     }
 
@@ -1447,7 +1464,7 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     fun markMessagesRead(
         userId: Int,
         receiverId: Int,
-        lastMessageId: Int,
+        lastMessageId: Long,
         callback: NetworkCallback<MarkMessagesReadResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
@@ -2296,6 +2313,16 @@ interface ApiInterface {
         @Field("user_id") user_id: Int,
     ): Call<RegisterResponse>
 
+    /**
+     * Bumps `users.datetime` for [userId]. Server enforces a 5-minute window;
+     * client mirrors with a 4-minute throttle in [com.gmwapp.hima.utils.ActiveStatusReporter].
+     */
+    @FormUrlEncoded
+    @POST("update_active_status")
+    fun updateActiveStatus(
+        @Field("user_id") userId: Int
+    ): Call<com.gmwapp.hima.retrofit.responses.UpdateActiveStatusResponse>
+
     @FormUrlEncoded
     @POST("female_status_list")
     fun getUserStatus(
@@ -2982,7 +3009,7 @@ interface ApiInterface {
     fun markMessagesRead(
         @Field("user_id") userId: Int,
         @Field("receiver_id") receiverId: Int,
-        @Field("last_message_id") lastMessageId: Int
+        @Field("last_message_id") lastMessageId: Long
     ): Call<MarkMessagesReadResponse>
 
     @FormUrlEncoded

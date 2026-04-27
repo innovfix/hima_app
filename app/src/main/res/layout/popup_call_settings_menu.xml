@@ -24,6 +24,10 @@
         android:gravity="center_vertical"
         android:visibility="gone" />
 
+    <!-- Audio / Video enable toggles removed: managed elsewhere
+         (Profile screen's call-availability section), so the chat overflow
+         menu now only carries Accept-as-friend + Block User. -->
+
     <!-- Divider -->
     <View
         android:id="@+id/divider_before_block_user"

@@ -19,6 +19,7 @@
             android:id="@+id/bubble_container"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="14dp"
             app:cardCornerRadius="18dp"
             app:cardElevation="1dp"
             app:strokeWidth="0dp">
@@ -55,7 +56,7 @@
                         android:fontFamily="@font/poppins_regular"
                         android:text="10:31 AM"
                         android:textColor="@color/chat_time_sent"
-                        android:textSize="10sp" />
+                        android:textSize="11sp" />
 
                     <ProgressBar
                         android:id="@+id/pb_send_pending"
@@ -101,7 +102,7 @@
             android:layout_alignStart="@id/bubble_container"
             android:layout_below="@id/bubble_container"
             android:layout_marginStart="-8dp"
-            android:layout_marginTop="-14dp"
+            android:layout_marginTop="-10dp"
             android:background="@drawable/bg_reaction_circle"
             android:elevation="3dp"
             android:gravity="center"

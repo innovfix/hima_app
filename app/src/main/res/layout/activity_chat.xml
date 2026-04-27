@@ -6,7 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
-    android:background="#FAFBFC">
+    android:background="@color/chat_background">
 
     <!-- Top App Bar with Elevation -->
     <com.google.android.material.card.MaterialCardView
@@ -15,7 +15,7 @@
         android:layout_height="wrap_content"
         app:cardElevation="2dp"
         app:cardCornerRadius="0dp"
-        app:cardBackgroundColor="@color/white"
+        app:cardBackgroundColor="@color/chat_surface"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -28,15 +28,15 @@
             android:gravity="center_vertical"
             android:paddingHorizontal="8dp"
             android:paddingVertical="10dp"
-            android:background="@color/white">
+            android:background="@color/chat_surface">
 
             <androidx.cardview.widget.CardView
                 android:id="@+id/cv_back"
-                android:layout_width="42dp"
-                android:layout_height="42dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 app:cardCornerRadius="12dp"
                 app:cardElevation="1dp"
-                app:cardBackgroundColor="#F8F9FA"
+                app:cardBackgroundColor="@color/chat_header_control_bg"
                 app:contentPadding="0dp">
 
                 <ImageView
@@ -46,8 +46,8 @@
                     android:padding="11dp"
                     android:layout_gravity="center"
                     android:src="@drawable/ic_back"
-                    android:contentDescription="Back"
-                    app:tint="#374151" />
+                    android:contentDescription="@string/chat_back_desc"
+                    app:tint="@color/chat_attach_tint" />
 
             </androidx.cardview.widget.CardView>
 
@@ -56,6 +56,7 @@
                 android:layout_width="42dp"
                 android:layout_height="42dp"
                 android:layout_marginStart="12dp"
+                android:contentDescription="@string/chat_peer_avatar_desc"
                 android:src="@drawable/logo"
                 app:civ_border_width="2dp"
                 app:civ_border_color="#FFE5F1" />
@@ -73,14 +74,14 @@
                     android:layout_height="wrap_content"
                     android:text="Username"
                     android:textSize="17sp"
-                    android:textColor="#1F2937"
+                    android:textColor="@color/chat_text_received"
                     android:fontFamily="@font/poppins_semibold"
                     android:letterSpacing="-0.01"
                     android:maxLines="1"
                     android:ellipsize="end" />
 
                 <LinearLayout
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
@@ -92,17 +93,21 @@
                         android:layout_height="6dp"
                         android:visibility="gone"
                         android:background="@drawable/splash_circle"
-                        android:backgroundTint="#10B981" />
+                        android:backgroundTint="@color/online_green" />
 
                     <TextView
                         android:id="@+id/tv_user_status"
-                        android:layout_width="wrap_content"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
+                        android:layout_weight="1"
                         android:layout_marginStart="4dp"
                         android:text=""
                         android:textSize="12sp"
-                        android:textColor="#10B981"
-                        android:fontFamily="@font/poppins_medium" />
+                        android:textColor="@color/online_green"
+                        android:fontFamily="@font/poppins_medium"
+                        android:maxLines="1"
+                        android:ellipsize="end"
+                        android:includeFontPadding="false" />
                 </LinearLayout>
             </LinearLayout>
 
@@ -119,8 +124,8 @@
                 <!-- Audio Call Button -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/cv_audio_call"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
                     android:layout_marginEnd="6dp"
                     android:clickable="true"
                     android:focusable="true"
@@ -137,16 +142,16 @@
                         android:src="@drawable/ic_phone_modern"
                         android:scaleType="centerInside"
                         android:padding="10dp"
-                        android:tint="@color/grey_medium"
-                        android:contentDescription="Audio Call" />
+                        app:tint="@color/grey_medium"
+                        android:contentDescription="@string/chat_audio_call_desc" />
 
                 </com.google.android.material.card.MaterialCardView>
 
                 <!-- Video Call Button -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/cv_video_call"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
                     android:clickable="true"
                     android:focusable="true"
                     app:cardBackgroundColor="@color/light_grey"
@@ -162,8 +167,8 @@
                         android:src="@drawable/ic_video_modern"
                         android:scaleType="centerInside"
                         android:padding="10dp"
-                        android:tint="@color/grey_medium"
-                        android:contentDescription="Video Call" />
+                        app:tint="@color/grey_medium"
+                        android:contentDescription="@string/chat_video_call_desc" />
 
                 </com.google.android.material.card.MaterialCardView>
 
@@ -171,12 +176,12 @@
 
             <ImageView
                 android:id="@+id/iv_more"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:src="@drawable/baseline_more_vert_24"
-                android:contentDescription="More"
-                android:padding="4dp"
-                android:tint="#6B7280" />
+                android:contentDescription="@string/chat_more_desc"
+                android:padding="14dp"
+                app:tint="@color/chat_attach_tint" />
 
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
@@ -310,6 +315,27 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_new_messages"
+        style="@style/Widget.MaterialComponents.Button"
+        android:layout_width="wrap_content"
+        android:layout_height="40dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="10dp"
+        android:minHeight="40dp"
+        android:paddingHorizontal="14dp"
+        android:textAllCaps="false"
+        android:textSize="13sp"
+        android:visibility="gone"
+        app:backgroundTint="@color/colorAccent"
+        app:cornerRadius="20dp"
+        app:icon="@drawable/ic_arrow_down"
+        app:iconGravity="textStart"
+        app:iconPadding="4dp"
+        app:layout_constraintBottom_toTopOf="@id/message_input_container"
+        app:layout_constraintEnd_toEndOf="parent"
+        tools:text="1 new message" />
+
     <!-- Shown when history fails to load (e.g. 429) and there is nothing to show -->
     <LinearLayout
         android:id="@+id/layout_history_error"
@@ -344,30 +370,12 @@
             android:textAllCaps="false" />
     </LinearLayout>
 
-    <!-- Date Divider Example (Optional) -->
-    <TextView
-        android:id="@+id/tv_date_divider"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="Today"
-        android:textSize="12sp"
-        android:textColor="#9CA3AF"
-        android:fontFamily="@font/poppins_medium"
-        android:background="@drawable/chat_input_background"
-        android:paddingHorizontal="14dp"
-        android:paddingVertical="4dp"
-        android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/top_bar_card"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
     <!-- Message Input Container -->
     <LinearLayout
         android:id="@+id/message_input_container"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@color/white"
+        android:background="@color/chat_surface"
         android:elevation="4dp"
         android:orientation="vertical"
         android:paddingHorizontal="16dp"
@@ -456,7 +464,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="10dp"
                 android:fontFamily="@font/poppins_semibold"
-                android:text="00:00"
+                android:text="@string/chat_recording_timer_zero"
                 android:textColor="@color/chat_text_received"
                 android:textSize="13sp" />
 
@@ -468,7 +476,7 @@
                 android:layout_weight="1"
                 android:fontFamily="@font/poppins_regular"
                 android:gravity="end"
-                android:text="Slide up to cancel"
+                android:text="@string/chat_recording_slide_cancel"
                 android:textColor="@color/grey_medium"
                 android:textSize="12sp" />
         </LinearLayout>
@@ -480,8 +488,8 @@
             android:orientation="horizontal">
 
             <FrameLayout
-                android:layout_width="44dp"
-                android:layout_height="44dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:background="@drawable/chat_input_background">
 
                 <ImageView
@@ -489,11 +497,11 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:clickable="true"
-                    android:contentDescription="Attach"
+                    android:contentDescription="@string/chat_attach_desc"
                     android:focusable="true"
                     android:padding="10dp"
                     android:src="@drawable/baseline_add_24"
-                    android:tint="@color/chat_attach_tint" />
+                    app:tint="@color/chat_attach_tint" />
             </FrameLayout>
 
             <LinearLayout
@@ -515,8 +523,9 @@
                     android:layout_weight="1"
                     android:background="@android:color/transparent"
                     android:fontFamily="@font/poppins_regular"
-                    android:hint="Type a message..."
+                    android:hint="@string/chat_input_hint"
                     android:inputType="textCapSentences|textMultiLine"
+                    android:maxLength="2000"
                     android:maxLines="4"
                     android:paddingVertical="12dp"
                     android:scrollbars="vertical"
@@ -535,7 +544,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:background="@drawable/bg_chat_send_btn"
-                    android:contentDescription="Record audio"
+                    android:contentDescription="@string/chat_record_audio_desc"
                     android:padding="12dp"
                     android:scaleType="centerInside"
                     android:src="@drawable/ic_mic" />
@@ -545,7 +554,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:background="@drawable/bg_chat_send_btn"
-                    android:contentDescription="Send message"
+                    android:contentDescription="@string/chat_send_message_desc"
                     android:padding="12dp"
                     android:scaleType="centerInside"
                     android:src="@drawable/ic_send"

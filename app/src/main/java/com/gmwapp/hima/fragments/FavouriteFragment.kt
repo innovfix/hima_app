@@ -28,13 +28,9 @@ import com.gmwapp.hima.callbacks.Refreshable
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentFavouriteBinding
 import com.gmwapp.hima.retrofit.ApiManager
-import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.CallsListResponseData
-import com.gmwapp.hima.retrofit.responses.MyChatResponse
 import com.gmwapp.hima.viewmodels.RecentViewModel
 import dagger.hilt.android.AndroidEntryPoint
-import retrofit2.Call
-import retrofit2.Response
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -88,12 +84,6 @@ class FavouriteFragment : BaseFragment(), NetworkRetryable, Refreshable {
             binding.tlTitle.visibility = View.VISIBLE
             return
         }
-
-        // Setup chat icon click listener
-        setupChatIconClickListener()
-        
-        // Load unread message count from API
-        loadUnreadMessageCount()
 
         // Swipe to refresh
         binding.swipeRefreshLayout.setOnRefreshListener {
@@ -212,7 +202,6 @@ class FavouriteFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
     override fun onNetworkRetry() {
         loadFavouritesList(resetData = true)
-        loadUnreadMessageCount()
     }
 
     private fun startMaleCallConnectingActivity(data: CallsListResponseData, callType: String) {
@@ -238,97 +227,17 @@ class FavouriteFragment : BaseFragment(), NetworkRetryable, Refreshable {
         startActivity(intent)
     }
 
-    private fun setupChatIconClickListener() {
-        binding.cardChat.setOnClickListener {
-            // Open ChatListActivity
-            val intent = Intent(requireContext(), com.gmwapp.hima.activities.ChatListActivity::class.java)
-            startActivity(intent)
-        }
-    }
-
-    private fun loadUnreadMessageCount() {
-        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
-        val myUserId = userData.id
-
-        if (myUserId == 0) {
-            updateUnreadBadge(0)
-            return
-        }
-
-        Log.d("FavouriteFragment", "Loading unread message count for user: $myUserId")
-
-        // Call API to get chat list
-        apiManager.getMyChat(myUserId, null, 100, 0, object : NetworkCallback<MyChatResponse> {
-            override fun onResponse(call: Call<MyChatResponse>, response: Response<MyChatResponse>) {
-                if (!isAdded) return
-
-                if (response.isSuccessful) {
-                    val responseBody = response.body()
-                    if (responseBody?.success == true && responseBody.data != null) {
-                        val chats = responseBody.data.chats
-                        Log.d("FavouriteFragment", "✅ Received ${chats.size} chats from API")
-
-                        // Calculate total unread count
-                        val totalUnread = chats.sumOf { it.unreadCount }
-                        Log.d("FavouriteFragment", "📊 Total unread count: $totalUnread")
-                        updateUnreadBadge(totalUnread)
-                    } else {
-                        Log.e("FavouriteFragment", "❌ API response unsuccessful or data is null")
-                        updateUnreadBadge(0)
-                    }
-                } else {
-                    Log.e("FavouriteFragment", "❌ API call failed: ${response.code()}")
-                    updateUnreadBadge(0)
-                }
-            }
-
-            override fun onFailure(call: Call<MyChatResponse>, t: Throwable) {
-                if (!isAdded) return
-                Log.e("FavouriteFragment", "❌ Error loading unread count: ${t.message}", t)
-                updateUnreadBadge(0)
-            }
-
-            override fun onNoNetwork() {
-                if (!isAdded) return
-                Log.e("FavouriteFragment", "❌ No network connection")
-                updateUnreadBadge(0)
-            }
-        })
-    }
-
-    private fun updateUnreadBadge(count: Int) {
-        if (!::binding.isInitialized) {
-            Log.d("FavouriteFragment", "❌ Binding not initialized")
-            return
-        }
-
-        Log.d("FavouriteFragment", "📬 Updating unread badge: $count")
-
-        if (count > 0) {
-            binding.tvUnreadBadge.visibility = View.VISIBLE
-            binding.tvUnreadBadge.text = if (count > 99) "99+" else count.toString()
-            Log.d("FavouriteFragment", "✅ Badge visible with count: $count")
-        } else {
-            binding.tvUnreadBadge.visibility = View.GONE
-            Log.d("FavouriteFragment", "⚠️ Badge hidden (no unread)")
-        }
-    }
-
     override fun onResume() {
         super.onResume()
 
         // Always refresh favorites list when returning to this screen
         Log.d("FavouriteFragment", "🔄 onResume - refreshing favourites list")
-            loadFavouritesList(resetData = true)
+        loadFavouritesList(resetData = true)
 
         // Reset flags if they were set
         if (FcmUtils.shouldRefreshCallList == 1) {
             FcmUtils.shouldRefreshCallList = 0
         }
-
-        // Refresh unread count when returning to this screen
-        Log.d("FavouriteFragment", "🔄 onResume - reloading unread count")
-        loadUnreadMessageCount()
     }
     
     override fun onDestroyView() {

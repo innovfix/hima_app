@@ -179,6 +179,7 @@
         <activity
             android:name=".activities.ChatActivityInHouse"
             android:exported="false"
+            android:launchMode="singleTop"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".agora.male.MaleCallConnectingActivity"

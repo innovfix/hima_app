@@ -33,6 +33,7 @@
     <color name="disabled_black">#45464a</color>
     <color name="white">#FFFFFFFF</color>
     <color name="green">#019A66</color>
+    <color name="online_green">#10B981</color>
     <color name="pink">#FF1381</color>
     <color name="pink_bold">#C11063</color>
     <color name="pink_light">#FFA5CF</color>
@@ -114,6 +115,8 @@
 
     <!-- Chat Interface Colors -->
     <color name="chat_background">#FAFBFC</color>
+    <color name="chat_surface">#FFFFFF</color>
+    <color name="chat_header_control_bg">#F8F9FA</color>
     <color name="chat_bubble_sent">#FFE3EE</color>
     <color name="chat_bubble_sent_start">#FFE9F1</color>
     <color name="chat_bubble_sent_end">#FFD4E4</color>

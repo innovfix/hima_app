@@ -74,9 +74,10 @@ class FriendsTabFragment : Fragment() {
     private val conversationsMap = mutableMapOf<String, ChatConversation>()
     private var currentSearchQuery: String = ""
     
-    // Date format for parsing timestamps from API (API returns IST timestamps)
+    // T18/T19: parse server timestamps in the device's local timezone so a user
+    // outside India sees consistent dates/times in the chat list.
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).apply {
-        timeZone = TimeZone.getTimeZone("Asia/Kolkata")
+        timeZone = TimeZone.getDefault()
     }
     
     // Auto-refresh handler
@@ -101,7 +102,7 @@ class FriendsTabFragment : Fragment() {
         /** Creator Chat tab — General sub-list (POST my_chat/general). */
         const val TYPE_CHAT_GENERAL = 5
         private const val ARG_TYPE = "type"
-        private const val AUTO_REFRESH_INTERVAL = 30_000000L // 30 seconds
+        private const val AUTO_REFRESH_INTERVAL = 30_000L // 30 seconds
 
         fun newInstance(type: Int): FriendsTabFragment {
             val fragment = FriendsTabFragment()
@@ -183,10 +184,13 @@ class FriendsTabFragment : Fragment() {
             // Refresh chat conversations from API
             Log.d("FriendsTab", "💬 Chat tab resumed - refreshing chat conversations")
             loadChatConversations()
-        } else {
-            loadData()
+            // Realtime: subscribe to push-driven list refresh + socket new_message
+            // so a new push or live socket event reorders / increments the row
+            // without waiting for the 30s poll.
+            registerChatListRefreshReceiver()
+            startCollectingSocketNewMessage()
         }
-        
+
         // Restart auto-refresh
         startAutoRefresh()
     }
@@ -195,7 +199,123 @@ class FriendsTabFragment : Fragment() {
         super.onPause()
         // Stop auto-refresh when not visible
         autoRefreshHandler.removeCallbacks(autoRefreshRunnable)
+        unregisterChatListRefreshReceiver()
         Log.d("FriendsTab", "⏸️ Stopped auto-refresh")
+    }
+
+    /**
+     * Receives [ACTION_CHAT_LIST_REFRESH] from the OneSignal NSE / foreground
+     * listener for every type=message push. Updates the visible list row
+     * in-place; if the peer isn't in the list yet (new conversation), falls
+     * back to a full API reload.
+     */
+    private var chatListRefreshReceiver: android.content.BroadcastReceiver? = null
+    private var chatListRefreshReceiverRegistered: Boolean = false
+
+    private fun registerChatListRefreshReceiver() {
+        if (chatListRefreshReceiverRegistered) return
+        val ctx = context ?: return
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: android.content.Context?, intent: android.content.Intent?) {
+                if (!isAdded || intent == null) return
+                if (intent.action != com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_REFRESH) return
+                val peerId = intent.getIntExtra(
+                    com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.EXTRA_PEER_ID,
+                    -1
+                )
+                if (peerId <= 0) return
+                val text = intent.getStringExtra(
+                    com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.EXTRA_LAST_MESSAGE
+                ).orEmpty()
+                val type = intent.getStringExtra(
+                    com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.EXTRA_MESSAGE_TYPE
+                ) ?: "text"
+                applyChatListIncomingFromBroadcast(peerId, text, type)
+            }
+        }
+        val filter = android.content.IntentFilter(
+            com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_REFRESH
+        )
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            ctx.registerReceiver(
+                receiver,
+                filter,
+                android.content.Context.RECEIVER_NOT_EXPORTED
+            )
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            ctx.registerReceiver(receiver, filter)
+        }
+        chatListRefreshReceiver = receiver
+        chatListRefreshReceiverRegistered = true
+    }
+
+    private fun unregisterChatListRefreshReceiver() {
+        if (!chatListRefreshReceiverRegistered) return
+        val ctx = context ?: return
+        val receiver = chatListRefreshReceiver ?: return
+        runCatching { ctx.unregisterReceiver(receiver) }
+        chatListRefreshReceiver = null
+        chatListRefreshReceiverRegistered = false
+    }
+
+    private fun applyChatListIncomingFromBroadcast(peerId: Int, text: String, type: String) {
+        if (!::chatAdapter.isInitialized) return
+        val now = com.google.firebase.Timestamp.now()
+        val suppressUnread = com.gmwapp.hima.utils.ActiveChatTracker.isActiveFor(context, peerId)
+        val handled = chatAdapter.applyIncomingMessage(
+            peerUserId = peerId.toString(),
+            lastMessageText = text,
+            lastMessageType = type,
+            lastMessageTime = now,
+            suppressUnreadIncrement = suppressUnread
+        )
+        if (!handled) {
+            // New peer not yet in the list — pull a fresh page so the row appears.
+            loadChatConversations()
+        }
+    }
+
+    /**
+     * Collects [com.gmwapp.hima.socket.SocketManager.newMessage] for the lifetime
+     * of `viewLifecycleOwner` (auto-cancels in `onDestroyView`). Repeats on every
+     * `RESUMED` so we don't keep collecting after the tab pauses.
+     */
+    private fun startCollectingSocketNewMessage() {
+        val owner = viewLifecycleOwner
+        owner.lifecycleScope.launch {
+            owner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                com.gmwapp.hima.socket.SocketManager.getInstance().newMessage.collect { msg ->
+                    if (!isAdded || !::chatAdapter.isInitialized) return@collect
+                    val mySelfId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+                    val peerId = msg.fromUserId ?: return@collect
+                    // Skip own outgoing echoes — the thread already handles those.
+                    if (peerId == mySelfId) return@collect
+                    val previewType = msg.messageType.lowercase().ifBlank { "text" }
+                    val previewText = msg.message.ifBlank {
+                        when (previewType) {
+                            "image" -> "📷 Photo"
+                            "audio" -> "🎤 Voice message"
+                            "video" -> "📹 Video"
+                            "file" -> "📎 File"
+                            else -> ""
+                        }
+                    }
+                    val ts = com.google.firebase.Timestamp.now()
+                    val suppressUnread = com.gmwapp.hima.utils.ActiveChatTracker.isActiveFor(context, peerId)
+                    val handled = chatAdapter.applyIncomingMessage(
+                        peerUserId = peerId.toString(),
+                        lastMessageText = previewText,
+                        lastMessageType = previewType,
+                        lastMessageTime = ts,
+                        suppressUnreadIncrement = suppressUnread
+                    )
+                    if (!handled) {
+                        loadChatConversations()
+                    }
+                }
+            }
+        }
     }
 
     override fun onDestroyView() {
@@ -205,19 +325,10 @@ class FriendsTabFragment : Fragment() {
         Log.d("FriendsTab", "🗑️ Cleaned up auto-refresh handler")
     }
 
-    override fun setUserVisibleHint(isVisibleToUser: Boolean) {
-        super.setUserVisibleHint(isVisibleToUser)
-        Log.d("FriendsTab", "👁️ setUserVisibleHint: $isVisibleToUser, isResumed: $isResumed, tabType: $tabType")
-        // Call API/Load data when tab becomes visible
-        if (isVisibleToUser && isResumed) {
-            if (isChatListTab()) {
-                Log.d("FriendsTab", "💬 Chat tab visible - loading conversations")
-                loadChatConversations()
-            } else {
-                loadData()
-            }
-        }
-    }
+    // T35: removed deprecated `setUserVisibleHint`. ViewPager2 + FragmentStateAdapter
+    // already drive `onResume()`/`onPause()` per tab visibility, and the existing
+    // [onResume] override calls `loadData()` / `loadChatConversations()` when the
+    // tab actually becomes visible, so the old hint hook was redundant.
 
     private fun setupObservers() {
         // Observe friends list
@@ -359,6 +470,17 @@ class FriendsTabFragment : Fragment() {
     }
 
     private fun updateEmptyState() {
+        if (isChatListTab() && chatConversations.isEmpty() && currentSearchQuery.isNotBlank()) {
+            binding.emptyStateTitle.text = getString(R.string.chat_search_no_results_title)
+            binding.emptyStateSubtitle.text = getString(
+                R.string.chat_search_no_results_desc,
+                currentSearchQuery
+            )
+            binding.emptyState.visibility = View.VISIBLE
+            binding.rvFriends.visibility = View.GONE
+            return
+        }
+
         when (tabType) {
             TYPE_CHAT -> {
                 binding.emptyStateTitle.text = getString(R.string.chat_empty_state_title)
@@ -413,6 +535,12 @@ class FriendsTabFragment : Fragment() {
                 intent.putExtra("USER_ID", userId)
                 intent.putExtra("USER_NAME", conversation.userName)
                 intent.putExtra("USER_IMAGE", conversation.userImage)
+                intent.putExtra("COIN_PER_MIN_AUDIO", conversation.coinPerMinAudio)
+                intent.putExtra("COIN_PER_MIN_VIDEO", conversation.coinPerMinVideo)
+                // T36: SINGLE_TOP + CLEAR_TOP so opening another chat from the
+                // list reuses the existing ChatActivityInHouse via onNewIntent
+                // instead of stacking a second instance.
+                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 startActivity(intent)
             },
             apiManager = apiManager,
@@ -439,6 +567,8 @@ class FriendsTabFragment : Fragment() {
                 intent.putExtra("USER_ID", friend.friend_id)
                 intent.putExtra("USER_NAME", friend.name)
                 intent.putExtra("USER_IMAGE", friend.image)
+                // T36: reuse existing ChatActivityInHouse instead of stacking.
+                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 startActivity(intent)
             },
             onAcceptClick = { friend ->
@@ -624,7 +754,7 @@ class FriendsTabFragment : Fragment() {
             lastMessageType = lastMessage?.messageType ?: "text",
             lastMessageTime = lastMessageTime,
             unreadCount = chatItem.unreadCount,
-            isOnline = false,
+            isOnline = u.status == 1,
             audioStatus = u.audioStatus ?: 1,
             videoStatus = u.videoStatus ?: 1,
             coinPerMinAudio = u.coinPerMinAudio ?: 10,
@@ -670,7 +800,10 @@ class FriendsTabFragment : Fragment() {
         }
 
         Log.d("FriendsTab", "📊 updateChatUI called with ${conversationsList.size} conversations")
-        Log.d("FriendsTab", "Conversations: ${conversationsList.map { "${it.userName} (${it.userId})" }}")
+        // T14: don't dump usernames/userIds in release logcat.
+        if (com.gmwapp.hima.BuildConfig.DEBUG) {
+            Log.d("FriendsTab", "Conversations: ${conversationsList.map { "${it.userName} (${it.userId})" }}")
+        }
         
         // Use the adapter's updateConversations method like ChatListActivity does
         if (::chatAdapter.isInitialized) {
@@ -915,10 +1048,15 @@ class FriendsTabFragment : Fragment() {
                     friend.hasChatHistory = !messagesSnapshot.isEmpty
                     
                     Log.d("FriendsTab", "💬 ${friend.name}: hasChatHistory = ${friend.hasChatHistory}")
-                    
-                    // Update UI
+
+                    // T38: refresh just the matching row instead of rebuilding the
+                    // whole list per Firestore callback (one probe per friend ×
+                    // N friends = N full rebinds otherwise).
                     if (::adapter.isInitialized) {
-                        adapter.notifyDataSetChanged()
+                        val idx = friendsList.indexOfFirst { it.friend_id == friend.friend_id }
+                        if (idx in 0 until adapter.itemCount) {
+                            adapter.notifyItemChanged(idx)
+                        }
                     }
                 }
                 .addOnFailureListener { e ->
@@ -949,4 +1087,3 @@ class FriendsTabFragment : Fragment() {
         }
     }
 }
-

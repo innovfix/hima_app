@@ -18,6 +18,8 @@
             android:id="@+id/bubble_container"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="14dp"
+            android:minWidth="56dp"
             android:orientation="vertical"
             android:maxWidth="280dp"
             android:background="@drawable/chat_bubble_sender"
@@ -58,9 +60,8 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="10:31 AM"
-                    android:textSize="10sp"
+                    android:textSize="11sp"
                     android:textColor="@color/chat_time_sent"
-                    android:alpha="0.82"
                     android:letterSpacing="0.02"
                     android:fontFamily="@font/poppins_regular" />
 
@@ -90,7 +91,7 @@
             android:layout_height="wrap_content"
             android:layout_below="@id/bubble_container"
             android:layout_alignStart="@id/bubble_container"
-            android:layout_marginTop="-14dp"
+            android:layout_marginTop="-10dp"
             android:layout_marginStart="-8dp"
             android:minWidth="28dp"
             android:minHeight="28dp"

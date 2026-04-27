@@ -107,15 +107,20 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         var gender = userData?.gender
         Log.d("FCM", "From: ${remoteMessage.from}")
-        Log.d("FCM_Data_Complete", "From: ${remoteMessage.data}")
-        Log.d("FCM_Message", "Message data payload: ${remoteMessage.data["message"]}")
+        if (com.gmwapp.hima.BuildConfig.DEBUG) {
+            // Full data payload — debug only. Release smoke verifies no payloads in logcat.
+            Log.d("FCM_Data_Complete", "From: ${remoteMessage.data}")
+            Log.d("FCM_Message", "Message data payload: ${remoteMessage.data["message"]}")
+        }
         // Single-line catch-all so `adb logcat -s CreatorCallDiag` can confirm
         // whether any FCM at all is reaching this device during a call test.
+        // Type/channel/callId are operational metadata; message body is omitted to
+        // keep release logcat free of chat content.
         Log.d(
             "CreatorCallDiag",
             "FCM.rx priority=${remoteMessage.priority} from=${remoteMessage.from} " +
                 "userId=${userData?.id} gender=$gender type=${remoteMessage.data["type"]} " +
-                "message=${remoteMessage.data["message"]} channel=${remoteMessage.data["channelName"]} " +
+                "channel=${remoteMessage.data["channelName"]} " +
                 "callId=${remoteMessage.data["call_id"]}"
         )
 
@@ -140,10 +145,17 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             val senderId = remoteMessage.data["senderId"]?.toIntOrNull() ?: -1
             val channelName = remoteMessage.data["channelName"] ?: "default_channel"
             val fcmCurrentActivity = BaseApplication.getInstance()?.getCurrentActivity()
-            Log.d(
-                "MaleVideoEndFlow",
-                "FCM rx type=$type message=$message senderId=$senderId callType=$callType gender=$gender currentActivity=${fcmCurrentActivity?.javaClass?.simpleName}"
-            )
+            if (com.gmwapp.hima.BuildConfig.DEBUG) {
+                Log.d(
+                    "MaleVideoEndFlow",
+                    "FCM rx type=$type message=$message senderId=$senderId callType=$callType gender=$gender currentActivity=${fcmCurrentActivity?.javaClass?.simpleName}"
+                )
+            } else {
+                Log.d(
+                    "MaleVideoEndFlow",
+                    "FCM rx type=$type senderId=$senderId callType=$callType gender=$gender currentActivity=${fcmCurrentActivity?.javaClass?.simpleName}"
+                )
+            }
 
             // Admin/server forced logout/clear session.
             if (type == "clear_data" || message == "clear_data") {
@@ -865,22 +877,9 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             cancelIncomingCallNotification()
             BaseApplication.getInstance()?.clearIncomingCall()
 
-            // Clear stored login/session data.
+            // T32: shared teardown — same order as logout sheet and 401 path.
+            BaseApplication.getInstance()?.performGlobalSessionTeardown()
             BaseApplication.getInstance()?.getPrefs()?.clearUserData()
-            // Wipe per-peer conversation shortcuts so the previous user's avatars
-            // don't stick around when a different account signs in on this device.
-            runCatching {
-                androidx.core.content.pm.ShortcutManagerCompat
-                    .removeAllDynamicShortcuts(applicationContext)
-            }
-            try {
-                // Detach external id so the (now logged-out) device stops
-                // receiving user-targeted pushes. Do NOT optOut() — that persists
-                // enabled=false server-side and blocks the next login on this device.
-                OneSignal.logout()
-            } catch (e: Exception) {
-                Log.e("OneSignalLoginScreen", "Failed to logout: ${e.message}")
-            }
 
             // If app is visible, redirect to login; otherwise show a notification that opens login.
             if (!isAppInBackground(applicationContext)) {
@@ -889,7 +888,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 }
                 startActivity(intent)
             } else {
-                Log.e("FCM_ClearData", "Failed to clear session:")
+                // App is killed/backgrounded — surface a tap-to-login notification so
+                // the user discovers the forced logout instead of finding it on next
+                // app launch (H16).
+                showSessionClearedNotification()
             }
         } catch (e: Exception) {
             Log.e("FCM_ClearData", "Failed to clear session: ${e.message}", e)
@@ -1028,155 +1030,21 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         receiverName: String,
         receiverImg: String
     ) {
-        createNotificationChannel()
-        val chImp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            getSystemService(NotificationManager::class.java)
-                ?.getNotificationChannel(CALLS_NOTIFICATION_CHANNEL_ID)?.importance
-        } else null
-        Log.d(
-            INCOMING_CALL_LOG_TAG,
-            "notifyIncomingCallWithCallStyle: begin isMale=$isMale callId=$callId senderId=$senderId calls_v3_importance=$chImp"
-        )
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val granted = ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.POST_NOTIFICATIONS
-            ) == PackageManager.PERMISSION_GRANTED
-            Log.d(
-                INCOMING_CALL_LOG_TAG,
-                "notifyIncomingCallWithCallStyle: POST_NOTIFICATIONS granted=$granted (still attempting CallStyle / Telecom-linked notify)"
-            )
-        }
-
-        val targetClass = if (isMale) MaleCallAcceptActivity::class.java else FemaleCallAcceptActivity::class.java
-        val contentReq = if (isMale) 201 else 101
-        val acceptAction = if (isMale) "ACTION_ACCEPT_CALL_MALE" else "ACTION_ACCEPT_CALL"
-        val rejectAction = if (isMale) "ACTION_REJECT_CALL_MALE" else "ACTION_REJECT_CALL"
-        val acceptReq = if (isMale) 202 else 102
-        val rejectReq = if (isMale) 203 else 103
-
-        val tapIntent = Intent(this, targetClass).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra("CALL_TYPE", callType)
-            putExtra("SENDER_ID", senderId)
-            putExtra("CHANNEL_NAME", channelName)
-            putExtra("CALL_ID", callId)
-            putExtra("Caller_NAME", receiverName)
-            putExtra("Caller_Image", receiverImg)
-        }
-        val contentPi = PendingIntent.getActivity(
+        // All the channel + CallStyle + avatar-refresh logic now lives in
+        // [com.gmwapp.hima.utils.CallNotifications.showIncoming] so the OneSignal
+        // NSE / foreground listener can post the same UI as the FCM path.
+        com.gmwapp.hima.utils.CallNotifications.showIncoming(
             this,
-            contentReq,
-            tapIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val acceptIntent = Intent(this, CallActionReceiver::class.java).apply {
-            action = acceptAction
-            putExtra("CALL_TYPE", callType)
-            putExtra("SENDER_ID", senderId)
-            putExtra("CHANNEL_NAME", channelName)
-            putExtra("CALL_ID", callId)
-        }
-        val acceptPi = PendingIntent.getBroadcast(
-            this,
-            acceptReq,
-            acceptIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val rejectIntent = Intent(this, CallActionReceiver::class.java).apply {
-            action = rejectAction
-            putExtra("CALL_TYPE", callType)
-            putExtra("SENDER_ID", senderId)
-            putExtra("CHANNEL_NAME", channelName)
-            putExtra("CALL_ID", callId)
-        }
-        val rejectPi = PendingIntent.getBroadcast(
-            this,
-            rejectReq,
-            rejectIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val caller = Person.Builder()
-            .setName(receiverName)
-            .setImportant(true)
-            .build()
-
-        fun buildNotification(person: Person): Notification {
-            return NotificationCompat.Builder(this, CALLS_NOTIFICATION_CHANNEL_ID)
-                .setSmallIcon(R.drawable.notification_icon)
-                .setStyle(
-                    NotificationCompat.CallStyle.forIncomingCall(
-                        person,
-                        rejectPi,
-                        acceptPi
-                    )
-                )
-                .setCategory(NotificationCompat.CATEGORY_CALL)
-                .setPriority(NotificationCompat.PRIORITY_MAX)
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setContentIntent(contentPi)
-                .setFullScreenIntent(contentPi, true)
-                .setOngoing(true)
-                .setAutoCancel(false)
-                .setTimeoutAfter(35_000L)
-                .addPerson(person)
-                .build()
-        }
-
-        val notifTag = callId.toString()
-        try {
-            Log.d(
-                INCOMING_CALL_LOG_TAG,
-                "notifyIncomingCallWithCallStyle: posting notify tag=$notifTag id=$INCOMING_CALL_NOTIFICATION_ID channel=$CALLS_NOTIFICATION_CHANNEL_ID"
+            com.gmwapp.hima.utils.CallNotifications.IncomingPayload(
+                isMale = isMale,
+                callType = callType,
+                senderId = senderId,
+                callId = callId,
+                channelName = channelName,
+                callerName = receiverName,
+                callerImage = receiverImg
             )
-            NotificationManagerCompat.from(this).notify(
-                notifTag,
-                INCOMING_CALL_NOTIFICATION_ID,
-                buildNotification(caller)
-            )
-            Log.d(
-                INCOMING_CALL_LOG_TAG,
-                "notifyIncomingCallWithCallStyle: CallStyle notification posted (isMale=$isMale, tag=$notifTag, id=$INCOMING_CALL_NOTIFICATION_ID)"
-            )
-
-            Glide.with(this)
-                .asBitmap()
-                .load(receiverImg)
-                .apply(RequestOptions.circleCropTransform())
-                .into(object : CustomTarget<Bitmap>() {
-                    override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-                        val currentTag = BaseApplication.getInstance()?.getLastIncomingCallTag()
-                        if (currentTag != notifTag) {
-                            Log.d(
-                                INCOMING_CALL_LOG_TAG,
-                                "avatar refresh skipped: call $notifTag no longer pending (current=$currentTag)"
-                            )
-                            return
-                        }
-                        val personWithIcon = Person.Builder()
-                            .setName(receiverName)
-                            .setImportant(true)
-                            .setIcon(IconCompat.createWithBitmap(resource))
-                            .build()
-                        NotificationManagerCompat.from(applicationContext).notify(
-                            notifTag,
-                            INCOMING_CALL_NOTIFICATION_ID,
-                            buildNotification(personWithIcon)
-                        )
-                        Log.d(INCOMING_CALL_LOG_TAG, "notifyIncomingCallWithCallStyle: refreshed with caller avatar bitmap")
-                    }
-
-                    override fun onLoadCleared(placeholder: Drawable?) {}
-                })
-        } catch (e: SecurityException) {
-            Log.e(INCOMING_CALL_LOG_TAG, "notifyIncomingCallWithCallStyle: SecurityException ${e.message}", e)
-        } catch (e: Exception) {
-            Log.e(INCOMING_CALL_LOG_TAG, "notifyIncomingCallWithCallStyle: Exception ${e.message}", e)
-        }
+        )
     }
 
     private fun createNotificationChannel() {

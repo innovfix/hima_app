@@ -11,7 +11,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:fontFamily="@font/poppins_semibold"
-        android:text="Send media"
+        android:text="@string/chat_attach_title"
         android:textColor="@color/chat_text_received"
         android:textSize="16sp" />
 
@@ -20,7 +20,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
         android:fontFamily="@font/poppins_regular"
-        android:text="Choose what you want to share"
+        android:text="@string/chat_attach_subtitle"
         android:textColor="@color/grey_medium"
         android:textSize="12sp" />
 
@@ -54,7 +54,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/poppins_medium"
-                android:text="Photo"
+                android:text="@string/chat_attach_photo"
                 android:textColor="@color/chat_text_received"
                 android:textSize="14sp" />
 
@@ -62,7 +62,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/poppins_regular"
-                android:text="Compress before sending"
+                android:text="@string/chat_attach_photo_subtitle"
                 android:textColor="@color/grey_medium"
                 android:textSize="11sp" />
         </LinearLayout>
@@ -98,7 +98,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/poppins_medium"
-                android:text="Camera"
+                android:text="@string/chat_attach_camera"
                 android:textColor="@color/chat_text_received"
                 android:textSize="14sp" />
 
@@ -106,7 +106,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/poppins_regular"
-                android:text="Coming soon"
+                android:text="@string/chat_attach_camera_coming_soon"
                 android:textColor="@color/grey_medium"
                 android:textSize="11sp" />
         </LinearLayout>

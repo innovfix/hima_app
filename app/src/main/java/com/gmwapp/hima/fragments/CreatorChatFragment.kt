@@ -8,7 +8,11 @@ import androidx.annotation.StringRes
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.viewpager2.adapter.FragmentStateAdapter
+import kotlinx.coroutines.launch
 import com.google.android.material.tabs.TabLayoutMediator
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
@@ -85,11 +89,88 @@ class CreatorChatFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         loadTabUnreadCounts()
+        registerCreatorChatListRefreshReceiver()
+        startCollectingSocketNewMessage()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        unregisterCreatorChatListRefreshReceiver()
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    /**
+     * Re-fetches the unread totals on every list-refresh broadcast — `getMyChat*`
+     * is the source of truth for sub-tab counts, and the broadcasts are rare
+     * enough (per push) that calling the API instead of trying to bump in-memory
+     * counters keeps the friends/general split consistent.
+     */
+    private var creatorChatListRefreshReceiver: android.content.BroadcastReceiver? = null
+    private var creatorChatListRefreshReceiverRegistered: Boolean = false
+
+    private fun registerCreatorChatListRefreshReceiver() {
+        if (creatorChatListRefreshReceiverRegistered) return
+        val ctx = context ?: return
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: android.content.Context?, intent: android.content.Intent?) {
+                if (!isAdded || intent == null) return
+                if (intent.action != com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_REFRESH) return
+                loadTabUnreadCounts()
+            }
+        }
+        val filter = android.content.IntentFilter(
+            com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_REFRESH
+        )
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            ctx.registerReceiver(
+                receiver,
+                filter,
+                android.content.Context.RECEIVER_NOT_EXPORTED
+            )
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            ctx.registerReceiver(receiver, filter)
+        }
+        creatorChatListRefreshReceiver = receiver
+        creatorChatListRefreshReceiverRegistered = true
+    }
+
+    private fun unregisterCreatorChatListRefreshReceiver() {
+        if (!creatorChatListRefreshReceiverRegistered) return
+        val ctx = context ?: return
+        val receiver = creatorChatListRefreshReceiver ?: return
+        runCatching { ctx.unregisterReceiver(receiver) }
+        creatorChatListRefreshReceiver = null
+        creatorChatListRefreshReceiverRegistered = false
+    }
+
+    /**
+     * Optimistic in-memory unread bump on socket new_message so the tab title
+     * updates instantly. The broadcast / next loadTabUnreadCounts call corrects
+     * the totals if our optimistic count drifts (e.g. counted in wrong sub-tab).
+     */
+    private fun startCollectingSocketNewMessage() {
+        val owner = viewLifecycleOwner
+        owner.lifecycleScope.launch {
+            owner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                com.gmwapp.hima.socket.SocketManager.getInstance().newMessage.collect { msg ->
+                    if (!isAdded) return@collect
+                    val mySelfId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+                    val peerId = msg.fromUserId ?: return@collect
+                    if (peerId == mySelfId) return@collect
+                    // Skip if user has the thread open — the read flow handles it.
+                    if (com.gmwapp.hima.utils.ActiveChatTracker.isActiveFor(context, peerId)) return@collect
+                    // We don't know which sub-tab the peer belongs to here; the
+                    // friends API call inside loadTabUnreadCounts is cheap (sums
+                    // unreadCount across pages) so just refresh both totals.
+                    loadTabUnreadCounts()
+                }
+            }
+        }
     }
 
     private fun loadTabUnreadCounts() {
