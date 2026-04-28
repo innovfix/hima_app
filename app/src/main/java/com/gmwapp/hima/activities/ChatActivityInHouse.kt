@@ -82,6 +82,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import org.json.JSONObject
 import com.gmwapp.hima.activities.UserProfileDetailActivity
+import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.utils.CallUnavailableFeedback
 import com.gmwapp.hima.utils.AudioRecorderController
 import com.gmwapp.hima.utils.ChatHistoryMemoryCache
@@ -114,7 +115,9 @@ class ChatActivityInHouse : AppCompatActivity() {
     private lateinit var ivAttach: ImageView
     private var messageInputContainer: View? = null
     private var subscribeLockContainer: View? = null
+    private var autopayFailedLockContainer: View? = null
     private var btnSubscribeUnlock: View? = null
+    private var btnBuyCoinsUnlock: View? = null
     private lateinit var ivBack: ImageView
     private lateinit var cvBack: CardView
     private lateinit var ivMore: ImageView
@@ -352,8 +355,13 @@ class ChatActivityInHouse : AppCompatActivity() {
         ivAttach = findViewById(R.id.iv_attach)
         messageInputContainer = findViewById(R.id.message_input_container)
         subscribeLockContainer = findViewById(R.id.subscribe_lock_container)
+        autopayFailedLockContainer = findViewById(R.id.autopay_failed_lock_container)
         btnSubscribeUnlock = findViewById(R.id.btn_subscribe_unlock)
         btnSubscribeUnlock?.setOnClickListener { showTrialOfferSheet() }
+        btnBuyCoinsUnlock = findViewById(R.id.btn_buy_coins_unlock)
+        btnBuyCoinsUnlock?.setOnClickListener {
+            startActivity(Intent(this, WalletActivity::class.java))
+        }
         ivBack = findViewById(R.id.iv_back)
         cvBack = findViewById(R.id.cv_back)
         ivMore = findViewById(R.id.iv_more)
@@ -3449,14 +3457,36 @@ class ChatActivityInHouse : AppCompatActivity() {
         return username.replace(Regex("\\d+$"), "").trim()
     }
 
-    private fun isSubscriptionActive(): Boolean = getSharedPreferences(
-        DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE
-    ).getBoolean(DummySubscriptionActivity.KEY_ACTIVE, false)
+    private fun isSubscriptionActive(): Boolean =
+        com.gmwapp.hima.utils.SubscriptionStateCache.isActive(this)
 
+    private fun wasEverSubscribed(): Boolean =
+        com.gmwapp.hima.utils.SubscriptionStateCache.everActive(this)
+
+    /**
+     * Three mutually-exclusive bottom-bar states (mirrors ChatActivity).
+     *   active             -> message input visible
+     *   lapsed (everActive) -> autopay-failed lock with "Buy Coins" CTA
+     *   never-subscribed   -> subscribe-to-unlock lock
+     */
     private fun applySubscriptionGate() {
-        val active = isSubscriptionActive()
-        messageInputContainer?.visibility = if (active) View.VISIBLE else View.GONE
-        subscribeLockContainer?.visibility = if (active) View.GONE else View.VISIBLE
+        when {
+            isSubscriptionActive() -> {
+                messageInputContainer?.visibility = View.VISIBLE
+                subscribeLockContainer?.visibility = View.GONE
+                autopayFailedLockContainer?.visibility = View.GONE
+            }
+            wasEverSubscribed() -> {
+                messageInputContainer?.visibility = View.GONE
+                subscribeLockContainer?.visibility = View.GONE
+                autopayFailedLockContainer?.visibility = View.VISIBLE
+            }
+            else -> {
+                messageInputContainer?.visibility = View.GONE
+                subscribeLockContainer?.visibility = View.VISIBLE
+                autopayFailedLockContainer?.visibility = View.GONE
+            }
+        }
     }
 
     private fun showTrialOfferSheet() {
