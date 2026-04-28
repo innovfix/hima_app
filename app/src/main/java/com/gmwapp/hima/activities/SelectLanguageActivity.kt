@@ -43,6 +43,9 @@ class SelectLanguageActivity : BaseActivity() {
     lateinit var binding: ActivitySelectLanguageBinding
     private val profileViewModel: ProfileViewModel by viewModels()
     private var selectedLanguage: String? = null
+
+    @javax.inject.Inject
+    lateinit var apiManager: com.gmwapp.hima.retrofit.ApiManager
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySelectLanguageBinding.inflate(layoutInflater)
@@ -80,17 +83,14 @@ class SelectLanguageActivity : BaseActivity() {
                 Log.d("SocketIOCheck", "✅ Registration successful - Socket.IO will connect when chat opens")
 
                 if (it.data.gender == DConstants.MALE) {
-                    // New male users first capture their display name; GetNameActivity
-                    // then launches AiOnboardingActivity once the name is saved.
-                    val intent = Intent(this, GetNameActivity::class.java)
-                    intent.putExtra("USER_ID", it.data.id)
-                    intent.putExtra(
-                        DConstants.AVATAR_ID, getIntent().getIntExtra(DConstants.AVATAR_ID, 0)
-                    )
-
+                    // New male users: registration analytics fire synchronously,
+                    // then we hit /language_config to decide whether the next
+                    // screen is AI onboarding (legacy path) or skip-to-home
+                    // (autopay-eligible language). Mutually exclusive per
+                    // language config (see backend feature/autopay-wireup).
 
                     val registrationEvent = HashMap<String, Any>()
-                    registrationEvent["user_id"] = "${it.data.id}"  // Optional custom parameter
+                    registrationEvent["user_id"] = "${it.data.id}"
 
                     AppsFlyerLib.getInstance().logEvent(
                         this,
@@ -98,19 +98,16 @@ class SelectLanguageActivity : BaseActivity() {
                         registrationEvent
                     )
 
-
-
                     val params = Bundle()
-                    params.putString("user_id", "${it.data.id}") // optional
+                    params.putString("user_id", "${it.data.id}")
                     AppEventsLogger.newLogger(this).logEvent(AppEventsConstants.EVENT_NAME_COMPLETED_REGISTRATION, params)
 
                     val bundle = Bundle().apply {
-                        putString("user_id", "${it.data.id}") // optional: useful for debugging
+                        putString("user_id", "${it.data.id}")
                     }
 
                     BaseApplication.firebaseAnalytics.logEvent(FirebaseAnalytics.Event.SIGN_UP, bundle)
 
-                    // Log to backend (only Firebase events)
                     AppEventLogger.logEvent(
                         context = this,
                         eventName = "sign_up",
@@ -119,12 +116,31 @@ class SelectLanguageActivity : BaseActivity() {
                         params = AppEventLogger.bundleToMap(bundle)
                     )
 
+                    val userId = it.data.id
+                    val avatarId = getIntent().getIntExtra(DConstants.AVATAR_ID, 0)
+                    val language = selectedLanguage ?: ""
 
-                    intent.putExtra(DConstants.LANGUAGE, selectedLanguage)
-                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                    startActivity(intent)
-                    overridePendingTransition(R.anim.onboarding_transition_in, R.anim.onboarding_transition_out)
-                    finish()
+                    apiManager.languageConfig(userId, language, object : com.gmwapp.hima.retrofit.callbacks.NetworkCallback<com.gmwapp.hima.retrofit.responses.LanguageConfigResponse> {
+                        override fun onResponse(
+                            call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.LanguageConfigResponse>,
+                            response: retrofit2.Response<com.gmwapp.hima.retrofit.responses.LanguageConfigResponse>
+                        ) {
+                            val feature = response.body()?.data?.enabled_feature ?: "ai_onboarding"
+                            routeMaleUserAfterLanguageConfig(userId, avatarId, language, feature)
+                        }
+                        override fun onFailure(
+                            call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.LanguageConfigResponse>,
+                            t: Throwable
+                        ) {
+                            // Fall back to legacy AI-onboarding path on network error
+                            // so signup is never blocked by language_config.
+                            Log.w("SelectLanguage", "language_config failed: ${t.message}")
+                            routeMaleUserAfterLanguageConfig(userId, avatarId, language, "ai_onboarding")
+                        }
+                        override fun onNoNetwork() {
+                            routeMaleUserAfterLanguageConfig(userId, avatarId, language, "ai_onboarding")
+                        }
+                    })
                 } else {
                     if (it.data.status == 2) {
                         val intent = Intent(this, MainActivity::class.java)
@@ -231,6 +247,35 @@ class SelectLanguageActivity : BaseActivity() {
         } else {
             resources.getColorStateList(R.color.kyc_button_disabled, null)
         }
+    }
+
+    /**
+     * Per-language admin config decides where new male users go after
+     * registration. Mutually exclusive (see backend feature/autopay-wireup):
+     *   "ai_onboarding" → existing GetNameActivity → AiOnboardingActivity flow
+     *   "autopay"       → skip AI onboarding, autopay offer surfaces from home
+     *   "none"          → skip AI onboarding, no autopay either
+     */
+    private fun routeMaleUserAfterLanguageConfig(
+        userId: Int, avatarId: Int, language: String, feature: String
+    ) {
+        val intent = when (feature) {
+            "ai_onboarding" -> Intent(this, GetNameActivity::class.java).apply {
+                putExtra("USER_ID", userId)
+                putExtra(DConstants.AVATAR_ID, avatarId)
+                putExtra(DConstants.LANGUAGE, language)
+            }
+            else -> Intent(this, MainActivity::class.java).apply {
+                putExtra(DConstants.AVATAR_ID, avatarId)
+                putExtra(DConstants.LANGUAGE, language)
+            }
+        }
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        startActivity(intent)
+        if (feature == "ai_onboarding") {
+            overridePendingTransition(R.anim.onboarding_transition_in, R.anim.onboarding_transition_out)
+        }
+        finish()
     }
 
     private fun hasUnsavedInput(): Boolean {
