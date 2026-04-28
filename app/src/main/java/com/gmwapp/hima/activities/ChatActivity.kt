@@ -153,13 +153,11 @@ class ChatActivity : AppCompatActivity() {
     private var subscribeLockContainer: View? = null
     private var autopayFailedLockContainer: View? = null
 
-    private fun isSubscriptionActive(): Boolean = getSharedPreferences(
-        DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE
-    ).getBoolean(DummySubscriptionActivity.KEY_ACTIVE, false)
+    private fun isSubscriptionActive(): Boolean =
+        com.gmwapp.hima.utils.SubscriptionStateCache.isActive(this)
 
-    private fun wasEverSubscribed(): Boolean = getSharedPreferences(
-        DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE
-    ).getBoolean(DummySubscriptionActivity.KEY_EVER_ACTIVE, false)
+    private fun wasEverSubscribed(): Boolean =
+        com.gmwapp.hima.utils.SubscriptionStateCache.everActive(this)
 
     private fun applySubscriptionGate() {
         when {

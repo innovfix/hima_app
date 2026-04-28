@@ -361,9 +361,7 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
     private fun refreshPremiumCrown() {
         val ctx = context ?: return
-        val active = ctx.getSharedPreferences(
-            com.gmwapp.hima.activities.DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE
-        ).getBoolean(com.gmwapp.hima.activities.DummySubscriptionActivity.KEY_ACTIVE, false)
+        val active = com.gmwapp.hima.utils.SubscriptionStateCache.isActive(ctx)
         binding.ivPremiumCrownProfile.visibility = if (active) View.VISIBLE else View.GONE
     }
 

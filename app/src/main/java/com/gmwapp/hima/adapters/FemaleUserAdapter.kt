@@ -193,10 +193,7 @@ class FemaleUserAdapter(
     }
 
     private fun isTrialActive(): Boolean {
-        return activity.getSharedPreferences(
-            com.gmwapp.hima.activities.DummySubscriptionActivity.PREFS,
-            android.content.Context.MODE_PRIVATE
-        ).getBoolean(com.gmwapp.hima.activities.DummySubscriptionActivity.KEY_ACTIVE, false)
+        return com.gmwapp.hima.utils.SubscriptionStateCache.isActive(activity)
     }
 
     private fun launchCall(femaleUser: FemaleUsersResponseData, callType: String) {
