@@ -1,29 +1,21 @@
 package com.gmwapp.hima.utils
 
-import android.content.Context
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import com.gmwapp.hima.activities.DummySubscriptionActivity
 import com.gmwapp.hima.retrofit.responses.SubscriptionStatusData
 
 /**
- * In-memory cache of the user's subscription state, populated by the
+ * In-memory cache of the user's subscription state, populated by
  * SubscriptionStatusResponse from /api/auth/subscription_status.
  *
- * All synchronous callsites in the app (Home, Chat, adapters, etc.)
- * read through [isActive]/[everActive] which prefer the cached value
- * when available, falling back to the legacy SharedPreferences dummy
- * layer (DummySubscriptionActivity.PREFS) when the cache hasn't been
- * populated yet.
- *
- * The cache is invalidated and re-populated on:
- *   • Home onResume (refresh)
- *   • After autopay_initiate succeeds
- *   • After subscription_cancel succeeds
- *   • On OneSignal "subscription_status" push (instant flip)
- *
- * Once the dummy layer is removed (Chunk 9), the PREFS fallback can
- * be deleted — the cache will be the only source of truth.
+ * Single source of truth across the app. Populated on resume from
+ * Home / Chat / CancelSubscription / AutopayCheckout activities and
+ * invalidated on OneSignal subscription_status push events. All
+ * synchronous callsites in the app read through [isActive] /
+ * [everActive] which return false until the first API response —
+ * that's intentional: the app starts in a "not subscribed" UI state
+ * and updates a moment later, same convention as the rest of the
+ * backend-driven UI in this codebase.
  */
 object SubscriptionStateCache {
 
@@ -52,21 +44,11 @@ object SubscriptionStateCache {
         lastFetchedMs = 0L
     }
 
-    /** Cache-then-PREFS read of the active flag. */
-    fun isActive(context: Context): Boolean {
-        cachedIsActive?.let { return it }
-        return context
-            .getSharedPreferences(DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE)
-            .getBoolean(DummySubscriptionActivity.KEY_ACTIVE, false)
-    }
+    fun isActive(@Suppress("UNUSED_PARAMETER") context: android.content.Context): Boolean =
+        cachedIsActive ?: false
 
-    /** Cache-then-PREFS read of the ever-active flag (lapsed-vs-never-subscribed). */
-    fun everActive(context: Context): Boolean {
-        cachedEverActive?.let { return it }
-        return context
-            .getSharedPreferences(DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE)
-            .getBoolean(DummySubscriptionActivity.KEY_EVER_ACTIVE, false)
-    }
+    fun everActive(@Suppress("UNUSED_PARAMETER") context: android.content.Context): Boolean =
+        cachedEverActive ?: false
 
     fun status(): String? = cachedStatus
     fun nextBillingDate(): String? = cachedNextBillingDate

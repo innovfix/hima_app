@@ -39,7 +39,6 @@ import com.gmwapp.hima.databinding.FragmentProfileBinding
 import com.gmwapp.hima.dialogs.BottomSheetLogout
 import com.gmwapp.hima.dialogs.BottomSheetSelectIplTeam
 import com.gmwapp.hima.models.IplTeam
-import com.gmwapp.hima.utils.DevUserMode
 import com.gmwapp.hima.utils.DndController
 import com.gmwapp.hima.utils.UserDataDndMerge
 import com.gmwapp.hima.utils.setOnSingleClickListener
@@ -355,7 +354,6 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
     override fun onResume() {
         super.onResume()
-        refreshDevUserTypeSwitch()
         refreshPremiumCrown()
     }
 
@@ -363,20 +361,6 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
         val ctx = context ?: return
         val active = com.gmwapp.hima.utils.SubscriptionStateCache.isActive(ctx)
         binding.ivPremiumCrownProfile.visibility = if (active) View.VISIBLE else View.GONE
-    }
-
-    private fun refreshDevUserTypeSwitch() {
-        val ctx = context ?: return
-        // Temporarily detach the listener so we don't re-save on programmatic set.
-        binding.switchDevUserType.setOnCheckedChangeListener(null)
-        binding.switchDevUserType.isChecked = DevUserMode.isNewUser(ctx)
-        binding.tvDevUserTypeStatus.text =
-            if (binding.switchDevUserType.isChecked) "Current: New user" else "Current: Old user"
-        binding.switchDevUserType.setOnCheckedChangeListener { _, isChecked ->
-            DevUserMode.setNewUser(ctx, isChecked)
-            binding.tvDevUserTypeStatus.text =
-                if (isChecked) "Current: New user" else "Current: Old user"
-        }
     }
 
     override fun onNetworkRetry() {

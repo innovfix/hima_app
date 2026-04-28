@@ -26,11 +26,8 @@ import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.BaseApplication.Companion.getInstance
 import com.gmwapp.hima.agora.male.MaleCallConnectingActivity
 import com.gmwapp.hima.R
-import com.gmwapp.hima.activities.DummySubscriptionActivity
 import com.gmwapp.hima.activities.IplRoomsActivity
 import com.gmwapp.hima.activities.WalletActivity
-import com.gmwapp.hima.utils.DevUserMode
-import com.gmwapp.hima.utils.DummyDailyCoins
 import com.gmwapp.hima.utils.SubscriptionStateCache
 import com.gmwapp.hima.utils.UserSegment
 import com.gmwapp.hima.viewmodels.AutopayViewModel
@@ -284,8 +281,11 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         profileViewModel.getUserLiveData.observe(viewLifecycleOwner, Observer { response ->
             response?.data?.let { userData ->
                 BaseApplication.getInstance()?.getPrefs()?.setUserData(userData)
-                // Dev switch forces the coin badge to 0 in new-user mode.
-                val displayCoins = if (DevUserMode.isNewUser(requireContext())) 0 else userData.coins
+                // New users (coins == 0 && !subscription.everActive) display zero
+                // until they take action; matches refreshCoinsDisplayFromCache.
+                val displayCoins =
+                    if (UserSegment.isNewUser(requireContext()) && !SubscriptionStateCache.isActive(requireContext())) 0
+                    else userData.coins
                 binding.tvCoins.text = displayCoins.toString()
                 Log.d("coinsvalue", "${userData.coins}")
                 Log.d("coinsvalue", "${userData.name}")
@@ -382,7 +382,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
     private fun handleCallClick(data: FemaleUsersResponseData, callType: String) {
         val ctx = context ?: return
-        if (DevUserMode.isNewUser(ctx)) {
+        if (UserSegment.isNewUser(ctx)) {
             if (isSubscriptionActive()) {
                 startCallActivity(data, callType)
             } else {
@@ -452,8 +452,8 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     private fun refreshCoinsDisplayFromCache() {
         if (!isAdded || !::binding.isInitialized) return
         val cached = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
-        // Daily-claim coins now hit users.coins server-side via /daily_claim,
-        // so the local DummyDailyCoins bonus add-on is gone.
+        // Daily-claim coins are credited server-side via /daily_claim;
+        // users.coins reflects the new total directly, no local bonus.
         val displayCoins = if (UserSegment.isNewUser(requireContext()) && !SubscriptionStateCache.isActive(requireContext())) 0
                            else (cached.coins ?: 0)
         binding.tvCoins.text = displayCoins.toString()

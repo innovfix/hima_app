@@ -1555,7 +1555,7 @@ class ChatActivity : AppCompatActivity() {
         // User is now viewing the chat - mark it as visible
         isChatVisible = true
 
-        // Re-check subscription: user may be returning from DummySubscriptionActivity.
+        // Re-check subscription: user may be returning from AutopayCheckoutActivity.
         applySubscriptionGate()
         Log.d("ChatActivity", "Chat is now visible - marking pending messages as read")
         Log.d("lastseenlog", "📱 My User ID: $myUserId - Resuming chat with user $peerUserId")

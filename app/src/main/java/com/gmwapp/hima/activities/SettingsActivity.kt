@@ -1,12 +1,12 @@
 package com.gmwapp.hima.activities
 
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowInsetsControllerCompat
 import com.gmwapp.hima.databinding.ActivitySettingsBinding
+import com.gmwapp.hima.utils.SubscriptionStateCache
 import com.gmwapp.hima.utils.setOnSingleClickListener
 
 class SettingsActivity : AppCompatActivity() {
@@ -33,10 +33,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun refreshSubscriptionState() {
-        val prefs = getSharedPreferences(
-            DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE
-        )
-        val active = prefs.getBoolean(DummySubscriptionActivity.KEY_ACTIVE, false)
+        val active = SubscriptionStateCache.isActive(this)
         binding.cvActiveSubscription.visibility = if (active) View.VISIBLE else View.GONE
         binding.cvNoSubscription.visibility = if (active) View.GONE else View.VISIBLE
     }

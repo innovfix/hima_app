@@ -17,10 +17,9 @@ import com.google.android.material.button.MaterialButton
 import dagger.hilt.android.AndroidEntryPoint
 
 /**
- * Drop-in replacement for DummySubscriptionActivity. Triggers
- * /autopay_initiate, opens the Cashfree mandate URL in the user's
- * browser, and polls /subscription_status on resume to detect when
- * the mandate completes.
+ * Triggers /autopay_initiate, opens the Cashfree mandate URL in the
+ * user's browser, and polls /subscription_status on resume to detect
+ * when the mandate completes.
  *
  * The actual UPI authorisation happens in Cashfree's hosted page;
  * we just bridge the API call and the URL hand-off here.

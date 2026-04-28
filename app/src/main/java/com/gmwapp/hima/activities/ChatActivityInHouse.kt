@@ -2753,7 +2753,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                 .cancel(com.gmwapp.hima.utils.ChatNotifications.notifIdFor(peerUserId))
         }
 
-        // Re-check subscription: user may be returning from DummySubscriptionActivity.
+        // Re-check subscription: user may be returning from AutopayCheckoutActivity.
         applySubscriptionGate()
 
 
