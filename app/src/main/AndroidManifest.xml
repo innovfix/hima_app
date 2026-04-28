@@ -260,6 +260,7 @@
         </activity>
         <activity android:name=".activities.TransactionsActivity" />
         <activity android:name=".activities.DummySubscriptionActivity" />
+        <activity android:name=".activities.AutopayCheckoutActivity" />
         <activity android:name=".activities.CancelSubscriptionActivity" />
         <activity android:name=".activities.CancelFeedbackActivity" />
         <activity android:name=".activities.SettingsActivity" />
