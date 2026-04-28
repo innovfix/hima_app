@@ -117,7 +117,10 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             if (!isSubscribed && UserSegment.isNewUser(requireContext())) {
                 val sheet = BottomSheetTrialOffer()
                 sheet.setOnTryNowClickListener {
-                    startActivity(android.content.Intent(requireContext(), DummySubscriptionActivity::class.java))
+                    startActivity(com.gmwapp.hima.activities.AutopayCheckoutActivity.intentFor(
+                        requireContext(),
+                        com.gmwapp.hima.activities.AutopayCheckoutActivity.PLAN_TRIAL_NEW
+                    ))
                 }
                 sheet.show(parentFragmentManager, "trial_offer")
             } else {
@@ -411,7 +414,9 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         BottomSheetTrialOffer.newInstance().apply {
             setOnTryNowClickListener {
                 val c = context ?: return@setOnTryNowClickListener
-                startActivity(Intent(c, DummySubscriptionActivity::class.java))
+                startActivity(com.gmwapp.hima.activities.AutopayCheckoutActivity.intentFor(
+                    c, com.gmwapp.hima.activities.AutopayCheckoutActivity.PLAN_TRIAL_NEW
+                ))
             }
         }.show(childFragmentManager, BottomSheetTrialOffer.TAG)
     }
@@ -427,7 +432,9 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         ).apply {
             setOnSubscribeClickListener {
                 val c = context ?: return@setOnSubscribeClickListener
-                startActivity(Intent(c, DummySubscriptionActivity::class.java))
+                startActivity(com.gmwapp.hima.activities.AutopayCheckoutActivity.intentFor(
+                    c, com.gmwapp.hima.activities.AutopayCheckoutActivity.PLAN_DIRECT_OLD
+                ))
             }
         }.show(childFragmentManager, tag)
     }

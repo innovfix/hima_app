@@ -180,14 +180,28 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun showTrialOfferSheet() {
-        val sheet = com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe.newInstance(
-            bannerOnly = true,
-            title = "Subscribe to unlock unlimited chats"
-        )
-        sheet.setOnSubscribeClickListener {
-            startActivity(android.content.Intent(this, DummySubscriptionActivity::class.java))
+        if (com.gmwapp.hima.utils.UserSegment.isNewUser(this)) {
+            // New user → ₹1 trial offer.
+            val sheet = com.gmwapp.hima.dialogs.BottomSheetTrialOffer.newInstance()
+            sheet.setOnTryNowClickListener {
+                startActivity(AutopayCheckoutActivity.intentFor(
+                    this, AutopayCheckoutActivity.PLAN_TRIAL_NEW
+                ))
+            }
+            sheet.show(supportFragmentManager, com.gmwapp.hima.dialogs.BottomSheetTrialOffer.TAG)
+        } else {
+            // Old user → ₹299/10d direct subscribe.
+            val sheet = com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe.newInstance(
+                bannerOnly = true,
+                title = "Subscribe to unlock unlimited chats"
+            )
+            sheet.setOnSubscribeClickListener {
+                startActivity(AutopayCheckoutActivity.intentFor(
+                    this, AutopayCheckoutActivity.PLAN_DIRECT_OLD
+                ))
+            }
+            sheet.show(supportFragmentManager, com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe.TAG)
         }
-        sheet.show(supportFragmentManager, com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe.TAG)
     }
 
     private fun initializeViews() {

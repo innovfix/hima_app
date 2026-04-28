@@ -470,16 +470,18 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         binding.tvCoins.text = userData?.coins.toString()
 
 
-        val isSubscribed = getSharedPreferences(DummySubscriptionActivity.PREFS, android.content.Context.MODE_PRIVATE)
-            .getBoolean(DummySubscriptionActivity.KEY_ACTIVE, false)
+        val isSubscribed = com.gmwapp.hima.utils.SubscriptionStateCache.isActive(this)
         binding.cvSubscribeBanner.visibility = if (isSubscribed) View.GONE else View.VISIBLE
 
-        binding.cvSubscribeBanner.setOnSingleClickListener {
-            startActivity(Intent(this, DummySubscriptionActivity::class.java))
+        val openCheckout = {
+            val planType = if (com.gmwapp.hima.utils.UserSegment.isNewUser(this))
+                AutopayCheckoutActivity.PLAN_TRIAL_NEW
+            else
+                AutopayCheckoutActivity.PLAN_DIRECT_OLD
+            startActivity(AutopayCheckoutActivity.intentFor(this, planType))
         }
-        binding.btnSubscribeNow.setOnSingleClickListener {
-            startActivity(Intent(this, DummySubscriptionActivity::class.java))
-        }
+        binding.cvSubscribeBanner.setOnSingleClickListener { openCheckout() }
+        binding.btnSubscribeNow.setOnSingleClickListener { openCheckout() }
 
         val layoutManager = GridLayoutManager(this, 3)
         binding.cvBack.setOnSingleClickListener {
