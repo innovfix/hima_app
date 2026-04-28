@@ -31,6 +31,10 @@ import com.gmwapp.hima.activities.IplRoomsActivity
 import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.utils.DevUserMode
 import com.gmwapp.hima.utils.DummyDailyCoins
+import com.gmwapp.hima.utils.SubscriptionStateCache
+import com.gmwapp.hima.utils.UserSegment
+import com.gmwapp.hima.viewmodels.AutopayViewModel
+import com.gmwapp.hima.viewmodels.DailyClaimViewModel
 import com.gmwapp.hima.adapters.FemaleUserAdapter
 import com.gmwapp.hima.agora.AgoraRandomCallActivity
 import com.gmwapp.hima.agora.FcmUtils
@@ -59,6 +63,9 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     private var filterType: String = "my_chats" // Default filter is "my_chats" — open on Chats tab
     lateinit var binding: FragmentHomeBinding
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
+    private val autopayViewModel: AutopayViewModel by viewModels()
+    private val dailyClaimViewModel: DailyClaimViewModel by viewModels()
+    private var dailyCoinsDialog: androidx.appcompat.app.AlertDialog? = null
 
     @javax.inject.Inject
     lateinit var myChatsApiManager: com.gmwapp.hima.retrofit.ApiManager
@@ -106,11 +113,8 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         binding.clCoins.setOnSingleClickListener {
             // Subscribed (any state) → open wallet directly; Wallet hides the banner on its own.
             // New user (and not subscribed) → trial sheet; old user → wallet.
-            val isSubscribed = requireContext().getSharedPreferences(
-                DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE
-            ).getBoolean(DummySubscriptionActivity.KEY_ACTIVE, false)
-
-            if (!isSubscribed && DevUserMode.isNewUser(requireContext())) {
+            val isSubscribed = SubscriptionStateCache.isActive(requireContext())
+            if (!isSubscribed && UserSegment.isNewUser(requireContext())) {
                 val sheet = BottomSheetTrialOffer()
                 sheet.setOnTryNowClickListener {
                     startActivity(android.content.Intent(requireContext(), DummySubscriptionActivity::class.java))
@@ -120,6 +124,8 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 startActivity(android.content.Intent(requireContext(), WalletActivity::class.java))
             }
         }
+
+        setupSubscriptionObservers()
 
         // IPL Room Calls banner — male opens room list screen
         binding.cardIplRooms.setOnClickListener {
@@ -429,9 +435,11 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     private fun refreshCoinsDisplayFromCache() {
         if (!isAdded || !::binding.isInitialized) return
         val cached = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
-        val base = if (DevUserMode.isNewUser(requireContext())) 0 else (cached.coins ?: 0)
-        val bonus = if (isSubscriptionActive()) DummyDailyCoins.getCoins(requireContext()) else 0
-        binding.tvCoins.text = (base + bonus).toString()
+        // Daily-claim coins now hit users.coins server-side via /daily_claim,
+        // so the local DummyDailyCoins bonus add-on is gone.
+        val displayCoins = if (UserSegment.isNewUser(requireContext()) && !SubscriptionStateCache.isActive(requireContext())) 0
+                           else (cached.coins ?: 0)
+        binding.tvCoins.text = displayCoins.toString()
     }
 
     private fun refreshPremiumCrown() {
@@ -439,16 +447,17 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         binding.ivPremiumCrownHome.visibility = if (isSubscriptionActive()) View.VISIBLE else View.GONE
     }
 
+    /**
+     * Kick off the two API calls whose responses (via observers in
+     * setupSubscriptionObservers) decide whether to show the daily-claim
+     * dialog or the autopay-failed dialog. Called on resume + on the
+     * midnight handler tick.
+     */
     private fun maybeShowDailyCoinsDialog() {
         if (!isAdded) return
-        if (isSubscriptionActive()) {
-            if (DummyDailyCoins.hasPendingClaim(requireContext())) {
-                binding.root.post { if (isAdded) showDailyCoinsDialog() }
-            }
-        } else if (wasEverSubscribed() && !autopayDialogShownThisSession) {
-            autopayDialogShownThisSession = true
-            binding.root.post { if (isAdded) showAutopayFailedDialog() }
-        }
+        val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
+        autopayViewModel.subscriptionStatus(userId)
+        dailyClaimViewModel.dailyClaimStatus(userId)
     }
 
     companion object {
@@ -478,13 +487,12 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         midnightHandler.postDelayed(midnightRunnable, msUntilMidnight())
     }
 
-    private fun wasEverSubscribed(): Boolean {
-        return requireContext()
-            .getSharedPreferences(DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE)
-            .getBoolean(DummySubscriptionActivity.KEY_EVER_ACTIVE, false)
-    }
+    private fun wasEverSubscribed(): Boolean =
+        SubscriptionStateCache.everActive(requireContext())
 
     private fun showDailyCoinsDialog() {
+        // Guard against stacking — observer can fire repeatedly (resume + midnight).
+        if (dailyCoinsDialog?.isShowing == true) return
         val view = layoutInflater.inflate(R.layout.dialog_daily_coins, null)
         val dialog = androidx.appcompat.app.AlertDialog.Builder(requireContext())
             .setView(view)
@@ -492,13 +500,23 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             .create()
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
         dialog.window?.setDimAmount(0.5f)
-        view.findViewById<View>(R.id.btnAwesome).setOnClickListener {
-            DummyDailyCoins.claimCoins(requireContext())
-            dialog.dismiss()
+        val btn = view.findViewById<View>(R.id.btnAwesome)
+        btn.setOnClickListener {
+            val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
+            if (userId == null) {
+                dialog.dismiss()
+                return@setOnClickListener
+            }
+            // Disable to prevent double-tap; re-enables on dialog dismiss.
+            btn.isEnabled = false
+            dailyClaimViewModel.dailyClaim(userId)
+            // Dismissal happens in the claim observer (success or failure).
         }
         dialog.setOnDismissListener {
+            btn.isEnabled = true
             refreshCoinsDisplayFromCache()
         }
+        dailyCoinsDialog = dialog
         dialog.show()
     }
 
@@ -520,10 +538,58 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         dialog.show()
     }
 
-private fun isSubscriptionActive(): Boolean {
-        return requireContext()
-            .getSharedPreferences(DummySubscriptionActivity.PREFS, Context.MODE_PRIVATE)
-            .getBoolean(DummySubscriptionActivity.KEY_ACTIVE, false)
+    private fun isSubscriptionActive(): Boolean =
+        SubscriptionStateCache.isActive(requireContext())
+
+    /**
+     * Wires the AutopayViewModel and DailyClaimViewModel observers.
+     * Called once from initUI; the actual API requests are kicked off
+     * from maybeShowDailyCoinsDialog (onResume + midnight handler).
+     */
+    private fun setupSubscriptionObservers() {
+        // Subscription status → cache + UI refresh + autopay-failed dialog.
+        autopayViewModel.statusLiveData.observe(viewLifecycleOwner) { resp ->
+            val data = resp?.data ?: return@observe
+            SubscriptionStateCache.update(data)
+            refreshPremiumCrown()
+            refreshCoinsDisplayFromCache()
+            if (!data.is_active && data.ever_active && !autopayDialogShownThisSession) {
+                autopayDialogShownThisSession = true
+                if (isAdded) showAutopayFailedDialog()
+            }
+        }
+
+        // Daily-claim status → show the claim dialog when the server says we can.
+        dailyClaimViewModel.statusLiveData.observe(viewLifecycleOwner) { resp ->
+            val data = resp?.data ?: return@observe
+            if (data.can_claim && isAdded) {
+                binding.root.post { if (isAdded) showDailyCoinsDialog() }
+            }
+        }
+
+        // Daily-claim result → dismiss + refresh.
+        dailyClaimViewModel.claimLiveData.observe(viewLifecycleOwner) { resp ->
+            val total = resp?.data?.total_coins
+            if (total != null && ::binding.isInitialized) {
+                binding.tvCoins.text = total.toString()
+                // Keep the cached UserData fresh so other screens see the new total.
+                BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
+                    profileViewModel.getUsers(it)
+                }
+            }
+            dailyCoinsDialog?.dismiss()
+            dailyCoinsDialog = null
+        }
+
+        // Errors are silent — the UI just doesn't show the dialog this resume.
+        autopayViewModel.errorLiveData.observe(viewLifecycleOwner) { msg ->
+            Log.w("Autopay", "subscription_status: $msg")
+        }
+        dailyClaimViewModel.errorLiveData.observe(viewLifecycleOwner) { msg ->
+            Log.w("DailyClaim", msg)
+            // Re-enable the dialog button if it's still showing.
+            dailyCoinsDialog?.findViewById<View>(R.id.btnAwesome)?.isEnabled = true
+        }
     }
 
     private fun startCallActivity(data: FemaleUsersResponseData, callType: String) {
