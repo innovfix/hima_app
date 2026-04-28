@@ -1,6 +1,8 @@
 package com.gmwapp.hima.utils
 
 import android.content.Context
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import com.gmwapp.hima.activities.DummySubscriptionActivity
 import com.gmwapp.hima.retrofit.responses.SubscriptionStatusData
 
@@ -73,4 +75,19 @@ object SubscriptionStateCache {
 
     /** True if the cache has been populated from the API at least once. */
     fun isPopulated(): Boolean = cachedIsActive != null
+
+    /**
+     * Real-time push events from the OneSignal subscription_status handler.
+     * Foreground activities observe this to react instantly (re-fetch
+     * status, show ll_chat_ended_banner, swap chat lock UI).
+     */
+    enum class PushEvent { FAILED, CANCELLED }
+
+    private val _pushEvent = MutableLiveData<PushEvent>()
+    val pushEvent: LiveData<PushEvent> = _pushEvent
+
+    fun postPushEvent(event: PushEvent) {
+        clear()
+        _pushEvent.postValue(event)
+    }
 }

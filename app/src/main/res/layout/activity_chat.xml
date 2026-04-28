@@ -711,7 +711,7 @@
         android:paddingHorizontal="20dp"
         android:paddingVertical="14dp"
         android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@id/subscribe_lock_container"
+        app:layout_constraintBottom_toTopOf="@id/bottom_bar_barrier"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 

@@ -284,8 +284,28 @@ class BaseApplication : Application(), Configuration.Provider {
         OneSignal.initWithContext(this, ONESIGNAL_APP_ID)
 
         // ====== DND: suppress OneSignal notifications when DND is active ======
+        // ====== plus: hand subscription_status pushes to SubscriptionStateCache ======
         OneSignal.Notifications.addForegroundLifecycleListener(object : com.onesignal.notifications.INotificationLifecycleListener {
             override fun onWillDisplay(event: com.onesignal.notifications.INotificationWillDisplayEvent) {
+                val data = event.notification.additionalData
+                val type = data?.optString("type")
+
+                // Subscription status push (autopay failed / cancelled) — clear
+                // cache + emit in-app event so foreground chat screens lock
+                // instantly. Bypasses DND: the user must know the subscription
+                // is no longer active.
+                if (type == "subscription_status") {
+                    val ev = data.optString("event")
+                    val pushEvent = when (ev) {
+                        "failed" -> com.gmwapp.hima.utils.SubscriptionStateCache.PushEvent.FAILED
+                        "cancelled" -> com.gmwapp.hima.utils.SubscriptionStateCache.PushEvent.CANCELLED
+                        else -> null
+                    }
+                    pushEvent?.let { com.gmwapp.hima.utils.SubscriptionStateCache.postPushEvent(it) }
+                    Log.d("OneSignal_AutopayPush", "subscription_status event=$ev")
+                    return
+                }
+
                 val userData = getInstance()?.getPrefs()?.getUserData()
                 if (isDndActiveStatic(userData)) {
                     Log.d("OneSignal_DND", "DND is active — suppressing OneSignal notification")

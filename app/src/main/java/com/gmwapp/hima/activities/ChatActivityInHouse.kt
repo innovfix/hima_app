@@ -118,6 +118,8 @@ class ChatActivityInHouse : AppCompatActivity() {
     private var autopayFailedLockContainer: View? = null
     private var btnSubscribeUnlock: View? = null
     private var btnBuyCoinsUnlock: View? = null
+    private var chatEndedBanner: View? = null
+    private val autopayViewModel: com.gmwapp.hima.viewmodels.AutopayViewModel by viewModels()
     private lateinit var ivBack: ImageView
     private lateinit var cvBack: CardView
     private lateinit var ivMore: ImageView
@@ -356,12 +358,14 @@ class ChatActivityInHouse : AppCompatActivity() {
         messageInputContainer = findViewById(R.id.message_input_container)
         subscribeLockContainer = findViewById(R.id.subscribe_lock_container)
         autopayFailedLockContainer = findViewById(R.id.autopay_failed_lock_container)
+        chatEndedBanner = findViewById(R.id.ll_chat_ended_banner)
         btnSubscribeUnlock = findViewById(R.id.btn_subscribe_unlock)
         btnSubscribeUnlock?.setOnClickListener { showTrialOfferSheet() }
         btnBuyCoinsUnlock = findViewById(R.id.btn_buy_coins_unlock)
         btnBuyCoinsUnlock?.setOnClickListener {
             startActivity(Intent(this, WalletActivity::class.java))
         }
+        observeAutopayPushEvents()
         ivBack = findViewById(R.id.iv_back)
         cvBack = findViewById(R.id.cv_back)
         ivMore = findViewById(R.id.iv_more)
@@ -3487,6 +3491,29 @@ class ChatActivityInHouse : AppCompatActivity() {
                 autopayFailedLockContainer?.visibility = View.GONE
             }
         }
+    }
+
+    /**
+     * Foreground reaction to OneSignal subscription_status push (autopay
+     * failed/cancelled). Mirrors ChatActivity.observeAutopayPushEvents.
+     */
+    private fun observeAutopayPushEvents() {
+        com.gmwapp.hima.utils.SubscriptionStateCache.pushEvent.observe(this) {
+            val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return@observe
+            autopayViewModel.subscriptionStatus(userId)
+            showChatEndedBanner()
+        }
+        autopayViewModel.statusLiveData.observe(this) { resp ->
+            val data = resp?.data ?: return@observe
+            com.gmwapp.hima.utils.SubscriptionStateCache.update(data)
+            applySubscriptionGate()
+        }
+    }
+
+    private fun showChatEndedBanner() {
+        val banner = chatEndedBanner ?: return
+        banner.visibility = View.VISIBLE
+        banner.postDelayed({ banner.visibility = View.GONE }, 5000L)
     }
 
     private fun showTrialOfferSheet() {

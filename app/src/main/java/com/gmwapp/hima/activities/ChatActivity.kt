@@ -152,6 +152,8 @@ class ChatActivity : AppCompatActivity() {
     private var messageInputContainer: View? = null
     private var subscribeLockContainer: View? = null
     private var autopayFailedLockContainer: View? = null
+    private var chatEndedBanner: View? = null
+    private val autopayViewModel: com.gmwapp.hima.viewmodels.AutopayViewModel by viewModels()
 
     private fun isSubscriptionActive(): Boolean =
         com.gmwapp.hima.utils.SubscriptionStateCache.isActive(this)
@@ -177,6 +179,30 @@ class ChatActivity : AppCompatActivity() {
                 autopayFailedLockContainer?.visibility = View.GONE
             }
         }
+    }
+
+    /**
+     * Foreground reaction to a OneSignal subscription_status push.
+     * Re-fetches /subscription_status (response observer updates the cache),
+     * applies the gate, and flashes the chat-ended banner for 5s.
+     */
+    private fun observeAutopayPushEvents() {
+        com.gmwapp.hima.utils.SubscriptionStateCache.pushEvent.observe(this) {
+            val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return@observe
+            autopayViewModel.subscriptionStatus(userId)
+            showChatEndedBanner()
+        }
+        autopayViewModel.statusLiveData.observe(this) { resp ->
+            val data = resp?.data ?: return@observe
+            com.gmwapp.hima.utils.SubscriptionStateCache.update(data)
+            applySubscriptionGate()
+        }
+    }
+
+    private fun showChatEndedBanner() {
+        val banner = chatEndedBanner ?: return
+        banner.visibility = View.VISIBLE
+        banner.postDelayed({ banner.visibility = View.GONE }, 5000L)
     }
 
     private fun showTrialOfferSheet() {
@@ -212,10 +238,12 @@ class ChatActivity : AppCompatActivity() {
         messageInputContainer = findViewById(R.id.message_input_container)
         subscribeLockContainer = findViewById(R.id.subscribe_lock_container)
         autopayFailedLockContainer = findViewById(R.id.autopay_failed_lock_container)
+        chatEndedBanner = findViewById(R.id.ll_chat_ended_banner)
         findViewById<View>(R.id.btn_subscribe_unlock)?.setOnClickListener { showTrialOfferSheet() }
         findViewById<View>(R.id.btn_buy_coins_unlock)?.setOnClickListener {
             startActivity(android.content.Intent(this, WalletActivity::class.java))
         }
+        observeAutopayPushEvents()
         ivUser = findViewById(R.id.iv_user)
         tvUserName = findViewById(R.id.tv_user_name)
         tvUserStatus = findViewById(R.id.tv_user_status)
