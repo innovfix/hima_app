@@ -470,8 +470,13 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         binding.tvCoins.text = userData?.coins.toString()
 
 
-        val isSubscribed = com.gmwapp.hima.utils.SubscriptionStateCache.isActive(this)
-        binding.cvSubscribeBanner.visibility = if (isSubscribed) View.GONE else View.VISIBLE
+        // Re-enable prevention: spec says lapsed users (cancelled / payment-
+        // failed at any point) cannot re-enable autopay, ever. Hide the
+        // subscribe banner for them — they keep the coin-pack flow only.
+        val isActive = com.gmwapp.hima.utils.SubscriptionStateCache.isActive(this)
+        val everActive = com.gmwapp.hima.utils.SubscriptionStateCache.everActive(this)
+        val showSubscribeBanner = !isActive && !everActive
+        binding.cvSubscribeBanner.visibility = if (showSubscribeBanner) View.VISIBLE else View.GONE
 
         val openCheckout = {
             val planType = if (com.gmwapp.hima.utils.UserSegment.isNewUser(this))

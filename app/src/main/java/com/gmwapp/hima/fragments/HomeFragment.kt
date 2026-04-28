@@ -423,6 +423,16 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
     private fun showInsufficientFundsSheet() {
         if (!isAdded) return
+        val ctx = context ?: return
+
+        // Re-enable prevention: lapsed users (everActive && !isActive) can't
+        // re-subscribe. Skip the subscribe sheet — route them straight to
+        // wallet so they can buy coin packs (existing flow, untouched by spec).
+        if (SubscriptionStateCache.everActive(ctx) && !SubscriptionStateCache.isActive(ctx)) {
+            startActivity(Intent(ctx, WalletActivity::class.java))
+            return
+        }
+
         val tag = com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe.TAG
         val existing = childFragmentManager.findFragmentByTag(tag)
         if (existing is com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe && existing.isAdded) return
