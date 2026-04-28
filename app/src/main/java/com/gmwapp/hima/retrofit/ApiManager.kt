@@ -953,6 +953,15 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         } else callback.onNoNetwork()
     }
 
+    fun trialOfferConfig(
+        userId: Int,
+        callback: NetworkCallback<com.gmwapp.hima.retrofit.responses.TrialOfferConfigResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            getApiInterface().trialOfferConfig(userId).enqueue(callback)
+        } else callback.onNoNetwork()
+    }
+
     fun getCategoriesList(
         userId: Int,
         language: String,
@@ -2693,6 +2702,12 @@ interface ApiInterface {
     fun dailyClaim(
         @Field("user_id") userId: Int
     ): Call<com.gmwapp.hima.retrofit.responses.DailyClaimResponse>
+
+    @FormUrlEncoded
+    @POST("trial_offer_config")
+    fun trialOfferConfig(
+        @Field("user_id") userId: Int
+    ): Call<com.gmwapp.hima.retrofit.responses.TrialOfferConfigResponse>
 
     @FormUrlEncoded
     @POST("categories_list")
