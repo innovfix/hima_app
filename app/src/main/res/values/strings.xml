@@ -50,8 +50,8 @@
     <string name="incoming_video_call_body">Video call incoming</string>
     <!-- Missed call rich notification -->
     <string name="missed_call_title">Missed call from %1$s</string>
-    <string name="missed_call_body_audio">Audio call. Tap to call back.</string>
-    <string name="missed_call_body_video">Video call. Tap to call back.</string>
+    <string name="missed_call_body_audio">Missed audio call. Tap to call back.</string>
+    <string name="missed_call_body_video">Missed video call. Tap to call back.</string>
     <string name="missed_call_action_call_back">Call back</string>
     <string name="missed_call_action_message">Message</string>
     <string name="tap_to_call_and_chat">Tap to call and chat</string>

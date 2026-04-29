@@ -1072,19 +1072,26 @@ class UserProfileDetailActivity : AppCompatActivity() {
      */
     private fun checkFavoriteStatus() {
         val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
-        
+
         if (currentUserId == 0) {
             Log.e("UserProfileDetail", "Unable to check favorite status - invalid user ID")
-            return
-        }
-        
-        // Only male users can add favorites
-        val userGender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
-        if (userGender != DConstants.MALE) {
             binding.cvFavourite.visibility = View.GONE
             return
         }
-        
+
+        // Hide on self-profile — you can't favourite yourself. The favourite
+        // toggle itself is gender-agnostic (both male and creator/female users
+        // can favourite other users); FavouriteFragment already filters by the
+        // viewer's gender so the result list is correct on either side.
+        if (currentUserId == userId) {
+            binding.cvFavourite.visibility = View.GONE
+            return
+        }
+
+        // Reset visibility in case a previous run on the same activity instance
+        // hid the heart (e.g. self-profile check above on a previous call).
+        binding.cvFavourite.visibility = View.VISIBLE
+
         Log.d("UserProfileDetail", "🔍 Checking favorite status for user: $userId")
         
         apiManager.checkFavorite(currentUserId, userId, object : NetworkCallback<CheckFavoriteResponse> {

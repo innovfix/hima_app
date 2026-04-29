@@ -27,8 +27,11 @@ import com.gmwapp.hima.databinding.ActivityMaleCallConnectingBinding
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
+import com.gmwapp.hima.retrofit.ApiManager
+import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.CallEndReason
 import com.gmwapp.hima.retrofit.responses.CallEndedBy
+import com.gmwapp.hima.retrofit.responses.RegisterResponse
 import com.gmwapp.hima.viewmodels.AgoraViewModel
 import com.gmwapp.hima.viewmodels.CallStatusViewModel
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
@@ -36,6 +39,9 @@ import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
+import retrofit2.Call
+import retrofit2.Response
+import javax.inject.Inject
 
 
 @AndroidEntryPoint
@@ -53,6 +59,8 @@ class MaleCallConnectingActivity : AppCompatActivity() {
     private var fromChat: Boolean = false
     private var chatPeerUserId: Int = -1
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
+    @Inject
+    lateinit var apiManager: ApiManager
     private var currentCallChannelName: String? = null
     private var prefetchedAgoraToken: String? = null
     private var prefetchedAgoraAppId: String? = null
@@ -241,10 +249,25 @@ class MaleCallConnectingActivity : AppCompatActivity() {
             .apply(RequestOptions.circleCropTransform())
             .into(binding.ivCallerProfile)
 
+        // Placeholder + error fallback so the receiver avatar circle isn't blank
+        // when the missed-call OneSignal payload didn't carry an image URL and
+        // we have nothing cached for this peer either. Matches the silhouette
+        // used by the chat-list / creator-notification adapters.
         Glide.with(this)
             .load(receiverImg)
             .apply(RequestOptions.circleCropTransform())
+            .placeholder(R.drawable.small_profile)
+            .error(R.drawable.small_profile)
             .into(binding.ivLogo)
+
+        // Missed-call OneSignal payloads from the server typically don't carry an
+        // avatar URL and ChatNotificationStore may not have one cached either
+        // (e.g. user hasn't received a chat push from this peer in this session).
+        // Fall back to the userdetails endpoint so we can replace the silhouette
+        // placeholder with the real photo as soon as the network responds.
+        if (receiverImg.isNullOrBlank() && receiverId > 0) {
+            fetchReceiverImage(receiverId)
+        }
 
         Glide.with(this)
             .load(R.drawable.double_arrow_svg)
@@ -269,7 +292,47 @@ class MaleCallConnectingActivity : AppCompatActivity() {
         // Subtle connecting dots animation
         startConnectingDotsAnimation()
     }
-    
+
+    /**
+     * Pulls the receiver's profile (image) from the userdetails endpoint when the
+     * intent didn't carry one — typical for missed-call notification taps where
+     * the OneSignal payload had no avatar field. On success the local
+     * [receiverImg] is updated and Glide is reloaded so the silhouette
+     * placeholder is replaced by the real photo. Failures are silent — the
+     * placeholder simply stays.
+     */
+    private fun fetchReceiverImage(peerId: Int) {
+        apiManager.getUser(peerId, object : NetworkCallback<RegisterResponse> {
+            override fun onResponse(
+                call: Call<RegisterResponse>,
+                response: Response<RegisterResponse>
+            ) {
+                if (isFinishing || isDestroyed) return
+                if (!response.isSuccessful) return
+                val fetched = response.body()?.data?.image.orEmpty()
+                if (fetched.isBlank()) return
+                receiverImg = fetched
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    Glide.with(this@MaleCallConnectingActivity)
+                        .load(fetched)
+                        .apply(RequestOptions.circleCropTransform())
+                        .placeholder(R.drawable.small_profile)
+                        .error(R.drawable.small_profile)
+                        .into(binding.ivLogo)
+                }
+            }
+
+            override fun onFailure(call: Call<RegisterResponse>, t: Throwable) {
+                Log.w("MaleCallConnecting", "fetchReceiverImage failed: ${t.message}")
+            }
+
+            override fun onNoNetwork() {
+                Log.w("MaleCallConnecting", "fetchReceiverImage skipped: no network")
+            }
+        })
+    }
+
     private fun startConnectingDotsAnimation() {
         try {
             val dot1 = findViewById<android.view.View>(R.id.dot1)

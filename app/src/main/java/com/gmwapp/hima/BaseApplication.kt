@@ -497,38 +497,39 @@ class BaseApplication : Application(), Configuration.Provider {
                 // of foreground state so behaviour is identical to the killed-app
                 // path handled by the OneSignal NSE.
                 if (isMissedCall) {
+                    Log.d(
+                        "MissedCallDiag",
+                        "fg-entry title=\"${event.notification.title}\" body=\"${event.notification.body}\" " +
+                            "dataKeys=${additional?.keys()?.asSequence()?.toList()} " +
+                            "dataDump=${additional?.toString()?.take(500)}"
+                    )
                     val missed = parseOneSignalMissedCallPayload(additional, event.notification)
                     if (missed == null) {
-                        // Heuristic matched (title/body), but we couldn't extract a
-                        // valid senderId — without it we can't open the right chat
-                        // thread. Let OneSignal render its default UI so the user
-                        // still sees the missed-call alert.
                         Log.w(
-                            "OneSignal_Missed",
-                            "foreground missed-call push had no usable payload — falling back to OneSignal default UI"
+                            "MissedCallDiag",
+                            "fg-parse failed: no usable payload — falling back to OneSignal default UI"
                         )
                     } else {
-                        // Defer preventDefault until showMissed actually posts so
-                        // a throw inside the helper doesn't leave the user with
-                        // no notification at all.
-                        val posted = runCatching {
+                        Log.d(
+                            "MissedCallDiag",
+                            "fg-parsed callerName=\"${missed.callerName}\" senderId=${missed.senderId} " +
+                                "synthetic=${missed.isSynthetic} callType=${missed.callType} " +
+                                "imgBlank=${missed.callerImage.isNullOrBlank()}"
+                        )
+                        event.preventDefault()
+                        Log.d("MissedCallDiag", "fg-preventDefault called senderId=${missed.senderId}")
+                        val showResult = runCatching {
                             com.gmwapp.hima.utils.CallNotifications.showMissed(
                                 applicationContext,
                                 missed
                             )
-                        }.getOrElse {
-                            Log.e("OneSignal_Missed", "showMissed threw: ${it.message}", it)
-                            false
                         }
-                        if (posted) {
-                            event.preventDefault()
-                            return
+                        showResult.onSuccess {
+                            Log.d("MissedCallDiag", "fg-showMissed returned=$it senderId=${missed.senderId}")
+                        }.onFailure {
+                            Log.e("MissedCallDiag", "fg-showMissed threw senderId=${missed.senderId}: ${it.message}", it)
                         }
-                        Log.w(
-                            "OneSignal_Missed",
-                            "foreground showMissed returned false senderId=${missed.senderId} — falling back to OneSignal default UI"
-                        )
-                        // fall through and let OneSignal show its default heads-up.
+                        return
                     }
                 }
 
@@ -605,23 +606,21 @@ class BaseApplication : Application(), Configuration.Provider {
                 val callType = additional?.let { optStringOrNull(it, "callType") }
                     ?: additional?.let { optStringOrNull(it, "call_type") }
                     ?: "audio"
-                // Recover caller name from title when the structured field is absent
-                // (OneSignal default title format is "Missed call from <name>").
-                val titleName = notif.title?.trim()
-                    ?.removePrefix("Missed call from")?.trim()
-                    ?.removeSuffix("…")?.trim()
-                val callerName = (additional?.let { optStringOrNull(it, "callerName") }
+                val titleLine = notif.title?.trim().orEmpty()
+                val rawCaller = (additional?.let { optStringOrNull(it, "callerName") }
                     ?: additional?.let { optStringOrNull(it, "sender_name") }
                     ?: additional?.let { optStringOrNull(it, "name") }
-                    ?: titleName)
-                    ?.takeIf { it.isNotBlank() } ?: "Caller"
+                    ?: titleLine.takeIf { it.isNotBlank() })
+                    .orEmpty()
+                val callerName = com.gmwapp.hima.utils.CallNotifications.normalizeMissedCallCallerName(rawCaller)
+                    .ifBlank { "Caller" }
                 val callerImage = additional?.let { optStringOrNull(it, "callerImage") }
                     ?: additional?.let { optStringOrNull(it, "sender_image") }
                     ?: additional?.let { optStringOrNull(it, "image") }
                     ?: additional?.let { optStringOrNull(it, "avatar") }
                     ?: ""
 
-                // No real id -> derive a stable one from the caller name so repeat
+                // No real id -> derive a stable one from the normalized caller name so repeat
                 // missed calls from the same caller dedupe under one row.
                 val isSynthetic = realSenderId <= 0
                 val effectiveSenderId = if (!isSynthetic) realSenderId

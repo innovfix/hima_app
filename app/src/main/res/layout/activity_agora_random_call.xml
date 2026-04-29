@@ -3,6 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/main"
     android:background="@drawable/bg_white"
+    android:clipChildren="false"
+    android:clipToPadding="false"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -90,6 +92,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="40dp"
+        android:clipChildren="false"
+        android:clipToPadding="false"
         app:layout_constraintTop_toBottomOf="@id/connection_status_card"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -176,6 +180,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="24dp"
+        android:clipChildren="false"
+        android:clipToPadding="false"
         app:layout_constraintBottom_toTopOf="@id/ll_info_container"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">

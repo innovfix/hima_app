@@ -102,6 +102,11 @@ class MaleCallAcceptActivity : AppCompatActivity() {
 
         Log.d("MaleCallAccept_CallerDetails","Image: $callerImage, Name: $callerName")
         call_Id = intent.getIntExtra("CALL_ID", 0)
+        Log.d(
+            "VideoCallFlow",
+            "MaleAccept.onCreate channel=$channelName callId=$call_Id senderId=$receiverId " +
+                "callType=$callType userId=$userId"
+        )
 
         // Pre-request RECORD_AUDIO so permission dialog won't block call start on accept
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
@@ -195,6 +200,11 @@ class MaleCallAcceptActivity : AppCompatActivity() {
                 
                 // Sufficient coins - proceed with call
                 Log.d("MaleCallAccept", "Sufficient coins: $currentCoins. Accepting call.")
+                Log.d(
+                    "VideoCallFlow",
+                    "MaleAccept.acceptClick channel=$channelName callId=$call_Id callType=$callType " +
+                        "tokenPrefetched=${!prefetchedAgoraToken.isNullOrEmpty()} appIdPrefetched=${!prefetchedAgoraAppId.isNullOrEmpty()}"
+                )
                 sendCallNotification(userId!!, receiverId, callType!!, channelName!!, "accepted")
 
                 if (callType == "audio") {
@@ -343,7 +353,13 @@ class MaleCallAcceptActivity : AppCompatActivity() {
 
     private fun prefetchAgoraToken(channelForToken: String) {
         Log.d("AgoraTiming", "MaleCallAccept prefetchAgoraToken started at ${System.currentTimeMillis()}")
+        Log.d("VideoCallFlow", "MaleAccept.prefetchToken.start channel=$channelForToken callId=$call_Id")
         agoraViewModel.agoraTokenLiveData.observe(this) { response ->
+            Log.d(
+                "VideoCallFlow",
+                "MaleAccept.prefetchToken.response success=${response?.success} " +
+                    "tokenPresent=${!response?.token.isNullOrEmpty()} appIdPresent=${!response?.app_id.isNullOrEmpty()}"
+            )
             if (response != null && response.success == true && !response.token.isNullOrEmpty()) {
                 prefetchedAgoraToken = response.token
                 prefetchedAgoraAppId = response.app_id

@@ -439,8 +439,15 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         // Use pre-fetched token from connecting/accept screen if available, else fetch from backend
         val intentToken = intent.getStringExtra("AGORA_TOKEN")
         val intentAppId = intent.getStringExtra("AGORA_APP_ID")
+        Log.d(
+            "VideoCallFlow",
+            "FemaleVideo.onCreate channel=$channelName callId=$call_Id receiverId=$receiverId " +
+                "isCaller=$isCaller intentTokenPresent=${!intentToken.isNullOrEmpty()} " +
+                "intentAppIdPresent=${!intentAppId.isNullOrEmpty()} permissionsGranted=${checkSelfPermission()}"
+        )
         if (!intentToken.isNullOrEmpty() && !intentAppId.isNullOrEmpty()) {
             Log.d("AgoraTiming", "FemaleVideo using pre-fetched token at ${System.currentTimeMillis()}")
+            Log.d("VideoCallFlow", "FemaleVideo.usingPrefetchedToken channel=$channelName callId=$call_Id")
             token = intentToken
             appId = intentAppId
             if (!checkSelfPermission()) {
@@ -635,8 +642,14 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     }
 
     private fun getAgoraTokenFromBackend() {
+        Log.d("VideoCallFlow", "FemaleVideo.requestToken channel=$channelName callId=$call_Id uid=$uid")
         // Observe token response
         agoraViewModel.agoraTokenLiveData.observe(this) { response ->
+            Log.d(
+                "VideoCallFlow",
+                "FemaleVideo.tokenResponse success=${response?.success} tokenPresent=${!response?.token.isNullOrEmpty()} " +
+                    "appIdPresent=${!response?.app_id.isNullOrEmpty()} message=${response?.message}"
+            )
             if (response != null && response.success == true && !response.token.isNullOrEmpty()) {
                 token = response.token
                 // Get appId from backend response (required)
@@ -1111,6 +1124,11 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         }
 
         override fun onConnectionStateChanged(state: Int, reason: Int) {
+            Log.d(
+                "VideoCallFlow",
+                "FemaleVideo.connectionState state=$state reason=$reason channel=$channelName callId=$call_Id " +
+                    "isJoined=$isJoined remoteJoined=$isRemoteUserJoined"
+            )
             com.gmwapp.hima.utils.CallQualityUi.apply(
                 this@FemaleVideoCallingActivity,
                 binding.ivSignalStrength,
@@ -1123,6 +1141,10 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         override fun onUserJoined(uid: Int, elapsed: Int) {
          //   showMessage("Remote user joined $uid")
             Log.d("AgoraTiming", "FemaleVideo onUserJoined at ${System.currentTimeMillis()}")
+            Log.d(
+                "VideoCallFlow",
+                "FemaleVideo.onUserJoined remoteUid=$uid elapsed=$elapsed channel=$channelName callId=$call_Id"
+            )
             isRemoteUserJoined=true
             getRemainingTime()
             startTime = dateFormat.format(Date()) // Set call end time in IST
@@ -1174,6 +1196,11 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         override fun onJoinChannelSuccess(channel: String, uid: Int, elapsed: Int) {
             isJoined = true
             Log.d("AgoraTiming", "FemaleVideo onJoinChannelSuccess at ${System.currentTimeMillis()}")
+            Log.d(
+                "VideoCallFlow",
+                "FemaleVideo.onJoinChannelSuccess channel=$channel uid=$uid elapsed=$elapsed callId=$call_Id " +
+                    "remoteJoined=$isRemoteUserJoined"
+            )
             startTimeoutTracking()
             Log.d("JoinedSuccessFully","$channel")
         //    showMessage("Joined Channel $channel")
@@ -1182,6 +1209,10 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
         override fun onUserOffline(uid: Int, reason: Int) {
           //  showMessage("Remote user offline $uid $reason")
+            Log.d(
+                "VideoCallFlow",
+                "FemaleVideo.onUserOffline remoteUid=$uid reason=$reason channel=$channelName callId=$call_Id"
+            )
 
             updateCallEndDetails()
             stopCountdown()
@@ -1220,6 +1251,10 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     }
 
     private fun setupRemoteVideo(uid: Int) {
+        Log.d(
+            "VideoCallFlow",
+            "FemaleVideo.setupRemoteVideo remoteUid=$uid containerChildren=${binding.remoteVideoViewContainer.childCount}"
+        )
         remoteSurfaceView = SurfaceView(baseContext)
         remoteSurfaceView!!.setZOrderMediaOverlay(false)
         binding.remoteVideoViewContainer.addView(remoteSurfaceView)
@@ -1524,7 +1559,12 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         if (checkSelfPermission()) {
             val options = ChannelMediaOptions()
 
-            Log.d("AgoraDebug", "Joining channel: $channelName, Token: $token")
+            Log.d("AgoraDebug", "Joining channel: $channelName, Token present: ${!token.isNullOrEmpty()}")
+            Log.d(
+                "VideoCallFlow",
+                "FemaleVideo.joinChannel.start channel=$channelName callId=$call_Id uid=$uid " +
+                    "tokenPresent=${!token.isNullOrEmpty()} appIdPresent=${!appId.isNullOrEmpty()}"
+            )
 
             options.channelProfile = Constants.CHANNEL_PROFILE_COMMUNICATION
             options.clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
@@ -1532,6 +1572,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             localSurfaceView!!.visibility = View.VISIBLE
             agoraEngine!!.startPreview()
             val result = agoraEngine!!.joinChannel(token, channelName, uid, options)
+            Log.d("VideoCallFlow", "FemaleVideo.joinChannel.result result=$result channel=$channelName callId=$call_Id")
             if (result == 0) {
                 Log.d("AgorajoinChannel", "joinChannel: Success $result")
                 localSurfaceView!!.visibility = View.VISIBLE
