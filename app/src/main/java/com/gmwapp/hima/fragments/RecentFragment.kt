@@ -154,6 +154,7 @@ class RecentFragment : BaseFragment(), Refreshable {
      */
     override fun refresh() {
         loadCallsList(currentSortType, resetData = true, searchQuery = currentSearchQuery)
+        loadMissedCallCount(seen = 1)
     }
 
     private fun loadCallsList(sortType: String, resetData: Boolean, searchQuery: String = "") {
@@ -237,13 +238,13 @@ class RecentFragment : BaseFragment(), Refreshable {
         })
 
         recentViewModel.missedCallCountLiveData.observe(viewLifecycleOwner, Observer { count ->
-            Log.d("missed_call_data", "ui_count=${count ?: 0}")
-            updateMissedChipCount(count ?: 0)
-            // When Missed tab is opened (seen=1 flow), refresh bottom nav badge in MainActivity
-            // so it reflects latest value immediately.
-            if (currentSortType == "missed") {
-                (activity as? com.gmwapp.hima.activities.MainActivity)?.refreshRecentMissedCountBadge()
-            }
+            val freshCount = count ?: 0
+            Log.d("missed_call_data", "ui_count=$freshCount")
+            updateMissedChipCount(freshCount)
+            // Push the freshly returned count straight to the bottom-nav badge. seen=1 calls
+            // (onResume / refresh / Missed chip) will deliver 0 here; chip-side seen=0 calls
+            // still keep the chip number in sync with the badge.
+            (activity as? com.gmwapp.hima.activities.MainActivity)?.setRecentMissedCount(freshCount)
         })
 
         recentViewModel.missedCallCountErrorLiveData.observe(viewLifecycleOwner, Observer { error ->
@@ -418,9 +419,11 @@ class RecentFragment : BaseFragment(), Refreshable {
             FcmUtils.shouldRefreshCallList = 0  // Reset flag after refresh
         }
 
-        loadMissedCallCount(seen = 0)
+        // seen=1 marks the missed calls as seen on the backend AND returns the fresh count,
+        // which the observer then pushes to MainActivity.setRecentMissedCount to clear the badge.
+        loadMissedCallCount(seen = 1)
     }
-    
+
     override fun onDestroyView() {
         super.onDestroyView()
         // Clean up search handler

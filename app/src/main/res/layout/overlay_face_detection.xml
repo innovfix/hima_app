@@ -83,7 +83,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Your video is blurred. To continue, show your face"
+                android:text="Keep your face inside the guide to continue"
                 android:textColor="@color/grey"
                 android:textSize="@dimen/_11sdp"
                 android:fontFamily="@font/poppins_regular"
@@ -109,7 +109,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:padding="@dimen/_10sdp"
-            android:src="@drawable/baseline_face_24"
+            android:src="@drawable/ic_face_scan_frame"
             android:tint="@color/grey" />
     </androidx.cardview.widget.CardView>
 

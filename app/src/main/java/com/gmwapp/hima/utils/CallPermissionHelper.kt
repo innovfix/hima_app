@@ -6,21 +6,17 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
-import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
-import androidx.appcompat.app.AlertDialog
 import com.gmwapp.hima.constants.DConstants
 
 /**
- * Prompts that improve incoming-call reliability: full-screen intent (Android 14+)
- * and optional battery optimization exemption.
+ * Prompts that improve incoming-call reliability: full-screen intent (Android 14+).
  */
 object CallPermissionHelper {
     private const val TAG = "CallPermissionHelper"
     private const val PREFS = "app_prefs"
     private const val KEY_FSI_LAST_PROMPT = "call_fsi_permission_last_prompt"
-    private const val KEY_BATTERY_OPT_PROMPTED = "call_battery_opt_prompted"
 
     /**
      * Once per day, if full-screen intents are not allowed, open system settings so the user can enable them.
@@ -48,45 +44,11 @@ object CallPermissionHelper {
         }
     }
 
-    /**
-     * One-time dialog offering to open app details so the user can disable battery restrictions (OEM-dependent).
-     */
-    fun maybePromptBatteryOptimizationExemption(activity: Activity) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
-        val pm = activity.getSystemService(PowerManager::class.java) ?: return
-        if (pm.isIgnoringBatteryOptimizations(activity.packageName)) return
-
-        val prefs = activity.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        if (prefs.getBoolean(KEY_BATTERY_OPT_PROMPTED, false)) return
-        prefs.edit().putBoolean(KEY_BATTERY_OPT_PROMPTED, true).apply()
-
-        AlertDialog.Builder(activity)
-            .setTitle("Reliable incoming calls")
-            .setMessage(
-                "To hear calls when the screen is off, allow this app to run without battery restrictions " +
-                    "(Battery → Unrestricted or turn off battery saver for Hima)."
-            )
-            .setPositiveButton("Open settings") { _, _ ->
-                try {
-                    activity.startActivity(
-                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                            data = Uri.fromParts("package", activity.packageName, null)
-                        }
-                    )
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to open app details: ${e.message}")
-                }
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
-    }
-
-    /** Run FSI prompt (daily) and battery prompt (once) for male/female callers. */
+    /** Run the daily FSI prompt for male/female callers. */
     fun maybePromptCallReliabilityPermissions(activity: Activity) {
         val gender = com.gmwapp.hima.BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
             ?: return
         if (gender != DConstants.FEMALE && gender != DConstants.MALE) return
         maybePromptFullScreenIntentPermission(activity)
-        maybePromptBatteryOptimizationExemption(activity)
     }
 }

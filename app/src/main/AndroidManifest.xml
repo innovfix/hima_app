@@ -167,10 +167,6 @@
             android:name=".agora.female.FemaleCallConnectingActivity"
             android:exported="false" />
         <activity
-            android:name=".activities.ChatActivity"
-            android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
-        <activity
             android:name=".activities.ChatListActivity"
             android:exported="false" />
         <activity

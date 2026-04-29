@@ -3,6 +3,7 @@ package com.gmwapp.hima.utils
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.util.Log
+import android.view.View
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -21,6 +22,9 @@ import retrofit2.Response
 /**
  * Do Not Disturb toggle + duration picker shared by [com.gmwapp.hima.fragments.ProfileFragment]
  * and [com.gmwapp.hima.fragments.ProfileFemaleFragment].
+ *
+ * Tap on the switch toggles DND on for [DEFAULT_TAP_DURATION_HOURS] (or off).
+ * Long-press on the switch — or on the optional [cvDnd] card row — opens the duration picker.
  */
 class DndController(
     private val fragment: Fragment,
@@ -31,30 +35,52 @@ class DndController(
      * When true (creator / female profile), enabling DND is blocked while audio or video call
      * availability is still on — user must turn those off on the home screen first.
      */
-    private val requireCallsDisabledBeforeEnablingDnd: Boolean = false
+    private val requireCallsDisabledBeforeEnablingDnd: Boolean = false,
+    /**
+     * Optional whole-row container; when supplied, long-press on the row also opens the
+     * duration picker so the gesture isn't limited to the small switch hit area.
+     */
+    private val cvDnd: View? = null
 ) {
     fun attach() {
+        Log.d(
+            TAG,
+            "attach fragment=${fragment.javaClass.simpleName} " +
+                "requireCallsDisabled=$requireCallsDisabledBeforeEnablingDnd hasCard=${cvDnd != null}"
+        )
         switchDnd.setOnClickListener {
+            val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+            Log.d(
+                TAG,
+                "click checked=${switchDnd.isChecked} userId=${userData?.id} " +
+                    "gender=${userData?.gender} audio=${userData?.audio_status} video=${userData?.video_status}"
+            )
             if (switchDnd.isChecked) {
-                switchDnd.isChecked = false
-                if (requireCallsDisabledBeforeEnablingDnd) {
-                    val ud = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-                    val audioOn = (ud?.audio_status ?: 0) == 1
-                    val videoOn = (ud?.video_status ?: 0) == 1
-                    if (audioOn || videoOn) {
-                        Toast.makeText(
-                            fragment.requireContext(),
-                            fragment.getString(R.string.dnd_requires_calls_off),
-                            Toast.LENGTH_LONG
-                        ).show()
-                        return@setOnClickListener
-                    }
+                if (!canEnableDndOrToast()) {
+                    Log.d(TAG, "click enable blocked by canEnableDndOrToast")
+                    switchDnd.isChecked = false
+                    return@setOnClickListener
                 }
-                showDndDurationPicker()
+                callToggleDndApi(wantedEnabled = 1, durationHours = DEFAULT_TAP_DURATION_HOURS)
             } else {
                 callToggleDndApi(wantedEnabled = 0, durationHours = 0)
             }
         }
+
+        val longPressHandler = View.OnLongClickListener {
+            val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+            Log.d(
+                TAG,
+                "longPress userId=${userData?.id} currentEnabled=${userData?.dnd_enabled} " +
+                    "currentUntil=${userData?.dnd_until}"
+            )
+            if (!canEnableDndOrToast()) return@OnLongClickListener true
+            showDndDurationPicker()
+            true
+        }
+        switchDnd.setOnLongClickListener(longPressHandler)
+        cvDnd?.setOnLongClickListener(longPressHandler)
+
         refresh()
     }
 
@@ -62,12 +88,45 @@ class DndController(
         if (!fragment.isAdded) return
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val enabled = (userData?.dnd_enabled ?: 0) == 1
+        Log.d(
+            TAG,
+            "refresh userId=${userData?.id} enabled=$enabled dnd_enabled=${userData?.dnd_enabled} " +
+                "dnd_until=${userData?.dnd_until}"
+        )
         switchDnd.isChecked = enabled
         tvDndStatus.text = if (enabled && !userData?.dnd_until.isNullOrBlank()) {
             fragment.getString(R.string.dnd_until_fmt, formatDndUntil(userData!!.dnd_until!!))
         } else {
             fragment.getString(R.string.dnd_title)
         }
+    }
+
+    /**
+     * Female/creator profiles must turn off audio + video availability before enabling DND.
+     * Returns true when DND can be enabled; otherwise toasts the explainer and returns false.
+     * Tap and long-press both go through this so the rule stays consistent.
+     */
+    private fun canEnableDndOrToast(): Boolean {
+        if (!requireCallsDisabledBeforeEnablingDnd) {
+            Log.d(TAG, "canEnable allowed: no call-availability guard")
+            return true
+        }
+        val ud = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val audioOn = (ud?.audio_status ?: 0) == 1
+        val videoOn = (ud?.video_status ?: 0) == 1
+        Log.d(
+            TAG,
+            "canEnable guard userId=${ud?.id} audioOn=$audioOn videoOn=$videoOn " +
+                "audio=${ud?.audio_status} video=${ud?.video_status}"
+        )
+        if (!audioOn && !videoOn) return true
+        Toast.makeText(
+            fragment.requireContext(),
+            fragment.getString(R.string.dnd_requires_calls_off),
+            Toast.LENGTH_LONG
+        ).show()
+        Log.d(TAG, "canEnable blocked: audio/video availability still enabled")
+        return false
     }
 
     private fun formatDndUntil(iso: String): String {
@@ -87,6 +146,7 @@ class DndController(
     }
 
     private fun showDndDurationPicker() {
+        Log.d(TAG, "showDurationPicker")
         val view = fragment.layoutInflater.inflate(R.layout.dialog_dnd_duration, null)
         val dialog = AlertDialog.Builder(fragment.requireContext(), R.style.AlertDialogTransparent)
             .setView(view)
@@ -95,18 +155,22 @@ class DndController(
         dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
 
         view.findViewById<MaterialButton>(R.id.btn_dnd_1h).setOnClickListener {
+            Log.d(TAG, "durationPicker selected=1h")
             dialog.dismiss()
             callToggleDndApi(wantedEnabled = 1, durationHours = 1)
         }
-        view.findViewById<MaterialButton>(R.id.btn_dnd_3h).setOnClickListener {
+        view.findViewById<MaterialButton>(R.id.btn_dnd_2h).setOnClickListener {
+            Log.d(TAG, "durationPicker selected=2h")
             dialog.dismiss()
-            callToggleDndApi(wantedEnabled = 1, durationHours = 3)
+            callToggleDndApi(wantedEnabled = 1, durationHours = 2)
         }
-        view.findViewById<MaterialButton>(R.id.btn_dnd_24h).setOnClickListener {
+        view.findViewById<MaterialButton>(R.id.btn_dnd_4h).setOnClickListener {
+            Log.d(TAG, "durationPicker selected=4h")
             dialog.dismiss()
-            callToggleDndApi(wantedEnabled = 1, durationHours = 24)
+            callToggleDndApi(wantedEnabled = 1, durationHours = 4)
         }
         view.findViewById<MaterialButton>(R.id.btn_dnd_cancel).setOnClickListener {
+            Log.d(TAG, "durationPicker cancelled")
             dialog.dismiss()
         }
         dialog.show()
@@ -114,7 +178,7 @@ class DndController(
 
     private fun callToggleDndApi(wantedEnabled: Int, durationHours: Int) {
         val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
-        Log.d(TAG, "req userId=$userId wantedEnabled=$wantedEnabled durationHours=$durationHours")
+        Log.d(TAG, "req.start userId=$userId wantedEnabled=$wantedEnabled durationHours=$durationHours")
         switchDnd.isEnabled = false
 
         profileViewModel.toggleDnd(
@@ -130,7 +194,7 @@ class DndController(
                     val err = runCatching { response.errorBody()?.string() }.getOrNull()
                     Log.d(
                         TAG,
-                        "http=${response.code()} isSuccessful=${response.isSuccessful} " +
+                        "resp url=${call.request().url} http=${response.code()} isSuccessful=${response.isSuccessful} " +
                             "success=${body?.success} message=${body?.message} data=${body?.data} err=$err"
                     )
                     if (!fragment.isAdded || fragment.activity == null) return
@@ -140,7 +204,7 @@ class DndController(
                                 // Backend route `toggle_dnd` is not deployed on some hosts (HTTP 404).
                                 // Apply matching DND schedule locally so FCM/OneSignal suppression still works.
                                 if (response.code() == 404 && applyLocalDndFallback(wantedEnabled, durationHours)) {
-                                    Log.d(TAG, "toggle_dnd returned 404; applied local DND fallback")
+                                    Log.d(TAG, "resp.404 applied local fallback")
                                     refresh()
                                     profileViewModel.getUsers(userId)
                                     Toast.makeText(
@@ -177,6 +241,10 @@ class DndController(
                                 val current = BaseApplication.getInstance()?.getPrefs()?.getUserData()
                                 if (current != null) {
                                     val d = body.data!!
+                                    Log.d(
+                                        TAG,
+                                        "persist server data userId=$userId dnd_enabled=${d.dnd_enabled} dnd_until=${d.dnd_until}"
+                                    )
                                     BaseApplication.getInstance()?.getPrefs()?.setUserData(
                                         current.copy(
                                             dnd_enabled = d.dnd_enabled,
@@ -198,7 +266,7 @@ class DndController(
                 }
 
                 override fun onFailure(call: Call<ToggleDndResponse>, t: Throwable) {
-                    Log.e(TAG, "onFailure: ${t.message}", t)
+                    Log.e(TAG, "failure url=${call.request().url} message=${t.message}", t)
                     if (!fragment.isAdded || fragment.activity == null) return
                     fragment.requireActivity().runOnUiThread {
                         toastAndRollback(
@@ -209,7 +277,7 @@ class DndController(
                 }
 
                 override fun onNoNetwork() {
-                    Log.w(TAG, "onNoNetwork")
+                    Log.w(TAG, "noNetwork userId=$userId wantedEnabled=$wantedEnabled durationHours=$durationHours")
                     if (!fragment.isAdded || fragment.activity == null) return
                     fragment.requireActivity().runOnUiThread {
                         toastAndRollback(fragment.getString(R.string.dnd_err_no_network))
@@ -245,10 +313,16 @@ class DndController(
             dnd_until = untilStr
         )
         BaseApplication.getInstance()?.getPrefs()?.setUserData(updated)
+        Log.d(
+            TAG,
+            "fallback.persist userId=${current.id} wantedEnabled=$wantedEnabled " +
+                "durationHours=$durationHours until=$untilStr"
+        )
         return true
     }
 
     companion object {
         private const val TAG = "DND_TOGGLE"
+        private const val DEFAULT_TAP_DURATION_HOURS = 1
     }
 }

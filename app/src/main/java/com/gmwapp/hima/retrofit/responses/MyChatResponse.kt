@@ -43,6 +43,10 @@ data class ChatUser(
     val describeYourself: String?,
     val voice: String?,
     val status: Int?,
+    // Defaulted to 1 because the my_chat endpoint frequently omits these
+    // fields entirely. Treating "missing" as enabled keeps the call buttons
+    // tappable; the per-call availability check downstream still gates the
+    // real connection flow if the creator is genuinely offline.
     @SerializedName("audio_status")
     val audioStatus: Int? = 1,
     @SerializedName("video_status")

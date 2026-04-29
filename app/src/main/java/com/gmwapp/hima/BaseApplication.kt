@@ -2,7 +2,6 @@ package com.gmwapp.hima
 
 import android.app.Activity
 import android.app.Application
-import com.gmwapp.hima.BuildConfig
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Intent
@@ -15,6 +14,8 @@ import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.content.pm.PackageInfo
 import android.media.AudioAttributes
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
 import android.media.RingtoneManager
 import android.net.ConnectivityManager
 import android.net.Network
@@ -33,7 +34,6 @@ import com.android.installreferrer.api.InstallReferrerStateListener
 import com.android.installreferrer.api.ReferrerDetails
 import com.facebook.FacebookSdk
 import com.facebook.appevents.AppEventsLogger
-import com.gmwapp.hima.BuildConfig
 import com.gmwapp.hima.agora.telecom.HimaTelecomManager
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.repositories.CallStatusRepository
@@ -86,6 +86,22 @@ class BaseApplication : Application(), Configuration.Provider {
     private var callType: String? = null
     private var roomId: String? = null
     private var mediaPlayer: MediaPlayer? = null
+
+    /**
+     * Audio mode captured before [playIncomingCallSound] flips to [AudioManager.MODE_RINGTONE].
+     * Restored by [stopRingtone] only when this flag is set (i.e. only when *we* changed it).
+     * `null` means we did not modify the mode and must leave it alone.
+     */
+    private var ringtoneSavedAudioMode: Int? = null
+    /**
+     * True when [playIncomingCallSound] called [AudioManager.clearCommunicationDevice] so we
+     * can log it; we don't try to restore that pin since it was almost always stale.
+     */
+    private var ringtoneClearedCommDevice: Boolean = false
+    /** We called [AudioManager.startBluetoothSco] for incoming ringtone; must [stopBluetoothSco] in [stopRingtone]. */
+    private var ringtoneWeStartedSco: Boolean = false
+    /** We called [AudioManager.setCommunicationDevice] for incoming ringtone; must [clearCommunicationDevice] in [stopRingtone]. */
+    private var ringtoneSetCommDevice: Boolean = false
     private var endCallUpdatePending: Boolean? = null
 
     val networkConnectedLiveData = MutableLiveData<Boolean>()
@@ -223,6 +239,24 @@ class BaseApplication : Application(), Configuration.Provider {
         Log.d("SocketIOCheck", "🎯 BaseApplication.onCreate() STARTED - SocketIOCheck tag is working!")
         
         mInstance = this
+        // First launch after a version bump: wipe stale system-tray notifications. Old chat
+        // notifications were posted with PendingIntents pointing at the now-deleted ChatActivity,
+        // so without this they'd either crash on tap or open the wrong screen.
+        runCatching {
+            val versionPrefs = getSharedPreferences("app_version_prefs", Context.MODE_PRIVATE)
+            val lastVersion = versionPrefs.getInt("last_known_version_code", -1)
+            val currentVersion = BuildConfig.VERSION_CODE
+            if (lastVersion != currentVersion) {
+                Log.d(
+                    "AppUpgrade",
+                    "version bump $lastVersion -> $currentVersion; cancelling stale system notifications"
+                )
+                runCatching {
+                    androidx.core.app.NotificationManagerCompat.from(this).cancelAll()
+                }
+                versionPrefs.edit().putInt("last_known_version_code", currentVersion).apply()
+            }
+        }
         // Force light theme app-wide. The app has no dark-mode design pass yet, so
         // letting the system flip to night caused white-on-white headers and
         // unreadable bubbles. Pin to NIGHT_NO so every screen inherits light tokens.
@@ -464,7 +498,16 @@ class BaseApplication : Application(), Configuration.Provider {
                 // path handled by the OneSignal NSE.
                 if (isMissedCall) {
                     val missed = parseOneSignalMissedCallPayload(additional, event.notification)
-                    if (missed != null) {
+                    if (missed == null) {
+                        // Heuristic matched (title/body), but we couldn't extract a
+                        // valid senderId — without it we can't open the right chat
+                        // thread. Let OneSignal render its default UI so the user
+                        // still sees the missed-call alert.
+                        Log.w(
+                            "OneSignal_Missed",
+                            "foreground missed-call push had no usable payload — falling back to OneSignal default UI"
+                        )
+                    } else {
                         // Defer preventDefault until showMissed actually posts so
                         // a throw inside the helper doesn't leave the user with
                         // no notification at all.
@@ -481,7 +524,11 @@ class BaseApplication : Application(), Configuration.Provider {
                             event.preventDefault()
                             return
                         }
-                        // else: fall through and let OneSignal show its default heads-up.
+                        Log.w(
+                            "OneSignal_Missed",
+                            "foreground showMissed returned false senderId=${missed.senderId} — falling back to OneSignal default UI"
+                        )
+                        // fall through and let OneSignal show its default heads-up.
                     }
                 }
 
@@ -548,28 +595,51 @@ class BaseApplication : Application(), Configuration.Provider {
                 additional: org.json.JSONObject?,
                 notif: com.onesignal.notifications.IDisplayableNotification
             ): com.gmwapp.hima.utils.CallNotifications.MissedPayload? {
-                val data = additional ?: return null
-                val senderId = data.optInt("senderId", 0).takeIf { it > 0 }
-                    ?: data.optInt("sender_id", 0).takeIf { it > 0 }
-                    ?: data.optInt("user_id", 0)
-                if (senderId <= 0) return null
-                val callType = optStringOrNull(data, "callType")
-                    ?: optStringOrNull(data, "call_type")
+                // Aliases observed across server templates — anything numeric and >0 wins.
+                val realSenderId = if (additional == null) 0 else
+                    listOf(
+                        "senderId", "sender_id", "user_id",
+                        "callerId", "caller_id",
+                        "from_user_id", "from_id", "peer_id", "sender_user_id"
+                    ).firstNotNullOfOrNull { k -> additional.optInt(k, 0).takeIf { it > 0 } } ?: 0
+                val callType = additional?.let { optStringOrNull(it, "callType") }
+                    ?: additional?.let { optStringOrNull(it, "call_type") }
                     ?: "audio"
-                val callerName = optStringOrNull(data, "callerName")
-                    ?: optStringOrNull(data, "sender_name")
-                    ?: optStringOrNull(data, "name")
-                    ?: notif.title?.removePrefix("Missed call from")?.trim().orEmpty()
-                val callerImage = optStringOrNull(data, "callerImage")
-                    ?: optStringOrNull(data, "sender_image")
-                    ?: optStringOrNull(data, "image")
-                    ?: optStringOrNull(data, "avatar")
+                // Recover caller name from title when the structured field is absent
+                // (OneSignal default title format is "Missed call from <name>").
+                val titleName = notif.title?.trim()
+                    ?.removePrefix("Missed call from")?.trim()
+                    ?.removeSuffix("…")?.trim()
+                val callerName = (additional?.let { optStringOrNull(it, "callerName") }
+                    ?: additional?.let { optStringOrNull(it, "sender_name") }
+                    ?: additional?.let { optStringOrNull(it, "name") }
+                    ?: titleName)
+                    ?.takeIf { it.isNotBlank() } ?: "Caller"
+                val callerImage = additional?.let { optStringOrNull(it, "callerImage") }
+                    ?: additional?.let { optStringOrNull(it, "sender_image") }
+                    ?: additional?.let { optStringOrNull(it, "image") }
+                    ?: additional?.let { optStringOrNull(it, "avatar") }
                     ?: ""
+
+                // No real id -> derive a stable one from the caller name so repeat
+                // missed calls from the same caller dedupe under one row.
+                val isSynthetic = realSenderId <= 0
+                val effectiveSenderId = if (!isSynthetic) realSenderId
+                    else (callerName.hashCode() and 0x0FFFFFFF).coerceAtLeast(1)
+
+                Log.d(
+                    "MissedCallDiag",
+                    "bg-app keys=${additional?.keys()?.asSequence()?.toList()} " +
+                        "realSenderId=$realSenderId synthetic=$isSynthetic effectiveId=$effectiveSenderId " +
+                        "callerName=$callerName callType=$callType title=\"${notif.title}\""
+                )
+
                 return com.gmwapp.hima.utils.CallNotifications.MissedPayload(
                     callType = callType,
-                    senderId = senderId,
+                    senderId = effectiveSenderId,
                     callerName = callerName,
-                    callerImage = callerImage
+                    callerImage = callerImage,
+                    isSynthetic = isSynthetic
                 )
             }
 
@@ -1014,8 +1084,32 @@ class BaseApplication : Application(), Configuration.Provider {
         stopRingtone()
 
         try {
+            // Without a headset, use USAGE_NOTIFICATION_RINGTONE + MODE_RINGTONE (ring stream).
+            // With a headset, use VOICE_COMMUNICATION + MODE_IN_COMMUNICATION and pin a comm device
+            // on API 31+ so OEMs do not blast the phone speaker.
+            logAudioStateSnapshot("pre-play")
+            val routeInfo = describeIncomingCallAudioRoute()
+            val useHeadsetRingPath = routeInfo.hasExternalOutput
+            // Clear stale earpiece pin, then either MODE_RINGTONE (speaker/earpiece) or
+            // MODE_IN_COMMUNICATION + optional SCO so VOICE_COMMUNICATION routes to BT/wired.
+            prepareRingtoneAudioState(useHeadsetRingPath)
+            if (useHeadsetRingPath && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                pinRingtoneCommunicationDeviceIfPossible()
+            }
+            val ringtoneUsage = if (useHeadsetRingPath) {
+                AudioAttributes.USAGE_VOICE_COMMUNICATION
+            } else {
+                AudioAttributes.USAGE_NOTIFICATION_RINGTONE
+            }
+            Log.d(
+                "HimaIncomingCall",
+                "ringtone routing: headsetPath=$useHeadsetRingPath external=${routeInfo.hasExternalOutput} " +
+                    "outputs=${routeInfo.outputDescription} usage=${usageName(ringtoneUsage)} " +
+                    "pinnedComm=$ringtoneSetCommDevice scoStarted=$ringtoneWeStartedSco"
+            )
+
             val audioAttributes = AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                .setUsage(ringtoneUsage)
                 .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                 .build()
 
@@ -1024,14 +1118,29 @@ class BaseApplication : Application(), Configuration.Provider {
                 RingtoneManager.TYPE_RINGTONE
             ) ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
                 ?: android.provider.Settings.System.DEFAULT_RINGTONE_URI
+            Log.d("HimaIncomingCall", "ringtone uri=$ringtoneUri")
             mediaPlayer = MediaPlayer().apply {
                 setAudioAttributes(audioAttributes)
                 setDataSource(applicationContext, ringtoneUri)
                 isLooping = true
                 setOnPreparedListener { mp ->
+                    Log.d(
+                        "HimaIncomingCall",
+                        "MediaPlayer onPrepared duration=${runCatching { mp.duration }.getOrDefault(-1)} " +
+                            "preferredDevice=${describePreferredDevice(mp)} " +
+                            "routedDevice=${describeRoutedDevice(mp)}"
+                    )
                     try {
                         if (mediaPlayer === mp) {
                             mp.start()
+                            Log.d(
+                                "HimaIncomingCall",
+                                "MediaPlayer started isPlaying=${runCatching { mp.isPlaying }.getOrDefault(false)} " +
+                                    "looping=${runCatching { mp.isLooping }.getOrDefault(false)}"
+                            )
+                            logAudioStateSnapshot("post-start")
+                        } else {
+                            Log.w("HimaIncomingCall", "MediaPlayer onPrepared but instance changed; skipping start")
                         }
                     } catch (e: IllegalStateException) {
                         Log.w("MediaPlayer", "start() after release or invalid state", e)
@@ -1041,10 +1150,24 @@ class BaseApplication : Application(), Configuration.Provider {
                         stopRingtone()
                     }
                 }
-                setOnCompletionListener { stopRingtone() } // safety
-                setOnErrorListener { _, _, _ ->
+                setOnCompletionListener {
+                    Log.d(
+                        "HimaIncomingCall",
+                        "MediaPlayer onCompletion (looping=${runCatching { isLooping }.getOrDefault(false)})"
+                    )
+                    stopRingtone()
+                }
+                setOnErrorListener { _, what, extra ->
+                    Log.e(
+                        "HimaIncomingCall",
+                        "MediaPlayer onError what=${mediaPlayerErrorName(what)}($what) extra=$extra"
+                    )
                     stopRingtone()
                     true
+                }
+                setOnInfoListener { _, what, extra ->
+                    Log.d("HimaIncomingCall", "MediaPlayer onInfo what=$what extra=$extra")
+                    false
                 }
                 prepareAsync() // async is safe
             }
@@ -1054,6 +1177,335 @@ class BaseApplication : Application(), Configuration.Provider {
             stopRingtone()
             Log.d("HimaIncomingCall", "playIncomingCallSound: aborted after exception")
         }
+    }
+
+    /**
+     * Dumps audio mode, ringer mode, and ring/music stream volumes so logs explain why a
+     * ringtone was loud, quiet, or silent on a given route. Cheap enough to call twice.
+     */
+    private fun logAudioStateSnapshot(stage: String) {
+        try {
+            val am = applicationContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+                ?: return
+            val ringMax = am.getStreamMaxVolume(AudioManager.STREAM_RING)
+            val ringVol = am.getStreamVolume(AudioManager.STREAM_RING)
+            val musicMax = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+            val musicVol = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+            val voiceMax = am.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL)
+            val voiceVol = am.getStreamVolume(AudioManager.STREAM_VOICE_CALL)
+            val btScoOn = am.isBluetoothScoOn
+            val btA2dpOn = @Suppress("DEPRECATION") am.isBluetoothA2dpOn
+            val wiredOn = @Suppress("DEPRECATION") am.isWiredHeadsetOn
+            val speakerOn = am.isSpeakerphoneOn
+            val commDevice = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                am.communicationDevice?.let { "${deviceTypeName(it.type)}#${it.id}" } ?: "null"
+            } else {
+                "n/a"
+            }
+            Log.d(
+                "HimaIncomingCall",
+                "audioState[$stage] mode=${audioModeName(am.mode)} ringer=${ringerModeName(am.ringerMode)} " +
+                    "ring=$ringVol/$ringMax music=$musicVol/$musicMax voice=$voiceVol/$voiceMax " +
+                    "btSco=$btScoOn btA2dp=$btA2dpOn wired=$wiredOn speakerphone=$speakerOn " +
+                    "commDevice=$commDevice"
+            )
+        } catch (e: Exception) {
+            Log.w("HimaIncomingCall", "logAudioStateSnapshot failed: ${e.message}")
+        }
+    }
+
+    private fun audioModeName(mode: Int): String = when (mode) {
+        AudioManager.MODE_NORMAL -> "normal"
+        AudioManager.MODE_RINGTONE -> "ringtone"
+        AudioManager.MODE_IN_CALL -> "in_call"
+        AudioManager.MODE_IN_COMMUNICATION -> "in_communication"
+        else -> "mode_$mode"
+    }
+
+    private fun ringerModeName(mode: Int): String = when (mode) {
+        AudioManager.RINGER_MODE_NORMAL -> "normal"
+        AudioManager.RINGER_MODE_VIBRATE -> "vibrate"
+        AudioManager.RINGER_MODE_SILENT -> "silent"
+        else -> "ringer_$mode"
+    }
+
+    private fun describePreferredDevice(mp: MediaPlayer): String = try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            mp.preferredDevice?.let { "${deviceTypeName(it.type)}#${it.id}" } ?: "default"
+        } else "n/a"
+    } catch (e: Exception) {
+        "err:${e.javaClass.simpleName}"
+    }
+
+    private fun describeRoutedDevice(mp: MediaPlayer): String = try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            mp.routedDevice?.let { "${deviceTypeName(it.type)}#${it.id}" } ?: "unrouted"
+        } else "n/a"
+    } catch (e: Exception) {
+        "err:${e.javaClass.simpleName}"
+    }
+
+    private fun mediaPlayerErrorName(what: Int): String = when (what) {
+        MediaPlayer.MEDIA_ERROR_UNKNOWN -> "unknown"
+        MediaPlayer.MEDIA_ERROR_SERVER_DIED -> "server_died"
+        else -> "what_$what"
+    }
+
+    /**
+     * Clears a stale communication-device pin, then sets [AudioManager.MODE_RINGTONE] for the
+     * built-in ringer path, or [AudioManager.MODE_IN_COMMUNICATION] (and optionally SCO on API
+     * 30 and below) when a headset is connected so [USAGE_VOICE_COMMUNICATION] routes there.
+     *
+     * Skipped when an actual call is already live ([AudioManager.MODE_IN_CALL] or already
+     * [AudioManager.MODE_IN_COMMUNICATION]) so we do not steal routing from an active session.
+     */
+    private fun prepareRingtoneAudioState(useHeadsetRingPath: Boolean) {
+        try {
+            val am = applicationContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+                ?: return
+
+            val currentMode = am.mode
+            if (currentMode == AudioManager.MODE_IN_CALL ||
+                currentMode == AudioManager.MODE_IN_COMMUNICATION
+            ) {
+                Log.d(
+                    "HimaIncomingCall",
+                    "prepareRingtoneAudioState: live call mode=${audioModeName(currentMode)}, leaving route alone"
+                )
+                return
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val pinned = am.communicationDevice
+                if (pinned != null) {
+                    val before = "${deviceTypeName(pinned.type)}#${pinned.id}"
+                    am.clearCommunicationDevice()
+                    ringtoneClearedCommDevice = true
+                    Log.d(
+                        "HimaIncomingCall",
+                        "prepareRingtoneAudioState: cleared stale commDevice=$before"
+                    )
+                }
+            }
+
+            ringtoneSavedAudioMode = currentMode
+            ringtoneWeStartedSco = false
+            if (useHeadsetRingPath) {
+                am.mode = AudioManager.MODE_IN_COMMUNICATION
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && hasBluetoothAudioSink(am)) {
+                    am.startBluetoothSco()
+                    ringtoneWeStartedSco = true
+                    Log.d(
+                        "HimaIncomingCall",
+                        "prepareRingtoneAudioState: mode ${audioModeName(currentMode)} -> in_communication startBluetoothSco=true"
+                    )
+                } else {
+                    Log.d(
+                        "HimaIncomingCall",
+                        "prepareRingtoneAudioState: mode ${audioModeName(currentMode)} -> in_communication sco=${ringtoneWeStartedSco}"
+                    )
+                }
+            } else {
+                am.mode = AudioManager.MODE_RINGTONE
+                Log.d(
+                    "HimaIncomingCall",
+                    "prepareRingtoneAudioState: mode ${audioModeName(currentMode)} -> ringtone"
+                )
+            }
+        } catch (e: Exception) {
+            Log.w("HimaIncomingCall", "prepareRingtoneAudioState failed: ${e.message}")
+        }
+    }
+
+    /**
+     * True if any Bluetooth-class output is present (A2DP/SCO/BLE headset). Used to decide
+     * whether to start SCO on pre-Android-12 devices for ringtone routing.
+     */
+    private fun hasBluetoothAudioSink(am: AudioManager): Boolean {
+        return try {
+            am.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any { dev ->
+                dev.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+                    dev.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                    (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                        dev.type == AudioDeviceInfo.TYPE_BLE_HEADSET)
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Prefer pinning a real headset for ringing on API 31+ so OEMs don't send
+     * [USAGE_VOICE_COMMUNICATION] to the earpiece when BT is connected.
+     */
+    private fun pinRingtoneCommunicationDeviceIfPossible() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        try {
+            val am = applicationContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+                ?: return
+            val device = pickRingtoneCommunicationDevice(am) ?: run {
+                Log.w("HimaIncomingCall", "pinRingtoneCommunicationDeviceIfPossible: no suitable device")
+                return
+            }
+            val ok = am.setCommunicationDevice(device)
+            if (ok) {
+                ringtoneSetCommDevice = true
+                Log.d(
+                    "HimaIncomingCall",
+                    "pinRingtoneCommunicationDeviceIfPossible: set ${deviceTypeName(device.type)}#${device.id}"
+                )
+            } else {
+                Log.w(
+                    "HimaIncomingCall",
+                    "pinRingtoneCommunicationDeviceIfPossible: setCommunicationDevice failed for " +
+                        "${deviceTypeName(device.type)}#${device.id}"
+                )
+            }
+        } catch (e: Exception) {
+            Log.w("HimaIncomingCall", "pinRingtoneCommunicationDeviceIfPossible: ${e.message}")
+        }
+    }
+
+    private fun pickRingtoneCommunicationDevice(am: AudioManager): AudioDeviceInfo? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return null
+        val available = try {
+            am.availableCommunicationDevices
+        } catch (_: Exception) {
+            emptyList()
+        }
+        if (available.isEmpty()) return null
+        val preferenceOrder = buildList {
+            add(AudioDeviceInfo.TYPE_BLE_HEADSET)
+            add(AudioDeviceInfo.TYPE_BLUETOOTH_SCO)
+            add(AudioDeviceInfo.TYPE_WIRED_HEADSET)
+            add(AudioDeviceInfo.TYPE_WIRED_HEADPHONES)
+            add(AudioDeviceInfo.TYPE_USB_HEADSET)
+            add(AudioDeviceInfo.TYPE_HEARING_AID)
+            add(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP)
+        }
+        for (t in preferenceOrder) {
+            available.firstOrNull { it.type == t }?.let { return it }
+        }
+        return available.firstOrNull()
+    }
+
+    private fun revertRingtoneRouting() {
+        try {
+            val am = applicationContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+                ?: return
+            if (ringtoneSetCommDevice && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                am.clearCommunicationDevice()
+                Log.d("HimaIncomingCall", "revertRingtoneRouting: clearCommunicationDevice")
+            }
+            ringtoneSetCommDevice = false
+            if (ringtoneWeStartedSco) {
+                am.stopBluetoothSco()
+                Log.d("HimaIncomingCall", "revertRingtoneRouting: stopBluetoothSco")
+            }
+            ringtoneWeStartedSco = false
+        } catch (e: Exception) {
+            Log.w("HimaIncomingCall", "revertRingtoneRouting failed: ${e.message}")
+            ringtoneSetCommDevice = false
+            ringtoneWeStartedSco = false
+        }
+    }
+
+    /**
+     * Restores audio mode to whatever was active before the ringtone, so a normal app session
+     * doesn't sit in MODE_RINGTONE forever. No-op if [prepareRingtoneAudioState] didn't change it.
+     */
+    private fun restoreRingtoneAudioState() {
+        val savedMode = ringtoneSavedAudioMode ?: return
+        ringtoneSavedAudioMode = null
+        val cleared = ringtoneClearedCommDevice
+        ringtoneClearedCommDevice = false
+        try {
+            val am = applicationContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+                ?: return
+            // Don't stomp on an active telephony/voip call. We use MODE_IN_COMMUNICATION for the
+            // headset ringtone path ourselves, so we must still restore when current is in_communication.
+            val currentMode = am.mode
+            if (currentMode == AudioManager.MODE_IN_CALL) {
+                Log.d(
+                    "HimaIncomingCall",
+                    "restoreRingtoneAudioState: call now live (${audioModeName(currentMode)}), keeping mode"
+                )
+                return
+            }
+            am.mode = savedMode
+            Log.d(
+                "HimaIncomingCall",
+                "restoreRingtoneAudioState: mode ${audioModeName(currentMode)} -> ${audioModeName(savedMode)} clearedCommDevice=$cleared"
+            )
+        } catch (e: Exception) {
+            Log.w("HimaIncomingCall", "restoreRingtoneAudioState failed: ${e.message}")
+        }
+    }
+
+    private data class IncomingCallAudioRoute(
+        val hasExternalOutput: Boolean,
+        val outputDescription: String
+    )
+
+    /**
+     * Inspects current output devices so [playIncomingCallSound] can pick a usage that won't
+     * force-route the ringtone to the loudspeaker when a headset is connected.
+     */
+    private fun describeIncomingCallAudioRoute(): IncomingCallAudioRoute {
+        return try {
+            val am = applicationContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+                ?: return IncomingCallAudioRoute(false, "audio_service_unavailable")
+            val devices = am.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+            val descriptions = devices.map { deviceTypeName(it.type) }
+            val hasExternal = devices.any { isExternalOutput(it.type) }
+            IncomingCallAudioRoute(
+                hasExternalOutput = hasExternal,
+                outputDescription = descriptions.joinToString(prefix = "[", postfix = "]")
+            )
+        } catch (e: Exception) {
+            Log.w("HimaIncomingCall", "describeIncomingCallAudioRoute failed: ${e.message}")
+            IncomingCallAudioRoute(false, "error:${e.javaClass.simpleName}")
+        }
+    }
+
+    private fun isExternalOutput(type: Int): Boolean {
+        if (type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+            type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+            type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+            type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+            type == AudioDeviceInfo.TYPE_USB_HEADSET ||
+            type == AudioDeviceInfo.TYPE_HEARING_AID
+        ) return true
+        // BLE constants only exist on API 31+; reference them defensively.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (type == AudioDeviceInfo.TYPE_BLE_HEADSET ||
+                type == AudioDeviceInfo.TYPE_BLE_BROADCAST
+            ) return true
+        }
+        return false
+    }
+
+    private fun deviceTypeName(type: Int): String = when (type) {
+        AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "earpiece"
+        AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "speaker"
+        AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "bt_a2dp"
+        AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "bt_sco"
+        AudioDeviceInfo.TYPE_WIRED_HEADSET -> "wired_headset"
+        AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> "wired_headphones"
+        AudioDeviceInfo.TYPE_USB_HEADSET -> "usb_headset"
+        AudioDeviceInfo.TYPE_HEARING_AID -> "hearing_aid"
+        else -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && type == AudioDeviceInfo.TYPE_BLE_HEADSET) {
+            "ble_headset"
+        } else {
+            "type_$type"
+        }
+    }
+
+    private fun usageName(usage: Int): String = when (usage) {
+        AudioAttributes.USAGE_MEDIA -> "media"
+        AudioAttributes.USAGE_NOTIFICATION_RINGTONE -> "ringtone"
+        AudioAttributes.USAGE_VOICE_COMMUNICATION -> "voice_comm"
+        else -> "usage_$usage"
     }
 
     fun playSendGiftSound() {
@@ -1109,6 +1561,8 @@ class BaseApplication : Application(), Configuration.Provider {
             Log.e("MediaPlayer", "Error stopping ringtone: ${e.message}")
         } finally {
             mediaPlayer = null
+            revertRingtoneRouting()
+            restoreRingtoneAudioState()
             Log.d("HimaIncomingCall", "stopRingtone: end released")
             Log.d("MediaPlayer", "Ringtone stopped and released safely.")
         }

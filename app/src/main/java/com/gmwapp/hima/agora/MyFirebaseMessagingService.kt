@@ -294,16 +294,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             )
                         }
 
-                        val intent = Intent(this, FemaleCallAcceptActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                            putExtra("CALL_TYPE", callType)
-                            putExtra("SENDER_ID", senderId)
-                            putExtra("CHANNEL_NAME", channelName)
-                            putExtra("Caller_NAME", receiverName)
-                            putExtra("Caller_Image", receiverImg)
-                            putExtra("CALL_ID", callId.toIntOrNull() ?: 0)
-                        }
-
                         val telecomExtras = Bundle().apply {
                             putString(HimaConnection.EXTRA_CALL_TYPE, callType)
                             putInt(HimaConnection.EXTRA_SENDER_ID, senderId)
@@ -341,8 +331,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
                         Log.d("callType", "$callType")
                         if (!isAppInBackground(applicationContext)) {
-                            Log.d("FCMService", "App is in foreground — launching FemaleCallAcceptActivity")
-                            startActivity(intent)
+                            Log.d(
+                                INCOMING_CALL_LOG_TAG,
+                                "female branch: foreground — relying on CallStyle heads-up only"
+                            )
                         }
 
 //                        if (BaseApplication.getInstance()?.isAppInForeground() == true) {
@@ -400,16 +392,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             )
                         }
 
-                        val intent = Intent(this, MaleCallAcceptActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                            putExtra("CALL_TYPE", callType)
-                            putExtra("SENDER_ID", senderId)
-                            putExtra("CHANNEL_NAME", channelName)
-                            putExtra("Caller_NAME", receiverName)
-                            putExtra("Caller_Image", receiverImg)
-                            putExtra("CALL_ID", callId.toIntOrNull() ?: 0)
-                        }
-
                         val telecomExtrasMale = Bundle().apply {
                             putString(HimaConnection.EXTRA_CALL_TYPE, callType)
                             putInt(HimaConnection.EXTRA_SENDER_ID, senderId)
@@ -447,8 +429,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
                         Log.d("MaleCallAccept_CallType", "$callType")
                         if (!isAppInBackground(applicationContext)) {
-                            Log.d("FCMService_Male", "App is in foreground — launching MaleCallAcceptActivity")
-                            startActivity(intent)
+                            Log.d(
+                                INCOMING_CALL_LOG_TAG,
+                                "male branch: foreground — relying on CallStyle heads-up only"
+                            )
                         }
 
                         if (currentActivity !is MainActivity &&

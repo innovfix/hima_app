@@ -189,17 +189,40 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
         event: INotificationReceivedEvent
     ): Boolean {
         if (!isMissedCallPush(event.notification)) return false
-        val data = event.notification.additionalData ?: return false
+        val data = event.notification.additionalData
 
-        val callType = firstNonEmpty(data, "callType", "call_type") ?: "audio"
-        val senderId = data.optInt("senderId", 0).takeIf { it > 0 }
-            ?: data.optInt("sender_id", 0).takeIf { it > 0 }
-            ?: data.optInt("user_id", 0)
-        val callerName = firstNonEmpty(data, "callerName", "sender_name", "name", "title")
-            ?: event.notification.title?.removePrefix("Missed call from")?.trim().orEmpty()
-        val callerImage = firstNonEmpty(data, "callerImage", "sender_image", "image", "avatar").orEmpty()
+        val callType = data?.let { firstNonEmpty(it, "callType", "call_type") } ?: "audio"
+        // Aliases observed across server templates — anything numeric and >0 wins.
+        val realSenderId = if (data == null) 0 else
+            listOf(
+                "senderId", "sender_id", "user_id",
+                "callerId", "caller_id",
+                "from_user_id", "from_id", "peer_id", "sender_user_id"
+            ).firstNotNullOfOrNull { k -> data.optInt(k, 0).takeIf { it > 0 } } ?: 0
+        // Recover caller name from title when the structured field is absent
+        // (OneSignal default title format is "Missed call from <name>").
+        val titleName = event.notification.title?.trim()
+            ?.removePrefix("Missed call from")?.trim()
+            ?.removeSuffix("…")?.trim()
+        val callerName = (data?.let { firstNonEmpty(it, "callerName", "sender_name", "name", "title") }
+            ?: titleName)
+            ?.takeIf { it.isNotBlank() } ?: "Caller"
+        val callerImage = (data?.let {
+            firstNonEmpty(it, "callerImage", "sender_image", "image", "avatar")
+        }).orEmpty()
 
-        if (senderId <= 0) return false
+        // No real id -> derive a stable one from the caller name so repeat
+        // missed calls from the same caller dedupe under one row.
+        val isSynthetic = realSenderId <= 0
+        val effectiveSenderId = if (!isSynthetic) realSenderId
+            else (callerName.hashCode() and 0x0FFFFFFF).coerceAtLeast(1)
+
+        Log.d(
+            "MissedCallDiag",
+            "nse keys=${data?.keys()?.asSequence()?.toList()} " +
+                "realSenderId=$realSenderId synthetic=$isSynthetic effectiveId=$effectiveSenderId " +
+                "callerName=$callerName callType=$callType title=\"${event.notification.title}\""
+        )
 
         // showMissed returns true only after successfully posting; if it threw,
         // we let OneSignal's default render so the user still sees *something*.
@@ -208,18 +231,28 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
                 context,
                 com.gmwapp.hima.utils.CallNotifications.MissedPayload(
                     callType = callType,
-                    senderId = senderId,
+                    senderId = effectiveSenderId,
                     callerName = callerName,
-                    callerImage = callerImage
+                    callerImage = callerImage,
+                    isSynthetic = isSynthetic
                 )
             )
         }.getOrElse {
-            Log.e(TAG, "showMissed threw senderId=$senderId: ${it.message}", it)
+            Log.e(TAG, "showMissed threw effectiveId=$effectiveSenderId: ${it.message}", it)
             false
         }
-        if (!posted) return false
+        if (!posted) {
+            Log.w(
+                TAG,
+                "showMissed returned false effectiveId=$effectiveSenderId — falling back to OneSignal default UI"
+            )
+            return false
+        }
         event.preventDefault()
-        Log.d(TAG, "OneSignal missed call push -> custom posted senderId=$senderId callType=$callType")
+        Log.d(
+            TAG,
+            "OneSignal missed call push -> custom posted effectiveId=$effectiveSenderId synthetic=$isSynthetic callType=$callType"
+        )
         return true
     }
 

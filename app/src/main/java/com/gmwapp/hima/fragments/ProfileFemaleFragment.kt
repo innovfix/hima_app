@@ -222,7 +222,8 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
             binding.switchDnd,
             binding.tvDndStatus,
             profileViewModel,
-            requireCallsDisabledBeforeEnablingDnd = true
+            requireCallsDisabledBeforeEnablingDnd = true,
+            cvDnd = binding.cvDnd
         )
 
         // Refresh user data from server (handles auto-clear of expired ipl_team / dnd)
