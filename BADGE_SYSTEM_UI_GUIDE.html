@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Hima Star Level Badge System — UI Guide</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; line-height: 1.6; color: #1a1a1a; background: linear-gradient(135deg, #fff5f7 0%, #fff 60%); padding: 32px 16px; }
+  .container { max-width: 1000px; margin: 0 auto; background: #fff; box-shadow: 0 4px 24px rgba(0,0,0,0.08); border-radius: 16px; overflow: hidden; }
+
+  header { background: linear-gradient(135deg, #FF6B9D 0%, #C44569 100%); color: #fff; padding: 40px 36px; }
+  header h1 { font-size: 30px; margin-bottom: 8px; }
+  header .subtitle { font-size: 15px; opacity: 0.95; }
+  header .meta { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 10px; }
+  header .meta-tag { background: rgba(255,255,255,0.18); padding: 5px 12px; border-radius: 20px; font-size: 12px; }
+
+  main { padding: 36px 40px; }
+
+  h2 { font-size: 22px; color: #C44569; margin: 36px 0 14px; padding-bottom: 8px; border-bottom: 2px solid #FFE0E6; }
+  h2:first-child { margin-top: 0; }
+  h3 { font-size: 17px; color: #1F4E78; margin: 22px 0 10px; font-weight: 600; }
+  h4 { font-size: 15px; color: #333; margin: 16px 0 8px; font-weight: 600; }
+
+  p { margin: 10px 0; }
+
+  .lead { font-size: 16px; color: #444; margin: 12px 0 18px; }
+
+  .level-row { display: grid; grid-template-columns: 60px 1fr 100px 1fr; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid #F0F0F2; }
+  .level-row:last-child { border-bottom: none; }
+  .level-row.l1 { background: #F8F9FA; }
+  .level-row.l5 { background: linear-gradient(135deg, #FFF7E0, #FFE0F0); }
+  .level-badge { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
+  .l1 .level-badge { background: #FFE0E6; color: #C44569; }
+  .l2 .level-badge { background: #FF6B9D; color: #fff; }
+  .l3 .level-badge { background: #FFE0E6; color: #C44569; }
+  .l4 .level-badge { background: #FFE0E6; color: #C44569; }
+  .l5 .level-badge { background: linear-gradient(135deg, #FFD700, #FF9500); color: #fff; }
+  .level-name { font-weight: 700; font-size: 15px; }
+  .level-stars { color: #FFB800; letter-spacing: 1px; font-size: 13px; margin-top: 2px; }
+  .level-rate { background: #FFF7E0; color: #CC7A00; padding: 6px 12px; border-radius: 20px; font-weight: 700; font-size: 13px; text-align: center; }
+  .level-needs { font-size: 12px; color: #555; }
+  .level-card-wrap { border: 1px solid #EBEBED; border-radius: 12px; overflow: hidden; margin: 14px 0; }
+
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 14px; }
+  table th { background: #FFE0E6; color: #C44569; padding: 11px 12px; text-align: left; font-weight: 700; font-size: 13px; }
+  table td { padding: 10px 12px; border-bottom: 1px solid #F0F0F0; vertical-align: top; }
+  table tr:hover { background: #FAFAFA; }
+
+  ul, ol { padding-left: 24px; margin: 10px 0; }
+  li { margin: 5px 0; font-size: 14px; }
+
+  code { background: #F4F8FC; padding: 2px 6px; border-radius: 4px; font-family: 'SF Mono', Consolas, Monaco, monospace; font-size: 12.5px; color: #1F4E78; }
+
+  .pages-overview { background: #F4F8FC; border-radius: 12px; padding: 20px 24px; margin: 16px 0; }
+  .pages-overview .page-item { padding: 12px 0; border-bottom: 1px dashed #C5DBEB; }
+  .pages-overview .page-item:last-child { border-bottom: none; }
+  .pages-overview .page-num { display: inline-block; width: 28px; height: 28px; line-height: 28px; text-align: center; background: #C44569; color: #fff; border-radius: 50%; font-weight: 700; font-size: 13px; margin-right: 10px; }
+  .pages-overview .page-name { font-weight: 700; font-size: 15px; }
+  .pages-overview .page-desc { color: #555; font-size: 13px; margin-top: 4px; margin-left: 38px; }
+
+  .section-card { background: #FAFBFC; border: 1px solid #EBEBED; border-radius: 10px; padding: 14px 18px; margin: 10px 0; }
+  .section-card .label { display: inline-block; background: #C44569; color: #fff; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; margin-bottom: 6px; letter-spacing: 0.5px; }
+  .section-card.new { border-left: 4px solid #4CAF50; }
+  .section-card.new .label { background: #4CAF50; }
+  .section-card .file-path { color: #888; font-size: 12px; font-family: 'SF Mono', Consolas, Monaco, monospace; margin-top: 4px; }
+
+  .progress-demo { background: linear-gradient(135deg, #FFF7E0, #FFFDE7); border-left: 5px solid #FFB300; padding: 16px 22px; border-radius: 8px; margin: 18px 0; }
+  .progress-demo .demo-bar-wrap { background: #F0F0F2; height: 10px; border-radius: 6px; overflow: hidden; margin: 10px 0 6px; }
+  .progress-demo .demo-bar { background: linear-gradient(90deg, #FFB800, #FF9500); height: 100%; border-radius: 6px; }
+  .progress-demo .caption { font-size: 13px; color: #6B7280; margin-top: 4px; }
+
+  .callout { padding: 14px 18px; border-radius: 8px; margin: 14px 0; font-size: 14px; }
+  .callout.info { background: #E3F2FD; border-left: 4px solid #2196F3; color: #0D47A1; }
+  .callout.warn { background: #FFF8E1; border-left: 4px solid #F9A825; color: #5C4500; }
+  .callout.success { background: #E8F5E9; border-left: 4px solid #4CAF50; color: #1B5E20; }
+  .callout.danger { background: #FFEBEE; border-left: 4px solid #E53935; color: #B71C1C; }
+  .callout strong { display: block; margin-bottom: 4px; }
+
+  .files-grid { display: grid; grid-template-columns: 1fr; gap: 8px; margin: 12px 0; }
+  .file-item { display: flex; align-items: flex-start; padding: 10px 14px; background: #FAFBFC; border: 1px solid #EBEBED; border-radius: 8px; font-size: 13px; }
+  .file-item .file-name { font-family: 'SF Mono', Consolas, Monaco, monospace; color: #1F4E78; flex: 0 0 auto; margin-right: 14px; min-width: 0; word-break: break-all; }
+  .file-item .file-desc { color: #555; flex: 1; }
+
+  .quick-ref-table th { background: linear-gradient(90deg, #FF6B9D, #C44569); color: #fff; }
+
+  .step-box { background: #fff; border: 1px solid #EBEBED; border-radius: 10px; padding: 14px 18px; margin: 8px 0; }
+  .step-box .step-num { display: inline-block; background: #FF6B9D; color: #fff; width: 24px; height: 24px; line-height: 24px; text-align: center; border-radius: 50%; font-weight: 700; font-size: 12px; margin-right: 8px; }
+
+  footer { background: #FFF8E1; padding: 22px 40px; text-align: center; color: #666; font-size: 13px; }
+
+  @media print {
+    body { background: #fff; padding: 0; }
+    .container { box-shadow: none; }
+    .level-row, .section-card, .step-box, .file-item { page-break-inside: avoid; }
+    header { background: #C44569 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>⭐ Hima Star Level Badge System — UI Guide</h1>
+  <div class="subtitle">How the 5-tier creator badge appears across the Android app</div>
+  <div class="meta">
+    <span class="meta-tag">📱 Android (Kotlin)</span>
+    <span class="meta-tag">👩 Female creator side</span>
+    <span class="meta-tag">3 pages: Home · Profile · Creator Level</span>
+    <span class="meta-tag">UI complete · Backend pending</span>
+  </div>
+</header>
+
+<main>
+
+<h2>What is the Star Level System?</h2>
+<p class="lead">Every female creator sits on one of <b>5 levels</b>. Higher level = higher payout per heart (per minute of call).</p>
+
+<div class="level-card-wrap">
+  <div class="level-row l1">
+    <div class="level-badge">L1</div>
+    <div>
+      <div class="level-name">Newbie</div>
+      <div class="level-stars">⭐ ☆ ☆ ☆ ☆</div>
+    </div>
+    <div class="level-rate">₹1.20 / 💗</div>
+    <div class="level-needs">✨ Default — every new creator starts here</div>
+  </div>
+  <div class="level-row l2">
+    <div class="level-badge">L2</div>
+    <div>
+      <div class="level-name">Rising Star</div>
+      <div class="level-stars">⭐⭐ ☆ ☆ ☆</div>
+    </div>
+    <div class="level-rate">₹1.25 / 💗</div>
+    <div class="level-needs">💰 Earn ₹500 in 30 days · ⭐ 1.1+ rating</div>
+  </div>
+  <div class="level-row l3">
+    <div class="level-badge">L3</div>
+    <div>
+      <div class="level-name">Bright Star</div>
+      <div class="level-stars">⭐⭐⭐ ☆ ☆</div>
+    </div>
+    <div class="level-rate">₹1.32 / 💗</div>
+    <div class="level-needs">💰 Earn ₹2,000 in 30 days · ⭐ 1.5+ rating</div>
+  </div>
+  <div class="level-row l4">
+    <div class="level-badge">L4</div>
+    <div>
+      <div class="level-name">Super Star</div>
+      <div class="level-stars">⭐⭐⭐⭐ ☆</div>
+    </div>
+    <div class="level-rate">₹1.45 / 💗</div>
+    <div class="level-needs">💰 Earn ₹5,000 in 30 days · ⭐ 2.0+ rating</div>
+  </div>
+  <div class="level-row l5">
+    <div class="level-badge">L5</div>
+    <div>
+      <div class="level-name">Galaxy Star 🏆</div>
+      <div class="level-stars">⭐⭐⭐⭐⭐</div>
+    </div>
+    <div class="level-rate">₹1.65 / 💗</div>
+    <div class="level-needs">💰 Earn ₹10,000 in 30 days · ⭐ 2.6+ rating</div>
+  </div>
+</div>
+
+<p>The system also tracks <b>number of calls</b>, <b>active days</b>, and <b>drop rate</b>, but revenue and rating are the two main levers a creator can directly control.</p>
+
+<div class="callout success">
+  <strong>🌊 Soft decay protects creators</strong>
+  If a creator's performance drops, she falls <b>only one level at a time</b> — never crashes from L5 to L1 overnight.
+</div>
+
+<h2>Where the badge shows up</h2>
+<p>The badge appears on <b>3 pages</b>:</p>
+
+<div class="pages-overview">
+  <div class="page-item">
+    <span class="page-num">1</span>
+    <span class="page-name">Female Home</span>
+    <div class="page-desc">Small "MY CREATOR LEVEL" card at the top → tap to open Creator Level page</div>
+  </div>
+  <div class="page-item">
+    <span class="page-num">2</span>
+    <span class="page-name">Profile (female)</span>
+    <div class="page-desc">"Creator Level" card → tap to open Creator Level page</div>
+  </div>
+  <div class="page-item">
+    <span class="page-num">3</span>
+    <span class="page-name">Creator Level</span>
+    <div class="page-desc">Full info page — the home for everything badge-related (hero, progress bar, all 5 levels, scoring, FAQs, dispute link)</div>
+  </div>
+</div>
+
+<h2>Page 1 — Female Home</h2>
+<p><code>fragment_female_home.xml</code> + <code>FemaleHomeFragment.kt</code></p>
+
+<div class="section-card">
+  <span class="label">"MY CREATOR LEVEL" card</span>
+  <p>Sits at the top of female home, always visible for female users.</p>
+  <ul>
+    <li>Pink "MY CREATOR LEVEL" label</li>
+    <li>Large level name ("L2 · Rising Star")</li>
+    <li>5-star row</li>
+    <li>Rate chip on the right</li>
+    <li>Tap → opens the <b>Creator Level page</b></li>
+    <li>Currently hardcoded to L2 — will become dynamic when backend ships</li>
+  </ul>
+</div>
+
+<h2>Page 2 — Profile (female)</h2>
+<p><code>fragment_profile_female.xml</code> + <code>ProfileFemaleFragment.kt</code></p>
+<p>Inside the Account section, one element:</p>
+
+<div class="section-card">
+  <span class="label">Creator Level card</span>
+  <ul>
+    <li>Pink star icon, label "Creator Level"</li>
+    <li>Subtitle "Rising Star · ₹1.25 / 💗", chevron arrow</li>
+    <li>Tap → opens the <b>Creator Level page</b></li>
+    <li>Subtitle is hardcoded (will go dynamic with backend)</li>
+  </ul>
+</div>
+
+<h2>Page 3 — Creator Level (the main info page)</h2>
+<p><code>activity_creator_level.xml</code> + <code>CreatorLevelActivity.kt</code></p>
+<p>This is the full info screen with everything the creator needs to know. Sections from top to bottom:</p>
+
+<div class="section-card">
+  <span class="label">Section 1 · Hero card "YOU ARE AT"</span>
+  <ul>
+    <li>Big level name (e.g. "Rising Creator")</li>
+    <li>5-star row — gold for active, grey for inactive</li>
+    <li>Rate chip: "You earn ₹1.25 per 💗"</li>
+  </ul>
+</div>
+
+<div class="section-card new">
+  <span class="label">Section 2 · Your Progress <small>· updated</small></span>
+  <ul>
+    <li>"Next: Bright Star ⭐⭐⭐" pill on the right (or "Max Level 🏆" at L5)</li>
+    <li><b>Gold horizontal progress bar</b> — fills 0% → 100% as the creator gets closer to the next level</li>
+    <li><b>Caption below the bar</b> — tells the creator what she needs:
+      <ul>
+        <li>Below threshold: "Need ₹X more revenue to reach {next level name}"</li>
+        <li>At/above threshold: "Almost there — {next level name} is within reach"</li>
+        <li>L5: "🏆 Top tier — keep performing to maintain"</li>
+      </ul>
+    </li>
+    <li>"LAST 30 DAYS" stat block: revenue, calls, active days, rating, drop rate</li>
+  </ul>
+</div>
+
+<div class="section-card">
+  <span class="label">Section 3 · All Creator Levels</span>
+  <p>A single card listing all 5 levels stacked. Each level shows:</p>
+  <ul>
+    <li>Pink/gold L1–L5 badge</li>
+    <li>Level name (current level highlighted with blue "YOU" pill)</li>
+    <li>5-star row with the right number of stars active</li>
+    <li><b>Plain-language qualification line</b> (see top table)</li>
+    <li>Rate chip on the right</li>
+  </ul>
+</div>
+
+<div class="section-card">
+  <span class="label">Section 4 · How is my level calculated?</span>
+  <p>5 factors with weight pills:</p>
+  <ul>
+    <li>💰 Revenue earned — <b>50%</b> (the biggest factor)</li>
+    <li>📞 Number of calls — <b>15%</b></li>
+    <li>📅 Active days — <b>15%</b></li>
+    <li>⭐ User rating — <b>10%</b></li>
+    <li>📵 Low drop rate — <b>10%</b></li>
+  </ul>
+  <p style="margin-top: 8px;">Yellow tip strip: "💡 Revenue is the BIGGEST factor — 50%! Focus on getting more calls."</p>
+</div>
+
+<div class="section-card">
+  <span class="label">Section 5 · Will I lose my level?</span>
+  <p>Green soft-decay card with 🌊 icon: "Gradual, never sudden. If your performance drops, you only fall ONE level at a time. You will NEVER crash from L5 to L1 overnight."</p>
+</div>
+
+<div class="section-card">
+  <span class="label">Section 6 · What protects fair creators</span>
+  <ul>
+    <li>🚫 Fake accounts don't count (less than ₹50 lifetime spend → not counted)</li>
+    <li>🔁 Repeat callers count less (same person 5+ times in a month → counts at 50%)</li>
+    <li>⏱️ Short calls don't count (under 1 minute is ignored)</li>
+    <li>😊 Low rating blocks promotion (if rated too low, can't reach higher levels)</li>
+  </ul>
+</div>
+
+<div class="section-card">
+  <span class="label">Section 7 · Real Example: Meet Devi</span>
+  <p>A yellow story card showing a 5-step example of a creator's journey from Day 1 to Month 2.</p>
+</div>
+
+<div class="section-card">
+  <span class="label">Section 8 · Quick Summary</span>
+  <p>4 lines summarising the key takeaway (numbered 1️⃣–4️⃣).</p>
+</div>
+
+<div class="section-card">
+  <span class="label">Section 9 · FAQs (8 questions)</span>
+  <ol>
+    <li>How is my level calculated?</li>
+    <li>I think my level is wrong (with "Something wrong?" instructions)</li>
+    <li>Will my level reset every month?</li>
+    <li>Why do gift hearts and chat hearts pay differently?</li>
+    <li>What if I switch to a different language?</li>
+    <li>How do I withdraw my earnings?</li>
+    <li>Will there be a public leaderboard?</li>
+    <li><b>When does my level update?</b> <em>(added)</em></li>
+  </ol>
+  <p>Tapping any FAQ header expands its answer; tapping again collapses it.</p>
+</div>
+
+<div class="section-card new">
+  <span class="label">Section 10 · "Something wrong with your level?" link <small>· new</small></span>
+  <p>At the very bottom of the page. Tap → opens Help and Support so the creator can raise a dispute.</p>
+</div>
+
+<h2>How the progress bar works</h2>
+<p>The bar lives in <b>Section 2 (Your Progress)</b> of the Creator Level page.</p>
+
+<h3>What drives the bar</h3>
+<ul>
+  <li>The bar reads a <code>progressPercent</code> value (0–100) and fills accordingly</li>
+  <li>Right now this value is <b>hardcoded to 45</b> in <code>CreatorLevelDummy.get()</code> because the backend endpoint doesn't exist yet</li>
+  <li>Once <code>GET /api/auth/creator/my-level</code> ships, the backend will compute this value from all 5 scoring factors weighted against the next level's thresholds</li>
+</ul>
+
+<h3>What drives the caption</h3>
+<p>The caption is computed <b>on the client</b> using only revenue (the biggest, most controllable factor):</p>
+
+<div class="step-box"><span class="step-num">1</span> Look up the next level's revenue threshold: L2 → ₹500 · L3 → ₹2,000 · L4 → ₹5,000 · L5 → ₹10,000</div>
+<div class="step-box"><span class="step-num">2</span> Gap = threshold − current 30-day revenue</div>
+<div class="step-box"><span class="step-num">3</span> If gap &gt; 0 → "Need ₹X more revenue to reach {next level name}"</div>
+<div class="step-box"><span class="step-num">4</span> If gap ≤ 0 → "Almost there — {next level name} is within reach"</div>
+<div class="step-box"><span class="step-num">5</span> If creator is already at L5 → "🏆 Top tier — keep performing to maintain"</div>
+
+<h3>What you'll see right now (dummy data)</h3>
+<div class="progress-demo">
+  <p><b>Current level:</b> L2 Rising Star · <b>30-day revenue:</b> ₹2,100 · <b>L3 threshold:</b> ₹2,000</p>
+  <div class="demo-bar-wrap">
+    <div class="demo-bar" style="width: 45%;"></div>
+  </div>
+  <div class="caption">Almost there — Bright Star is within reach</div>
+  <p style="margin-top: 8px; font-size: 12px; color: #888;">(₹2,100 already exceeds the ₹2,000 threshold, so the caption shows "Almost there")</p>
+</div>
+
+<h2>Where data comes from today vs after backend ships</h2>
+<table>
+  <thead><tr><th>Element</th><th>Today (dummy)</th><th>Once backend ships</th></tr></thead>
+  <tbody>
+    <tr><td>Female Home — Creator Level subtitle</td><td>Hardcoded in XML</td><td>Bind to <code>my-level</code> API response</td></tr>
+    <tr><td>Profile — Creator Level subtitle</td><td>Hardcoded in XML</td><td>Bind to <code>my-level</code> API response</td></tr>
+    <tr><td>Creator Level page — hero, progress bar, stats</td><td>All from <code>CreatorLevelDummy.get()</code></td><td>All from <code>my-level</code> API response</td></tr>
+    <tr><td>All Creator Levels card</td><td>Static, all levels always shown</td><td>No change — list itself is static</td></tr>
+    <tr><td>Anti-gaming, soft-decay, FAQs, Devi story</td><td>Static text in layout</td><td>No change</td></tr>
+    <tr><td>Dispute "Level Dispute" category</td><td>Goes to Help &amp; Support category list</td><td>Backend admin needs to add a "Level Dispute" category</td></tr>
+  </tbody>
+</table>
+
+<h2>"Something wrong?" — dispute flow</h2>
+<p>The spec (BL-19) says creators who think their level is wrong should be able to raise a ticket from inside the app. The entry point is on the Creator Level page itself:</p>
+<ul>
+  <li><b>Creator Level page</b> — "Something wrong with your level?" link at the very bottom</li>
+</ul>
+<p>Tapping it opens <code>HelpAndSupportActivity</code> (the same screen reached from Profile → Help and Support). The creator picks "Level Dispute" from the categories list, fills the ticket, and submits.</p>
+
+<div class="callout info">
+  <strong>What's needed on the backend side</strong>
+  Add a "Level Dispute" entry in the support categories list (so it appears in the picker), route those tickets to the team that can override levels via the admin panel, and target a 24–48h SLA per spec. The UI is ready; the category just needs to exist server-side for it to be selectable.
+</div>
+
+<h2>Files touched in this work</h2>
+
+<h3>Layouts</h3>
+<div class="files-grid">
+  <div class="file-item"><span class="file-name">app/src/main/res/layout/activity_creator_level.xml</span></div>
+  <div class="file-item"><span class="file-desc">Added progress bar, caption, FAQ 8, "Something wrong?" link, qualification text on all 5 level cards</span></div>
+  <div class="file-item"><span class="file-name">app/src/main/res/layout/fragment_profile_female.xml</span></div>
+  <div class="file-item"><span class="file-desc">No badge-specific changes — Creator Level card already existed</span></div>
+</div>
+
+<h3>Kotlin</h3>
+<div class="files-grid">
+  <div class="file-item"><span class="file-name">app/src/main/java/com/gmwapp/hima/activities/CreatorLevelActivity.kt</span></div>
+  <div class="file-item"><span class="file-desc">Wired progress bar, caption logic, L5 max-tier message, FAQ 8 toggle, "Something wrong?" click; removed dead <code>nextRateFor()</code></span></div>
+  <div class="file-item"><span class="file-name">app/src/main/java/com/gmwapp/hima/fragments/ProfileFemaleFragment.kt</span></div>
+  <div class="file-item"><span class="file-desc">No badge-specific changes — Creator Level card click already wired</span></div>
+  <div class="file-item"><span class="file-name">app/src/main/java/com/gmwapp/hima/models/CreatorLevelData.kt</span></div>
+  <div class="file-item"><span class="file-desc">Added <code>revenueThresholdFor(level)</code> helper</span></div>
+</div>
+
+<h3>Files NOT touched (still using existing implementation)</h3>
+<ul>
+  <li><code>FemaleHomeFragment.kt</code> — Creator Level card click already wired in earlier work</li>
+  <li><code>fragment_female_home.xml</code> — Creator Level card already existed</li>
+</ul>
+
+<h2>What's still open (NOT UI work)</h2>
+<p>These are deliberately left for backend / PM input:</p>
+<ol>
+  <li><b>Backend endpoint</b> <code>GET /api/auth/creator/my-level</code> — needs to ship before subtitles and progress bar can show real per-creator data</li>
+  <li><b>CreatorLevelViewModel + CreatorLevelRepository</b> — to be built when the endpoint is ready; will replace <code>CreatorLevelDummy.get()</code></li>
+  <li><b>PM call: Old <code>BadgeResponse</code> (per-minute audio/video badges)</b> — still rendered on Female Home alongside the new 5-tier card; PM to confirm whether to remove</li>
+  <li><b>"Level Dispute" support category</b> — add to backend categories list so creators can pick it from the dispute flow</li>
+  <li><b>Strings to <code>strings.xml</code></b> — all level text is currently inline in layouts; needs externalising for the Kannada pilot translation</li>
+  <li><b>Male user side</b> — no work needed per spec (badge system is creator-internal)</li>
+</ol>
+
+<h2>Quick reference — key user actions</h2>
+<table class="quick-ref-table">
+  <thead><tr><th>User action</th><th>What happens</th></tr></thead>
+  <tbody>
+    <tr><td>Female opens Profile</td><td>Sees Creator Level card with current level + rate</td></tr>
+    <tr><td>Female taps Creator Level card</td><td>Opens Creator Level page</td></tr>
+    <tr><td>Female taps "Something wrong?" on Creator Level page</td><td>Opens Help and Support → Categories</td></tr>
+    <tr><td>Female opens female home</td><td>Sees small "MY CREATOR LEVEL" card at the top</td></tr>
+    <tr><td>Female taps Creator Level on home</td><td>Opens Creator Level page</td></tr>
+    <tr><td>Female opens Creator Level page</td><td>Sees hero, progress bar, all 5 levels with qualifications, scoring breakdown, FAQs, dispute link</td></tr>
+    <tr><td>Female taps a FAQ header</td><td>Expands the answer</td></tr>
+    <tr><td>Female reaches L5</td><td>Bar shows 100%, pill says "Max Level 🏆", caption says "🏆 Top tier — keep performing to maintain"</td></tr>
+  </tbody>
+</table>
+
+</main>
+
+<footer>
+  <p><b>⭐ Hima Star Level Badge System — UI Guide</b></p>
+  <p>UI complete · Backend integration pending</p>
+  <p style="margin-top: 8px; font-size: 12px; color: #999;">Print to PDF for sharing</p>
+</footer>
+
+</div>
+</body>
+</html>

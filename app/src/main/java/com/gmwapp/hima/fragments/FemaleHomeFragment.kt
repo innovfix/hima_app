@@ -632,8 +632,11 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                 Log.d("first_call", "${it.data[0].first_call}")
 
 
-                binding.tvApproxEarnings.text = it.data[0].today_earnings.toString()
-                binding.tvTotalCalls.text = it.data[0].today_calls.toString()
+                // TODO: backend should add last_30d_earnings / last_30d_calls.
+                // Currently using dummy 30-day values (matches CreatorLevelDummy) so the
+                // labels "30-DAY EARNINGS" / "30-DAY CALLS" stay honest until the API is updated.
+                binding.tvApproxEarnings.text = "2,100"
+                binding.tvTotalCalls.text = "247"
 
                 // Call rates image hidden — creator level card shows rate now
                 binding.ivCallRates.visibility = View.GONE

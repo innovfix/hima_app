@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Hima Star-Level Badge System — v3 Developer Guide</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; line-height: 1.6; color: #1a1a1a; background: #f5f7fa; padding: 32px 16px; }
+  .container { max-width: 1100px; margin: 0 auto; background: #fff; box-shadow: 0 2px 16px rgba(0,0,0,0.06); border-radius: 12px; overflow: hidden; }
+
+  header { background: linear-gradient(135deg, #1F4E78 0%, #2E74B5 100%); color: #fff; padding: 40px 40px; }
+  header h1 { font-size: 28px; margin-bottom: 8px; }
+  header .subtitle { font-size: 15px; opacity: 0.9; margin-bottom: 14px; }
+  header .meta-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+  header .meta-tag { background: rgba(255,255,255,0.18); padding: 5px 12px; border-radius: 20px; font-size: 12px; }
+  header .audience { background: rgba(255,255,255,0.12); padding: 14px 18px; border-radius: 8px; margin-top: 20px; font-size: 14px; line-height: 1.7; }
+
+  main { padding: 32px 40px; }
+
+  h2 { font-size: 22px; color: #1F4E78; margin: 38px 0 14px; padding-bottom: 8px; border-bottom: 2px solid #DAEEF3; }
+  h2:first-child { margin-top: 0; }
+  h3 { font-size: 17px; color: #2E74B5; margin: 22px 0 10px; font-weight: 600; }
+  h4 { font-size: 15px; color: #444; margin: 16px 0 8px; font-weight: 600; }
+
+  p { margin: 10px 0; font-size: 14px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13.5px; }
+  table th { background: #1F4E78; color: #fff; padding: 10px 12px; text-align: left; font-weight: 600; }
+  table td { padding: 10px 12px; border-bottom: 1px solid #E5E9EF; vertical-align: top; }
+  table tr:hover { background: #FAFBFD; }
+
+  ul, ol { padding-left: 24px; margin: 10px 0; }
+  li { margin: 5px 0; font-size: 14px; }
+  li code { font-size: 12.5px; }
+
+  code { background: #F4F8FC; padding: 2px 6px; border-radius: 4px; font-family: 'SF Mono', Consolas, Monaco, monospace; font-size: 12.5px; color: #1F4E78; }
+  pre { background: #1F2937; color: #E5E7EB; padding: 16px 20px; border-radius: 8px; overflow-x: auto; font-family: 'SF Mono', Consolas, Monaco, monospace; font-size: 12.5px; line-height: 1.5; margin: 14px 0; }
+  pre code { background: transparent; color: inherit; padding: 0; }
+
+  .callout { padding: 14px 18px; border-radius: 8px; margin: 14px 0; font-size: 14px; }
+  .callout strong { display: block; margin-bottom: 4px; }
+  .callout.info { background: #E3F2FD; border-left: 4px solid #2196F3; color: #0D47A1; }
+  .callout.warn { background: #FFF8E1; border-left: 4px solid #F9A825; color: #5C4500; }
+  .callout.success { background: #E8F5E9; border-left: 4px solid #4CAF50; color: #1B5E20; }
+  .callout.danger { background: #FFEBEE; border-left: 4px solid #E53935; color: #B71C1C; }
+
+  .file-pill { display: inline-block; background: #F4F8FC; color: #1F4E78; padding: 2px 10px; border-radius: 4px; font-family: 'SF Mono', Consolas, Monaco, monospace; font-size: 12px; margin: 2px 4px 2px 0; }
+
+  .status-pill { display: inline-block; padding: 2px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+  .status-done { background: #C6EFCE; color: #006100; }
+  .status-pending { background: #FFEB9C; color: #9C5700; }
+  .status-blocked { background: #FFC7CE; color: #9C0006; }
+  .status-na { background: #E5E9EF; color: #555; }
+
+  .toc { background: #F4F8FC; border-left: 4px solid #1F4E78; padding: 18px 22px; border-radius: 4px; margin: 0 0 24px; }
+  .toc h3 { margin-top: 0; color: #1F4E78; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .toc ol { padding-left: 20px; }
+  .toc li { font-size: 13px; margin: 3px 0; }
+  .toc a { color: #2E74B5; text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+
+  footer { background: #F4F8FC; padding: 18px 40px; text-align: center; color: #666; font-size: 13px; }
+
+  @media print {
+    body { background: #fff; padding: 0; }
+    .container { box-shadow: none; }
+    h2, table, pre, .callout { page-break-inside: avoid; }
+    header { background: #1F4E78 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>Hima Star-Level Badge System</h1>
+  <div class="subtitle">v3 UI Changes &amp; Backend Integration Guide</div>
+  <div class="meta-bar">
+    <span class="meta-tag">📱 Android (Kotlin)</span>
+    <span class="meta-tag">📅 v3 spec · PM-approved 2026-04-29</span>
+    <span class="meta-tag">🚀 UI complete · Backend pending</span>
+    <span class="meta-tag">⭐ 5-tier system L1–L5</span>
+  </div>
+  <div class="audience">
+    <strong>Audience:</strong> Backend team and any new developer joining the project.
+    Backend integration points, dummy/mock layers, and SharedPreferences keys are called out explicitly so the team knows exactly what to replace when real APIs are ready.
+  </div>
+</header>
+
+<main>
+
+<div class="toc">
+  <h3>Contents</h3>
+  <ol>
+    <li><a href="#s1">What changed in v3 vs v2</a></li>
+    <li><a href="#s2">Three pages affected</a></li>
+    <li><a href="#s3">Files modified (v3 work)</a></li>
+    <li><a href="#s4">Backend integration points — what's still missing</a></li>
+    <li><a href="#s5">Dummy / mock layers — what to remove when API ships</a></li>
+    <li><a href="#s6">SharedPreferences keys</a></li>
+    <li><a href="#s7">Verification — v3 acceptance criteria vs current UI</a></li>
+    <li><a href="#s8">UI sections removed per v3</a></li>
+    <li><a href="#s9">UI items still pending (deferred — not blocking)</a></li>
+    <li><a href="#s10">Migration checklist for the backend team</a></li>
+    <li><a href="#s11">Quick reference</a></li>
+  </ol>
+</div>
+
+<h2 id="s1">1. What changed in v3 vs v2</h2>
+<p>The previous (v2) UI had a creator-facing progress bar, score breakdown, and weekly cliff. v3 walks all of that back. Key changes:</p>
+
+<table>
+  <thead><tr><th>Area</th><th>v2</th><th>v3 (current)</th></tr></thead>
+  <tbody>
+    <tr><td>Evaluation cycle</td><td>Score recalc every 6h for all</td><td>Per-creator <b>rolling 7-day cycle</b> anchored to her join date. Daily cron at 02:00 IST picks up creators whose <code>next_star_eval_at &lt;= NOW()</code></td></tr>
+    <tr><td>Creator-facing UI</td><td>Progress bar + 5-metric breakdown + score</td><td><b>Minimal</b> — level + rate + 1-line motivational message</td></tr>
+    <tr><td>Progress bar</td><td>Visible to creators (BL-13 v2)</td><td><b>Admin-only</b> (BL-13b v3) — never shown to creators</td></tr>
+    <tr><td>Per-level message</td><td>Did not exist</td><td><b>NEW</b> — admin-editable per language (BL-13 v3) via <code>badge_level_messages</code> table</td></tr>
+    <tr><td>Pause feature</td><td>Open question</td><td><b>Confirmed: no pause feature</b> for planned leave</td></tr>
+    <tr><td>Story count</td><td>22</td><td>23 (added BL-13 admin messages + BL-13b internal score view)</td></tr>
+  </tbody>
+</table>
+
+<p>The 5 levels and rates are <b>unchanged</b>: L1 ₹1.20 · L2 ₹1.25 · L3 ₹1.32 · L4 ₹1.45 · L5 ₹1.65.</p>
+
+<h2 id="s2">2. Three pages affected</h2>
+<table>
+  <thead><tr><th>Page</th><th>File</th><th>What's shown</th></tr></thead>
+  <tbody>
+    <tr><td><b>Female Home</b></td><td><code>fragment_female_home.xml</code> + <code>FemaleHomeFragment.kt</code></td><td>Small "MY CREATOR LEVEL" card (level + stars + rate chip), 7-DAY EARNINGS / 7-DAY CALLS card</td></tr>
+    <tr><td><b>Profile (female)</b></td><td><code>fragment_profile_female.xml</code> + <code>ProfileFemaleFragment.kt</code></td><td>Single-row "Creator Level" card with star icon + subtitle + chevron → opens Creator Level page</td></tr>
+    <tr><td><b>Creator Level page</b></td><td><code>activity_creator_level.xml</code> + <code>CreatorLevelActivity.kt</code></td><td>The full info screen (hero, last-7-day stats, all 5 levels, anti-gaming protections, quick summary, 4 FAQs, support link)</td></tr>
+  </tbody>
+</table>
+
+<h2 id="s3">3. Files modified (v3 work)</h2>
+
+<h3>Layouts</h3>
+<ul>
+  <li><span class="file-pill">app/src/main/res/layout/activity_creator_level.xml</span> — heavy rewrite: removed progress bar, "How is my level calculated?" section, "Will I lose my level?" section, "Meet Devi" example, FAQs 2/4/7/8, user-rating + drop-rate stat rows. Added motivational message TextView, "Something wrong?" link, plain-language qualification text on each level card. Updated 30 day → 7 day labels everywhere.</li>
+  <li><span class="file-pill">app/src/main/res/layout/fragment_female_home.xml</span> — only label changes: 30-DAY EARNINGS → 7-DAY EARNINGS, 30-DAY CALLS → 7-DAY CALLS.</li>
+  <li><span class="file-pill">app/src/main/res/layout/fragment_profile_female.xml</span> — no functional changes in v3.</li>
+</ul>
+
+<h3>Kotlin</h3>
+<ul>
+  <li><span class="file-pill">activities/CreatorLevelActivity.kt</span> — wires the hero card, motivational message, last-7-day stats, FAQ accordions, and "Something wrong?" support intent.</li>
+  <li><span class="file-pill">models/CreatorLevelData.kt</span> — data class mirrors the future API response. Includes <code>CreatorLevelDummy</code> singleton with hardcoded L2 data + helper methods.</li>
+  <li><span class="file-pill">fragments/ProfileFemaleFragment.kt</span> — wires the Creator Level card click → opens <code>CreatorLevelActivity</code>. No badge data binding (subtitle is hardcoded XML).</li>
+  <li><span class="file-pill">fragments/FemaleHomeFragment.kt</span> — Creator Level card click → opens <code>CreatorLevelActivity</code>. The "MY CREATOR LEVEL" card content is hardcoded XML.</li>
+</ul>
+
+<h3>Files NOT modified (carry-over from earlier sessions)</h3>
+<ul>
+  <li><code>cv_female_discovery</code> "Creators Joining Now" section on female home — pre-existing, fed by <code>POST /female_discovery</code> API + fake "X min ago" client-side</li>
+  <li><code>cl_star_creator_banner</code> legacy Star Creator banner — pre-existing, gated by <code>users.star == 1</code></li>
+</ul>
+
+<h2 id="s4">4. Backend integration points — what's still missing</h2>
+<p>These are explicit hand-offs to the backend team. Each one corresponds to a v3 BL story or a wiring touch-point.</p>
+
+<h3>4.1 <code>GET /api/auth/creator/my-level</code> — primary endpoint (BL-12)</h3>
+<p><b>Status:</b> <span class="status-pill status-blocked">Not shipped</span> &nbsp; Android currently uses <code>CreatorLevelDummy.get()</code>.</p>
+<p><b>Required response shape</b> (mirrors <code>CreatorLevelData</code> data class):</p>
+
+<pre><code>{
+  "success": true,
+  "data": {
+    "level": 2,                          // int 1..5
+    "level_name": "Rising Star",         // string
+    "rate_per_star": 1.25,               // float (per-heart payout)
+    "next_level": 3,                     // int (or 5 if at max)
+    "next_level_name": "Bright Star",
+    "calls_7d": 247,                     // int (last 7 days)
+    "active_days_7d": 5,                 // int
+    "revenue_7d": 2100.00,               // float (last 7 days, INR)
+    "custom_message": "Great start. Stay active to climb to Bright Star",
+    "is_max_level": false                // boolean
+  }
+}</code></pre>
+
+<p><b>What the client uses each field for:</b></p>
+<ul>
+  <li><code>level</code> → highlights the right number of stars (gold) on hero card and level cards</li>
+  <li><code>level_name</code> → hero card title</li>
+  <li><code>rate_per_star</code> → hero card rate chip ("You earn ₹X.XX per 💗")</li>
+  <li><code>next_level</code>, <code>next_level_name</code> → "Next: Bright Star ⭐⭐⭐" pill (still rendered; remove from UI if v3 strict interpretation)</li>
+  <li><code>calls_7d</code>, <code>active_days_7d</code>, <code>revenue_7d</code> → Last 7 Days stats card</li>
+  <li><code>custom_message</code> → motivational text below stars on hero card (NEW in v3)</li>
+  <li><code>is_max_level</code> → drives "Max Level 🏆" pill text instead of "Next: ..."</li>
+</ul>
+
+<div class="callout warn">
+  <strong>Do NOT add these to the creator-facing endpoint</strong>
+  <code>composite_score</code>, <code>percentile_rank</code>, <code>gap_to_next_level</code> — these belong in the admin dashboard (BL-13b), NOT in <code>my-level</code>. Per v3, creators never see their score or progress.
+</div>
+
+<p><b>What replaces the dummy:</b></p>
+<ol>
+  <li>Build <code>CreatorLevelRepository</code> + <code>CreatorLevelViewModel</code> (pattern: same as <code>BadgeRepository</code> / <code>BadgeViewModel</code>).</li>
+  <li>In <code>CreatorLevelActivity.onCreate()</code> — replace <code>populateLevel(CreatorLevelDummy.get())</code> with <code>viewModel.fetchCreatorLevel()</code> + observe <code>myLevelLiveData</code>.</li>
+  <li>Bind the same <code>CreatorLevelData</code> shape — no UI changes needed.</li>
+</ol>
+
+<h3>4.2 <code>badge_level_messages</code> table + admin UI (BL-13)</h3>
+<p><b>Status:</b> <span class="status-pill status-blocked">Not shipped</span> &nbsp; Default messages currently live in <code>CreatorLevelDummy.defaultMessageFor(level)</code> for fallback.</p>
+
+<p><b>DB schema (per spec):</b></p>
+<pre><code>badge_level_messages (
+  level       INT,
+  language    VARCHAR,
+  message     TEXT,
+  updated_by  ...,
+  updated_at  TIMESTAMP
+)</code></pre>
+
+<p><b>Default seed values</b> (already hardcoded in <code>CreatorLevelData.kt</code> as fallback):</p>
+<ul>
+  <li><b>L1:</b> "Welcome! Make more calls to reach Rising Star and earn higher rate"</li>
+  <li><b>L2:</b> "Great start. Stay active to climb to Bright Star"</li>
+  <li><b>L3:</b> "You're doing well. Keep going to reach Super Star"</li>
+  <li><b>L4:</b> "Almost there — top performers earn the highest rate"</li>
+  <li><b>L5:</b> "🏆 You're a top creator. Keep up the excellent work"</li>
+</ul>
+
+<p><b>Admin requirements (out of Android scope):</b></p>
+<ul>
+  <li>New admin page <code>/admin/badge-messages</code> — list of 5 levels × N languages, inline edit, save</li>
+  <li>Audit log per edit (admin name + timestamp + old/new text)</li>
+  <li>Cache messages in app for 5 min to reduce DB hits</li>
+  <li>The text returned via <code>GET /api/auth/creator/my-level</code> must respect the creator's <code>language</code> column</li>
+</ul>
+
+<p><b>Client behavior:</b> The client just renders whatever string is in <code>custom_message</code>. No client-side switching by level once API ships — backend picks the message and returns it pre-resolved.</p>
+
+<h3>4.3 Per-language toggle (BL-17)</h3>
+<p><b>Column:</b> <code>language_configs.badge_enabled BOOLEAN DEFAULT 0</code> (extend existing table from autopay).</p>
+
+<p><b>Server logic:</b></p>
+<ul>
+  <li>If creator's <code>language_configs.badge_enabled = 0</code> → API returns flat ₹1.37/heart and the client should hide the badge UI (or show level 0/disabled state).</li>
+  <li>Initial seed: Kannada = ON, all others = OFF (per BL-22 master flag).</li>
+</ul>
+
+<p><b>Client TODO once shipped:</b></p>
+<ul>
+  <li>The <code>my-level</code> endpoint should return null/error for disabled languages, OR return a flag <code>badge_enabled: false</code>. Decide the contract with backend.</li>
+  <li>Client should fall back to the legacy flat rate UI when disabled.</li>
+</ul>
+
+<h3>4.4 "Level Dispute" support category (BL-19)</h3>
+<p><b>Status:</b> <span class="status-pill status-pending">UI ready, backend missing</span></p>
+<p>The "Something wrong with your level?" link at the bottom of <code>activity_creator_level.xml</code> opens <code>HelpAndSupportActivity</code>. The creator picks a category from the list.</p>
+
+<p><b>Backend TODO:</b></p>
+<ul>
+  <li>Add a "Level Dispute" entry to the support categories list (the same list rendered by <code>getCategoriesList(userId, language)</code> API).</li>
+  <li>Route those tickets to the team that has access to the admin dashboard's level-override modal (BL-16).</li>
+  <li>Set SLA target: 24–48h (BL-20). Add <code>support_tickets.target_resolution</code> column.</li>
+</ul>
+
+<h3>4.5 Per-creator weekly evaluation cycle (BL-02)</h3>
+<div class="callout info">
+  <strong>Backend-only, no client work needed</strong>
+  Listed for awareness.
+</div>
+<ul>
+  <li>New column <code>users.next_star_eval_at TIMESTAMP</code></li>
+  <li>Initialised to <code>(created_at + 7 days)</code> for existing creators</li>
+  <li>Daily cron at 02:00 IST runs <code>creators:recalc-star-score</code> artisan</li>
+  <li>Picks up only creators where <code>next_star_eval_at &lt;= NOW()</code>, recomputes score, updates level (with soft decay), advances <code>next_star_eval_at</code> by +7 days</li>
+</ul>
+<p>This means a creator who joined Tuesday gets evaluated every Tuesday. No fixed weekday for everyone.</p>
+
+<h3>4.6 Mid-call rate snapshot (BL-07)</h3>
+<p><b>Backend-only.</b> New column <code>user_calls.level_at_start TINYINT</code>. At call-start, snapshot the creator's level. At call-end, compute payout using <code>level_at_start</code> (not current level). Audit trail for disputes.</p>
+
+<h3>4.7 Per-call payout (BL-06)</h3>
+<p><b>Backend-only.</b> Add <code>user_calls.rate_applied DECIMAL(4,2)</code> storing the rate used for that specific call. Income calc in <code>AuthController</code> uses <code>getCreatorRate($userId, $type)</code> helper, falls back to flat ₹1.37 if <code>language_configs.badge_enabled = 0</code> or <code>users.star_level IS NULL</code>.</p>
+
+<h2 id="s5">5. Dummy / mock layers — what to remove when API ships</h2>
+
+<table>
+  <thead><tr><th>Mock</th><th>Where</th><th>Replace with</th></tr></thead>
+  <tbody>
+    <tr><td><code>CreatorLevelDummy.get()</code></td><td><code>models/CreatorLevelData.kt</code></td><td>API call via <code>CreatorLevelViewModel.fetchCreatorLevel()</code></td></tr>
+    <tr><td><code>CreatorLevelDummy.defaultMessageFor(level)</code></td><td><code>models/CreatorLevelData.kt</code></td><td>Keep as <b>offline fallback</b> if backend returns null <code>custom_message</code></td></tr>
+    <tr><td><code>CreatorLevelDummy.revenueThresholdFor(level)</code></td><td><code>models/CreatorLevelData.kt</code></td><td>Currently unused after v3 changes — safe to delete unless you want it for client-side validation</td></tr>
+    <tr><td><code>// TODO: replace with real API call → viewModel.fetchCreatorLevel()</code></td><td><code>CreatorLevelActivity.kt:25</code></td><td>Real ViewModel call</td></tr>
+    <tr><td>Hardcoded subtitle <code>"Rising Star · ₹1.25 / 💗"</code></td><td><code>fragment_profile_female.xml</code> (<code>tv_creator_level_profile_sub</code>)</td><td>Bind from <code>my-level</code> API: <code>"${data.level_name} · ₹${data.rate} / 💗"</code></td></tr>
+    <tr><td>Hardcoded <code>"L2 · Rising Star"</code> + 5-star row + rate chip</td><td><code>fragment_female_home.xml</code> (<code>tv_creator_level_name</code> etc.)</td><td>Bind from <code>my-level</code> API</td></tr>
+    <tr><td>Hardcoded <code>tv_approx_earnings.text = "2,100"</code> and <code>tv_total_calls.text = "247"</code></td><td><code>FemaleHomeFragment.kt:638-639</code></td><td>Bind from new fields <code>last_7d_earnings</code> / <code>last_7d_calls</code> (TODO comment already in place at line 635)</td></tr>
+    <tr><td><code>Random.nextInt(1, 10)</code> for "X min ago" on Creators Joining Now</td><td><code>FemaleHomeFragment.kt:791</code></td><td>Either drop the section per spec, or backend should return real <code>joined_minutes_ago</code></td></tr>
+  </tbody>
+</table>
+
+<h3>Quick search to find all dummy references</h3>
+<pre><code>grep -rn "CreatorLevelDummy\|TODO.*[Bb]adge\|TODO.*[Ll]evel\|TODO.*api\|TODO.*backend should" app/src/main</code></pre>
+
+<h2 id="s6">6. SharedPreferences keys</h2>
+<p>There are <b>no badge-specific SharedPreferences keys</b> today. All persistent badge state lives on the server. The only SP usage in badge-related code paths is the existing user-data prefs:</p>
+
+<table>
+  <thead><tr><th>Key/Method</th><th>Where</th><th>Used for</th></tr></thead>
+  <tbody>
+    <tr><td><code>BaseApplication.getInstance()?.getPrefs()?.getUserData()</code></td><td><code>FemaleHomeFragment.kt:310</code>, <code>ProfileFemaleFragment.kt</code>, etc.</td><td>Reads <code>userData.id</code>, <code>userData.gender</code>, <code>userData.star</code>, <code>userData.language</code> — needed to gate the legacy Star Creator banner (<code>star == 1</code>) and to call <code>getFemaleDiscovery(userId)</code></td></tr>
+    <tr><td><code>userData.language</code></td><td>implicitly through <code>getCategoriesList(userId, language)</code></td><td>Will also drive which language's <code>custom_message</code> is fetched once <code>my-level</code> API ships</td></tr>
+  </tbody>
+</table>
+
+<h3>Recommendation when wiring the API</h3>
+<p>Add a small SP cache to avoid hitting <code>my-level</code> on every screen open:</p>
+<pre><code>Suggested SP keys (NEW — to be added):
+  badge_level_cache_json     // serialised CreatorLevelData
+  badge_level_cache_ts       // last-fetched timestamp (millis)</code></pre>
+<p>Cache invalidation: 5 minutes (matches admin-message cache TTL in BL-13). On Profile / Female Home / Creator Level page open, return cached data if fresh, else fire API. This keeps three pages consistent without three round-trips.</p>
+
+<h2 id="s7">7. Verification — v3 acceptance criteria vs current UI</h2>
+
+<table>
+  <thead><tr><th>BL story</th><th>Acceptance</th><th>UI status</th></tr></thead>
+  <tbody>
+    <tr><td rowspan="7"><b>BL-12</b> Profile Level Badge + Rate + Custom Message</td><td>Star badge ⭐ to ⭐⭐⭐⭐⭐</td><td><span class="status-pill status-done">Done</span> Hero card on Creator Level page</td></tr>
+    <tr><td>Level name</td><td><span class="status-pill status-done">Done</span></td></tr>
+    <tr><td>Per-heart rate displayed</td><td><span class="status-pill status-done">Done</span> "You earn ₹X.XX per 💗"</td></tr>
+    <tr><td>Custom motivational message below level name</td><td><span class="status-pill status-done">Done</span> <code>tv_hero_message</code> (dummy fallback in place)</td></tr>
+    <tr><td>NEVER show composite score, percentile, progress bar</td><td><span class="status-pill status-done">Done</span> All removed</td></tr>
+    <tr><td>NO progress percentage, NO metric breakdown</td><td><span class="status-pill status-pending">Pending</span> Last 7 Days stats card still shows Revenue/Calls/Active Days. Strict v3 says remove. <b>Deferred.</b></td></tr>
+    <tr><td>Tap badge → opens info screen</td><td><span class="status-pill status-done">Done</span> Profile + Female Home cards both open <code>CreatorLevelActivity</code></td></tr>
+    <tr><td><b>BL-13</b> Admin custom messages</td><td>Default messages exist + admin UI</td><td><span class="status-pill status-pending">Pending</span> Defaults exist client-side as fallback; admin UI is backend scope</td></tr>
+    <tr><td><b>BL-13b</b> Internal admin score view</td><td>Composite score, percentile, gap visible to admin only</td><td><span class="status-pill status-na">N/A on client</span> (admin work)</td></tr>
+    <tr><td><b>BL-14</b> No push on level change</td><td>Score-calc job does NOT push notifications</td><td><span class="status-pill status-done">Done</span> Client-side: no banner / no push handler — non-feature</td></tr>
+    <tr><td><b>BL-19</b> Support ticket flow — Level Disputes</td><td>"Something wrong?" link → ticket with category "Level Dispute"</td><td><span class="status-pill status-pending">Pending</span> Link exists on Creator Level page → opens HelpAndSupportActivity. <b>Backend must add the category</b> for the dropdown to include it.</td></tr>
+  </tbody>
+</table>
+
+<h2 id="s8">8. UI sections removed per v3</h2>
+<p>These were deliberately removed and should not be added back:</p>
+
+<table>
+  <thead><tr><th>Section</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td>Progress bar to next level (<code>pb_next_level</code>)</td><td>v3: never show progress to creators</td></tr>
+    <tr><td>"Need ₹X more revenue" caption (<code>tv_progress_caption</code>)</td><td>v3: no progress info</td></tr>
+    <tr><td>User Rating stat row (<code>tv_stat_rating</code>)</td><td>v3: no metric breakdown</td></tr>
+    <tr><td>Drop Rate stat row (<code>tv_stat_drop_rate</code>)</td><td>v3: no metric breakdown</td></tr>
+    <tr><td>"How is my level calculated?" weights section</td><td>v3: no metric breakdown</td></tr>
+    <tr><td>"Will I lose my level?" soft-decay card</td><td>v3: simplify creator view</td></tr>
+    <tr><td>"📖 Real Example — Meet Devi" story card</td><td>v3: simplify creator view</td></tr>
+    <tr><td>FAQ 2 "I think my level is wrong"</td><td>Replaced by the "Something wrong?" link</td></tr>
+    <tr><td>FAQ 4 "Why do gift hearts and chat hearts pay differently?"</td><td>Out of scope; gift/chat hearts not in app</td></tr>
+    <tr><td>FAQ 7 "Will there be a public leaderboard?"</td><td>Out of scope</td></tr>
+    <tr><td>FAQ 8 "When does my level update?" (was a duplicate after rename)</td><td>Question already covered by FAQ 1</td></tr>
+    <tr><td>Profile-side "Something wrong?" link</td><td>Single entry point on Creator Level page is enough</td></tr>
+    <tr><td>Per-level qualification "Top X%" jargon</td><td>Replaced with plain language: "Earn ₹500 in 7 days · ⭐ 1.1+ rating"</td></tr>
+  </tbody>
+</table>
+
+<h2 id="s9">9. UI items still pending (deferred — not blocking)</h2>
+<ul>
+  <li><b>Strict v3:</b> remove "Last 7 Days" stats card from Creator Level page (still shows Revenue / Calls / Active Days personal numbers — debatable per "no metric breakdown")</li>
+  <li><b>Strict v3:</b> remove "Next: Bright Star ⭐⭐⭐" pill (<code>tv_next_level_badge</code>)</li>
+  <li><b>Decide:</b> remove the legacy "Creators Joining Now" section on Female Home (<code>cv_female_discovery</code>) — fake "X min ago" + creator-vs-creator visibility conflicts with no-leaderboard policy</li>
+  <li><b>Decide:</b> legacy <code>cl_star_creator_banner</code> (Female Home) — gated by old <code>users.star == 1</code> flag; under v3 every female creator has a level so the gate is stale</li>
+  <li><b>Decide:</b> Old <code>BadgeResponse</code> (<code>POST badges_information_list</code>, per-minute audio/video badges) — coexists with the 5-tier card on Female Home. PM call.</li>
+  <li><b>i18n:</b> all badge strings are inline in layouts. For Kannada pilot, externalise to <code>strings.xml</code> with per-locale variants.</li>
+</ul>
+
+<h2 id="s10">10. Migration checklist for the backend team</h2>
+<p>When <code>GET /api/auth/creator/my-level</code> is ready, this is the sequence to wire the client:</p>
+
+<ol>
+  <li><b>Confirm response shape</b> matches the JSON in section 4.1. If you change field names, update <code>CreatorLevelData.kt</code> to match.</li>
+  <li><b>Build retrofit interface:</b> add <code>@GET("auth/creator/my-level")</code> method to <code>ApiInterface.kt</code>, returning <code>Call&lt;CreatorLevelResponse&gt;</code>.</li>
+  <li><b>Build wrapper:</b> <code>ApiManager.getCreatorMyLevel(callback)</code>.</li>
+  <li><b>Build repository + ViewModel:</b>
+    <ul>
+      <li><code>CreatorLevelRepository.kt</code> (mirror <code>BadgeRepository</code>)</li>
+      <li><code>CreatorLevelViewModel.kt</code> (annotate <code>@HiltViewModel</code>, expose <code>myLevelLiveData: MutableLiveData&lt;CreatorLevelData&gt;</code>)</li>
+    </ul>
+  </li>
+  <li><b>Switch CreatorLevelActivity:</b> Replace <code>populateLevel(CreatorLevelDummy.get())</code> with:
+<pre><code>viewModel.fetchCreatorLevel()
+viewModel.myLevelLiveData.observe(this) { populateLevel(it) }</code></pre>
+    Keep <code>CreatorLevelDummy</code> as offline fallback if the API call errors.
+  </li>
+  <li><b>Wire Profile subtitle:</b> Bind <code>tv_creator_level_profile_sub</code> to API response — observe in <code>ProfileFemaleFragment.kt</code>.</li>
+  <li><b>Wire Female Home card:</b> Bind <code>tv_creator_level_name</code>, 5-star row, rate chip from API — observe in <code>FemaleHomeFragment.kt</code>.</li>
+  <li><b>Add SP cache layer</b> (optional — see section 6).</li>
+  <li><b>Add the "Level Dispute" support category</b> to the categories endpoint (BL-19).</li>
+  <li><b>Verify:</b>
+    <ul>
+      <li>L1 creator sees "Welcome! Make more calls..." message</li>
+      <li>L5 creator sees "🏆 You're a top creator..." message</li>
+      <li>Switching languages returns the correct localised message</li>
+      <li>Disabled-language creator falls back to flat ₹1.37 (badge UI hidden)</li>
+    </ul>
+  </li>
+</ol>
+
+<h2 id="s11">11. Quick reference</h2>
+<table>
+  <thead><tr><th>Item</th><th>Where</th></tr></thead>
+  <tbody>
+    <tr><td>Key data class</td><td><code>models/CreatorLevelData.kt</code> — mirrors API response. The <code>customMessage</code> field is the v3-introduced motivational text.</td></tr>
+    <tr><td>Key activity</td><td><code>activities/CreatorLevelActivity.kt</code> — entry point for the badge info screen. Look here first when wiring the API.</td></tr>
+    <tr><td>Key layout</td><td><code>res/layout/activity_creator_level.xml</code> — all the badge UI lives here (hero, stats, level cards, anti-gaming, summary, FAQs, support link).</td></tr>
+    <tr><td>v3 spec (source of truth)</td><td><code>Hima_Badge_System_Epic_Stories_v3.pdf</code> (in user's Downloads). PM-approved 2026-04-29.</td></tr>
+  </tbody>
+</table>
+
+</main>
+
+<footer>
+  <p><b>Hima Star-Level Badge System · v3 Developer Guide</b></p>
+  <p>Document version 1.0 — generated to capture v3 UI handoff state</p>
+  <p style="margin-top: 8px; font-size: 12px; color: #999;">Update when the API ships and this guide can drop the "Dummy / mock layers" section. Print to PDF for sharing.</p>
+</footer>
+
+</div>
+</body>
+</html>
