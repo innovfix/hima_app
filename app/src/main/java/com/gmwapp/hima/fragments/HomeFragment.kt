@@ -490,7 +490,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     }
 
     private fun msUntilMidnight(): Long {
-        val cal = java.util.Calendar.getInstance()
+        val cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("Asia/Kolkata"))
         cal.add(java.util.Calendar.DAY_OF_MONTH, 1)
         cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
         cal.set(java.util.Calendar.MINUTE, 0)
