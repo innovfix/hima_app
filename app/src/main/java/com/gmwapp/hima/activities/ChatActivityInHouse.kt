@@ -3474,6 +3474,15 @@ class ChatActivityInHouse : AppCompatActivity() {
      *   never-subscribed   -> subscribe-to-unlock lock
      */
     private fun applySubscriptionGate() {
+        // Females are creators (recipients) — they earn from chat, never pay.
+        // The autopay gate applies to males only. Skip the gate entirely for any non-male user.
+        val gender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
+        if (!gender.equals("male", ignoreCase = true)) {
+            messageInputContainer?.visibility = View.VISIBLE
+            subscribeLockContainer?.visibility = View.GONE
+            autopayFailedLockContainer?.visibility = View.GONE
+            return
+        }
         when {
             isSubscriptionActive() -> {
                 messageInputContainer?.visibility = View.VISIBLE
