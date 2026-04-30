@@ -36,11 +36,17 @@ object LanguageFeatureCache {
     private const val PREFS = "LanguageFeatureCache"
     private const val KEY_FEATURE = "feature"
     private const val KEY_LANGUAGE = "language"
+    private const val KEY_RESUB = "re_sub_enabled"
     private const val KEY_FETCHED_AT = "fetched_at"
     private const val TTL_MS = 24L * 60L * 60L * 1000L
 
     @Volatile private var cachedFeature: String? = null
     @Volatile private var cachedLanguage: String? = null
+    // Default true — when the cache is empty or backend returned the older
+    // shape without this field, callers see "re-subscribe allowed" which
+    // matches the new app default behaviour. Admin must explicitly flip
+    // OFF in the panel for a language to lock lapsed users out.
+    @Volatile private var cachedReSubEnabled: Boolean = true
     @Volatile private var lastFetchedMs: Long = 0L
     @Volatile private var prefsLoaded: Boolean = false
 
@@ -56,6 +62,7 @@ object LanguageFeatureCache {
                 .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             cachedFeature = prefs.getString(KEY_FEATURE, null)
             cachedLanguage = prefs.getString(KEY_LANGUAGE, null)
+            cachedReSubEnabled = prefs.getBoolean(KEY_RESUB, true)
             lastFetchedMs = prefs.getLong(KEY_FETCHED_AT, 0L)
             prefsLoaded = true
         }
@@ -65,6 +72,7 @@ object LanguageFeatureCache {
         val prev = cachedFeature
         cachedFeature = data.enabled_feature
         cachedLanguage = data.language
+        cachedReSubEnabled = data.re_subscription_enabled ?: true
         lastFetchedMs = System.currentTimeMillis()
         prefsLoaded = true
         context.applicationContext
@@ -72,6 +80,7 @@ object LanguageFeatureCache {
             .edit()
             .putString(KEY_FEATURE, data.enabled_feature)
             .putString(KEY_LANGUAGE, data.language)
+            .putBoolean(KEY_RESUB, cachedReSubEnabled)
             .putLong(KEY_FETCHED_AT, lastFetchedMs)
             .apply()
         if (prev != data.enabled_feature) {
@@ -82,6 +91,7 @@ object LanguageFeatureCache {
     fun clear(context: Context) {
         cachedFeature = null
         cachedLanguage = null
+        cachedReSubEnabled = true
         lastFetchedMs = 0L
         context.applicationContext
             .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -103,6 +113,19 @@ object LanguageFeatureCache {
     fun isAutopayEnabled(context: Context): Boolean = feature(context) == FEATURE_AUTOPAY
 
     fun isAiOnboardingEnabled(context: Context): Boolean = feature(context) == FEATURE_AI_ONBOARDING
+
+    /**
+     * Whether lapsed (cancelled / failed) users in this language are
+     * allowed to re-subscribe to autopay. Admin-controlled per language.
+     * Only meaningful for autopay languages — other languages don't have
+     * subscribe surfaces to gate. Defaults to true on a cold cache so the
+     * first session before language_config has refreshed sees the new
+     * "re-subscription allowed" behaviour.
+     */
+    fun isReSubscriptionEnabled(context: Context): Boolean {
+        ensureLoaded(context)
+        return cachedReSubEnabled
+    }
 
     fun isPopulated(context: Context): Boolean {
         ensureLoaded(context)

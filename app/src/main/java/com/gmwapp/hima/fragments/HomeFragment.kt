@@ -444,11 +444,21 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             return
         }
 
-        // Lapsed users CAN re-subscribe. The BottomSheetOldUserSubscribe routes
-        // them through AutopayCheckoutActivity with PLAN_DIRECT_OLD, which the
-        // backend resolves to a ₹299-first-charge mandate (real charge, not the
-        // ₹1 trial). Fresh users still see BottomSheetTrialOffer for the ₹1
-        // trial — that's a different code path upstream gated on isNewUser().
+        // Per-language re-enable prevention: when admin has disabled
+        // re-subscription for this language (LanguageFeatureCache says
+        // re_subscription_enabled=false), lapsed users (everActive &&
+        // !isActive) are routed to Wallet for coin-pack purchase instead of
+        // the subscribe sheet. When the toggle is ON (default) lapsed users
+        // see BottomSheetOldUserSubscribe and re-subscribe via
+        // AutopayCheckoutActivity → PLAN_DIRECT_OLD (₹299 direct charge).
+        if (SubscriptionStateCache.everActive(ctx)
+            && !SubscriptionStateCache.isActive(ctx)
+            && !com.gmwapp.hima.utils.LanguageFeatureCache.isReSubscriptionEnabled(ctx)
+        ) {
+            startActivity(Intent(ctx, WalletActivity::class.java))
+            return
+        }
+
         val tag = com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe.TAG
         val existing = childFragmentManager.findFragmentByTag(tag)
         if (existing is com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe && existing.isAdded) return

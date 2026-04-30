@@ -225,15 +225,19 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 
     /**
      * Subscribe banner visibility — pure state read, safe to call repeatedly.
-     * Hidden for: languages where admin disabled autopay, and users currently
-     * active. Lapsed users (everActive && !isActive) DO see the banner — they
-     * can re-subscribe; the underlying CTA routes them to the direct_old plan
+     * Hidden for: languages where admin disabled autopay, users currently
+     * active, and lapsed users when admin has disabled re-subscription
+     * for their language. Lapsed users in re-subscription-allowed
+     * languages DO see the banner — the CTA routes them to PLAN_DIRECT_OLD
      * (₹299 first charge, no second free trial).
      */
     private fun refreshSubscribeBannerVisibility() {
         val isActive = com.gmwapp.hima.utils.SubscriptionStateCache.isActive(this)
+        val everActive = com.gmwapp.hima.utils.SubscriptionStateCache.everActive(this)
         val autopayLanguage = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(this)
-        val showSubscribeBanner = autopayLanguage && !isActive
+        val reSubEnabled = com.gmwapp.hima.utils.LanguageFeatureCache.isReSubscriptionEnabled(this)
+        val lapsedAndBlocked = everActive && !isActive && !reSubEnabled
+        val showSubscribeBanner = autopayLanguage && !isActive && !lapsedAndBlocked
         binding.cvSubscribeBanner.visibility = if (showSubscribeBanner) View.VISIBLE else View.GONE
     }
 
