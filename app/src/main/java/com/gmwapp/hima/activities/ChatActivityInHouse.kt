@@ -2753,8 +2753,18 @@ class ChatActivityInHouse : AppCompatActivity() {
                 .cancel(com.gmwapp.hima.utils.ChatNotifications.notifIdFor(peerUserId))
         }
 
-        // Re-check subscription: user may be returning from AutopayCheckoutActivity.
+        // Re-check subscription: user may be returning from AutopayCheckoutActivity,
+        // OR may have just revoked the UPI mandate from inside GPay/PhonePe and
+        // come back to the app. The backend's subscription_status endpoint
+        // reconciles against Cashfree on every call (60s cache), so this single
+        // hit catches UPI-side cancels even when no webhook has arrived yet.
+        // Cached gate applies first for instant feedback; observer at
+        // observeAutopayPushEvents() re-applies the gate when the response lands.
         applySubscriptionGate()
+        BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let { uid ->
+            autopayViewModel.subscriptionStatus(uid)
+        }
+
 
 
         // Mark messages as read using the new API with last message id if messages are loaded

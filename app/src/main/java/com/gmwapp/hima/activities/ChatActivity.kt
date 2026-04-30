@@ -1564,8 +1564,17 @@ class ChatActivity : AppCompatActivity() {
         // User is now viewing the chat - mark it as visible
         isChatVisible = true
 
-        // Re-check subscription: user may be returning from AutopayCheckoutActivity.
+        // Re-check subscription: user may be returning from AutopayCheckoutActivity,
+        // OR may have just revoked the UPI mandate from inside GPay/PhonePe and
+        // come back to the app. The backend's subscription_status endpoint
+        // reconciles against Cashfree on every call (60s cache), so this single
+        // hit catches UPI-side cancels even when no webhook has arrived yet.
+        // Cached gate applies first for instant feedback; observer at
+        // observeAutopayPushEvents() re-applies the gate when the response lands.
         applySubscriptionGate()
+        BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let { uid ->
+            autopayViewModel.subscriptionStatus(uid)
+        }
         Log.d("ChatActivity", "Chat is now visible - marking pending messages as read")
         Log.d("lastseenlog", "📱 My User ID: $myUserId - Resuming chat with user $peerUserId")
 
