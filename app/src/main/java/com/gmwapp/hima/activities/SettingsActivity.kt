@@ -34,6 +34,16 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun refreshSubscriptionState() {
         val active = SubscriptionStateCache.isActive(this)
+        val ever = SubscriptionStateCache.everActive(this)
+        val autopayLanguage = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(this)
+        // Non-autopay-language users who never subscribed see no subscription
+        // cards at all. Pre-existing subscribers (everActive) keep visibility
+        // so they can still cancel even if the language is later flipped.
+        if (!autopayLanguage && !ever) {
+            binding.cvActiveSubscription.visibility = View.GONE
+            binding.cvNoSubscription.visibility = View.GONE
+            return
+        }
         binding.cvActiveSubscription.visibility = if (active) View.VISIBLE else View.GONE
         binding.cvNoSubscription.visibility = if (active) View.GONE else View.VISIBLE
     }

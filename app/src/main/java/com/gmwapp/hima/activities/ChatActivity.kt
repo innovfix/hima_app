@@ -171,13 +171,24 @@ class ChatActivity : AppCompatActivity() {
             autopayFailedLockContainer?.visibility = View.GONE
             return
         }
+        // Languages where admin disabled autopay never see the chat lock.
+        // Existing subscribers (everActive) keep the lock states so a mid-flight
+        // admin flip doesn't strip the autopay-failed lock from a lapsed user.
+        val autopayLanguage = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(this)
+        val ever = wasEverSubscribed()
+        if (!autopayLanguage && !ever) {
+            messageInputContainer?.visibility = View.VISIBLE
+            subscribeLockContainer?.visibility = View.GONE
+            autopayFailedLockContainer?.visibility = View.GONE
+            return
+        }
         when {
             isSubscriptionActive() -> {
                 messageInputContainer?.visibility = View.VISIBLE
                 subscribeLockContainer?.visibility = View.GONE
                 autopayFailedLockContainer?.visibility = View.GONE
             }
-            wasEverSubscribed() -> {
+            ever -> {
                 messageInputContainer?.visibility = View.GONE
                 subscribeLockContainer?.visibility = View.GONE
                 autopayFailedLockContainer?.visibility = View.VISIBLE
@@ -204,6 +215,10 @@ class ChatActivity : AppCompatActivity() {
         autopayViewModel.statusLiveData.observe(this) { resp ->
             val data = resp?.data ?: return@observe
             com.gmwapp.hima.utils.SubscriptionStateCache.update(data)
+            applySubscriptionGate()
+        }
+        // Re-gate when admin flips the language flag while chat is open.
+        com.gmwapp.hima.utils.LanguageFeatureCache.updates.observe(this) {
             applySubscriptionGate()
         }
     }

@@ -551,6 +551,23 @@ class BaseApplication : Application(), Configuration.Provider {
             EventBus.getDefault().register(this)
         }
 
+        refreshLanguageFeatureFlag()
+    }
+
+    /**
+     * Pulls the per-language `enabled_feature` flag and writes it to
+     * [com.gmwapp.hima.utils.LanguageFeatureCache]. Called on cold start
+     * so that autopay UI surfaces (Wallet banner, Chat lock, trial sheet,
+     * crown, etc.) gate correctly even on a deeplink-into-Chat path that
+     * never visits HomeFragment.
+     */
+    private fun refreshLanguageFeatureFlag() {
+        val userData = getPrefs()?.getUserData() ?: return
+        val userId = userData.id
+        val language = userData.language.orEmpty()
+        if (userId <= 0 || language.isBlank()) return
+        val apiManager = getApiManager() ?: return
+        com.gmwapp.hima.utils.LanguageFeatureCache.refresh(this, apiManager, userId, language)
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)

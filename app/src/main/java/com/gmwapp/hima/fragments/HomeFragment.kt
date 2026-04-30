@@ -109,9 +109,13 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     private fun initUI() {
         binding.clCoins.setOnSingleClickListener {
             // Subscribed (any state) → open wallet directly; Wallet hides the banner on its own.
-            // New user (and not subscribed) → trial sheet; old user → wallet.
-            val isSubscribed = SubscriptionStateCache.isActive(requireContext())
-            if (!isSubscribed && UserSegment.isNewUser(requireContext())) {
+            // New user (and not subscribed) → trial sheet, but only if the user's
+            // language has autopay enabled per admin config. Otherwise the trial
+            // surface stays hidden and the coin tap just opens Wallet.
+            val ctx = requireContext()
+            val isSubscribed = SubscriptionStateCache.isActive(ctx)
+            val autopayEnabled = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(ctx)
+            if (autopayEnabled && !isSubscribed && UserSegment.isNewUser(ctx)) {
                 val sheet = BottomSheetTrialOffer()
                 sheet.setOnTryNowClickListener {
                     startActivity(com.gmwapp.hima.activities.AutopayCheckoutActivity.intentFor(
@@ -409,6 +413,14 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
     private fun showTrialOfferSheet() {
         if (!isAdded) return
+        val ctx = context ?: return
+        // Trial offer is autopay-only. For non-autopay languages, send the
+        // user to Wallet to buy coin packs instead — that's the legacy
+        // pre-autopay coin-only flow this language is supposed to use.
+        if (!com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(ctx)) {
+            startActivity(Intent(ctx, WalletActivity::class.java))
+            return
+        }
         val existing = childFragmentManager.findFragmentByTag(BottomSheetTrialOffer.TAG)
         if (existing is BottomSheetTrialOffer && existing.isAdded) return
         BottomSheetTrialOffer.newInstance().apply {
@@ -424,6 +436,13 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     private fun showInsufficientFundsSheet() {
         if (!isAdded) return
         val ctx = context ?: return
+
+        // Non-autopay language → no subscribe sheet ever. Route to Wallet
+        // for coin top-up (legacy flow).
+        if (!com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(ctx)) {
+            startActivity(Intent(ctx, WalletActivity::class.java))
+            return
+        }
 
         // Re-enable prevention: lapsed users (everActive && !isActive) can't
         // re-subscribe. Skip the subscribe sheet — route them straight to
@@ -461,7 +480,15 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
     private fun refreshPremiumCrown() {
         if (!::binding.isInitialized) return
-        binding.ivPremiumCrownHome.visibility = if (isSubscriptionActive()) View.VISIBLE else View.GONE
+        // Crown is an autopay status reflection. Hide for languages without
+        // autopay so non-autopay users never see it. Existing subscribers
+        // (everActive) keep it until their subscription naturally lapses,
+        // so a mid-flight admin flip doesn't strip their visible status.
+        val ctx = requireContext()
+        val autopayLanguage = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(ctx)
+        val everActive = SubscriptionStateCache.everActive(ctx)
+        val show = isSubscriptionActive() && (autopayLanguage || everActive)
+        binding.ivPremiumCrownHome.visibility = if (show) View.VISIBLE else View.GONE
     }
 
     /**
@@ -472,9 +499,17 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
      */
     private fun maybeShowDailyCoinsDialog() {
         if (!isAdded) return
-        val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
+        val userId = userData.id
+        if (userId <= 0) return
         autopayViewModel.subscriptionStatus(userId)
         dailyClaimViewModel.dailyClaimStatus(userId)
+        // Refresh the per-language admin flag alongside subscription status
+        // so non-autopay-language users get their gating updated on every
+        // foreground without an extra round-trip elsewhere.
+        com.gmwapp.hima.utils.LanguageFeatureCache.refresh(
+            requireContext(), myChatsApiManager, userId, userData.language
+        )
     }
 
     companion object {
@@ -570,18 +605,37 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             SubscriptionStateCache.update(data)
             refreshPremiumCrown()
             refreshCoinsDisplayFromCache()
-            if (!data.is_active && data.ever_active && !autopayDialogShownThisSession) {
+            // Suppress the autopay-failed dialog when the user is on a
+            // non-autopay language and has never been a subscriber. Prevents
+            // a stale "ever_active" flag (or test data) from popping a
+            // dialog that doesn't apply.
+            val ctx = requireContext()
+            val autopayLanguage = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(ctx)
+            if (!data.is_active && data.ever_active &&
+                !autopayDialogShownThisSession && (autopayLanguage || data.ever_active)) {
                 autopayDialogShownThisSession = true
                 if (isAdded) showAutopayFailedDialog()
             }
         }
 
         // Daily-claim status → show the claim dialog when the server says we can.
+        // Daily-claim is a subscriber perk; suppress for non-autopay-language
+        // users who never subscribed (defensive — server should not say
+        // can_claim for them, but we guard anyway).
         dailyClaimViewModel.statusLiveData.observe(viewLifecycleOwner) { resp ->
             val data = resp?.data ?: return@observe
-            if (data.can_claim && isAdded) {
+            val ctx = requireContext()
+            val autopayLanguage = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(ctx)
+            val everActive = SubscriptionStateCache.everActive(ctx)
+            if (data.can_claim && isAdded && (autopayLanguage || everActive)) {
                 binding.root.post { if (isAdded) showDailyCoinsDialog() }
             }
+        }
+
+        // Re-gate UI when admin flips the language flag while the app is open.
+        com.gmwapp.hima.utils.LanguageFeatureCache.updates.observe(viewLifecycleOwner) {
+            refreshPremiumCrown()
+            refreshCoinsDisplayFromCache()
         }
 
         // Daily-claim result → dismiss + refresh.

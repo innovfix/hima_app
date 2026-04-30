@@ -214,12 +214,26 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         userData?.id?.let { profileViewModel.getUsers(it) }
         BaseApplication.getInstance()?.getPrefs()?.getUserData()?.let { WalletViewModel.getCoins(it.id) }
         checkIndividualPaymentType()
+        refreshSubscribeBannerVisibility()
         Log.d("cashfreeLastOrderId","$cashfreeLastOrderId")
         if (cashfreeLastOrderId.isNotEmpty()){
             checkCashfreeOderStatus(cashfreeLastOrderId)
             cashfreeLastOrderId = "" // reset so it won't run again
 
         }
+    }
+
+    /**
+     * Subscribe banner visibility — pure state read, safe to call repeatedly.
+     * Hidden for: lapsed users (re-enable prevention), languages where admin
+     * disabled autopay, and users currently active.
+     */
+    private fun refreshSubscribeBannerVisibility() {
+        val isActive = com.gmwapp.hima.utils.SubscriptionStateCache.isActive(this)
+        val everActive = com.gmwapp.hima.utils.SubscriptionStateCache.everActive(this)
+        val autopayLanguage = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(this)
+        val showSubscribeBanner = autopayLanguage && !isActive && !everActive
+        binding.cvSubscribeBanner.visibility = if (showSubscribeBanner) View.VISIBLE else View.GONE
     }
 
 
@@ -470,13 +484,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         binding.tvCoins.text = userData?.coins.toString()
 
 
-        // Re-enable prevention: spec says lapsed users (cancelled / payment-
-        // failed at any point) cannot re-enable autopay, ever. Hide the
-        // subscribe banner for them — they keep the coin-pack flow only.
-        val isActive = com.gmwapp.hima.utils.SubscriptionStateCache.isActive(this)
-        val everActive = com.gmwapp.hima.utils.SubscriptionStateCache.everActive(this)
-        val showSubscribeBanner = !isActive && !everActive
-        binding.cvSubscribeBanner.visibility = if (showSubscribeBanner) View.VISIBLE else View.GONE
+        refreshSubscribeBannerVisibility()
 
         val openCheckout = {
             val planType = if (com.gmwapp.hima.utils.UserSegment.isNewUser(this))

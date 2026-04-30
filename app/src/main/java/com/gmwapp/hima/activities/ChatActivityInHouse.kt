@@ -3493,13 +3493,24 @@ class ChatActivityInHouse : AppCompatActivity() {
             autopayFailedLockContainer?.visibility = View.GONE
             return
         }
+        // Languages where admin disabled autopay never see the chat lock.
+        // Existing subscribers (everActive) keep the lock states so a mid-flight
+        // admin flip doesn't strip the autopay-failed lock from a lapsed user.
+        val autopayLanguage = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(this)
+        val ever = wasEverSubscribed()
+        if (!autopayLanguage && !ever) {
+            messageInputContainer?.visibility = View.VISIBLE
+            subscribeLockContainer?.visibility = View.GONE
+            autopayFailedLockContainer?.visibility = View.GONE
+            return
+        }
         when {
             isSubscriptionActive() -> {
                 messageInputContainer?.visibility = View.VISIBLE
                 subscribeLockContainer?.visibility = View.GONE
                 autopayFailedLockContainer?.visibility = View.GONE
             }
-            wasEverSubscribed() -> {
+            ever -> {
                 messageInputContainer?.visibility = View.GONE
                 subscribeLockContainer?.visibility = View.GONE
                 autopayFailedLockContainer?.visibility = View.VISIBLE
@@ -3527,6 +3538,10 @@ class ChatActivityInHouse : AppCompatActivity() {
             com.gmwapp.hima.utils.SubscriptionStateCache.update(data)
             applySubscriptionGate()
         }
+        // Re-gate when admin flips the language flag while chat is open.
+        com.gmwapp.hima.utils.LanguageFeatureCache.updates.observe(this) {
+            applySubscriptionGate()
+        }
     }
 
     private fun showChatEndedBanner() {
@@ -3536,6 +3551,10 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun showTrialOfferSheet() {
+        // Defensive: chat lock is hidden for non-autopay languages already,
+        // but if anything reaches here (e.g. an old observer) still guard.
+        if (!com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(this) &&
+            !wasEverSubscribed()) return
         if (com.gmwapp.hima.utils.UserSegment.isNewUser(this)) {
             val sheet = com.gmwapp.hima.dialogs.BottomSheetTrialOffer.newInstance()
             sheet.setOnTryNowClickListener {

@@ -359,8 +359,14 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
     private fun refreshPremiumCrown() {
         val ctx = context ?: return
+        // Hide for languages without autopay so non-autopay users never see
+        // the crown. Existing subscribers (everActive) keep it until their
+        // subscription naturally lapses.
         val active = com.gmwapp.hima.utils.SubscriptionStateCache.isActive(ctx)
-        binding.ivPremiumCrownProfile.visibility = if (active) View.VISIBLE else View.GONE
+        val ever = com.gmwapp.hima.utils.SubscriptionStateCache.everActive(ctx)
+        val autopayLanguage = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(ctx)
+        val show = active && (autopayLanguage || ever)
+        binding.ivPremiumCrownProfile.visibility = if (show) View.VISIBLE else View.GONE
     }
 
     override fun onNetworkRetry() {

@@ -41,6 +41,23 @@ class AutopayCheckoutActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Defensive guard: backend rejects autopay_initiate for non-autopay
+        // languages anyway, but we don't want to render the checkout shell
+        // (and confuse the user) if any caller leaks through with the gate
+        // disabled. Existing subscribers keep access for cancel-flow paths.
+        val autopayLanguage = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(this)
+        val ever = com.gmwapp.hima.utils.SubscriptionStateCache.everActive(this)
+        if (!autopayLanguage && !ever) {
+            android.widget.Toast.makeText(
+                this,
+                "Subscription is not available for your language.",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+            finish()
+            return
+        }
+
         setContentView(R.layout.activity_autopay_checkout)
 
         progress = findViewById(R.id.progress)

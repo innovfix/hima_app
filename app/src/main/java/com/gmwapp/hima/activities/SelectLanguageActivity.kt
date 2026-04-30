@@ -125,7 +125,15 @@ class SelectLanguageActivity : BaseActivity() {
                             call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.LanguageConfigResponse>,
                             response: retrofit2.Response<com.gmwapp.hima.retrofit.responses.LanguageConfigResponse>
                         ) {
-                            val feature = response.body()?.data?.enabled_feature ?: "ai_onboarding"
+                            val data = response.body()?.data
+                            val feature = data?.enabled_feature ?: "ai_onboarding"
+                            // Persist for runtime gating across the app — same
+                            // value used by Wallet/Chat/Home to suppress autopay UI.
+                            data?.let {
+                                com.gmwapp.hima.utils.LanguageFeatureCache.update(
+                                    this@SelectLanguageActivity, it
+                                )
+                            }
                             routeMaleUserAfterLanguageConfig(userId, avatarId, language, feature)
                         }
                         override fun onFailure(
