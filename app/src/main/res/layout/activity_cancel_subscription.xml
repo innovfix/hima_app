@@ -71,7 +71,7 @@
                     android:paddingEnd="0dp"
                     android:paddingBottom="2dp"
                     android:text="Cancel Subscription"
-                    android:textColor="#B0B4BB"
+                    android:textColor="@color/cancel_action_text_color"
                     android:textSize="10sp" />
             </LinearLayout>
 
