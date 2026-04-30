@@ -25,6 +25,13 @@ class SettingsActivity : AppCompatActivity() {
         binding.cvActiveSubscription.setOnSingleClickListener {
             startActivity(Intent(this, CancelSubscriptionActivity::class.java))
         }
+
+        // Read-only language row — sourced from cached UserData. Empty means
+        // the profile sync hasn't completed yet; we just leave the line blank
+        // rather than showing a placeholder.
+        val userLanguage = com.gmwapp.hima.BaseApplication.getInstance()
+            ?.getPrefs()?.getUserData()?.language.orEmpty()
+        binding.tvUserLanguage.text = userLanguage
     }
 
     override fun onResume() {
