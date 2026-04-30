@@ -444,14 +444,11 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             return
         }
 
-        // Re-enable prevention: lapsed users (everActive && !isActive) can't
-        // re-subscribe. Skip the subscribe sheet — route them straight to
-        // wallet so they can buy coin packs (existing flow, untouched by spec).
-        if (SubscriptionStateCache.everActive(ctx) && !SubscriptionStateCache.isActive(ctx)) {
-            startActivity(Intent(ctx, WalletActivity::class.java))
-            return
-        }
-
+        // Lapsed users CAN re-subscribe. The BottomSheetOldUserSubscribe routes
+        // them through AutopayCheckoutActivity with PLAN_DIRECT_OLD, which the
+        // backend resolves to a ₹299-first-charge mandate (real charge, not the
+        // ₹1 trial). Fresh users still see BottomSheetTrialOffer for the ₹1
+        // trial — that's a different code path upstream gated on isNewUser().
         val tag = com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe.TAG
         val existing = childFragmentManager.findFragmentByTag(tag)
         if (existing is com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe && existing.isAdded) return

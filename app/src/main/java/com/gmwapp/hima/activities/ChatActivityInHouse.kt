@@ -3510,12 +3510,12 @@ class ChatActivityInHouse : AppCompatActivity() {
                 subscribeLockContainer?.visibility = View.GONE
                 autopayFailedLockContainer?.visibility = View.GONE
             }
-            ever -> {
-                messageInputContainer?.visibility = View.GONE
-                subscribeLockContainer?.visibility = View.GONE
-                autopayFailedLockContainer?.visibility = View.VISIBLE
-            }
             else -> {
+                // Both fresh users and lapsed users see the same Subscribe lock.
+                // The Subscribe CTA's onClick uses UserSegment.isNewUser() to
+                // decide whether to send them through PLAN_TRIAL_NEW (₹1) or
+                // PLAN_DIRECT_OLD (₹299), so re-subscribers automatically pay
+                // full price without a second free trial.
                 messageInputContainer?.visibility = View.GONE
                 subscribeLockContainer?.visibility = View.VISIBLE
                 autopayFailedLockContainer?.visibility = View.GONE
