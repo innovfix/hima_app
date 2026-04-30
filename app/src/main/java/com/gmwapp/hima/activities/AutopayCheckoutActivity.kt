@@ -48,10 +48,24 @@ class AutopayCheckoutActivity : AppCompatActivity() {
         // disabled. Existing subscribers keep access for cancel-flow paths.
         val autopayLanguage = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(this)
         val ever = com.gmwapp.hima.utils.SubscriptionStateCache.everActive(this)
+        val active = com.gmwapp.hima.utils.SubscriptionStateCache.isActive(this)
+        val reSubEnabled = com.gmwapp.hima.utils.LanguageFeatureCache.isReSubscriptionEnabled(this)
         if (!autopayLanguage && !ever) {
             android.widget.Toast.makeText(
                 this,
                 "Subscription is not available for your language.",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+            finish()
+            return
+        }
+        // Per-language re-enable prevention: lapsed users on a re-sub-blocked
+        // language should never reach checkout — entry surfaces are gated,
+        // but this catches stale taps and any deeplink path.
+        if (ever && !active && !reSubEnabled) {
+            android.widget.Toast.makeText(
+                this,
+                "Re-subscription is not available for your language.",
                 android.widget.Toast.LENGTH_SHORT
             ).show()
             finish()

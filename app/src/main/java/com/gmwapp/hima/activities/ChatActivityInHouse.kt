@@ -3567,6 +3567,14 @@ class ChatActivityInHouse : AppCompatActivity() {
         // but if anything reaches here (e.g. an old observer) still guard.
         if (!com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(this) &&
             !wasEverSubscribed()) return
+        // For lapsed users on languages where admin blocked re-subscription,
+        // suppress the subscribe sheet entirely. They shouldn't have reached
+        // here (subscribe_lock is hidden in that case) but the chat-list
+        // tap path can race the cache; this is the belt-and-braces guard.
+        val ever = wasEverSubscribed()
+        val active = isSubscriptionActive()
+        val reSubEnabled = com.gmwapp.hima.utils.LanguageFeatureCache.isReSubscriptionEnabled(this)
+        if (ever && !active && !reSubEnabled) return
         if (com.gmwapp.hima.utils.UserSegment.isNewUser(this)) {
             val sheet = com.gmwapp.hima.dialogs.BottomSheetTrialOffer.newInstance()
             sheet.setOnTryNowClickListener {

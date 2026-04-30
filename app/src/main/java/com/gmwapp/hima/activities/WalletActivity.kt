@@ -177,6 +177,13 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         intializePhonpe()
         checkReferralOffer()
 
+        // Re-gate when admin flips enabled_feature or re_subscription_enabled
+        // while Wallet is open. Registered once in onCreate (the lifecycle
+        // owner cleans this up on destroy).
+        com.gmwapp.hima.utils.LanguageFeatureCache.updates.observe(this) {
+            refreshSubscribeBannerVisibility()
+        }
+
         messageCameWhenIsAlive = BaseApplication.getInstance()?.messageCameWhenIsAlive ?: 0
 
 

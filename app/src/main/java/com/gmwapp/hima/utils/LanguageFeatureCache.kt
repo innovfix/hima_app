@@ -69,7 +69,8 @@ object LanguageFeatureCache {
     }
 
     fun update(context: Context, data: LanguageConfigData) {
-        val prev = cachedFeature
+        val prevFeature = cachedFeature
+        val prevReSub = cachedReSubEnabled
         cachedFeature = data.enabled_feature
         cachedLanguage = data.language
         cachedReSubEnabled = data.re_subscription_enabled ?: true
@@ -83,7 +84,9 @@ object LanguageFeatureCache {
             .putBoolean(KEY_RESUB, cachedReSubEnabled)
             .putLong(KEY_FETCHED_AT, lastFetchedMs)
             .apply()
-        if (prev != data.enabled_feature) {
+        // Emit on either change so subscribe-CTA gating refreshes when admin
+        // flips re_subscription_enabled even if enabled_feature stays the same.
+        if (prevFeature != data.enabled_feature || prevReSub != cachedReSubEnabled) {
             _updates.postValue(data.enabled_feature)
         }
     }
