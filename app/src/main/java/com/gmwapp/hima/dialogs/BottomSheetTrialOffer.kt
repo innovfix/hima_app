@@ -151,18 +151,45 @@ class BottomSheetTrialOffer : BottomSheetDialogFragment() {
             mask.animate().alpha(0f).setStartDelay(1600L).setDuration(220L).start()
         }
 
-        // YouTube IFrame embed — autoplay+mute (browsers/WebView only allow
-        // autoplay when muted), loop via loop+playlist trick, plus every
-        // UI-hiding flag YouTube still respects: no controls, no fullscreen
-        // button, no captions overlay by default, no annotations, no keyboard
-        // input, no related-video grid at the end.
+        // YouTube IFrame Player API — start muted (browsers/WebView block
+        // autoplay with audio), then unmute programmatically once the
+        // player is ready so the user actually hears the trial pitch.
+        // Loop via loop+playlist trick. UI-hiding flags YouTube still
+        // respects: no controls, no fullscreen, no captions overlay by
+        // default, no annotations, no keyboard input, no related grid.
         val embedHtml = """
             <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
-            <style>html,body{margin:0;padding:0;background:#000;height:100%;}
-            iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0;}</style>
+            <style>html,body{margin:0;padding:0;background:#000;height:100%;width:100%;overflow:hidden;}
+            #player,iframe{position:absolute;top:0;left:0;width:100%!important;height:100%!important;border:0;}</style>
             </head><body>
-            <iframe src="https://www.youtube.com/embed/$videoId?autoplay=1&mute=1&loop=1&playlist=$videoId&controls=0&modestbranding=1&playsinline=1&rel=0&fs=0&disablekb=1&iv_load_policy=3&cc_load_policy=0"
-                    allow="autoplay; encrypted-media" allowfullscreen="false"></iframe>
+            <div id="player"></div>
+            <script src="https://www.youtube.com/iframe_api"></script>
+            <script>
+            var player;
+            function onYouTubeIframeAPIReady() {
+              player = new YT.Player('player', {
+                width: '100%', height: '100%',
+                videoId: '$videoId',
+                playerVars: {
+                  autoplay: 1, mute: 1, loop: 1, playlist: '$videoId',
+                  controls: 0, modestbranding: 1, playsinline: 1,
+                  rel: 0, fs: 0, disablekb: 1,
+                  iv_load_policy: 3, cc_load_policy: 0
+                },
+                events: {
+                  onReady: function(e) {
+                    // Autoplay started muted (browser policy). Unmute now
+                    // that playback is registered so the user actually
+                    // hears the trial pitch. Brief setTimeout lets the
+                    // muted-play heuristic stick first.
+                    setTimeout(function() {
+                      try { player.unMute(); player.setVolume(100); } catch (e) {}
+                    }, 250);
+                  }
+                }
+              });
+            }
+            </script>
             </body></html>
         """.trimIndent()
         // baseURL must be a non-youtube origin so the iframe is cross-origin
