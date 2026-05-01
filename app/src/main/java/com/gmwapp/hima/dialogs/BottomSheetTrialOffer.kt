@@ -30,6 +30,7 @@ class BottomSheetTrialOffer : BottomSheetDialogFragment() {
     private lateinit var binding: BottomSheetTrialOfferBinding
     private var onTryNowClick: (() -> Unit)? = null
     private var heroWebView: WebView? = null
+    private var heroLoadingMask: View? = null
 
     @Inject
     lateinit var apiManager: ApiManager
@@ -94,6 +95,13 @@ class BottomSheetTrialOffer : BottomSheetDialogFragment() {
             return
         }
 
+        // Resize the hero container to match the video's aspect ratio so
+        // there are no letterbox/pillarbox bars and no cropping. Detected
+        // from URL pattern: shorts → 9:16, everything else → 16:9 (the
+        // overwhelming default for non-shorts uploads).
+        val aspectRatio = aspectRatioFor(youtubeUrl)
+        resizeHeroContainerToRatio(aspectRatio)
+
         // Build (or reuse) a WebView inside flHeroContainer.
         val container = binding.flHeroContainer
         val web = heroWebView ?: WebView(requireContext()).also {
@@ -121,7 +129,26 @@ class BottomSheetTrialOffer : BottomSheetDialogFragment() {
                 setOnTouchListener { _, _ -> true }
             }
             container.addView(touchBlocker)
+            // Black mask shown for ~1.6s on first paint so the YouTube
+            // chrome flash (title bar, controls) is hidden until controls=0
+            // takes effect and the player auto-hides its UI.
+            val mask = View(requireContext()).apply {
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+                setBackgroundColor(0xFF000000.toInt())
+                isClickable = false
+            }
+            container.addView(mask)
+            heroLoadingMask = mask
             heroWebView = it
+        }
+        // Reset mask to opaque on every config change so re-bound
+        // sheets don't show the chrome flash.
+        heroLoadingMask?.let { mask ->
+            mask.alpha = 1f
+            mask.animate().alpha(0f).setStartDelay(1600L).setDuration(220L).start()
         }
 
         // YouTube IFrame embed — autoplay+mute (browsers/WebView only allow
@@ -142,6 +169,38 @@ class BottomSheetTrialOffer : BottomSheetDialogFragment() {
         // to the parent document — same-origin embeds (baseURL=youtube.com)
         // trigger YouTube's self-embed protection (error 152).
         web.loadDataWithBaseURL("https://hima.app/", embedHtml, "text/html", "utf-8", null)
+    }
+
+    /**
+     * Aspect ratio (width / height) inferred from the YouTube URL pattern:
+     * `/shorts/...` is always 9:16, everything else is treated as 16:9 —
+     * the dominant default for regular YouTube uploads. Anything outside
+     * those two ratios (rare 4:3 / 1:1 / vertical-non-shorts) will still
+     * letterbox slightly; admins are expected to upload the right format.
+     */
+    private fun aspectRatioFor(url: String?): Float {
+        val u = url?.lowercase() ?: return 16f / 9f
+        return if (u.contains("/shorts/")) 9f / 16f else 16f / 9f
+    }
+
+    /**
+     * Resize the hero container's height so width:height matches the
+     * supplied aspect ratio. Posted to the container so it runs after
+     * its width has been measured. Falls back to the layout's default
+     * 200sdp height if width hasn't resolved yet.
+     */
+    private fun resizeHeroContainerToRatio(ratio: Float) {
+        if (!::binding.isInitialized) return
+        val container = binding.flHeroContainer
+        container.post {
+            if (!::binding.isInitialized) return@post
+            val width = container.width
+            if (width <= 0) return@post
+            val newHeight = (width / ratio).toInt()
+            if (container.layoutParams.height != newHeight) {
+                container.layoutParams = container.layoutParams.apply { height = newHeight }
+            }
+        }
     }
 
     override fun onPause() {
