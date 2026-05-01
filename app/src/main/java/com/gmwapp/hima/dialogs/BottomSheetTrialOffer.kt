@@ -184,21 +184,45 @@ class BottomSheetTrialOffer : BottomSheetDialogFragment() {
     }
 
     /**
-     * Resize the hero container's height so width:height matches the
-     * supplied aspect ratio. Posted to the container so it runs after
-     * its width has been measured. Falls back to the layout's default
-     * 200sdp height if width hasn't resolved yet.
+     * Resize the hero container so width:height matches the supplied
+     * aspect ratio, while capping height so the rest of the sheet (title,
+     * badge, benefits card, CTA, link) always fits on screen without the
+     * NestedScrollView ever needing to scroll.
+     *
+     * If the natural height (parentWidth / ratio) would exceed the cap,
+     * the container's WIDTH is reduced too so the aspect ratio is
+     * preserved — a 9:16 portrait video shows in a centered, narrower
+     * frame instead of stretching the sheet vertically. Container has
+     * start+end constraints to parent, so a narrower width auto-centers.
      */
     private fun resizeHeroContainerToRatio(ratio: Float) {
         if (!::binding.isInitialized) return
         val container = binding.flHeroContainer
         container.post {
             if (!::binding.isInitialized) return@post
-            val width = container.width
-            if (width <= 0) return@post
-            val newHeight = (width / ratio).toInt()
-            if (container.layoutParams.height != newHeight) {
-                container.layoutParams = container.layoutParams.apply { height = newHeight }
+            val parent = container.parent as? View ?: return@post
+            val parentWidth = parent.width.coerceAtLeast(container.width)
+            if (parentWidth <= 0) return@post
+
+            // Available width inside the parent's horizontal padding.
+            val availableWidth = parentWidth - parent.paddingLeft - parent.paddingRight
+            // Cap hero at 40% of screen height — leaves ~60% for the
+            // rest of the sheet on every phone size, so the sheet never
+            // becomes taller than viewport and never scrolls.
+            val maxHeight = (resources.displayMetrics.heightPixels * 0.40f).toInt()
+
+            var height = (availableWidth / ratio).toInt()
+            var width = availableWidth
+            if (height > maxHeight) {
+                height = maxHeight
+                width = (maxHeight * ratio).toInt()
+            }
+
+            val params = container.layoutParams
+            if (params.height != height || params.width != width) {
+                params.height = height
+                params.width = width
+                container.layoutParams = params
             }
         }
     }
