@@ -78,7 +78,7 @@ class BottomSheetTrialOffer : BottomSheetDialogFragment() {
         })
     }
 
-    @SuppressLint("SetJavaScriptEnabled")
+    @SuppressLint("SetJavaScriptEnabled", "ClickableViewAccessibility")
     private fun applyConfig(youtubeUrl: String?, headline: String?) {
         if (!::binding.isInitialized) return
 
@@ -108,21 +108,40 @@ class BottomSheetTrialOffer : BottomSheetDialogFragment() {
             it.webViewClient = WebViewClient()
             container.removeAllViews()
             container.addView(it)
+            // Transparent click-blocker on top so taps can't surface
+            // YouTube's controls / share / "Watch on YouTube" links.
+            // The video stays ambient — autoplay + mute + loop, no
+            // interaction. Without this overlay any tap brings the
+            // YouTube UI back even with controls=0.
+            val touchBlocker = View(requireContext()).apply {
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+                setOnTouchListener { _, _ -> true }
+            }
+            container.addView(touchBlocker)
             heroWebView = it
         }
 
-        // YouTube IFrame embed with autoplay+mute (browsers/WebView only
-        // allow autoplay when muted) and looping (loop+playlist param).
+        // YouTube IFrame embed — autoplay+mute (browsers/WebView only allow
+        // autoplay when muted), loop via loop+playlist trick, plus every
+        // UI-hiding flag YouTube still respects: no controls, no fullscreen
+        // button, no captions overlay by default, no annotations, no keyboard
+        // input, no related-video grid at the end.
         val embedHtml = """
             <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
             <style>html,body{margin:0;padding:0;background:#000;height:100%;}
             iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0;}</style>
             </head><body>
-            <iframe src="https://www.youtube.com/embed/$videoId?autoplay=1&mute=1&controls=0&loop=1&playlist=$videoId&modestbranding=1&playsinline=1&rel=0"
-                    allow="autoplay; encrypted-media" allowfullscreen></iframe>
+            <iframe src="https://www.youtube.com/embed/$videoId?autoplay=1&mute=1&loop=1&playlist=$videoId&controls=0&modestbranding=1&playsinline=1&rel=0&fs=0&disablekb=1&iv_load_policy=3&cc_load_policy=0"
+                    allow="autoplay; encrypted-media" allowfullscreen="false"></iframe>
             </body></html>
         """.trimIndent()
-        web.loadDataWithBaseURL("https://www.youtube.com", embedHtml, "text/html", "utf-8", null)
+        // baseURL must be a non-youtube origin so the iframe is cross-origin
+        // to the parent document — same-origin embeds (baseURL=youtube.com)
+        // trigger YouTube's self-embed protection (error 152).
+        web.loadDataWithBaseURL("https://hima.app/", embedHtml, "text/html", "utf-8", null)
     }
 
     override fun onPause() {
