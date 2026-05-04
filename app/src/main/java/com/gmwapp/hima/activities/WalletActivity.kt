@@ -574,7 +574,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                         binding.btnAddCoins.visibility = View.VISIBLE
                         amount = coin.price.toString()
                         pointsId = coin.id.toString()
-                        //paymentGateway = coin.pg.toString()
+                        coin.pg?.takeIf { it.isNotEmpty() }?.let { paymentGateway = it }
 
                         selectedCoin = coin.coins.toString()
                         selectedSavePercent = coin.save.toString()
@@ -597,7 +597,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                     binding.btnAddCoins.visibility = View.VISIBLE
                     amount = firstCoin.price.toString()
                     pointsId = firstCoin.id.toString()
-                   // paymentGateway = firstCoin.pg.toString()
+                    firstCoin.pg?.takeIf { it.isNotEmpty() }?.let { paymentGateway = it }
 
                     selectedCoin = firstCoin.coins.toString()
                     selectedSavePercent = firstCoin.save.toString()
@@ -1381,6 +1381,8 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                         "phonepe" -> {
                             if (isPhonePeInitialized) {
                                 fetchOrderFromBackend(pointsId)
+                            } else {
+                                showAppToast("PhonePe not ready, please try again", Toast.LENGTH_SHORT)
                             }
                         }
 
@@ -1453,6 +1455,8 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                             showAppToast("Invalid Payment Gateway", Toast.LENGTH_SHORT)
                         }
                     }
+                } else {
+                    showAppToast("Payment gateway not available, please reopen the app", Toast.LENGTH_SHORT)
                 }
             }
         } else {
