@@ -11,6 +11,7 @@ import android.view.ViewGroup
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import android.widget.TextView
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.WalletActivity
@@ -72,21 +73,27 @@ class BottomSheetTrialOffer : BottomSheetDialogFragment() {
     private fun loadHeroVideo() {
         val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
         TrialOfferConfigCache.load(requireContext(), apiManager, userId, object : TrialOfferConfigCache.Listener {
-            override fun onConfig(youtubeUrl: String?, headline: String?) {
+            override fun onConfig(youtubeUrl: String?, texts: TrialOfferConfigCache.TextOverrides) {
                 if (!isAdded) return
-                applyConfig(youtubeUrl, headline)
+                applyConfig(youtubeUrl, texts)
             }
         })
     }
 
     @SuppressLint("SetJavaScriptEnabled", "ClickableViewAccessibility")
-    private fun applyConfig(youtubeUrl: String?, headline: String?) {
+    private fun applyConfig(youtubeUrl: String?, texts: TrialOfferConfigCache.TextOverrides) {
         if (!::binding.isInitialized) return
 
-        // Optional admin override of the headline copy.
-        if (!headline.isNullOrBlank()) {
-            binding.tvTitle.text = headline
-        }
+        // Per-language admin text overrides. Each line falls back to the
+        // hardcoded XML default when the override is null/blank, so an
+        // admin can change one line without retyping all the others.
+        applyTextOverride(binding.tvTitle, texts.headline)
+        applyTextOverride(binding.tvPrice, texts.priceText)
+        applyTextOverride(binding.tvFeature1, texts.feature1Text)
+        applyTextOverride(binding.tvFeature2, texts.feature2Text)
+        applyTextOverride(binding.tvAutopayFooter, texts.footerText)
+        applyTextOverride(binding.btnTryNow, texts.ctaText)
+        applyTextOverride(binding.tvPurchaseCoins, texts.secondaryLinkText)
 
         val videoId = TrialOfferConfigCache.extractVideoId(youtubeUrl)
         if (videoId == null) {
@@ -196,6 +203,17 @@ class BottomSheetTrialOffer : BottomSheetDialogFragment() {
         // to the parent document — same-origin embeds (baseURL=youtube.com)
         // trigger YouTube's self-embed protection (error 152).
         web.loadDataWithBaseURL("https://hima.app/", embedHtml, "text/html", "utf-8", null)
+    }
+
+    /**
+     * Apply an admin-supplied override to a TextView/Button. Null or
+     * blank leaves the XML default in place — admins set only the
+     * lines they want changed for that language.
+     */
+    private fun applyTextOverride(view: TextView, value: String?) {
+        if (!value.isNullOrBlank()) {
+            view.text = value
+        }
     }
 
     /**
