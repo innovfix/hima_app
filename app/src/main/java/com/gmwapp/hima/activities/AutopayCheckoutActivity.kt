@@ -9,6 +9,9 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.browser.customtabs.CustomTabColorSchemeParams
+import androidx.browser.customtabs.CustomTabsIntent
+import androidx.core.content.ContextCompat
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.utils.SubscriptionStateCache
@@ -104,9 +107,15 @@ class AutopayCheckoutActivity : AppCompatActivity() {
             redirectAttempted = true
             status.text = "Opening UPI mandate…"
             try {
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(resp.data!!.redirect_url)))
+                openInCustomTab(resp.data!!.redirect_url!!)
             } catch (e: Exception) {
-                failWithMessage("No app available to open the payment page.")
+                // Fallback to external browser if no Custom Tabs provider is
+                // installed (rare — Chrome ships on virtually all Play devices).
+                try {
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(resp.data!!.redirect_url)))
+                } catch (e2: Exception) {
+                    failWithMessage("No app available to open the payment page.")
+                }
             }
         }
 
@@ -147,6 +156,19 @@ class AutopayCheckoutActivity : AppCompatActivity() {
             btnClose.visibility = View.GONE
             autopayViewModel.subscriptionStatus(userId)
         }
+    }
+
+    private fun openInCustomTab(url: String) {
+        val brand = ContextCompat.getColor(this, R.color.colorPrimary)
+        val colorScheme = CustomTabColorSchemeParams.Builder()
+            .setToolbarColor(brand)
+            .build()
+        val tab = CustomTabsIntent.Builder()
+            .setDefaultColorSchemeParams(colorScheme)
+            .setShowTitle(true)
+            .setUrlBarHidingEnabled(true)
+            .build()
+        tab.launchUrl(this, Uri.parse(url))
     }
 
     private fun failWithMessage(msg: String) {

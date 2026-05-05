@@ -499,7 +499,10 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         refreshSubscribeBannerVisibility()
 
         val openCheckout = {
-            val planType = if (com.gmwapp.hima.utils.UserSegment.isNewUser(this))
+            // Plan-type rule mirrors the chat-side trial sheet: anyone who
+            // has never had an autopay mandate gets the ₹1 trial; lapsed /
+            // cancelled subscribers go to ₹299 direct.
+            val planType = if (!com.gmwapp.hima.utils.SubscriptionStateCache.everActive(this))
                 AutopayCheckoutActivity.PLAN_TRIAL_NEW
             else
                 AutopayCheckoutActivity.PLAN_DIRECT_OLD
