@@ -17,3 +17,7 @@ app/production/release/*.apk
 *.logcat
 # Claude / Cursor local agent state
 .claude/
+
+# Local API testing artifacts (admin cookies, login dumps, captured response
+# bodies) — sensitive, must never be pushed.
+/autopay_api_test/

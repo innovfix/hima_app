@@ -20,6 +20,7 @@ import androidx.lifecycle.Observer
 import com.bumptech.glide.Glide
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.activities.CommunityGuidelineActivity
+import com.gmwapp.hima.activities.SettingsActivity
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.AccountPrivacyActivity
 import com.gmwapp.hima.activities.ManageNotificationsActivity
@@ -324,6 +325,10 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
             startActivity(intent)
         }
 
+        binding.cvSettings.setOnSingleClickListener {
+            startActivity(Intent(context, SettingsActivity::class.java))
+        }
+
         binding.cvLogout.setOnSingleClickListener {
             val bottomSheet = BottomSheetLogout()
             fragmentManager?.let {
@@ -354,6 +359,23 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 binding.tvSupportMail.paintFlags = binding.tvSupportMail.paintFlags or Paint.UNDERLINE_TEXT_FLAG
             }
         })
+    }
+
+    override fun onResume() {
+        super.onResume()
+        refreshPremiumCrown()
+    }
+
+    private fun refreshPremiumCrown() {
+        val ctx = context ?: return
+        // Hide for languages without autopay so non-autopay users never see
+        // the crown. Existing subscribers (everActive) keep it until their
+        // subscription naturally lapses.
+        val active = com.gmwapp.hima.utils.SubscriptionStateCache.isActive(ctx)
+        val ever = com.gmwapp.hima.utils.SubscriptionStateCache.everActive(ctx)
+        val autopayLanguage = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(ctx)
+        val show = active && (autopayLanguage || ever)
+        binding.ivPremiumCrownProfile.visibility = if (show) View.VISIBLE else View.GONE
     }
 
     override fun onNetworkRetry() {

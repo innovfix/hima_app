@@ -30,6 +30,7 @@ import androidx.lifecycle.Observer
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.BaseApplication.Companion.getInstance
 import com.gmwapp.hima.R
+import com.gmwapp.hima.activities.CreatorLevelActivity
 import com.gmwapp.hima.activities.EarningsActivity
 import com.gmwapp.hima.activities.GrantPermissionsActivity
 import com.gmwapp.hima.constants.DConstants
@@ -591,6 +592,10 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
             startActivity(intent)
         })
 
+        binding.cvCreatorLevel.setOnSingleClickListener {
+            startActivity(Intent(context, CreatorLevelActivity::class.java))
+        }
+
         // IPL Room Calls banner click — visibility handled by refreshIplBanner()
         binding.cardIplRooms.setOnClickListener {
             startActivity(Intent(requireContext(), com.gmwapp.hima.activities.IplRoomsActivity::class.java))
@@ -668,22 +673,9 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                     binding.tvApproxEarnings.text = it.data[0].today_earnings.toString()
                     binding.tvTotalCalls.text = it.data[0].today_calls.toString()
 
-                    // Load call rates image if available
-                    it.data[0].call_rates?.let { imageUrl ->
-                        if (imageUrl.isNotEmpty()) {
-                            binding.ivCallRates.visibility = View.VISIBLE
-                            binding.cvCallRates.visibility = View.VISIBLE
-                            Glide.with(requireContext())
-                                .load(imageUrl)
-                                .into(binding.ivCallRates)
-                        } else {
-                            binding.ivCallRates.visibility = View.GONE
-                            binding.cvCallRates.visibility = View.GONE
-                        }
-                    } ?: run {
-                        binding.ivCallRates.visibility = View.GONE
-                        binding.cvCallRates.visibility = View.GONE
-                    }
+                    // Call rates image hidden — creator level card shows rate now
+                    binding.ivCallRates.visibility = View.GONE
+                    binding.cvCallRates.visibility = View.GONE
 
                     var firstCall = it.data[0].first_call
                     if (firstCall==1){

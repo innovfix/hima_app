@@ -174,11 +174,27 @@ class FemaleUserAdapter(
             "${femaleUser.coin_per_min_video ?: 60}/min" else "Unavailable"
 
         holder.binding.btnAudioCall.setOnSingleClickListener {
-            if (audioEnabled) launchCall(femaleUser, "audio")
+            if (audioEnabled) {
+                if (isTrialActive()) {
+                    launchCall(femaleUser, "audio")
+                } else {
+                    onAudioListener.onItemSelected(femaleUser)
+                }
+            }
         }
         holder.binding.btnVideoCall.setOnSingleClickListener {
-            if (videoEnabled) launchCall(femaleUser, "video")
+            if (videoEnabled) {
+                if (isTrialActive()) {
+                    launchCall(femaleUser, "video")
+                } else {
+                    onVideoListener.onItemSelected(femaleUser)
+                }
+            }
         }
+    }
+
+    private fun isTrialActive(): Boolean {
+        return com.gmwapp.hima.utils.SubscriptionStateCache.isActive(activity)
     }
 
     private fun launchCall(femaleUser: FemaleUsersResponseData, callType: String) {
