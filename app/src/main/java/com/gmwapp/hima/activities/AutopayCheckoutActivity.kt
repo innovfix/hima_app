@@ -46,7 +46,14 @@ class AutopayCheckoutActivity : AppCompatActivity() {
         // languages anyway, but we don't want to render the checkout shell
         // (and confuse the user) if any caller leaks through with the gate
         // disabled. Existing subscribers keep access for cancel-flow paths.
-        val autopayLanguage = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(this)
+        // Cold-start safe: isAutopayEligible returns true when the cache
+        // says autopay OR when the cache hasn't populated yet AND the user's
+        // stored language is in the static autopay whitelist. Without the
+        // optimistic branch, a fresh-install Hindi user who taps Try on the
+        // trial sheet (which already opens optimistically) hits this gate,
+        // gets "Subscription is not available for your language", and the
+        // checkout closes — gates have to agree.
+        val autopayLanguage = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEligible(this)
         val ever = com.gmwapp.hima.utils.SubscriptionStateCache.everActive(this)
         val active = com.gmwapp.hima.utils.SubscriptionStateCache.isActive(this)
         val reSubEnabled = com.gmwapp.hima.utils.LanguageFeatureCache.isReSubscriptionEnabled(this)

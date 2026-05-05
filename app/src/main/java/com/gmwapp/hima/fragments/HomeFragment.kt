@@ -113,27 +113,21 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             // language has autopay enabled per admin config. Otherwise the trial
             // surface stays hidden and the coin tap just opens Wallet.
             //
-            // Cold-start race: both LanguageFeatureCache and SubscriptionStateCache
-            // default to false until APIs land. Without the optimistic branch
-            // below, the first tap after a fresh install/wipe always falls through
-            // to Wallet even for genuinely new autopay-eligible users. The
-            // whitelist mirrors the language_configs seed data — same source of
-            // truth that fallbackFeature() in SelectLanguageActivity uses.
+            // Cold-start race: SubscriptionStateCache defaults to false until
+            // APIs land. LanguageFeatureCache.isAutopayEligible() handles the
+            // language-side cold start internally (cache OR static whitelist
+            // fallback), so the same single helper is used by HomeFragment
+            // and AutopayCheckoutActivity — gates can't disagree on cold
+            // start. UserSegment.isNewUser is allowed to be optimistic too:
+            // a fresh install hasn't seen coins or subscription yet, so a
+            // brand-new install on an autopay language counts as "new".
             val ctx = requireContext()
             val isSubscribed = SubscriptionStateCache.isActive(ctx)
-            val autopayEnabled = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(ctx)
+            val autopayEligible = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEligible(ctx)
             val cachesPopulated = com.gmwapp.hima.utils.LanguageFeatureCache.isPopulated(ctx) &&
                 SubscriptionStateCache.isPopulated()
-            val storedLanguage = BaseApplication.getInstance()?.getPrefs()
-                ?.getUserData()?.language?.trim()?.lowercase().orEmpty()
-            val autopayLanguageWhitelist = setOf(
-                "hindi", "bengali", "assamese", "gujarati",
-                "punjabi", "odia", "marathi"
-            )
-            val optimisticAutopayEligible = !cachesPopulated &&
-                storedLanguage in autopayLanguageWhitelist
-            if (!isSubscribed && (autopayEnabled || optimisticAutopayEligible) &&
-                (UserSegment.isNewUser(ctx) || optimisticAutopayEligible)
+            if (!isSubscribed && autopayEligible &&
+                (UserSegment.isNewUser(ctx) || !cachesPopulated)
             ) {
                 val sheet = BottomSheetTrialOffer()
                 sheet.setOnTryNowClickListener {

@@ -3,6 +3,7 @@ package com.gmwapp.hima.utils
 import android.content.Context
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.retrofit.ApiManager
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.LanguageConfigData
@@ -116,6 +117,30 @@ object LanguageFeatureCache {
     fun isAutopayEnabled(context: Context): Boolean = feature(context) == FEATURE_AUTOPAY
 
     fun isAiOnboardingEnabled(context: Context): Boolean = feature(context) == FEATURE_AI_ONBOARDING
+
+    /**
+     * Cache-driven autopay flag with a cold-start fallback to a static
+     * North-Indian language whitelist. Same source of truth used by
+     * SelectLanguageActivity.fallbackFeature() — kept here so any gate
+     * (Home, Wallet, Checkout) can ask one question instead of duplicating
+     * the optimistic logic. Returns true when:
+     *   - the cache says autopay (admin flag is "autopay"), OR
+     *   - the cache hasn't populated yet AND the user's stored language
+     *     is in the static autopay whitelist (so the very first tap after
+     *     install isn't routed wrong on a slow/failed language_config).
+     */
+    fun isAutopayEligible(context: Context): Boolean {
+        if (isAutopayEnabled(context)) return true
+        if (isPopulated(context)) return false
+        val lang = BaseApplication.getInstance()?.getPrefs()
+            ?.getUserData()?.language?.trim()?.lowercase().orEmpty()
+        return lang in AUTOPAY_LANGUAGE_WHITELIST
+    }
+
+    private val AUTOPAY_LANGUAGE_WHITELIST = setOf(
+        "hindi", "bengali", "assamese", "gujarati",
+        "punjabi", "odia", "marathi"
+    )
 
     /**
      * Whether lapsed (cancelled / failed) users in this language are
