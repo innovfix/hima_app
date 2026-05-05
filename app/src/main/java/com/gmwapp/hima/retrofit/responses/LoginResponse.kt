@@ -16,7 +16,12 @@ data class LoginResponse(
 data class UserData (
     val id: Int,
     val name: String,
-    @SerializedName("user_gender")
+    // Read the avatar-derived `gender` field (always lowercase) instead of
+    // `user_gender` (raw DB value). The 37 `gender == DConstants.MALE` checks
+    // across the app compare against lowercase "male"/"female" — using the
+    // raw DB value broke for users whose gender was saved with non-standard
+    // case (curl/admin-created accounts, legacy migrations).
+    @SerializedName("gender")
     val gender: String,
     val image: String,
     val language: String,
