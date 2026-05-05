@@ -112,10 +112,29 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             // New user (and not subscribed) → trial sheet, but only if the user's
             // language has autopay enabled per admin config. Otherwise the trial
             // surface stays hidden and the coin tap just opens Wallet.
+            //
+            // Cold-start race: both LanguageFeatureCache and SubscriptionStateCache
+            // default to false until APIs land. Without the optimistic branch
+            // below, the first tap after a fresh install/wipe always falls through
+            // to Wallet even for genuinely new autopay-eligible users. The
+            // whitelist mirrors the language_configs seed data — same source of
+            // truth that fallbackFeature() in SelectLanguageActivity uses.
             val ctx = requireContext()
             val isSubscribed = SubscriptionStateCache.isActive(ctx)
             val autopayEnabled = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(ctx)
-            if (autopayEnabled && !isSubscribed && UserSegment.isNewUser(ctx)) {
+            val cachesPopulated = com.gmwapp.hima.utils.LanguageFeatureCache.isPopulated(ctx) &&
+                SubscriptionStateCache.isPopulated()
+            val storedLanguage = BaseApplication.getInstance()?.getPrefs()
+                ?.getUserData()?.language?.trim()?.lowercase().orEmpty()
+            val autopayLanguageWhitelist = setOf(
+                "hindi", "bengali", "assamese", "gujarati",
+                "punjabi", "odia", "marathi"
+            )
+            val optimisticAutopayEligible = !cachesPopulated &&
+                storedLanguage in autopayLanguageWhitelist
+            if (!isSubscribed && (autopayEnabled || optimisticAutopayEligible) &&
+                (UserSegment.isNewUser(ctx) || optimisticAutopayEligible)
+            ) {
                 val sheet = BottomSheetTrialOffer()
                 sheet.setOnTryNowClickListener {
                     startActivity(com.gmwapp.hima.activities.AutopayCheckoutActivity.intentFor(

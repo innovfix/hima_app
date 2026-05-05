@@ -126,7 +126,9 @@ class SelectLanguageActivity : BaseActivity() {
                             response: retrofit2.Response<com.gmwapp.hima.retrofit.responses.LanguageConfigResponse>
                         ) {
                             val data = response.body()?.data
-                            val feature = data?.enabled_feature ?: "ai_onboarding"
+                            // Fallback default uses the static whitelist if the
+                            // server response is empty/null — see fallbackFeature().
+                            val feature = data?.enabled_feature ?: fallbackFeature(language)
                             // Persist for runtime gating across the app — same
                             // value used by Wallet/Chat/Home to suppress autopay UI.
                             data?.let {
@@ -140,13 +142,11 @@ class SelectLanguageActivity : BaseActivity() {
                             call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.LanguageConfigResponse>,
                             t: Throwable
                         ) {
-                            // Fall back to legacy AI-onboarding path on network error
-                            // so signup is never blocked by language_config.
                             Log.w("SelectLanguage", "language_config failed: ${t.message}")
-                            routeMaleUserAfterLanguageConfig(userId, avatarId, language, "ai_onboarding")
+                            routeMaleUserAfterLanguageConfig(userId, avatarId, language, fallbackFeature(language))
                         }
                         override fun onNoNetwork() {
-                            routeMaleUserAfterLanguageConfig(userId, avatarId, language, "ai_onboarding")
+                            routeMaleUserAfterLanguageConfig(userId, avatarId, language, fallbackFeature(language))
                         }
                     })
                 } else {
@@ -254,6 +254,30 @@ class SelectLanguageActivity : BaseActivity() {
             resources.getColorStateList(R.color.colorAccent, null)
         } else {
             resources.getColorStateList(R.color.kyc_button_disabled, null)
+        }
+    }
+
+    /**
+     * Static fallback for /language_config when the API returns null/fails.
+     * Mirrors the seed data in `language_configs` table — North Indian
+     * languages → autopay, South Indian → ai_onboarding. Prevents Hindi
+     * users from getting wrongly routed into the AI-onboarding flow on a
+     * transient API hiccup. Case-insensitive lookup so admin/curl-created
+     * users with non-standard casing (e.g. "hindi") still map correctly.
+     */
+    private fun fallbackFeature(language: String): String {
+        val autopayLanguages = setOf(
+            "hindi", "bengali", "assamese", "gujarati",
+            "punjabi", "odia", "marathi"
+        )
+        val aiOnboardingLanguages = setOf(
+            "tamil", "telugu", "kannada", "malayalam"
+        )
+        val key = language.trim().lowercase()
+        return when {
+            key in autopayLanguages -> "autopay"
+            key in aiOnboardingLanguages -> "ai_onboarding"
+            else -> "none"
         }
     }
 
