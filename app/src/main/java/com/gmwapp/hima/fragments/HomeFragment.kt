@@ -592,7 +592,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         dialog.show()
     }
 
-    private fun showAutopayFailedDialog() {
+    private fun showAutopayFailedDialog(status: String?) {
         val view = layoutInflater.inflate(R.layout.dialog_autopay_failed, null)
         val dialog = androidx.appcompat.app.AlertDialog.Builder(requireContext())
             .setView(view)
@@ -600,6 +600,25 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             .create()
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
         dialog.window?.setDimAmount(0.5f)
+
+        val titleView = view.findViewById<android.widget.TextView>(R.id.tvAutopayFailedTitle)
+        val subtitleView = view.findViewById<android.widget.TextView>(R.id.tvAutopayFailedSubtitle)
+        when (status?.lowercase()) {
+            "failed" -> {
+                titleView.text = "Autopay Renewal Failed"
+                subtitleView.text =
+                    "Your bank declined the autopay renewal.\n" +
+                    "Please check your balance or update your payment method."
+            }
+            "cancelled" -> {
+                titleView.text = "Autopay Cancelled"
+                subtitleView.text =
+                    "You cancelled your autopay.\n" +
+                    "Subscribe again to unlock chat."
+            }
+            else -> Unit
+        }
+
         view.findViewById<View>(R.id.btnBuyCoins).setOnClickListener {
             dialog.dismiss()
             startActivity(android.content.Intent(requireContext(), WalletActivity::class.java))
@@ -634,7 +653,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             if (!data.is_active && data.ever_active &&
                 !autopayDialogShownThisSession && (autopayLanguage || data.ever_active)) {
                 autopayDialogShownThisSession = true
-                if (isAdded) showAutopayFailedDialog()
+                if (isAdded) showAutopayFailedDialog(data.status)
             }
         }
 

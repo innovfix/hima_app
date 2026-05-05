@@ -119,6 +119,7 @@ class ChatActivityInHouse : AppCompatActivity() {
     private var btnSubscribeUnlock: View? = null
     private var btnBuyCoinsUnlock: View? = null
     private var chatEndedBanner: View? = null
+    private var chatEndedBannerText: android.widget.TextView? = null
     private val autopayViewModel: com.gmwapp.hima.viewmodels.AutopayViewModel by viewModels()
     private lateinit var ivBack: ImageView
     private lateinit var cvBack: CardView
@@ -364,6 +365,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         subscribeLockContainer = findViewById(R.id.subscribe_lock_container)
         autopayFailedLockContainer = findViewById(R.id.autopay_failed_lock_container)
         chatEndedBanner = findViewById(R.id.ll_chat_ended_banner)
+        chatEndedBannerText = findViewById(R.id.tv_chat_ended_banner_text)
         btnSubscribeUnlock = findViewById(R.id.btn_subscribe_unlock)
         btnSubscribeUnlock?.setOnClickListener { showTrialOfferSheet() }
         btnBuyCoinsUnlock = findViewById(R.id.btn_buy_coins_unlock)
@@ -3558,10 +3560,10 @@ class ChatActivityInHouse : AppCompatActivity() {
      * failed/cancelled). Mirrors ChatActivity.observeAutopayPushEvents.
      */
     private fun observeAutopayPushEvents() {
-        com.gmwapp.hima.utils.SubscriptionStateCache.pushEvent.observe(this) {
+        com.gmwapp.hima.utils.SubscriptionStateCache.pushEvent.observe(this) { event ->
             val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return@observe
             autopayViewModel.subscriptionStatus(userId)
-            showChatEndedBanner()
+            showChatEndedBanner(event)
         }
         autopayViewModel.statusLiveData.observe(this) { resp ->
             val data = resp?.data ?: return@observe
@@ -3574,8 +3576,16 @@ class ChatActivityInHouse : AppCompatActivity() {
         }
     }
 
-    private fun showChatEndedBanner() {
+    private fun showChatEndedBanner(
+        event: com.gmwapp.hima.utils.SubscriptionStateCache.PushEvent
+    ) {
         val banner = chatEndedBanner ?: return
+        chatEndedBannerText?.text = when (event) {
+            com.gmwapp.hima.utils.SubscriptionStateCache.PushEvent.FAILED ->
+                "Chat ended — bank declined the autopay renewal"
+            com.gmwapp.hima.utils.SubscriptionStateCache.PushEvent.CANCELLED ->
+                "Chat ended — autopay was cancelled"
+        }
         banner.visibility = View.VISIBLE
         banner.postDelayed({ banner.visibility = View.GONE }, 5000L)
     }
@@ -3593,7 +3603,11 @@ class ChatActivityInHouse : AppCompatActivity() {
         val active = isSubscriptionActive()
         val reSubEnabled = com.gmwapp.hima.utils.LanguageFeatureCache.isReSubscriptionEnabled(this)
         if (ever && !active && !reSubEnabled) return
-        if (com.gmwapp.hima.utils.UserSegment.isNewUser(this)) {
+        // Trial sheet (with explainer video) for everyone who has never had
+        // an autopay mandate; banner sheet only for lapsed/cancelled. The
+        // ever_active gate is the single source of truth — Users who already
+        // saw the pitch don't need the video re-shown.
+        if (!com.gmwapp.hima.utils.SubscriptionStateCache.everActive(this)) {
             val sheet = com.gmwapp.hima.dialogs.BottomSheetTrialOffer.newInstance()
             sheet.setOnTryNowClickListener {
                 startActivity(AutopayCheckoutActivity.intentFor(

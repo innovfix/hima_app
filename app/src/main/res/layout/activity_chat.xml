@@ -651,6 +651,7 @@
                 app:tint="@color/colorAccent" />
 
             <TextView
+                android:id="@+id/tv_autopay_failed_lock_label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="6dp"
@@ -724,6 +725,7 @@
             app:tint="@color/colorAccent" />
 
         <TextView
+            android:id="@+id/tv_chat_ended_banner_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:fontFamily="@font/poppins_semibold"

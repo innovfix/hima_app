@@ -152,7 +152,9 @@ class ChatActivity : AppCompatActivity() {
     private var messageInputContainer: View? = null
     private var subscribeLockContainer: View? = null
     private var autopayFailedLockContainer: View? = null
+    private var autopayFailedLockLabel: android.widget.TextView? = null
     private var chatEndedBanner: View? = null
+    private var chatEndedBannerText: android.widget.TextView? = null
     private val autopayViewModel: com.gmwapp.hima.viewmodels.AutopayViewModel by viewModels()
 
     private fun isSubscriptionActive(): Boolean =
@@ -199,6 +201,7 @@ class ChatActivity : AppCompatActivity() {
                 messageInputContainer?.visibility = View.GONE
                 subscribeLockContainer?.visibility = View.GONE
                 autopayFailedLockContainer?.visibility = View.VISIBLE
+                applyAutopayFailedLockLabel()
             }
             else -> {
                 // Both fresh users and lapsed-but-allowed users see the same
@@ -219,10 +222,10 @@ class ChatActivity : AppCompatActivity() {
      * applies the gate, and flashes the chat-ended banner for 5s.
      */
     private fun observeAutopayPushEvents() {
-        com.gmwapp.hima.utils.SubscriptionStateCache.pushEvent.observe(this) {
+        com.gmwapp.hima.utils.SubscriptionStateCache.pushEvent.observe(this) { event ->
             val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return@observe
             autopayViewModel.subscriptionStatus(userId)
-            showChatEndedBanner()
+            showChatEndedBanner(event)
         }
         autopayViewModel.statusLiveData.observe(this) { resp ->
             val data = resp?.data ?: return@observe
@@ -235,15 +238,42 @@ class ChatActivity : AppCompatActivity() {
         }
     }
 
-    private fun showChatEndedBanner() {
+    private fun showChatEndedBanner(
+        event: com.gmwapp.hima.utils.SubscriptionStateCache.PushEvent
+    ) {
         val banner = chatEndedBanner ?: return
+        chatEndedBannerText?.text = when (event) {
+            com.gmwapp.hima.utils.SubscriptionStateCache.PushEvent.FAILED ->
+                "Chat ended — bank declined the autopay renewal"
+            com.gmwapp.hima.utils.SubscriptionStateCache.PushEvent.CANCELLED ->
+                "Chat ended — autopay was cancelled"
+        }
         banner.visibility = View.VISIBLE
         banner.postDelayed({ banner.visibility = View.GONE }, 5000L)
     }
 
+    /**
+     * Sets the lock-container label based on the cached subscription status.
+     * "failed" = bank/payment-side renewal failure; "cancelled" = user-initiated.
+     * Falls back to the generic label until the cache is populated.
+     */
+    private fun applyAutopayFailedLockLabel() {
+        val label = autopayFailedLockLabel ?: return
+        label.text = when (com.gmwapp.hima.utils.SubscriptionStateCache.status()?.lowercase()) {
+            "failed" -> "Renewal failed — your bank declined autopay"
+            "cancelled" -> "Autopay cancelled — chat is locked"
+            else -> "Autopay cancelled — chat is locked"
+        }
+    }
+
     private fun showTrialOfferSheet() {
-        if (com.gmwapp.hima.utils.UserSegment.isNewUser(this)) {
-            // New user → ₹1 trial offer.
+        // Trial sheet (with explainer video) shows for everyone who has
+        // never had an autopay mandate active. Once they've subscribed once
+        // (lapsed or cancelled), they get the simpler banner sheet — they
+        // don't need the pitch again. Cold-start safe: everActive returns
+        // false until /subscription_status populates the cache, so users
+        // optimistically see the trial sheet on a fresh launch.
+        if (!com.gmwapp.hima.utils.SubscriptionStateCache.everActive(this)) {
             val sheet = com.gmwapp.hima.dialogs.BottomSheetTrialOffer.newInstance()
             sheet.setOnTryNowClickListener {
                 startActivity(AutopayCheckoutActivity.intentFor(
@@ -252,7 +282,7 @@ class ChatActivity : AppCompatActivity() {
             }
             sheet.show(supportFragmentManager, com.gmwapp.hima.dialogs.BottomSheetTrialOffer.TAG)
         } else {
-            // Old user → ₹299/10d direct subscribe.
+            // Lapsed / cancelled subscriber → ₹299/10d direct subscribe.
             val sheet = com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe.newInstance(
                 bannerOnly = true,
                 title = "Subscribe to unlock unlimited chats"
@@ -274,7 +304,9 @@ class ChatActivity : AppCompatActivity() {
         messageInputContainer = findViewById(R.id.message_input_container)
         subscribeLockContainer = findViewById(R.id.subscribe_lock_container)
         autopayFailedLockContainer = findViewById(R.id.autopay_failed_lock_container)
+        autopayFailedLockLabel = findViewById(R.id.tv_autopay_failed_lock_label)
         chatEndedBanner = findViewById(R.id.ll_chat_ended_banner)
+        chatEndedBannerText = findViewById(R.id.tv_chat_ended_banner_text)
         findViewById<View>(R.id.btn_subscribe_unlock)?.setOnClickListener { showTrialOfferSheet() }
         findViewById<View>(R.id.btn_buy_coins_unlock)?.setOnClickListener {
             startActivity(android.content.Intent(this, WalletActivity::class.java))
