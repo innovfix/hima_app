@@ -83,6 +83,10 @@ class BottomSheetOldUserSubscribe : BottomSheetDialogFragment() {
 
         val banner = view.findViewById<FrameLayout>(R.id.cv_subscribe_banner)
         val btnSubscribe = view.findViewById<MaterialButton>(R.id.btn_subscribe_now)
+        val customButtonText = arguments?.getString(ARG_SUBSCRIBE_BUTTON_TEXT)
+        if (!customButtonText.isNullOrBlank()) {
+            btnSubscribe.text = customButtonText
+        }
         val onBanner = View.OnClickListener {
             onSubscribeClick?.invoke()
             dismissAllowingStateLoss()
@@ -157,12 +161,18 @@ class BottomSheetOldUserSubscribe : BottomSheetDialogFragment() {
         const val TAG = "BottomSheetOldUserSubscribe"
         private const val ARG_BANNER_ONLY = "bannerOnly"
         private const val ARG_TITLE = "title"
+        private const val ARG_SUBSCRIBE_BUTTON_TEXT = "subscribeButtonText"
 
-        fun newInstance(bannerOnly: Boolean = false, title: String? = null): BottomSheetOldUserSubscribe =
+        fun newInstance(
+            bannerOnly: Boolean = false,
+            title: String? = null,
+            subscribeButtonText: String? = null
+        ): BottomSheetOldUserSubscribe =
             BottomSheetOldUserSubscribe().apply {
                 arguments = Bundle().apply {
                     putBoolean(ARG_BANNER_ONLY, bannerOnly)
                     if (title != null) putString(ARG_TITLE, title)
+                    if (subscribeButtonText != null) putString(ARG_SUBSCRIBE_BUTTON_TEXT, subscribeButtonText)
                 }
             }
     }

@@ -109,25 +109,23 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     private fun initUI() {
         binding.clCoins.setOnSingleClickListener {
             // Subscribed (any state) → open wallet directly; Wallet hides the banner on its own.
-            // New user (and not subscribed) → trial sheet, but only if the user's
-            // language has autopay enabled per admin config. Otherwise the trial
-            // surface stays hidden and the coin tap just opens Wallet.
+            // Never had autopay (and not subscribed) → trial sheet, but only if
+            // the user's language has autopay enabled per admin config. Otherwise
+            // the trial surface stays hidden and the coin tap just opens Wallet.
             //
-            // Cold-start race: SubscriptionStateCache defaults to false until
-            // APIs land. LanguageFeatureCache.isAutopayEligible() handles the
-            // language-side cold start internally (cache OR static whitelist
-            // fallback), so the same single helper is used by HomeFragment
-            // and AutopayCheckoutActivity — gates can't disagree on cold
-            // start. UserSegment.isNewUser is allowed to be optimistic too:
-            // a fresh install hasn't seen coins or subscription yet, so a
-            // brand-new install on an autopay language counts as "new".
+            // Cold-start race: SubscriptionStateCache.everActive defaults to
+            // false until APIs land, so !everActive is true on cold start →
+            // trial sheet shows optimistically. LanguageFeatureCache.isAutopayEligible()
+            // handles the language-side cold start internally (cache OR static
+            // whitelist fallback), so the same single helper is used by
+            // HomeFragment and AutopayCheckoutActivity — gates can't disagree.
             val ctx = requireContext()
             val isSubscribed = SubscriptionStateCache.isActive(ctx)
             val autopayEligible = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEligible(ctx)
             val cachesPopulated = com.gmwapp.hima.utils.LanguageFeatureCache.isPopulated(ctx) &&
                 SubscriptionStateCache.isPopulated()
             if (!isSubscribed && autopayEligible &&
-                (UserSegment.isNewUser(ctx) || !cachesPopulated)
+                (!SubscriptionStateCache.everActive(ctx) || !cachesPopulated)
             ) {
                 val sheet = BottomSheetTrialOffer()
                 sheet.setOnTryNowClickListener {
@@ -475,14 +473,28 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         val tag = com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe.TAG
         val existing = childFragmentManager.findFragmentByTag(tag)
         if (existing is com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe && existing.isAdded) return
+        // Insufficient-talktime is a mid-call-flow popup; the user wants to
+        // call right now, so we keep the coin grid (low-friction recharge)
+        // but still surface the right subscribe price. Never-ever-active →
+        // ₹1 trial; lapsed/cancelled → ₹299 direct. The ₹1 path skips the
+        // explainer video here on purpose — the video is already shown at
+        // the primary entry points (chat lock, top-right coin pill, wallet),
+        // and a video gate would block users in their moment of urgency.
+        val isNeverSubscribed = !SubscriptionStateCache.everActive(ctx)
+        val planType = if (isNeverSubscribed)
+            com.gmwapp.hima.activities.AutopayCheckoutActivity.PLAN_TRIAL_NEW
+        else
+            com.gmwapp.hima.activities.AutopayCheckoutActivity.PLAN_DIRECT_OLD
+        val subscribeButtonText = if (isNeverSubscribed) "₹1 only" else "₹299 only"
         com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe.newInstance(
             bannerOnly = false,
-            title = "You have insufficient talktime balance to make this call. Please recharge"
+            title = "You have insufficient talktime balance to make this call. Please recharge",
+            subscribeButtonText = subscribeButtonText
         ).apply {
             setOnSubscribeClickListener {
                 val c = context ?: return@setOnSubscribeClickListener
                 startActivity(com.gmwapp.hima.activities.AutopayCheckoutActivity.intentFor(
-                    c, com.gmwapp.hima.activities.AutopayCheckoutActivity.PLAN_DIRECT_OLD
+                    c, planType
                 ))
             }
         }.show(childFragmentManager, tag)

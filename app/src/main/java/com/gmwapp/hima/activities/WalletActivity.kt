@@ -246,6 +246,9 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         val lapsedAndBlocked = everActive && !isActive && !reSubEnabled
         val showSubscribeBanner = autopayLanguage && !isActive && !lapsedAndBlocked
         binding.cvSubscribeBanner.visibility = if (showSubscribeBanner) View.VISIBLE else View.GONE
+        // Banner CTA copy mirrors the plan_type that openCheckout will pick:
+        // never-ever-active → ₹1 trial; lapsed/cancelled → ₹299 direct.
+        binding.btnSubscribeNow.text = if (!everActive) "₹1 only" else "₹299 only"
     }
 
 
