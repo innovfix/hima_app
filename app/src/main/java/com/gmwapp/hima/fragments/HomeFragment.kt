@@ -1108,6 +1108,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     override fun onPause() {
         super.onPause()
         unregisterHomeChatListRefreshReceiver()
+        midnightHandler.removeCallbacks(midnightRunnable)
     }
 
     /** Receiver for [ACTION_CHAT_LIST_REFRESH] while the my_chats filter is active. */
@@ -1202,11 +1203,6 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 }
             }
         }
-    }
-
-    override fun onPause() {
-        super.onPause()
-        midnightHandler.removeCallbacks(midnightRunnable)
     }
 
     fun observeCoins() {
