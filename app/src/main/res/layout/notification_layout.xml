@@ -38,26 +38,28 @@
         android:layout_below="@id/caller_name"
         android:layout_alignStart="@id/caller_name"/>
 
-    <!-- Decline Button -->
+    <!-- Accept Button (gradient green disc + phone icon) -->
     <ImageView
         android:id="@+id/btn_accept"
-        android:layout_width="40dp"
-        android:layout_height="50dp"
-        android:src="@drawable/accept_audio"
-        android:background="@null"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:background="@drawable/incoming_call_accept_button"
+        android:padding="12dp"
+        android:src="@drawable/ic_call_accept"
         android:layout_alignParentEnd="true"
         android:layout_centerVertical="true"
-        />
+        android:layout_marginEnd="4dp" />
 
-    <!-- Accept Button -->
+    <!-- Decline Button (gradient red disc + hangup icon) -->
     <ImageView
         android:id="@+id/btn_decline"
-        android:layout_width="50dp"
-        android:layout_height="50dp"
-        android:src="@drawable/endcall"
-        android:background="@null"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:background="@drawable/incoming_call_decline_button"
+        android:padding="12dp"
+        android:src="@drawable/ic_call_end"
         android:layout_toStartOf="@id/btn_accept"
         android:layout_centerVertical="true"
-        />
+        android:layout_marginEnd="10dp" />
 </RelativeLayout>
 

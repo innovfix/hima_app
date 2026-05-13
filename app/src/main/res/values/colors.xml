@@ -41,6 +41,9 @@
     <color name="pink_extra_light_100">#4EFFFFFF</color>
     <color name="purple">#9C1DF9</color>
     <color name="blue">#2388F2</color>
+    <color name="fab_gold_stroke">#D4AF37</color>
+    <!-- Vibrant magenta/pink for the home action FABs. -->
+    <color name="call_fab_bg">#BE185D</color>
     <color name="grey_medium">#75767a</color>
     <color name="grey">#545454</color>
     <color name="grey_extra_light">#F5F6F8</color>

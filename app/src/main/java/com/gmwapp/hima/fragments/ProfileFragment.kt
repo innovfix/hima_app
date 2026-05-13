@@ -60,24 +60,8 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
         savedInstanceState: Bundle?
     ): View {
         binding = FragmentProfileBinding.inflate(layoutInflater)
-        setupStatusBarInsets()
         initUI()
         return binding.root
-    }
-
-    private fun setupStatusBarInsets() {
-        val basePaddingTop = binding.root.paddingTop
-        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
-            val statusBarInset = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
-            view.setPadding(
-                view.paddingLeft,
-                basePaddingTop + statusBarInset,
-                view.paddingRight,
-                view.paddingBottom
-            )
-            insets
-        }
-        ViewCompat.requestApplyInsets(binding.root)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {

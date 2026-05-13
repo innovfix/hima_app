@@ -20,6 +20,25 @@
     android:keepScreenOn="true"
     android:background="@drawable/professional_call_background">
 
+    <!-- Ambient color blobs -->
+    <View
+        android:layout_width="280dp"
+        android:layout_height="280dp"
+        android:layout_marginStart="-80dp"
+        android:layout_marginTop="-80dp"
+        android:background="@drawable/bg_radar_blob_pink"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <View
+        android:layout_width="320dp"
+        android:layout_height="320dp"
+        android:layout_marginEnd="-60dp"
+        android:layout_marginBottom="-100dp"
+        android:background="@drawable/bg_radar_blob_purple"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
     <!-- Video Containers -->
     <androidx.cardview.widget.CardView
         android:id="@+id/localCardView"
@@ -109,7 +128,7 @@
                 android:src="@drawable/ic_timer_professional"
                 android:layout_marginEnd="6dp"
                 android:contentDescription="Timer"
-                app:tint="#1A237E"
+                app:tint="#FFFFFF"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent"/>
@@ -120,7 +139,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="00:00:00"
-                android:textColor="#1A237E"
+                android:textColor="#FFFFFF"
                 android:textSize="14sp"
                 android:fontFamily="sans-serif-medium"
                 android:letterSpacing="0.05"
@@ -160,21 +179,54 @@
 
     </LinearLayout>
 
-    <!-- "Reconnecting…" pill — toggled by CallQualityUi from Agora onConnectionStateChanged. -->
-    <TextView
+    <!-- "Reconnecting…" card — toggled by CallQualityUi from Agora onConnectionStateChanged. -->
+    <LinearLayout
         android:id="@+id/reconnect_banner"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="6dp"
         android:background="@drawable/bg_reconnect_pill"
         android:elevation="10dp"
-        android:text="@string/call_reconnecting"
-        android:textColor="@android:color/white"
-        android:textSize="12sp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="14dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="10dp"
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/top_bar" />
+        app:layout_constraintTop_toBottomOf="@id/top_bar">
+
+        <ProgressBar
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:indeterminate="true"
+            android:indeterminateTint="#FF1383" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_bold"
+                android:text="Reconnecting…"
+                android:textColor="#0F172A"
+                android:textSize="13sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_medium"
+                android:text="Check your network"
+                android:textColor="#64748B"
+                android:textSize="11sp" />
+        </LinearLayout>
+    </LinearLayout>
 
     <!-- User Avatars Container (Center) -->
     <LinearLayout
@@ -306,6 +358,11 @@
                     android:visibility="gone"
                     android:background="@drawable/bg_team_circle" />
 
+                <com.gmwapp.hima.widgets.ConicRingView
+                    android:layout_width="126dp"
+                    android:layout_height="126dp"
+                    android:layout_gravity="center" />
+
                 <androidx.cardview.widget.CardView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -412,7 +469,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:background="@drawable/professional_control_button_bg"
-                    android:src="@drawable/unmute_img"
+                    android:src="@drawable/ic_call_mic"
                     android:padding="14dp"
                     android:scaleType="fitCenter"
                     android:contentDescription="Microphone"/>
@@ -447,7 +504,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:background="@drawable/professional_control_button_bg"
-                    android:src="@drawable/speakeron_img"
+                    android:src="@drawable/ic_call_speaker_on"
                     android:padding="14dp"
                     android:scaleType="fitCenter"
                     android:contentDescription="Speaker"/>
@@ -482,7 +539,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:background="@drawable/professional_end_call_bg"
-                    android:src="@drawable/endcall"
+                    android:src="@drawable/ic_call_end"
                     android:padding="16dp"
                     android:scaleType="fitCenter"
                     android:contentDescription="End Call"/>
@@ -521,7 +578,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:background="@drawable/professional_control_button_bg"
-                    android:src="@drawable/audiocall_img"
+                    android:src="@drawable/ic_call_audio"
                     android:padding="14dp"
                     android:scaleType="fitCenter"
                     android:contentDescription="Video"/>
@@ -626,7 +683,9 @@
         android:id="@+id/iv_gift_image"
         android:layout_width="@dimen/_95sdp"
         android:layout_height="95dp"
+        android:elevation="32dp"
         android:src="@drawable/gift_png"
+        android:translationZ="32dp"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"

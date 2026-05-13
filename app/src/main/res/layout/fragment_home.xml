@@ -534,60 +534,121 @@
         android:shadowDy="2"
         android:shadowRadius="4" />
 
-    <!-- Floating Action Buttons -->
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
+    <!-- Home action pills — MaterialCardView so we can paint a real
+         multi-stop gradient on the bg via @drawable/bg_fab_gradient. -->
+
+    <!-- Audio -->
+    <com.google.android.material.card.MaterialCardView
         android:id="@+id/fab_audio"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_marginEnd="24dp"
         android:layout_marginBottom="184dp"
-        android:contentDescription="@string/audio_text"
-        app:backgroundTint="@color/purple"
-        app:borderWidth="0dp"
-        app:elevation="6dp"
-        app:fabSize="normal"
-        app:maxImageSize="28dp"
-        app:srcCompat="@drawable/audio"
-        app:tint="@color/white" />
+        android:clickable="true"
+        android:focusable="true"
+        app:cardCornerRadius="28dp"
+        app:cardElevation="12dp"
+        app:cardBackgroundColor="@android:color/transparent"
+        app:rippleColor="#33FFFFFF"
+        app:strokeWidth="0dp">
 
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        <LinearLayout
+            android:id="@+id/fab_audio_inner"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:background="@drawable/bg_fab_gradient_audio"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/iv_fab_audio"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/audio"
+                android:contentDescription="@string/audio"
+                app:tint="@color/white" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Video -->
+    <com.google.android.material.card.MaterialCardView
         android:id="@+id/fab_video"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_marginEnd="24dp"
         android:layout_marginBottom="108dp"
-        android:contentDescription="@string/video"
-        app:backgroundTint="@color/green"
-        app:borderWidth="0dp"
-        app:elevation="6dp"
-        app:fabSize="normal"
-        app:maxImageSize="28dp"
-        app:srcCompat="@drawable/video"
-        app:tint="@color/white" />
+        android:clickable="true"
+        android:focusable="true"
+        app:cardCornerRadius="28dp"
+        app:cardElevation="12dp"
+        app:cardBackgroundColor="@android:color/transparent"
+        app:rippleColor="#33FFFFFF"
+        app:strokeWidth="0dp">
 
-    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+        <LinearLayout
+            android:id="@+id/fab_video_inner"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:background="@drawable/bg_fab_gradient_video"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/iv_fab_video"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/video"
+                android:contentDescription="@string/video"
+                app:tint="@color/white" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Random -->
+    <com.google.android.material.card.MaterialCardView
         android:id="@+id/fab_random"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="24dp"
-        android:contentDescription="@string/random"
-        android:fontFamily="@font/poppins_semibold"
-        android:text="@string/random"
-        android:textAllCaps="false"
-        android:textColor="@color/white"
-        android:textSize="15sp"
-        app:backgroundTint="@color/blue"
-        app:borderWidth="0dp"
-        app:elevation="6dp"
-        app:icon="@drawable/random"
-        app:iconGravity="textStart"
-        app:iconPadding="8dp"
-        app:iconSize="24dp"
-        app:iconTint="@color/white"
-        app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlayExtended" />
+        android:clickable="true"
+        android:focusable="true"
+        app:cardCornerRadius="28dp"
+        app:cardElevation="12dp"
+        app:cardBackgroundColor="@android:color/transparent"
+        app:rippleColor="#33FFFFFF"
+        app:strokeWidth="0dp">
+
+        <LinearLayout
+            android:id="@+id/fab_random_inner"
+            android:layout_width="wrap_content"
+            android:layout_height="56dp"
+            android:background="@drawable/bg_fab_gradient_random"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="18dp"
+            android:paddingEnd="22dp">
+
+            <ImageView
+                android:id="@+id/iv_fab_random"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/random"
+                android:contentDescription="@string/random"
+                app:tint="@color/white" />
+
+            <TextView
+                android:id="@+id/tv_fab_random"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:fontFamily="@font/poppins_semibold"
+                android:text="@string/random"
+                android:textColor="@color/white"
+                android:textSize="15sp" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
 

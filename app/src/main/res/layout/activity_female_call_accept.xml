@@ -20,6 +20,25 @@
     android:background="@drawable/professional_incoming_call_bg"
     android:fitsSystemWindows="true">
 
+    <!-- Ambient color blobs (matches call + waiting screens) -->
+    <View
+        android:layout_width="280dp"
+        android:layout_height="280dp"
+        android:layout_marginStart="-80dp"
+        android:layout_marginTop="-80dp"
+        android:background="@drawable/bg_radar_blob_pink"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <View
+        android:layout_width="320dp"
+        android:layout_height="320dp"
+        android:layout_marginEnd="-60dp"
+        android:layout_marginBottom="-100dp"
+        android:background="@drawable/bg_radar_blob_purple"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
     <!-- Status Bar Spacer -->
     <View
         android:id="@+id/status_bar_spacer"
@@ -87,13 +106,13 @@
             android:layout_gravity="center"
             android:background="@drawable/pulse_animation_ring" />
 
-        <!-- Avatar Ring (Static White Border) -->
-        <View
+        <!-- Sweeping conic gradient ring around the avatar — same effect as
+             the male connecting/waiting screens for visual continuity. -->
+        <com.gmwapp.hima.widgets.ConicRingView
             android:id="@+id/avatar_ring"
-            android:layout_width="168dp"
-            android:layout_height="168dp"
-            android:layout_gravity="center"
-            android:background="@drawable/professional_avatar_ring" />
+            android:layout_width="184dp"
+            android:layout_height="184dp"
+            android:layout_gravity="center" />
 
         <!-- Caller Profile Image -->
         <androidx.cardview.widget.CardView
@@ -138,7 +157,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:fontFamily="@font/poppins_regular"
-        android:text="Ringing..."
+        android:text="is calling you…"
         android:textColor="#80FFFFFF"
         android:textSize="16sp"
         app:layout_constraintEnd_toEndOf="parent"
@@ -210,8 +229,7 @@
                     android:layout_width="32dp"
                     android:layout_height="32dp"
                     android:layout_gravity="center"
-                    android:rotation="135"
-                    android:src="@drawable/ic_call_decline"
+                    android:src="@drawable/ic_call_end"
                     android:contentDescription="Decline Call" />
             </FrameLayout>
 

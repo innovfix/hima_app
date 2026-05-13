@@ -42,6 +42,38 @@ class CallActionReceiver : BroadcastReceiver() {
 
                 Log.d("CallReceiver", "Call Accepted: callType=$callType, senderId=$senderId, channelName=$channelName, callId=$callId")
 
+                // Signal the male caller that we accepted — without this the
+                // caller stays stuck on the "connecting" screen forever. The
+                // full-screen FemaleCallAcceptActivity sends the same payload
+                // from its accept button; the notification path was missing it.
+                val selfUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
+                if (selfUserId != null && senderId != null && senderId > 0
+                    && !callType.isNullOrEmpty() && !channelName.isNullOrEmpty()) {
+                    val repo = (context.applicationContext as BaseApplication).fcmNotificationRepository
+                    repo.sendFcmNotification(
+                        selfUserId, senderId, callType, channelName, "accepted",
+                        object : NetworkCallback<FcmNotificationResponse> {
+                            override fun onResponse(
+                                call: retrofit2.Call<FcmNotificationResponse>,
+                                response: retrofit2.Response<FcmNotificationResponse>
+                            ) {
+                                Log.d("CallReceiver", "Accepted FCM sent: ${response.body()?.message}")
+                            }
+                            override fun onFailure(call: retrofit2.Call<FcmNotificationResponse>, t: Throwable) {
+                                Log.e("CallReceiver", "Accepted FCM failed: ${t.message}")
+                            }
+                            override fun onNoNetwork() {
+                                Log.e("CallReceiver", "Accepted FCM: no network")
+                            }
+                        }
+                    )
+                } else {
+                    Log.w(
+                        "CallReceiver",
+                        "Accept FCM skipped — missing data self=$selfUserId peer=$senderId " +
+                            "type=$callType channel=$channelName"
+                    )
+                }
 
                 if (callType=="audio"){
                     val callIntent = Intent(context, FemaleAudioCallingActivity::class.java).apply {
@@ -147,6 +179,32 @@ class CallActionReceiver : BroadcastReceiver() {
                 val callId = extras?.getInt("CALL_ID", -1)
 
                 Log.d("CallReceiver_Male", "Call Accepted: callType=$callType, senderId=$senderId, channelName=$channelName, callId=$callId")
+
+                // Tell the female caller we accepted; otherwise her connecting
+                // screen stays stuck forever (the full-screen accept button on
+                // MaleCallAcceptActivity sends this same payload).
+                val selfUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
+                if (selfUserId != null && senderId != null && senderId > 0
+                    && !callType.isNullOrEmpty() && !channelName.isNullOrEmpty()) {
+                    val repo = (context.applicationContext as BaseApplication).fcmNotificationRepository
+                    repo.sendFcmNotification(
+                        selfUserId, senderId, callType, channelName, "accepted",
+                        object : NetworkCallback<FcmNotificationResponse> {
+                            override fun onResponse(
+                                call: retrofit2.Call<FcmNotificationResponse>,
+                                response: retrofit2.Response<FcmNotificationResponse>
+                            ) {
+                                Log.d("CallReceiver_Male", "Accepted FCM sent: ${response.body()?.message}")
+                            }
+                            override fun onFailure(call: retrofit2.Call<FcmNotificationResponse>, t: Throwable) {
+                                Log.e("CallReceiver_Male", "Accepted FCM failed: ${t.message}")
+                            }
+                            override fun onNoNetwork() {
+                                Log.e("CallReceiver_Male", "Accepted FCM: no network")
+                            }
+                        }
+                    )
+                }
 
                 if (callType=="audio"){
                     val callIntent = Intent(context, MaleAudioCallingActivity::class.java).apply {

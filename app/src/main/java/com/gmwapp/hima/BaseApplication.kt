@@ -2,7 +2,6 @@ package com.gmwapp.hima
 
 import android.app.Activity
 import android.app.Application
-import com.gmwapp.hima.BuildConfig
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Intent

@@ -4,6 +4,9 @@ import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
+import android.view.MotionEvent
+import android.view.ViewConfiguration
 import android.content.Context
 import android.content.Intent
 import android.graphics.Path
@@ -596,42 +599,29 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     }
 
     fun initFab() {
-        binding.fabRandom.extend()
-        binding.fabAudio.hide()
-        binding.fabVideo.hide()
-        
-        // Animations removed as per user request
-        
+        // Start collapsed: audio + video hidden, random visible with label.
+        binding.fabAudio.visibility = View.GONE
+        binding.fabVideo.visibility = View.GONE
+        applyRandomCollapsedStyle()
+
+        // Restore last drag position BEFORE starting animations so the bob
+        // baseline uses the persisted offset.
+        restoreFabPosition()
+        installFabDrag()
+        startFabAnimations()
+
         binding.fabRandom.setOnSingleClickListener {
             if (!isAllFabVisible) {
                 showDimBackground()
-                binding.fabAudio.show()
-                binding.fabVideo.show()
-                // Don't show text labels or coin icons
-                // binding.tvAudio1.visibility = View.VISIBLE
-                // binding.tvAudio2.visibility = View.VISIBLE
-                // binding.tvVideo1.visibility = View.VISIBLE
-                // binding.tvVideo2.visibility = View.VISIBLE
-                // binding.ivCoinAudio.visibility = View.VISIBLE
-                // binding.ivCoinVideo.visibility = View.VISIBLE
+                binding.fabAudio.visibility = View.VISIBLE
+                binding.fabVideo.visibility = View.VISIBLE
 
-                // Change the bg color to white when expanded
-                binding.fabRandom.backgroundTintList = resources.getColorStateList(R.color.white)
-
-                // Change the icon tint to black
-                binding.fabRandom.setIconTintResource(R.color.black)
-                
-                // Change text color to black
-                binding.fabRandom.setTextColor(resources.getColor(R.color.black, null))
-
-                // Change the icon to close when expanded
-                binding.fabRandom.setIconResource(R.drawable.ic_close)
-
-                binding.fabRandom.shrink()
+                // Expanded: random becomes a white close pill (icon-only).
+                applyRandomExpandedStyle()
                 isAllFabVisible = true
             } else {
-                binding.fabAudio.hide()
-                binding.fabVideo.hide()
+                binding.fabAudio.visibility = View.GONE
+                binding.fabVideo.visibility = View.GONE
                 binding.tvAudio1.visibility = View.GONE
                 binding.tvAudio2.visibility = View.GONE
                 binding.tvVideo1.visibility = View.GONE
@@ -640,23 +630,204 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 binding.ivCoinVideo.visibility = View.GONE
 
                 hideDimBackground()
-
-                // Reset the bg color to blue when collapsed
-                binding.fabRandom.backgroundTintList = resources.getColorStateList(R.color.blue)
-
-                // Reset the icon tint to white
-                binding.fabRandom.setIconTintResource(R.color.white)
-                
-                // Reset text color to white
-                binding.fabRandom.setTextColor(resources.getColor(R.color.white, null))
-
-                // Change the icon to random when collapsed
-                binding.fabRandom.setIconResource(R.drawable.random)
-                binding.fabRandom.extend()
-                
+                applyRandomCollapsedStyle()
                 isAllFabVisible = false
             }
         }
+    }
+
+    /** Subtle bob + pulse loop on the 3 FABs. Staggered so they never move in sync. */
+    private val fabAnimators = mutableListOf<android.animation.Animator>()
+
+    /** User-set drag offset applied on top of the bob translation. Persists across recreations. */
+    private var fabOffsetX = 0f
+    private var fabOffsetY = 0f
+
+    private fun startFabAnimations() {
+        stopFabAnimations()
+        val density = resources.displayMetrics.density
+        val bobOffset = -6f * density   // 6dp lift on the up-stroke
+
+        // (view, startDelayMs, peakScale)
+        val targets = listOf(
+            Triple(binding.fabRandom, 0L, 1.04f),
+            Triple(binding.fabAudio, 250L, 1.06f),
+            Triple(binding.fabVideo, 500L, 1.06f)
+        )
+
+        targets.forEach { (view, delay, peak) ->
+            view.translationX = fabOffsetX
+            view.translationY = fabOffsetY
+
+            // Bob is a ValueAnimator so we can add the bob offset on top of the
+            // drag baseline (fabOffsetY) every frame — keeps drag + bob coherent.
+            val bob = ValueAnimator.ofFloat(0f, bobOffset, 0f).apply {
+                duration = 2400L
+                repeatCount = ValueAnimator.INFINITE
+                interpolator = AccelerateDecelerateInterpolator()
+                startDelay = delay
+                addUpdateListener {
+                    view.translationY = fabOffsetY + (it.animatedValue as Float)
+                }
+            }
+            val pulseX = ObjectAnimator.ofFloat(view, View.SCALE_X, 1f, peak, 1f).apply {
+                duration = 1800L
+                repeatCount = ObjectAnimator.INFINITE
+                interpolator = AccelerateDecelerateInterpolator()
+                startDelay = delay
+            }
+            val pulseY = ObjectAnimator.ofFloat(view, View.SCALE_Y, 1f, peak, 1f).apply {
+                duration = 1800L
+                repeatCount = ObjectAnimator.INFINITE
+                interpolator = AccelerateDecelerateInterpolator()
+                startDelay = delay
+            }
+            bob.start(); pulseX.start(); pulseY.start()
+            fabAnimators += listOf(bob, pulseX, pulseY)
+        }
+    }
+
+    private fun stopFabAnimations() {
+        fabAnimators.forEach { it.cancel() }
+        fabAnimators.clear()
+    }
+
+    /** Restore the user's previous drag position before the FABs are laid out. */
+    private fun restoreFabPosition() {
+        val prefs = requireContext().getSharedPreferences("fab_pos", Context.MODE_PRIVATE)
+        fabOffsetX = prefs.getFloat("dx", 0f)
+        fabOffsetY = prefs.getFloat("dy", 0f)
+        binding.fabRandom.translationX = fabOffsetX
+        binding.fabAudio.translationX = fabOffsetX
+        binding.fabVideo.translationX = fabOffsetX
+        // translationY is owned by the bob updater — it reads fabOffsetY each frame.
+    }
+
+    private fun saveFabPosition() {
+        requireContext().getSharedPreferences("fab_pos", Context.MODE_PRIVATE)
+            .edit()
+            .putFloat("dx", fabOffsetX)
+            .putFloat("dy", fabOffsetY)
+            .apply()
+    }
+
+    /**
+     * Drag-to-move on the Random FAB. The whole stack (Random + Audio + Video)
+     * follows by the same delta so their relative positions stay intact.
+     * A tap (movement < touchSlop) still triggers the OnClickListener via performClick().
+     */
+    private fun installFabDrag() {
+        val touchSlop = ViewConfiguration.get(requireContext()).scaledTouchSlop.toFloat()
+        var startRawX = 0f
+        var startRawY = 0f
+        var startOffsetX = 0f
+        var startOffsetY = 0f
+        var dragging = false
+
+        binding.fabRandom.setOnTouchListener { v, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    startRawX = event.rawX
+                    startRawY = event.rawY
+                    startOffsetX = fabOffsetX
+                    startOffsetY = fabOffsetY
+                    dragging = false
+                    v.parent.requestDisallowInterceptTouchEvent(true)
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = event.rawX - startRawX
+                    val dy = event.rawY - startRawY
+                    if (!dragging && (kotlin.math.abs(dx) > touchSlop || kotlin.math.abs(dy) > touchSlop)) {
+                        dragging = true
+                    }
+                    if (dragging) {
+                        fabOffsetX = startOffsetX + dx
+                        fabOffsetY = startOffsetY + dy
+                        applyFabOffset()
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (!dragging) {
+                        v.performClick()
+                    } else {
+                        clampFabOffset()
+                        applyFabOffset()
+                        saveFabPosition()
+                    }
+                    true
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    if (dragging) {
+                        clampFabOffset()
+                        applyFabOffset()
+                        saveFabPosition()
+                    }
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun applyFabOffset() {
+        binding.fabRandom.translationX = fabOffsetX
+        binding.fabAudio.translationX = fabOffsetX
+        binding.fabVideo.translationX = fabOffsetX
+        // translationY is written each frame by the bob updater (fabOffsetY + bob).
+    }
+
+    /** Keep the dragged stack inside the visible area with a 16dp safety pad. */
+    private fun clampFabOffset() {
+        val root = binding.root
+        val random = binding.fabRandom
+        if (root.width == 0 || root.height == 0 || random.width == 0) return
+        val density = resources.displayMetrics.density
+        val pad = 16f * density
+
+        val rLeft = random.left.toFloat()
+        val rTop = random.top.toFloat()
+        val w = random.width.toFloat()
+        val h = random.height.toFloat()
+
+        // Horizontal: keep random fully on-screen.
+        val minDx = pad - rLeft
+        val maxDx = (root.width - pad) - rLeft - w
+        if (minDx <= maxDx) fabOffsetX = fabOffsetX.coerceIn(minDx, maxDx)
+
+        // Vertical: keep the would-be topmost FAB (audio at 184dp bottom-margin
+        // + 56dp height = 240dp from the bottom edge) below the safe-area top.
+        // We compute the top from XML constants rather than reading audio.top,
+        // because audio is GONE while collapsed and its position is unreliable.
+        val stackTopExpected = root.height - (240f * density)
+        val minDy = pad - stackTopExpected
+        val maxDy = (root.height - pad) - rTop - h
+        if (minDy <= maxDy) fabOffsetY = fabOffsetY.coerceIn(minDy, maxDy)
+    }
+
+    override fun onDestroyView() {
+        stopFabAnimations()
+        super.onDestroyView()
+    }
+
+    /** Random pill — collapsed state: blue gradient bg, white icon + label visible. */
+    private fun applyRandomCollapsedStyle() {
+        binding.fabRandomInner.setBackgroundResource(R.drawable.bg_fab_gradient_random)
+        binding.ivFabRandom.setImageResource(R.drawable.random)
+        binding.ivFabRandom.imageTintList =
+            android.content.res.ColorStateList.valueOf(resources.getColor(R.color.white, null))
+        binding.tvFabRandom.visibility = View.VISIBLE
+        binding.tvFabRandom.setTextColor(resources.getColor(R.color.white, null))
+    }
+
+    /** Random pill — expanded state: white bg, black close icon, label hidden. */
+    private fun applyRandomExpandedStyle() {
+        binding.fabRandomInner.setBackgroundResource(R.drawable.bg_fab_gradient_white)
+        binding.ivFabRandom.setImageResource(R.drawable.ic_close)
+        binding.ivFabRandom.imageTintList =
+            android.content.res.ColorStateList.valueOf(resources.getColor(R.color.black, null))
+        binding.tvFabRandom.visibility = View.GONE
     }
 
     private fun showDimBackground() {

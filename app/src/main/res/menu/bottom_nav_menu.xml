@@ -3,40 +3,35 @@
     <item
         android:id="@+id/home"
         android:enabled="true"
-        android:icon="@drawable/nav_home"
-        android:iconTint="@color/white"
+        android:icon="@drawable/ic_nav_home_modern"
         android:title="@string/home"
         android:tooltipText="@null"
         app:showAsAction="always" />
     <item
         android:id="@+id/chat"
         android:enabled="true"
-        android:icon="@drawable/nav_chat"
-        android:iconTint="@color/white"
+        android:icon="@drawable/ic_nav_chat_modern"
         android:title="@string/chat"
         android:tooltipText="@null"
         app:showAsAction="always" />
     <item
         android:id="@+id/recent"
         android:enabled="true"
-        android:icon="@drawable/recent"
-        android:iconTint="@color/white"
+        android:icon="@drawable/ic_nav_recent_modern"
         android:title="@string/recent"
         android:tooltipText="@null"
         app:showAsAction="always" />
     <item
         android:id="@+id/favourite"
         android:enabled="true"
-        android:icon="@drawable/nav_favourite"
-        android:iconTint="@color/white"
+        android:icon="@drawable/ic_nav_favourite_modern"
         android:title="@string/favourite"
         android:tooltipText="@null"
         app:showAsAction="always" />
     <item
         android:id="@+id/profile"
         android:enabled="true"
-        android:icon="@drawable/nav_profile"
-        android:iconTint="@color/white"
+        android:icon="@drawable/ic_nav_profile_modern"
         android:title="@string/profile"
         android:tooltipText="@null"
         app:showAsAction="always" />

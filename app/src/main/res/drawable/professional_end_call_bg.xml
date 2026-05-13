@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Professional end call button with red background -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
-    <solid android:color="#E53935"/>
+    <gradient
+        android:type="linear"
+        android:angle="270"
+        android:startColor="#FF4D4D"
+        android:endColor="#D32F2F" />
     <size
         android:width="64dp"
         android:height="64dp"/>

@@ -35,6 +35,7 @@ import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.GridLayoutManager
@@ -803,9 +804,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             android.R.anim.fade_out
         )
 
+        val statusBarController = WindowInsetsControllerCompat(window, window.decorView)
+
         when (item.itemId) {
             R.id.home -> {
                 window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+                statusBarController.isAppearanceLightStatusBars = true
 
                 val homeFragment = if (BaseApplication.getInstance()?.getPrefs()
                         ?.getUserData()?.gender == DConstants.FEMALE
@@ -816,12 +820,14 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
             R.id.chat -> {
                 window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+                statusBarController.isAppearanceLightStatusBars = true
                 transaction.replace(R.id.flFragment, CreatorChatFragment()).commit()
                 return true
             }
 
             R.id.recent -> {
                 window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+                statusBarController.isAppearanceLightStatusBars = true
 
                 transaction.replace(R.id.flFragment, RecentFragment()).commit()
                 return true
@@ -829,13 +835,16 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
             R.id.favourite -> {
                 window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+                statusBarController.isAppearanceLightStatusBars = true
 
                 transaction.replace(R.id.flFragment, FavouriteFragment()).commit()
                 return true
             }
 
             R.id.profile -> {
-                window.statusBarColor = ContextCompat.getColor(this, R.color.grey_extra_light)
+                // Pink header on profile — paint the status bar to match and use light icons.
+                window.statusBarColor = android.graphics.Color.parseColor("#BE185D")
+                statusBarController.isAppearanceLightStatusBars = false
 
                 if (BaseApplication.getInstance()?.getPrefs()
                         ?.getUserData()?.gender == DConstants.MALE

@@ -88,8 +88,13 @@ class RatingActivity : BaseActivity() {
         )
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            // Apply both system bars AND IME (keyboard) insets so the layout
+            // shrinks when the soft keyboard opens — that lets the
+            // NestedScrollView keep scrolling under edge-to-edge.
+            val bars = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime()
+            )
+            v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
         }
 
@@ -102,16 +107,20 @@ class RatingActivity : BaseActivity() {
             validatebtn() // Validate the button whenever the user types
         }
 
-
-        window.statusBarColor = Color.parseColor("#ffffff") // startColor of your gradient
-
-        // Make status bar icons light (white) so they're visible on black background
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            window.insetsController?.setSystemBarsAppearance(
-                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
-                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
-            )
+        // When the keyboard opens, scroll the comment card fully into view so
+        // the user can see what they're typing.
+        binding.etUserName.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                binding.etUserName.post {
+                    binding.svRating.smoothScrollTo(0, binding.cvDescription.top - 24)
+                }
+            }
         }
+
+        // Match the call/waiting screens: dark gradient bg with white status icons.
+        window.statusBarColor = Color.parseColor("#0A0420")
+        androidx.core.view.WindowInsetsControllerCompat(window, window.decorView)
+            .isAppearanceLightStatusBars = false
         }
 
     private fun initUi() {
@@ -306,22 +315,22 @@ class RatingActivity : BaseActivity() {
 
         inner class ReviewViewHolder(view: View) : RecyclerView.ViewHolder(view) {
             val reviewTextView: TextView = view.findViewById(R.id.tv_interest)
-            val main: MaterialCardView = view.findViewById(R.id.main)
+            val main: View = view.findViewById(R.id.main)
             val interestIcon: ImageView = view.findViewById(R.id.iv_interest)
 
             fun bind(position: Int) {
                 reviewTextView.text = reviews[position]
-                
+
                 // Hide the icon as we're only showing text
                 interestIcon.visibility = View.GONE
 
                 // Change background and text color based on selection
                 if (position == selectedPosition) {
                     main.setBackgroundResource(R.drawable.d_button_bg_interest_selected)
-                    reviewTextView.setTextColor(ContextCompat.getColor(context, R.color.black))
+                    reviewTextView.setTextColor(android.graphics.Color.WHITE)
                 } else {
                     main.setBackgroundResource(R.drawable.d_button_bg_interest)
-                    reviewTextView.setTextColor(ContextCompat.getColor(context, R.color.interest_text_color))
+                    reviewTextView.setTextColor(android.graphics.Color.parseColor("#475569"))
                 }
 
                 // Handle click event

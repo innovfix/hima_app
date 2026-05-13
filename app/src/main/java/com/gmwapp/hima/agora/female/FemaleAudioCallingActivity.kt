@@ -358,6 +358,11 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         binding = ActivityFemaleAudioCallingBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Status bar: dark gradient background needs white icons.
+        window.statusBarColor = android.graphics.Color.BLACK
+        androidx.core.view.WindowInsetsControllerCompat(window, window.decorView)
+            .isAppearanceLightStatusBars = false
+
         // Keep the call screen visible across lockscreen so users who lock
         // the phone mid-call can resume immediately.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
@@ -365,11 +370,12 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             setTurnScreenOn(true)
         }
         
-        // ✅ Restrict screenshots and screen recording
-        window.setFlags(
-            WindowManager.LayoutParams.FLAG_SECURE,
-            WindowManager.LayoutParams.FLAG_SECURE
-        )
+        // TEMP: FLAG_SECURE disabled so QA can capture screenshots for testing.
+        // Re-enable before release by uncommenting.
+        // window.setFlags(
+        //     WindowManager.LayoutParams.FLAG_SECURE,
+        //     WindowManager.LayoutParams.FLAG_SECURE
+        // )
         
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -470,15 +476,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                     val body = response.body()
                     if (body?.success == true) {
                         val questions = parseIcebreakerQuestions(body.data)
-                        if (questions.isEmpty()) {
-                            Toast.makeText(
-                                this@FemaleAudioCallingActivity,
-                                "No icebreaker questions available",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        } else {
-                            showIcebreakerDialog(questions)
-                        }
+                            .ifEmpty { dummyIcebreakerQuestions() }    // TEMP: backend empty
+                        showIcebreakerDialog(questions)
                     } else {
                         Toast.makeText(
                             this@FemaleAudioCallingActivity,
@@ -532,6 +531,17 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         btnClose.setOnClickListener { dialog.dismiss() }
         dialog.show()
     }
+
+    // TEMP: backend currently returns data=[] so QA can't see the dialog.
+    // Remove this fallback once the icebreaker_questions table is seeded.
+    private fun dummyIcebreakerQuestions(): List<String> = listOf(
+        "What's the most interesting place you've ever travelled to?",
+        "If you could have any superpower, what would it be and why?",
+        "What's a hobby you've always wanted to try but never have?",
+        "What's your favourite movie or show right now?",
+        "What's one thing on your bucket list?",
+        "Coffee or chai — and how do you take it?"
+    )
 
     private fun parseIcebreakerQuestions(data: JsonElement?): List<String> {
         if (data == null || data.isJsonNull) return emptyList()
@@ -1749,50 +1759,62 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
     fun animateGift(image: String) {
         val giftImage = binding.ivGiftImage
-        val femaleImage = binding.ivFemaleUser
+        // Sender: male caller. Receiver: female (you).
+        val sender: View = binding.ivMaleUser
+        val receiver: View = binding.ivFemaleUser
 
         Toast.makeText(this, "Gift Received", Toast.LENGTH_SHORT).show()
 
-        // Reset visibility and alpha
-        giftImage.alpha = 1f
+        giftImage.animate().cancel()
+        Glide.with(this).load(image).into(giftImage)
+
         giftImage.visibility = View.VISIBLE
-
-        // Play sound
-        BaseApplication.getInstance()?.playSendGiftSound()
-
-        // Load gift image
-        Glide.with(this)
-            .load(image)
-            .into(giftImage)
+        giftImage.alpha = 0f
+        giftImage.scaleX = 0.4f
+        giftImage.scaleY = 0.4f
 
         giftImage.post {
-            val startX = giftImage.translationX
-            val startY = giftImage.translationY
+            val giftLoc = IntArray(2); giftImage.getLocationOnScreen(giftLoc)
+            val senderLoc = IntArray(2); sender.getLocationOnScreen(senderLoc)
+            val receiverLoc = IntArray(2); receiver.getLocationOnScreen(receiverLoc)
 
-            // Get absolute screen coordinates
-            val giftLocation = IntArray(2)
-            val femaleLocation = IntArray(2)
-            giftImage.getLocationOnScreen(giftLocation)
-            femaleImage.getLocationOnScreen(femaleLocation)
+            val startTX = (senderLoc[0] - giftLoc[0] +
+                    (sender.width / 2f - giftImage.width / 2f))
+            val startTY = (senderLoc[1] - giftLoc[1] +
+                    (sender.height / 2f - giftImage.height / 2f))
+            val endTX = (receiverLoc[0] - giftLoc[0] +
+                    (receiver.width / 2f - giftImage.width / 2f))
+            val endTY = (receiverLoc[1] - giftLoc[1] +
+                    (receiver.height / 2f - giftImage.height / 2f)) -
+                    (24f * resources.displayMetrics.density)
 
-            // Calculate offset (as Float)
-            val femaleCenterX = (femaleLocation[0] - giftLocation[0] + (femaleImage.width / 2f - giftImage.width / 2f))
-            val femaleCenterY = (femaleLocation[1] - giftLocation[1] + (femaleImage.height / 2f - giftImage.height / 2f))
+            giftImage.translationX = startTX
+            giftImage.translationY = startTY
 
-            // Animate movement → fade out
             giftImage.animate()
-                .translationX(femaleCenterX)
-                .translationY(femaleCenterY)
-                .setDuration(2000)
+                .scaleX(0.9f).scaleY(0.9f).alpha(1f)
+                .setDuration(180L)
+                .setInterpolator(android.view.animation.OvershootInterpolator(2f))
                 .withEndAction {
                     giftImage.animate()
-                        .alpha(0f)
-                        .setDuration(1000)
+                        .translationX(endTX).translationY(endTY)
+                        .scaleX(1.2f).scaleY(1.2f)
+                        .setDuration(640L)
+                        .setInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
                         .withEndAction {
-                            giftImage.visibility = View.INVISIBLE
-                            // Reset for next animation
-                            giftImage.translationX = startX
-                            giftImage.translationY = startY
+                            giftImage.animate()
+                                .scaleX(0.8f).scaleY(0.8f).alpha(0f)
+                                .setStartDelay(220L).setDuration(500L)
+                                .setInterpolator(android.view.animation.AccelerateInterpolator())
+                                .withEndAction {
+                                    giftImage.visibility = View.INVISIBLE
+                                    giftImage.alpha = 1f
+                                    giftImage.scaleX = 1f
+                                    giftImage.scaleY = 1f
+                                    giftImage.translationX = 0f
+                                    giftImage.translationY = 0f
+                                }
+                                .start()
                         }
                         .start()
                 }
@@ -1804,22 +1826,14 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private fun handleCallSwitch() {
 
         binding.btnVideoCall.setOnClickListener {
-            val currentDrawable = binding.btnVideoCall.drawable
-            val audioDrawable = ContextCompat.getDrawable(this, R.drawable.audiocall_img)
-            val videoDrawable = ContextCompat.getDrawable(this, R.drawable.videocall_img)
-
             if (isSwitchRequestPending == false) {
-                if (currentDrawable != null && audioDrawable != null && currentDrawable.constantState == audioDrawable.constantState) {
-                    // If button image is AUDIO, switch
+                if (isVideoCallGoing == true) {
                     switchToAudio()
-                } else if (currentDrawable != null && videoDrawable != null && currentDrawable.constantState == videoDrawable.constantState) {
-                    // If button image is VIDEO, switch
-                    switchToVideo()
                 } else {
-                    Toast.makeText(this, "Error: Unknown state", Toast.LENGTH_SHORT).show()
+                    switchToVideo()
                 }
-            }else{
-                Toast.makeText(this,"Already Request Sent", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Already Request Sent", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -2161,7 +2175,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                 dateFormat.format(Date()) // Set call end time only if startTime is not empty
 
             // Hide video switch button and its container during video call
-            binding.btnVideoCall.setImageResource(R.drawable.audiocall_img)
+            binding.btnVideoCall.setImageResource(R.drawable.ic_call_audio)
             binding.btnVideoCall.visibility= View.GONE
             binding.layoutButtons.visibility= View.GONE
 
@@ -2243,7 +2257,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private fun toggleMute() {
         isMuted = !isMuted
         agoraEngine?.muteLocalAudioStream(isMuted)  // Mute or unmute audio
-        val muteIcon = if (isMuted) R.drawable.mute_img else R.drawable.unmute_img
+        val muteIcon = if (isMuted) R.drawable.ic_call_mic_off else R.drawable.ic_call_mic
         binding.btnMuteUnmute.setImageResource(muteIcon)
     }
 
@@ -2294,9 +2308,9 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     }
 
     private fun iconForRoute(route: com.gmwapp.hima.utils.CallAudioRouter.AudioRoute): Int = when (route) {
-        com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER -> R.drawable.speakeron_img
+        com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER -> R.drawable.ic_call_speaker_on
         com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.BLUETOOTH -> R.drawable.ic_bluetooth_audio
-        com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE -> R.drawable.speakeroff_img
+        com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE -> R.drawable.ic_call_speaker_off
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -2321,7 +2335,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         )
         agoraEngine?.muteLocalAudioStream(isMuted)
         binding.btnMuteUnmute.setImageResource(
-            if (isMuted) R.drawable.mute_img else R.drawable.unmute_img
+            if (isMuted) R.drawable.ic_call_mic_off else R.drawable.ic_call_mic
         )
         applyAudioRoute(restoredRoute)
     }
@@ -2593,7 +2607,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             remoteSurfaceView = null
 
             // **Update button to reflect audio call and show it again**
-            binding.btnVideoCall.setImageResource(R.drawable.videocall_img)
+            binding.btnVideoCall.setImageResource(R.drawable.ic_call_video)
             binding.btnVideoCall.visibility= View.VISIBLE
             binding.layoutButtons.visibility= View.VISIBLE
 

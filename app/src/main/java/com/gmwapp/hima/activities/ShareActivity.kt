@@ -60,7 +60,7 @@ class ShareActivity : AppCompatActivity() {
 
         binding.includeProfileToolbar.tvFlowTitle.text = "Share & Get Coins"
         binding.includeProfileToolbar.tvFlowTitle.setTextColor(
-            ContextCompat.getColor(this, R.color.pink_bold)
+            android.graphics.Color.parseColor("#0F172A")
         )
 
         viewModel.appUpdate()

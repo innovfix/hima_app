@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Main gradient background -->
+    <!-- Main gradient background (top → bottom so top edge matches status bar) -->
     <item>
         <shape android:shape="rectangle">
             <gradient
-                android:angle="135"
+                android:angle="270"
                 android:endColor="#EC4899"
                 android:startColor="#BE185D"
                 android:type="linear" />

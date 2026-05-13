@@ -4,14 +4,15 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white"
-    android:fillViewport="true">
+    android:background="#F8FAFC"
+    android:fillViewport="true"
+    android:clipToPadding="false">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/main"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingBottom="24dp"
+        android:paddingBottom="32dp"
         tools:context=".activities.ShareActivity">
 
         <include
@@ -23,29 +24,88 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <!-- Stats Cards Row -->
+        <!-- Hero: Total Coins Earned -->
+        <LinearLayout
+            android:id="@+id/total_coins_card"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="16dp"
+            android:layout_marginEnd="16dp"
+            android:background="@drawable/bg_total_coins_card"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingTop="22dp"
+            android:paddingBottom="22dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/include_profile_toolbar">
+
+            <TextView
+                android:id="@+id/coinEarned"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:alpha="0.85"
+                android:fontFamily="@font/poppins_medium"
+                android:letterSpacing="0.10"
+                android:text="TOTAL COINS EARNED"
+                android:textAllCaps="true"
+                android:textColor="#FFFFFF"
+                android:textSize="11sp" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:id="@+id/ivCoin2"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:adjustViewBounds="true"
+                    android:contentDescription="@null"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/coin_d" />
+
+                <TextView
+                    android:id="@+id/tv_coinEarned"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:letterSpacing="-0.02"
+                    android:text="0"
+                    android:textColor="#FFFFFF"
+                    android:textSize="38sp" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Stats Row -->
         <LinearLayout
             android:id="@+id/stats_row"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="12dp"
             android:layout_marginEnd="16dp"
             android:baselineAligned="false"
             android:orientation="horizontal"
             android:weightSum="2"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/include_profile_toolbar">
+            app:layout_constraintTop_toBottomOf="@+id/total_coins_card">
 
-            <!-- My Invites Card -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
+                android:layout_marginEnd="6dp"
                 android:layout_weight="1"
                 android:background="@drawable/bg_stats_card"
-                android:gravity="center"
+                android:gravity="start"
                 android:orientation="vertical"
                 android:padding="16dp">
 
@@ -56,34 +116,35 @@
                     app:tint="@color/pink" />
 
                 <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:fontFamily="@font/poppins_medium"
-                    android:text="My Invites"
-                    android:textColor="@color/grey_medium"
-                    android:textSize="11sp" />
-
-                <TextView
                     android:id="@+id/tv_invites"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
+                    android:layout_marginTop="10dp"
                     android:fontFamily="@font/poppins_bold"
+                    android:letterSpacing="-0.02"
                     android:text="0"
-                    android:textColor="@color/black_light"
+                    android:textColor="#0F172A"
                     android:textSize="26sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/poppins_medium"
+                    android:letterSpacing="0.06"
+                    android:text="MY INVITES"
+                    android:textAllCaps="true"
+                    android:textColor="#94A3B8"
+                    android:textSize="10sp" />
 
             </LinearLayout>
 
-            <!-- Per Invite Card -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
+                android:layout_marginStart="6dp"
                 android:layout_weight="1"
                 android:background="@drawable/bg_stats_card"
-                android:gravity="center"
+                android:gravity="start"
                 android:orientation="vertical"
                 android:padding="16dp">
 
@@ -97,84 +158,46 @@
                     android:src="@drawable/coin_d" />
 
                 <TextView
-                    android:id="@+id/coinPerInvite"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:fontFamily="@font/poppins_medium"
-                    android:text="Per Invite"
-                    android:textColor="@color/grey_medium"
-                    android:textSize="11sp" />
-
-                <TextView
                     android:id="@+id/tv_coinPerInvite"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
+                    android:layout_marginTop="10dp"
                     android:fontFamily="@font/poppins_bold"
+                    android:letterSpacing="-0.02"
                     android:text="10"
-                    android:textColor="@color/black_light"
+                    android:textColor="#0F172A"
                     android:textSize="26sp" />
 
-            </LinearLayout>
-
-        </LinearLayout>
-
-        <!-- Total Coins Earned Card -->
-        <LinearLayout
-            android:id="@+id/total_coins_card"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_marginTop="12dp"
-            android:layout_marginEnd="16dp"
-            android:background="@drawable/bg_total_coins_card"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:paddingTop="18dp"
-            android:paddingBottom="18dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/stats_row">
-
-            <TextView
-                android:id="@+id/coinEarned"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/poppins_semibold"
-                android:text="Total Coins Earned"
-                android:textColor="#FFFFFF"
-                android:textSize="13sp" />
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:id="@+id/ivCoin2"
-                    android:layout_width="34dp"
-                    android:layout_height="34dp"
-                    android:adjustViewBounds="true"
-                    android:contentDescription="@null"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/coin_d" />
-
                 <TextView
-                    android:id="@+id/tv_coinEarned"
+                    android:id="@+id/coinPerInvite"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:fontFamily="@font/poppins_bold"
-                    android:text="0"
-                    android:textColor="#FFFFFF"
-                    android:textSize="36sp" />
+                    android:fontFamily="@font/poppins_medium"
+                    android:letterSpacing="0.06"
+                    android:text="PER INVITE"
+                    android:textAllCaps="true"
+                    android:textColor="#94A3B8"
+                    android:textSize="10sp" />
 
             </LinearLayout>
 
         </LinearLayout>
+
+        <!-- Section Header -->
+        <TextView
+            android:id="@+id/header_invite"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="22dp"
+            android:fontFamily="@font/poppins_semibold"
+            android:letterSpacing="0.10"
+            android:text="YOUR INVITE CODE"
+            android:textAllCaps="true"
+            android:textColor="#94A3B8"
+            android:textSize="11sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/stats_row" />
 
         <!-- Invite Code Card -->
         <LinearLayout
@@ -182,30 +205,35 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="8dp"
             android:layout_marginEnd="16dp"
             android:background="@drawable/bg_invite_code_card"
             android:orientation="vertical"
-            android:padding="16dp"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="16dp"
+            android:paddingBottom="16dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/total_coins_card">
+            app:layout_constraintTop_toBottomOf="@+id/header_invite">
 
             <TextView
                 android:id="@+id/invitecode"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/poppins_medium"
-                android:text="My Invite Code"
-                android:textColor="@color/grey_medium"
+                android:text="Share this code with your friends"
+                android:textColor="#94A3B8"
                 android:textSize="11sp" />
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_invite_code_inner"
                 android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="12dp">
 
                 <TextView
                     android:id="@+id/tv_invitecode"
@@ -213,19 +241,20 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:fontFamily="@font/poppins_bold"
-                    android:letterSpacing="0.05"
+                    android:letterSpacing="0.12"
                     android:text="CTLA8241"
                     android:textColor="@color/pink_bold"
-                    android:textSize="24sp" />
+                    android:textSize="22sp" />
 
                 <ImageView
                     android:id="@+id/ivCopy"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
                     android:background="@drawable/bg_copy_button"
                     android:contentDescription="Copy code"
-                    android:padding="8dp"
-                    android:src="@drawable/ic_copy_code" />
+                    android:padding="9dp"
+                    android:src="@drawable/ic_copy_code"
+                    app:tint="@color/pink_bold" />
 
             </LinearLayout>
 
@@ -233,95 +262,79 @@
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/shareLink"
                 android:layout_width="match_parent"
-                android:layout_height="50dp"
+                android:layout_height="52dp"
                 android:layout_marginTop="14dp"
                 android:background="@drawable/bg_share_button"
                 android:drawableStart="@drawable/whatsapp2"
                 android:drawablePadding="10dp"
-                android:fontFamily="@font/poppins_semibold"
+                android:fontFamily="@font/poppins_bold"
                 android:gravity="center"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp"
                 android:text="Share on WhatsApp"
                 android:textAllCaps="false"
                 android:textColor="@android:color/white"
-                android:textSize="14sp" />
+                android:textSize="15sp" />
 
         </LinearLayout>
 
-        <!-- How to Get Coins Section (same horizontal inset as cards above) -->
+        <!-- Section Header: How it Works -->
+        <TextView
+            android:id="@+id/header_how"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="22dp"
+            android:fontFamily="@font/poppins_semibold"
+            android:letterSpacing="0.10"
+            android:text="HOW IT WORKS"
+            android:textAllCaps="true"
+            android:textColor="#94A3B8"
+            android:textSize="11sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/invite_code_section" />
+
+        <!-- How to Get Coins (kept for activity compat) -->
         <LinearLayout
             android:id="@+id/how_to_get_section"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_marginTop="24dp"
-            android:layout_marginEnd="16dp"
-            android:gravity="center"
-            android:orientation="horizontal"
-            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_height="0dp"
+            android:visibility="gone"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/invite_code_section">
+            app:layout_constraintTop_toTopOf="parent">
 
             <TextView
                 android:id="@+id/textView6"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/poppins_bold"
                 android:text="How to Get Coins?"
-                android:textColor="@color/black_light"
-                android:textSize="16sp" />
+                android:visibility="gone" />
 
             <ImageView
                 android:id="@+id/iv_info"
                 android:layout_width="20dp"
                 android:layout_height="20dp"
-                android:layout_marginStart="8dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Info"
-                android:padding="2dp"
                 android:src="@drawable/ic_info_outline"
-                android:visibility="gone"
-                app:tint="@color/grey_medium" />
-
+                android:visibility="gone" />
         </LinearLayout>
 
-        <!-- Disclaimer: centered copy + same 16dp side margins as invite / stats cards -->
-        <TextView
-            android:id="@+id/tv_disclamair"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_marginTop="12dp"
-            android:layout_marginEnd="16dp"
-            android:background="@drawable/bg_stats_card"
-            android:fontFamily="@font/poppins_regular"
-            android:gravity="center"
-            android:lineSpacingExtra="4dp"
-            android:paddingHorizontal="16dp"
-            android:paddingVertical="14dp"
-            android:text="Disclaimer: You will get money only when the referred user completes their KYC."
-            android:textAlignment="center"
-            android:textColor="@color/grey_medium"
-            android:textSize="11sp"
-            android:visibility="gone"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/how_to_get_section" />
-
-        <!-- Steps Container: align with cards / disclaimer (16dp horizontal) -->
+        <!-- Steps Card -->
         <LinearLayout
             android:id="@+id/steps_container"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
-            android:layout_marginTop="18dp"
+            android:layout_marginTop="8dp"
             android:layout_marginEnd="16dp"
+            android:background="@drawable/bg_stats_card"
             android:gravity="center"
             android:orientation="horizontal"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="18dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/tv_disclamair">
+            app:layout_constraintTop_toBottomOf="@+id/header_how">
 
             <!-- Step 1 -->
             <LinearLayout
@@ -356,25 +369,25 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
-                    android:fontFamily="@font/poppins_medium"
+                    android:fontFamily="@font/poppins_semibold"
                     android:gravity="center"
                     android:lineSpacingExtra="2dp"
                     android:text="Share your\nlink"
-                    android:textColor="#424242"
+                    android:textColor="#0F172A"
                     android:textSize="11sp" />
 
             </LinearLayout>
 
-            <!-- Arrow -->
             <ImageView
                 android:id="@+id/right_arrow"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_marginStart="12dp"
-                android:layout_marginEnd="12dp"
-                android:layout_marginBottom="28dp"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:layout_marginBottom="30dp"
                 android:contentDescription="Arrow"
-                android:src="@drawable/ic_arrow_forward" />
+                android:src="@drawable/ic_arrow_forward"
+                app:tint="#CBD5E1" />
 
             <!-- Step 2 -->
             <LinearLayout
@@ -411,16 +424,38 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
-                    android:fontFamily="@font/poppins_medium"
+                    android:fontFamily="@font/poppins_semibold"
                     android:gravity="center"
                     android:lineSpacingExtra="2dp"
                     android:text="Get FREE\nCoins"
-                    android:textColor="#424242"
+                    android:textColor="#0F172A"
                     android:textSize="11sp" />
 
             </LinearLayout>
 
         </LinearLayout>
+
+        <!-- Disclaimer -->
+        <TextView
+            android:id="@+id/tv_disclamair"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="16dp"
+            android:layout_marginEnd="16dp"
+            android:fontFamily="@font/poppins_regular"
+            android:gravity="center"
+            android:lineSpacingExtra="4dp"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="6dp"
+            android:text="You will get coins only when the referred user completes their KYC."
+            android:textAlignment="center"
+            android:textColor="#94A3B8"
+            android:textSize="11sp"
+            android:visibility="gone"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/steps_container" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

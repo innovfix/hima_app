@@ -1,25 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    
-    <!-- Main Background with Gradient -->
-    <item>
+
+    <!-- Soft top hairline -->
+    <item android:top="0dp">
         <shape android:shape="rectangle">
-            <gradient
-                android:angle="135"
-                android:startColor="#FFFFFF"
-                android:centerColor="#FEFEFE"
-                android:endColor="#F9F9F9"
-                android:type="linear" />
-            
+            <solid android:color="#0F0F172A" />
             <corners
-                android:topLeftRadius="32dp"
-                android:topRightRadius="32dp" />
-            
-            <stroke
-                android:width="1dp"
-                android:color="#F5F5F5" />
+                android:topLeftRadius="28dp"
+                android:topRightRadius="28dp" />
         </shape>
     </item>
-    
-</layer-list>
 
+    <!-- Light grey surface -->
+    <item android:top="1dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#F1F5F9" />
+            <corners
+                android:topLeftRadius="28dp"
+                android:topRightRadius="28dp" />
+        </shape>
+    </item>
+
+</layer-list>

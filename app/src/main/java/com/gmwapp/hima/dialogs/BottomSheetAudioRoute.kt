@@ -4,7 +4,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
 import androidx.fragment.app.FragmentManager
 import com.gmwapp.hima.R
 import com.gmwapp.hima.utils.CallAudioRouter
@@ -29,10 +28,16 @@ class BottomSheetAudioRoute : BottomSheetDialogFragment() {
         savedInstanceState: Bundle?
     ): View {
         val view = inflater.inflate(R.layout.bottom_sheet_audio_route, container, false)
+        // Make the Material bottom-sheet container transparent so our rounded
+        // top corners on bg_audio_route_sheet aren't clipped by the default
+        // white surface behind it.
+        view.viewTreeObserver.addOnGlobalLayoutListener {
+            (view.parent as? View)?.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        }
 
-        val earpieceRow = view.findViewById<TextView>(R.id.tv_route_earpiece)
-        val speakerRow = view.findViewById<TextView>(R.id.tv_route_speaker)
-        val bluetoothRow = view.findViewById<TextView>(R.id.tv_route_bluetooth)
+        val earpieceRow = view.findViewById<View>(R.id.tv_route_earpiece)
+        val speakerRow = view.findViewById<View>(R.id.tv_route_speaker)
+        val bluetoothRow = view.findViewById<View>(R.id.tv_route_bluetooth)
 
         bluetoothRow.visibility = if (bluetoothAvailable) View.VISIBLE else View.GONE
 

@@ -1,12 +1,21 @@
 package com.gmwapp.hima.agora.male
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.View
+import android.view.animation.AccelerateDecelerateInterpolator
+import android.view.animation.DecelerateInterpolator
+import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.Toast
+import androidx.core.view.doOnLayout
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.core.content.ContextCompat
@@ -14,6 +23,7 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
@@ -92,6 +102,7 @@ class MaleCallConnectingActivity : AppCompatActivity() {
         binding =ActivityMaleCallConnectingBinding.inflate(layoutInflater)
         setContentView(binding.root)
         window.statusBarColor = ContextCompat.getColor(this, R.color.black)
+        WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars = false
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
@@ -236,6 +247,8 @@ class MaleCallConnectingActivity : AppCompatActivity() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
 
 
+        binding.tvTitle.setText(if (callType == "audio") "AUDIO CALL" else "VIDEO CALL")
+
         Glide.with(this)
             .load(userData?.image)
             .apply(RequestOptions.circleCropTransform())
@@ -246,66 +259,99 @@ class MaleCallConnectingActivity : AppCompatActivity() {
             .apply(RequestOptions.circleCropTransform())
             .into(binding.ivLogo)
 
-        Glide.with(this)
-            .load(R.drawable.double_arrow_svg)
-            .into(binding.ivDoubleArrow)
-            
-        startSimpleAnimations()
-        
-        // Cancel button click
+        // Show the receiver's name on the pill below their avatar
+        receiverName?.let { name ->
+            val displayName = name.trimEnd { it.isDigit() }
+            binding.tvCallerName.text = displayName
+            binding.tvCallerName.visibility = android.view.View.VISIBLE
+        }
+
+        startRadarAnimations()
+
+        findViewById<ImageView>(R.id.btn_back)?.setOnClickListener {
+            onBackPressedDispatcher.onBackPressed()
+        }
         binding.tvCancel.setOnClickListener {
             onBackPressedDispatcher.onBackPressed()
         }
     }
-    
-    private fun startSimpleAnimations() {
-        // Simple fade in for title
-        binding.tvTitle.alpha = 0f
-        binding.tvTitle.animate()
-            .alpha(1f)
-            .setDuration(300)
-            .start()
-        
-        // Subtle connecting dots animation
-        startConnectingDotsAnimation()
-    }
-    
-    private fun startConnectingDotsAnimation() {
-        try {
-            val dot1 = findViewById<android.view.View>(R.id.dot1)
-            val dot2 = findViewById<android.view.View>(R.id.dot2)
-            val dot3 = findViewById<android.view.View>(R.id.dot3)
-            
-            val animateDots = object : Runnable {
-                var step = 0
-                override fun run() {
-                    when (step % 3) {
-                        0 -> {
-                            dot1?.alpha = 1.0f
-                            dot2?.alpha = 0.5f
-                            dot3?.alpha = 0.3f
-                        }
-                        1 -> {
-                            dot1?.alpha = 0.3f
-                            dot2?.alpha = 1.0f
-                            dot3?.alpha = 0.5f
-                        }
-                        2 -> {
-                            dot1?.alpha = 0.5f
-                            dot2?.alpha = 0.3f
-                            dot3?.alpha = 1.0f
-                        }
-                    }
-                    step++
-                    if (isRunning) {
-                        handler.postDelayed(this, 500)
-                    }
-                }
+
+    private val radarAnimators = mutableListOf<Animator>()
+    private fun dp(value: Float): Float = value * resources.displayMetrics.density
+
+    private fun startRadarAnimations() {
+        val stage = findViewById<View>(R.id.radar_stage) ?: return
+
+        // Pulse rings
+        val ringIds = intArrayOf(R.id.ring1, R.id.ring2, R.id.ring3, R.id.ring4)
+        ringIds.forEachIndexed { i, id ->
+            val v = findViewById<View>(id) ?: return@forEachIndexed
+            v.scaleX = 0.6f
+            v.scaleY = 0.6f
+            v.alpha = 0.9f
+            val anim = AnimatorSet().apply {
+                playTogether(
+                    ObjectAnimator.ofFloat(v, View.SCALE_X, 0.6f, 1.4f),
+                    ObjectAnimator.ofFloat(v, View.SCALE_Y, 0.6f, 1.4f),
+                    ObjectAnimator.ofFloat(v, View.ALPHA, 0.9f, 0f)
+                )
+                duration = 2400L
+                interpolator = DecelerateInterpolator()
+                startDelay = (i * 400L)
             }
-            handler.post(animateDots)
-        } catch (e: Exception) {
-            Log.e("Animation", "Connecting dots not found: ${e.message}")
+            anim.addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    if (!isRunning) return
+                    v.scaleX = 0.6f
+                    v.scaleY = 0.6f
+                    v.alpha = 0.9f
+                    anim.startDelay = 0L
+                    anim.start()
+                }
+            })
+            anim.start()
+            radarAnimators.add(anim)
         }
+
+        // Position avatars: female (receiver) at top, male (you) at bottom.
+        // Both use the same 124 dp wrap so they read as equal participants.
+        stage.doOnLayout { s ->
+            val width = s.width.toFloat()
+            val height = s.height.toFloat()
+            if (width <= 0f || height <= 0f) return@doOnLayout
+
+            fun place(id: Int, xPct: Float, yPct: Float) {
+                val v = findViewById<View>(id) ?: return
+                v.translationX = (xPct * width) - (width / 2f)
+                v.translationY = (yPct * height) - (height / 2f)
+            }
+
+            place(R.id.iv_logo_wrap, 0.50f, 0.22f) // receiver — top centre
+            place(R.id.you_center, 0.50f, 0.78f)   // caller    — bottom centre
+            // arrow_stack stays at stage centre (no translation needed)
+
+            // Pulsing upward chevrons: signal travels from caller → receiver.
+            val arrowsBottomToTop = intArrayOf(R.id.arrow_bot, R.id.arrow_mid, R.id.arrow_top)
+            arrowsBottomToTop.forEachIndexed { i, id ->
+                val arrow = findViewById<View>(id) ?: return@forEachIndexed
+                arrow.alpha = 0.25f
+                val pulse = ObjectAnimator.ofFloat(
+                    arrow, View.ALPHA, 0.25f, 1f, 0.25f
+                ).apply {
+                    duration = 1200L
+                    repeatCount = ObjectAnimator.INFINITE
+                    interpolator = AccelerateDecelerateInterpolator()
+                    startDelay = (i * 200L)
+                }
+                pulse.start()
+                radarAnimators.add(pulse)
+            }
+        }
+    }
+
+    private fun stopRadarAnimations() {
+        radarAnimators.forEach { it.cancel() }
+        radarAnimators.clear()
     }
 
 
@@ -633,10 +679,10 @@ class MaleCallConnectingActivity : AppCompatActivity() {
     }
 
         override fun onDestroy() {
-            super.onDestroy()
             isRunning = false
+            stopRadarAnimations()
             cancelTimeoutTracking()
-
+            super.onDestroy()
         }
 
     fun navigateToMain(){

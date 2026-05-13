@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- White chevron pointing up. Used to indicate the male caller is sending a
+     call signal up toward the female receiver. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,8L18,14L16.59,15.41L12,10.83L7.41,15.41L6,14z" />
+</vector>

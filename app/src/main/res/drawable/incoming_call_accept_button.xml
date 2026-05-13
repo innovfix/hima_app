@@ -1,11 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ripple xmlns:android="http://schemas.android.com/apk/res/android"
-    android:color="#80FFFFFF">
-    <item>
+<!-- Same pattern as bg_call_btn_end.xml: selector with state_pressed.
+     Emerald gradient base, deeper green on press. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:state_pressed="true">
         <shape android:shape="oval">
-            <solid android:color="#4CAF50"/>
-            <size android:width="72dp" android:height="72dp"/>
+            <solid android:color="#059669" />
         </shape>
     </item>
-</ripple>
 
+    <item>
+        <shape android:shape="oval">
+            <gradient
+                android:type="linear"
+                android:angle="270"
+                android:startColor="#34D399"
+                android:endColor="#10B981" />
+        </shape>
+    </item>
+
+</selector>
