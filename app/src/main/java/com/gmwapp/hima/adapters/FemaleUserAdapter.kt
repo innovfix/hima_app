@@ -138,7 +138,7 @@ class FemaleUserAdapter(
         // symmetric and users can see what options exist.
         val audioEnabled = femaleUser.audio_status == 1
         val videoEnabled = femaleUser.video_status == 1
-        val disabledTextColor = android.graphics.Color.parseColor("#6B7280")
+        val disabledTextColor = android.graphics.Color.parseColor("#C5CAD5")
         val whiteColor = activity.resources.getColor(R.color.white, null)
 
         holder.binding.btnAudioCall.visibility = View.VISIBLE

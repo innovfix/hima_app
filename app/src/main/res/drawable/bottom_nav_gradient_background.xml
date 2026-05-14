@@ -1,24 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-
-    <!-- Soft top hairline -->
-    <item android:top="0dp">
-        <shape android:shape="rectangle">
-            <solid android:color="#0F0F172A" />
-            <corners
-                android:topLeftRadius="28dp"
-                android:topRightRadius="28dp" />
-        </shape>
-    </item>
-
-    <!-- Light grey surface -->
-    <item android:top="1dp">
-        <shape android:shape="rectangle">
-            <solid android:color="#F1F5F9" />
-            <corners
-                android:topLeftRadius="28dp"
-                android:topRightRadius="28dp" />
-        </shape>
-    </item>
-
-</layer-list>
+<!-- Solid opaque deep dark — matches the premium reference (Apple Music / Linear).
+     No rounded corners, no top hairline. Sits flush with system nav. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#0E0826" />
+</shape>

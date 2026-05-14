@@ -251,6 +251,9 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Edge-to-edge — call BEFORE super.onCreate so the activity reports the
+        // correct fitsSystemWindows state to fragments during attach.
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -795,7 +798,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             vibrator.vibrate(30)
         }
 
-        animateBottomNavItem(item)
+        // animateBottomNavItem(item)  // disabled — no nav animation per design
 
         val transaction = supportFragmentManager.beginTransaction()
         transaction.setReorderingAllowed(true)
@@ -808,8 +811,10 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
         when (item.itemId) {
             R.id.home -> {
-                window.statusBarColor = ContextCompat.getColor(this, R.color.white)
-                statusBarController.isAppearanceLightStatusBars = true
+                // Home now uses the radar dark-gradient background — match the
+                // status bar tint so the icons read as white.
+                window.statusBarColor = android.graphics.Color.TRANSPARENT
+                statusBarController.isAppearanceLightStatusBars = false
 
                 val homeFragment = if (BaseApplication.getInstance()?.getPrefs()
                         ?.getUserData()?.gender == DConstants.FEMALE
@@ -819,31 +824,32 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             }
 
             R.id.chat -> {
-                window.statusBarColor = ContextCompat.getColor(this, R.color.white)
-                statusBarController.isAppearanceLightStatusBars = true
+                // Dark radar gradient now backs every tab — match status bar.
+                window.statusBarColor = android.graphics.Color.TRANSPARENT
+                statusBarController.isAppearanceLightStatusBars = false
                 transaction.replace(R.id.flFragment, CreatorChatFragment()).commit()
                 return true
             }
 
             R.id.recent -> {
-                window.statusBarColor = ContextCompat.getColor(this, R.color.white)
-                statusBarController.isAppearanceLightStatusBars = true
+                window.statusBarColor = android.graphics.Color.TRANSPARENT
+                statusBarController.isAppearanceLightStatusBars = false
 
                 transaction.replace(R.id.flFragment, RecentFragment()).commit()
                 return true
             }
 
             R.id.favourite -> {
-                window.statusBarColor = ContextCompat.getColor(this, R.color.white)
-                statusBarController.isAppearanceLightStatusBars = true
+                window.statusBarColor = android.graphics.Color.TRANSPARENT
+                statusBarController.isAppearanceLightStatusBars = false
 
                 transaction.replace(R.id.flFragment, FavouriteFragment()).commit()
                 return true
             }
 
             R.id.profile -> {
-                // Pink header on profile — paint the status bar to match and use light icons.
-                window.statusBarColor = android.graphics.Color.parseColor("#BE185D")
+                // Dark radar background everywhere; keep icons white.
+                window.statusBarColor = android.graphics.Color.TRANSPARENT
                 statusBarController.isAppearanceLightStatusBars = false
 
                 if (BaseApplication.getInstance()?.getPrefs()

@@ -7,18 +7,19 @@
     android:fillViewport="true"
     android:paddingTop="0dp"
     android:clipToPadding="false"
-    android:background="#F8FAFC">
+    android:background="@drawable/bg_radar_screen">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-        <!-- Curved Header Background -->
+        <!-- Curved Header Background — kept for layout anchors, transparent
+             so the radar gradient on the scroll root shows through. -->
         <View
             android:id="@+id/header_background"
             android:layout_width="match_parent"
             android:layout_height="280dp"
-            android:background="@drawable/profile_header_curve"
+            android:background="@android:color/transparent"
             app:layout_constraintTop_toTopOf="parent" />
 
         <!-- Profile Content Container -->
@@ -45,7 +46,7 @@
                     android:layout_width="108dp"
                     android:layout_height="108dp"
                     android:layout_gravity="center"
-                    app:cardBackgroundColor="@color/white"
+                    app:cardBackgroundColor="#1AFFFFFF"
                     app:cardCornerRadius="54dp"
                     app:cardElevation="0dp">
 
@@ -183,7 +184,7 @@
                         android:clickable="true"
                         android:focusable="true"
                         android:foreground="@drawable/ripple_effect"
-                        app:cardBackgroundColor="#FFFFFF"
+                        app:cardBackgroundColor="#1AFFFFFF"
                         app:cardCornerRadius="16dp"
                         app:cardElevation="0dp"
                         app:strokeColor="#1F0F172A"
@@ -218,7 +219,7 @@
                                 android:layout_marginTop="6dp"
                                 android:fontFamily="@font/poppins_semibold"
                                 android:text="@string/wallet"
-                                android:textColor="@color/black_light"
+                                android:textColor="@color/white"
                                 android:textSize="12sp"
                                 android:letterSpacing="-0.01" />
                         </LinearLayout>
@@ -234,7 +235,7 @@
                         android:clickable="true"
                         android:focusable="true"
                         android:foreground="@drawable/ripple_effect"
-                        app:cardBackgroundColor="#FFFFFF"
+                        app:cardBackgroundColor="#1AFFFFFF"
                         app:cardCornerRadius="16dp"
                         app:cardElevation="0dp"
                         app:strokeColor="#1F0F172A"
@@ -269,7 +270,7 @@
                                 android:layout_marginTop="6dp"
                                 android:fontFamily="@font/poppins_semibold"
                                 android:text="@string/transactions"
-                                android:textColor="@color/black_light"
+                                android:textColor="@color/white"
                                 android:textSize="12sp"
                                 android:letterSpacing="-0.01" />
                         </LinearLayout>
@@ -296,7 +297,7 @@
                         android:clickable="true"
                         android:focusable="true"
                         android:foreground="@drawable/ripple_effect"
-                        app:cardBackgroundColor="#FFFFFF"
+                        app:cardBackgroundColor="#1AFFFFFF"
                         app:cardCornerRadius="16dp"
                         app:cardElevation="0dp"
                         app:strokeColor="#1F0F172A"
@@ -331,7 +332,7 @@
                                 android:layout_marginTop="6dp"
                                 android:fontFamily="@font/poppins_semibold"
                                 android:text="@string/refer_earn"
-                                android:textColor="@color/black_light"
+                                android:textColor="@color/white"
                                 android:textSize="12sp"
                                 android:letterSpacing="-0.01" />
                         </LinearLayout>
@@ -347,7 +348,7 @@
                         android:clickable="true"
                         android:focusable="true"
                         android:foreground="@drawable/ripple_effect"
-                        app:cardBackgroundColor="#FFFFFF"
+                        app:cardBackgroundColor="#1AFFFFFF"
                         app:cardCornerRadius="16dp"
                         app:cardElevation="0dp"
                         app:strokeColor="#1F0F172A"
@@ -382,7 +383,7 @@
                                 android:layout_marginTop="6dp"
                                 android:fontFamily="@font/poppins_semibold"
                                 android:text="Privacy"
-                                android:textColor="@color/black_light"
+                                android:textColor="@color/white"
                                 android:textSize="12sp"
                                 android:letterSpacing="-0.01" />
                         </LinearLayout>
@@ -400,7 +401,7 @@
                     android:letterSpacing="0.10"
                     android:text="GENERAL"
                     android:textAllCaps="true"
-                    android:textColor="#94A3B8"
+                    android:textColor="#B3FFFFFF"
                     android:textSize="11sp" />
 
                 <!-- Terms & Condition -->
@@ -412,7 +413,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:foreground="@drawable/ripple_effect"
-                    app:cardBackgroundColor="@color/white"
+                    app:cardBackgroundColor="#1AFFFFFF"
                     app:cardCornerRadius="14dp"
                     app:cardElevation="0dp"
                     app:strokeColor="#1F0F172A"
@@ -450,7 +451,7 @@
                             android:layout_marginEnd="8dp"
                             android:fontFamily="@font/poppins_medium"
                             android:text="@string/terms_and_condition"
-                            android:textColor="@color/black_light"
+                            android:textColor="@color/white"
                             android:textSize="13sp"
                             android:letterSpacing="-0.01"
                             app:layout_constraintBottom_toBottomOf="@id/terms_icon"
@@ -478,7 +479,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:foreground="@drawable/ripple_effect"
-                    app:cardBackgroundColor="@color/white"
+                    app:cardBackgroundColor="#1AFFFFFF"
                     app:cardCornerRadius="14dp"
                     app:cardElevation="0dp"
                     app:strokeColor="#1F0F172A"
@@ -516,7 +517,7 @@
                             android:layout_marginEnd="8dp"
                             android:fontFamily="@font/poppins_medium"
                             android:text="@string/refund_and_cancellation"
-                            android:textColor="@color/black_light"
+                            android:textColor="@color/white"
                             android:textSize="13sp"
                             app:layout_constraintBottom_toBottomOf="@id/refund_icon"
                             app:layout_constraintEnd_toStartOf="@id/refund_arrow"
@@ -543,7 +544,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:foreground="@drawable/ripple_effect"
-                    app:cardBackgroundColor="@color/white"
+                    app:cardBackgroundColor="#1AFFFFFF"
                     app:cardCornerRadius="14dp"
                     app:cardElevation="0dp"
                     app:strokeColor="#1F0F172A"
@@ -581,7 +582,7 @@
                             android:layout_marginEnd="8dp"
                             android:fontFamily="@font/poppins_medium"
                             android:text="@string/CommunityGuidelines"
-                            android:textColor="@color/black_light"
+                            android:textColor="@color/white"
                             android:textSize="13sp"
                             app:layout_constraintBottom_toBottomOf="@id/guideline_icon"
                             app:layout_constraintEnd_toStartOf="@id/guideline_arrow"
@@ -647,7 +648,7 @@
                                 android:layout_height="wrap_content"
                                 android:fontFamily="@font/poppins_bold"
                                 android:text="My Warnings"
-                                android:textColor="@color/black_light"
+                                android:textColor="@color/white"
                                 android:textSize="16sp"
                                 android:letterSpacing="-0.01" />
 
@@ -657,7 +658,7 @@
                                 android:layout_marginTop="2dp"
                                 android:fontFamily="@font/poppins_regular"
                                 android:text="View warnings from admins"
-                                android:textColor="@color/grey_medium"
+                                android:textColor="#B3FFFFFF"
                                 android:textSize="11sp" />
                         </LinearLayout>
 
@@ -679,7 +680,7 @@
                     android:focusable="true"
                     app:cardCornerRadius="16dp"
                     app:cardElevation="0dp"
-                    app:cardBackgroundColor="#FFFFFF"
+                    app:cardBackgroundColor="#1AFFFFFF"
                     app:strokeColor="#1F0F172A"
                     app:strokeWidth="1dp">
 
@@ -718,7 +719,7 @@
                                 android:layout_height="wrap_content"
                                 android:fontFamily="@font/poppins_semibold"
                                 android:text="Do Not Disturb"
-                                android:textColor="@color/black"
+                                android:textColor="@color/white"
                                 android:textSize="14sp" />
                         </LinearLayout>
 
@@ -740,7 +741,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:foreground="@drawable/ripple_effect"
-                    app:cardBackgroundColor="#FFFFFF"
+                    app:cardBackgroundColor="#1AFFFFFF"
                     app:cardCornerRadius="16dp"
                     app:cardElevation="0dp"
                     app:strokeColor="#1F0F172A"
@@ -780,7 +781,7 @@
                                 android:layout_height="wrap_content"
                                 android:fontFamily="@font/poppins_semibold"
                                 android:text="@string/manage_notifications_row_title"
-                                android:textColor="@color/black"
+                                android:textColor="@color/white"
                                 android:textSize="14sp" />
 
                             <TextView
@@ -789,7 +790,7 @@
                                 android:layout_marginTop="2dp"
                                 android:fontFamily="@font/poppins_regular"
                                 android:text="@string/manage_notifications_row_subtitle"
-                                android:textColor="@color/grey_medium"
+                                android:textColor="#B3FFFFFF"
                                 android:textSize="11sp" />
                         </LinearLayout>
 
@@ -811,7 +812,7 @@
                     android:visibility="visible"
                     android:focusable="true"
                     android:foreground="@drawable/ripple_effect"
-                    app:cardBackgroundColor="@color/white"
+                    app:cardBackgroundColor="#1AFFFFFF"
                     app:cardCornerRadius="14dp"
                     app:cardElevation="0dp"
                     app:strokeColor="#1F0F172A"
@@ -849,7 +850,7 @@
                             android:layout_marginEnd="8dp"
                             android:fontFamily="@font/poppins_medium"
                             android:text="Help and Support"
-                            android:textColor="@color/black_light"
+                            android:textColor="@color/white"
                             android:textSize="13sp"
                             app:layout_constraintBottom_toBottomOf="@id/help_support_icon"
                             app:layout_constraintEnd_toStartOf="@+id/help_support_arrow"
@@ -876,7 +877,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:foreground="@drawable/ripple_effect"
-                    app:cardBackgroundColor="@color/white"
+                    app:cardBackgroundColor="#1AFFFFFF"
                     app:cardCornerRadius="14dp"
                     app:cardElevation="0dp"
                     app:strokeColor="#FECACA"
@@ -950,7 +951,7 @@
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/poppins_medium"
                         android:text="@string/need_help"
-                        android:textColor="#6B7280"
+                        android:textColor="#B3FFFFFF"
                         android:textSize="13sp"
                         android:visibility="gone" />
 

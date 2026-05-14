@@ -11,10 +11,10 @@
     android:clickable="true"
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground"
-    app:cardBackgroundColor="@color/white"
+    app:cardBackgroundColor="#1AFFFFFF"
     app:cardCornerRadius="18dp"
     app:cardElevation="0dp"
-    app:strokeColor="#1F0F172A"
+    app:strokeColor="#33FFFFFF"
     app:strokeWidth="1dp">
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -147,7 +147,7 @@
                 android:fontFamily="@font/poppins_semibold"
                 android:maxLines="1"
                 android:text="Username"
-                android:textColor="@color/grey_dark"
+                android:textColor="@color/white"
                 android:textSize="17sp"
                 android:letterSpacing="-0.01" />
 
@@ -161,10 +161,11 @@
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    app:cardBackgroundColor="@color/grey_extra_light"
+                    app:cardBackgroundColor="#1AFFFFFF"
                     app:cardCornerRadius="6dp"
                     app:cardElevation="0dp"
-                    app:strokeWidth="0dp">
+                    app:strokeColor="#33FFFFFF"
+                    app:strokeWidth="1dp">
 
                     <TextView
                         android:id="@+id/tv_time"
@@ -175,7 +176,7 @@
                         android:paddingHorizontal="10dp"
                         android:paddingVertical="3dp"
                         android:text="Today 08:16 PM"
-                        android:textColor="@color/grey_medium"
+                        android:textColor="#B3FFFFFF"
                         android:textSize="10sp" />
                 </com.google.android.material.card.MaterialCardView>
 
@@ -234,11 +235,11 @@
                     android:layout_marginEnd="8dp"
                     android:clickable="true"
                     android:focusable="true"
-                    app:cardBackgroundColor="@color/grey_extra_light"
+                    app:cardBackgroundColor="#1AFFFFFF"
                     app:cardCornerRadius="12dp"
                     app:cardElevation="0dp"
                     app:rippleColor="@color/colorAccent"
-                    app:strokeColor="#1F0F172A"
+                    app:strokeColor="#33FFFFFF"
                     app:strokeWidth="1dp">
 
                     <ImageView
@@ -247,7 +248,7 @@
                         android:layout_height="18dp"
                         android:layout_gravity="center"
                         android:src="@drawable/ic_phone_modern"
-                        app:tint="@color/grey_medium" />
+                        app:tint="@color/white" />
                 </com.google.android.material.card.MaterialCardView>
 
                 <com.google.android.material.card.MaterialCardView
@@ -256,11 +257,11 @@
                     android:layout_height="36dp"
                     android:clickable="true"
                     android:focusable="true"
-                    app:cardBackgroundColor="@color/grey_extra_light"
+                    app:cardBackgroundColor="#1AFFFFFF"
                     app:cardCornerRadius="12dp"
                     app:cardElevation="0dp"
                     app:rippleColor="@color/colorAccent"
-                    app:strokeColor="#1F0F172A"
+                    app:strokeColor="#33FFFFFF"
                     app:strokeWidth="1dp">
 
                     <ImageView
@@ -269,7 +270,7 @@
                         android:layout_height="18dp"
                         android:layout_gravity="center"
                         android:src="@drawable/ic_video_modern"
-                        app:tint="@color/grey_medium" />
+                        app:tint="@color/white" />
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
 
@@ -317,7 +318,7 @@
                         android:layout_height="16dp"
                         android:layout_gravity="center"
                         android:src="@drawable/ic_chat_bubble"
-                        app:tint="@color/grey_medium" />
+                        app:tint="@color/white" />
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
         </LinearLayout>

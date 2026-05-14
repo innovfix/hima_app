@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Light glassmorphic user card.
+  Layer 1: Dark base with very subtle purple tint (NOT saturated purple).
+  Layer 2: Translucent white glass overlay – brighter at top-right, fades out
+            at bottom-left. Replaces the previous strong purple bloom.
+  Layer 3: Diagonal glass shimmer band – the bright reflection sweep.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Layer 1: very dark base, slight navy-purple tint -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#120E2A" />
+            <corners android:radius="18dp" />
+        </shape>
+    </item>
+
+    <!-- Layer 2: light glass overlay (translucent white, top-right → transparent bottom-left) -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="225"
+                android:startColor="#26FFFFFF"
+                android:centerColor="#10FFFFFF"
+                android:endColor="#00000000" />
+            <corners android:radius="18dp" />
+        </shape>
+    </item>
+
+    <!-- Layer 3: diagonal glass shimmer band -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="135"
+                android:startColor="#00FFFFFF"
+                android:centerColor="#1FFFFFFF"
+                android:endColor="#00FFFFFF" />
+            <corners android:radius="18dp" />
+        </shape>
+    </item>
+
+</layer-list>

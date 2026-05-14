@@ -1,7 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="#FFFFFF"/>
-    <corners android:radius="20dp"/>
-</shape>
+<!-- Wallet pill with a gold → pink GRADIENT border (matches reference).
+     Achieved via layer-list:
+       Layer 1: full-size shape with the gold→pink gradient fill → acts as the border
+       Layer 2: 2dp-inset dark shape → covers the centre, leaving the gradient
+                visible only as a 2dp ring around the edge. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Layer 1: gradient border (gold left → hot-pink right) -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="0"
+                android:startColor="#FFD700"
+                android:endColor="#FF2D7A" />
+            <corners android:radius="20dp" />
+        </shape>
+    </item>
+
+    <!-- Layer 2: dark fill, inset by 2dp so the gradient shows as a ring -->
+    <item
+        android:left="2dp"
+        android:top="2dp"
+        android:right="2dp"
+        android:bottom="2dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#0A0820" />
+            <corners android:radius="18dp" />
+        </shape>
+    </item>
+
+</layer-list>

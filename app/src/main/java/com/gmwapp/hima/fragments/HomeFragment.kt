@@ -78,27 +78,67 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         binding = FragmentHomeBinding.inflate(layoutInflater)
 
         setupStatusBarInsets()
+        applyBrandTitleGradient()
         initUI()
         observeLiveUserStatus()
         setupSwipeToRefresh()
         return binding.root
     }
 
+    /** Paint the "Hi ma" brand title with a glossy pink → soft lilac-pink gradient. */
+    private fun applyBrandTitleGradient() {
+        val tv = binding.tvLogo
+        tv.post {
+            val w = tv.paint.measureText(tv.text.toString()).coerceAtLeast(1f)
+            val shader = android.graphics.LinearGradient(
+                0f, 0f, w, 0f,
+                intArrayOf(
+                    0xFFFF2E9A.toInt(),  // vivid pink
+                    0xFFFF6FD8.toInt()   // soft pink-lilac
+                ),
+                null,
+                android.graphics.Shader.TileMode.CLAMP
+            )
+            tv.paint.shader = shader
+            tv.invalidate()
+        }
+    }
+
     private fun setupStatusBarInsets() {
-        binding.appBarLayout.setOnApplyWindowInsetsListener { view, insets ->
-            val statusBarHeight = insets.systemWindowInsetTop
-            // Add status bar height to the existing bottom padding (8dp content + status bar)
-            val contentPaddingTop = (8 * resources.displayMetrics.density).toInt()
+        // Modern WindowInsets API — pads the AppBar by the actual status-bar inset
+        // (works with edge-to-edge enabled at the activity level) and the RecyclerView
+        // by the bottom inset (so content can scroll under the system nav).
+        val contentPaddingTopPx = (8 * resources.displayMetrics.density).toInt()
+        val rvBottomPaddingPx = (72 * resources.displayMetrics.density).toInt()
+
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(binding.appBarLayout) { view, windowInsets ->
+            val sysBars = windowInsets.getInsets(
+                androidx.core.view.WindowInsetsCompat.Type.systemBars()
+            )
             view.setPadding(
                 view.paddingLeft,
-                statusBarHeight + contentPaddingTop,
+                sysBars.top + contentPaddingTopPx,
                 view.paddingRight,
                 view.paddingBottom
             )
-            insets
+            windowInsets
         }
-        // Request insets to trigger the listener
+
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(binding.rvProfiles) { view, windowInsets ->
+            val sysBars = windowInsets.getInsets(
+                androidx.core.view.WindowInsetsCompat.Type.systemBars()
+            )
+            view.setPadding(
+                view.paddingLeft,
+                view.paddingTop,
+                view.paddingRight,
+                sysBars.bottom + rvBottomPaddingPx
+            )
+            windowInsets
+        }
+
         binding.appBarLayout.requestApplyInsets()
+        binding.rvProfiles.requestApplyInsets()
     }
 
     private fun refreshIplBanner() {
@@ -399,8 +439,13 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     /**
      * Called when the user re-taps the Home tab in bottom nav.
      * Re-fetches the female users list with the current filter.
+     *
+     * Bail out if the fragment's view isn't ready — MainActivity programmatically
+     * sets selectedItemId from onCreate, which fires this callback on rotation
+     * before the fragment's onCreateView has re-inflated the binding.
      */
     override fun refresh() {
+        if (!isAdded || view == null) return
         val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
         loadFemaleUsers(userId)
     }
@@ -429,45 +474,79 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         binding.btnFilterStar.visibility = if (showStar) View.VISIBLE else View.GONE
     }
 
-    private fun updateFilterButtonStyles() {
-        val strokeWidthPx = (1 * resources.displayMetrics.density).toInt()
-        val pinkColor   = resources.getColorStateList(R.color.colorAccent, null)
-        val goldColor   = android.content.res.ColorStateList.valueOf(0xFFFFC107.toInt())
-        val chatsFreeGreen = android.content.res.ColorStateList.valueOf(0xFF10B981.toInt())
-        val whiteColor  = resources.getColorStateList(R.color.white, null)
-        val greyColor   = resources.getColor(R.color.grey_medium, null)
-        val whiteText   = resources.getColor(R.color.white, null)
-        val borderColor = resources.getColorStateList(R.color.light_grey, null)
+    // ── Filter pill helpers ──────────────────────────────────────────────────
 
-        // Reset all to unselected state first
-        listOf(binding.btnFilterMyChats, binding.btnFilterAll, binding.btnFilterNew, binding.btnFilterStar).forEach {
-            it.backgroundTintList = whiteColor
-            it.setTextColor(greyColor)
-            it.strokeWidth = strokeWidthPx
-            it.strokeColor = borderColor
+    /** Glassmorphism inactive pill: translucent white fill + visible glass edge.
+     *  Shorter 14dp corner radius for a softer rounded-rectangle look. */
+    private fun makeGlassPillBg(): android.graphics.drawable.RippleDrawable {
+        val density = resources.displayMetrics.density
+        val glass = android.graphics.drawable.GradientDrawable().apply {
+            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+            cornerRadius = 14f * density
+            // 8% white frosted-glass fill
+            setColor(0x14FFFFFF)
+            // 28% white stroke — brighter edge for the glass rim
+            setStroke((1 * density).toInt(), 0x47FFFFFF)
+        }
+        return android.graphics.drawable.RippleDrawable(
+            android.content.res.ColorStateList.valueOf(0x33FFFFFF),
+            glass, null
+        )
+    }
+
+    /** Gradient active pill with the same shorter 14dp radius. */
+    private fun makeActivePillBg(
+        startColor: Int, endColor: Int
+    ): android.graphics.drawable.RippleDrawable {
+        val density = resources.displayMetrics.density
+        val grad = android.graphics.drawable.GradientDrawable(
+            android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT,
+            intArrayOf(startColor, endColor)
+        ).apply { cornerRadius = 14f * density }
+        return android.graphics.drawable.RippleDrawable(
+            android.content.res.ColorStateList.valueOf(0x33FFFFFF),
+            grad, null
+        )
+    }
+
+    private fun updateFilterButtonStyles() {
+        val whiteText    = resources.getColor(R.color.white, null)
+        val inactiveText = android.graphics.Color.parseColor("#B3FFFFFF")
+        val darkText     = 0xFF1A1A2E.toInt()   // dark navy — for bright gold pill
+
+        // Reset all to glass inactive
+        listOf(
+            binding.btnFilterMyChats,
+            binding.btnFilterAll,
+            binding.btnFilterNew,
+            binding.btnFilterStar
+        ).forEach {
+            it.background         = makeGlassPillBg()
+            it.backgroundTintList = null
+            it.setTextColor(inactiveText)
         }
 
-        // Highlight selected
+        // Active tab: hot-pink → deep-purple (matches reference "All" active pill)
         when (filterType) {
             "my_chats" -> binding.btnFilterMyChats.apply {
-                backgroundTintList = chatsFreeGreen
+                background         = makeActivePillBg(0xFFE91E63.toInt(), 0xFF9C27B0.toInt())
+                backgroundTintList = null
                 setTextColor(whiteText)
-                strokeWidth = 0
             }
             "all" -> binding.btnFilterAll.apply {
-                backgroundTintList = pinkColor
+                background         = makeActivePillBg(0xFFE91E63.toInt(), 0xFF9C27B0.toInt())
+                backgroundTintList = null
                 setTextColor(whiteText)
-                strokeWidth = 0
             }
             "new" -> binding.btnFilterNew.apply {
-                backgroundTintList = pinkColor
+                background         = makeActivePillBg(0xFFE91E63.toInt(), 0xFF9C27B0.toInt())
+                backgroundTintList = null
                 setTextColor(whiteText)
-                strokeWidth = 0
             }
             "star" -> binding.btnFilterStar.apply {
-                backgroundTintList = goldColor
-                setTextColor(whiteText)
-                strokeWidth = 0
+                background         = makeActivePillBg(0xFFF9D423.toInt(), 0xFFFFB800.toInt())
+                backgroundTintList = null
+                setTextColor(darkText)   // dark text on gold
             }
         }
     }
@@ -620,20 +699,30 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 applyRandomExpandedStyle()
                 isAllFabVisible = true
             } else {
-                binding.fabAudio.visibility = View.GONE
-                binding.fabVideo.visibility = View.GONE
-                binding.tvAudio1.visibility = View.GONE
-                binding.tvAudio2.visibility = View.GONE
-                binding.tvVideo1.visibility = View.GONE
-                binding.tvVideo2.visibility = View.GONE
-                binding.ivCoinAudio.visibility = View.GONE
-                binding.ivCoinVideo.visibility = View.GONE
-
-                hideDimBackground()
-                applyRandomCollapsedStyle()
-                isAllFabVisible = false
+                collapseFabs()
             }
         }
+
+        // Tap the dimmed background to auto-close the expanded FAB stack.
+        binding.dimBackground.setOnClickListener {
+            if (isAllFabVisible) collapseFabs()
+        }
+    }
+
+    /** Collapse the audio/video FABs back into the Random pill. */
+    private fun collapseFabs() {
+        binding.fabAudio.visibility = View.GONE
+        binding.fabVideo.visibility = View.GONE
+        binding.tvAudio1.visibility = View.GONE
+        binding.tvAudio2.visibility = View.GONE
+        binding.tvVideo1.visibility = View.GONE
+        binding.tvVideo2.visibility = View.GONE
+        binding.ivCoinAudio.visibility = View.GONE
+        binding.ivCoinVideo.visibility = View.GONE
+
+        hideDimBackground()
+        applyRandomCollapsedStyle()
+        isAllFabVisible = false
     }
 
     /** Subtle bob + pulse loop on the 3 FABs. Staggered so they never move in sync. */

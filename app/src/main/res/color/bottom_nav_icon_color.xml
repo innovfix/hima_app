@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Active = pink. Inactive = soft 60% white. -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:color="@color/pink" android:state_checked="true" />
-    <item android:color="@color/pink" android:state_pressed="true" />
-    <item android:color="#64748B" />
+    <item android:color="#FF2E9A" android:state_checked="true" />
+    <item android:color="#FF2E9A" android:state_pressed="true" />
+    <item android:color="#99FFFFFF" />
 </selector>

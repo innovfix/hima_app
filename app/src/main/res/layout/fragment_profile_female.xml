@@ -7,7 +7,7 @@
     android:fillViewport="true"
     android:paddingTop="24dp"
     android:clipToPadding="false"
-    android:background="@color/white">
+    android:background="@drawable/bg_radar_screen">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
@@ -18,7 +18,7 @@
             android:id="@+id/header_background"
             android:layout_width="match_parent"
             android:layout_height="280dp"
-            android:background="@drawable/profile_header_curve"
+            android:background="@android:color/transparent"
             app:layout_constraintTop_toTopOf="parent" />
 
         <!-- Profile Content Container -->

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Subtle top-edge highlight for glass cards — "catches light" like real
+     glass. Soft white at the top, fades to transparent within ~32dp.
+     Use as the background of a 32dp tall View pinned to the top of a card.
+     Match the card's corner radius (16dp here for adapter_female_user). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:type="linear"
+        android:angle="270"
+        android:startColor="#1FFFFFFF"
+        android:endColor="#00FFFFFF" />
+    <corners
+        android:topLeftRadius="16dp"
+        android:topRightRadius="16dp"
+        android:bottomLeftRadius="0dp"
+        android:bottomRightRadius="0dp" />
+</shape>

@@ -1,12 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Blue gradient for the random FAB. -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <gradient
-        android:type="linear"
-        android:angle="135"
-        android:startColor="#5BB6FF"
-        android:centerColor="#2388F2"
-        android:endColor="#0E4D9B" />
-    <corners android:radius="40dp" />
-</shape>
+<!-- Random FAB — glassmorphic blue pill.
+     Layer 1: top-to-bottom blue gradient + bright-blue glass-rim stroke
+     Layer 2: top-edge white shine for the glass reflection -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Layer 1: deep blue glass base -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="270"
+                android:startColor="#2196F3"
+                android:centerColor="#1565C0"
+                android:endColor="#0D47A1" />
+            <stroke
+                android:width="1.5dp"
+                android:color="#64B5F6" />
+            <corners android:radius="40dp" />
+        </shape>
+    </item>
+
+    <!-- Layer 2: top-edge white shine -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="270"
+                android:startColor="#55FFFFFF"
+                android:centerColor="#0AFFFFFF"
+                android:endColor="#00FFFFFF" />
+            <corners android:radius="40dp" />
+        </shape>
+    </item>
+
+</layer-list>

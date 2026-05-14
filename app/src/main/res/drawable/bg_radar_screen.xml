@@ -1,12 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <gradient
-        android:type="radial"
-        android:centerX="0.5"
-        android:centerY="0.2"
-        android:gradientRadius="900"
-        android:startColor="#2D0E5C"
-        android:centerColor="#150830"
-        android:endColor="#07021A"/>
-</shape>
+<!-- Reference-matched background: deep navy-purple → near-black
+     with a soft purple radial bloom in the upper area for depth. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Base: very dark navy-purple top-to-bottom ramp -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="270"
+                android:startColor="#0A0820"
+                android:centerColor="#0C0926"
+                android:endColor="#040212" />
+        </shape>
+    </item>
+
+    <!-- Ambient purple glow bloom — centred ~25 % from top -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="radial"
+                android:centerX="0.5"
+                android:centerY="0.25"
+                android:gradientRadius="650"
+                android:startColor="#302D1A7A"
+                android:centerColor="#181A0F5C"
+                android:endColor="#00000000" />
+        </shape>
+    </item>
+
+</layer-list>

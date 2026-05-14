@@ -6,19 +6,28 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginHorizontal="10dp"
-    android:layout_marginVertical="4dp"
+    android:layout_marginVertical="8dp"
     android:clickable="true"
     android:focusable="true"
-    app:cardBackgroundColor="@color/white"
-    app:cardCornerRadius="16dp"
-    app:cardElevation="1dp"
-    app:rippleColor="@color/light_grey"
-    app:strokeColor="#F0F0F0"
+    app:cardBackgroundColor="@android:color/transparent"
+    app:cardCornerRadius="18dp"
+    app:cardElevation="0dp"
+    app:rippleColor="#33FFFFFF"
+    app:strokeColor="#40FFFFFF"
     app:strokeWidth="1dp">
+
+    <!-- Full-card gradient background + diagonal shimmer.
+         Sits as first child so MaterialCardView clips it to 16dp corners. -->
+    <View
+        android:id="@+id/v_card_top_highlight"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/bg_user_card" />
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="@android:color/transparent"
         android:padding="14dp">
 
         <!-- Profile Image with Online Indicator -->
@@ -35,8 +44,8 @@
                 android:layout_width="58dp"
                 android:layout_height="58dp"
                 android:src="@drawable/small_profile"
-                app:civ_border_color="#FFE5F1"
-                app:civ_border_width="2dp"
+                app:civ_border_color="#D040E0"
+                app:civ_border_width="2.5dp"
                 tools:src="@drawable/small_profile" />
 
             <!-- Online Indicator Dot -->
@@ -80,32 +89,10 @@
                     android:fontFamily="@font/poppins_semibold"
                     android:maxLines="1"
                     android:text="User Name"
-                    android:textColor="@color/creator_name_text"
+                    android:textColor="@color/white"
                     android:textSize="16sp"
                     tools:text="Sarah" />
 
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/newUser"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:visibility="gone"
-                    app:cardBackgroundColor="@color/colorAccent"
-                    app:cardCornerRadius="6dp"
-                    app:cardElevation="0dp"
-                    tools:visibility="gone">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:fontFamily="@font/poppins_bold"
-                        android:letterSpacing="0.06"
-                        android:paddingHorizontal="6dp"
-                        android:paddingVertical="1dp"
-                        android:text="NEW"
-                        android:textColor="@color/white"
-                        android:textSize="8sp" />
-                </com.google.android.material.card.MaterialCardView>
 
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/starBadge"
@@ -183,7 +170,7 @@
                     android:fontFamily="@font/poppins_regular"
                     android:maxLines="1"
                     android:text="@string/tap_to_call_and_chat"
-                    android:textColor="@color/grey_medium"
+                    android:textColor="#B3FFFFFF"
                     android:textSize="13sp"
                     tools:text="Hey! How are you doing today?" />
 
@@ -195,7 +182,7 @@
                     android:layout_marginStart="6dp"
                     android:fontFamily="@font/poppins_regular"
                     android:text=""
-                    android:textColor="@color/grey_medium"
+                    android:textColor="#B3FFFFFF"
                     android:textSize="11sp"
                     android:visibility="gone"
                     tools:text="10:30 AM"
@@ -322,4 +309,38 @@
         </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- NEW badge — top-left edge of the card, modern pill with bottom-rounded
+         corners so it visually "hangs" from the card's top edge. -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/newUser"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_marginTop="0dp"
+        android:layout_marginStart="20dp"
+        android:visibility="gone"
+        app:cardBackgroundColor="@android:color/transparent"
+        app:cardCornerRadius="0dp"
+        app:cardElevation="0dp"
+        tools:visibility="visible">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_new_badge_tab"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="4dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_bold"
+                android:includeFontPadding="false"
+                android:letterSpacing="0.18"
+                android:text="NEW"
+                android:textColor="@color/white"
+                android:textSize="9sp" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 </com.google.android.material.card.MaterialCardView>

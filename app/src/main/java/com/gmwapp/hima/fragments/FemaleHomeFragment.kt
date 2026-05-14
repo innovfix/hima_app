@@ -1224,6 +1224,7 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
 //    }
 
     fun fetchBadgeList(id: Int) {
+        if (!isAdded || view == null) return
         badgeViewModel.getBadgesInformation(id)
         badgeViewModel.badgeLiveData.observe(viewLifecycleOwner) { response ->
             if (response != null && response.success) {
@@ -1243,8 +1244,14 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
     /**
      * Called when the user re-taps the Home tab in bottom nav.
      * Re-fetches female reports / users / discovery so the screen shows current data.
+     *
+     * Guarded against view-not-ready: on a config change (e.g. landscape→portrait
+     * rotation) MainActivity re-attaches its nav listener and pings selectedItemId
+     * before the fragment's onCreateView has fired again. Accessing
+     * viewLifecycleOwner / binding at that moment throws IllegalStateException.
      */
     override fun refresh() {
+        if (!isAdded || view == null) return
         val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
         femaleUsersViewModel.getReports(userId)
         femaleUsersViewModel.getFemaleUsers(userId)

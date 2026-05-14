@@ -112,9 +112,9 @@
     <color name="chat_list_free_badge_bg">#ECFDF5</color>
     <color name="chat_list_free_badge_stroke">#10B981</color>
     <color name="chat_list_free_badge_text">#059669</color>
-    <color name="chat_list_bell_active">#FF4081</color>
-    <color name="chat_list_bell_inactive">#6B7280</color>
-    <color name="chat_list_call_disabled_text">#6B7280</color>
+    <color name="chat_list_bell_active">#FF2E9A</color>
+    <color name="chat_list_bell_inactive">#9CA3AF</color>
+    <color name="chat_list_call_disabled_text">#C5CAD5</color>
 
     <!-- Chat Interface Colors -->
     <color name="chat_background">#FAFBFC</color>

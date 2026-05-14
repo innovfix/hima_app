@@ -1,11 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <gradient
-        android:angle="135"
-        android:startColor="#059669"
-        android:centerColor="#10B981"
-        android:endColor="#34D399"
-        android:type="linear" />
-    <corners android:radius="25dp" />
-</shape>
+<!-- Video call button inside user cards — matches the Video FAB green glass.
+     Layer 1: top-to-bottom rich green gradient + bright-green glass-rim stroke
+     Layer 2: top-edge white shine for the glass reflection -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Layer 1: deep green glass base (matches bg_fab_gradient_video.xml) -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="270"
+                android:startColor="#4CAF50"
+                android:centerColor="#2E7D32"
+                android:endColor="#1B5E20" />
+            <stroke
+                android:width="1.5dp"
+                android:color="#81C784" />
+            <corners android:radius="25dp" />
+        </shape>
+    </item>
+
+    <!-- Layer 2: top-edge white shine -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="270"
+                android:startColor="#55FFFFFF"
+                android:centerColor="#0AFFFFFF"
+                android:endColor="#00FFFFFF" />
+            <corners android:radius="25dp" />
+        </shape>
+    </item>
+
+</layer-list>
