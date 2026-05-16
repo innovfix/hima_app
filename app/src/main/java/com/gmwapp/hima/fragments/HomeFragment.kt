@@ -317,10 +317,18 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             refreshMaleHomeNetworkPlaceholder()
         })
 
-        femaleUsersViewModel.femaleUsersErrorLiveData.observe(viewLifecycleOwner, Observer {
+        femaleUsersViewModel.femaleUsersErrorLiveData.observe(viewLifecycleOwner, Observer { errorMessage ->
             binding.swipeRefreshLayout.isRefreshing = false
             setLoading(false)
             refreshMaleHomeNetworkPlaceholder()
+            // B102 — surface load failures so the user knows the tap "didn't
+            // take" and can retry. Previously this observer silently hid the
+            // spinner and the UI looked unchanged from a successful load.
+            if (!errorMessage.isNullOrBlank() && isAdded) {
+                context?.let { ctx ->
+                    Toast.makeText(ctx, "Couldn't load creators — pull to refresh", Toast.LENGTH_SHORT).show()
+                }
+            }
         })
 
         binding.btnRetryNoNetworkHome.setOnClickListener {
@@ -490,22 +498,40 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             Log.d("FilterButtons", "Filter already selected, returning")
             return
         }
+
+        // B102 — check preconditions BEFORE flipping pill state. Previously
+        // we updated filterType + visual highlight first, then silently
+        // skipped the load if userData was null or there was no internet,
+        // leaving the pill looking selected but the list unchanged (the
+        // "toggle not working" symptom). Now: if we can't load, we tell
+        // the user and leave the previous pill state intact so a retry tap
+        // on the same pill still works.
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val userId = userData?.id
+        val ctx = context
+        if (userId == null) {
+            Log.w("FilterButtons", "applyFilter: userData not ready — ignoring tap")
+            ctx?.let { Toast.makeText(it, "Please wait a moment and try again", Toast.LENGTH_SHORT).show() }
+            return
+        }
+        if (ctx == null || !isInternetAvailable(ctx)) {
+            Log.w("FilterButtons", "applyFilter: offline — ignoring tap")
+            ctx?.let { Toast.makeText(it, "No internet — check connection and retry", Toast.LENGTH_SHORT).show() }
+            return
+        }
+
+        // Preconditions OK — commit the state change and fire the load.
         filterType = selectedFilter
         updateFilterButtonStyles()
-                        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-                        userData?.id?.let { userId ->
-                            if (context?.let { it1 -> isInternetAvailable(it1) } == true) {
-                                if (selectedFilter == "my_chats") {
-                                    loadMyChats(userId)
-                                } else {
-                                    // Clear existing data
-                                    femaleUsersViewModel.femaleUsersResponseLiveData.value?.data?.clear()
-                                    (binding.rvProfiles.adapter as? FemaleUserAdapter)?.notifyDataSetChanged()
-                                    // Reload with new filter
-                                    loadFemaleUsers(userId)
-                                }
-                            }
-                        }
+        if (selectedFilter == "my_chats") {
+            loadMyChats(userId)
+        } else {
+            // Clear existing data
+            femaleUsersViewModel.femaleUsersResponseLiveData.value?.data?.clear()
+            (binding.rvProfiles.adapter as? FemaleUserAdapter)?.notifyDataSetChanged()
+            // Reload with new filter
+            loadFemaleUsers(userId)
+        }
     }
 
     private fun sortMyChatsPinnedFirst(
