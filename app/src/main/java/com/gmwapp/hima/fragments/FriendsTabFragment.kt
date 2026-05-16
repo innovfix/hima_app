@@ -745,6 +745,12 @@ class FriendsTabFragment : Fragment() {
             null
         }
         val u = chatItem.user
+        // B080 — `audioStatus` / `videoStatus` are creator-only fields. Male
+        // users never set them, so the server returns 0 → chat list shows
+        // "Unavailable" for every male. When the viewer is female the other
+        // party is male and there are no toggles to respect — force-enable.
+        val currentUserIsFemale = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
+            ?.equals(DConstants.FEMALE, ignoreCase = true) == true
         return ChatConversation(
             threadId = chatItem.chatId,
             userId = u.id.toString(),
@@ -755,8 +761,8 @@ class FriendsTabFragment : Fragment() {
             lastMessageTime = lastMessageTime,
             unreadCount = chatItem.unreadCount,
             isOnline = u.status == 1,
-            audioStatus = u.audioStatus ?: 1,
-            videoStatus = u.videoStatus ?: 1,
+            audioStatus = if (currentUserIsFemale) 1 else (u.audioStatus ?: 1),
+            videoStatus = if (currentUserIsFemale) 1 else (u.videoStatus ?: 1),
             coinPerMinAudio = u.coinPerMinAudio ?: 10,
             coinPerMinVideo = u.coinPerMinVideo ?: 60,
             language = u.language,
