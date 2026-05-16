@@ -169,6 +169,18 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private var audioRouter: CallAudioRouter? = null
     private var phoneStateHelper: CallPhoneStateHelper? = null
     private var btWatcher: com.gmwapp.hima.utils.BluetoothCallWatcher? = null
+    // B062 — auto-end after prolonged RECONNECTING/FAILED. See
+    // MaleAudioCallingActivity for full rationale.
+    private val reconnectWatchdog = com.gmwapp.hima.utils.ReconnectWatchdog {
+        runOnUiThread {
+            Toast.makeText(
+                this,
+                "Network lost. Call ended.",
+                Toast.LENGTH_LONG
+            ).show()
+            leaveChannel(binding.LeaveButton)
+        }
+    }
     private var mutedByInterrupt = false
     private var storedRemainingTime: String? = null
     private var storedVideoRemainingTime: String? = null
@@ -277,8 +289,12 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
             // Enable only audio module (Disable video)
             agoraEngine!!.enableAudio()
-            // Configure audio profile BEFORE joinChannel to avoid mid-session track reset
-            agoraEngine!!.setAudioProfile(Constants.AUDIO_PROFILE_SPEECH_STANDARD, Constants.AUDIO_SCENARIO_DEFAULT)
+            // Configure audio profile BEFORE joinChannel to avoid mid-session track reset.
+            // B186: SPEECH_STANDARD pinned codec to 32 kHz mono / 18 kbps;
+            // on OEMs whose mic captured outside that profile, codec negotiation
+            // failed and both sides connected silent. DEFAULT lets Agora pick per
+            // the channel profile (COMMUNICATION here).
+            agoraEngine!!.setAudioProfile(Constants.AUDIO_PROFILE_DEFAULT, Constants.AUDIO_SCENARIO_DEFAULT)
             agoraEngine!!.enableAudioVolumeIndication(200, 3, true)
             // Set the SDK's default audio route + explicit current route so users hear
             // audio in the expected output immediately (also helps Bluetooth/headset).
@@ -1276,6 +1292,11 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         override fun onJoinChannelSuccess(channel: String, uid: Int, elapsed: Int) {
             isJoined = true
             Log.d("AgoraTiming", "FemaleAudio onJoinChannelSuccess at ${System.currentTimeMillis()}")
+            // B186 — defensive unmute on join. See MaleAudioCallingActivity
+            // onJoinChannelSuccess for full rationale.
+            mutedByInterrupt = false
+            if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
+            agoraEngine?.muteAllRemoteAudioStreams(false)
             startTimeoutTracking()
         }
 
@@ -1297,6 +1318,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                 Constants.QUALITY_UNKNOWN,
                 state
             )
+            // B062 — auto-end on prolonged reconnect.
+            reconnectWatchdog.armOrCancel(state)
         }
 
         override fun onUserOffline(uid: Int, reason: Int) {
@@ -1689,6 +1712,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         phoneStateHelper = null
         btWatcher?.unregister()
         btWatcher = null
+        reconnectWatchdog.cancel()
 
         Thread {
             try {
@@ -1830,6 +1854,9 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
         Toast.makeText(this, "Gift Received", Toast.LENGTH_SHORT).show()
 
+        // B071 — cancel any in-flight gift animation so a rapid burst
+        // doesn't leave the view stuck in an indeterminate state.
+        giftImage.animate().cancel()
         // Reset visibility and alpha
         giftImage.alpha = 1f
         giftImage.visibility = View.VISIBLE

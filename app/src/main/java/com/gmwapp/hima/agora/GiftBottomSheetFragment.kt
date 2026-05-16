@@ -47,6 +47,16 @@ class GiftBottomSheetFragment(var callType: String, var femaleId:Int) : BottomSh
     val giftViewModel: GiftViewModel by viewModels()
     var count = 1
 
+    /**
+     * Cooldown between consecutive gift sends. Without this, 5–10 rapid taps
+     * fired the full pipeline (getRemainingTime + sendGift + animation +
+     * sound + FCM-to-peer) 5–10 times in parallel and froze video on both
+     * sides (B071). 1 second is a safe lower bound that matches the
+     * animation duration so a queue can never visually pile up.
+     */
+    private var lastGiftSendAt = 0L
+    private val giftSendCooldownMs = 1000L
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -59,6 +69,17 @@ class GiftBottomSheetFragment(var callType: String, var femaleId:Int) : BottomSh
 
 
         giftAdapter = GiftAdapter(requireContext()) { giftData ->
+            // B071 — throttle rapid taps so we never run the full send
+            // pipeline (API + animation + sound + FCM) more than once
+            // per second. Silently swallow extra taps in the cooldown.
+            val now = System.currentTimeMillis()
+            val sinceLast = now - lastGiftSendAt
+            if (sinceLast < giftSendCooldownMs) {
+                Log.d("GiftDebounce", "ignored — ${sinceLast}ms since last send")
+                return@GiftAdapter
+            }
+            lastGiftSendAt = now
+
             getRemainingTime(callType) { availableCoins ->
 
                 if (availableCoins >= giftData.coins) {

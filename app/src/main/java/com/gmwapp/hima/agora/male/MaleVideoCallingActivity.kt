@@ -17,9 +17,12 @@ import io.agora.rtc2.RtcEngine
 import io.agora.rtc2.RtcEngineConfig
 import android.Manifest
 import android.app.Dialog
+import android.app.PictureInPictureParams
 import android.content.Intent
+import android.content.res.Configuration
 import android.content.res.Resources
 import android.os.Build
+import android.util.Rational
 import android.os.CountDownTimer
 import android.os.Handler
 import android.os.Looper
@@ -137,6 +140,23 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     private var audioRouter: CallAudioRouter? = null
     private var phoneStateHelper: CallPhoneStateHelper? = null
     private var btWatcher: com.gmwapp.hima.utils.BluetoothCallWatcher? = null
+    // B062 + B064 — auto-end after 30s + show countdown on banner.
+    // See MaleAudioCallingActivity for full rationale.
+    private val reconnectWatchdog = com.gmwapp.hima.utils.ReconnectWatchdog(
+        onTick = { secondsRemaining ->
+            binding.reconnectBanner.text = "Reconnecting… ${secondsRemaining}s"
+        },
+        onTimeout = {
+            runOnUiThread {
+                Toast.makeText(
+                    this,
+                    "Network lost. Call ended.",
+                    Toast.LENGTH_LONG
+                ).show()
+                leaveChannel(binding.LeaveButton)
+            }
+        }
+    )
     private var mutedByInterrupt = false
     var isClicked : Boolean = false
 
@@ -361,8 +381,12 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             // Enable video and audio modules
             agoraEngine!!.enableVideo()
             agoraEngine!!.enableAudio()
-            // Configure audio profile BEFORE joinChannel to avoid mid-session track reset
-            agoraEngine!!.setAudioProfile(Constants.AUDIO_PROFILE_SPEECH_STANDARD, Constants.AUDIO_SCENARIO_DEFAULT)
+            // Configure audio profile BEFORE joinChannel to avoid mid-session track reset.
+            // B186: SPEECH_STANDARD pinned codec to 32 kHz mono / 18 kbps;
+            // on OEMs whose mic captured outside that profile, codec negotiation
+            // failed and both sides connected silent. DEFAULT lets Agora pick per
+            // the channel profile (COMMUNICATION here).
+            agoraEngine!!.setAudioProfile(Constants.AUDIO_PROFILE_DEFAULT, Constants.AUDIO_SCENARIO_DEFAULT)
             agoraEngine!!.enableAudioVolumeIndication(200, 3, true)
             // Set the SDK's default audio route + explicit current route so users hear
             // audio in the expected output immediately (also helps Bluetooth/headset).
@@ -594,6 +618,10 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
     fun animateGift(image: String) {
         val giftImage = binding.ivGiftImage
+        // B071 — cancel any in-flight gift animation so its `withEndAction`
+        // chain doesn't leave the view in a stuck state when a new gift
+        // arrives before the previous one finished animating.
+        giftImage.animate().cancel()
         giftImage.alpha = 1f
         giftImage.visibility = View.VISIBLE
 
@@ -1023,6 +1051,55 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         stopService(intent)
     }
 
+    /**
+     * B061 — when the user presses Home during an active video call, slide
+     * the call into Picture-in-Picture instead of just backgrounding the
+     * activity. Matches WhatsApp / Google Meet / Telegram behaviour.
+     *
+     * Skipped when the call hasn't fully connected yet (no remote video to
+     * show in PIP) or when we're in the middle of finishing — in both cases
+     * letting the activity background normally is the right move.
+     */
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        tryEnterPip()
+    }
+
+    private fun tryEnterPip() {
+        if (isFinishing || isDestroyed) return
+        if (!isRemoteUserJoined) return
+        try {
+            val aspect = Rational(16, 9)
+            val params = PictureInPictureParams.Builder()
+                .setAspectRatio(aspect)
+                .build()
+            enterPictureInPictureMode(params)
+        } catch (e: Exception) {
+            Log.w("PipMode", "enterPictureInPictureMode failed: ${e.message}")
+        }
+    }
+
+    /**
+     * Toggle chrome: in PIP we want only the remote video; on return to
+     * fullscreen we restore all call controls.
+     */
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: Configuration
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        val chromeVisibility = if (isInPictureInPictureMode) View.GONE else View.VISIBLE
+        // Hide everything that isn't the remote video. View IDs come straight
+        // from activity_male_video_calling.xml — any new chrome added there
+        // should also be added below.
+        runCatching { binding.localCardView.visibility = chromeVisibility }
+        runCatching { binding.timerContainer.visibility = chromeVisibility }
+        runCatching { binding.btnMenu.visibility = chromeVisibility }
+        runCatching { binding.usersContainer.visibility = chromeVisibility }
+        runCatching { binding.controlsContainer.visibility = chromeVisibility }
+        runCatching { binding.giftButtonCard.visibility = chromeVisibility }
+    }
+
     override fun onDestroy() {
         stopHeartbeat()
         Log.d(
@@ -1050,6 +1127,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         phoneStateHelper = null
         btWatcher?.unregister()
         btWatcher = null
+        reconnectWatchdog.cancel()
 
         // Ensure agoraEngine is not null before using it
         agoraEngine?.let { engine ->
@@ -1161,6 +1239,11 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 "onJoinChannelSuccess uid=$uid channel=$channel isRemoteUserJoined=$isRemoteUserJoined elapsed=$elapsed"
             )
             Log.d("AgoraTiming", "MaleVideo onJoinChannelSuccess at ${System.currentTimeMillis()}")
+            // B186 — defensive unmute on join. See MaleAudioCallingActivity
+            // onJoinChannelSuccess for full rationale.
+            mutedByInterrupt = false
+            if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
+            agoraEngine?.muteAllRemoteAudioStreams(false)
             startTimeoutTracking()
         }
 
@@ -1215,6 +1298,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 Constants.QUALITY_UNKNOWN,
                 state
             )
+            // B062 — auto-end on prolonged reconnect.
+            reconnectWatchdog.armOrCancel(state)
             super.onConnectionStateChanged(state, reason)
         }
 
@@ -1234,6 +1319,32 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         override fun onRejoinChannelSuccess(channel: String?, uid: Int, elapsed: Int) {
             Log.d(TAG_END, "onRejoinChannelSuccess channel=$channel uid=$uid elapsed=$elapsed")
             super.onRejoinChannelSuccess(channel, uid, elapsed)
+            // B188 — after a network blip the channel rejoins but the remote
+            // video canvas binding is stale (Agora's subscriber thread re-
+            // attaches the stream to engine-internal state on rejoin, but
+            // our SurfaceView ref doesn't carry over). Local preview works
+            // because it's tied to the local capture pipeline, not the
+            // channel subscriber. Re-bind the remote canvas if we already
+            // know the remote uid.
+            if (isRemoteUserJoined && videoUid != 0) {
+                runOnUiThread { setupRemoteVideo(videoUid) }
+            }
+        }
+
+        // B188 — last-resort recovery. Agora reports remote video stream
+        // state transitions explicitly: STARTING(1) → DECODING(2) is the
+        // happy path; FROZEN(3) means frames have stalled, FAILED(4) means
+        // the subscriber thread gave up. On FAILED (and on FROZEN that
+        // doesn't auto-recover within a few seconds) Agora's own renderer
+        // is wedged and won't recover until we re-bind the canvas.
+        override fun onRemoteVideoStateChanged(uid: Int, state: Int, reason: Int, elapsed: Int) {
+            super.onRemoteVideoStateChanged(uid, state, reason, elapsed)
+            Log.d(TAG_END, "onRemoteVideoStateChanged uid=$uid state=$state reason=$reason")
+            if (uid != videoUid) return
+            // REMOTE_VIDEO_STATE_FAILED == 4
+            if (state == Constants.REMOTE_VIDEO_STATE_FAILED) {
+                runOnUiThread { setupRemoteVideo(uid) }
+            }
         }
 
         override fun onUserMuteVideo(uid: Int, muted: Boolean) {
@@ -1305,6 +1416,19 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
 
     private fun setupRemoteVideo(uid: Int) {
+        // B188 — re-binding for recovery (called from onRejoinChannelSuccess
+        // and onRemoteVideoStateChanged) used to stack SurfaceViews in the
+        // container while the engine canvas pointed to the latest one. The
+        // old views remained attached with possibly-destroyed Surfaces,
+        // and on some devices the engine renderer occasionally fell back
+        // to one of them → frames written to a dead canvas → frozen feed.
+        // Detach the previous SurfaceView and clear Agora's canvas binding
+        // BEFORE creating the new view so the subscriber thread re-acquires
+        // a clean target.
+        binding.remoteVideoViewContainer.removeAllViews()
+        agoraEngine?.setupRemoteVideo(
+            VideoCanvas(null, VideoCanvas.RENDER_MODE_HIDDEN, uid)
+        )
         remoteSurfaceView = SurfaceView(baseContext)
         remoteSurfaceView!!.setZOrderMediaOverlay(false)
         binding.remoteVideoViewContainer.addView(remoteSurfaceView)
@@ -2584,6 +2708,17 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             // **Update button to reflect audio call**
             binding.btnVideoCall.setImageResource(R.drawable.videocall_img)
 
+            // B191 — enableVideoCall() also flipped these for video mode but
+            // enableAudioCall() forgot to reverse them, leaving video-only
+            // controls overlaid on the audio UI ("mixed states"). Hide the
+            // camera-flip button + face-detection overlay, and restore an
+            // opaque background so the avatar/name layer renders cleanly
+            // (enableVideoCall set main background to TRANSPARENT so video
+            // could show through).
+            binding.btnCameraFlip.visibility = View.GONE
+            binding.faceDetectionOverlay.root.visibility = View.GONE
+            binding.main.setBackgroundColor(android.graphics.Color.BLACK)
+
             startTime =
                 dateFormat.format(Date()) // Set call end time only if startTime is not empty
 
@@ -2654,6 +2789,10 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             binding.localVideoViewContainer.visibility = View.VISIBLE
             binding.localCardView.visibility = View.VISIBLE
             binding.remoteVideoViewContainer.visibility = View.VISIBLE
+            // B191 — restore the camera-flip button hidden by a prior
+            // audio downgrade. Face-detection overlay manages its own
+            // visibility once face detection resumes.
+            binding.btnCameraFlip.visibility = View.VISIBLE
             applySavedLocalPreviewPosition()
             
             // Bring video containers to front

@@ -742,17 +742,35 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                 if (data.star == 1) View.VISIBLE else View.GONE
             refreshIplBanner()
 
-            val shouldSetAudio = pendingAudioStatus == null || pendingAudioStatus == data.audio_status
-            val shouldSetVideo = pendingVideoStatus == null || pendingVideoStatus == data.video_status
+            // B074 — pull-to-refresh used to overwrite the user's locally-ON
+            // toggle with the server's OFF state (a server-side auto-OFF that
+            // we never got notified about; same root cause family as B075).
+            // The observer would snap the visual switch to OFF and the user
+            // had to manually flip it back on. Treat the local ON intent as
+            // authoritative: re-push to the server and keep the UI on.
+            val effectiveAudio = if (pendingAudioStatus == null && binding.sAudio.isChecked && data.audio_status != 1) {
+                femaleUsersViewModel.updateCallStatus(data.id, DConstants.AUDIO, 1)
+                1
+            } else {
+                data.audio_status
+            }
+            val effectiveVideo = if (pendingVideoStatus == null && binding.sVideo.isChecked && data.video_status != 1) {
+                femaleUsersViewModel.updateCallStatus(data.id, DConstants.VIDEO, 1)
+                1
+            } else {
+                data.video_status
+            }
+            val shouldSetAudio = pendingAudioStatus == null || pendingAudioStatus == effectiveAudio
+            val shouldSetVideo = pendingVideoStatus == null || pendingVideoStatus == effectiveVideo
             if (shouldSetAudio || shouldSetVideo) {
                 binding.sAudio.setOnCheckedChangeListener(null)
                 binding.sVideo.setOnCheckedChangeListener(null)
                 if (shouldSetAudio) {
-                    binding.sAudio.isChecked = data.audio_status == 1
+                    binding.sAudio.isChecked = effectiveAudio == 1
                     pendingAudioStatus = null
                 }
                 if (shouldSetVideo) {
-                    binding.sVideo.isChecked = data.video_status == 1
+                    binding.sVideo.isChecked = effectiveVideo == 1
                     pendingVideoStatus = null
                 }
                 setupSwitchListeners(data)
@@ -885,13 +903,19 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
     }
 
     private fun setupSwitchListeners(userData: UserData?) {
-        if (userData == null) return
-
+        // B074: never early-return. Earlier this method bailed when [userData]
+        // was null (the error branches of updateCallStatus and an empty
+        // getUserLiveData response after pull-to-refresh both pass null),
+        // leaving sAudio / sVideo permanently un-listened until app restart.
+        // We always attach; the lambdas resolve a live user at click-time
+        // from prefs so a null param here can't permanently disable toggles.
         binding.sAudio.setOnCheckedChangeListener { _, isChecked ->
+            val user = userData ?: getInstance()?.getPrefs()?.getUserData()
+            ?: return@setOnCheckedChangeListener
             if (isChecked && !hasRecordAudioPermission()) {
                 binding.sAudio.setOnCheckedChangeListener(null)
                 binding.sAudio.isChecked = false
-                setupSwitchListeners(userData)
+                setupSwitchListeners(user)
                 audioCallEnablePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                 return@setOnCheckedChangeListener
             }
@@ -903,7 +927,7 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
             audioToggleDebounceJob = viewLifecycleOwner.lifecycleScope.launch {
                 delay(TOGGLE_DEBOUNCE_MS)
                 femaleUsersViewModel.updateCallStatus(
-                    userData.id,
+                    user.id,
                     DConstants.AUDIO,
                     if (isChecked) 1 else 0
                 )
@@ -911,10 +935,12 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         }
 
         binding.sVideo.setOnCheckedChangeListener { _, isChecked ->
+            val user = userData ?: getInstance()?.getPrefs()?.getUserData()
+            ?: return@setOnCheckedChangeListener
             if (isChecked && (!hasCameraPermission() || !hasRecordAudioPermission())) {
                 binding.sVideo.setOnCheckedChangeListener(null)
                 binding.sVideo.isChecked = false
-                setupSwitchListeners(userData)
+                setupSwitchListeners(user)
                 startActivity(Intent(requireContext(), GrantPermissionsActivity::class.java))
                 return@setOnCheckedChangeListener
             }
@@ -925,7 +951,7 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
             videoToggleDebounceJob = viewLifecycleOwner.lifecycleScope.launch {
                 delay(TOGGLE_DEBOUNCE_MS)
                 femaleUsersViewModel.updateCallStatus(
-                    userData.id,
+                    user.id,
                     DConstants.VIDEO,
                     if (isChecked) 1 else 0
                 )

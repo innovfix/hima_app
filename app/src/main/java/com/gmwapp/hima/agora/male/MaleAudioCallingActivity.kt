@@ -199,6 +199,26 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private var phoneStateHelper: CallPhoneStateHelper? = null
     private var btWatcher: com.gmwapp.hima.utils.BluetoothCallWatcher? = null
     private var wiredWatcher: com.gmwapp.hima.utils.WiredHeadsetWatcher? = null
+    // B062 + B064 — auto-end after 30s of RECONNECTING/FAILED, and show a
+    // live countdown on the reconnect banner so the user knows when the
+    // call will give up instead of staring at an indefinite "Reconnecting…"
+    // pill. The banner visibility is still owned by CallQualityUi; we only
+    // update the text here.
+    private val reconnectWatchdog = com.gmwapp.hima.utils.ReconnectWatchdog(
+        onTick = { secondsRemaining ->
+            binding.reconnectBanner.text = "Reconnecting… ${secondsRemaining}s"
+        },
+        onTimeout = {
+            runOnUiThread {
+                Toast.makeText(
+                    this,
+                    "Network lost. Call ended.",
+                    Toast.LENGTH_LONG
+                ).show()
+                leaveChannel(binding.LeaveButton)
+            }
+        }
+    )
     private var mutedByInterrupt = false
 
     var maleUserId = 0
@@ -296,8 +316,12 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
             // Enable only audio module (Disable video)
             agoraEngine!!.enableAudio()
-            // Configure audio profile BEFORE joinChannel to avoid mid-session track reset
-            agoraEngine!!.setAudioProfile(Constants.AUDIO_PROFILE_SPEECH_STANDARD, Constants.AUDIO_SCENARIO_DEFAULT)
+            // Configure audio profile BEFORE joinChannel to avoid mid-session track reset.
+            // B186: SPEECH_STANDARD pinned codec to 32 kHz mono / 18 kbps;
+            // on OEMs whose mic captured outside that profile, codec negotiation
+            // failed and both sides connected silent. DEFAULT lets Agora pick per
+            // the channel profile (COMMUNICATION here).
+            agoraEngine!!.setAudioProfile(Constants.AUDIO_PROFILE_DEFAULT, Constants.AUDIO_SCENARIO_DEFAULT)
             agoraEngine!!.enableAudioVolumeIndication(200, 3, true)
             // Set the SDK's default audio route + explicit current route so users hear
             // audio in the expected output immediately (also helps Bluetooth/headset).
@@ -1215,6 +1239,16 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         override fun onJoinChannelSuccess(channel: String, uid: Int, elapsed: Int) {
             isJoined = true
             Log.d("AgoraTiming", "MaleAudio onJoinChannelSuccess at ${System.currentTimeMillis()}")
+            // B186 — defensive unmute. If a transient focus loss / interrupt
+            // fired during setup and left mutedByInterrupt=true with no
+            // matching gain to clear it, the channel would be joined with
+            // both streams muted ("call connected, no voice either side").
+            // At this point the channel IS connected and the user expects to
+            // hear and be heard; reset interrupt state and force-unmute
+            // everything except the user-controlled local mute (isMuted).
+            mutedByInterrupt = false
+            if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
+            agoraEngine?.muteAllRemoteAudioStreams(false)
             startTimeoutTracking()
         }
 
@@ -1236,6 +1270,10 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 Constants.QUALITY_UNKNOWN,
                 state
             )
+            // B062 — arm the auto-end timer on RECONNECTING/FAILED, cancel
+            // on CONNECTED/DISCONNECTED. Without this Agora's retry loop
+            // ran indefinitely while the user stared at the banner.
+            reconnectWatchdog.armOrCancel(state)
         }
 
         override fun onUserOffline(uid: Int, reason: Int) {
@@ -1561,6 +1599,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         btWatcher = null
         wiredWatcher?.unregister()
         wiredWatcher = null
+        reconnectWatchdog.cancel()
 
         Thread {
             try {
@@ -2794,6 +2833,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         val giftImage = binding.ivGiftImage
         val femaleImage = binding.ivFemaleUser
 
+        // B071 — cancel any in-flight gift animation so a rapid burst
+        // doesn't leave the view stuck in an indeterminate state.
+        giftImage.animate().cancel()
         // Reset visibility and alpha
         giftImage.alpha = 1f
         giftImage.visibility = View.VISIBLE

@@ -88,6 +88,11 @@ class BaseApplication : Application(), Configuration.Provider {
     private var callType: String? = null
     private var roomId: String? = null
     private var mediaPlayer: MediaPlayer? = null
+    // Separate player for the gift "send" sound effect, kept distinct from
+    // the incoming-call ringtone player so a rapid burst of gifts doesn't
+    // tear down the ringtone path (B071 fix). Also lets us prepareAsync
+    // without blocking the main thread on each gift tap.
+    private var giftSoundPlayer: MediaPlayer? = null
     private var endCallUpdatePending: Boolean? = null
 
     // Audio focus for the incoming-call ringtone phase. Holding focus with
@@ -1157,21 +1162,55 @@ class BaseApplication : Application(), Configuration.Provider {
         }
     }
 
+    /**
+     * Plays the gift "send" sound effect. Reworked for B071:
+     *  - Uses a dedicated [giftSoundPlayer] so a rapid burst of gifts no
+     *    longer tears down the incoming-call ringtone player.
+     *  - `prepareAsync()` instead of `prepare()` — synchronous prepare
+     *    blocked the UI thread ~50-200ms per gift, which stacked when
+     *    users tapped 5-10 gifts back-to-back and starved Agora's
+     *    SurfaceView compositing, freezing video on both sides.
+     *  - Releases its own MediaPlayer on completion / error so we don't
+     *    leak a handle per gift.
+     */
     fun playSendGiftSound() {
-        stopRingtone()
+        try {
+            // Tear down the previous gift-sound player (if any) so back-to-back
+            // sends don't leak. Does NOT touch the ringtone player anymore.
+            giftSoundPlayer?.let { prev ->
+                try { prev.release() } catch (_: Exception) {}
+            }
+            giftSoundPlayer = null
 
-        val audioAttributes = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE) // makes it respect silent mode
-            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-            .build()
+            val audioAttributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE) // respects silent mode, matches prior behaviour
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build()
 
-        val uri = Uri.parse("android.resource://${packageName}/${R.raw.gift_tune}")
-        mediaPlayer = MediaPlayer()
-        mediaPlayer?.apply {
-            setAudioAttributes(audioAttributes)
-            setDataSource(applicationContext, uri)
-            prepare()
-            start()
+            val uri = Uri.parse("android.resource://${packageName}/${R.raw.gift_tune}")
+            giftSoundPlayer = MediaPlayer().apply {
+                setAudioAttributes(audioAttributes)
+                setDataSource(applicationContext, uri)
+                setOnPreparedListener { mp ->
+                    try { mp.start() } catch (e: Exception) {
+                        Log.w("GiftSound", "start() failed: ${e.message}")
+                    }
+                }
+                setOnCompletionListener { mp ->
+                    try { mp.release() } catch (_: Exception) {}
+                    if (giftSoundPlayer === mp) giftSoundPlayer = null
+                }
+                setOnErrorListener { mp, what, extra ->
+                    Log.w("GiftSound", "MediaPlayer error what=$what extra=$extra")
+                    try { mp.release() } catch (_: Exception) {}
+                    if (giftSoundPlayer === mp) giftSoundPlayer = null
+                    true
+                }
+                prepareAsync()
+            }
+        } catch (e: Exception) {
+            Log.e("GiftSound", "playSendGiftSound: ${e.message}", e)
+            giftSoundPlayer = null
         }
     }
 
