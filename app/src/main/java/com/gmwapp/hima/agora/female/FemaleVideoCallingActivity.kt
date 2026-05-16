@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.content.res.Resources
 import android.graphics.Outline
 import android.graphics.PixelFormat
+import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import android.os.CountDownTimer
@@ -293,6 +294,11 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             finish()
             return
         }
+        // Grab EXCLUSIVE audio focus BEFORE Agora touches the audio HAL so
+        // Spotify / YouTube / etc. pause before call audio starts (B139).
+        // Idempotent — safe even though setupCallInterruptHandlers below
+        // calls it again as part of engine wiring.
+        setupCallInterruptHandlers()
         try {
             val config = RtcEngineConfig()
             config.mContext = baseContext
@@ -368,14 +374,19 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     private fun muteForInterrupt(muted: Boolean) {
         runOnUiThread {
             if (muted) {
-                if (!mutedByInterrupt && !isMuted) {
+                if (!mutedByInterrupt) {
                     mutedByInterrupt = true
-                    agoraEngine?.muteLocalAudioStream(true)
+                    if (!isMuted) agoraEngine?.muteLocalAudioStream(true)
+                    // Stop PLAYING the remote audio locally — otherwise
+                    // Spotify (resumed mid-call) mixes with the caller's voice
+                    // out of the same speaker. Fixes B148.
+                    agoraEngine?.muteAllRemoteAudioStreams(true)
                 }
             } else {
                 if (mutedByInterrupt) {
                     mutedByInterrupt = false
                     if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
+                    agoraEngine?.muteAllRemoteAudioStreams(false)
                 }
             }
         }
@@ -384,6 +395,20 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Route the volume rocker to the in-call voice stream so volume up/down
+        // adjusts call audio while the call screen is up (B149). Default is
+        // STREAM_MUSIC, which has no effect on Agora's call audio.
+        volumeControlStream = AudioManager.STREAM_VOICE_CALL
+        // Grab EXCLUSIVE audio focus FIRST — before Agora setup / joinChannel —
+        // so background media (Spotify, YouTube, etc.) pauses immediately and
+        // doesn't mix with call audio during the engine-init window (B139).
+        if (audioFocusHelper == null) {
+            audioFocusHelper = CallAudioFocusHelper(
+                context = this,
+                onFocusLost = { muteForInterrupt(true) },
+                onFocusGained = { muteForInterrupt(false) }
+            ).also { it.request() }
+        }
         BaseApplication.getInstance()?.markCallActive()
         BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
         enableEdgeToEdge()
@@ -1042,6 +1067,8 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        // B181 backstop — covers system-killed activities that bypass leaveChannel.
+        FcmUtils.isUserAvailable = 0
         BaseApplication.getInstance()?.markCallEnded()
         BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
         HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
@@ -1549,6 +1576,9 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     }
 
     fun leaveChannel(view: View) {
+        // B181 — clear the "user is busy" guard before navigating back so
+        // fragments' onResume can refresh creator/availability data.
+        FcmUtils.isUserAvailable = 0
         if (!isJoined) {
             HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
         //    showMessage("Join a channel first")
@@ -1588,15 +1618,26 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         }
     }
 
-    private  fun getRemainingTime(){
+    private fun getRemainingTime(attempt: Int = 0) {
+        val maxRetries = 3
         receiverId?.let { profileViewModel.getRemainingTime(it,"video", object :
             NetworkCallback<GetRemainingTimeResponse> {
             override fun onNoNetwork() {
-                TODO("Not yet implemented")
+                Log.w("RemainingTime", "no network on attempt $attempt — retry in 3s")
+                if (attempt < maxRetries) {
+                    Handler(Looper.getMainLooper()).postDelayed(
+                        { getRemainingTime(attempt + 1) }, 3_000L
+                    )
+                }
             }
 
             override fun onFailure(call: Call<GetRemainingTimeResponse>, t: Throwable) {
-                TODO("Not yet implemented")
+                Log.w("RemainingTime", "failure on attempt $attempt: ${t.message} — retry in 3s")
+                if (attempt < maxRetries) {
+                    Handler(Looper.getMainLooper()).postDelayed(
+                        { getRemainingTime(attempt + 1) }, 3_000L
+                    )
+                }
             }
 
             override fun onResponse(
@@ -1665,11 +1706,13 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                 ) {
                     response.body()?.data?.let { data ->
                         val newTime = data.remaining_time
-                        if (storedRemainingTime != null) {
-                            storedRemainingTime = newTime // Update stored value
-                            stopCountdown()
-                            startCountdown(newTime)
-                        }
+                        // Always (re)start countdown — gating on stored != null
+                        // meant a failed first getRemainingTime left the timer
+                        // permanently stopped and the call had no auto-hangup
+                        // at 00:00 (pairs with B184 fix).
+                        storedRemainingTime = newTime
+                        stopCountdown()
+                        startCountdown(newTime)
                     }
                 }
             }) }
@@ -1688,11 +1731,11 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                 response.body()?.data?.let { data ->
                     val newTime = data.remaining_time
 
-                    if (storedVideoRemainingTime != null) {
-                        storedVideoRemainingTime = newTime // Update stored value
-                        stopCountdown()
-                        startCountdown(newTime)
-                    }
+                    // See audio branch above — drop the null gate so countdown
+                    // can recover if initial getRemainingTime failed.
+                    storedVideoRemainingTime = newTime
+                    stopCountdown()
+                    startCountdown(newTime)
                 }
             }
         }) }}
@@ -1706,11 +1749,17 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             profileViewModel.getRemainingTime(it, "audio", object :
                 NetworkCallback<GetRemainingTimeResponse> {
                 override fun onNoNetwork() {
-                    TODO("Not yet implemented")
+                    // Ignore: remaining-time is a non-critical refresh; throwing here
+                // (the original Kotlin `TODO()`) was killing the call activity on
+                // any network blip — root cause of B184 immediate disconnect.
+                Log.w("RemainingTime", "callback ignored — call continues")
                 }
 
                 override fun onFailure(call: Call<GetRemainingTimeResponse>, t: Throwable) {
-                    TODO("Not yet implemented")
+                    // Ignore: remaining-time is a non-critical refresh; throwing here
+                // (the original Kotlin `TODO()`) was killing the call activity on
+                // any network blip — root cause of B184 immediate disconnect.
+                Log.w("RemainingTime", "callback ignored — call continues")
                 }
 
                 override fun onResponse(
@@ -1738,11 +1787,17 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             profileViewModel.getRemainingTime(it, "video", object :
                 NetworkCallback<GetRemainingTimeResponse> {
                 override fun onNoNetwork() {
-                    TODO("Not yet implemented")
+                    // Ignore: remaining-time is a non-critical refresh; throwing here
+                // (the original Kotlin `TODO()`) was killing the call activity on
+                // any network blip — root cause of B184 immediate disconnect.
+                Log.w("RemainingTime", "callback ignored — call continues")
                 }
 
                 override fun onFailure(call: Call<GetRemainingTimeResponse>, t: Throwable) {
-                    TODO("Not yet implemented")
+                    // Ignore: remaining-time is a non-critical refresh; throwing here
+                // (the original Kotlin `TODO()`) was killing the call activity on
+                // any network blip — root cause of B184 immediate disconnect.
+                Log.w("RemainingTime", "callback ignored — call continues")
                 }
 
                 override fun onResponse(
@@ -1908,6 +1963,9 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             "Activity.applyAudioRoute requested=$route actualAfter=${audioRouter?.currentRoute()} " +
                 "isSpeakerOn=$isSpeakerOn btConnected=${audioRouter?.isBluetoothConnected()}"
         )
+        // Agora's worker thread may write isSpeakerphoneOn after we return.
+        // Verify once after the worker has flushed and re-apply if it raced.
+        audioRouter?.verifyAndReapply(route)
     }
 
     private fun iconForRoute(route: com.gmwapp.hima.utils.CallAudioRouter.AudioRoute): Int = when (route) {

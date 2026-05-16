@@ -49,7 +49,12 @@ class CallAudioFocusHelper(
                 .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                 .build()
-            val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+            // GAIN_TRANSIENT_EXCLUSIVE matches native phone-call behaviour:
+            // while we hold focus, the system denies any other app's request
+            // (e.g. user tapping Play in Spotify mid-call). Plain TRANSIENT
+            // would let the other app grab focus back and play over us — see
+            // bug B148.
+            val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
                 .setAudioAttributes(attrs)
                 .setOnAudioFocusChangeListener(focusListener)
                 .setAcceptsDelayedFocusGain(false)
@@ -61,7 +66,7 @@ class CallAudioFocusHelper(
             audioManager.requestAudioFocus(
                 focusListener,
                 AudioManager.STREAM_VOICE_CALL,
-                AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
+                AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE
             )
         }
         hasFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
