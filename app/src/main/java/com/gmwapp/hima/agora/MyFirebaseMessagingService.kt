@@ -277,6 +277,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                         // transitions / permission dialogs. isInActiveCall() is
                         // explicitly flipped in each CallingActivity.onCreate /
                         // onDestroy so it stays true across those dips.
+                        // Capture once so we can differentiate the source of the
+                        // busy state below — needed for B204 missed-call posting.
+                        val femaleOnAnotherAppCall = isOnAnotherAppCall()
+
                         if (currentActivity is FemaleCallAcceptActivity ||
                             currentActivity is FemaleAudioCallingActivity ||
                             currentActivity is FemaleVideoCallingActivity ||
@@ -284,7 +288,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             currentActivity is com.gmwapp.hima.activities.IplRoomCallActivity ||
                             BaseApplication.getInstance()?.isInActiveCall() == true ||
                             FcmUtils.isUserAvailable == 1 ||
-                            isOnAnotherAppCall()) {
+                            femaleOnAnotherAppCall) {
 
                             // B134 — Connecting Activity instance counts as busy.
                             // B156a — FcmUtils.isUserAvailable closes the race window
@@ -299,6 +303,15 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
                             val receiverId = senderId
                             sendAutoRejectNotification(userData?.id, receiverId, callType, channelName)
+
+                            // B204 — when the busy state was triggered by ANOTHER
+                            // app's VoIP/SIM call (not Hima's own), post a local
+                            // missed-call notification so the recipient can see and
+                            // tap-to-callback when they're free. Hima's own busy
+                            // state skips this (user is already in Hima, redundant).
+                            if (femaleOnAnotherAppCall) {
+                                postBusyMissedCall(callType, senderId, receiverName, receiverImg)
+                            }
                             return
                         }
 
@@ -403,6 +416,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                         val MaleCallConnectingActivityClass = com.gmwapp.hima.agora.male.MaleCallConnectingActivity::class.java
                         val IplRoomCallActivity = com.gmwapp.hima.activities.IplRoomCallActivity::class.java
 
+                        // Capture once so we can differentiate the source of the
+                        // busy state below — needed for B204 missed-call posting.
+                        val maleOnAnotherAppCall = isOnAnotherAppCall()
+
                         if (currentActivity?.javaClass == MaleCallAcceptActivity ||
                             currentActivity?.javaClass == MaleAudioCallingActivity ||
                             currentActivity?.javaClass == MaleVideoCallingActivity ||
@@ -410,7 +427,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             currentActivity?.javaClass == IplRoomCallActivity ||
                             BaseApplication.getInstance()?.isInActiveCall() == true ||
                             FcmUtils.isUserAvailable == 1 ||
-                            isOnAnotherAppCall()) {
+                            maleOnAnotherAppCall) {
 
                             // B134 + B156a (symmetric, male side) — same rationale
                             // as the female branch: FcmUtils.isUserAvailable is the
@@ -422,6 +439,13 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
                             val receiverId = senderId
                             sendAutoRejectNotification(userData?.id, receiverId, callType, channelName)
+
+                            // B204 (symmetric, male side) — post local missed-call
+                            // notification when the busy state was an OTHER-app call
+                            // so the recipient can call back when they're free.
+                            if (maleOnAnotherAppCall) {
+                                postBusyMissedCall(callType, senderId, receiverName, receiverImg)
+                            }
                             return
                         }
 
@@ -1087,6 +1111,41 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         } catch (e: Exception) {
             Log.w("FCM", "isOnAnotherAppCall threw: ${e.message}")
             false
+        }
+    }
+
+    /**
+     * Posts a local "Missed call" notification using the existing
+     * [com.gmwapp.hima.utils.CallNotifications.showMissed] pipeline.
+     *
+     * Called from the FCM busy-check path when the busy state was caused
+     * by ANOTHER app's voice/video call (WhatsApp, SIM, Meet, etc.) — see
+     * B204. Without this the recipient had no record on their phone that
+     * someone tried to reach them on Hima while they were on the other
+     * call; they'd have to manually open Hima and dig into Recent to find
+     * out, often long after the moment passed.
+     *
+     * Failures (no FCM token, render exception, no POST_NOTIFICATIONS
+     * permission) are logged but never break the FCM dispatcher.
+     */
+    private fun postBusyMissedCall(
+        callType: String?,
+        senderId: Int,
+        callerName: String?,
+        callerImage: String?
+    ) {
+        try {
+            com.gmwapp.hima.utils.CallNotifications.showMissed(
+                this,
+                com.gmwapp.hima.utils.CallNotifications.MissedPayload(
+                    callType = callType,
+                    senderId = senderId,
+                    callerName = callerName.orEmpty(),
+                    callerImage = callerImage
+                )
+            )
+        } catch (e: Exception) {
+            Log.e(INCOMING_CALL_LOG_TAG, "postBusyMissedCall failed: ${e.message}", e)
         }
     }
 
