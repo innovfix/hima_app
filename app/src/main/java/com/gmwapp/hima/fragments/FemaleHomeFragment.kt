@@ -62,6 +62,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 //import im.zego.zegoexpress.constants.ZegoRoomStateChangedReason
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
@@ -145,6 +146,15 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
     /** While a toggle API call is in-flight, ignore stale GET /users that would snap switches back */
     private var pendingAudioStatus: Int? = null
     private var pendingVideoStatus: Int? = null
+
+    // B151 — rapid toggling fired one API request per tap. Network reordering
+    // then made the server's last-arriving response (not the user's last tap)
+    // win, leaving UI and server out of sync. Debounce so only the final
+    // intent in a burst hits the network; each fresh tap cancels the prior
+    // pending request.
+    private var audioToggleDebounceJob: Job? = null
+    private var videoToggleDebounceJob: Job? = null
+    private val TOGGLE_DEBOUNCE_MS = 400L
 
     /** Pull-to-refresh: wait for profile (/users) + reports before hiding the indicator */
     private var femaleHomeSwipeProfilePending = false
@@ -887,11 +897,17 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
             }
             pendingAudioStatus = if (isChecked) 1 else 0
             if (isChecked) promptPostNotificationsIfNeededForCalls()
-            femaleUsersViewModel.updateCallStatus(
-                userData.id,
-                DConstants.AUDIO,
-                if (isChecked) 1 else 0
-            )
+            // B151 — coalesce rapid taps. Each new tap cancels the pending
+            // launch; only the final state in a tap burst hits the server.
+            audioToggleDebounceJob?.cancel()
+            audioToggleDebounceJob = viewLifecycleOwner.lifecycleScope.launch {
+                delay(TOGGLE_DEBOUNCE_MS)
+                femaleUsersViewModel.updateCallStatus(
+                    userData.id,
+                    DConstants.AUDIO,
+                    if (isChecked) 1 else 0
+                )
+            }
         }
 
         binding.sVideo.setOnCheckedChangeListener { _, isChecked ->
@@ -904,11 +920,16 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
             }
             pendingVideoStatus = if (isChecked) 1 else 0
             if (isChecked) promptPostNotificationsIfNeededForCalls()
-            femaleUsersViewModel.updateCallStatus(
-                userData.id,
-                DConstants.VIDEO,
-                if (isChecked) 1 else 0
-            )
+            // B151 — debounced for the same reason as the audio toggle above.
+            videoToggleDebounceJob?.cancel()
+            videoToggleDebounceJob = viewLifecycleOwner.lifecycleScope.launch {
+                delay(TOGGLE_DEBOUNCE_MS)
+                femaleUsersViewModel.updateCallStatus(
+                    userData.id,
+                    DConstants.VIDEO,
+                    if (isChecked) 1 else 0
+                )
+            }
         }
     }
 

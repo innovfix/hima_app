@@ -22,7 +22,17 @@ object FcmUtils {
 
     var blockWordDetected = false
 
-    var isUserAvailable = 1
+    // Global "user is currently busy with a call" state. Read by:
+    //  • RecentFragment / HomeFragment onResume guards — refresh creator
+    //    availability only when this is 0 (free).
+    //  • MyFirebaseMessagingService busy-check — auto-reject incoming FCMs
+    //    when this is 1 (B156a: closes the race window between caller-side
+    //    "tap Call" and the connecting Activity actually being foregrounded).
+    // Default 0 — a freshly-launched app must NOT be treated as busy. The
+    // caller-side handlers flip this to 1 the instant the user expresses
+    // call intent (RecentFragment.kt / FavouriteFragment.kt / adapters);
+    // call cleanup paths flip it back to 0 (B181 fix).
+    var isUserAvailable = 0
 
     var shouldRefreshCallList = 0
 
@@ -106,6 +116,25 @@ object FcmUtils {
 
     val greyScreenLiveData = MutableLiveData<String>()
 
+    /**
+     * Server-driven force-end signal. Backend pushes
+     * `message == "callEndedNoCoins"` FCM when the male's coins are
+     * exhausted during an active call; we forward the call_id here so
+     * the matching active-call activity can leaveChannel() without
+     * depending on the client-side countdown timer (see B184 follow-up).
+     *
+     * Value carries `(callId, reason)` so observers can decide whether
+     * the signal targets their current call.
+     */
+    private val _forceEndCall = MutableLiveData<Pair<Int, String>?>()
+    val forceEndCall: LiveData<Pair<Int, String>?> get() = _forceEndCall
 
+    fun forceEndCall(callId: Int, reason: String) {
+        _forceEndCall.postValue(Pair(callId, reason))
+        Log.d("FcmUtils", "forceEndCall: callId=$callId reason=$reason")
+    }
 
+    fun clearForceEndCall() {
+        _forceEndCall.postValue(null)
+    }
 }

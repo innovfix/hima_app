@@ -27,6 +27,7 @@ import android.util.Log
 import java.net.URLDecoder
 import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
+import java.util.concurrent.atomic.AtomicInteger
 import android.view.WindowManager
 import androidx.lifecycle.MutableLiveData
 import androidx.work.Configuration
@@ -130,6 +131,12 @@ class BaseApplication : Application(), Configuration.Provider {
                         activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                     }
                 }
+                if (activity.javaClass.simpleName in CALL_ACTIVITY_NAMES) {
+                    // B156a — mark the app as in-a-call from the moment any
+                    // call screen is *created*, not when it reaches resume.
+                    // FCM-incoming busy-check reads this via isInActiveCall().
+                    activeCallActivityCount.incrementAndGet()
+                }
                 ZohoSalesIQ.showLauncher(false)
             }
 
@@ -175,6 +182,15 @@ class BaseApplication : Application(), Configuration.Provider {
                 if (currentActivity == activity) {
                     currentActivity = null
                 }
+                if (activity.javaClass.simpleName in CALL_ACTIVITY_NAMES) {
+                    // Defensive: only decrement if we're still above 0.
+                    // ActivityLifecycleCallbacks pair onCreate→onDestroy reliably
+                    // on the main thread, but rare WindowManager/process-kill
+                    // paths can drop an onCreate without a paired onDestroy.
+                    activeCallActivityCount.updateAndGet { current ->
+                        if (current > 0) current - 1 else 0
+                    }
+                }
             }
 
         }
@@ -204,6 +220,21 @@ class BaseApplication : Application(), Configuration.Provider {
 
         lateinit var firebaseAnalytics: FirebaseAnalytics
             private set
+
+        // B156a — simpleName lookup avoids importing all 8 call activities
+        // into BaseApplication. Checked in onActivityCreated / onActivityDestroyed
+        // to keep the live-call-activity counter (`activeCallActivityCount`)
+        // in sync. If any class moves package the entry still matches.
+        private val CALL_ACTIVITY_NAMES: Set<String> = setOf(
+            "FemaleCallConnectingActivity",
+            "FemaleCallAcceptActivity",
+            "FemaleAudioCallingActivity",
+            "FemaleVideoCallingActivity",
+            "MaleCallConnectingActivity",
+            "MaleCallAcceptActivity",
+            "MaleAudioCallingActivity",
+            "MaleVideoCallingActivity"
+        )
 
         /**
          * DND check that can be called from notification listeners (FCM + OneSignal).
@@ -1332,9 +1363,19 @@ class BaseApplication : Application(), Configuration.Provider {
     @Volatile
     private var isCallActive: Boolean = false
 
+    // B156a — process-wide live-call-activity counter, updated by
+    // ActivityLifecycleCallbacks. `currentActivity` only updates in
+    // onActivityStarted/Resumed, leaving a ~50-200ms window between user
+    // tap and onResume where the previous activity is still "current".
+    // FCM-incoming busy-checks could squeeze through that window and
+    // launch a second call. Counting from onActivityCreated closes it.
+    // AtomicInteger is read by FCM on a background thread.
+    private val activeCallActivityCount = AtomicInteger(0)
+
     fun markCallActive() { isCallActive = true }
     fun markCallEnded() { isCallActive = false }
-    fun isInActiveCall(): Boolean = isCallActive
+    fun isInActiveCall(): Boolean =
+        isCallActive || activeCallActivityCount.get() > 0
 
     fun setIncomingCall(senderId: Int, callType: String, channelName: String, callId: Int) {
         this.senderId = senderId

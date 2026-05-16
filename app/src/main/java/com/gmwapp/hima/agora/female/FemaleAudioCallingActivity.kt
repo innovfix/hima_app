@@ -437,14 +437,17 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         showGreyScreen()
         observeRemainingTimeUpdated()
         observeGiftReceived()
+        observeForceEndCall()
         observeCallSwitchRequest()
 
         onAddcoinClicked()
-        binding.btnMuteUnmute.setOnClickListener {
+        // B151: debounce mute + speaker so rapid taps can't desync the icon
+        // from Agora's mute / AudioManager comm-device state.
+        binding.btnMuteUnmute.setOnSingleClickListener {
             toggleMute()
         }
 
-        binding.btnSpeaker.setOnClickListener {
+        binding.btnSpeaker.setOnSingleClickListener {
             onSpeakerButtonClicked()
         }
 
@@ -1790,6 +1793,27 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         })
     }
 
+    /**
+     * Server-driven force-end observer. Backend pushes `callEndedNoCoins`
+     * FCM when the male's coins run out during an active call; this hangs
+     * us up immediately if the signal matches our current call, closing
+     * the gap where a stuck client countdown could let the male over-talk
+     * past his balance (B184 follow-up).
+     */
+    private fun observeForceEndCall() {
+        FcmUtils.forceEndCall.observe(this, androidx.lifecycle.Observer { signal ->
+            if (signal == null) return@Observer
+            val (signalCallId, reason) = signal
+            if (signalCallId == call_Id) {
+                Log.d("ForceEndCall", "Honoring server force-end callId=$signalCallId reason=$reason")
+                FcmUtils.clearForceEndCall()
+                if (!isFinishing && !isDestroyed) {
+                    leaveChannel(binding.LeaveButton)
+                }
+            }
+        })
+    }
+
     fun observeGiftReceived() {
         FcmUtils.giftReceived.observe(this, androidx.lifecycle.Observer { giftReceived ->
             if (giftReceived != null) {
@@ -1855,27 +1879,17 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
 
     private fun handleCallSwitch() {
-
-        binding.btnVideoCall.setOnClickListener {
-            val currentDrawable = binding.btnVideoCall.drawable
-            val audioDrawable = ContextCompat.getDrawable(this, R.drawable.audiocall_img)
-            val videoDrawable = ContextCompat.getDrawable(this, R.drawable.videocall_img)
-
-            if (isSwitchRequestPending == false) {
-                if (currentDrawable != null && audioDrawable != null && currentDrawable.constantState == audioDrawable.constantState) {
-                    // If button image is AUDIO, switch
-                    switchToAudio()
-                } else if (currentDrawable != null && videoDrawable != null && currentDrawable.constantState == videoDrawable.constantState) {
-                    // If button image is VIDEO, switch
-                    switchToVideo()
-                } else {
-                    Toast.makeText(this, "Error: Unknown state", Toast.LENGTH_SHORT).show()
-                }
-            }else{
-                Toast.makeText(this,"Already Request Sent", Toast.LENGTH_SHORT).show()
+        // B151: debounce so a rapid double-tap can't fire two opposite
+        // switchTo*() calls before the server replies.
+        binding.btnVideoCall.setOnSingleClickListener {
+            if (isSwitchRequestPending) {
+                Toast.makeText(this, "Already Request Sent", Toast.LENGTH_SHORT).show()
+                return@setOnSingleClickListener
             }
+            // B142 — decide direction from the call's actual mode flag, not
+            // from Drawable.constantState equality.
+            if (isVideoCallGoing) switchToAudio() else switchToVideo()
         }
-
     }
 
     private fun switchToVideo() {

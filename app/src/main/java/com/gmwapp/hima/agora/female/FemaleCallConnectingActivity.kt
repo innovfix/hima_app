@@ -482,6 +482,14 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        // B156a — clear the synchronous busy flag set at the click handler.
+        // If onDestroy fires because we successfully transitioned to the
+        // FemaleAudio/VideoCallingActivity, that activity already has
+        // isInActiveCall()==true + currentActivity covering the busy gate.
+        // If it fires because the user cancelled/backed out, leaving the
+        // flag at 1 would auto-reject every legitimate incoming call until
+        // the next real call ends. Mirrors MaleCallConnectingActivity:645.
+        FcmUtils.isUserAvailable = 0
         isRunning = false
         cancelTimeoutTracking()
         handler.removeCallbacksAndMessages(null)

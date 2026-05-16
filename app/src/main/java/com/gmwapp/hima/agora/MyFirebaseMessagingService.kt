@@ -281,12 +281,18 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             currentActivity is FemaleVideoCallingActivity ||
                             currentActivity is FemaleCallConnectingActivity ||
                             currentActivity is com.gmwapp.hima.activities.IplRoomCallActivity ||
-                            BaseApplication.getInstance()?.isInActiveCall() == true) {
+                            BaseApplication.getInstance()?.isInActiveCall() == true ||
+                            FcmUtils.isUserAvailable == 1) {
 
-                            // B134 — Connecting screen counts as busy: a female
-                            // dialing out must not have her outgoing call silently
-                            // replaced by an incoming-call FCM. Auto-reject so the
-                            // caller sees "user busy" instead of a ghosted ring.
+                            // B134 — Connecting Activity instance counts as busy.
+                            // B156a — FcmUtils.isUserAvailable closes the race window
+                            // between the user tapping Call (flag set synchronously
+                            // in the fragment click handler, before startActivity)
+                            // and the Connecting Activity actually being foregrounded
+                            // (currentActivity check otherwise misses that ~50ms gap).
+                            // Without this, an incoming FCM in that window launched a
+                            // second Accept Activity on top of the outgoing one and
+                            // both calls connected with mixed audio.
                             Log.d("FCM", "User is already in a call. Ignoring incoming call notification.")
 
                             val receiverId = senderId
@@ -400,11 +406,15 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             currentActivity?.javaClass == MaleVideoCallingActivity ||
                             currentActivity?.javaClass == MaleCallConnectingActivityClass ||
                             currentActivity?.javaClass == IplRoomCallActivity ||
-                            BaseApplication.getInstance()?.isInActiveCall() == true) {
+                            BaseApplication.getInstance()?.isInActiveCall() == true ||
+                            FcmUtils.isUserAvailable == 1) {
 
-                            // B134 (symmetric) — male connecting screen counts as
-                            // busy too: a male dialing out must not be hijacked by
-                            // an inbound call. Auto-reject so caller sees "busy".
+                            // B134 + B156a (symmetric, male side) — same rationale
+                            // as the female branch: FcmUtils.isUserAvailable is the
+                            // synchronous intent flag set at the click handler before
+                            // the Connecting Activity has a chance to come up, closing
+                            // the race window the currentActivity check otherwise
+                            // misses.
                             Log.d("FCM", "Male user is already in a call. Ignoring incoming call notification.")
 
                             val receiverId = senderId
@@ -705,6 +715,20 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
                 }
 
+            }
+
+            // Server-driven force-end when male's coins are exhausted mid-call.
+            // Backend pushes this to BOTH parties (male + female). Forwarded to
+            // FcmUtils.forceEndCall so the active-call activities can hang up
+            // without relying on the client-side countdown timer (B184 follow-up).
+            if (message == "callEndedNoCoins") {
+                val callIdInt = remoteMessage.data["call_id"]?.toIntOrNull() ?: 0
+                if (callIdInt > 0) {
+                    Log.d(INCOMING_CALL_LOG_TAG, "callEndedNoCoins received callId=$callIdInt")
+                    FcmUtils.forceEndCall(callIdInt, "no_coins")
+                } else {
+                    Log.w(INCOMING_CALL_LOG_TAG, "callEndedNoCoins ignored — missing/invalid call_id")
+                }
             }
 
 

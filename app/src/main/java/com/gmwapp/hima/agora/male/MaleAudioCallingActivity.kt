@@ -504,7 +504,10 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         }
 
         onAddcoinClicked()
-        binding.btnMuteUnmute.setOnClickListener {
+        // B151: 500 ms debounce on the mute toggle so rapid taps can't outrun
+        // Agora's muteLocalAudioStream ack and leave the icon out of sync with
+        // the actual mic state.
+        binding.btnMuteUnmute.setOnSingleClickListener {
             toggleMute()
         }
 
@@ -666,6 +669,23 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         ludoFcmViewModel.ludoFcmErrorLiveData.observe(this) {
             pendingLudoAction = null
             Toast.makeText(this, it, Toast.LENGTH_SHORT).show()
+        }
+
+        // Server-driven force-end observer. Backend pushes `callEndedNoCoins`
+        // FCM when the male's coins run out during an active call; hangs us
+        // up immediately if the signal matches our current call, closing the
+        // gap where a stuck client countdown could let the male over-talk
+        // past his balance (B184 follow-up).
+        FcmUtils.forceEndCall.observe(this) { signal ->
+            if (signal == null) return@observe
+            val (signalCallId, reason) = signal
+            if (signalCallId == callId) {
+                Log.d("ForceEndCall", "Honoring server force-end callId=$signalCallId reason=$reason")
+                FcmUtils.clearForceEndCall()
+                if (!isFinishing && !isDestroyed) {
+                    leaveChannel(binding.LeaveButton)
+                }
+            }
         }
 
         FcmUtils.ludoEvent.observe(this) { event ->
@@ -2137,27 +2157,21 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     }
 
     private fun handleCallSwitch() {
-
-        binding.btnVideoCall.setOnClickListener {
-            val currentDrawable = binding.btnVideoCall.drawable
-            val audioDrawable = ContextCompat.getDrawable(this, R.drawable.audiocall_img)
-            val videoDrawable = ContextCompat.getDrawable(this, R.drawable.videocall_img)
-
-            if (isSwitchRequestPending == false) {
-                if (currentDrawable != null && audioDrawable != null && currentDrawable.constantState == audioDrawable.constantState) {
-                    // If button image is AUDIO, switch to VIDEO
-                    switchToAudio()
-                } else if (currentDrawable != null && videoDrawable != null && currentDrawable.constantState == videoDrawable.constantState) {
-                    // If button image is VIDEO, switch to AUDIO
-                    switchToVideo()
-                } else {
-                    Toast.makeText(this, "Error: Unknown state", Toast.LENGTH_SHORT).show()
-                }
-            }else{
-                Toast.makeText(this,"Already Request Sent", Toast.LENGTH_SHORT).show()
+        // B151: debounce the audio↔video switch button so rapid double-taps
+        // don't queue two opposite switchTo*() calls before the first server
+        // ack lands. The isSwitchRequestPending guard below also helps but it
+        // only flips after the dialog appears.
+        binding.btnVideoCall.setOnSingleClickListener {
+            if (isSwitchRequestPending) {
+                Toast.makeText(this, "Already Request Sent", Toast.LENGTH_SHORT).show()
+                return@setOnSingleClickListener
             }
+            // B142 — decide direction from the call's actual mode flag, not
+            // from Drawable.constantState equality. Vector/ContextCompat
+            // drawables return fresh constantState instances and the
+            // comparison silently fell into the "Unknown state" branch.
+            if (isVideoCallGoing) switchToAudio() else switchToVideo()
         }
-
     }
 
     //Switch to video
