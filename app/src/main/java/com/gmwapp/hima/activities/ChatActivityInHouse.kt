@@ -3744,17 +3744,51 @@ class ChatActivityInHouse : AppCompatActivity() {
         // Make dialog background transparent
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
+        // B099 follow-up — WhatsApp-style optional "also delete chat" alongside
+        // the block action. Unchecked = current behaviour (chat-block only).
+        // Checked = block + clear local chat list so the conversation no longer
+        // shows on this device.
+        val alsoDeleteChat = dialogView.findViewById<android.widget.CheckBox>(R.id.cb_also_delete_chat)
+
         // Set button listeners
         dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_cancel).setOnClickListener {
             dialog.dismiss()
         }
 
         dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_block).setOnClickListener {
+            val deleteAlso = alsoDeleteChat?.isChecked == true
             blockUser()
+            if (deleteAlso) {
+                clearChatLocally()
+            }
             dialog.dismiss()
         }
 
         dialog.show()
+    }
+
+    /**
+     * Clears the local chat list (in-memory + history cache) for the current
+     * peer. Used by the "Also delete chat" option in the block dialog so the
+     * user doesn't keep seeing the conversation history on this device after
+     * blocking.
+     *
+     * Doesn't touch the server — the other side still has the chat, and so
+     * does our own server-side history (the user explicitly chose "clear for
+     * me", not "delete for everyone"). The empty snapshot in the cache means
+     * a same-session re-open won't restore the cleared messages; a fresh app
+     * launch may re-fetch from server, but at that point the peer is blocked
+     * and no new messages can arrive anyway.
+     */
+    private fun clearChatLocally() {
+        val sizeBefore = messages.size
+        messages.clear()
+        chatAdapter.notifyDataSetChanged()
+        runCatching { historyCache.putSnapshot(peerUserId, emptyList()) }
+        Log.d(
+            "ChatActivityInHouse",
+            "🧹 Cleared local chat for peer=$peerUserId messagesBefore=$sizeBefore"
+        )
     }
 
     private fun showUnblockConfirmationDialog() {
