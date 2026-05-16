@@ -751,6 +751,10 @@ class FriendsTabFragment : Fragment() {
         // party is male and there are no toggles to respect — force-enable.
         val currentUserIsFemale = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
             ?.equals(DConstants.FEMALE, ignoreCase = true) == true
+        // B080 + B097 — resolve once so isOnline can also check availability.
+        // See HomeFragment.loadMyChats for full rationale.
+        val audioAvail = if (currentUserIsFemale) 1 else (u.audioStatus ?: 1)
+        val videoAvail = if (currentUserIsFemale) 1 else (u.videoStatus ?: 1)
         return ChatConversation(
             threadId = chatItem.chatId,
             userId = u.id.toString(),
@@ -760,9 +764,11 @@ class FriendsTabFragment : Fragment() {
             lastMessageType = lastMessage?.messageType ?: "text",
             lastMessageTime = lastMessageTime,
             unreadCount = chatItem.unreadCount,
-            isOnline = u.status == 1,
-            audioStatus = if (currentUserIsFemale) 1 else (u.audioStatus ?: 1),
-            videoStatus = if (currentUserIsFemale) 1 else (u.videoStatus ?: 1),
+            // B097 — green dot now requires recent activity AND at least one
+            // call mode available, mirroring FemaleUserAdapter semantics.
+            isOnline = u.status == 1 && (audioAvail == 1 || videoAvail == 1),
+            audioStatus = audioAvail,
+            videoStatus = videoAvail,
             coinPerMinAudio = u.coinPerMinAudio ?: 10,
             coinPerMinVideo = u.coinPerMinVideo ?: 60,
             language = u.language,

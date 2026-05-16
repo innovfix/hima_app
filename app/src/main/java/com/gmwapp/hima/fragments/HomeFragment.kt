@@ -554,6 +554,13 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                         val readUpTo = readChatLastMsgSeconds[item.user.id.toString()]
                         val incomingSec = ts?.seconds ?: 0L
                         val effectiveUnread = if (readUpTo != null && incomingSec <= readUpTo) 0 else item.unreadCount
+                        // B080 + B097 — resolve once so isOnline can also check
+                        // availability. For female viewers, the other party is
+                        // male and there are no audio/video toggles to honor —
+                        // both forced to 1. For male viewers, the server values
+                        // (creator's toggles) flow through unchanged.
+                        val audioAvail = if (currentUserIsFemale) 1 else (item.user.audioStatus ?: 1)
+                        val videoAvail = if (currentUserIsFemale) 1 else (item.user.videoStatus ?: 1)
                         com.gmwapp.hima.models.ChatConversation(
                             threadId = item.chatId,
                             userId = item.user.id.toString(),
@@ -563,11 +570,17 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                             lastMessageType = item.lastMessage?.messageType ?: "text",
                             lastMessageTime = ts,
                             unreadCount = effectiveUnread,
-                            // status == 1 from the backend means the creator is
-                            // currently active — mirror the "All" tab's green dot.
-                            isOnline = (item.user.status ?: 0) == 1,
-                            audioStatus = if (currentUserIsFemale) 1 else (item.user.audioStatus ?: 1),
-                            videoStatus = if (currentUserIsFemale) 1 else (item.user.videoStatus ?: 1),
+                            // B097 — green dot now requires BOTH recent activity
+                            // (status==1) AND at least one call mode available.
+                            // Previously a creator with both toggles off but
+                            // status==1 still got the dot, making her look
+                            // reachable when tapping anything said "Unavailable".
+                            // Mirrors FemaleUserAdapter's stricter "online means
+                            // callable" semantics.
+                            isOnline = (item.user.status ?: 0) == 1 &&
+                                (audioAvail == 1 || videoAvail == 1),
+                            audioStatus = audioAvail,
+                            videoStatus = videoAvail,
                             coinPerMinAudio = item.user.coinPerMinAudio ?: 10,
                             coinPerMinVideo = item.user.coinPerMinVideo ?: 60,
                             language = item.user.language,

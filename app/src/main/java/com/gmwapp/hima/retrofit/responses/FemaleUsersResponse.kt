@@ -29,4 +29,13 @@ data class FemaleUsersResponseData(
     val last_message: LastMessage? = null,
     @SerializedName("unread_count")
     val unread_count: Int = 0,
+    // B095 — derived server-side from active `call_attend` rows (LEFT JOIN
+    // where ended_time IS NULL within the last 30 minutes). When the
+    // creator is currently in a call this is 1; otherwise 0. Forward-
+    // compatible: old backend builds omit the field → Gson defaults to 0
+    // → adapter renders her as available (current behavior). Once the
+    // backend ships the field, busy creators are visually distinct
+    // without any Android update.
+    @SerializedName("is_busy")
+    val is_busy: Int? = 0,
 )
