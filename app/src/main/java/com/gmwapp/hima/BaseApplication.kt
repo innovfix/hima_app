@@ -7,6 +7,8 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Intent
 import android.content.IntentFilter
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.os.Bundle
 import android.content.Context
@@ -33,7 +35,6 @@ import com.android.installreferrer.api.InstallReferrerStateListener
 import com.android.installreferrer.api.ReferrerDetails
 import com.facebook.FacebookSdk
 import com.facebook.appevents.AppEventsLogger
-import com.gmwapp.hima.BuildConfig
 import com.gmwapp.hima.agora.telecom.HimaTelecomManager
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.repositories.CallStatusRepository
@@ -87,6 +88,15 @@ class BaseApplication : Application(), Configuration.Provider {
     private var roomId: String? = null
     private var mediaPlayer: MediaPlayer? = null
     private var endCallUpdatePending: Boolean? = null
+
+    // Audio focus for the incoming-call ringtone phase. Holding focus with
+    // USAGE_NOTIFICATION_RINGTONE makes YouTube / Spotify / other media pause
+    // while Hima is ringing — without this the ringtone gets mixed with /
+    // drowned out by whatever the user is already playing (B150).
+    private var ringtoneFocusRequest: AudioFocusRequest? = null
+    private val ringtoneFocusAutoReleaseHandler =
+        android.os.Handler(android.os.Looper.getMainLooper())
+    private val ringtoneFocusAutoRelease = Runnable { releaseRingtoneFocus() }
 
     val networkConnectedLiveData = MutableLiveData<Boolean>()
     private var appConnectivityManager: ConnectivityManager? = null
@@ -1008,10 +1018,70 @@ class BaseApplication : Application(), Configuration.Provider {
         }
     }
 
+    /**
+     * Grab transient audio focus for the ringtone so any media app (YouTube /
+     * Spotify / etc.) pauses while Hima is ringing — fixes B150. Idempotent;
+     * safe to call from the FCM service for the heads-up phase AND from
+     * [playIncomingCallSound] for the activity-phase MediaPlayer.
+     *
+     * Includes a 45 s auto-release safety net for the case where neither
+     * [stopRingtone] nor the accept/decline paths get a chance to run (e.g.
+     * the OS auto-cancels the 35 s incoming notification on timeout).
+     */
+    fun requestRingtoneFocus() {
+        val am = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        if (ringtoneFocusRequest != null) {
+            // Already holding focus; just reset the auto-release timer.
+            ringtoneFocusAutoReleaseHandler.removeCallbacks(ringtoneFocusAutoRelease)
+            ringtoneFocusAutoReleaseHandler.postDelayed(ringtoneFocusAutoRelease, 45_000L)
+            return
+        }
+        val attrs = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+        // GAIN_TRANSIENT_EXCLUSIVE matches native phone-call ringer behaviour:
+        // while we hold focus, the system denies any other app's request (e.g.
+        // user tapping Play in Spotify while Hima is ringing). Plain TRANSIENT
+        // would let the other app grab focus and play over the ringtone.
+        val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
+            .setAudioAttributes(attrs)
+            .setOnAudioFocusChangeListener { /* no-op — we don't pause our own ring on focus loss */ }
+            .build()
+        val result = try { am.requestAudioFocus(req) } catch (e: Exception) {
+            Log.e("HimaIncomingCall", "requestRingtoneFocus threw", e)
+            AudioManager.AUDIOFOCUS_REQUEST_FAILED
+        }
+        if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+            ringtoneFocusRequest = req
+            ringtoneFocusAutoReleaseHandler.postDelayed(ringtoneFocusAutoRelease, 45_000L)
+            Log.d("HimaIncomingCall", "requestRingtoneFocus: granted")
+        } else {
+            Log.w("HimaIncomingCall", "requestRingtoneFocus: denied result=$result")
+        }
+    }
+
+    fun releaseRingtoneFocus() {
+        ringtoneFocusAutoReleaseHandler.removeCallbacks(ringtoneFocusAutoRelease)
+        val am = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: run {
+            ringtoneFocusRequest = null
+            return
+        }
+        ringtoneFocusRequest?.let {
+            try { am.abandonAudioFocusRequest(it) } catch (e: Exception) {
+                Log.e("HimaIncomingCall", "releaseRingtoneFocus threw", e)
+            }
+        }
+        ringtoneFocusRequest = null
+    }
+
     fun playIncomingCallSound() {
         Log.d("HimaIncomingCall", "playIncomingCallSound: begin")
         // Stop any previous ringtone first
         stopRingtone()
+        // Grab audio focus so background media (YouTube, Spotify, etc.) pauses
+        // while we ring (B150). No-op if FCM service already grabbed it.
+        requestRingtoneFocus()
 
         try {
             val audioAttributes = AudioAttributes.Builder()
@@ -1109,6 +1179,10 @@ class BaseApplication : Application(), Configuration.Provider {
             Log.e("MediaPlayer", "Error stopping ringtone: ${e.message}")
         } finally {
             mediaPlayer = null
+            // Release ringtone audio focus so paused media (YouTube etc.) can
+            // resume — paired with requestRingtoneFocus in playIncomingCallSound
+            // and the FCM service for the B150 fix.
+            releaseRingtoneFocus()
             Log.d("HimaIncomingCall", "stopRingtone: end released")
             Log.d("MediaPlayer", "Ringtone stopped and released safely.")
         }
@@ -1287,7 +1361,7 @@ class BaseApplication : Application(), Configuration.Provider {
 
     /**
      * Bulk-cancels every outstanding incoming-call notification in the tray:
-     * the FCM `calls_v3` CallStyle path and any OneSignal server-side call
+     * the FCM `calls_v4` CallStyle path and any OneSignal server-side call
      * push that happened to slip through before the NSE suppressor ran.
      *
      * Chat pushes share the OneSignal default channel so we do NOT cancel by

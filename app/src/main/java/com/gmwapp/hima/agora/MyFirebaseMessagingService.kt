@@ -12,7 +12,10 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.os.Build
+import android.provider.Settings
 import android.os.Bundle
 import android.telecom.DisconnectCause
 import android.os.Handler
@@ -36,8 +39,10 @@ import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.activities.NewLoginActivity
 import com.gmwapp.hima.agora.female.FemaleAudioCallingActivity
 import com.gmwapp.hima.agora.female.FemaleCallAcceptActivity
+import com.gmwapp.hima.agora.female.FemaleCallConnectingActivity
 import com.gmwapp.hima.agora.female.FemaleVideoCallingActivity
 import com.gmwapp.hima.agora.male.MaleCallAcceptActivity
+import com.gmwapp.hima.agora.male.MaleCallConnectingActivity
 import com.gmwapp.hima.agora.telecom.HimaConnection
 import com.gmwapp.hima.agora.telecom.HimaTelecomManager
 import com.gmwapp.hima.repositories.FcmNotificationRepository
@@ -274,9 +279,14 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                         if (currentActivity is FemaleCallAcceptActivity ||
                             currentActivity is FemaleAudioCallingActivity ||
                             currentActivity is FemaleVideoCallingActivity ||
+                            currentActivity is FemaleCallConnectingActivity ||
                             currentActivity is com.gmwapp.hima.activities.IplRoomCallActivity ||
                             BaseApplication.getInstance()?.isInActiveCall() == true) {
 
+                            // B134 — Connecting screen counts as busy: a female
+                            // dialing out must not have her outgoing call silently
+                            // replaced by an incoming-call FCM. Auto-reject so the
+                            // caller sees "user busy" instead of a ghosted ring.
                             Log.d("FCM", "User is already in a call. Ignoring incoming call notification.")
 
                             val receiverId = senderId
@@ -285,7 +295,14 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                         }
 
                         BaseApplication.getInstance()?.saveSenderId(senderId)
-                        BaseApplication.getInstance()?.playIncomingCallSound()
+                        // Ringtone is now played by the OS via the calls_v4 channel
+                        // (survives Doze / power saving). The foreground accept
+                        // activities take over with MediaPlayer once they open
+                        // — see B147 fix.
+                        // Grab transient audio focus so YouTube / Spotify / etc.
+                        // pause for the heads-up ringtone phase — fixes B150.
+                        // Auto-released after 45 s by the BaseApplication helper.
+                        BaseApplication.getInstance()?.requestRingtoneFocus()
 
                         callType?.let {
                             BaseApplication.getInstance()?.setIncomingCall(
@@ -375,14 +392,19 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                         val MaleCallAcceptActivity = com.gmwapp.hima.agora.male.MaleCallAcceptActivity::class.java
                         val MaleAudioCallingActivity = com.gmwapp.hima.agora.male.MaleAudioCallingActivity::class.java
                         val MaleVideoCallingActivity = com.gmwapp.hima.agora.male.MaleVideoCallingActivity::class.java
+                        val MaleCallConnectingActivityClass = com.gmwapp.hima.agora.male.MaleCallConnectingActivity::class.java
                         val IplRoomCallActivity = com.gmwapp.hima.activities.IplRoomCallActivity::class.java
 
                         if (currentActivity?.javaClass == MaleCallAcceptActivity ||
                             currentActivity?.javaClass == MaleAudioCallingActivity ||
                             currentActivity?.javaClass == MaleVideoCallingActivity ||
+                            currentActivity?.javaClass == MaleCallConnectingActivityClass ||
                             currentActivity?.javaClass == IplRoomCallActivity ||
                             BaseApplication.getInstance()?.isInActiveCall() == true) {
 
+                            // B134 (symmetric) — male connecting screen counts as
+                            // busy too: a male dialing out must not be hijacked by
+                            // an inbound call. Auto-reject so caller sees "busy".
                             Log.d("FCM", "Male user is already in a call. Ignoring incoming call notification.")
 
                             val receiverId = senderId
@@ -391,7 +413,14 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                         }
 
                         BaseApplication.getInstance()?.saveSenderId(senderId)
-                        BaseApplication.getInstance()?.playIncomingCallSound()
+                        // Ringtone is now played by the OS via the calls_v4 channel
+                        // (survives Doze / power saving). The foreground accept
+                        // activities take over with MediaPlayer once they open
+                        // — see B147 fix.
+                        // Grab transient audio focus so YouTube / Spotify / etc.
+                        // pause for the heads-up ringtone phase — fixes B150.
+                        // Auto-released after 45 s by the BaseApplication helper.
+                        BaseApplication.getInstance()?.requestRingtoneFocus()
 
                         callType?.let {
                             BaseApplication.getInstance()?.setIncomingCall(
@@ -995,7 +1024,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 "senderId=$senderId channel=$channelName keyguardLocked=$locked appInBackground=$bg " +
                 "postNotificationsGranted=$postNotificationsGranted " +
                 "canUseFullScreenIntent=$canUseFullScreenIntent manageOwnCallsGranted=$manageOwnCallsGranted " +
-                "calls_v3_channelImportance=$channelImportance"
+                "calls_v4_channelImportance=$channelImportance"
         )
     }
 
@@ -1049,26 +1078,46 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val nm = getSystemService(NotificationManager::class.java) ?: return
+            if (nm.getNotificationChannel(CALLS_NOTIFICATION_CHANNEL_ID) != null) return
+            // Drop the silent v3 channel so Settings doesn't show two "Incoming Calls" rows.
+            runCatching { nm.deleteNotificationChannel("calls_v3") }
+            val ringtoneUri = RingtoneManager.getActualDefaultRingtoneUri(
+                applicationContext,
+                RingtoneManager.TYPE_RINGTONE
+            ) ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+                ?: Settings.System.DEFAULT_RINGTONE_URI
+            val ringtoneAttrs = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
             val channel = NotificationChannel(
                 CALLS_NOTIFICATION_CHANNEL_ID,
                 "Incoming Calls",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
-                setSound(null, null)
+                // OS-played ringtone survives Doze / power saving because
+                // IMPORTANCE_HIGH + CATEGORY_CALL + bypassDnd is treated as critical.
+                setSound(ringtoneUri, ringtoneAttrs)
                 enableVibration(true)
                 vibrationPattern = longArrayOf(0, 1000, 500, 1000)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     setBypassDnd(true)
                 }
             }
-            getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
+            nm.createNotificationChannel(channel)
         }
     }
 
     companion object {
-        /** Channel ID bump: channel importance / options are immutable per ID on Android O+. */
-        const val CALLS_NOTIFICATION_CHANNEL_ID = "calls_v3"
+        /**
+         * Channel ID bump: channel importance / options are immutable per ID on Android O+.
+         * v3 → v4 added an OS-played ringtone so power saving / Doze no longer suppresses
+         * the ring (the previous v3 channel was silent and relied on an in-app MediaPlayer
+         * that the background FCM service can't reliably start under Doze — bug B147).
+         */
+        const val CALLS_NOTIFICATION_CHANNEL_ID = "calls_v4"
         private const val INCOMING_CALL_LOG_TAG = "HimaIncomingCall"
         private const val INCOMING_CALL_NOTIFICATION_ID = 1
     }

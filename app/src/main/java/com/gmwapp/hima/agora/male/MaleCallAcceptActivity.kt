@@ -5,11 +5,13 @@ import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -61,6 +63,11 @@ class MaleCallAcceptActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Route the volume rocker to STREAM_RING while this activity is on
+        // screen so volume up/down adjusts the incoming ringtone (B027).
+        // Without this the default STREAM_MUSIC is targeted and the rocker
+        // appears to do nothing while the phone is ringing.
+        volumeControlStream = AudioManager.STREAM_RING
         val km = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
         Log.d(
             "HimaIncomingCall",
@@ -141,6 +148,10 @@ class MaleCallAcceptActivity : AppCompatActivity() {
             return
         }
 
+        // Activity now owns the call presentation; cancel the heads-up so the
+        // OS channel ringtone stops before MediaPlayer takes over the loop —
+        // otherwise both play in parallel on locked phones (B147 fix).
+        BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
         if (BaseApplication.getInstance()?.isRingtonePlaying() == false) {
             BaseApplication.getInstance()?.playIncomingCallSound()
         }
@@ -370,6 +381,24 @@ class MaleCallAcceptActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Log.e("MaleCallAccept_Anim", "Error starting pulse animations: ${e.message}")
         }
+    }
+
+    /**
+     * One-press silence for the incoming ringtone — matches native phone-call
+     * behaviour. Consumes volume up/down while ringing so we stop the channel
+     * sound + MediaPlayer instead of just nudging STREAM_RING by one notch.
+     * The call screen stays up; user can still Accept/Decline.
+     */
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+            val ringing = BaseApplication.getInstance()?.isRingtonePlaying() == true
+            if (ringing) {
+                BaseApplication.getInstance()?.stopRingtone()
+                BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+                return true
+            }
+        }
+        return super.onKeyDown(keyCode, event)
     }
 
     override fun onDestroy() {

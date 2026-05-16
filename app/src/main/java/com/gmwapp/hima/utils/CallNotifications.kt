@@ -10,7 +10,10 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.os.Build
+import android.provider.Settings
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
@@ -44,8 +47,14 @@ object CallNotifications {
 
     private const val TAG = "HimaIncomingCall"
 
-    /** Mirrors [com.gmwapp.hima.agora.MyFirebaseMessagingService.CALLS_NOTIFICATION_CHANNEL_ID]. */
-    private const val CALLS_NOTIFICATION_CHANNEL_ID = "calls_v3"
+    /**
+     * Mirrors [com.gmwapp.hima.agora.MyFirebaseMessagingService.CALLS_NOTIFICATION_CHANNEL_ID].
+     * Bumped v3 → v4 so the OS plays the channel ringtone for incoming calls;
+     * the previous channel had `setSound(null, null)` and relied on an in-app
+     * `MediaPlayer` that power saving / Doze / OEM killers suppress in the
+     * background — see bug B147.
+     */
+    private const val CALLS_NOTIFICATION_CHANNEL_ID = "calls_v4"
     private const val INCOMING_CALL_NOTIFICATION_ID = 1
 
     /**
@@ -89,7 +98,7 @@ object CallNotifications {
         } else null
         Log.d(
             TAG,
-            "showIncoming: begin isMale=${payload.isMale} callId=${payload.callId} senderId=${payload.senderId} calls_v3_importance=$chImp"
+            "showIncoming: begin isMale=${payload.isMale} callId=${payload.callId} senderId=${payload.senderId} calls_v4_importance=$chImp"
         )
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -182,6 +191,10 @@ object CallNotifications {
                 .setOngoing(true)
                 .setAutoCancel(false)
                 .setTimeoutAfter(35_000L)
+                // Avatar-refresh re-notify (Glide) updates the same tag+id;
+                // setOnlyAlertOnce keeps the OS from re-triggering the channel
+                // ringtone on the second post (would double-ring on AOSP).
+                .setOnlyAlertOnce(true)
                 .addPerson(person)
                 .build()
         }
@@ -415,13 +428,27 @@ object CallNotifications {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
         if (nm.getNotificationChannel(CALLS_NOTIFICATION_CHANNEL_ID) != null) return
+        // Delete the silent v3 channel if present so Settings doesn't show
+        // two "Incoming Calls" rows after upgrade.
+        runCatching { nm.deleteNotificationChannel("calls_v3") }
+        val ringtoneUri = RingtoneManager.getActualDefaultRingtoneUri(
+            context.applicationContext,
+            RingtoneManager.TYPE_RINGTONE
+        ) ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+            ?: Settings.System.DEFAULT_RINGTONE_URI
+        val ringtoneAttrs = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
         val channel = NotificationChannel(
             CALLS_NOTIFICATION_CHANNEL_ID,
             "Incoming Calls",
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
             lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
-            setSound(null, null)
+            // Channel-played ringtone survives Doze / power saving because
+            // IMPORTANCE_HIGH + CATEGORY_CALL + bypassDnd is treated as critical.
+            setSound(ringtoneUri, ringtoneAttrs)
             enableVibration(true)
             vibrationPattern = longArrayOf(0, 1000, 500, 1000)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
