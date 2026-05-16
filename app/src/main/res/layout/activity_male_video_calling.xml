@@ -38,8 +38,8 @@
             android:layout_height="match_parent"
             android:background="@android:color/black">
 
-            <!-- Front/back camera flip — overlaid on the local preview so it
-                 only appears when the user is actively sending video. -->
+            <!-- Camera flip is not a shipped feature; hidden so testers
+                 don't trip over it (B057 is therefore N/A in current build). -->
             <ImageButton
                 android:id="@+id/btn_camera_flip"
                 android:layout_width="32dp"
@@ -50,6 +50,7 @@
                 android:contentDescription="Flip camera"
                 android:padding="6dp"
                 android:scaleType="fitCenter"
+                android:visibility="gone"
                 android:src="@drawable/ic_camera_flip" />
         </FrameLayout>
     </androidx.cardview.widget.CardView>
@@ -175,6 +176,24 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/top_bar" />
+
+    <!-- B196 — see activity_male_audio_calling.xml for rationale. -->
+    <TextView
+        android:id="@+id/on_hold_banner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/bg_reconnect_pill"
+        android:elevation="10dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:text="@string/call_on_hold_phone_busy"
+        android:textColor="@android:color/white"
+        android:textSize="12sp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/reconnect_banner" />
 
     <!-- User Avatars Container (Center) -->
     <LinearLayout
@@ -496,6 +515,9 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent">
 
+                <!-- Video↔audio switch not shipped — gone so B191's downgrade
+                     trigger is unreachable even if a layout_buttons parent
+                     ever flips visible at runtime. -->
                 <ImageView
                     android:id="@+id/btn_video_call"
                     android:layout_width="match_parent"
@@ -504,6 +526,7 @@
                     android:src="@drawable/audiocall_img"
                     android:padding="14dp"
                     android:scaleType="fitCenter"
+                    android:visibility="gone"
                     android:contentDescription="Video"/>
 
             </FrameLayout>
