@@ -8,7 +8,9 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Path
 import android.net.ConnectivityManager
+import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -602,7 +604,11 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         
         // Animations removed as per user request
         
-        binding.fabRandom.setOnSingleClickListener {
+        // B066 — short debounce (150ms) so users can rapidly tap-to-expand and
+        // tap-to-collapse without the second tap getting swallowed by the
+        // default 500ms guard. The Random FAB is a pure UI toggle, not an
+        // activity launcher, so 500ms is overkill here.
+        binding.fabRandom.setOnSingleClickListener(debounceMs = 150L) {
             if (!isAllFabVisible) {
                 showDimBackground()
                 binding.fabAudio.show()
@@ -710,11 +716,74 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             registerHomeChatListRefreshReceiver()
             startHomeCollectingSocketNewMessage()
         }
+
+        // B065 — refresh creator availability when network returns mid-screen.
+        registerNetworkRestoreListener()
     }
 
     override fun onPause() {
         super.onPause()
         unregisterHomeChatListRefreshReceiver()
+        unregisterNetworkRestoreListener()
+    }
+
+    // B065 — without this, killing the network while the user is sitting on
+    // the Home screen left the creator list stale until the user manually
+    // pulled to refresh or navigated away and back. Register a default
+    // network callback for the lifetime of the fragment being resumed; on
+    // a real offline → online transition (NOT on initial registration when
+    // we're already online), kick the existing loadFemaleUsers() path so
+    // creator availability statuses come back fresh.
+    private var networkRestoreCallback: ConnectivityManager.NetworkCallback? = null
+    private var wasOnline = true
+
+    private fun registerNetworkRestoreListener() {
+        if (networkRestoreCallback != null) return
+        val ctx = context ?: return
+        val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return
+        // Seed wasOnline from the current state so the first onAvailable
+        // (which fires immediately if we're already online) doesn't cause
+        // a spurious refresh on top of the onResume refresh.
+        wasOnline = isInternetAvailable(ctx)
+        val cb = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                if (!wasOnline) {
+                    wasOnline = true
+                    view?.post {
+                        if (!isAdded) return@post
+                        val uid = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
+                            ?: return@post
+                        Log.d("HomeFragment", "Network restored — refreshing creator list")
+                        if (filterType == "my_chats") loadMyChats(uid) else loadFemaleUsers(uid)
+                    }
+                }
+            }
+            override fun onLost(network: Network) {
+                wasOnline = false
+            }
+        }
+        try {
+            val request = NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .build()
+            cm.registerNetworkCallback(request, cb)
+            networkRestoreCallback = cb
+        } catch (e: Exception) {
+            Log.w("HomeFragment", "registerNetworkCallback failed: ${e.message}")
+        }
+    }
+
+    private fun unregisterNetworkRestoreListener() {
+        val cb = networkRestoreCallback ?: return
+        try {
+            val cm = context?.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            cm?.unregisterNetworkCallback(cb)
+        } catch (e: Exception) {
+            Log.w("HomeFragment", "unregisterNetworkCallback failed: ${e.message}")
+        } finally {
+            networkRestoreCallback = null
+        }
     }
 
     /** Receiver for [ACTION_CHAT_LIST_REFRESH] while the my_chats filter is active. */

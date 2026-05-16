@@ -13,6 +13,7 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
 import android.media.AudioAttributes
+import android.media.AudioManager
 import android.media.RingtoneManager
 import android.os.Build
 import android.provider.Settings
@@ -282,7 +283,8 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             currentActivity is FemaleCallConnectingActivity ||
                             currentActivity is com.gmwapp.hima.activities.IplRoomCallActivity ||
                             BaseApplication.getInstance()?.isInActiveCall() == true ||
-                            FcmUtils.isUserAvailable == 1) {
+                            FcmUtils.isUserAvailable == 1 ||
+                            isOnAnotherAppCall()) {
 
                             // B134 — Connecting Activity instance counts as busy.
                             // B156a — FcmUtils.isUserAvailable closes the race window
@@ -407,7 +409,8 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             currentActivity?.javaClass == MaleCallConnectingActivityClass ||
                             currentActivity?.javaClass == IplRoomCallActivity ||
                             BaseApplication.getInstance()?.isInActiveCall() == true ||
-                            FcmUtils.isUserAvailable == 1) {
+                            FcmUtils.isUserAvailable == 1 ||
+                            isOnAnotherAppCall()) {
 
                             // B134 + B156a (symmetric, male side) — same rationale
                             // as the female branch: FcmUtils.isUserAvailable is the
@@ -1052,6 +1055,40 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         )
     }
 
+
+    /**
+     * Returns true when the user is currently on a non-Hima voice/video
+     * call (WhatsApp / Telegram / Meet / Zoom / SIM call) — i.e. the OS
+     * audio mode is engaged for a call but the engagement isn't ours.
+     *
+     * Without this check (B131), an FCM arriving while the user is on a
+     * WhatsApp video call:
+     *   - falls through to the normal-incoming path, so the channel
+     *     ringtone plays,
+     *   - but the full-screen-intent / heads-up is hidden behind the
+     *     other app's call UI, so the user can't tap Accept/Decline,
+     *   - and the caller side stays on Connecting until server timeout.
+     *
+     * With this check we auto-reject up front; caller-side resolves to
+     * "user busy" within seconds and the recipient gets a missed-call
+     * notification they can call back from when they're free.
+     *
+     * Doesn't require any extra permission — `AudioManager.getMode()` is
+     * an unguarded read.
+     */
+    private fun isOnAnotherAppCall(): Boolean {
+        val ourCallActive = BaseApplication.getInstance()?.isInActiveCall() == true
+        if (ourCallActive) return false
+        return try {
+            val am = applicationContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+                ?: return false
+            val mode = am.mode
+            mode == AudioManager.MODE_IN_COMMUNICATION || mode == AudioManager.MODE_IN_CALL
+        } catch (e: Exception) {
+            Log.w("FCM", "isOnAnotherAppCall threw: ${e.message}")
+            false
+        }
+    }
 
     private fun sendAutoRejectNotification(senderId: Int?, receiverId: Int?, callType: String?, channelName: String?) {
         if (senderId != null && receiverId != null && callType != null && channelName != null) {

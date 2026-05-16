@@ -425,8 +425,9 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         if (phoneStateHelper == null) {
             phoneStateHelper = CallPhoneStateHelper(
                 context = this,
-                onCellularCallActive = { muteForInterrupt(true) },
-                onCellularCallEnded = { muteForInterrupt(false) }
+                // B196 — second arg flips the on-hold banner visible/hidden.
+                onCellularCallActive = { muteForInterrupt(true, showOnHoldBanner = true) },
+                onCellularCallEnded = { muteForInterrupt(false, showOnHoldBanner = true) }
             ).also { it.register() }
         }
         if (btWatcher == null) {
@@ -448,7 +449,11 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         }
     }
 
-    private fun muteForInterrupt(muted: Boolean) {
+    /**
+     * @param showOnHoldBanner B196 — flips the on-hold banner visible/hidden
+     *   when the cellular phone-state path triggers a mute/unmute.
+     */
+    private fun muteForInterrupt(muted: Boolean, showOnHoldBanner: Boolean = false) {
         runOnUiThread {
             if (muted) {
                 if (!mutedByInterrupt) {
@@ -459,11 +464,17 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                     // out of the same speaker. Fixes B148.
                     agoraEngine?.muteAllRemoteAudioStreams(true)
                 }
+                if (showOnHoldBanner) {
+                    runCatching { binding.onHoldBanner.visibility = View.VISIBLE }
+                }
             } else {
                 if (mutedByInterrupt) {
                     mutedByInterrupt = false
                     if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
                     agoraEngine?.muteAllRemoteAudioStreams(false)
+                }
+                if (showOnHoldBanner) {
+                    runCatching { binding.onHoldBanner.visibility = View.GONE }
                 }
             }
         }

@@ -161,6 +161,24 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/top_bar" />
 
+    <!-- B196 — see activity_male_audio_calling.xml for rationale. -->
+    <TextView
+        android:id="@+id/on_hold_banner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/bg_reconnect_pill"
+        android:elevation="10dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:text="@string/call_on_hold_phone_busy"
+        android:textColor="@android:color/white"
+        android:textSize="12sp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/reconnect_banner" />
+
     <!-- User Avatars Container (Center) -->
     <LinearLayout
         android:id="@+id/users_container"

@@ -131,18 +131,23 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     private var audioRouter: CallAudioRouter? = null
     private var phoneStateHelper: CallPhoneStateHelper? = null
     private var btWatcher: com.gmwapp.hima.utils.BluetoothCallWatcher? = null
-    // B062 — auto-end after prolonged RECONNECTING/FAILED. See
-    // MaleAudioCallingActivity for full rationale.
-    private val reconnectWatchdog = com.gmwapp.hima.utils.ReconnectWatchdog {
-        runOnUiThread {
-            Toast.makeText(
-                this,
-                "Network lost. Call ended.",
-                Toast.LENGTH_LONG
-            ).show()
-            leaveChannel(binding.LeaveButton)
+    // B062 + B064 — auto-end after 30s + show countdown on banner.
+    // See MaleAudioCallingActivity for full rationale.
+    private val reconnectWatchdog = com.gmwapp.hima.utils.ReconnectWatchdog(
+        onTick = { secondsRemaining ->
+            binding.reconnectBanner.text = "Reconnecting… ${secondsRemaining}s"
+        },
+        onTimeout = {
+            runOnUiThread {
+                Toast.makeText(
+                    this,
+                    "Network lost. Call ended.",
+                    Toast.LENGTH_LONG
+                ).show()
+                leaveChannel(binding.LeaveButton)
+            }
         }
-    }
+    )
     private var mutedByInterrupt = false
     var isClicked : Boolean = false
 
@@ -367,8 +372,9 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         if (phoneStateHelper == null) {
             phoneStateHelper = CallPhoneStateHelper(
                 context = this,
-                onCellularCallActive = { muteForInterrupt(true) },
-                onCellularCallEnded = { muteForInterrupt(false) }
+                // B196 — second arg flips the on-hold banner visible/hidden.
+                onCellularCallActive = { muteForInterrupt(true, showOnHoldBanner = true) },
+                onCellularCallEnded = { muteForInterrupt(false, showOnHoldBanner = true) }
             ).also { it.register() }
         }
         if (btWatcher == null) {
@@ -390,7 +396,11 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         }
     }
 
-    private fun muteForInterrupt(muted: Boolean) {
+    /**
+     * @param showOnHoldBanner B196 — flips the on-hold banner visible/hidden
+     *   when the cellular phone-state path triggers a mute/unmute.
+     */
+    private fun muteForInterrupt(muted: Boolean, showOnHoldBanner: Boolean = false) {
         runOnUiThread {
             if (muted) {
                 if (!mutedByInterrupt) {
@@ -401,11 +411,17 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                     // out of the same speaker. Fixes B148.
                     agoraEngine?.muteAllRemoteAudioStreams(true)
                 }
+                if (showOnHoldBanner) {
+                    runCatching { binding.onHoldBanner.visibility = View.VISIBLE }
+                }
             } else {
                 if (mutedByInterrupt) {
                     mutedByInterrupt = false
                     if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
                     agoraEngine?.muteAllRemoteAudioStreams(false)
+                }
+                if (showOnHoldBanner) {
+                    runCatching { binding.onHoldBanner.visibility = View.GONE }
                 }
             }
         }

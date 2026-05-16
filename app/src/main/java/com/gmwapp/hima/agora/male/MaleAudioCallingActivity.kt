@@ -369,8 +369,11 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         if (phoneStateHelper == null) {
             phoneStateHelper = CallPhoneStateHelper(
                 context = this,
-                onCellularCallActive = { muteForInterrupt(true) },
-                onCellularCallEnded = { muteForInterrupt(false) }
+                // B196 — true second arg flips the on-hold banner visible so
+                // the user knows their Hima call is paused while the SIM call
+                // is active. Hidden again when the SIM call ends.
+                onCellularCallActive = { muteForInterrupt(true, showOnHoldBanner = true) },
+                onCellularCallEnded = { muteForInterrupt(false, showOnHoldBanner = true) }
             ).also { it.register() }
         }
         if (btWatcher == null) {
@@ -414,7 +417,14 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         }
     }
 
-    private fun muteForInterrupt(muted: Boolean) {
+    /**
+     * @param showOnHoldBanner when true, also flips the on-hold banner
+     *   visible/hidden — used by the cellular phone-state path so the user
+     *   sees a clear "On hold — phone call in progress" pill (B196). The
+     *   audio-focus path leaves the banner alone since EXCLUSIVE focus means
+     *   we don't actually expect to lose focus to another app post-fix.
+     */
+    private fun muteForInterrupt(muted: Boolean, showOnHoldBanner: Boolean = false) {
         runOnUiThread {
             if (muted) {
                 if (!mutedByInterrupt) {
@@ -426,11 +436,17 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                     // out of the same speaker. Fixes B148.
                     agoraEngine?.muteAllRemoteAudioStreams(true)
                 }
+                if (showOnHoldBanner) {
+                    runCatching { binding.onHoldBanner.visibility = View.VISIBLE }
+                }
             } else {
                 if (mutedByInterrupt) {
                     mutedByInterrupt = false
                     if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
                     agoraEngine?.muteAllRemoteAudioStreams(false)
+                }
+                if (showOnHoldBanner) {
+                    runCatching { binding.onHoldBanner.visibility = View.GONE }
                 }
             }
         }
