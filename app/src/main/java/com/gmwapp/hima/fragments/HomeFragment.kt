@@ -21,6 +21,7 @@ import android.view.ViewGroup
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.AnimationUtils
 import android.widget.ImageView
+import android.widget.Toast
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -254,7 +255,15 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
 
 
+        // B066 — guard against launching a second call activity while one is
+        // already alive. Symptom of the missing guard: tapping the random
+        // button mid-call (or with the call screen still backgrounded) appears
+        // to do "nothing" because Telecom/Agora silently reject the new flow.
         binding.fabAudio.setOnSingleClickListener {
+            if (BaseApplication.getInstance()?.isInActiveCall() == true) {
+                Toast.makeText(context, "Already in a call", Toast.LENGTH_SHORT).show()
+                return@setOnSingleClickListener
+            }
             val intent = Intent(context, AgoraRandomCallActivity::class.java)
             intent.putExtra(DConstants.CALL_TYPE, "audio")
             intent.putExtra("RANDOM_FILTER", filterType)
@@ -263,6 +272,10 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         }
 
         binding.fabVideo.setOnSingleClickListener {
+            if (BaseApplication.getInstance()?.isInActiveCall() == true) {
+                Toast.makeText(context, "Already in a call", Toast.LENGTH_SHORT).show()
+                return@setOnSingleClickListener
+            }
             val intent = Intent(context, AgoraRandomCallActivity::class.java)
             intent.putExtra(DConstants.CALL_TYPE, "video")
             intent.putExtra("RANDOM_FILTER", filterType)
@@ -523,6 +536,14 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 binding.swipeRefreshLayout.isRefreshing = false
                 val chats = response.body()?.data?.chats ?: emptyList()
                 val activityCtx = activity ?: return
+                // B080 — `audioStatus` / `videoStatus` are creator-only fields
+                // (set by FemaleHomeFragment toggles). Male users never set
+                // them so the server returns 0, which the chat-list adapter
+                // renders as "Unavailable". When the viewer is female, the
+                // other party is male — there are no call-availability toggles
+                // to honor, so force-enable both call types.
+                val currentUserIsFemale = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
+                    ?.equals(DConstants.FEMALE, ignoreCase = true) == true
                 val mapped = chats.mapNotNull { item ->
                     try {
                         val ts = try {
@@ -545,8 +566,8 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                             // status == 1 from the backend means the creator is
                             // currently active — mirror the "All" tab's green dot.
                             isOnline = (item.user.status ?: 0) == 1,
-                            audioStatus = item.user.audioStatus ?: 1,
-                            videoStatus = item.user.videoStatus ?: 1,
+                            audioStatus = if (currentUserIsFemale) 1 else (item.user.audioStatus ?: 1),
+                            videoStatus = if (currentUserIsFemale) 1 else (item.user.videoStatus ?: 1),
                             coinPerMinAudio = item.user.coinPerMinAudio ?: 10,
                             coinPerMinVideo = item.user.coinPerMinVideo ?: 60,
                             language = item.user.language,
