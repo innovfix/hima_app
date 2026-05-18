@@ -49,12 +49,10 @@ object CallNotifications {
 
     /**
      * Mirrors [com.gmwapp.hima.agora.MyFirebaseMessagingService.CALLS_NOTIFICATION_CHANNEL_ID].
-     * Bumped v3 → v4 so the OS plays the channel ringtone for incoming calls;
-     * the previous channel had `setSound(null, null)` and relied on an in-app
-     * `MediaPlayer` that power saving / Doze / OEM killers suppress in the
-     * background — see bug B147.
+     * v3 → v4: OS plays the channel ringtone (B147).
+     * v4 → v5: removed bypassDnd so system DND silences the ringtone (B199).
      */
-    private const val CALLS_NOTIFICATION_CHANNEL_ID = "calls_v4"
+    private const val CALLS_NOTIFICATION_CHANNEL_ID = "calls_v5"
     const val INCOMING_CALL_NOTIFICATION_ID = 1
 
     /**

@@ -1239,8 +1239,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = getSystemService(NotificationManager::class.java) ?: return
             if (nm.getNotificationChannel(CALLS_NOTIFICATION_CHANNEL_ID) != null) return
-            // Drop the silent v3 channel so Settings doesn't show two "Incoming Calls" rows.
+            // Drop the silent v3 and the bypass-DND v4 so Settings doesn't show
+            // multiple "Incoming Calls" rows after the v5 bump (B199).
             runCatching { nm.deleteNotificationChannel("calls_v3") }
+            runCatching { nm.deleteNotificationChannel("calls_v4") }
             val ringtoneUri = RingtoneManager.getActualDefaultRingtoneUri(
                 applicationContext,
                 RingtoneManager.TYPE_RINGTONE
@@ -1256,14 +1258,16 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
-                // OS-played ringtone survives Doze / power saving because
-                // IMPORTANCE_HIGH + CATEGORY_CALL + bypassDnd is treated as critical.
                 setSound(ringtoneUri, ringtoneAttrs)
                 enableVibration(true)
                 vibrationPattern = longArrayOf(0, 1000, 500, 1000)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    setBypassDnd(true)
-                }
+                // B199 — do NOT setBypassDnd. Hima is a social app, not a
+                // primary phone replacement; when the user enables system
+                // Do Not Disturb mode we must respect that and stay silent.
+                // The previous v4 channel set bypassDnd=true (carried over
+                // from the B147 Doze fix, but DND ≠ Doze — bypassing DND
+                // never helped with Doze and only annoyed users who'd
+                // explicitly muted their phone).
             }
             nm.createNotificationChannel(channel)
         }
@@ -1271,12 +1275,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     companion object {
         /**
-         * Channel ID bump: channel importance / options are immutable per ID on Android O+.
-         * v3 → v4 added an OS-played ringtone so power saving / Doze no longer suppresses
-         * the ring (the previous v3 channel was silent and relied on an in-app MediaPlayer
-         * that the background FCM service can't reliably start under Doze — bug B147).
+         * Channel ID bump history (channels are immutable per ID on Android O+):
+         *   v3 → v4: added OS-played ringtone so Doze no longer suppressed the ring (B147).
+         *   v4 → v5: removed setBypassDnd(true) so system DND mode silences the
+         *            ringtone like every other social app (B199).
          */
-        const val CALLS_NOTIFICATION_CHANNEL_ID = "calls_v4"
+        const val CALLS_NOTIFICATION_CHANNEL_ID = "calls_v5"
         private const val INCOMING_CALL_LOG_TAG = "HimaIncomingCall"
         private const val INCOMING_CALL_NOTIFICATION_ID = 1
     }
@@ -1284,6 +1288,13 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     fun cancelIncomingCallNotification() {
         BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+        // B171 — the incoming-call notification is the foreground notification
+        // of FcmCallService. NotificationManager.cancel() can't dismiss a
+        // foreground-service notification — only stopping the service does,
+        // which is why the heads-up used to linger up to FcmCallService's
+        // 35s self-timeout after the caller had already given up. Stopping
+        // the service tears down its notification immediately.
+        FcmCallService.stop(applicationContext)
     }
 
 }
