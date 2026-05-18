@@ -88,6 +88,20 @@ class MaleCallConnectingActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // B067: refuse to start a Hima call while a SIM call is active.
+        // Android's telephony stack holds an exclusive lock on STREAM_VOICE_CALL
+        // in MODE_IN_CALL — Agora video frames still render but voice frames
+        // have nowhere to go, so the user "can see but can't hear." Block up
+        // front and surface the same message WhatsApp/Telegram show.
+        if (com.gmwapp.hima.utils.CallPhoneStateHelper.isCellularCallBusy(this)) {
+            android.widget.Toast.makeText(
+                this,
+                "You're on a phone call. End it to make a Hima call.",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            finish()
+            return
+        }
         enableEdgeToEdge()
         binding =ActivityMaleCallConnectingBinding.inflate(layoutInflater)
         setContentView(binding.root)

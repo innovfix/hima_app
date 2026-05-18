@@ -65,6 +65,19 @@ class AgoraRandomCallActivity : AppCompatActivity() {
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // B067: refuse to start a random Hima call while a SIM call is active.
+        // Telephony owns STREAM_VOICE_CALL exclusively in MODE_IN_CALL, so
+        // Agora's voice frames would be silently dropped — user can see video
+        // but cannot hear audio. Surface a message and bail.
+        if (com.gmwapp.hima.utils.CallPhoneStateHelper.isCellularCallBusy(this)) {
+            android.widget.Toast.makeText(
+                this,
+                "You're on a phone call. End it to make a Hima call.",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            finish()
+            return
+        }
         enableEdgeToEdge()
         binding = ActivityAgoraRandomCallBinding.inflate(layoutInflater)
         setContentView(binding.root)

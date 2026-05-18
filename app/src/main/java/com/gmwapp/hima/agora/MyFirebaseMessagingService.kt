@@ -1132,15 +1132,23 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     private fun isOnAnotherAppCall(): Boolean {
         val ourCallActive = BaseApplication.getInstance()?.isInActiveCall() == true
         if (ourCallActive) return false
-        return try {
+        // B067: cross-check both AudioManager.mode (catches MODE_IN_COMMUNICATION
+        // from other VoIP apps) AND TelephonyManager.callState (catches SIM
+        // calls — some OEMs, notably Samsung, don't flip AudioManager.mode to
+        // MODE_IN_CALL while a SIM call is in RINGING state, so the audio-mode
+        // check alone misses the window where an incoming Hima call lands on
+        // top of an incoming SIM call).
+        val audioModeBusy = try {
             val am = applicationContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-                ?: return false
-            val mode = am.mode
+            val mode = am?.mode ?: AudioManager.MODE_NORMAL
             mode == AudioManager.MODE_IN_COMMUNICATION || mode == AudioManager.MODE_IN_CALL
         } catch (e: Exception) {
-            Log.w("FCM", "isOnAnotherAppCall threw: ${e.message}")
+            Log.w("FCM", "isOnAnotherAppCall: AudioManager.mode threw: ${e.message}")
             false
         }
+        val telephonyBusy = com.gmwapp.hima.utils.CallPhoneStateHelper
+            .isCellularCallBusy(applicationContext)
+        return audioModeBusy || telephonyBusy
     }
 
     /**

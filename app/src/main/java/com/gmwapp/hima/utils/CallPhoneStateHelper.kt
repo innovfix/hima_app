@@ -114,5 +114,38 @@ class CallPhoneStateHelper(
 
     companion object {
         private const val TAG = "CallPhoneState"
+
+        /**
+         * One-shot read of the current cellular phone state. Returns true if a
+         * SIM call is currently ringing or off-hook, so callers can refuse to
+         * start a Hima call that would silently lose audio to the telephony
+         * stack. Treats "no permission" as not-busy so the gate doesn't break
+         * call flow on devices/builds without READ_PHONE_STATE. (B067)
+         */
+        @SuppressLint("MissingPermission")
+        fun isCellularCallBusy(context: Context): Boolean {
+            val granted = ContextCompat.checkSelfPermission(
+                context, Manifest.permission.READ_PHONE_STATE
+            ) == PackageManager.PERMISSION_GRANTED
+            if (!granted) return false
+            val tm = context.applicationContext.getSystemService(Context.TELEPHONY_SERVICE)
+                as? TelephonyManager ?: return false
+            return try {
+                val state = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    tm.callStateForSubscription
+                } else {
+                    @Suppress("DEPRECATION")
+                    tm.callState
+                }
+                state == TelephonyManager.CALL_STATE_RINGING ||
+                    state == TelephonyManager.CALL_STATE_OFFHOOK
+            } catch (e: SecurityException) {
+                Log.w(TAG, "isCellularCallBusy: SecurityException, treating as not busy", e)
+                false
+            } catch (e: Exception) {
+                Log.e(TAG, "isCellularCallBusy threw, treating as not busy", e)
+                false
+            }
+        }
     }
 }
