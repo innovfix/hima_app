@@ -29,6 +29,7 @@ import android.view.Window
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -249,7 +250,10 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             elapsedTime++
             Log.d("CallTimeoutTracking", "Seconds passed: $elapsedTime")
 
-            if (elapsedTime >=10) { // 20 seconds timeout
+            if (elapsedTime >= 20) { // B042: bumped 10 → 20 seconds. Slow networks
+                // / OEM-throttled FCM regularly take 12-15 s for the peer to actually
+                // join Agora after accepting; the old 10 s window false-fired
+                // "User did not join" before the connection finished establishing.
                 if (isRemoteUserJoined==false){
                     Log.d("isUserJoinedTimer","Leave Button")
                     Toast.makeText(this@FemaleVideoCallingActivity,"User did not join", Toast.LENGTH_LONG).show()
@@ -449,6 +453,20 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding = ActivityFemaleVideoCallingBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        // B042: show "Connecting..." instead of stuck 00:00:00 while we wait
+        // for the peer to join the Agora channel. startCountdown() overwrites
+        // this on its first tick once onUserJoined() fires.
+        binding.tvRemainingTime?.text = "Connecting..."
+        // B043: surface a styled placeholder behind where the remote video
+        // will appear so the screen doesn't look "blank" while waiting for
+        // the peer to join. The caller's avatar is loaded into it once the
+        // userAvatar API responds (see avatarObservers); setupRemoteVideo()'s
+        // removeAllViews() cleans the placeholder up before adding the
+        // remote SurfaceView, so this is invisible once video starts.
+        binding.remoteVideoViewContainer.visibility = View.VISIBLE
+        binding.remoteVideoViewContainer.setBackgroundResource(
+            R.drawable.call_blur_placeholder_background
+        )
 
         // Keep the call screen visible across lockscreen so users who lock
         // the phone mid-call can resume immediately.
@@ -1086,6 +1104,26 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                     .into(binding.ivMaleUser)
 
                 binding.tvMaleName.setText(response.data?.name)
+
+                // B043: also load the caller's avatar as a faded full-screen
+                // background inside remote_video_view_container. Shown only
+                // until the peer joins; setupRemoteVideo()'s removeAllViews()
+                // wipes the placeholder before the remote SurfaceView is
+                // attached, so this never interferes with video rendering.
+                if (!isRemoteUserJoined && !imageUrl.isNullOrEmpty()) {
+                    val placeholder = ImageView(this).apply {
+                        layoutParams = FrameLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                        scaleType = ImageView.ScaleType.CENTER_CROP
+                        alpha = 0.35f
+                        tag = "b043_connecting_placeholder"
+                    }
+                    binding.remoteVideoViewContainer.removeAllViews()
+                    binding.remoteVideoViewContainer.addView(placeholder)
+                    Glide.with(this).load(imageUrl).into(placeholder)
+                }
             }
         }
 
@@ -1986,6 +2024,14 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         giftImage.animate().cancel()
         giftImage.alpha = 1f
         giftImage.visibility = View.VISIBLE
+        // B203 — `iv_gift_image` is declared in XML BEFORE blackscreen /
+        // remoteBlurOverlay / faceDetectionOverlay, so any of those being
+        // visible would render over the gift. bringToFront re-orders the
+        // view in its parent's draw list, and a high elevation handles
+        // API ≥21 z-ordering for siblings that also use elevation.
+        giftImage.bringToFront()
+        giftImage.elevation = 32f
+        (giftImage.parent as? View)?.requestLayout()
 
         BaseApplication.getInstance()?.playSendGiftSound()
 

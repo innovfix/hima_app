@@ -15,6 +15,7 @@ class CallingService : Service() {
     companion object {
         const val callingChannelId = "callingChannelId"
         private const val channelName = "callingName"
+        private const val NOTIFICATION_ID = 1
         @Volatile var isRunning: Boolean = false
 
     }
@@ -30,23 +31,51 @@ class CallingService : Service() {
      * The Notification is mandatory for background services
      * */
     private fun notificationService() {
-        Notification.Builder(this, callingChannelId).apply {
-            setContentTitle(getString(R.string.app_name))
-            setOngoing(true)
-            setContentText(getString(R.string.running_service_to_call))
-            setSmallIcon(R.drawable.logo)
-            val importance = NotificationManager.IMPORTANCE_HIGH
-            NotificationChannel(callingChannelId, channelName, importance).apply {
+        // Channel creation BEFORE building the notification — leaving it
+        // nested inside the Builder.apply{} block worked by luck because
+        // notification.build() runs last, but having the channel as an
+        // explicit prerequisite is clearer.
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (nm.getNotificationChannel(callingChannelId) == null) {
+            val channel = NotificationChannel(
+                callingChannelId,
+                channelName,
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
                 description = getString(R.string.running_service_to_call)
-                with((this@CallingService.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)) {
-                    createNotificationChannel(this@apply)
-                }
+                setSound(null, null)        // Call audio is already playing — don't ding on top.
+                enableVibration(false)
             }
-            ServiceCompat.startForeground(
-                this@CallingService, 1, this.build(),
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
-            )
+            nm.createNotificationChannel(channel)
         }
+
+        val notification = Notification.Builder(this, callingChannelId)
+            .setContentTitle(getString(R.string.app_name))
+            .setContentText(getString(R.string.running_service_to_call))
+            .setSmallIcon(R.drawable.logo)
+            // B046 — the trio that keeps this notification non-dismissable:
+            //   1. setOngoing — legacy flag, still respected pre-Android 14.
+            //   2. setAutoCancel(false) — never auto-clear if tapped.
+            //   3. CATEGORY_CALL — Android 14+ only honours the "can't swipe
+            //      away a foreground-service notification" behaviour for
+            //      notifications explicitly categorised as a phone call.
+            //      Without this the user CAN swipe the session pill away
+            //      mid-call (which is exactly the reported bug).
+            .setOngoing(true)
+            .setAutoCancel(false)
+            .setCategory(Notification.CATEGORY_CALL)
+            .setOnlyAlertOnce(true)
+            .build()
+        // Explicit FLAG_NO_CLEAR on top of setOngoing — belt + braces for
+        // OEM builds (some Xiaomi/Vivo) that ignore one but honour the other.
+        notification.flags = notification.flags or
+            Notification.FLAG_NO_CLEAR or
+            Notification.FLAG_ONGOING_EVENT
+
+        ServiceCompat.startForeground(
+            this, NOTIFICATION_ID, notification,
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+        )
     }
 
     /**

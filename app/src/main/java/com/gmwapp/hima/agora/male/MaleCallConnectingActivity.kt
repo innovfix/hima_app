@@ -360,17 +360,29 @@ class MaleCallConnectingActivity : AppCompatActivity() {
 
                 Log.d("callid", "$callId")
 
-                // ✅ Check callType against corresponding status
+                // B201 — fail-CLOSED gate. Previously this used `!= 0`, but
+                // `audioStatus` / `videoStatus` are nullable: `null != 0` is
+                // true, so any code path that triggered callFemaleUser with a
+                // response payload missing the status field (e.g. the avatar-
+                // tap bypass Ranjini reported) silently skipped the DND check
+                // and the call went through anyway. Requiring `== 1` treats
+                // both `0` (DND on / unavailable) and `null` (status unknown)
+                // as "do not place the call".
                 val shouldSendNotification = when (callType) {
-                    "audio" -> audioStatus != 0
-                    "video" -> videoStatus != 0
+                    "audio" -> audioStatus == 1
+                    "video" -> videoStatus == 1
                     else -> false
                 }
 
                 if (!shouldSendNotification) {
-                    Log.d("Notification", "Not sending notification because callType=$callType has status=0")
+                    Log.d(
+                        "Notification",
+                        "Blocking call: callType=$callType audioStatus=$audioStatus videoStatus=$videoStatus"
+                    )
                     Toast.makeText(
-                        this@MaleCallConnectingActivity, "User is offline", Toast.LENGTH_LONG
+                        this@MaleCallConnectingActivity,
+                        "Creator is unavailable right now",
+                        Toast.LENGTH_LONG
                     ).show()
                     navigateToMain()
                     return@Observer

@@ -118,6 +118,11 @@ class BaseApplication : Application(), Configuration.Provider {
     private var channelName: String? = null
     private var callIdForSplashActivity: Int? = null
     private var incomingCall: Boolean = false
+    // B023 — cached caller display info so MainActivity can hand off to the
+    // call-accept activity (with proper avatar/name) when the user opens the
+    // app while a call is ringing, instead of the ring being dropped silently.
+    private var incomingCallerName: String? = null
+    private var incomingCallerImage: String? = null
 
 
     var messageCameWhenIsAlive = 0
@@ -1426,6 +1431,20 @@ class BaseApplication : Application(), Configuration.Provider {
         this.lastIncomingCallTag = callId.toString()
     }
 
+    /**
+     * B023 — caller display info is stored alongside the routing fields so
+     * MainActivity can re-launch the proper accept screen (avatar + name
+     * populated) when the user opens Hima via launcher while a call is
+     * still ringing.
+     */
+    fun setIncomingCallerInfo(name: String?, image: String?) {
+        this.incomingCallerName = name
+        this.incomingCallerImage = image
+    }
+
+    fun getIncomingCallerName(): String = incomingCallerName.orEmpty()
+    fun getIncomingCallerImage(): String = incomingCallerImage.orEmpty()
+
     fun getLastIncomingCallTag(): String? = lastIncomingCallTag
 
     /**
@@ -1487,6 +1506,8 @@ class BaseApplication : Application(), Configuration.Provider {
         this.incomingCall = false
         this.incomingCallSetAt = 0L
         this.lastIncomingCallTag = null
+        this.incomingCallerName = null
+        this.incomingCallerImage = null
     }
 
     fun isIncomingCall(): Boolean = incomingCall

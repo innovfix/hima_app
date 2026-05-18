@@ -59,6 +59,8 @@ import com.gmwapp.hima.adapters.CoinAdapter
 import com.gmwapp.hima.adapters.GiftAdapter
 import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.agora.ZohoHelper
+import com.gmwapp.hima.agora.female.FemaleCallAcceptActivity
+import com.gmwapp.hima.agora.male.MaleCallAcceptActivity
 import com.gmwapp.hima.callbacks.NetworkRetryable
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.callbacks.Refreshable
@@ -253,7 +255,17 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        
+
+        // B023 — if the user opened Hima via launcher while a call was
+        // ringing, the heads-up notification was the only surface they
+        // were tracking, and bringing MainActivity to the foreground used
+        // to leave the ring orphaned (no notification, no accept UI).
+        // Route them straight to the proper accept screen — same intent
+        // shape FCM uses, so the activity hydrates avatar/name correctly.
+        // isIncomingCallFresh() honours the 35–45s ring window so a stale
+        // flag never hijacks a normal app launch.
+        routeIncomingCallIfPending()
+
         // Set status bar color to pink
         // Set colors
         window.statusBarColor = ContextCompat.getColor(this, R.color.white)
@@ -1216,6 +1228,41 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     override fun onStart() {
         super.onStart()
         requestPermissions()
+    }
+
+    private fun routeIncomingCallIfPending() {
+        val app = BaseApplication.getInstance() ?: return
+        if (!app.isIncomingCallFresh()) return
+
+        val senderId = app.getSenderIdForSplashActivity()
+        if (senderId <= 0) return
+
+        val callType = app.getCallTypeForSplashActivity()
+        val channel = app.getChannelName()
+        val callId = app.getCallIdForSplashActivity() ?: 0
+        val callerName = app.getIncomingCallerName()
+        val callerImage = app.getIncomingCallerImage()
+
+        val gender = app.getPrefs()?.getUserData()?.gender
+        val acceptCls = if (gender == DConstants.FEMALE)
+            FemaleCallAcceptActivity::class.java
+        else
+            MaleCallAcceptActivity::class.java
+
+        val intent = Intent(this, acceptCls).apply {
+            // Use SINGLE_TOP so re-entering with the same call doesn't
+            // stack a second accept activity; CLEAR_TOP brings the
+            // existing one to front if it's already alive.
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("CALL_TYPE", callType)
+            putExtra("SENDER_ID", senderId)
+            putExtra("CHANNEL_NAME", channel)
+            putExtra("Caller_NAME", callerName)
+            putExtra("Caller_Image", callerImage)
+            putExtra("CALL_ID", callId)
+        }
+        Log.d("HimaIncomingCall", "MainActivity routing to $acceptCls (senderId=$senderId callType=$callType)")
+        startActivity(intent)
     }
 
 

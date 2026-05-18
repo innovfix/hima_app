@@ -247,7 +247,10 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             elapsedTime++
             Log.d("CallTimeoutTracking", "Seconds passed: $elapsedTime")
 
-            if (elapsedTime >=10) { // 20 seconds timeout
+            if (elapsedTime >= 20) { // B042: bumped 10 → 20 seconds. Slow networks
+                // / OEM-throttled FCM regularly take 12-15 s for the peer to actually
+                // join Agora after accepting; the old 10 s window false-fired
+                // "User did not join" before the connection finished establishing.
                 if (isRemoteUserJoined==false){
                     Log.d("isUserJoinedTimer","Leave Button")
                     cancelTimeoutTracking()
@@ -479,6 +482,10 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding = ActivityMaleAudioCallingBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        // B042: show "Connecting..." instead of stuck 00:00:00 while we wait
+        // for the peer to join the Agora channel. startCountdown() overwrites
+        // this on its first tick once onUserJoined() fires.
+        binding.tvRemainingTime?.text = "Connecting..."
 
         // Keep the call screen visible across lockscreen so users who lock
         // the phone mid-call can resume immediately.
