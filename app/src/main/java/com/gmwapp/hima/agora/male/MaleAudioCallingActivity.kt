@@ -1507,6 +1507,11 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         // it can land after the next onResume and leave stale "in-call" data
         // (greyed call buttons) on screen.
         FcmUtils.isUserAvailable = 0
+        // B082 — close any switch-call dialog before tearing down so it
+        // doesn't linger over the next screen as a phantom popup.
+        switchDialog?.dismiss()
+        switchDialog = null
+        FcmUtils.clearCallSwitch()
         if (!isJoined) {
             HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
           //  showMessage("Join a channel first")
@@ -1587,6 +1592,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         super.onDestroy()
         // B181 backstop — covers system-killed activities that bypass leaveChannel.
         FcmUtils.isUserAvailable = 0
+        // B082 backstop — close lingering switch-call dialog.
+        switchDialog?.dismiss()
+        switchDialog = null
         BaseApplication.getInstance()?.markCallEnded()
         BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
         HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
@@ -2306,6 +2314,11 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     fun observeCallSwitchAcceptance() {
         FcmUtils.updatedCallSwitch.observe(this, androidx.lifecycle.Observer { updatedCallSwitch ->
+            // B082 — drop late switch payloads once the activity is finishing.
+            if (isFinishing || isDestroyed) {
+                FcmUtils.clearCallSwitch()
+                return@Observer
+            }
             if (updatedCallSwitch != null) {
                 val (switchType, receiverId) = updatedCallSwitch
 
@@ -2530,7 +2543,26 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
 
     fun observeCallSwitchRequest() {
+        // B069 — capture observer attach time so we can ignore any switch
+        // payload posted before this call's activity existed (stale from
+        // a previous call; LiveData re-fires its current value on attach).
+        val callSwitchObserverStartedAtMs = System.currentTimeMillis()
         FcmUtils.updatedCallSwitch.observe(this, androidx.lifecycle.Observer { updatedCallSwitch ->
+            // B082 — don't pop the switch-call dialog if the call has ended.
+            if (isFinishing || isDestroyed) {
+                FcmUtils.clearCallSwitch()
+                return@Observer
+            }
+            // B069 — drop stale payloads (posted before this observer).
+            val postedAt = FcmUtils.callSwitchPostedAt()
+            if (postedAt == 0L || postedAt < callSwitchObserverStartedAtMs) {
+                Log.d(
+                    "B069",
+                    "Dropping stale switch payload postedAt=$postedAt observerStart=$callSwitchObserverStartedAtMs"
+                )
+                FcmUtils.clearCallSwitch()
+                return@Observer
+            }
             if (updatedCallSwitch != null) {
                 val (switchType, newCallId) = updatedCallSwitch
 

@@ -157,6 +157,14 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private var isSwitchingToAudio = false // ✅ Prevent multiple calls
     private var isSwitchingToVideo = false // ✅ Prevent multiple calls
 
+    // B081 — when this creator accepts an audio→video switch for a single
+    // call, the server (incorrectly) flips her global `video_status` to 1,
+    // which makes random users start sending her video calls. We snapshot
+    // the user's pre-switch `video_status` here and restore it explicitly
+    // on call end so her global availability isn't silently changed by an
+    // individual call's media-type negotiation.
+    private var savedVideoStatusBeforeSwitch: Int? = null
+
     var isClicked : Boolean = false
 
     var switchCallID =0
@@ -1541,6 +1549,20 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         // B181 — clear the "user is busy" guard before navigating back so
         // fragments' onResume can refresh creator/availability data.
         FcmUtils.isUserAvailable = 0
+        // B082 — close any switch-call dialog (Accept video request) before
+        // the activity tears down. Without this the dialog window lingers
+        // on top of RatingActivity as the "wrong VIDEO popup" Yuvanesh saw
+        // after an audio call ended with an unanswered switch request.
+        switchDialog?.dismiss()
+        switchDialog = null
+        // Also drain any in-flight switch payload so a stale FCM that lands
+        // during the 50ms finish delay can't fire the observer again.
+        FcmUtils.clearCallSwitch()
+        // B081 — restore the creator's pre-switch video_status if this call
+        // upgraded audio→video. The server flips video_status to 1 during
+        // the per-call upgrade; without this restore she'd silently become
+        // "accepting video calls" globally for everyone after the call ends.
+        restoreGlobalVideoStatusIfSwitched()
         if (!isJoined) {
             HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
            // showMessage("Join a channel first")
@@ -1702,6 +1724,13 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         super.onDestroy()
         // B181 backstop — covers system-killed activities that bypass leaveChannel.
         FcmUtils.isUserAvailable = 0
+        // B082 backstop — close lingering switch-call dialog so it doesn't
+        // float over RatingActivity / next screen as a phantom video popup.
+        switchDialog?.dismiss()
+        switchDialog = null
+        // B081 backstop — restore pre-switch video_status if leaveChannel
+        // never ran (system-killed activity).
+        restoreGlobalVideoStatusIfSwitched()
         BaseApplication.getInstance()?.markCallEnded()
         BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
         HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
@@ -2016,6 +2045,14 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
     fun observeCallSwitchAcceptance() {
         FcmUtils.updatedCallSwitch.observe(this, androidx.lifecycle.Observer { updatedCallSwitch ->
+            // B082 — bail if the call has already ended; a late switch
+            // payload arriving in the finish window must not act on this
+            // activity (it can fire enableVideoCall/enableAudioCall which
+            // surface their own dialogs).
+            if (isFinishing || isDestroyed) {
+                FcmUtils.clearCallSwitch()
+                return@Observer
+            }
             if (updatedCallSwitch != null) {
                 val (switchType, receiverId) = updatedCallSwitch
 
@@ -2108,7 +2145,32 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
 
     fun observeCallSwitchRequest() {
+        // B069 — capture the moment this observer activated so we can drop
+        // any switch payload that was posted BEFORE this call's activity
+        // existed (i.e. left over from a previous call). LiveData re-fires
+        // its current value to every fresh observer on attach; without this
+        // guard the "Accept video call?" dialog would pop the instant a
+        // brand-new audio call started.
+        val callSwitchObserverStartedAtMs = System.currentTimeMillis()
         FcmUtils.updatedCallSwitch.observe(this, androidx.lifecycle.Observer { updatedCallSwitch ->
+            // B082 — a late switchToVideo FCM landing during the 50ms gap
+            // between leaveChannel() and finish() would fire here and pop
+            // a "video call" dialog over RatingActivity. Bail when the
+            // activity is on its way out.
+            if (isFinishing || isDestroyed) {
+                FcmUtils.clearCallSwitch()
+                return@Observer
+            }
+            // B069 — drop stale payloads (posted before this observer).
+            val postedAt = FcmUtils.callSwitchPostedAt()
+            if (postedAt == 0L || postedAt < callSwitchObserverStartedAtMs) {
+                Log.d(
+                    "B069",
+                    "Dropping stale switch payload postedAt=$postedAt observerStart=$callSwitchObserverStartedAtMs"
+                )
+                FcmUtils.clearCallSwitch()
+                return@Observer
+            }
             if (updatedCallSwitch != null) {
                 val (switchType, newCallId) = updatedCallSwitch
 
@@ -2188,6 +2250,18 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         }
 
         isSwitchingToVideo = true // ✅ Set flag to prevent duplicate calls
+
+        // B081 — snapshot the user's pre-switch video availability so we
+        // can restore it in leaveChannel/onDestroy. Capture only once per
+        // call (savedVideoStatusBeforeSwitch != null already guards re-entry).
+        if (savedVideoStatusBeforeSwitch == null) {
+            savedVideoStatusBeforeSwitch =
+                BaseApplication.getInstance()?.getPrefs()?.getUserData()?.video_status ?: 0
+            Log.d(
+                "B081",
+                "snapshot video_status=$savedVideoStatusBeforeSwitch before audio→video switch"
+            )
+        }
 
         // ✅ Set status bar and navigation bar to black when switching to video
         window.statusBarColor = android.graphics.Color.BLACK
@@ -2346,6 +2420,24 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             agoraEngine?.leaveChannel()
             finish()
         }
+    }
+
+    /**
+     * B081 — if this call upgraded from audio to video, push the user's
+     * original `video_status` back to the server so the per-call upgrade
+     * doesn't leak into her global availability. Idempotent: clears the
+     * snapshot after firing so a subsequent leaveChannel/onDestroy in the
+     * same activity lifecycle can't re-send the request.
+     *
+     * Called from both leaveChannel (synchronous, before navigation) and
+     * onDestroy (backstop for system-killed activities).
+     */
+    private fun restoreGlobalVideoStatusIfSwitched() {
+        val original = savedVideoStatusBeforeSwitch ?: return
+        val uid = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
+        savedVideoStatusBeforeSwitch = null
+        Log.d("B081", "restoring video_status=$original after audio→video call ended (uid=$uid)")
+        femaleUsersViewModel.updateCallStatus(uid, DConstants.VIDEO, original)
     }
 
     private fun onAddcoinClicked() {

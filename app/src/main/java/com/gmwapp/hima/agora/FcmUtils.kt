@@ -42,6 +42,16 @@ object FcmUtils {
     private val _updatedCallSwitch = MutableLiveData<Pair<String, Int>?>()
     val updatedCallSwitch: LiveData<Pair<String, Int>?> get() = _updatedCallSwitch
 
+    // B069 — wall-clock timestamp of the most recent call-switch payload.
+    // LiveData delivers its current value to any fresh observer immediately,
+    // so a switchToVideo payload from a previous call would fire the next
+    // call's activity observer on attach and pop a "video accept" dialog
+    // even though no request was sent for the new call. Observers compare
+    // this against their own attach timestamp and drop anything older.
+    // Reset to 0L in [clearCallSwitch].
+    @Volatile private var _callSwitchPostedAt: Long = 0L
+    fun callSwitchPostedAt(): Long = _callSwitchPostedAt
+
     private val _userBusyStatus = MutableLiveData<Pair<String, String>?>() // (callType, userName)
     val userBusyStatus: LiveData<Pair<String, String>?> get() = _userBusyStatus
 
@@ -75,10 +85,12 @@ object FcmUtils {
             "MaleVideoEndFlow",
             "FcmUtils.UpdateCallSwitch post message=$message senderId=$senderId"
         )
+        _callSwitchPostedAt = System.currentTimeMillis()
         _updatedCallSwitch.postValue(Pair(message, senderId))
     }
 
     fun clearCallSwitch() {
+        _callSwitchPostedAt = 0L
         _updatedCallSwitch.postValue(null)
     }
 

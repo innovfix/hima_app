@@ -1166,6 +1166,9 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         super.onDestroy()
         // B181 backstop — covers system-killed activities that bypass leaveChannel.
         FcmUtils.isUserAvailable = 0
+        // B082 backstop — close lingering switch-call dialog.
+        switchDialog?.dismiss()
+        switchDialog = null
         BaseApplication.getInstance()?.markCallEnded()
         BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
         HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
@@ -1791,6 +1794,11 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         // B181 — clear the "user is busy" guard before navigating back so
         // fragments' onResume can refresh creator availability.
         FcmUtils.isUserAvailable = 0
+        // B082 — close any switch-call dialog before tearing down so it
+        // doesn't linger over the next screen as a phantom popup.
+        switchDialog?.dismiss()
+        switchDialog = null
+        FcmUtils.clearCallSwitch()
         if (!isJoined) {
             Log.d(TAG_END, "leaveChannel.notJoined path")
             HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
@@ -2480,6 +2488,11 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
     fun observeCallSwitchAcceptance() {
         FcmUtils.updatedCallSwitch.observe(this, androidx.lifecycle.Observer { updatedCallSwitch ->
+            // B082 — drop late switch payloads once the activity is finishing.
+            if (isFinishing || isDestroyed) {
+                FcmUtils.clearCallSwitch()
+                return@Observer
+            }
             if (updatedCallSwitch != null) {
                 val (switchType, receiverId) = updatedCallSwitch
                 Log.d(
@@ -2548,7 +2561,25 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     }
 
     fun observeCallSwitchRequest() {
+        // B069 — observer attach timestamp; payloads older than this are
+        // leftovers from a prior call and must not pop a dialog now.
+        val callSwitchObserverStartedAtMs = System.currentTimeMillis()
         FcmUtils.updatedCallSwitch.observe(this, androidx.lifecycle.Observer { updatedCallSwitch ->
+            // B082 — don't pop the switch-call dialog if the call has ended.
+            if (isFinishing || isDestroyed) {
+                FcmUtils.clearCallSwitch()
+                return@Observer
+            }
+            // B069 — drop stale payloads (posted before this observer).
+            val postedAt = FcmUtils.callSwitchPostedAt()
+            if (postedAt == 0L || postedAt < callSwitchObserverStartedAtMs) {
+                Log.d(
+                    "B069",
+                    "Dropping stale switch payload postedAt=$postedAt observerStart=$callSwitchObserverStartedAtMs"
+                )
+                FcmUtils.clearCallSwitch()
+                return@Observer
+            }
             if (updatedCallSwitch != null) {
                 val (switchType, newCallId) = updatedCallSwitch
                 Log.d(
