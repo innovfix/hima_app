@@ -1088,7 +1088,10 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
         Log.d("startCallingService","Service not returned")
 
-        val visible = lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+        // B137 — STARTED state is the earliest legal point to start a
+        // foreground service on Android 14/15. Previously we waited until
+        // RESUMED which delayed the session-in-progress notification.
+        val visible = lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
 
 
         val micGranted = ContextCompat.checkSelfPermission(
@@ -1313,6 +1316,32 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             mutedByInterrupt = false
             if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
             agoraEngine?.muteAllRemoteAudioStreams(false)
+            // B185 — pre-bind a remote canvas with uid=0 the moment the
+            // local user joins, BEFORE the remote user is announced via
+            // onUserJoined. setupRemoteVideo(uid=0) tells Agora to attach
+            // the first remote stream that arrives to this canvas, so the
+            // SDK can start decoding/rendering as soon as packets land
+            // instead of waiting for the round-trip:
+            //   remote-join FCM → onUserJoined → runOnUiThread → addView →
+            //   setupRemoteVideo.
+            // onUserJoined still re-binds with the real uid (cheap), but by
+            // then frames are already flowing.
+            runOnUiThread {
+                if (remoteSurfaceView == null && !isFinishing && !isDestroyed) {
+                    val pre = SurfaceView(baseContext).apply {
+                        setZOrderMediaOverlay(false)
+                        visibility = View.VISIBLE
+                    }
+                    remoteSurfaceView = pre
+                    binding.remoteVideoViewContainer.removeAllViews()
+                    binding.remoteVideoViewContainer.addView(pre)
+                    binding.remoteVideoViewContainer.visibility = View.VISIBLE
+                    agoraEngine?.setupRemoteVideo(
+                        VideoCanvas(pre, VideoCanvas.RENDER_MODE_HIDDEN, 0)
+                    )
+                    Log.d("AgoraTiming", "MaleVideo pre-bound remote canvas (uid=0) at ${System.currentTimeMillis()}")
+                }
+            }
             startTimeoutTracking()
         }
 
@@ -1516,6 +1545,11 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         localSurfaceView = SurfaceView(baseContext)
         binding.localVideoViewContainer.addView(localSurfaceView)
         localSurfaceView!!.setZOrderMediaOverlay(true)
+        // B124: forward touches from the SurfaceView (which lives on a
+        // separate compositor layer due to setZOrderMediaOverlay) into the
+        // CardView's drag listener. Without this, Redmi/MIUI users can't
+        // drag the local preview because the touch never reaches the CardView.
+        localSurfaceView!!.setOnTouchListener(localPreviewTouchListener)
 
         agoraEngine!!.setupLocalVideo(
             VideoCanvas(
@@ -1531,50 +1565,59 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
     }
 
-    private fun setupLocalPreviewDrag() {
-        binding.localCardView.setOnTouchListener { view, event ->
-            val parent = binding.main
-            when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    if (parent.width == 0 || parent.height == 0) {
-                        return@setOnTouchListener false
-                    }
-                    localPreviewDragStartX = event.rawX
-                    localPreviewDragStartY = event.rawY
-                    localPreviewTouchOffsetX = event.rawX - view.x
-                    localPreviewTouchOffsetY = event.rawY - view.y
-                    isDraggingLocalPreview = false
-                    true
-                }
-
-                MotionEvent.ACTION_MOVE -> {
-                    val nextX = event.rawX - localPreviewTouchOffsetX
-                    val nextY = event.rawY - localPreviewTouchOffsetY
-                    val clampedX = clampLocalPreviewX(nextX)
-                    val clampedY = clampLocalPreviewY(nextY)
-
-                    view.x = clampedX
-                    view.y = clampedY
-                    localPreviewOffsetX = clampedX
-                    localPreviewOffsetY = clampedY
-
-                    val dragDistance = abs(event.rawX - localPreviewDragStartX) + abs(event.rawY - localPreviewDragStartY)
-                    if (dragDistance > 8f) {
-                        isDraggingLocalPreview = true
-                    }
-                    true
-                }
-
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    if (!isDraggingLocalPreview) {
-                        view.performClick()
-                    }
-                    true
-                }
-
-                else -> false
+    /**
+     * B124: drag handler. Always operates on [binding.localCardView] regardless
+     * of which view received the touch — so we can attach the same listener to
+     * the inner FrameLayout / SurfaceView and still drag the outer CardView.
+     * Redmi/MIUI's input dispatcher routes touches on a SurfaceView with
+     * setZOrderMediaOverlay(true) through a separate window-manager layer that
+     * bypasses the CardView's OnTouchListener, so forwarding from the inner
+     * views is what actually fixes the "can't move local bubble" bug.
+     */
+    private val localPreviewTouchListener = View.OnTouchListener { _, event ->
+        val card = binding.localCardView
+        val parent = binding.main
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                if (parent.width == 0 || parent.height == 0) return@OnTouchListener false
+                localPreviewDragStartX = event.rawX
+                localPreviewDragStartY = event.rawY
+                localPreviewTouchOffsetX = event.rawX - card.x
+                localPreviewTouchOffsetY = event.rawY - card.y
+                isDraggingLocalPreview = false
+                true
             }
+
+            MotionEvent.ACTION_MOVE -> {
+                val clampedX = clampLocalPreviewX(event.rawX - localPreviewTouchOffsetX)
+                val clampedY = clampLocalPreviewY(event.rawY - localPreviewTouchOffsetY)
+                card.x = clampedX
+                card.y = clampedY
+                localPreviewOffsetX = clampedX
+                localPreviewOffsetY = clampedY
+
+                val dragDistance = abs(event.rawX - localPreviewDragStartX) +
+                    abs(event.rawY - localPreviewDragStartY)
+                if (dragDistance > 8f) isDraggingLocalPreview = true
+                true
+            }
+
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                if (!isDraggingLocalPreview) card.performClick()
+                true
+            }
+
+            else -> false
         }
+    }
+
+    private fun setupLocalPreviewDrag() {
+        // Attach to both the CardView AND the FrameLayout container — the
+        // container catches touches on Redmi where the inner SurfaceView's
+        // separate compositor layer eats them. setupLocalVideo also attaches
+        // the listener to the SurfaceView once it's created.
+        binding.localCardView.setOnTouchListener(localPreviewTouchListener)
+        binding.localVideoViewContainer.setOnTouchListener(localPreviewTouchListener)
     }
 
     private fun clampLocalPreviewX(targetX: Float): Float {
@@ -1780,6 +1823,23 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     }
 
     fun joinChannel(view: View) {
+        // B128: log the live permission state at the camera-open boundary so
+        // QA can confirm "Only this time" lifecycle in logcat. Permissions are
+        // NEVER cached locally — every check goes through ContextCompat.
+        // Android's "Only this time" stays alive across multiple call
+        // activities within the same process by design; if the OS does revoke
+        // it (extended background), the check below catches it and we
+        // re-request instead of silently toast-and-stall.
+        val camGranted = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.CAMERA
+        ) == PackageManager.PERMISSION_GRANTED
+        val micGranted = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.RECORD_AUDIO
+        ) == PackageManager.PERMISSION_GRANTED
+        Log.d(
+            "CameraPermission",
+            "MaleVideo.joinChannel: cam=$camGranted mic=$micGranted"
+        )
         if (checkSelfPermission()) {
             val options = ChannelMediaOptions()
 
@@ -1790,8 +1850,16 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             agoraEngine!!.startPreview()
             agoraEngine!!.joinChannel(token, channelName, uid, options)
         } else {
-            Toast.makeText(applicationContext, "Permissions was not granted", Toast.LENGTH_SHORT)
-                .show()
+            // Permission revoked between onCreate and here — usually the OS
+            // auto-revoked an "Only this time" grant after extended background.
+            // Re-prompt instead of just toasting "denied" so the user can
+            // grant again without leaving the call screen.
+            Log.w("CameraPermission", "MaleVideo.joinChannel: permission missing — re-requesting")
+            ActivityCompat.requestPermissions(
+                this@MaleVideoCallingActivity,
+                REQUESTED_PERMISSIONS,
+                PERMISSION_REQ_ID
+            )
         }
     }
 
@@ -1884,19 +1952,27 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                         storedVideoRemainingTime = newTime // Store first-time value
                     }
 
-                    startCountdown(newTime)
+                    startCountdown(newTime, data.ends_at_ms)
                 }
             }
 
         }) }
     }
 
-    fun startCountdown(remainingTime: String) {
-        // Convert "MM:SS" format to milliseconds
-        val timeParts = remainingTime.split(":").map { it.toInt() }
-        val minutes = timeParts[0]
-        val seconds = timeParts[1]
-        val totalMillis = (minutes * 60 + seconds) * 1000L
+    fun startCountdown(remainingTime: String, endsAtMs: Long? = null) {
+        // B141: prefer the server-anchored absolute end timestamp when
+        // available — both sides (male + female) compute remaining against
+        // the same epoch ms, so their displays show the same value at the
+        // same wall-clock instant. Fall back to the legacy "MM:SS" duration
+        // string when the server hasn't deployed the v2 response yet.
+        val totalMillis = if (endsAtMs != null && endsAtMs > 0L) {
+            (endsAtMs - System.currentTimeMillis()).coerceAtLeast(0L)
+        } else {
+            val timeParts = remainingTime.split(":").map { it.toIntOrNull() ?: 0 }
+            val mins = timeParts.getOrElse(0) { 0 }
+            val secs = timeParts.getOrElse(1) { 0 }
+            (mins * 60 + secs) * 1000L
+        }
 
         countDownTimer =  object : CountDownTimer(totalMillis, 1000) {
             override fun onTick(millisUntilFinished: Long) {
@@ -1949,7 +2025,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                         storedRemainingTime = newTime
                         sendUpdatedTimeNotification(maleUserId,receiverId,"audio","remainingTimeUpdated")
                         stopCountdown()
-                        startCountdown(newTime)
+                        startCountdown(newTime, data.ends_at_ms)
                     }
                 }
             })}
@@ -1976,7 +2052,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                     storedVideoRemainingTime = newTime
                     sendUpdatedTimeNotification(maleUserId,receiverId,"video","remainingTimeUpdated")
                     stopCountdown()
-                    startCountdown(newTime)
+                    startCountdown(newTime, data.ends_at_ms)
                 }
             }
         })} }
@@ -2013,7 +2089,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
                         stopCountdown()
                         storedRemainingTime = newTime // Store first-time value
-                        startCountdown(newTime)
+                        startCountdown(newTime, data.ends_at_ms)
                     }
                 }
 
@@ -2051,7 +2127,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
                         stopCountdown()
                         storedVideoRemainingTime = newTime // Store first-time value
-                        startCountdown(newTime)
+                        startCountdown(newTime, data.ends_at_ms)
                     }
                 }
 
@@ -2094,6 +2170,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             TAG_END,
             "onStart isJoined=$isJoined isRemoteUserJoined=$isRemoteUserJoined elapsedTime=$elapsedTime isFinishing=$isFinishing"
         )
+        // B137 — fire the foreground service as soon as activity is visible.
+        startCallingService()
     }
 
     override fun onResume() {
@@ -2118,6 +2196,15 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Log.w(TAG_END, "requestDismissKeyguard failed: ${e.message}")
             }
+        }
+        // B162 — recover from a stuck interrupt-mute when focus loss/regain
+        // didn't pair (see MaleAudioCallingActivity.onResume for full notes).
+        audioFocusHelper?.request()
+        if (mutedByInterrupt && audioFocusHelper?.hasFocus() == true) {
+            Log.d("B162", "MaleVideo onResume: clearing stuck interrupt mute (focus held)")
+            mutedByInterrupt = false
+            agoraEngine?.muteAllRemoteAudioStreams(false)
+            if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
         }
         newRemainingTime()
         startCallingService()

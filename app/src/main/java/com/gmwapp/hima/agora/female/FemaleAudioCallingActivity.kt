@@ -323,14 +323,20 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             audioRouter?.release()
             audioRouter = CallAudioRouter(this).also { it.init() }
             val btNow = audioRouter?.isBluetoothConnected() == true
+            val wiredNow = audioRouter?.isWiredHeadsetConnected() == true
+            // B154: when wired earphones are plugged in, default to EARPIECE
+            // so the system routes audio through the wired output instead of
+            // forcing speaker — otherwise the creator hears nothing in her
+            // earphones. Mirrors the male-side B048 fix.
             val initial = when {
                 btNow -> com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.BLUETOOTH
+                wiredNow -> com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE
                 isSpeakerOn -> com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER
                 else -> com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE
             }
             Log.d(
                 "CallAudioRoute",
-                "Activity.setup initialRoute=$initial btConnected=$btNow isSpeakerOn=$isSpeakerOn"
+                "Activity.setup initialRoute=$initial btConnected=$btNow wiredConnected=$wiredNow isSpeakerOn=$isSpeakerOn"
             )
             applyAudioRoute(initial)
 
@@ -1293,7 +1299,10 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
         Log.d("startCallingService","Service not returned")
 
-        val visible = lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+        // B137 — STARTED is the earliest legal state for FGS start on
+        // Android 14/15; using it lets us fire from onStart instead of
+        // onResume so the session-in-progress notification appears sooner.
+        val visible = lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
 
 
         val micGranted = ContextCompat.checkSelfPermission(
@@ -1686,19 +1695,27 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                         storedRemainingTime = newTime // Store first-time value
                     }
 
-                    startCountdown(newTime)
+                    startCountdown(newTime, data.ends_at_ms)
                 }
             }
 
         }) }
     }
 
-    fun startCountdown(remainingTime: String) {
-        // Convert "MM:SS" format to milliseconds
-        val timeParts = remainingTime.split(":").map { it.toInt() }
-        val minutes = timeParts[0]
-        val seconds = timeParts[1]
-        val totalMillis = (minutes * 60 + seconds) * 1000L
+    fun startCountdown(remainingTime: String, endsAtMs: Long? = null) {
+        // B141: prefer the server-anchored absolute end timestamp when
+        // available — both sides (male + female) compute remaining against
+        // the same epoch ms, so their displays show the same value at the
+        // same wall-clock instant. Fall back to the legacy "MM:SS" duration
+        // string when the server hasn't deployed the v2 response yet.
+        val totalMillis = if (endsAtMs != null && endsAtMs > 0L) {
+            (endsAtMs - System.currentTimeMillis()).coerceAtLeast(0L)
+        } else {
+            val timeParts = remainingTime.split(":").map { it.toIntOrNull() ?: 0 }
+            val mins = timeParts.getOrElse(0) { 0 }
+            val secs = timeParts.getOrElse(1) { 0 }
+            (mins * 60 + secs) * 1000L
+        }
 
         countDownTimer =  object : CountDownTimer(totalMillis, 1000) {
             override fun onTick(millisUntilFinished: Long) {
@@ -1812,14 +1829,14 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                         Log.d("resumedtag","videocalltime - $newTime")
                         if (storedVideoRemainingTime == null) {
                             storedVideoRemainingTime = newTime // Store first-time value
-                            startCountdown(newTime)
+                            startCountdown(newTime, data.ends_at_ms)
 
                         }
 
                         if (storedVideoRemainingTime != null) {
                             storedVideoRemainingTime = newTime // Update stored value
                             stopCountdown()
-                            startCountdown(newTime)
+                            startCountdown(newTime, data.ends_at_ms)
                         }
 
 
@@ -1851,7 +1868,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                     // coin allowance (paired with B184 fix).
                     storedRemainingTime = newTime
                     stopCountdown()
-                    startCountdown(newTime)
+                    startCountdown(newTime, data.ends_at_ms)
                 }
             }
         }) }}
@@ -2423,9 +2440,27 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         )
     }
 
+    override fun onStart() {
+        super.onStart()
+        // B137 — fire FGS as soon as activity is visible (STARTED), not just
+        // RESUMED, so the session notification appears sooner.
+        startCallingService()
+    }
+
     override fun onResume() {
         super.onResume()
         Log.d("resumedtag","resumed")
+        // B162 — recover from a stuck interrupt-mute. If a permanent
+        // AUDIOFOCUS_LOSS left mutedByInterrupt=true and the matching GAIN
+        // never came back, the receiver's voice stays muted with no recovery
+        // path. Activity resume = user is on the call = audio expected.
+        audioFocusHelper?.request()
+        if (mutedByInterrupt && audioFocusHelper?.hasFocus() == true) {
+            Log.d("B162", "FemaleAudio onResume: clearing stuck interrupt mute (focus held)")
+            mutedByInterrupt = false
+            agoraEngine?.muteAllRemoteAudioStreams(false)
+            if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
+        }
         newRemainingTime()
         startCallingService()
 
@@ -2945,7 +2980,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
                         stopCountdown()
                         storedRemainingTime = newTime // Store first-time value
-                        startCountdown(newTime)
+                        startCountdown(newTime, data.ends_at_ms)
                     }
                 }
 
@@ -2983,7 +3018,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
                         stopCountdown()
                         storedVideoRemainingTime = newTime // Store first-time value
-                        startCountdown(newTime)
+                        startCountdown(newTime, data.ends_at_ms)
                     }
                 }
 

@@ -1243,7 +1243,12 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
         Log.d("startCallingService","Service not returned")
 
-        val visible = lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+        // B137 — Android 14/15 lets a foreground service start while the
+        // activity is in the visible STARTED state, not only RESUMED. Using
+        // RESUMED forced us to wait until onResume; STARTED lets us fire
+        // from onStart instead, shaving ~100–300ms off the time before the
+        // session-in-progress notification appears in the tray.
+        val visible = lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
 
 
         val micGranted = ContextCompat.checkSelfPermission(
@@ -1710,7 +1715,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                             storedRemainingTime = newTime // Store first-time value
                         }
 
-                        startCountdown(newTime)
+                        startCountdown(newTime, data.ends_at_ms)
                     }
                 }
 
@@ -1718,12 +1723,20 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         }
     }
 
-    fun startCountdown(remainingTime: String) {
-        // Convert "MM:SS" format to milliseconds
-        val timeParts = remainingTime.split(":").map { it.toInt() }
-        val minutes = timeParts[0]
-        val seconds = timeParts[1]
-        val totalMillis = (minutes * 60 + seconds) * 1000L
+    fun startCountdown(remainingTime: String, endsAtMs: Long? = null) {
+        // B141: prefer the server-anchored absolute end timestamp when
+        // available — both sides (male + female) compute remaining against
+        // the same epoch ms, so their displays show the same value at the
+        // same wall-clock instant. Fall back to the legacy "MM:SS" duration
+        // string when the server hasn't deployed the v2 response yet.
+        val totalMillis = if (endsAtMs != null && endsAtMs > 0L) {
+            (endsAtMs - System.currentTimeMillis()).coerceAtLeast(0L)
+        } else {
+            val timeParts = remainingTime.split(":").map { it.toIntOrNull() ?: 0 }
+            val mins = timeParts.getOrElse(0) { 0 }
+            val secs = timeParts.getOrElse(1) { 0 }
+            (mins * 60 + secs) * 1000L
+        }
 
         countDownTimer = object : CountDownTimer(totalMillis, 1000) {
             override fun onTick(millisUntilFinished: Long) {
@@ -1783,7 +1796,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                                     "remainingTimeUpdated"
                                 )
                                 stopCountdown()
-                                startCountdown(newTime)
+                                startCountdown(newTime, data.ends_at_ms)
 
                             }
 
@@ -1796,7 +1809,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                                     "remainingTimeUpdated"
                                 )
                                 stopCountdown()
-                                startCountdown(newTime)
+                                startCountdown(newTime, data.ends_at_ms)
                             }
 
 
@@ -1834,7 +1847,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                                 "remainingTimeUpdated"
                             )
                             stopCountdown()
-                            startCountdown(newTime)
+                            startCountdown(newTime, data.ends_at_ms)
                         }
                     }
                 })
@@ -1875,9 +1888,32 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     }
 
 
+    override fun onStart() {
+        super.onStart()
+        // B137 — fire the foreground service as soon as the activity is
+        // visible (STARTED state), not just when it's resumed. The session
+        // notification appears in the tray ~100-300ms sooner this way.
+        startCallingService()
+    }
+
     override fun onResume() {
         super.onResume()
         Log.d("resumedtag", "resumed")
+        // B162 — if a permanent AUDIOFOCUS_LOSS left us in muted-by-interrupt
+        // state and the matching GAIN never came back (some apps grab focus
+        // and never return it), the receiver's voice would stay muted with
+        // no recovery path. Activity resume = user is actively on the call
+        // surface = they expect audio. Re-request focus (idempotent) and if
+        // we hold it, defensively clear the interrupt mute. If the interrupt
+        // is genuinely still active, the helper will re-fire onFocusLost
+        // and re-mute within milliseconds.
+        audioFocusHelper?.request()
+        if (mutedByInterrupt && audioFocusHelper?.hasFocus() == true) {
+            Log.d("B162", "MaleAudio onResume: clearing stuck interrupt mute (focus held)")
+            mutedByInterrupt = false
+            agoraEngine?.muteAllRemoteAudioStreams(false)
+            if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
+        }
         newRemainingTime()
         startCallingService()
 
@@ -2889,7 +2925,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
                         stopCountdown()
                         storedRemainingTime = newTime // Store first-time value
-                        startCountdown(newTime)
+                        startCountdown(newTime, data.ends_at_ms)
                     }
                 }
 
@@ -2927,7 +2963,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
                         stopCountdown()
                         storedVideoRemainingTime = newTime // Store first-time value
-                        startCountdown(newTime)
+                        startCountdown(newTime, data.ends_at_ms)
                     }
                 }
 

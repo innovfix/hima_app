@@ -25,6 +25,9 @@ class CallAudioFocusHelper(
     private var focusRequest: AudioFocusRequest? = null
     private var hasFocus: Boolean = false
 
+    /** True while this helper currently holds audio focus. */
+    fun hasFocus(): Boolean = hasFocus
+
     private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
         when (change) {
             // B186 — only true loss (LOSS / LOSS_TRANSIENT) should mute the

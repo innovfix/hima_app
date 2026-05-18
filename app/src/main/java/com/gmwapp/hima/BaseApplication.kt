@@ -1421,6 +1421,15 @@ class BaseApplication : Application(), Configuration.Provider {
     fun isInActiveCall(): Boolean =
         isCallActive || activeCallActivityCount.get() > 0
 
+    /**
+     * B125 — narrower variant of [isInActiveCall] that returns true only when
+     * one of the 4 in-call activities (Male/Female × Audio/Video) is alive.
+     * Used by the *connecting* activities to detect "user is trying to start
+     * a second call while the first is still going" without falsely triggering
+     * on their own ActivityLifecycleCallbacks counter increment.
+     */
+    fun isInRealCall(): Boolean = isCallActive
+
     fun setIncomingCall(senderId: Int, callType: String, channelName: String, callId: Int) {
         this.senderId = senderId
         this.callTypeForSplashActivity = callType

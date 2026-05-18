@@ -102,6 +102,22 @@ class MaleCallConnectingActivity : AppCompatActivity() {
             finish()
             return
         }
+        // B125 — refuse to start a second Hima call while one is already
+        // running. The first call's in-call activity sets isCallActive=true
+        // in its onCreate (and clears it in onDestroy); if it's still alive
+        // here, the user attempted to initiate a 2nd call via Random Call
+        // FAB / Recent / etc. Without this gate, two Agora channels would
+        // join concurrently, the previous video activity would stay on
+        // screen, and the 2nd call's audio path would lose its mic.
+        if (BaseApplication.getInstance()?.isInRealCall() == true) {
+            android.widget.Toast.makeText(
+                this,
+                "You're already in a call. End it first.",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            finish()
+            return
+        }
         enableEdgeToEdge()
         binding =ActivityMaleCallConnectingBinding.inflate(layoutInflater)
         setContentView(binding.root)

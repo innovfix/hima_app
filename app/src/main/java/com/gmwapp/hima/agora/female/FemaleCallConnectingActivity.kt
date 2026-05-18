@@ -98,6 +98,20 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
             finish()
             return
         }
+        // B125 — refuse to start a second Hima call while one is already in
+        // progress (in-call activity alive). Without this, the previous
+        // video call screen would linger behind the new connecting screen
+        // and the new audio call's mic path would be hijacked by the
+        // existing Agora session.
+        if (BaseApplication.getInstance()?.isInRealCall() == true) {
+            android.widget.Toast.makeText(
+                this,
+                "You're already in a call. End it first.",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            finish()
+            return
+        }
         enableEdgeToEdge()
         binding = ActivityFemaleCallConnectingBinding.inflate(layoutInflater)
         setContentView(binding.root)
