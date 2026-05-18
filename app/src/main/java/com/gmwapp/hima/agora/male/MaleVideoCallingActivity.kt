@@ -1071,11 +1071,31 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == PERMISSION_REQ_ID) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            val allGranted = grantResults.isNotEmpty() &&
+                grantResults.all { it == PackageManager.PERMISSION_GRANTED }
+            if (allGranted) {
                 setupVideoSDKEngine()
                 joinChannel(binding.JoinButton) // Automatically join the channel
             } else {
-                ActivityCompat.requestPermissions(this, REQUESTED_PERMISSIONS, PERMISSION_REQ_ID)
+                // B173 — denying once = exit. Re-calling requestPermissions
+                // after a denial used to silently spin: Android 11+ enters
+                // "permanently denied" after the second decline and starts
+                // returning DENIED without a dialog, so the activity sat on
+                // a non-functional video call screen indefinitely. Show a
+                // brief explanation and finish so the user lands back where
+                // they came from.
+                Toast.makeText(
+                    this,
+                    "Camera and microphone access are required for a video call. " +
+                        "Enable them in Settings to try again.",
+                    Toast.LENGTH_LONG
+                ).show()
+                Handler(Looper.getMainLooper()).postDelayed({
+                    if (!isFinishing && !isDestroyed) {
+                        Log.d(TAG_END, "finish() from permission-denied path")
+                        finish()
+                    }
+                }, 1500)
             }
         }
     }
