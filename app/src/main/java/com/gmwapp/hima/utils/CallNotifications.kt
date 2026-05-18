@@ -55,7 +55,7 @@ object CallNotifications {
      * background — see bug B147.
      */
     private const val CALLS_NOTIFICATION_CHANNEL_ID = "calls_v4"
-    private const val INCOMING_CALL_NOTIFICATION_ID = 1
+    const val INCOMING_CALL_NOTIFICATION_ID = 1
 
     /**
      * Missed-call notification re-uses the chat channel + group so it renders
@@ -90,8 +90,107 @@ object CallNotifications {
         val callerImage: String?
     )
 
-    fun showIncoming(context: Context, payload: IncomingPayload) {
+    /**
+     * Build (but don't post) the incoming-call CallStyle notification.
+     * Public so [com.gmwapp.hima.agora.FcmCallService] can hand the same
+     * notification to `startForeground` (B022) instead of posting a parallel
+     * one that would either duplicate or downgrade the user-visible UI.
+     *
+     * The legacy notify path used by OneSignal/BaseApplication still goes
+     * through [showIncoming], which delegates to this builder.
+     */
+    fun buildIncomingCallNotification(
+        context: Context,
+        payload: IncomingPayload,
+        callerAvatar: Bitmap? = null,
+    ): Notification {
         ensureCallsChannel(context)
+
+        val isMale = payload.isMale
+        val callType = payload.callType
+        val senderId = payload.senderId
+        val callId = payload.callId
+        val channelName = payload.channelName
+        val receiverName = payload.callerName
+        val receiverImg = payload.callerImage.orEmpty()
+
+        val targetClass = if (isMale) MaleCallAcceptActivity::class.java else FemaleCallAcceptActivity::class.java
+        val contentReq = if (isMale) 201 else 101
+        val rejectAction = if (isMale) "ACTION_REJECT_CALL_MALE" else "ACTION_REJECT_CALL"
+        val acceptReq = if (isMale) 202 else 102
+        val rejectReq = if (isMale) 203 else 103
+
+        val tapIntent = Intent(context, targetClass).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("CALL_TYPE", callType)
+            putExtra("SENDER_ID", senderId)
+            putExtra("CHANNEL_NAME", channelName)
+            putExtra("CALL_ID", callId)
+            putExtra("Caller_NAME", receiverName)
+            putExtra("Caller_Image", receiverImg)
+        }
+        val contentPi = PendingIntent.getActivity(
+            context, contentReq, tapIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // B021: Accept routes through the accept activity (singleTop) with
+        // AUTO_ACCEPT=true instead of through CallActionReceiver — a
+        // BroadcastReceiver's startActivity() is silently blocked under some
+        // BAL rules when the app was killed before notification tap.
+        val acceptIntent = Intent(context, targetClass).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("CALL_TYPE", callType)
+            putExtra("SENDER_ID", senderId)
+            putExtra("CHANNEL_NAME", channelName)
+            putExtra("CALL_ID", callId)
+            putExtra("Caller_NAME", receiverName)
+            putExtra("Caller_Image", receiverImg)
+            putExtra("AUTO_ACCEPT", true)
+        }
+        val acceptPi = PendingIntent.getActivity(
+            context, acceptReq, acceptIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val rejectIntent = Intent(context, CallActionReceiver::class.java).apply {
+            action = rejectAction
+            putExtra("CALL_TYPE", callType)
+            putExtra("SENDER_ID", senderId)
+            putExtra("CHANNEL_NAME", channelName)
+            putExtra("CALL_ID", callId)
+        }
+        val rejectPi = PendingIntent.getBroadcast(
+            context, rejectReq, rejectIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val person = Person.Builder()
+            .setName(receiverName)
+            .setImportant(true)
+            .apply { if (callerAvatar != null) setIcon(IconCompat.createWithBitmap(callerAvatar)) }
+            .build()
+
+        return NotificationCompat.Builder(context, CALLS_NOTIFICATION_CHANNEL_ID)
+            .setSmallIcon(R.drawable.notification_icon)
+            .setStyle(NotificationCompat.CallStyle.forIncomingCall(person, rejectPi, acceptPi))
+            .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setContentIntent(contentPi)
+            .setFullScreenIntent(contentPi, true)
+            .setOngoing(true)
+            .setAutoCancel(false)
+            .setTimeoutAfter(35_000L)
+            // Avatar-refresh re-notify (Glide) updates the same tag+id;
+            // setOnlyAlertOnce keeps the OS from re-triggering the channel
+            // ringtone on the second post (would double-ring on AOSP).
+            .setOnlyAlertOnce(true)
+            .addPerson(person)
+            .build()
+    }
+
+    fun showIncoming(context: Context, payload: IncomingPayload) {
         val chImp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             (context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)
                 ?.getNotificationChannel(CALLS_NOTIFICATION_CHANNEL_ID)?.importance
@@ -109,97 +208,8 @@ object CallNotifications {
             Log.d(TAG, "showIncoming: POST_NOTIFICATIONS granted=$granted")
         }
 
-        val isMale = payload.isMale
-        val callType = payload.callType
-        val senderId = payload.senderId
-        val callId = payload.callId
-        val channelName = payload.channelName
-        val receiverName = payload.callerName
+        val notifTag = payload.callId.toString()
         val receiverImg = payload.callerImage.orEmpty()
-
-        val targetClass = if (isMale) MaleCallAcceptActivity::class.java else FemaleCallAcceptActivity::class.java
-        val contentReq = if (isMale) 201 else 101
-        val acceptAction = if (isMale) "ACTION_ACCEPT_CALL_MALE" else "ACTION_ACCEPT_CALL"
-        val rejectAction = if (isMale) "ACTION_REJECT_CALL_MALE" else "ACTION_REJECT_CALL"
-        val acceptReq = if (isMale) 202 else 102
-        val rejectReq = if (isMale) 203 else 103
-
-        val tapIntent = Intent(context, targetClass).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra("CALL_TYPE", callType)
-            putExtra("SENDER_ID", senderId)
-            putExtra("CHANNEL_NAME", channelName)
-            putExtra("CALL_ID", callId)
-            putExtra("Caller_NAME", receiverName)
-            putExtra("Caller_Image", receiverImg)
-        }
-        val contentPi = PendingIntent.getActivity(
-            context,
-            contentReq,
-            tapIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val acceptIntent = Intent(context, CallActionReceiver::class.java).apply {
-            action = acceptAction
-            putExtra("CALL_TYPE", callType)
-            putExtra("SENDER_ID", senderId)
-            putExtra("CHANNEL_NAME", channelName)
-            putExtra("CALL_ID", callId)
-        }
-        val acceptPi = PendingIntent.getBroadcast(
-            context,
-            acceptReq,
-            acceptIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val rejectIntent = Intent(context, CallActionReceiver::class.java).apply {
-            action = rejectAction
-            putExtra("CALL_TYPE", callType)
-            putExtra("SENDER_ID", senderId)
-            putExtra("CHANNEL_NAME", channelName)
-            putExtra("CALL_ID", callId)
-        }
-        val rejectPi = PendingIntent.getBroadcast(
-            context,
-            rejectReq,
-            rejectIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val caller = Person.Builder()
-            .setName(receiverName)
-            .setImportant(true)
-            .build()
-
-        fun buildNotification(person: Person): Notification {
-            return NotificationCompat.Builder(context, CALLS_NOTIFICATION_CHANNEL_ID)
-                .setSmallIcon(R.drawable.notification_icon)
-                .setStyle(
-                    NotificationCompat.CallStyle.forIncomingCall(
-                        person,
-                        rejectPi,
-                        acceptPi
-                    )
-                )
-                .setCategory(NotificationCompat.CATEGORY_CALL)
-                .setPriority(NotificationCompat.PRIORITY_MAX)
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setContentIntent(contentPi)
-                .setFullScreenIntent(contentPi, true)
-                .setOngoing(true)
-                .setAutoCancel(false)
-                .setTimeoutAfter(35_000L)
-                // Avatar-refresh re-notify (Glide) updates the same tag+id;
-                // setOnlyAlertOnce keeps the OS from re-triggering the channel
-                // ringtone on the second post (would double-ring on AOSP).
-                .setOnlyAlertOnce(true)
-                .addPerson(person)
-                .build()
-        }
-
-        val notifTag = callId.toString()
         try {
             Log.d(
                 TAG,
@@ -208,40 +218,37 @@ object CallNotifications {
             NotificationManagerCompat.from(context).notify(
                 notifTag,
                 INCOMING_CALL_NOTIFICATION_ID,
-                buildNotification(caller)
+                buildIncomingCallNotification(context, payload)
             )
             Log.d(
                 TAG,
-                "showIncoming: CallStyle notification posted (isMale=$isMale, tag=$notifTag, id=$INCOMING_CALL_NOTIFICATION_ID)"
+                "showIncoming: CallStyle notification posted (isMale=${payload.isMale}, tag=$notifTag, id=$INCOMING_CALL_NOTIFICATION_ID)"
             )
 
             // Async avatar refresh — re-notify with bitmap once Glide resolves.
-            Glide.with(context.applicationContext)
-                .asBitmap()
-                .load(receiverImg)
-                .apply(RequestOptions.circleCropTransform())
-                .into(object : CustomTarget<Bitmap>() {
-                    override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-                        val currentTag = BaseApplication.getInstance()?.getLastIncomingCallTag()
-                        if (currentTag != notifTag) {
-                            Log.d(TAG, "avatar refresh skipped: call $notifTag no longer pending (current=$currentTag)")
-                            return
+            if (receiverImg.isNotBlank()) {
+                Glide.with(context.applicationContext)
+                    .asBitmap()
+                    .load(receiverImg)
+                    .apply(RequestOptions.circleCropTransform())
+                    .into(object : CustomTarget<Bitmap>() {
+                        override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                            val currentTag = BaseApplication.getInstance()?.getLastIncomingCallTag()
+                            if (currentTag != notifTag) {
+                                Log.d(TAG, "avatar refresh skipped: call $notifTag no longer pending (current=$currentTag)")
+                                return
+                            }
+                            NotificationManagerCompat.from(context.applicationContext).notify(
+                                notifTag,
+                                INCOMING_CALL_NOTIFICATION_ID,
+                                buildIncomingCallNotification(context, payload, resource)
+                            )
+                            Log.d(TAG, "showIncoming: refreshed with caller avatar bitmap")
                         }
-                        val personWithIcon = Person.Builder()
-                            .setName(receiverName)
-                            .setImportant(true)
-                            .setIcon(IconCompat.createWithBitmap(resource))
-                            .build()
-                        NotificationManagerCompat.from(context.applicationContext).notify(
-                            notifTag,
-                            INCOMING_CALL_NOTIFICATION_ID,
-                            buildNotification(personWithIcon)
-                        )
-                        Log.d(TAG, "showIncoming: refreshed with caller avatar bitmap")
-                    }
 
-                    override fun onLoadCleared(placeholder: Drawable?) {}
-                })
+                        override fun onLoadCleared(placeholder: Drawable?) {}
+                    })
+            }
         } catch (e: SecurityException) {
             Log.e(TAG, "showIncoming: SecurityException ${e.message}", e)
         } catch (e: Exception) {
