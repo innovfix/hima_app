@@ -1,6 +1,7 @@
 package com.gmwapp.hima.agora.male
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -121,7 +122,23 @@ class MaleCallConnectingActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding =ActivityMaleCallConnectingBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        window.statusBarColor = ContextCompat.getColor(this, R.color.black)
+        // B014 — the connecting layout has a white background (bg_white).
+        // Hardcoding the status bar to black created the jarring "completely
+        // black bar over a white screen" look. Match it to the page bg and
+        // ask the OS to render the status-bar icons in dark colors so they
+        // stay legible against white.
+        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.setSystemBarsAppearance(
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility =
+                window.decorView.systemUiVisibility or
+                    android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+        }
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)

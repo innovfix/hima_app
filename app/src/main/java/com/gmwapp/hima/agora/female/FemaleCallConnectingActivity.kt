@@ -1,6 +1,7 @@
 package com.gmwapp.hima.agora.female
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -115,7 +116,20 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding = ActivityFemaleCallConnectingBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        window.statusBarColor = ContextCompat.getColor(this, R.color.black)
+        // B014 — match the connecting screen's white background instead of
+        // hardcoding black. Dark status-bar icons stay legible against white.
+        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.setSystemBarsAppearance(
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility =
+                window.decorView.systemUiVisibility or
+                    android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+        }
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)

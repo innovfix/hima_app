@@ -152,6 +152,7 @@
             android:name=".agora.female.FemaleAudioCallingActivity"
             android:exported="false"
             android:launchMode="singleTask"
+            android:resizeableActivity="false"
             android:showWhenLocked="true"
             android:turnScreenOn="true" />
         <activity
@@ -161,7 +162,8 @@
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation" />
         <activity
             android:name=".agora.male.MaleAudioCallingActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:resizeableActivity="false" />
         <activity
             android:name=".agora.female.FemaleCallAcceptActivity"
             android:exported="false"
@@ -170,7 +172,8 @@
             android:turnScreenOn="true" />
         <activity
             android:name=".agora.female.FemaleCallConnectingActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:resizeableActivity="false" />
         <activity
             android:name=".activities.ChatActivity"
             android:exported="false"
@@ -191,7 +194,8 @@
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".agora.male.MaleCallConnectingActivity"
-            android:exported="true" />
+            android:exported="true"
+            android:resizeableActivity="false" />
         <activity
             android:name=".agora.male.MaleCallAcceptActivity"
             android:exported="true"

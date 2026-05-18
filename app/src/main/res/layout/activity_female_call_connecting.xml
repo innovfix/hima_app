@@ -4,7 +4,9 @@
     android:id="@+id/main"
     android:background="@drawable/bg_white"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:clipChildren="false"
+    android:clipToPadding="false">
 
     <!-- Status Bar Padding -->
     <View
@@ -84,12 +86,16 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Top User Avatar Container (Receiver - Male User) -->
+    <!-- Top User Avatar Container (Receiver - Male User)
+         B015: clipChildren=false so the pulse-ring animation (scaleX/scaleY
+         up to 1.1f, > 1.0 exceeds the wrap_content bounds) renders fully
+         instead of getting clipped at the View's edges. -->
     <FrameLayout
         android:id="@+id/fl_top_avatar_container"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="40dp"
+        android:clipChildren="false"
         app:layout_constraintTop_toBottomOf="@id/connection_status_card"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -170,12 +176,15 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
-    <!-- Bottom User Avatar Container (Female Creator - You) -->
+    <!-- Bottom User Avatar Container (Female Creator - You)
+         B015: clipChildren=false so the pulse-ring scale-up animation
+         renders fully without being clipped at the wrap_content edge. -->
     <FrameLayout
         android:id="@+id/fl_bottom_avatar_container"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="24dp"
+        android:clipChildren="false"
         app:layout_constraintBottom_toTopOf="@id/ll_info_container"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -273,12 +282,14 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- Progress Text -->
+        <!-- Progress Text — B013: was duplicate "Connecting..." (top card
+             already shows that). Switched to a time-expectation hint so the
+             user doesn't read the same word three times on screen. -->
         <TextView
             android:id="@+id/tv_progress_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Connecting..."
+            android:text="Usually connects in a few seconds"
             android:fontFamily="@font/poppins_medium"
             android:textColor="#888888"
             android:textSize="12sp"
