@@ -17,3 +17,9 @@ app/production/release/*.apk
 *.logcat
 # Claude / Cursor local agent state
 .claude/
+# QA artifacts dropped at repo root (bug reports, test-case docs, proof folders)
+/HIMA_*
+/*_proofs/
+/autopay_api_test/
+/build_bug_pdf.py
+/RANJINI_DB_ACCESS_HANDOVER.md

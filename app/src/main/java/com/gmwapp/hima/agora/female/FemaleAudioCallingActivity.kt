@@ -235,7 +235,9 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                 // "User did not join" before the connection finished establishing.
                 if (isRemoteUserJoined==false){
                     Log.d("isUserJoinedTimer","Leave Button")
-                    Toast.makeText(this@FemaleAudioCallingActivity,"User did not join", Toast.LENGTH_LONG).show()
+                    // B043/B044 — see MaleAudioCallingActivity for the rationale
+                    // on dropping the user-blaming wording.
+                    Toast.makeText(this@FemaleAudioCallingActivity,"Couldn't connect — please try again", Toast.LENGTH_LONG).show()
 
                     cancelTimeoutTracking()
                     leaveChannel(binding.LeaveButton)
@@ -2195,26 +2197,26 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
                     switchDialog?.dismiss()
 
-                    switchDialog =  AlertDialog.Builder(this)
+                    // B069 follow-up — track explicit response so an
+                    // outside-tap dismiss fires an implicit decline below.
+                    var responded = false
+                    switchDialog = AlertDialog.Builder(this)
                         .setTitle("Switch to audio Call ?")
                         .setMessage("$receiverName requested for audio call")
                         .setPositiveButton("Confirm") { _, _ ->
-
-                                    if (userid != null && switchCallID !=0) {
-                                        Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
-
-                                        sendCallAcceptNotification(userid,receiverId,"audio","AudioAccepted")
-                                        FcmUtils.clearCallSwitch()
-                                        Log.d("NewCallID","$newCallId")
-                                        stopCountdown()
-                                        isSwitchingToAudio = false
-
-                                        enableAudioCall()
-                                    }
-
+                            responded = true
+                            if (userid != null && switchCallID != 0) {
+                                Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
+                                sendCallAcceptNotification(userid, receiverId, "audio", "AudioAccepted")
+                                FcmUtils.clearCallSwitch()
+                                Log.d("NewCallID", "$newCallId")
+                                stopCountdown()
+                                isSwitchingToAudio = false
+                                enableAudioCall()
+                            }
                         }
-                        .setNegativeButton("Decline") { dialog, _ ->
-                            // Dismiss dialog if No is clicked
+                        .setNegativeButton("Decline") { d, _ ->
+                            responded = true
                             userid?.let {
                                 sendCallAcceptNotification(
                                     it,
@@ -2223,12 +2225,27 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                                     "SwitchDeclined"
                                 )
                             }
-                            dialog.dismiss()
+                            d.dismiss()
                             FcmUtils.clearCallSwitch()
-
                         }
-                        .setOnDismissListener { switchDialog = null }  // Reset when dismissed
-                        .show()
+                        .create().apply {
+                            setOnDismissListener {
+                                // B069 follow-up — outside-tap/back = implicit decline.
+                                if (!responded && !isFinishing && !isDestroyed) {
+                                    userid?.let { uid ->
+                                        sendCallAcceptNotification(
+                                            uid,
+                                            receiverId,
+                                            "audio",
+                                            "SwitchDeclined"
+                                        )
+                                    }
+                                    FcmUtils.clearCallSwitch()
+                                }
+                                switchDialog = null
+                            }
+                            show()
+                        }
 
                 }
 
@@ -2635,19 +2652,26 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             .setView(dialogView)
             .setCancelable(true)
             .create()
-        
+
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-        
+
         val tvMessage = dialogView.findViewById<TextView>(R.id.tv_dialog_message)
         tvMessage.text = "$requesterName requested for video session"
-        
+
         val btnNo = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_dialog_no)
         val btnYes = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_dialog_yes)
-        
+
         btnNo.text = "Decline"
         btnYes.text = "Accept"
-        
+
+        // B069 follow-up — track whether the user explicitly chose. If they
+        // dismiss via outside-tap / back, the dismiss listener below treats
+        // it as a decline so the requester isn't left with a hanging
+        // "request pending" UI.
+        var responded = false
+
         btnNo.setOnClickListener {
+            responded = true
             userid?.let {
                 sendCallAcceptNotification(
                     it,
@@ -2659,19 +2683,20 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             dialog.dismiss()
             FcmUtils.clearCallSwitch()
         }
-        
+
         btnYes.setOnClickListener {
             val remainingTime = binding.tvRemainingTime?.text.toString()
             val timeParts = remainingTime.split(":").map { it.toInt() }
-            
+
             if (timeParts.size == 3) {
                 val hours = timeParts[0]
                 val minutes = timeParts[1]
                 val seconds = timeParts[2]
                 val totalSeconds = (hours * 3600) + (minutes * 60) + seconds
-                
+
                 if (totalSeconds > 360) {
                     if (userid != null && switchCallID != 0) {
+                        responded = true
                         Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
                         sendCallAcceptNotification(
                             userid,
@@ -2685,6 +2710,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                         enableVideoCall()
                     }
                 } else {
+                    responded = true
                     Toast.makeText(
                         this,
                         "$requesterName don't have enough coins",
@@ -2695,8 +2721,26 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             }
             dialog.dismiss()
         }
-        
-        dialog.setOnDismissListener { switchDialog = null }
+
+        dialog.setOnDismissListener {
+            // B069 follow-up — outside-tap / back-button dismiss with no
+            // explicit choice = implicit decline. Suppressed when the
+            // activity itself is going away (leaveChannel/onDestroy dismiss
+            // the dialog; sending FCM in that window would race the call's
+            // teardown and the requester is already on his way out).
+            if (!responded && !isFinishing && !isDestroyed) {
+                userid?.let {
+                    sendCallAcceptNotification(
+                        it,
+                        receiverId,
+                        "video",
+                        "SwitchDeclined"
+                    )
+                }
+                FcmUtils.clearCallSwitch()
+            }
+            switchDialog = null
+        }
         dialog.show()
         return dialog
     }

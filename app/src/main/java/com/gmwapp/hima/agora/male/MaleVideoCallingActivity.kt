@@ -233,6 +233,12 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
     private var startTime: String = ""
     private var endTime: String = ""
+    // B110: monotonic millis snapshot taken at onUserJoined so the hangup
+    // path can compute an accurate durationSeconds for saveCallStatus.
+    // Without this, durationSeconds defaulted to null on the backend, the
+    // call was recorded with duration=0, and the male's Recent tab classified
+    // his own outgoing call as "Missed."
+    private var callStartMillis: Long = 0L
     var callId : Int = 0
     private var pendingLudoAction: String? = null
     private var currentLudoInviteId: String? = null
@@ -281,7 +287,9 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 if (isRemoteUserJoined==false){
                     Log.d(TAG_END, "timeout fired -> leaveChannel (remote never joined)")
                     Log.d("isUserJoinedTimer","Leave Button")
-                    Toast.makeText(this@MaleVideoCallingActivity,"User did not join", Toast.LENGTH_LONG).show()
+                    // B043/B044 — see MaleAudioCallingActivity for the rationale
+                    // on dropping the user-blaming wording.
+                    Toast.makeText(this@MaleVideoCallingActivity,"Couldn't connect — please try again", Toast.LENGTH_LONG).show()
 
                     cancelTimeoutTracking()
                     leaveChannel(binding.LeaveButton)
@@ -1245,6 +1253,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             getRemainingTime()
 
             startTime = dateFormat.format(Date()) // Set call end time in IST
+            callStartMillis = System.currentTimeMillis() // B110: duration baseline
 
             // Set the remote video view
             runOnUiThread { setupRemoteVideo(uid) }
@@ -2094,6 +2103,22 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             "onResume isJoined=$isJoined isRemoteUserJoined=$isRemoteUserJoined elapsedTime=$elapsedTime isFinishing=$isFinishing"
         )
         Log.d("resumedtag","resumed")
+        // B189 — when the user unlocks mid-call, setShowWhenLocked alone
+        // still leaves the lockscreen above us on insecure-keyguard devices
+        // (swipe-to-unlock). Asking the keyguard to dismiss on every resume
+        // shaves the visible "delay" Laxmi reported — on secure keyguards
+        // (PIN/pattern/fingerprint) it's a no-op since the user must
+        // authenticate, but the call screen pops back instantly the moment
+        // they do.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            try {
+                val km = getSystemService(android.content.Context.KEYGUARD_SERVICE)
+                    as? android.app.KeyguardManager
+                km?.requestDismissKeyguard(this, null)
+            } catch (e: Exception) {
+                Log.w(TAG_END, "requestDismissKeyguard failed: ${e.message}")
+            }
+        }
         newRemainingTime()
         startCallingService()
 
@@ -2251,7 +2276,13 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                     callDropStatus = 1
                 )
                 val endedByRole = if (isCaller) CallEndedBy.CALLER else CallEndedBy.RECEIVER
-                Log.d("CallStatus", "MaleVideo.hangup → ended/$endedByRole self=$maleUserId peer=$receiverId callId=$callId isCaller=$isCaller")
+                // B110: compute actual call duration from the onUserJoined
+                // baseline so the backend records a non-zero duration and the
+                // Recent tab doesn't classify this completed call as "missed."
+                val durationSec = if (callStartMillis > 0L) {
+                    ((System.currentTimeMillis() - callStartMillis) / 1000L).toInt().coerceAtLeast(0)
+                } else 0
+                Log.d("CallStatus", "MaleVideo.hangup → ended/$endedByRole self=$maleUserId peer=$receiverId callId=$callId isCaller=$isCaller durationSec=$durationSec")
                 callStatusViewModel.saveCallStatus(
                     userId = maleUserId,
                     receivedUserId = receiverId,
@@ -2259,6 +2290,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                     endReason = CallEndReason.ENDED,
                     endedBy = endedByRole,
                     endedByUserId = maleUserId,
+                    durationSeconds = durationSec,
                 )
             } else {
                 Log.w(
@@ -2594,35 +2626,24 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                     if (isAudioCallGoing){
                     switchCallID = newCallId
                     switchDialog?.dismiss()
+                    // B069 follow-up — outside-tap dismiss = implicit decline.
+                    var respondedVideo = false
                     switchDialog = AlertDialog.Builder(this)
                         .setTitle("Switch to Video Call ?")
                         .setMessage("$receiverName requested for video call")
                         .setPositiveButton("Confirm") { _, _ ->
-
-
-                            val remainingTime =
-                                binding.tvRemainingTime?.text.toString() // Get the current countdown time
+                            val remainingTime = binding.tvRemainingTime?.text.toString()
                             val timeParts = remainingTime.split(":").map { it.toInt() }
-
-
-                            if (timeParts.size == 3) {  // Ensure we have HH:MM:SS format
+                            if (timeParts.size == 3) {
                                 val hours = timeParts[0]
                                 val minutes = timeParts[1]
                                 val seconds = timeParts[2]
-
                                 val totalSeconds = (hours * 3600) + (minutes * 60) + seconds
-
-
                                 if (totalSeconds > 360) {
                                     if (userid != null && switchCallID != 0) {
+                                        respondedVideo = true
                                         Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
-
-                                        sendCallAcceptNotification(
-                                            userid,
-                                            receiverId,
-                                            "video",
-                                            "VideoAccepted"
-                                        )
+                                        sendCallAcceptNotification(userid, receiverId, "video", "VideoAccepted")
                                         FcmUtils.clearCallSwitch()
                                         Log.d("NewCallID", "$newCallId")
                                         stopCountdown()
@@ -2630,38 +2651,32 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                                         enableVideoCall()
                                     }
                                 } else {
-                                    Toast.makeText(
-                                        this,
-                                        "$receiverName don't have enough coins",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    respondedVideo = true
+                                    Toast.makeText(this, "$receiverName don't have enough coins", Toast.LENGTH_SHORT).show()
                                     FcmUtils.clearCallSwitch()
-
                                 }
-
-
                             }
-
-
                         }
-                        .setNegativeButton("Decline") { dialog, _ ->
-                            // Dismiss dialog if No is clicked
+                        .setNegativeButton("Decline") { d, _ ->
+                            respondedVideo = true
                             userid?.let {
-                                sendCallAcceptNotification(
-                                    it,
-                                    receiverId,
-                                    "video",
-                                    "SwitchDeclined"
-                                )
+                                sendCallAcceptNotification(it, receiverId, "video", "SwitchDeclined")
                             }
-
-                            dialog.dismiss()
+                            d.dismiss()
                             FcmUtils.clearCallSwitch()
-
                         }
-                        .setOnDismissListener { switchDialog = null }  // Reset when dismissed
-
-                        .show()
+                        .create().apply {
+                            setOnDismissListener {
+                                if (!respondedVideo && !isFinishing && !isDestroyed) {
+                                    userid?.let { uid ->
+                                        sendCallAcceptNotification(uid, receiverId, "video", "SwitchDeclined")
+                                    }
+                                    FcmUtils.clearCallSwitch()
+                                }
+                                switchDialog = null
+                            }
+                            show()
+                        }
 
                 }}
 
@@ -2671,42 +2686,42 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
                     switchDialog?.dismiss()
 
+                    var respondedAudio = false
                     switchDialog = AlertDialog.Builder(this)
                         .setTitle("Switch to audio Call ?")
                         .setMessage("$receiverName requested for audio call")
                         .setPositiveButton("Confirm") { _, _ ->
-
-                            if (userid != null && switchCallID !=0) {
+                            respondedAudio = true
+                            if (userid != null && switchCallID != 0) {
                                 Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
-
-                                sendCallAcceptNotification(userid,receiverId,"audio","AudioAccepted")
+                                sendCallAcceptNotification(userid, receiverId, "audio", "AudioAccepted")
                                 FcmUtils.clearCallSwitch()
-                                Log.d("NewCallID","$newCallId")
+                                Log.d("NewCallID", "$newCallId")
                                 stopCountdown()
                                 isSwitchingToAudio = false
-
                                 enableAudioCall()
                             }
-
                         }
-                        .setNegativeButton("Decline") { dialog, _ ->
-                            // Dismiss dialog if No is clicked
+                        .setNegativeButton("Decline") { d, _ ->
+                            respondedAudio = true
                             userid?.let {
-                                sendCallAcceptNotification(
-                                    it,
-                                    receiverId,
-                                    "audio",
-                                    "SwitchDeclined"
-                                )
+                                sendCallAcceptNotification(it, receiverId, "audio", "SwitchDeclined")
                             }
-
-                            dialog.dismiss()
+                            d.dismiss()
                             FcmUtils.clearCallSwitch()
-
                         }
-                        .setOnDismissListener { switchDialog = null }  // Reset when dismissed
-
-                        .show()
+                        .create().apply {
+                            setOnDismissListener {
+                                if (!respondedAudio && !isFinishing && !isDestroyed) {
+                                    userid?.let { uid ->
+                                        sendCallAcceptNotification(uid, receiverId, "audio", "SwitchDeclined")
+                                    }
+                                    FcmUtils.clearCallSwitch()
+                                }
+                                switchDialog = null
+                            }
+                            show()
+                        }
 
                 }}
 

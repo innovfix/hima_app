@@ -256,7 +256,9 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                 // "User did not join" before the connection finished establishing.
                 if (isRemoteUserJoined==false){
                     Log.d("isUserJoinedTimer","Leave Button")
-                    Toast.makeText(this@FemaleVideoCallingActivity,"User did not join", Toast.LENGTH_LONG).show()
+                    // B043/B044 — see MaleAudioCallingActivity for the rationale
+                    // on dropping the user-blaming wording.
+                    Toast.makeText(this@FemaleVideoCallingActivity,"Couldn't connect — please try again", Toast.LENGTH_LONG).show()
 
                     cancelTimeoutTracking()
                     leaveChannel(binding.LeaveButton)
@@ -2533,67 +2535,57 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
                     switchDialog?.dismiss()
 
+                    // B069 follow-up — track explicit response so outside-tap = decline.
+                    var responded = false
                     switchDialog = AlertDialog.Builder(this)
                         .setTitle("Switch to Video Call ?")
                         .setMessage("$receiverName requested for video call")
                         .setPositiveButton("Confirm") { _, _ ->
-
-
-                            val remainingTime = binding.tvRemainingTime?.text.toString() // Get the current countdown time
+                            val remainingTime = binding.tvRemainingTime?.text.toString()
                             val timeParts = remainingTime.split(":").map { it.toInt() }
-
-
-                            if (timeParts.size == 3) {  // Ensure we have HH:MM:SS format
+                            if (timeParts.size == 3) {
                                 val hours = timeParts[0]
                                 val minutes = timeParts[1]
                                 val seconds = timeParts[2]
-
                                 val totalSeconds = (hours * 3600) + (minutes * 60) + seconds
-
-
-                                if (totalSeconds>360){
-                                    if (userid != null && switchCallID !=0) {
+                                if (totalSeconds > 360) {
+                                    if (userid != null && switchCallID != 0) {
+                                        responded = true
                                         Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
-
-                                        sendCallAcceptNotification(userid,receiverId,"video","VideoAccepted")
+                                        sendCallAcceptNotification(userid, receiverId, "video", "VideoAccepted")
                                         FcmUtils.clearCallSwitch()
-                                        Log.d("NewCallID","$newCallId")
+                                        Log.d("NewCallID", "$newCallId")
                                         stopCountdown()
                                         isSwitchingToVideo = false
-
                                         enableVideoCall()
                                     }
-                                }else{
+                                } else {
+                                    responded = true
                                     Toast.makeText(this, "$receiverName don't have enough coins", Toast.LENGTH_SHORT).show()
                                     FcmUtils.clearCallSwitch()
-
                                 }
-
-
-
                             }
-
-
-
                         }
-                        .setNegativeButton("Decline") { dialog, _ ->
-                            // Dismiss dialog if No is clicked
-
+                        .setNegativeButton("Decline") { d, _ ->
+                            responded = true
                             userid?.let {
-                                sendCallAcceptNotification(
-                                    it,
-                                    receiverId,
-                                    "video",
-                                    "SwitchDeclined"
-                                )
+                                sendCallAcceptNotification(it, receiverId, "video", "SwitchDeclined")
                             }
-
-                            dialog.dismiss()
+                            d.dismiss()
                             FcmUtils.clearCallSwitch()
-
                         }
-                        .setOnDismissListener { switchDialog = null }
-                        .show()
+                        .create().apply {
+                            setOnDismissListener {
+                                if (!responded && !isFinishing && !isDestroyed) {
+                                    userid?.let { uid ->
+                                        sendCallAcceptNotification(uid, receiverId, "video", "SwitchDeclined")
+                                    }
+                                    FcmUtils.clearCallSwitch()
+                                }
+                                switchDialog = null
+                            }
+                            show()
+                        }
 
                 }}
 
@@ -2606,42 +2598,42 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
                     switchDialog?.dismiss()
 
+                    var responded = false
                     switchDialog = AlertDialog.Builder(this)
                         .setTitle("Switch to audio Call ?")
                         .setMessage("$receiverName requested for audio call")
                         .setPositiveButton("Confirm") { _, _ ->
-
-                            if (userid != null && switchCallID !=0) {
+                            responded = true
+                            if (userid != null && switchCallID != 0) {
                                 Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
-
-                                sendCallAcceptNotification(userid,receiverId,"audio","AudioAccepted")
+                                sendCallAcceptNotification(userid, receiverId, "audio", "AudioAccepted")
                                 FcmUtils.clearCallSwitch()
-                                Log.d("NewCallID","$newCallId")
+                                Log.d("NewCallID", "$newCallId")
                                 stopCountdown()
                                 isSwitchingToAudio = false
-
                                 enableAudioCall()
                             }
-
                         }
-                        .setNegativeButton("Decline") { dialog, _ ->
-                            // Dismiss dialog if No is clicked
-
+                        .setNegativeButton("Decline") { d, _ ->
+                            responded = true
                             userid?.let {
-                                sendCallAcceptNotification(
-                                    it,
-                                    receiverId,
-                                    "audio",
-                                    "SwitchDeclined"
-                                )
+                                sendCallAcceptNotification(it, receiverId, "audio", "SwitchDeclined")
                             }
-
-                            dialog.dismiss()
+                            d.dismiss()
                             FcmUtils.clearCallSwitch()
-
                         }
-                        .setOnDismissListener { switchDialog = null }
-                        .show()
+                        .create().apply {
+                            setOnDismissListener {
+                                if (!responded && !isFinishing && !isDestroyed) {
+                                    userid?.let { uid ->
+                                        sendCallAcceptNotification(uid, receiverId, "audio", "SwitchDeclined")
+                                    }
+                                    FcmUtils.clearCallSwitch()
+                                }
+                                switchDialog = null
+                            }
+                            show()
+                        }
 
                 }
 

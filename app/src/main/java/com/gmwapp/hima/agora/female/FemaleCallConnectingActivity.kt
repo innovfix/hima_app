@@ -360,6 +360,38 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                 callId = it.data?.call_id ?: 0
                 channelName = "channel_$callId"  // Set channel name based on call ID
                 Log.d("CallID", "CallID: $callId, ChannelName: $channelName")
+
+                // B201 (female side) — symmetric to MaleCallConnectingActivity.
+                // The previous flow placed the call as soon as the API returned
+                // success, with no check on the recipient's availability — which
+                // meant a female tapping a male avatar bypassed his DND/offline
+                // status because the server's status fields were never read.
+                // `== 1` is the fail-closed value: null / 0 / anything else =
+                // do not call.
+                val audioStatus = it.data?.audio_status
+                val videoStatus = it.data?.video_status
+                val recipientAvailable = when (callType) {
+                    "audio" -> audioStatus == 1
+                    "video" -> videoStatus == 1
+                    else -> false
+                }
+                if (!recipientAvailable) {
+                    Log.d(
+                        "FemaleCallConnect",
+                        "Blocking call: callType=$callType audioStatus=$audioStatus videoStatus=$videoStatus"
+                    )
+                    Toast.makeText(
+                        this@FemaleCallConnectingActivity,
+                        "User is unavailable right now",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    val intent = Intent(this@FemaleCallConnectingActivity, MainActivity::class.java)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    startActivity(intent)
+                    finish()
+                    return@Observer
+                }
+
                 if (callId != 0) {
                     prefetchAgoraToken(channelName)
                     sendCallNotification(userId!!, receiverId, callType!!, "incoming call $callId $myAvatar $myname")
