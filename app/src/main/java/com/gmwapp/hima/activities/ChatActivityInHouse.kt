@@ -1360,9 +1360,16 @@ class ChatActivityInHouse : AppCompatActivity() {
             setRecordingUiVisible(false)
             if (recordingResult.durationMs < 1000L) {
                 recordingResult.file.delete()
-                // T45: hint the gesture instead of just saying "too short" — short
-                // taps are a common discoverability fail.
-                showAppToast("Hold to record", Toast.LENGTH_SHORT)
+                // B111: the original short "Hold to record" LENGTH_SHORT toast
+                // flashed for ~2 s at the bottom of the screen and testers
+                // missed it — they reported "voice note not sending, popup not
+                // clearly visible." Use a longer, more instructive message so
+                // the user understands WHY the voice note didn't send and how
+                // to fix it.
+                showAppToast(
+                    "Press and hold the mic to record a voice note. Release to send, slide up to cancel.",
+                    Toast.LENGTH_LONG
+                )
                 return
             }
 
