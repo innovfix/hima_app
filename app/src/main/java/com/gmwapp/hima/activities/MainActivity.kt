@@ -256,6 +256,13 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // B120: if the device clock is set wildly wrong (years in the past or
+        // future), TLS handshakes fail and Agora rejects tokens as
+        // not-yet-valid / expired. The user sees "calls not received." The
+        // app can't fix the clock for them, so we prompt them to fix it.
+        // Throttled to once-per-day inside the checker.
+        com.gmwapp.hima.utils.DeviceTimeChecker.maybeWarnDeviceTime(this)
+
         // B023 — if the user opened Hima via launcher while a call was
         // ringing, the heads-up notification was the only surface they
         // were tracking, and bringing MainActivity to the foreground used
