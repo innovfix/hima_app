@@ -165,8 +165,11 @@ class FavouriteFragment : BaseFragment(), NetworkRetryable, Refreshable {
             if (it != null && it.success && it.data != null && it.data.isNotEmpty()) {
                 binding.tlTitle.visibility = View.GONE
                 binding.rvCalls.visibility = View.VISIBLE
+                val wasEmpty = recentCallsAdapter.itemCount == 0
                 recentCallsAdapter.addData(it.data)
-                
+                // Replay the fall-down layout animation on initial load, matching Home.
+                if (wasEmpty) binding.rvCalls.scheduleLayoutAnimation()
+
                 // Check if there are more items to load
                 val total = it.total ?: 0
                 val currentCount = recentCallsAdapter.itemCount

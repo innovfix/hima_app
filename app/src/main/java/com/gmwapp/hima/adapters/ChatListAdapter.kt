@@ -282,29 +282,37 @@ class ChatListAdapter(
             val showVideo = conversation.videoStatus == 1
             val disabledTextColor = activity.getColor(R.color.chat_list_call_disabled_text)
             val whiteColor = activity.getColor(R.color.white)
+            val enabledRateColor = activity.getColor(R.color.black_light)
 
             binding.btnAudioCall.visibility = View.VISIBLE
             binding.btnVideoCall.visibility = View.VISIBLE
 
-            binding.btnAudioCall.background = activity.resources.getDrawable(
-                if (showAudio) R.drawable.button_audio_gradient else R.drawable.button_disabled_gradient,
-                null
-            )
-            binding.btnVideoCall.background = activity.resources.getDrawable(
-                if (showVideo) R.drawable.button_video_gradient else R.drawable.button_disabled_gradient,
-                null
-            )
+            // CardView background is white (set in XML). Update icon tint and colored
+            // elevation shadow per state: pink for audio enabled, purple for video enabled,
+            // grey for offline.
+            val pinkIcon    = android.graphics.Color.parseColor("#E91E63")
+            val purpleIcon  = android.graphics.Color.parseColor("#9C27B0")
+            val offlineIcon = android.graphics.Color.parseColor("#B0B7C3")
+
             binding.btnAudioCall.isEnabled = showAudio
             binding.btnVideoCall.isEnabled = showVideo
             binding.btnAudioCall.isClickable = showAudio
             binding.btnVideoCall.isClickable = showVideo
 
-            // Readable text & icon colors on both enabled gradient (white) and
-            // disabled grey background (darker grey) — white on grey is invisible.
-            binding.ivAudioIcon.setColorFilter(if (showAudio) whiteColor else disabledTextColor)
-            binding.ivVideoIcon.setColorFilter(if (showVideo) whiteColor else disabledTextColor)
-            binding.tvAudioRate.setTextColor(if (showAudio) whiteColor else disabledTextColor)
-            binding.tvVideoRate.setTextColor(if (showVideo) whiteColor else disabledTextColor)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                val audioShadow = if (showAudio) pinkIcon   else offlineIcon
+                val videoShadow = if (showVideo) purpleIcon else offlineIcon
+                binding.btnAudioCall.outlineSpotShadowColor    = audioShadow
+                binding.btnAudioCall.outlineAmbientShadowColor = audioShadow
+                binding.btnVideoCall.outlineSpotShadowColor    = videoShadow
+                binding.btnVideoCall.outlineAmbientShadowColor = videoShadow
+            }
+
+            // Icon colors: pink/purple when online, grey when offline.
+            binding.ivAudioIcon.setColorFilter(if (showAudio) pinkIcon else offlineIcon)
+            binding.ivVideoIcon.setColorFilter(if (showVideo) purpleIcon else offlineIcon)
+            binding.tvAudioRate.setTextColor(if (showAudio) enabledRateColor else disabledTextColor)
+            binding.tvVideoRate.setTextColor(if (showVideo) enabledRateColor else disabledTextColor)
             binding.ivAudioCoin.visibility = if (showAudio) View.VISIBLE else View.GONE
             binding.ivVideoCoin.visibility = if (showVideo) View.VISIBLE else View.GONE
 

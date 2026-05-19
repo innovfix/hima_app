@@ -5,14 +5,14 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/bg_radar_screen"
+    android:background="@color/grey_extra_light"
     tools:context=".activities.LoginActivity">
 
     <FrameLayout
         android:id="@+id/flFragment"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:background="@android:color/transparent"
+        android:background="@color/grey_extra_light"
         app:layout_constraintBottom_toTopOf="@+id/bottomNavigationView"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -46,7 +46,7 @@
         android:paddingBottom="10dp"
         android:visibility="visible"
         app:itemActiveIndicatorStyle="@style/BottomNavIndicator"
-        app:itemIconSize="26dp"
+        app:itemIconSize="30dp"
         app:itemIconTint="@color/bottom_nav_icon_color"
         app:itemPaddingBottom="2dp"
         app:itemPaddingTop="6dp"

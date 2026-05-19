@@ -14,6 +14,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -219,7 +220,11 @@ class RecentFragment : BaseFragment(), Refreshable {
             if (it != null && it.success && it.data != null && it.data.isNotEmpty()) {
                 binding.tlTitle.visibility = View.GONE
                 binding.rvCalls.visibility = View.VISIBLE
+                val wasEmpty = recentCallsAdapter.itemCount == 0
                 recentCallsAdapter.addData(it.data)
+                // Replay the fall-down layout animation only on initial/full reload
+                // so it matches the Home tab's first-load behaviour.
+                if (wasEmpty) binding.rvCalls.scheduleLayoutAnimation()
             } else if (recentCallsAdapter.itemCount == 0) {
                 binding.tlTitle.visibility = View.VISIBLE
                 binding.rvCalls.visibility = View.GONE
@@ -280,61 +285,113 @@ class RecentFragment : BaseFragment(), Refreshable {
     }
 
     private fun setupFilterChips() {
+        // Apply initial styling (All is selected by default).
+        updateChipStyles()
+
+        binding.chipAll.setOnClickListener { selectChip("recent") }
+        binding.chipMissed.setOnClickListener { selectChip("missed") }
+        binding.chipAZ.setOnClickListener { selectChip("a_z") }
         binding.chipTalkTime.setOnClickListener {
-            if (currentSortType == "talk_time") {
-                showTalkTimeDaysDialog(
-                    onDaySelected = { selectedDays ->
-                        currentDaysFilter = selectedDays
-                        if (!::recentCallsAdapter.isInitialized) return@showTalkTimeDaysDialog
-                        recentCallsAdapter.setFilter(currentSortType)
-                        // Re-apply filter even when same day is selected again.
+            // Always open the days-picker dialog when Talk Time is tapped.
+            val previousSortType = currentSortType
+            showTalkTimeDaysDialog(
+                onDaySelected = { selectedDays ->
+                    val changed = currentSortType != "talk_time" || currentDaysFilter != selectedDays
+                    currentSortType = "talk_time"
+                    currentDaysFilter = selectedDays
+                    updateChipStyles()
+                    if (!::recentCallsAdapter.isInitialized) return@showTalkTimeDaysDialog
+                    recentCallsAdapter.setFilter(currentSortType)
+                    if (changed) {
                         loadCallsList(currentSortType, resetData = true)
-                    },
-                    onDismissWithoutSelection = {}
-                )
-            }
+                    }
+                },
+                onDismissWithoutSelection = {
+                    restoreChipSelection(previousSortType)
+                }
+            )
+        }
+    }
+
+    /** Apply the same sort type and update the pill styles. */
+    private fun selectChip(sortType: String) {
+        if (isProgrammaticChipSelection) return
+        val changed = currentSortType != sortType || currentDaysFilter != 0
+        currentSortType = sortType
+        currentDaysFilter = 0
+        updateChipStyles()
+        if (!::recentCallsAdapter.isInitialized) return
+        recentCallsAdapter.setFilter(currentSortType)
+        if (changed) {
+            loadCallsList(currentSortType, resetData = true)
+        }
+        if (currentSortType == "missed") {
+            loadMissedCallCount(seen = 1)
+        }
+    }
+
+    /** Glass inactive pill — light grey fill + thin border (matches Home). */
+    private fun makeGlassPillBg(): android.graphics.drawable.RippleDrawable {
+        val density = resources.displayMetrics.density
+        val solid = android.graphics.drawable.GradientDrawable().apply {
+            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+            cornerRadius = 14f * density
+            setColor(0xFFF5F5F7.toInt())
+            setStroke((1 * density).toInt(), 0xFFE0E0E0.toInt())
+        }
+        return android.graphics.drawable.RippleDrawable(
+            android.content.res.ColorStateList.valueOf(0x14000000),
+            solid, null
+        )
+    }
+
+    /** Active pill — pink-to-purple gradient (matches Home active pill). */
+    private fun makeActivePillBg(
+        startColor: Int, endColor: Int
+    ): android.graphics.drawable.RippleDrawable {
+        val density = resources.displayMetrics.density
+        val grad = android.graphics.drawable.GradientDrawable(
+            android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT,
+            intArrayOf(startColor, endColor)
+        ).apply { cornerRadius = 14f * density }
+        return android.graphics.drawable.RippleDrawable(
+            android.content.res.ColorStateList.valueOf(0x33FFFFFF),
+            grad, null
+        )
+    }
+
+    /** Style each filter pill — pink→purple gradient when active (matches Home). */
+    private fun updateChipStyles() {
+        val whiteText    = resources.getColor(R.color.white, null)
+        val inactiveText = 0xFF555566.toInt()
+        val whiteTint    = android.content.res.ColorStateList.valueOf(whiteText)
+        val darkTint     = android.content.res.ColorStateList.valueOf(inactiveText)
+
+        val all  = binding.chipAll
+        val miss = binding.chipMissed
+        val talk = binding.chipTalkTime
+        val az   = binding.chipAZ
+
+        // Inactive: glass pill style
+        listOf(all, miss, talk, az).forEach {
+            it.background         = makeGlassPillBg()
+            it.backgroundTintList = null
+            it.setTextColor(inactiveText)
+            it.iconTint           = darkTint
         }
 
-        binding.chipGroupFilter.setOnCheckedStateChangeListener { _, checkedIds ->
-            if (isProgrammaticChipSelection) return@setOnCheckedStateChangeListener
-            val selectedChipId = checkedIds.firstOrNull() ?: return@setOnCheckedStateChangeListener
-            val sortType = when (checkedIds.firstOrNull()) {
-                R.id.chip_missed    -> "missed"
-                R.id.chip_talk_time -> "talk_time"
-                R.id.chip_a_z       -> "a_z"
-                else                -> "recent"
-            }
-            if (selectedChipId == R.id.chip_talk_time) {
-                val previousSortType = currentSortType
-                showTalkTimeDaysDialog(
-                    onDaySelected = { selectedDays ->
-                        val changed = currentSortType != "talk_time" || currentDaysFilter != selectedDays
-                        currentSortType = "talk_time"
-                        currentDaysFilter = selectedDays
-                        if (!::recentCallsAdapter.isInitialized) return@showTalkTimeDaysDialog
-                        recentCallsAdapter.setFilter(currentSortType)
-                        if (changed) {
-                            loadCallsList(currentSortType, resetData = true)
-                        }
-                    },
-                    onDismissWithoutSelection = {
-                        restoreChipSelection(previousSortType)
-                    }
-                )
-                return@setOnCheckedStateChangeListener
-            }
-
-            val changed = currentSortType != sortType || currentDaysFilter != 0
-            currentSortType = sortType
-            currentDaysFilter = 0
-            if (!::recentCallsAdapter.isInitialized) return@setOnCheckedStateChangeListener
-            recentCallsAdapter.setFilter(currentSortType)
-            if (changed) {
-                loadCallsList(currentSortType, resetData = true)
-            }
-            if (currentSortType == "missed") {
-                loadMissedCallCount(seen = 1)
-            }
+        // Active: pink→purple gradient (same as Home's active pill)
+        val selected = when (currentSortType) {
+            "missed"    -> miss
+            "talk_time" -> talk
+            "a_z"       -> az
+            else        -> all
+        }
+        selected.apply {
+            background         = makeActivePillBg(0xFFE91E63.toInt(), 0xFF9C27B0.toInt())
+            backgroundTintList = null
+            setTextColor(whiteText)
+            iconTint           = whiteTint
         }
     }
 
@@ -345,38 +402,66 @@ class RecentFragment : BaseFragment(), Refreshable {
         if (isTalkTimeDialogOpen) return
         isTalkTimeDialogOpen = true
 
-        val dayOptions = arrayOf("Last 7 days", "Last 15 days", "Last 30 days")
-        val dayValues = intArrayOf(7, 15, 30)
-        var hasSelection = false
+        val view = layoutInflater.inflate(R.layout.dialog_talk_time_range, null)
+        val dialog = android.app.AlertDialog.Builder(requireContext()).setView(view).create()
+        // Transparent window so our custom rounded background shows through.
+        dialog.window?.setBackgroundDrawable(
+            android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT)
+        )
+        // 88% screen width for a comfortable modal width.
+        dialog.window?.setLayout(
+            (resources.displayMetrics.widthPixels * 0.88f).toInt(),
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+        )
 
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Select Talk Time Range")
-            .setItems(dayOptions) { dialog, which ->
-                hasSelection = true
-                onDaySelected(dayValues[which])
+        val option7  = view.findViewById<View>(R.id.option_7)
+        val option15 = view.findViewById<View>(R.id.option_15)
+        val option30 = view.findViewById<View>(R.id.option_30)
+        val check7   = view.findViewById<ImageView>(R.id.check_7)
+        val check15  = view.findViewById<ImageView>(R.id.check_15)
+        val check30  = view.findViewById<ImageView>(R.id.check_30)
+        val btnCancel = view.findViewById<View>(R.id.btn_cancel)
+
+        // Highlight the currently-selected option if Talk Time was already active.
+        fun applySelection(days: Int) {
+            check7.setImageResource(if (days == 7) R.drawable.ic_dialog_radio_on else R.drawable.ic_dialog_radio_off)
+            check15.setImageResource(if (days == 15) R.drawable.ic_dialog_radio_on else R.drawable.ic_dialog_radio_off)
+            check30.setImageResource(if (days == 30) R.drawable.ic_dialog_radio_on else R.drawable.ic_dialog_radio_off)
+        }
+        if (currentSortType == "talk_time" && currentDaysFilter > 0) {
+            applySelection(currentDaysFilter)
+        }
+
+        var hasSelection = false
+        fun pick(days: Int) {
+            hasSelection = true
+            applySelection(days)
+            view.postDelayed({
+                onDaySelected(days)
                 dialog.dismiss()
-            }
-            .setOnCancelListener {
-                isTalkTimeDialogOpen = false
-                if (!hasSelection) {
-                    onDismissWithoutSelection()
-                }
-            }
-            .setOnDismissListener {
-                isTalkTimeDialogOpen = false
-            }
-            .show()
+            }, 120)
+        }
+
+        option7.setOnClickListener  { pick(7)  }
+        option15.setOnClickListener { pick(15) }
+        option30.setOnClickListener { pick(30) }
+        btnCancel.setOnClickListener { dialog.dismiss() }
+
+        dialog.setOnCancelListener {
+            isTalkTimeDialogOpen = false
+            if (!hasSelection) onDismissWithoutSelection()
+        }
+        dialog.setOnDismissListener {
+            isTalkTimeDialogOpen = false
+            if (!hasSelection) onDismissWithoutSelection()
+        }
+        dialog.show()
     }
 
     private fun restoreChipSelection(sortType: String) {
-        val chipId = when (sortType) {
-            "missed" -> R.id.chip_missed
-            "talk_time" -> R.id.chip_talk_time
-            "a_z" -> R.id.chip_a_z
-            else -> R.id.chip_all
-        }
         isProgrammaticChipSelection = true
-        binding.chipGroupFilter.check(chipId)
+        currentSortType = sortType
+        updateChipStyles()
         isProgrammaticChipSelection = false
     }
 

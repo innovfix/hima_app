@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Modern home — clean filled house for active state. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
+    android:width="20dp"
+    android:height="20dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M3,10L12,2l9,8v11a1,1 0,0 1,-1 1h-5v-7h-6v7H4a1,1 0,0 1,-1 -1V10z" />
+        android:pathData="M5,16L3,5l5.5,5L12,4l3.5,6L21,5l-2,11H5zM5,19c0,0.55 0.45,1 1,1h12c0.55,0 1,-0.45 1,-1v-1H5v1z" />
 </vector>

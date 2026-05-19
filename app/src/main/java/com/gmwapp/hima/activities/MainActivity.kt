@@ -813,8 +813,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             R.id.home -> {
                 // Home now uses the radar dark-gradient background — match the
                 // status bar tint so the icons read as white.
-                window.statusBarColor = android.graphics.Color.TRANSPARENT
-                statusBarController.isAppearanceLightStatusBars = false
+                window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+                statusBarController.isAppearanceLightStatusBars = true
 
                 val homeFragment = if (BaseApplication.getInstance()?.getPrefs()
                         ?.getUserData()?.gender == DConstants.FEMALE
@@ -825,32 +825,32 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
             R.id.chat -> {
                 // Dark radar gradient now backs every tab — match status bar.
-                window.statusBarColor = android.graphics.Color.TRANSPARENT
-                statusBarController.isAppearanceLightStatusBars = false
+                window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+                statusBarController.isAppearanceLightStatusBars = true
                 transaction.replace(R.id.flFragment, CreatorChatFragment()).commit()
                 return true
             }
 
             R.id.recent -> {
-                window.statusBarColor = android.graphics.Color.TRANSPARENT
-                statusBarController.isAppearanceLightStatusBars = false
+                window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+                statusBarController.isAppearanceLightStatusBars = true
 
                 transaction.replace(R.id.flFragment, RecentFragment()).commit()
                 return true
             }
 
             R.id.favourite -> {
-                window.statusBarColor = android.graphics.Color.TRANSPARENT
-                statusBarController.isAppearanceLightStatusBars = false
+                window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+                statusBarController.isAppearanceLightStatusBars = true
 
                 transaction.replace(R.id.flFragment, FavouriteFragment()).commit()
                 return true
             }
 
             R.id.profile -> {
-                // Dark radar background everywhere; keep icons white.
-                window.statusBarColor = android.graphics.Color.TRANSPARENT
-                statusBarController.isAppearanceLightStatusBars = false
+                // Soft pink hero behind status bar — use DARK status-bar content.
+                window.statusBarColor = android.graphics.Color.parseColor("#FFEAF2")
+                statusBarController.isAppearanceLightStatusBars = true
 
                 if (BaseApplication.getInstance()?.getPrefs()
                         ?.getUserData()?.gender == DConstants.MALE

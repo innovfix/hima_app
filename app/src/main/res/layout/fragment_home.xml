@@ -6,17 +6,17 @@
     android:layout_height="match_parent"
     android:clipToPadding="false"
     android:fitsSystemWindows="false"
-    android:background="@drawable/bg_radar_screen">
+    android:background="@color/grey_extra_light">
 
-    <!-- Professional Header with AppBar -->
+    <!-- Professional Header with AppBar — soft pink gradient. -->
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/app_bar_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@android:color/transparent"
-        android:elevation="0dp"
+        android:background="@drawable/bg_recent_header_gradient"
+        android:elevation="2dp"
         android:fitsSystemWindows="false"
-        app:elevation="0dp">
+        app:elevation="2dp">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
@@ -66,16 +66,16 @@
                         android:fontFamily="@font/cabinet_grotesk_extrabold"
                         android:letterSpacing="-0.01"
                         android:text="@string/app_name"
-                        android:textColor="#FFFFFF"
+                        android:textColor="@color/black_light"
                         android:textSize="19sp" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="-2dp"
-                        android:fontFamily="@font/plus_jakarta_sans_regular"
+                        android:fontFamily="@font/plus_jakarta_sans_medium"
                         android:text="Where Feelings Connect"
-                        android:textColor="#B3FFFFFF"
+                        android:textColor="@color/grey_medium"
                         android:textSize="10sp" />
                 </LinearLayout>
             </LinearLayout>
@@ -101,32 +101,71 @@
                 app:rippleColor="#33FFD700"
                 app:strokeWidth="0dp">
 
-                <LinearLayout
+                <FrameLayout
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
-                    android:background="@drawable/bg_coin_balance_pill"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingStart="4dp"
-                    android:paddingEnd="14dp">
+                    android:background="@drawable/bg_coin_balance_pill">
 
-                    <!-- Large gold "H" coin sitting directly on the dark pill. -->
+                    <!-- Decorative faded stars — top-right "shadow" sparkle. -->
                     <ImageView
-                        android:id="@+id/iv_coin"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:src="@drawable/coin_d" />
+                        android:layout_width="8dp"
+                        android:layout_height="8dp"
+                        android:layout_gravity="top|end"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginEnd="6dp"
+                        android:alpha="0.55"
+                        android:src="@drawable/ic_star"
+                        app:tint="#FFFFFF" />
 
-                    <TextView
-                        android:id="@+id/tv_coins"
+                    <ImageView
+                        android:layout_width="5dp"
+                        android:layout_height="5dp"
+                        android:layout_gravity="bottom|end"
+                        android:layout_marginBottom="6dp"
+                        android:layout_marginEnd="10dp"
+                        android:alpha="0.4"
+                        android:src="@drawable/ic_star"
+                        app:tint="#FFFFFF" />
+
+                    <LinearLayout
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:fontFamily="@font/plus_jakarta_sans_bold"
-                        android:text="0"
-                        android:textColor="@color/white"
-                        android:textSize="15sp" />
-                </LinearLayout>
+                        android:layout_height="match_parent"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingStart="2dp"
+                        android:paddingTop="2dp"
+                        android:paddingEnd="20dp"
+                        android:paddingBottom="2dp">
+
+                        <!-- Coin icon sits in a white circle for a coin-purse look.
+                             32dp circle inside a 40dp pill = 4dp top + 4dp bottom. -->
+                        <FrameLayout
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_gravity="center_vertical"
+                            android:layout_marginVertical="2dp"
+                            android:layout_marginLeft="2dp"
+                            android:background="@drawable/bg_coin_circle_white">
+
+                            <ImageView
+                                android:id="@+id/iv_coin"
+                                android:layout_width="22dp"
+                                android:layout_height="22dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/coin_d" />
+                        </FrameLayout>
+
+                        <TextView
+                            android:id="@+id/tv_coins"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:fontFamily="@font/plus_jakarta_sans_bold"
+                            android:text="0"
+                            android:textColor="@color/white"
+                            android:textSize="15sp" />
+                    </LinearLayout>
+                </FrameLayout>
             </com.google.android.material.card.MaterialCardView>
         </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -180,31 +219,23 @@
                 </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
-    </com.google.android.material.appbar.AppBarLayout>
 
-    <!-- Content Below AppBar -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
-
-        <!-- Filter Pills Below AppBar (scrollable for 4 buttons) -->
+        <!-- Filter Pills — moved INSIDE the AppBar so they share the top gradient. -->
         <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:scrollbars="none"
             android:background="@android:color/transparent"
-            android:fillViewport="true">
+            android:fillViewport="true"
+            android:scrollbars="none">
 
         <LinearLayout
             android:id="@+id/filter_pills_container"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:background="@android:color/transparent"
             android:orientation="horizontal"
-            android:paddingVertical="8dp"
             android:paddingHorizontal="14dp"
-            android:background="@android:color/transparent">
+            android:paddingVertical="8dp">
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_filter_my_chats"
@@ -214,13 +245,16 @@
                 android:clickable="true"
                 android:focusable="true"
                 android:fontFamily="@font/plus_jakarta_sans_semibold"
-                android:minWidth="132dp"
-                android:paddingHorizontal="20dp"
-                android:text="💬 Chats · FREE"
+                android:paddingHorizontal="16dp"
+                android:text="Chats · FREE"
                 android:textAllCaps="false"
                 android:textSize="13sp"
                 app:cornerRadius="14dp"
-                app:elevation="2dp" />
+                app:elevation="2dp"
+                app:icon="@drawable/ic_chat_bubble"
+                app:iconGravity="textStart"
+                app:iconPadding="6dp"
+                app:iconSize="16dp" />
 
             <Space
                 android:layout_width="10dp"
@@ -234,13 +268,16 @@
                 android:clickable="true"
                 android:focusable="true"
                 android:fontFamily="@font/plus_jakarta_sans_semibold"
-                android:minWidth="85dp"
-                android:paddingHorizontal="24dp"
+                android:paddingHorizontal="16dp"
                 android:text="All"
                 android:textAllCaps="false"
                 android:textSize="13sp"
                 app:cornerRadius="14dp"
-                app:elevation="2dp" />
+                app:elevation="2dp"
+                app:icon="@drawable/ic_filter_all"
+                app:iconGravity="textStart"
+                app:iconPadding="6dp"
+                app:iconSize="16dp" />
 
             <Space
                 android:layout_width="10dp"
@@ -254,13 +291,16 @@
                 android:clickable="true"
                 android:focusable="true"
                 android:fontFamily="@font/plus_jakarta_sans_semibold"
-                android:minWidth="85dp"
-                android:paddingHorizontal="24dp"
+                android:paddingHorizontal="16dp"
                 android:text="New"
                 android:textAllCaps="false"
                 android:textSize="13sp"
                 app:cornerRadius="14dp"
-                app:elevation="2dp" />
+                app:elevation="2dp"
+                app:icon="@drawable/ic_filter_new"
+                app:iconGravity="textStart"
+                app:iconPadding="6dp"
+                app:iconSize="16dp" />
 
             <Space
                 android:layout_width="10dp"
@@ -274,16 +314,27 @@
                 android:clickable="true"
                 android:focusable="true"
                 android:fontFamily="@font/plus_jakarta_sans_semibold"
-                android:minWidth="85dp"
-                android:paddingHorizontal="20dp"
-                android:text="⭐ Star"
+                android:paddingHorizontal="16dp"
+                android:text="Star"
                 android:textAllCaps="false"
                 android:textSize="13sp"
                 app:cornerRadius="14dp"
-                app:elevation="2dp" />
+                app:elevation="2dp"
+                app:icon="@drawable/ic_star"
+                app:iconGravity="textStart"
+                app:iconPadding="6dp"
+                app:iconSize="16dp" />
 
         </LinearLayout>
         </HorizontalScrollView>
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- Content Below AppBar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <!-- IPL Room Calls Banner -->
         <com.google.android.material.card.MaterialCardView
@@ -366,6 +417,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
+            android:layoutAnimation="@anim/layout_animation_fall_down"
             android:paddingHorizontal="4dp"
             android:paddingTop="8dp"
             android:paddingBottom="72dp" />
@@ -534,7 +586,7 @@
     <!-- Home action pills — MaterialCardView so we can paint a real
          multi-stop gradient on the bg via @drawable/bg_fab_gradient. -->
 
-    <!-- Audio -->
+    <!-- Audio — white card with light pink elevation, pink phone icon. -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/fab_audio"
         android:layout_width="wrap_content"
@@ -544,17 +596,18 @@
         android:layout_marginBottom="184dp"
         android:clickable="true"
         android:focusable="true"
+        android:outlineAmbientShadowColor="#E91E63"
+        android:outlineSpotShadowColor="#E91E63"
+        app:cardBackgroundColor="@color/white"
         app:cardCornerRadius="28dp"
-        app:cardElevation="12dp"
-        app:cardBackgroundColor="@android:color/transparent"
-        app:rippleColor="#33FFFFFF"
+        app:cardElevation="6dp"
+        app:rippleColor="#1AE91E63"
         app:strokeWidth="0dp">
 
         <LinearLayout
             android:id="@+id/fab_audio_inner"
             android:layout_width="56dp"
             android:layout_height="56dp"
-            android:background="@drawable/bg_fab_gradient_audio"
             android:gravity="center"
             android:orientation="horizontal">
 
@@ -562,13 +615,13 @@
                 android:id="@+id/iv_fab_audio"
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:src="@drawable/audio"
                 android:contentDescription="@string/audio"
-                app:tint="@color/white" />
+                android:src="@drawable/audio"
+                app:tint="#E91E63" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Video -->
+    <!-- Video — white card with light purple elevation, purple video icon. -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/fab_video"
         android:layout_width="wrap_content"
@@ -578,17 +631,18 @@
         android:layout_marginBottom="108dp"
         android:clickable="true"
         android:focusable="true"
+        android:outlineAmbientShadowColor="#9C27B0"
+        android:outlineSpotShadowColor="#9C27B0"
+        app:cardBackgroundColor="@color/white"
         app:cardCornerRadius="28dp"
-        app:cardElevation="12dp"
-        app:cardBackgroundColor="@android:color/transparent"
-        app:rippleColor="#33FFFFFF"
+        app:cardElevation="6dp"
+        app:rippleColor="#1A9C27B0"
         app:strokeWidth="0dp">
 
         <LinearLayout
             android:id="@+id/fab_video_inner"
             android:layout_width="56dp"
             android:layout_height="56dp"
-            android:background="@drawable/bg_fab_gradient_video"
             android:gravity="center"
             android:orientation="horizontal">
 
@@ -596,9 +650,9 @@
                 android:id="@+id/iv_fab_video"
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:src="@drawable/video"
                 android:contentDescription="@string/video"
-                app:tint="@color/white" />
+                android:src="@drawable/video"
+                app:tint="#9C27B0" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 

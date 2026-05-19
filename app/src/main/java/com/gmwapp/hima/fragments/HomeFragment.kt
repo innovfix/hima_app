@@ -85,7 +85,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         return binding.root
     }
 
-    /** Paint the "Hi ma" brand title with a glossy pink → soft lilac-pink gradient. */
+    /** Paint the "Hi ma" brand title with a normal brand pink. */
     private fun applyBrandTitleGradient() {
         val tv = binding.tvLogo
         tv.post {
@@ -93,8 +93,8 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             val shader = android.graphics.LinearGradient(
                 0f, 0f, w, 0f,
                 intArrayOf(
-                    0xFFFF2E9A.toInt(),  // vivid pink
-                    0xFFFF6FD8.toInt()   // soft pink-lilac
+                    0xFFFF2E9A.toInt(),  // normal brand pink
+                    0xFFFF2E9A.toInt()   // same — solid pink, no gradient fade
                 ),
                 null,
                 android.graphics.Shader.TileMode.CLAMP
@@ -337,6 +337,8 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                     FemaleUserAdapter(context, it.data, noOpListener, noOpListener)
                 }
                 binding.rvProfiles.adapter = transactionAdapter
+                // Replay the staggered fall-down animation on each data load.
+                binding.rvProfiles.scheduleLayoutAnimation()
             }
 
             // Stop the swipe-to-refresh loading animation
@@ -476,21 +478,18 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
     // ── Filter pill helpers ──────────────────────────────────────────────────
 
-    /** Glassmorphism inactive pill: translucent white fill + visible glass edge.
-     *  Shorter 14dp corner radius for a softer rounded-rectangle look. */
+    /** Inactive pill — light surface with subtle grey border (white theme). */
     private fun makeGlassPillBg(): android.graphics.drawable.RippleDrawable {
         val density = resources.displayMetrics.density
-        val glass = android.graphics.drawable.GradientDrawable().apply {
+        val solid = android.graphics.drawable.GradientDrawable().apply {
             shape = android.graphics.drawable.GradientDrawable.RECTANGLE
             cornerRadius = 14f * density
-            // 8% white frosted-glass fill
-            setColor(0x14FFFFFF)
-            // 28% white stroke — brighter edge for the glass rim
-            setStroke((1 * density).toInt(), 0x47FFFFFF)
+            setColor(0xFFF5F5F7.toInt())   // light grey fill
+            setStroke((1 * density).toInt(), 0xFFE0E0E0.toInt())
         }
         return android.graphics.drawable.RippleDrawable(
-            android.content.res.ColorStateList.valueOf(0x33FFFFFF),
-            glass, null
+            android.content.res.ColorStateList.valueOf(0x14000000),
+            solid, null
         )
     }
 
@@ -511,10 +510,14 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
     private fun updateFilterButtonStyles() {
         val whiteText    = resources.getColor(R.color.white, null)
-        val inactiveText = android.graphics.Color.parseColor("#B3FFFFFF")
+        val inactiveText = 0xFF555566.toInt()   // dark grey — visible on light pill in white theme
         val darkText     = 0xFF1A1A2E.toInt()   // dark navy — for bright gold pill
 
-        // Reset all to glass inactive
+        val inactiveTint = android.content.res.ColorStateList.valueOf(inactiveText)
+        val whiteTint    = android.content.res.ColorStateList.valueOf(whiteText)
+        val darkTint     = android.content.res.ColorStateList.valueOf(darkText)
+
+        // Reset all to glass inactive (text + icon use inactive grey)
         listOf(
             binding.btnFilterMyChats,
             binding.btnFilterAll,
@@ -524,6 +527,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             it.background         = makeGlassPillBg()
             it.backgroundTintList = null
             it.setTextColor(inactiveText)
+            it.iconTint           = inactiveTint
         }
 
         // Active tab: hot-pink → deep-purple (matches reference "All" active pill)
@@ -532,21 +536,25 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 background         = makeActivePillBg(0xFFE91E63.toInt(), 0xFF9C27B0.toInt())
                 backgroundTintList = null
                 setTextColor(whiteText)
+                iconTint           = whiteTint
             }
             "all" -> binding.btnFilterAll.apply {
                 background         = makeActivePillBg(0xFFE91E63.toInt(), 0xFF9C27B0.toInt())
                 backgroundTintList = null
                 setTextColor(whiteText)
+                iconTint           = whiteTint
             }
             "new" -> binding.btnFilterNew.apply {
                 background         = makeActivePillBg(0xFFE91E63.toInt(), 0xFF9C27B0.toInt())
                 backgroundTintList = null
                 setTextColor(whiteText)
+                iconTint           = whiteTint
             }
             "star" -> binding.btnFilterStar.apply {
                 background         = makeActivePillBg(0xFFF9D423.toInt(), 0xFFFFB800.toInt())
                 backgroundTintList = null
                 setTextColor(darkText)   // dark text on gold
+                iconTint           = darkTint
             }
         }
     }
@@ -663,6 +671,8 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 binding.rvProfiles.layoutManager = LinearLayoutManager(activity, LinearLayoutManager.VERTICAL, false)
                 binding.rvProfiles.adapter = chatListAdapter
                 binding.rvProfiles.visibility = View.VISIBLE
+                // Replay staggered fall-down animation on chats load.
+                binding.rvProfiles.scheduleLayoutAnimation()
             }
 
             override fun onFailure(call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.MyChatResponse>, t: Throwable) {
