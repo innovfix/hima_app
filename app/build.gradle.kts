@@ -54,16 +54,16 @@ android {
             // deliver on this flavor — until then expect empty subscription
             // records (token="", enabled=false). In-app behaviour is unaffected.
             // buildConfigField("String", "BASE_URL", "\"http://192.168.29.190/hima-admin-panel/public/api/auth/\"")
-            buildConfigField("String", "BASE_URL", "\"https://demolivedb.himaapp.in/api/auth/\"")
+            buildConfigField("String", "BASE_URL", "\"https://demohima.himaapp.in/api/auth/\"")
             buildConfigField("String", "ONESIGNAL_APP_ID", "\"5cd4154a-1ece-4c3b-b6af-e88bafee64cd\"")
         }
         create("production") {
             dimension = "hima"
             isDefault = true
-            // productionDebug/Release: demolivedb backend + same OneSignal project the demo backend
+            // productionDebug/Release: demohima backend + same OneSignal project the demo backend
             // REST key uses (5cd4154a-...). For Play Store / himaapp.in, use a separate release
             // branch or a release flavor with himaapp.in + 50cedb09-...
-            buildConfigField("String", "BASE_URL", "\"https://demolivedb.himaapp.in/api/auth/\"")
+            buildConfigField("String", "BASE_URL", "\"https://demohima.himaapp.in/api/auth/\"")
             buildConfigField("String", "ONESIGNAL_APP_ID", "\"5cd4154a-1ece-4c3b-b6af-e88bafee64cd\"")
         }
     }
