@@ -2,6 +2,10 @@
 <resources>
     <string name="app_name">&appname;</string>
     <string name="call_reconnecting">Reconnecting…</string>
+    <!-- B055 — shown as a small pill below the top bar when the remote
+         participant mutes their microphone, so the user knows the silence is
+         intentional (not a connection issue). -->
+    <string name="call_peer_muted">Peer is muted</string>
     <!-- B196 — shown when a SIM phone call (or another cellular interrupt)
          pauses the Hima call audio. Hidden again when the phone call ends. -->
     <string name="call_on_hold_phone_busy">On hold — phone call in progress</string>
@@ -89,6 +93,11 @@
     <string name="chat_back_desc">Back</string>
     <string name="chat_audio_call_desc">Audio Call</string>
     <string name="chat_video_call_desc">Video Call</string>
+    <!-- B060 — explicit call-type label shown in active call top bar so users
+         (and screen readers) can tell at a glance whether they're on an audio
+         or video call, even before the remote video feed arrives. -->
+    <string name="call_type_audio">Audio Call</string>
+    <string name="call_type_video">Video Call</string>
     <string name="chat_more_desc">More</string>
     <string name="chat_attach_desc">Attach</string>
     <string name="chat_record_audio_desc">Record audio</string>

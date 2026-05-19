@@ -518,16 +518,13 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         // for the peer to join the Agora channel. startCountdown() overwrites
         // this on its first tick once onUserJoined() fires.
         binding.tvRemainingTime?.text = "Connecting..."
-        // B043: surface a styled placeholder behind where the remote video
-        // will appear so the screen doesn't look "blank" while waiting for
-        // the peer to join. The caller's avatar is loaded into it once the
-        // userAvatar API responds (see avatarObservers); setupRemoteVideo()'s
-        // removeAllViews() cleans the placeholder up before adding the
-        // remote SurfaceView, so this is invisible once video starts.
+        // B043 + B058: keep the container visible so the persistent peer-avatar
+        // skeleton sibling (iv_remote_avatar_skeleton) is visible underneath.
+        // The container itself is transparent — the skeleton handles all the
+        // "no remote video frames" states (initial connect, FAILED/FROZEN
+        // reattach, mid-call switch, mute→unmute window), and the SurfaceView
+        // (added later) draws opaquely on top when frames are actually rendering.
         binding.remoteVideoViewContainer.visibility = View.VISIBLE
-        binding.remoteVideoViewContainer.setBackgroundResource(
-            R.drawable.call_blur_placeholder_background
-        )
 
         // Keep the call screen visible across lockscreen so users who lock
         // the phone mid-call can resume immediately.
@@ -973,7 +970,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
 
     private fun setMyAvatar(image: String, name: String) {
-        binding.tvMaleName.setText(name)
+        binding.tvMaleName.setText(com.gmwapp.hima.utils.DisplayName.clean(name))
         Glide.with(this)
             .load(image)
             .apply(RequestOptions.circleCropTransform())
@@ -1005,26 +1002,17 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                     .apply(RequestOptions.circleCropTransform())
                     .into(binding.ivFemaleUser)
 
-                binding.tvFemaleName.setText(response.data?.name)
+                binding.tvFemaleName.setText(com.gmwapp.hima.utils.DisplayName.clean(response.data?.name))
 
-                // B043: also load the caller's avatar as a faded full-screen
-                // background inside remote_video_view_container. Shown only
-                // until the peer joins; setupRemoteVideo()'s removeAllViews()
-                // wipes the placeholder before the remote SurfaceView is
-                // attached, so this never interferes with video rendering.
-                if (!isRemoteUserJoined && !imageUrl.isNullOrEmpty()) {
-                    val placeholder = ImageView(this).apply {
-                        layoutParams = FrameLayout.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.MATCH_PARENT
-                        )
-                        scaleType = ImageView.ScaleType.CENTER_CROP
-                        alpha = 0.35f
-                        tag = "b043_connecting_placeholder"
-                    }
-                    binding.remoteVideoViewContainer.removeAllViews()
-                    binding.remoteVideoViewContainer.addView(placeholder)
-                    Glide.with(this).load(imageUrl).into(placeholder)
+                // B043 + B058: load the caller's avatar into the persistent
+                // skeleton ImageView that sits BEHIND remote_video_view_container.
+                // Because it's a sibling (not a child of the container), no
+                // removeAllViews() can destroy it — so during initial connect,
+                // FAILED/FROZEN reattach, mid-call audio↔video switch, and the
+                // brief mute→unmute window, the user sees the peer avatar
+                // instead of a blank screen.
+                if (!imageUrl.isNullOrEmpty()) {
+                    Glide.with(this).load(imageUrl).into(binding.ivRemoteAvatarSkeleton)
                 }
             }
         }
@@ -1461,6 +1449,18 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             super.onRemoteVideoStateChanged(uid, state, reason, elapsed)
             Log.d(TAG_END, "onRemoteVideoStateChanged uid=$uid state=$state reason=$reason")
             if (uid != videoUid) return
+            // B058 — drive the avatar skeleton off remote video lifecycle so the
+            // user sees the peer face whenever the SurfaceView isn't actively
+            // rendering frames (STARTING / FROZEN / FAILED / before first frame).
+            // Hide it only once DECODING fires (first decoded frame in).
+            runOnUiThread {
+                when (state) {
+                    Constants.REMOTE_VIDEO_STATE_DECODING -> hideRemoteAvatarSkeleton()
+                    Constants.REMOTE_VIDEO_STATE_STARTING,
+                    Constants.REMOTE_VIDEO_STATE_FROZEN,
+                    Constants.REMOTE_VIDEO_STATE_FAILED -> showRemoteAvatarSkeleton()
+                }
+            }
             // REMOTE_VIDEO_STATE_FAILED == 4
             if (state == Constants.REMOTE_VIDEO_STATE_FAILED) {
                 runOnUiThread { setupRemoteVideo(uid) }
@@ -1474,6 +1474,10 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 runOnUiThread {
                     if (muted){
                         showRemoteBlurState()
+                        // B058 — also show the skeleton; the blur overlay covers
+                        // most of the screen but the skeleton makes sure no raw
+                        // SurfaceView hole-punch artefact is visible underneath.
+                        showRemoteAvatarSkeleton()
 
 
                     }else{
@@ -1497,6 +1501,16 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                     }
                 }
 
+        }
+
+        // B055 — surface a "Peer is muted" pill below the top bar when the
+        // remote participant mutes their mic. Without this, silence during
+        // a video call looked indistinguishable from a connection problem.
+        override fun onUserMuteAudio(uid: Int, muted: Boolean) {
+            super.onUserMuteAudio(uid, muted)
+            runOnUiThread {
+                binding.remoteMicMutedPill.visibility = if (muted) View.VISIBLE else View.GONE
+            }
         }
     }
 
@@ -2268,6 +2282,10 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         agoraEngine?.muteLocalAudioStream(isMuted)  // Mute or unmute audio
         val muteIcon = if (isMuted) R.drawable.mute_img else R.drawable.unmute_img
         binding.btnMuteUnmute.setImageResource(muteIcon)
+        // B054 — MaleVideo's users_container has no femaleMute/maleMute badge
+        // (asymmetry with FemaleVideo), so the icon change on btnMuteUnmute is
+        // the only self-mute cue here. If a self-badge is added in future,
+        // flip it here too.
     }
 
     // Function to toggle speaker on/off
@@ -2284,7 +2302,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         if (router != null && router.isBluetoothConnected()) {
             com.gmwapp.hima.dialogs.BottomSheetAudioRoute.show(
                 supportFragmentManager,
-                router
+                router,
+                currentAudioRoute
             ) { route -> applyAudioRoute(route) }
         } else {
             toggleSpeaker()
@@ -2872,6 +2891,11 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
         FcmUtils.clearCallSwitch()
         isAudioCallGoing = true
+        // B060 — keep the top-bar label honest after a mid-call switch.
+        binding.tvCallType.setText(R.string.call_type_audio)
+        // B058 — hide remote video skeleton when switching to audio mode;
+        // audio UI uses users_container avatars instead.
+        hideRemoteAvatarSkeleton()
 
         updateCallEndDetails()
         storedVideoRemainingTime = null  // Reset stored time
@@ -2954,6 +2978,11 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         FcmUtils.clearCallSwitch()
         updateCallEndDetails()
         isAudioCallGoing = false
+        // B060 — keep the top-bar label honest after a mid-call switch.
+        binding.tvCallType.setText(R.string.call_type_video)
+        // B058 — re-show skeleton until the new video stream starts decoding;
+        // hidden again by onRemoteVideoStateChanged(DECODING).
+        showRemoteAvatarSkeleton()
         storedVideoRemainingTime = null  // Reset stored time
         storedRemainingTime = null
         Handler(Looper.getMainLooper()).postDelayed({
@@ -3384,6 +3413,21 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Log.e("MaleVideoCallingActivity", "Error dismissing overlay", e)
             }
+        }
+    }
+
+    // B058 — toggle the peer-avatar skeleton that covers the remote
+    // SurfaceView whenever the feed isn't actively rendering. Idempotent.
+    private fun showRemoteAvatarSkeleton() {
+        if (binding.ivRemoteAvatarSkeleton.visibility != View.VISIBLE) {
+            binding.ivRemoteAvatarSkeleton.visibility = View.VISIBLE
+        }
+        binding.ivRemoteAvatarSkeleton.bringToFront()
+    }
+
+    private fun hideRemoteAvatarSkeleton() {
+        if (binding.ivRemoteAvatarSkeleton.visibility != View.GONE) {
+            binding.ivRemoteAvatarSkeleton.visibility = View.GONE
         }
     }
 

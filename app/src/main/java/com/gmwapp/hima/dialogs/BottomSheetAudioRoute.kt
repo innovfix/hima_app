@@ -1,10 +1,15 @@
 package com.gmwapp.hima.dialogs
 
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.graphics.Typeface
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.core.content.ContextCompat
+import androidx.core.widget.TextViewCompat
 import androidx.fragment.app.FragmentManager
 import com.gmwapp.hima.R
 import com.gmwapp.hima.utils.CallAudioRouter
@@ -21,6 +26,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 class BottomSheetAudioRoute : BottomSheetDialogFragment() {
 
     private var bluetoothAvailable: Boolean = false
+    private var currentRoute: CallAudioRouter.AudioRoute = CallAudioRouter.AudioRoute.EARPIECE
     private var onSelected: ((CallAudioRouter.AudioRoute) -> Unit)? = null
 
     override fun onCreateView(
@@ -36,11 +42,30 @@ class BottomSheetAudioRoute : BottomSheetDialogFragment() {
 
         bluetoothRow.visibility = if (bluetoothAvailable) View.VISIBLE else View.GONE
 
+        // B052: visually highlight the currently active route so the user can
+        // tell at a glance which output they're on. Bold + brand-blue text +
+        // trailing check mark on the matching row only.
+        val activeRow = when (currentRoute) {
+            CallAudioRouter.AudioRoute.EARPIECE -> earpieceRow
+            CallAudioRouter.AudioRoute.SPEAKER -> speakerRow
+            CallAudioRouter.AudioRoute.BLUETOOTH -> bluetoothRow
+        }
+        markActive(activeRow)
+
         earpieceRow.setOnClickListener { pick(CallAudioRouter.AudioRoute.EARPIECE) }
         speakerRow.setOnClickListener { pick(CallAudioRouter.AudioRoute.SPEAKER) }
         bluetoothRow.setOnClickListener { pick(CallAudioRouter.AudioRoute.BLUETOOTH) }
 
         return view
+    }
+
+    private fun markActive(row: TextView) {
+        val accent = Color.parseColor("#1A237E")
+        row.setTextColor(accent)
+        row.setTypeface(row.typeface, Typeface.BOLD)
+        val check = ContextCompat.getDrawable(row.context, R.drawable.baseline_check_24)
+        row.setCompoundDrawablesRelativeWithIntrinsicBounds(null, null, check, null)
+        TextViewCompat.setCompoundDrawableTintList(row, ColorStateList.valueOf(accent))
     }
 
     private fun pick(route: CallAudioRouter.AudioRoute) {
@@ -52,6 +77,7 @@ class BottomSheetAudioRoute : BottomSheetDialogFragment() {
         fun show(
             fm: FragmentManager,
             router: CallAudioRouter,
+            currentRoute: CallAudioRouter.AudioRoute,
             onSelected: (CallAudioRouter.AudioRoute) -> Unit
         ) {
             // Re-check BT availability at show-time so the sheet reflects the
@@ -59,6 +85,7 @@ class BottomSheetAudioRoute : BottomSheetDialogFragment() {
             // between construction and display.
             val sheet = BottomSheetAudioRoute().apply {
                 bluetoothAvailable = router.isBluetoothConnected()
+                this.currentRoute = currentRoute
                 this.onSelected = onSelected
             }
             sheet.show(fm, TAG)

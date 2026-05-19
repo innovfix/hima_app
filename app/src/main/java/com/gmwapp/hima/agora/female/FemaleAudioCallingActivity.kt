@@ -313,7 +313,10 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             // failed and both sides connected silent. DEFAULT lets Agora pick per
             // the channel profile (COMMUNICATION here).
             agoraEngine!!.setAudioProfile(Constants.AUDIO_PROFILE_DEFAULT, Constants.AUDIO_SCENARIO_DEFAULT)
-            agoraEngine!!.enableAudioVolumeIndication(200, 3, true)
+            // B037: smoothFactor 1 (not 3) so the speak-wave reacts to actual
+            // speech bursts instead of a 600ms moving average that hid soft
+            // voices entirely; threshold lowered to 30 in onAudioVolumeIndication.
+            agoraEngine!!.enableAudioVolumeIndication(200, 1, true)
             // Set the SDK's default audio route + explicit current route so users hear
             // audio in the expected output immediately (also helps Bluetooth/headset).
             agoraEngine!!.setDefaultAudioRoutetoSpeakerphone(true)
@@ -1168,7 +1171,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
 
     private fun setMyAvatar(image: String, name: String) {
-        binding.tvFemaleName.setText(name)
+        binding.tvFemaleName.setText(com.gmwapp.hima.utils.DisplayName.clean(name))
         Glide.with(this)
             .load(image)
             .apply(RequestOptions.circleCropTransform())
@@ -1228,7 +1231,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                     .apply(RequestOptions.circleCropTransform())
                     .into(binding.ivMaleUser)
 
-                binding.tvMaleName.setText(response.data?.name)
+                binding.tvMaleName.setText(com.gmwapp.hima.utils.DisplayName.clean(response.data?.name))
             }
         }
 
@@ -1451,6 +1454,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                     }else{
                         binding.maleMute.visibility= View.INVISIBLE
                     }
+                    // B055 — see MaleAudioCallingActivity for rationale.
+                    binding.remoteMicMutedPill.visibility = View.VISIBLE
                 }
 
             } else {
@@ -1458,6 +1463,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
                 runOnUiThread {
                         binding.maleMute.visibility= View.INVISIBLE
+                        binding.remoteMicMutedPill.visibility = View.GONE
                     }
 
             }
@@ -1481,9 +1487,9 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                 val uid = speaker.uid
                 val volume = speaker.volume
 
-                if (uid == 0 && volume > 50) {
+                if (uid == 0 && volume > 30) {
                     isLocalSpeaking = true
-                } else if (uid != 0 && volume > 50) {
+                } else if (uid != 0 && volume > 30) {
                     isRemoteSpeaking = true
                 }
             }
@@ -2320,6 +2326,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         FcmUtils.clearCallSwitch()
         updateCallEndDetails()
         isVideoCallGoing = true
+        // B060 — keep the top-bar label honest after a mid-call switch.
+        binding.tvCallType.setText(R.string.call_type_video)
         storedVideoRemainingTime = null  // Reset stored time
         storedRemainingTime = null
         Handler(Looper.getMainLooper()).postDelayed({
@@ -2508,6 +2516,9 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         agoraEngine?.muteLocalAudioStream(isMuted)  // Mute or unmute audio
         val muteIcon = if (isMuted) R.drawable.mute_img else R.drawable.unmute_img
         binding.btnMuteUnmute.setImageResource(muteIcon)
+        // B054 — flip the self-avatar mute badge so the creator sees the
+        // same indicator on her own avatar that the peer already sees.
+        binding.femaleMute.visibility = if (isMuted) View.VISIBLE else View.INVISIBLE
     }
 
     // Function to toggle speaker on/off
@@ -2524,7 +2535,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         if (router != null && router.isBluetoothConnected()) {
             com.gmwapp.hima.dialogs.BottomSheetAudioRoute.show(
                 supportFragmentManager,
-                router
+                router,
+                currentAudioRoute
             ) { route -> applyAudioRoute(route) }
         } else {
             toggleSpeaker()
@@ -2589,6 +2601,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         binding.btnMuteUnmute.setImageResource(
             if (isMuted) R.drawable.mute_img else R.drawable.unmute_img
         )
+        // B054 — keep the self-avatar badge in sync with restored mute state.
+        binding.femaleMute.visibility = if (isMuted) View.VISIBLE else View.INVISIBLE
         applyAudioRoute(restoredRoute)
     }
 
@@ -2842,6 +2856,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
         FcmUtils.clearCallSwitch()
         isVideoCallGoing = false
+        // B060 — keep the top-bar label honest after a mid-call switch.
+        binding.tvCallType.setText(R.string.call_type_audio)
 
         updateCallEndDetails()
         storedVideoRemainingTime = null  // Reset stored time
