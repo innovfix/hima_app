@@ -456,6 +456,15 @@ class MaleCallAcceptActivity : AppCompatActivity() {
                 return true
             }
         }
+        // I022 — wired headset hook / BT AVRCP play-pause = single-press
+        // accept on the incoming-call screen, matching native phone /
+        // WhatsApp parity. MEDIA_PLAY_PAUSE covers BT headsets that map
+        // their button to the media key instead of HEADSETHOOK.
+        if (keyCode == KeyEvent.KEYCODE_HEADSETHOOK ||
+            keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
+            binding.accpet.performClick()
+            return true
+        }
         return super.onKeyDown(keyCode, event)
     }
 

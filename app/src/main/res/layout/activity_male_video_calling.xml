@@ -249,6 +249,17 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/on_hold_banner" />
 
+    <!-- I021 — see activity_male_audio_calling.xml for rationale. Banner
+         elevation lets it draw above the remote video SurfaceView. -->
+    <include
+        android:id="@+id/low_balance_banner"
+        layout="@layout/banner_low_balance"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/remote_mic_muted_pill" />
+
     <!-- User Avatars Container (Center) -->
     <LinearLayout
         android:id="@+id/users_container"

@@ -27,6 +27,7 @@ import android.os.CountDownTimer
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -259,6 +260,13 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
     private val executor = Executors.newSingleThreadExecutor()
     private val accountViewModel: AccountViewModel by viewModels()
+    // I021 — VM for the low-balance banner's "first 3 packages" prefetch.
+    private val walletViewModel: com.gmwapp.hima.viewmodels.WalletViewModel by viewModels()
+
+    // I021 — banner instance + one-shot flag flipped before hand-off to
+    // WalletActivity so onResume can refresh the timer and hide the banner.
+    private var lowBalanceBanner: com.gmwapp.hima.utils.LowBalanceBanner? = null
+    private var pendingWalletReturn: Boolean = false
 
     var blockWords: List<String> = emptyList()
     var isBlockWordDetected : Boolean = false
@@ -567,6 +575,18 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         if (userData != null) {
             maleUserId = userData.id
         }
+
+        // I021 — see MaleAudioCallingActivity for rationale. Banner is wired
+        // here; package prefetch is deferred to onUserJoined.
+        lowBalanceBanner = com.gmwapp.hima.utils.LowBalanceBanner(
+            activity = this,
+            rootView = findViewById(R.id.low_balance_banner_root),
+            chipContainer = findViewById(R.id.chip_container),
+            goToWalletTextView = findViewById(R.id.tv_go_to_wallet),
+            walletViewModel = walletViewModel,
+            userId = maleUserId,
+            onLaunchedWallet = { pendingWalletReturn = true }
+        )
 
         showGreyScreen()
 
@@ -1031,6 +1051,21 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         })
     }
 
+    // I022 — wired headset hook / BT AVRCP play-pause = single-press end on
+    // the active-call screen, matching native phone / WhatsApp parity.
+    // MEDIA_PLAY_PAUSE covers BT headsets that map the button to the media
+    // key instead of HEADSETHOOK. Bypasses the confirmation dialog so the
+    // user can end with the phone in their pocket — the visible End button
+    // still routes through the dialog.
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_HEADSETHOOK ||
+            keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
+            leaveChannel(binding.LeaveButton)
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
     private fun showExitDialog() {
         val dialog = Dialog(this)
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -1264,6 +1299,9 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             videoUid = uid
 
             getRemainingTime()
+            // I021 — load the package catalog now so the banner's chips are
+            // populated by the time the timer drops below 60s.
+            runOnUiThread { lowBalanceBanner?.prefetch() }
 
             startTime = dateFormat.format(Date()) // Set call end time in IST
             callStartMillis = System.currentTimeMillis() // B110: duration baseline
@@ -1385,11 +1423,13 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         }
 
         override fun onNetworkQuality(uid: Int, txQuality: Int, rxQuality: Int) {
+            // I006 — pass the WORSE of the two directions. See
+            // MaleAudioCallingActivity for full rationale.
             com.gmwapp.hima.utils.CallQualityUi.apply(
                 this@MaleVideoCallingActivity,
                 binding.ivSignalStrength,
                 binding.reconnectBanner,
-                rxQuality,
+                maxOf(txQuality, rxQuality),
                 null
             )
         }
@@ -1409,6 +1449,25 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             // B062 — auto-end on prolonged reconnect.
             reconnectWatchdog.armOrCancel(state)
             super.onConnectionStateChanged(state, reason)
+        }
+
+        // I024 — detect PEER-side network drops. See MaleAudioCallingActivity
+        // for full rationale.
+        override fun onRemoteAudioStateChanged(uid: Int, state: Int, reason: Int, elapsed: Int) {
+            super.onRemoteAudioStateChanged(uid, state, reason, elapsed)
+            if (reason == Constants.REMOTE_AUDIO_REASON_REMOTE_MUTED) return
+            runOnUiThread {
+                when (state) {
+                    Constants.REMOTE_AUDIO_STATE_FROZEN,
+                    Constants.REMOTE_AUDIO_STATE_FAILED ->
+                        reconnectWatchdog.peerStreamStalled(stalled = true)
+                    Constants.REMOTE_AUDIO_STATE_DECODING,
+                    Constants.REMOTE_AUDIO_STATE_STARTING ->
+                        reconnectWatchdog.peerStreamStalled(stalled = false)
+                }
+                binding.reconnectBanner.visibility =
+                    if (reconnectWatchdog.isArmed()) View.VISIBLE else View.GONE
+            }
         }
 
         override fun onConnectionLost() {
@@ -2019,6 +2078,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 binding.tvRemainingTime?.text = String.format("%02d:%02d:%02d", hours, minutes, secs)
                 Log.d("timechanging","${String.format("%02d:%02d:%02d", hours, minutes, secs)}")
 
+                // I021 — see MaleAudioCallingActivity for rationale.
+                lowBalanceBanner?.maybeShow(millisUntilFinished)
             }
 
             override fun onFinish() {
@@ -2244,6 +2305,12 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         }
         newRemainingTime()
         startCallingService()
+
+        // I021 — see MaleAudioCallingActivity.onResume for rationale.
+        if (pendingWalletReturn) {
+            pendingWalletReturn = false
+            lowBalanceBanner?.hide()
+        }
 
         if (isJoined && ContextCompat.checkSelfPermission(
                 this, Manifest.permission.RECORD_AUDIO
@@ -2815,9 +2882,13 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                     switchDialog?.dismiss()
 
                     var respondedAudio = false
+                    // B068 — modal. Outside-tap and back can't dismiss; only
+                    // Confirm/Decline close the dialog. setOnDismissListener
+                    // below remains as a backstop for activity teardown.
                     switchDialog = AlertDialog.Builder(this)
                         .setTitle("Switch to audio Call ?")
                         .setMessage("$receiverName requested for audio call")
+                        .setCancelable(false)
                         .setPositiveButton("Confirm") { _, _ ->
                             respondedAudio = true
                             if (userid != null && switchCallID != 0) {

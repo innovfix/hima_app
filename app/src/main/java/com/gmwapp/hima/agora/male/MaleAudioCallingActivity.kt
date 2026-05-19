@@ -3,6 +3,7 @@ package com.gmwapp.hima.agora.male
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
+import android.view.KeyEvent
 import android.view.View
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -152,9 +153,18 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private var currentAudioRoute: com.gmwapp.hima.utils.CallAudioRouter.AudioRoute =
         com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE
     private val ludoFcmViewModel: LudoFcmViewModel by viewModels()
+    // I021 — VM for the low-balance banner's "first 3 packages" prefetch.
+    private val walletViewModel: com.gmwapp.hima.viewmodels.WalletViewModel by viewModels()
 
     private var isSwitchingToAudio = false // ✅ Prevent multiple calls
     private var isSwitchingToVideo = false // ✅ Prevent multiple calls
+
+    // I021 — banner instance + flag flipped when we hand off to WalletActivity
+    // so onResume knows to refresh the remaining-time and (optimistically) hide
+    // the banner. Banner re-shows on the next sub-60s tick if the recharge
+    // didn't extend the timer enough.
+    private var lowBalanceBanner: com.gmwapp.hima.utils.LowBalanceBanner? = null
+    private var pendingWalletReturn: Boolean = false
 
 
     private var remoteSurfaceView: SurfaceView? = null
@@ -535,6 +545,20 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             maleUserId = userData.id
         }
 
+        // I021 — instantiate the low-balance banner. View IDs come from the
+        // <include layout="@layout/banner_low_balance"> in the activity layout.
+        // The package catalog prefetch is deferred to onUserJoined so we don't
+        // waste a network call if the call never actually connects.
+        lowBalanceBanner = com.gmwapp.hima.utils.LowBalanceBanner(
+            activity = this,
+            rootView = findViewById(R.id.low_balance_banner_root),
+            chipContainer = findViewById(R.id.chip_container),
+            goToWalletTextView = findViewById(R.id.tv_go_to_wallet),
+            walletViewModel = walletViewModel,
+            userId = maleUserId,
+            onLaunchedWallet = { pendingWalletReturn = true }
+        )
+
 
         channelName = intent.getStringExtra("CHANNEL_NAME") ?: ""
         receiverId = intent.getIntExtra("RECEIVER_ID", -1)
@@ -690,7 +714,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
         profileViewModel.getUserLiveData.observe(this) { response ->
             val fresh = response?.data ?: return@observe
-            BaseApplication.getInstance()?.getPrefs()?.setUserData(fresh)
+            // B075 — match the female-side ludo refresh: preserve the user's
+            // toggle / DND intent so a mid-call refresh can't clobber it.
+            BaseApplication.getInstance()?.getPrefs()?.setUserDataPreservingLocalIntent(fresh)
             applyPlayLudoVisibility(fresh.play_ludo ?: false)
         }
         if (maleUserId != 0) {
@@ -1196,6 +1222,21 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         })
     }
 
+    // I022 — wired headset hook / BT AVRCP play-pause = single-press end on
+    // the active-call screen, matching native phone / WhatsApp parity.
+    // MEDIA_PLAY_PAUSE covers BT headsets that map the button to the media
+    // key instead of HEADSETHOOK. We go straight to leaveChannel (no
+    // confirmation dialog) so the user can end with the phone in their
+    // pocket — the visible End button still routes through the dialog.
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_HEADSETHOOK ||
+            keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
+            leaveChannel(binding.LeaveButton)
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
     private fun showExitDialog() {
         val dialog = Dialog(this)
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -1300,11 +1341,15 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         }
 
         override fun onNetworkQuality(uid: Int, txQuality: Int, rxQuality: Int) {
+            // I006 — pass the WORSE of the two directions. Agora's quality
+            // constants are ordered low-to-high = good-to-bad, so maxOf
+            // picks the worse one. Watching only rx (download) missed cases
+            // where our upload was struggling and the peer couldn't hear us.
             com.gmwapp.hima.utils.CallQualityUi.apply(
                 this@MaleAudioCallingActivity,
                 binding.ivSignalStrength,
                 binding.reconnectBanner,
-                rxQuality,
+                maxOf(txQuality, rxQuality),
                 null
             )
         }
@@ -1321,6 +1366,39 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             // on CONNECTED/DISCONNECTED. Without this Agora's retry loop
             // ran indefinitely while the user stared at the banner.
             reconnectWatchdog.armOrCancel(state)
+        }
+
+        // I024 — detect PEER-side network drops. onConnectionStateChanged
+        // only fires when OUR connection has issues; when the peer's network
+        // dies we just stop receiving their audio while Agora cheerfully
+        // tells us we're still connected. FROZEN/FAILED on the remote audio
+        // stream is the SDK's signal that the peer side has stalled. We
+        // arm the same watchdog (different reason) so the user sees the
+        // existing Reconnecting… banner + countdown + 30s auto-end instead
+        // of talking into silence until Agora finally gives up.
+        override fun onRemoteAudioStateChanged(uid: Int, state: Int, reason: Int, elapsed: Int) {
+            super.onRemoteAudioStateChanged(uid, state, reason, elapsed)
+            // Skip mute-driven freezes — peer explicitly muting is a normal
+            // user action, not a network outage. Existing B055 pill handles
+            // that path.
+            if (reason == Constants.REMOTE_AUDIO_REASON_REMOTE_MUTED) return
+            runOnUiThread {
+                when (state) {
+                    Constants.REMOTE_AUDIO_STATE_FROZEN,
+                    Constants.REMOTE_AUDIO_STATE_FAILED ->
+                        reconnectWatchdog.peerStreamStalled(stalled = true)
+                    Constants.REMOTE_AUDIO_STATE_DECODING,
+                    Constants.REMOTE_AUDIO_STATE_STARTING ->
+                        reconnectWatchdog.peerStreamStalled(stalled = false)
+                    // REMOTE_AUDIO_STATE_STOPPED — explicit mute, leave alone.
+                }
+                // Banner reflects "is either source stalled". Driving it off
+                // the watchdog's combined state keeps the peer-stream
+                // recovery from prematurely hiding the banner while OUR
+                // connection is still RECONNECTING.
+                binding.reconnectBanner.visibility =
+                    if (reconnectWatchdog.isArmed()) View.VISIBLE else View.GONE
+            }
         }
 
         override fun onUserOffline(uid: Int, reason: Int) {
@@ -1347,6 +1425,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             startCallingService()
             getRemainingTime()
             initVosk()
+            // I021 — load the package catalog now so the banner's chips are
+            // populated by the time the timer drops below 60s.
+            runOnUiThread { lowBalanceBanner?.prefetch() }
 
 //            agoraEngine?.registerAudioFrameObserver(audioFrameObserver)
 
@@ -1759,6 +1840,12 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                     String.format("%02d:%02d:%02d", hours, minutes, secs)
                 Log.d("timechanging", "${String.format("%02d:%02d:%02d", hours, minutes, secs)}")
 
+                // I021 — reveal the low-balance banner on the first sub-60s
+                // tick. The banner is idempotent so it's safe to call every
+                // tick; once shown it stays visible until the activity ends
+                // or the user returns from a successful recharge (handled in
+                // onResume via hide()).
+                lowBalanceBanner?.maybeShow(millisUntilFinished)
             }
 
             override fun onFinish() {
@@ -1927,6 +2014,17 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         }
         newRemainingTime()
         startCallingService()
+
+        // I021 — if we just came back from WalletActivity (either through the
+        // banner's chip tap or the "Go to wallet" link), hide the banner.
+        // newRemainingTime() above has already re-fetched the server's
+        // remaining-time and restarted the countdown; the next sub-60s tick
+        // will re-show the banner if the recharge wasn't enough to push past
+        // the threshold. Flag is one-shot.
+        if (pendingWalletReturn) {
+            pendingWalletReturn = false
+            lowBalanceBanner?.hide()
+        }
 
         if (isJoined && ContextCompat.checkSelfPermission(
                 this, Manifest.permission.RECORD_AUDIO
@@ -2230,9 +2328,13 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     
     private fun showIncomingSwitchVideoRequest(userid: Int?, requesterName: String): AlertDialog {
         val dialogView = layoutInflater.inflate(R.layout.dialog_switch_video, null)
+        // B068 — modal. Outside-tap and back can't dismiss this dialog; only
+        // Accept/Decline buttons close it. The setOnDismissListener below
+        // stays as a safety net for activity teardown (it self-guards via
+        // !isFinishing && !isDestroyed).
         val dialog = AlertDialog.Builder(this)
             .setView(dialogView)
-            .setCancelable(true)
+            .setCancelable(false)
             .create()
 
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
@@ -3003,6 +3105,15 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         // Reset visibility and alpha
         giftImage.alpha = 1f
         giftImage.visibility = View.VISIBLE
+        // B070 — `iv_gift_image` carries no elevation in XML, so sibling
+        // elevated views (gift_button_card 12dp, users_container 10dp,
+        // controls_container 10dp, top_bar 10dp) all drew over it and the
+        // sender saw no animation. Match the B203 video-side fix: bring to
+        // front + bump elevation so the gift sails above every other
+        // in-call surface for the duration of the animation.
+        giftImage.bringToFront()
+        giftImage.elevation = 32f
+        (giftImage.parent as? View)?.requestLayout()
 
         BaseApplication.getInstance()?.playSendGiftSound()
         Glide.with(this)

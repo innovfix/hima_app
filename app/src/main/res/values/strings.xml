@@ -6,6 +6,12 @@
          participant mutes their microphone, so the user knows the silence is
          intentional (not a connection issue). -->
     <string name="call_peer_muted">Peer is muted</string>
+    <!-- I021 — low-balance warning banner shown when the in-call countdown
+         timer drops below 60s, so the user can recharge mid-call. -->
+    <string name="low_balance_title">❤ Balance low — recharge to continue</string>
+    <string name="low_balance_go_to_wallet">Go to wallet ›</string>
+    <string name="low_balance_price">₹%1$d</string>
+    <string name="low_balance_coins">%1$d coins</string>
     <!-- B196 — shown when a SIM phone call (or another cellular interrupt)
          pauses the Hima call audio. Hidden again when the phone call ends. -->
     <string name="call_on_hold_phone_busy">On hold — phone call in progress</string>

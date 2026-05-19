@@ -14,6 +14,7 @@ import android.os.CountDownTimer
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.SurfaceView
 import android.view.View
@@ -748,7 +749,10 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
         profileViewModel.getUserLiveData.observe(this) { response ->
             val fresh = response?.data ?: return@observe
-            BaseApplication.getInstance()?.getPrefs()?.setUserData(fresh)
+            // B075 — only need play_ludo here; preserve the user's audio/video toggle
+            // intent so a mid-call refresh doesn't silently flip her availability when
+            // she returns to FemaleHomeFragment after the call.
+            BaseApplication.getInstance()?.getPrefs()?.setUserDataPreservingLocalIntent(fresh)
             applyPlayLudoVisibility(fresh.play_ludo ?: false)
         }
         if (currentUserId != 0) {
@@ -1249,6 +1253,21 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         })
     }
 
+    // I022 — wired headset hook / BT AVRCP play-pause = single-press end on
+    // the active-call screen, matching native phone / WhatsApp parity.
+    // MEDIA_PLAY_PAUSE covers BT headsets that map the button to the media
+    // key instead of HEADSETHOOK. Bypasses the confirmation dialog so the
+    // user can end with the phone in their pocket — the visible End button
+    // still routes through the dialog.
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_HEADSETHOOK ||
+            keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
+            leaveChannel(binding.LeaveButton)
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
 
     private fun showExitDialog() {
         val dialog = Dialog(this)
@@ -1348,11 +1367,13 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         }
 
         override fun onNetworkQuality(uid: Int, txQuality: Int, rxQuality: Int) {
+            // I006 — pass the WORSE of the two directions. See
+            // MaleAudioCallingActivity for full rationale.
             com.gmwapp.hima.utils.CallQualityUi.apply(
                 this@FemaleAudioCallingActivity,
                 binding.ivSignalStrength,
                 binding.reconnectBanner,
-                rxQuality,
+                maxOf(txQuality, rxQuality),
                 null
             )
         }
@@ -1367,6 +1388,25 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             )
             // B062 — auto-end on prolonged reconnect.
             reconnectWatchdog.armOrCancel(state)
+        }
+
+        // I024 — detect PEER-side network drops. See MaleAudioCallingActivity
+        // for full rationale.
+        override fun onRemoteAudioStateChanged(uid: Int, state: Int, reason: Int, elapsed: Int) {
+            super.onRemoteAudioStateChanged(uid, state, reason, elapsed)
+            if (reason == Constants.REMOTE_AUDIO_REASON_REMOTE_MUTED) return
+            runOnUiThread {
+                when (state) {
+                    Constants.REMOTE_AUDIO_STATE_FROZEN,
+                    Constants.REMOTE_AUDIO_STATE_FAILED ->
+                        reconnectWatchdog.peerStreamStalled(stalled = true)
+                    Constants.REMOTE_AUDIO_STATE_DECODING,
+                    Constants.REMOTE_AUDIO_STATE_STARTING ->
+                        reconnectWatchdog.peerStreamStalled(stalled = false)
+                }
+                binding.reconnectBanner.visibility =
+                    if (reconnectWatchdog.isArmed()) View.VISIBLE else View.GONE
+            }
         }
 
         override fun onUserOffline(uid: Int, reason: Int) {
@@ -1939,6 +1979,14 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         // Reset visibility and alpha
         giftImage.alpha = 1f
         giftImage.visibility = View.VISIBLE
+        // B070 — sibling elevated views (gift_button_card / users_container /
+        // controls_container / top_bar) drew over the gift image, so the
+        // creator saw no animation when a gift arrived. Match the B203
+        // video-side fix: bring to front + bump elevation so the gift sails
+        // above every other in-call surface.
+        giftImage.bringToFront()
+        giftImage.elevation = 32f
+        (giftImage.parent as? View)?.requestLayout()
 
         // Play sound
         BaseApplication.getInstance()?.playSendGiftSound()
@@ -2699,9 +2747,13 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     
     private fun showIncomingSwitchVideoRequest(userid: Int?, requesterName: String): AlertDialog {
         val dialogView = layoutInflater.inflate(R.layout.dialog_switch_video, null)
+        // B068 — modal. Outside-tap and back can't dismiss this dialog; only
+        // Accept/Decline buttons close it. The setOnDismissListener below
+        // stays as a safety net for activity teardown (it self-guards via
+        // !isFinishing && !isDestroyed).
         val dialog = AlertDialog.Builder(this)
             .setView(dialogView)
-            .setCancelable(true)
+            .setCancelable(false)
             .create()
 
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)

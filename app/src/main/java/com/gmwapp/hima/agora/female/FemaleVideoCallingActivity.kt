@@ -20,6 +20,7 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.util.Log
 import android.util.Rational
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.SurfaceView
 import android.view.View
@@ -1143,6 +1144,21 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         })
     }
 
+    // I022 — wired headset hook / BT AVRCP play-pause = single-press end on
+    // the active-call screen, matching native phone / WhatsApp parity.
+    // MEDIA_PLAY_PAUSE covers BT headsets that map the button to the media
+    // key instead of HEADSETHOOK. Bypasses the confirmation dialog so the
+    // user can end with the phone in their pocket — the visible End button
+    // still routes through the dialog.
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_HEADSETHOOK ||
+            keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
+            leaveChannel(binding.LeaveButton)
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
     private fun showExitDialog() {
         val dialog = Dialog(this)
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -1260,11 +1276,13 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     private val mRtcEventHandler: IRtcEngineEventHandler = object : IRtcEngineEventHandler() {
         override fun onNetworkQuality(uid: Int, txQuality: Int, rxQuality: Int) {
+            // I006 — pass the WORSE of the two directions. See
+            // MaleAudioCallingActivity for full rationale.
             com.gmwapp.hima.utils.CallQualityUi.apply(
                 this@FemaleVideoCallingActivity,
                 binding.ivSignalStrength,
                 binding.reconnectBanner,
-                rxQuality,
+                maxOf(txQuality, rxQuality),
                 null
             )
         }
@@ -1279,6 +1297,25 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             )
             // B062 — auto-end on prolonged reconnect.
             reconnectWatchdog.armOrCancel(state)
+        }
+
+        // I024 — detect PEER-side network drops. See MaleAudioCallingActivity
+        // for full rationale.
+        override fun onRemoteAudioStateChanged(uid: Int, state: Int, reason: Int, elapsed: Int) {
+            super.onRemoteAudioStateChanged(uid, state, reason, elapsed)
+            if (reason == Constants.REMOTE_AUDIO_REASON_REMOTE_MUTED) return
+            runOnUiThread {
+                when (state) {
+                    Constants.REMOTE_AUDIO_STATE_FROZEN,
+                    Constants.REMOTE_AUDIO_STATE_FAILED ->
+                        reconnectWatchdog.peerStreamStalled(stalled = true)
+                    Constants.REMOTE_AUDIO_STATE_DECODING,
+                    Constants.REMOTE_AUDIO_STATE_STARTING ->
+                        reconnectWatchdog.peerStreamStalled(stalled = false)
+                }
+                binding.reconnectBanner.visibility =
+                    if (reconnectWatchdog.isArmed()) View.VISIBLE else View.GONE
+            }
         }
 
         override fun onUserJoined(uid: Int, elapsed: Int) {
@@ -2733,9 +2770,13 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                     switchDialog?.dismiss()
 
                     var responded = false
+                    // B068 — modal. Outside-tap and back can't dismiss; only
+                    // Confirm/Decline close the dialog. setOnDismissListener
+                    // below remains as a backstop for activity teardown.
                     switchDialog = AlertDialog.Builder(this)
                         .setTitle("Switch to audio Call ?")
                         .setMessage("$receiverName requested for audio call")
+                        .setCancelable(false)
                         .setPositiveButton("Confirm") { _, _ ->
                             responded = true
                             if (userid != null && switchCallID != 0) {

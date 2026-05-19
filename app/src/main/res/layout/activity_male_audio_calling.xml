@@ -223,6 +223,18 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/on_hold_banner" />
 
+    <!-- I021 — low-balance warning banner. Reveals when the in-call timer
+         drops below 60s. Tap a chip or "Go to wallet" to recharge mid-call;
+         CallingService keeps audio alive while the user is in payment flow. -->
+    <include
+        android:id="@+id/low_balance_banner"
+        layout="@layout/banner_low_balance"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/remote_mic_muted_pill" />
+
     <!-- User Avatars Container (Center) -->
     <LinearLayout
         android:id="@+id/users_container"

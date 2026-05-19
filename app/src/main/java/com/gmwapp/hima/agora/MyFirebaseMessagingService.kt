@@ -19,6 +19,7 @@ import android.os.Build
 import android.provider.Settings
 import android.os.Bundle
 import android.telecom.DisconnectCause
+import android.telecom.TelecomManager
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -1148,7 +1149,25 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         }
         val telephonyBusy = com.gmwapp.hima.utils.CallPhoneStateHelper
             .isCellularCallBusy(applicationContext)
-        return audioModeBusy || telephonyBusy
+        // B131 — WhatsApp video doesn't reliably flip AudioManager.mode to
+        // MODE_IN_COMMUNICATION on every OEM build, so the audio-mode check
+        // alone lets a Hima call ring through while WhatsApp video is active.
+        // TelecomManager.isInCall covers every self-managed ConnectionService
+        // (WhatsApp video/voice, Signal, Telegram VoIP, Google Meet, plus SIM)
+        // and closes that gap. Requires READ_PHONE_STATE, which is already
+        // declared in the manifest; the catch is defensive for OEM-quirky
+        // SecurityExceptions on Android Q before runtime grant.
+        val telecomBusy = try {
+            val tm = applicationContext.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) tm?.isInCall == true else false
+        } catch (e: SecurityException) {
+            Log.w("FCM", "isOnAnotherAppCall: TelecomManager.isInCall denied: ${e.message}")
+            false
+        } catch (e: Exception) {
+            Log.w("FCM", "isOnAnotherAppCall: TelecomManager.isInCall threw: ${e.message}")
+            false
+        }
+        return audioModeBusy || telephonyBusy || telecomBusy
     }
 
     /**
