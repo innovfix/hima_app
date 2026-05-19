@@ -3,11 +3,13 @@ package com.gmwapp.hima.agora.services
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.ServiceCompat
 import com.gmwapp.hima.R
 
@@ -16,8 +18,17 @@ class CallingService : Service() {
         const val callingChannelId = "callingChannelId"
         private const val channelName = "callingName"
         private const val NOTIFICATION_ID = 1
+        private const val TAG = "CallingService"
         @Volatile var isRunning: Boolean = false
 
+        // B033 — the in-call activity that owns this service. Each call
+        // activity sets this to its own class name right before starting
+        // the service so the notification's contentIntent can target the
+        // exact screen the user expects to return to. Cleared on
+        // service destroy. Only one call activity is alive at any moment
+        // (B125 guards against parallel calls), so the single-slot store
+        // is safe.
+        @Volatile var callerActivityClassName: String? = null
     }
 
     override fun onCreate() {
@@ -65,6 +76,12 @@ class CallingService : Service() {
             .setAutoCancel(false)
             .setCategory(Notification.CATEGORY_CALL)
             .setOnlyAlertOnce(true)
+            // B033 — tap returns the user to the active call screen. Without
+            // a contentIntent the notification did nothing on tap (or fell
+            // back to launching MainActivity → Home tab), which surprised
+            // users who'd backgrounded the call expecting the notification
+            // to be their return path.
+            .setContentIntent(buildReturnToCallPendingIntent())
             .build()
         // Explicit FLAG_NO_CLEAR on top of setOngoing — belt + braces for
         // OEM builds (some Xiaomi/Vivo) that ignore one but honour the other.
@@ -75,6 +92,40 @@ class CallingService : Service() {
         ServiceCompat.startForeground(
             this, NOTIFICATION_ID, notification,
             ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+        )
+    }
+
+    /**
+     * Build the PendingIntent that fires when the user taps the session
+     * notification. Targets the call activity recorded in
+     * [callerActivityClassName]; falls back to the app launcher if the
+     * class can't be resolved (defensive — shouldn't happen in practice
+     * since each call activity sets the field before starting the service).
+     */
+    private fun buildReturnToCallPendingIntent(): PendingIntent? {
+        val callerClass = callerActivityClassName
+        val target: Intent = if (callerClass != null) {
+            runCatching {
+                Intent(this, Class.forName(callerClass)).apply {
+                    // CLEAR_TOP + SINGLE_TOP: the existing call activity is
+                    // brought to front (no new instance created) so the
+                    // user resumes the same call rather than starting over.
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+                }
+            }.getOrElse {
+                Log.w(TAG, "Failed to resolve $callerClass for return-to-call intent", it)
+                packageManager.getLaunchIntentForPackage(packageName) ?: return null
+            }
+        } else {
+            packageManager.getLaunchIntentForPackage(packageName) ?: return null
+        }
+        return PendingIntent.getActivity(
+            this,
+            0,
+            target,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
     }
 
@@ -95,6 +146,10 @@ class CallingService : Service() {
     override fun onDestroy() {
         stopForeground(STOP_FOREGROUND_REMOVE)
         isRunning = false                     // ✅ clear flag
+        // B033 — release the caller class so a future, unrelated service
+        // start (rare but possible) doesn't post a notification pointing
+        // at a dead activity.
+        callerActivityClassName = null
         super.onDestroy()
     }
 }

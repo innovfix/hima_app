@@ -1259,6 +1259,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
 
         if (visible && micGranted) {
+            // B033 — tell CallingService which class to deep-link back to
+            // when the user taps the session notification.
+            CallingService.callerActivityClassName = this::class.java.name
             // ✅ Only start microphone FGS from a visible Activity with mic permission granted
             ContextCompat.startForegroundService(this, Intent(this, CallingService::class.java))
             Log.d("startCallingService","Service class called")

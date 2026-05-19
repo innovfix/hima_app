@@ -62,6 +62,13 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // B024: this activity is the call UI; any system heads-up banner is
+        // now redundant. Wipe ALL incoming-call notifications (FCM + OneSignal
+        // paths) as the FIRST thing we do — before setContentView, Glide,
+        // viewmodels, etc. — so the banner+full-screen overlap window shrinks
+        // to roughly the FSI->process-start latency instead of ~300ms of
+        // onCreate setup. Cleared early on every entry, including cold-start.
+        BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
         // Route the volume rocker to STREAM_RING while this activity is on
         // screen so volume up/down adjusts the incoming ringtone (B027).
         // Without this the default STREAM_MUSIC is targeted and the rocker

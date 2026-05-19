@@ -147,6 +147,16 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     BottomSheetWelcomeBonus.OnAddCoinsListener,
     BottomSheetInsufficientCoinsPaywall.OnPaywallAddCoinsListener,
     CFCheckoutResponseCallback {
+
+    companion object {
+        // B034 — deep-link key for "open MainActivity directly into a specific
+        // bottom-nav tab." Used by the missed-call notification PendingIntent
+        // so a tap lands on Recent instead of Home. Add new tab values as
+        // needed (right now only TAB_RECENT is consumed).
+        const val EXTRA_OPEN_TAB = "open_tab"
+        const val TAB_RECENT = "recent"
+    }
+
     lateinit var binding: ActivityMainBinding
     var isBackPressedAlready = false
     var userName: String? = null
@@ -773,13 +783,47 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         }
         binding.bottomNavigationView.setOnNavigationItemSelectedListener(this)
         binding.bottomNavigationView.selectedItemId = R.id.home
-        
+
+        // B034 — if the launching intent asked for a specific tab (e.g.
+        // missed-call notification → "recent"), honour it AFTER the default
+        // Home selection so the deep-link wins. selectedItemId triggers
+        // onNavigationItemSelected → the right Fragment swap.
+        routeToTabIfRequested(intent)
+
         // Ensure bottom navigation is always visible on top
         binding.bottomNavigationView.bringToFront()
         binding.bottomNavigationView.invalidate()
-        
+
         removeShiftMode()
     }
+
+    /**
+     * B034 — when launched (or re-launched via singleTop's onNewIntent) with
+     * [EXTRA_OPEN_TAB], jump the bottom nav to the requested tab. Today the
+     * only consumer is the missed-call notification PendingIntent built in
+     * [com.gmwapp.hima.utils.CallNotifications.showMissed], routing to
+     * [TAB_RECENT].
+     */
+    private fun routeToTabIfRequested(routingIntent: Intent?) {
+        val tab = routingIntent?.getStringExtra(EXTRA_OPEN_TAB) ?: return
+        val targetItem = when (tab) {
+            TAB_RECENT -> R.id.recent
+            else -> {
+                android.util.Log.w("MainActivity", "Unknown OPEN_TAB extra: $tab")
+                return
+            }
+        }
+        if (binding.bottomNavigationView.menu.findItem(targetItem) == null) {
+            // The Recent menu item is hidden for gender-restricted users in
+            // some flows — bail rather than crash.
+            android.util.Log.w("MainActivity", "OPEN_TAB target $tab not in current bottom nav")
+            return
+        }
+        if (binding.bottomNavigationView.selectedItemId != targetItem) {
+            binding.bottomNavigationView.selectedItemId = targetItem
+        }
+    }
+
 
     /**
      * Avoids stacking multiple async [androidx.fragment.app.FragmentTransaction.replace] + [commit]
@@ -1450,6 +1494,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        // B034 — honour tab-deep-link extras when MainActivity is reopened
+        // (e.g. missed-call notification while app already in background
+        // task). The setIntent() call above is what makes the new payload
+        // visible to routeToTabIfRequested.
+        routeToTabIfRequested(intent)
     }
 
     fun refreshRecentMissedCountBadge() {

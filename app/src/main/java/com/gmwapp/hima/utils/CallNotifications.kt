@@ -30,6 +30,7 @@ import com.bumptech.glide.request.transition.Transition
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.ChatActivityInHouse
+import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.agora.CallActionReceiver
 import com.gmwapp.hima.agora.female.FemaleCallAcceptActivity
 import com.gmwapp.hima.agora.male.MaleCallAcceptActivity
@@ -317,7 +318,29 @@ object CallNotifications {
                 )
             )
 
-            // 4. Tap opens the chat thread (no Call back / Message buttons).
+            // 4. B034 — tap opens MainActivity's Recent tab (the missed-call
+            //    list) rather than the per-peer chat thread. SINGLE_TOP +
+            //    CLEAR_TOP brings an existing MainActivity to front and
+            //    delivers the intent via onNewIntent (so the resume path
+            //    can switch tabs without rebuilding the activity).
+            val openRecent = Intent(context, MainActivity::class.java).apply {
+                action = Intent.ACTION_VIEW
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP
+                putExtra(MainActivity.EXTRA_OPEN_TAB, MainActivity.TAB_RECENT)
+                putExtra("FROM_MISSED_CALL", true)
+                // Carry peer info so a future enhancement could deep-link
+                // into a specific Recent row; for now the Recent tab itself
+                // is the destination.
+                putExtra("USER_ID", senderId)
+                putExtra("USER_NAME", safeName)
+                putExtra("USER_IMAGE", callerImage)
+            }
+            // The dynamic shortcut (below, step 5) still needs an Intent
+            // that opens *something* when long-pressed — keep the per-peer
+            // chat intent for the shortcut, since shortcuts are explicitly
+            // about that conversation.
             val openChat = Intent(context, ChatActivityInHouse::class.java).apply {
                 action = Intent.ACTION_VIEW
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -329,7 +352,7 @@ object CallNotifications {
             val contentPi = PendingIntent.getActivity(
                 context,
                 senderId,
-                openChat,
+                openRecent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 

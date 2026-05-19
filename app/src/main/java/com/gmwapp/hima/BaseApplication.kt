@@ -22,6 +22,9 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.Uri
 import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.util.Base64
 import android.util.Log
 import java.net.URLDecoder
@@ -1116,6 +1119,60 @@ class BaseApplication : Application(), Configuration.Provider {
         ringtoneFocusRequest = null
     }
 
+    /**
+     * Vibrator handle held for the duration of an incoming-call ring. Started
+     * in [playIncomingCallSound] alongside the MediaPlayer ringtone so the
+     * phone vibrates whether ringer mode is NORMAL or VIBRATE (B028) — the
+     * MediaPlayer is silenced by the OS in VIBRATE mode but vibration runs
+     * independently. Cancelled in [stopRingtone].
+     */
+    private var ringtoneVibrator: Vibrator? = null
+
+    private fun startIncomingCallVibration() {
+        val am = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        // Respect SILENT mode — user explicitly asked for no buzz.
+        if (am.ringerMode == AudioManager.RINGER_MODE_SILENT) {
+            Log.d("HimaIncomingCall", "startIncomingCallVibration: ringer SILENT, skip")
+            return
+        }
+        val v: Vibrator? = try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vm = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                vm?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            }
+        } catch (e: Exception) {
+            Log.e("HimaIncomingCall", "Failed to acquire Vibrator", e)
+            null
+        }
+        if (v == null || !v.hasVibrator()) return
+        // Match the channel vibration cadence so foreground+unlocked rings
+        // (where the OS notification is suppressed by B030) feel identical to
+        // background rings driven by the channel.
+        val pattern = longArrayOf(0, 1000, 500, 1000)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                v.vibrate(VibrationEffect.createWaveform(pattern, 0)) // 0 = loop
+            } else {
+                @Suppress("DEPRECATION")
+                v.vibrate(pattern, 0)
+            }
+            ringtoneVibrator = v
+            Log.d("HimaIncomingCall", "startIncomingCallVibration: started ringerMode=${am.ringerMode}")
+        } catch (e: Exception) {
+            Log.e("HimaIncomingCall", "Vibrator.vibrate threw", e)
+        }
+    }
+
+    private fun stopIncomingCallVibration() {
+        try { ringtoneVibrator?.cancel() } catch (e: Exception) {
+            Log.e("HimaIncomingCall", "Vibrator.cancel threw", e)
+        }
+        ringtoneVibrator = null
+    }
+
     fun playIncomingCallSound() {
         Log.d("HimaIncomingCall", "playIncomingCallSound: begin")
         // Stop any previous ringtone first
@@ -1123,6 +1180,12 @@ class BaseApplication : Application(), Configuration.Provider {
         // Grab audio focus so background media (YouTube, Spotify, etc.) pauses
         // while we ring (B150). No-op if FCM service already grabbed it.
         requestRingtoneFocus()
+        // B028: also vibrate. The MediaPlayer below uses USAGE_NOTIFICATION_RINGTONE
+        // so in VIBRATE ringer mode the OS silences its sound — without an
+        // explicit vibration the user gets neither sound NOR buzz. Channel-side
+        // rings already vibrate via enableVibration(true) + pattern; this covers
+        // the activity-only path (B030 skip-heads-up case).
+        startIncomingCallVibration()
 
         try {
             val audioAttributes = AudioAttributes.Builder()
@@ -1258,6 +1321,8 @@ class BaseApplication : Application(), Configuration.Provider {
             // resume — paired with requestRingtoneFocus in playIncomingCallSound
             // and the FCM service for the B150 fix.
             releaseRingtoneFocus()
+            // B028: stop the incoming-call vibration paired with the ringtone.
+            stopIncomingCallVibration()
             Log.d("HimaIncomingCall", "stopRingtone: end released")
             Log.d("MediaPlayer", "Ringtone stopped and released safely.")
         }
