@@ -190,6 +190,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     @javax.inject.Inject
     lateinit var apiManager: ApiManager
 
+    // B072 — prefetch gift catalog + warm icon cache at app start so the
+    // first open of the gift bottom sheet in a session doesn't show an
+    // empty grid while the network fetch + per-icon Glide downloads race.
+    @javax.inject.Inject
+    lateinit var giftImageRepository: com.gmwapp.hima.repositories.GiftImageRepository
+
 
     private var blockWordDialog: Dialog? = null
 
@@ -282,6 +288,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         // isIncomingCallFresh() honours the 35–45s ring window so a stale
         // flag never hijacks a normal app launch.
         routeIncomingCallIfPending()
+
+        // B072 — prefetch gift catalog + warm Glide disk cache so the gift
+        // bottom sheet renders instantly the first time the user opens it.
+        // Idempotent: no-op if a cache is already populated.
+        com.gmwapp.hima.utils.GiftManager.prefetch(this, giftImageRepository)
 
         // Set status bar color to pink
         // Set colors
@@ -578,7 +589,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
         profileViewModel.getUserLiveData.observe(this, Observer { response ->
             response?.data?.let { userData ->
-                prefs?.setUserData(userData)
+                // B075 — bootstrap refresh; preserve toggle / DND intent.
+                prefs?.setUserDataPreservingLocalIntent(userData)
             } ?: run {
                 Log.e("Observer", "RegisterResponse is null")
             }

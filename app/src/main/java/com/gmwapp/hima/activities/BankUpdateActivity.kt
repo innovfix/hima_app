@@ -224,7 +224,8 @@ class BankUpdateActivity : BaseActivity() {
 
         profileViewModel.getUserLiveData.observe(this, Observer {
             it.data?.let { it1 ->
-                BaseApplication.getInstance()?.getPrefs()?.setUserData(it1)
+                // B075 — bank-update refresh: preserve toggle / DND intent.
+                BaseApplication.getInstance()?.getPrefs()?.setUserDataPreservingLocalIntent(it1)
             }
             onBackPressed()
             finish()

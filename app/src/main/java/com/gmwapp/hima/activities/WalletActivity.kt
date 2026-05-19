@@ -88,6 +88,14 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
+
+    companion object {
+        // I021 — set by the in-call low-balance banner so this activity opens
+        // with the user's chosen package already selected. -1 (or missing) =
+        // no pre-selection, default behaviour (first item selected).
+        const val EXTRA_PRE_SELECTED_COIN_ID = "pre_selected_coin_id"
+    }
+
     lateinit var binding: ActivityWalletBinding
     private val WalletViewModel: WalletViewModel by viewModels()
     private val accountViewModel: AccountViewModel by viewModels()
@@ -387,7 +395,8 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
             if (isFinishing || isDestroyed) return@Observer
             try {
                 response?.data?.let { u ->
-                    BaseApplication.getInstance()?.getPrefs()?.setUserData(u)
+                    // B075 — wallet refresh: preserve toggle / DND intent.
+                    BaseApplication.getInstance()?.getPrefs()?.setUserDataPreservingLocalIntent(u)
                 }
                 val coins = response?.data?.coins
                 Log.d("coinsUpdated_", "${coins ?: 0}")
@@ -529,6 +538,21 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 
 
 
+                // I021 — if launched from the in-call banner, honour the
+                // EXTRA_PRE_SELECTED_COIN_ID so the matching coin is pre-
+                // selected before the adapter is built. CoinAdapter.onBindViewHolder
+                // reads coin.isSelected, and its own "auto-select position 0"
+                // fallback (line 41 there) only fires when NO coin is selected —
+                // so pre-marking one suppresses the default.
+                val preSelectedId = intent.getIntExtra(EXTRA_PRE_SELECTED_COIN_ID, -1)
+                val preSelectedCoin: CoinsResponseData? = if (preSelectedId > 0) {
+                    it.data.firstOrNull { c -> c.id == preSelectedId }
+                } else null
+
+                if (preSelectedCoin != null) {
+                    it.data.forEach { c -> c.isSelected = (c.id == preSelectedId) }
+                }
+
                 val coinAdapter = CoinAdapter(this, it.data, object : OnItemSelectionListener<CoinsResponseData> {
                     override fun onItemSelected(coin: CoinsResponseData) {
                         // Update button text and make it visible when an item is selected
@@ -552,9 +576,10 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                 // Set the adapter
                 binding.rvPlans.adapter = coinAdapter
 
-                // Set default button text and visibility for the first item
+                // Set default button text and visibility for the first item,
+                // OR for the pre-selected item if one was requested via I021.
                 if (it.data.isNotEmpty()) {
-                    val firstCoin = it.data[0]
+                    val firstCoin = preSelectedCoin ?: it.data[0]
                     binding.btnAddCoins.text = getString(R.string.add_quantity_coins, firstCoin.coins)
                     binding.btnAddCoins.visibility = View.VISIBLE
                     amount = firstCoin.price.toString()
@@ -563,6 +588,11 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 
                     selectedCoin = firstCoin.coins.toString()
                     selectedSavePercent = firstCoin.save.toString()
+
+                    if (preSelectedCoin != null) {
+                        // Scroll the RV so the pre-selected card is visible.
+                        binding.rvPlans.scrollToPosition(it.data.indexOf(preSelectedCoin))
+                    }
                 }
             }
 

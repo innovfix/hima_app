@@ -825,7 +825,8 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
             if (isFinishing || isDestroyed) return@Observer
             try {
                 response?.data?.let { u ->
-                    BaseApplication.getInstance()?.getPrefs()?.setUserData(u)
+                    // B075 — payment refresh: preserve toggle / DND intent.
+                    BaseApplication.getInstance()?.getPrefs()?.setUserDataPreservingLocalIntent(u)
                 }
             } catch (e: Exception) {
                 Log.e("PaymentActivity", "getUserLiveData", e)

@@ -30,6 +30,19 @@ class DPreferences(context: Context) {
         }
     }
 
+    /**
+     * B075 — most callers re-fetch UserData via getUsers() to refresh balance / play_ludo /
+     * etc and aren't aware the response also carries audio_status / video_status / DND. Use
+     * this entry point for those refreshes so the user's last toggle / DND intent survives.
+     * The two legitimate toggle writers (updateCallStatus observers in FemaleHomeFragment
+     * and ChatActivityInHouse) keep calling setUserData() directly.
+     */
+    fun setUserDataPreservingLocalIntent(userData: UserData?) {
+        if (userData == null) return
+        val merged = UserDataLocalIntentMerge.mergePreserveLocalIntent(getUserData(), userData)
+        setUserData(merged)
+    }
+
     fun clearUserData() {
         try {
             mPrefsWrite.clear()

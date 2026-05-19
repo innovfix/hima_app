@@ -39,7 +39,7 @@ import com.gmwapp.hima.dialogs.BottomSheetLogout
 import com.gmwapp.hima.dialogs.BottomSheetSelectIplTeam
 import com.gmwapp.hima.models.IplTeam
 import com.gmwapp.hima.utils.DndController
-import com.gmwapp.hima.utils.UserDataDndMerge
+import com.gmwapp.hima.utils.UserDataLocalIntentMerge
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.LoginViewModel
@@ -231,7 +231,7 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
         profileViewModel.getUserLiveData.observe(viewLifecycleOwner) { response ->
             response?.data?.let { fresh ->
                 val prev = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-                val merged = UserDataDndMerge.mergePreserveDnd(prev, fresh)
+                val merged = UserDataLocalIntentMerge.mergePreserveLocalIntent(prev, fresh)
                 BaseApplication.getInstance()?.getPrefs()?.setUserData(merged)
                 updateIplBadge()
                 dndController.refresh()

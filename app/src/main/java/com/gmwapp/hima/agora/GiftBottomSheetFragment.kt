@@ -100,9 +100,24 @@ class GiftBottomSheetFragment(var callType: String, var femaleId:Int) : BottomSh
 
         recyclerView.adapter = giftAdapter
 
+        // B072 — render instantly from the prefetched catalog if MainActivity
+        // already warmed it. Falls back to the API fetch only on a cold cache
+        // (e.g. prefetch hit a network error or this sheet opened before
+        // MainActivity had a chance to prefetch — incoming call, etc).
+        val cached = com.gmwapp.hima.utils.GiftManager.getCachedGifts()
+        if (cached.isNotEmpty()) {
+            giftAdapter.updateGiftList(cached)
+        }
+        com.gmwapp.hima.utils.GiftManager.cachedGiftsLiveData.observe(viewLifecycleOwner) { list ->
+            if (!list.isNullOrEmpty()) giftAdapter.updateGiftList(list)
+        }
+
         giftImageViewModel.giftResponseLiveData.observe(viewLifecycleOwner, Observer { response ->
             response?.data?.let { giftList ->
                 giftAdapter.updateGiftList(giftList)
+                // B072 — populate the shared cache so the next open is instant
+                // even when this is the first fetch of the session.
+                com.gmwapp.hima.utils.GiftManager.updateGifts(giftList)
             }
         })
 
@@ -112,7 +127,11 @@ class GiftBottomSheetFragment(var callType: String, var femaleId:Int) : BottomSh
             }
         })
 
-        giftImageViewModel.fetchGiftImages() // Fetch images
+        // B072 — only call the API if the cache is empty. Saves a round-trip
+        // on every subsequent sheet open.
+        if (cached.isEmpty()) {
+            giftImageViewModel.fetchGiftImages()
+        }
 
         return binding.root
     }

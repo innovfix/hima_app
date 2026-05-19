@@ -736,7 +736,9 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
             val data = response?.data ?: return@Observer
             if (!isAdded) return@Observer
             val prefsLocal = BaseApplication.getInstance()?.getPrefs() ?: return@Observer
-            prefsLocal.setUserData(data)
+            // B075 — preserve the user's toggle / DND intent. The updateCallStatus
+            // observer below is the legitimate writer for audio_status / video_status.
+            prefsLocal.setUserDataPreservingLocalIntent(data)
             binding.tvCoins.text = "₹" + data.balance.toString()
             binding.clStarCreatorBanner.visibility =
                 if (data.star == 1) View.VISIBLE else View.GONE

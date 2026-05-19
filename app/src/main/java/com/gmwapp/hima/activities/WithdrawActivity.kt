@@ -414,7 +414,8 @@ class WithdrawActivity : BaseActivity() {
         profileViewModel.getUserLiveData.observe(this, Observer {
 
             it?.data?.let { it1 ->
-                BaseApplication.getInstance()?.getPrefs()?.setUserData(it1)
+                // B075 — withdraw refresh: preserve toggle / DND intent.
+                BaseApplication.getInstance()?.getPrefs()?.setUserDataPreservingLocalIntent(it1)
             }
 
             binding.tvCurrentBalance.text = "₹" + it?.data?.balance.toString()
@@ -680,7 +681,8 @@ class WithdrawActivity : BaseActivity() {
             }
 
             profileViewModel.getUserLiveData.observe(this, Observer {
-                BaseApplication.getInstance()?.getPrefs()?.setUserData(it?.data)
+                // B075 — withdraw refresh: preserve toggle / DND intent.
+                BaseApplication.getInstance()?.getPrefs()?.setUserDataPreservingLocalIntent(it?.data)
 
                 if (it?.data?.holder_name.isNullOrEmpty()) {
                     bankDetails = false

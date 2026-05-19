@@ -242,7 +242,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
         profileViewModel.getUserLiveData.observe(viewLifecycleOwner, Observer { response ->
             response?.data?.let { userData ->
-                BaseApplication.getInstance()?.getPrefs()?.setUserData(userData)
+                BaseApplication.getInstance()?.getPrefs()?.setUserDataPreservingLocalIntent(userData)
                 binding.tvCoins.text = userData.coins.toString()
                 Log.d("coinsvalue", "${userData.coins}")
                 Log.d("coinsvalue", "${userData.name}")
