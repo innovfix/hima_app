@@ -195,6 +195,11 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
     private var agoraEngine: RtcEngine? = null
 
+    // B127: real-time RECORD_AUDIO revoke listener; started on join, stopped on teardown.
+    private var micWatcher: com.gmwapp.hima.utils.MicPermissionWatcher? = null
+    // B176: tracks whether we muted local video for background/lock so onResume can restore it.
+    private var videoMutedForBackground = false
+
     private var localSurfaceView: SurfaceView? = null
 
     private var remoteSurfaceView: SurfaceView? = null
@@ -1022,30 +1027,12 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         btWatcher?.unregister()
         btWatcher = null
 
-        // Ensure agoraEngine is not null before using it
-        agoraEngine?.let { engine ->
-            try {
-                engine.stopPreview()
-            } catch (e: Exception) {
-                Log.e("MaleVideoCalling", "stopPreview in onDestroy", e)
-                FirebaseCrashlytics.getInstance().recordException(e)
-            }
-            try {
-                engine.leaveChannel()
-            } catch (e: Exception) {
-                Log.e("MaleVideoCalling", "leaveChannel in onDestroy", e)
-                FirebaseCrashlytics.getInstance().recordException(e)
-            }
-            Thread {
-                try {
-                    RtcEngine.destroy()
-                } catch (e: Exception) {
-                    Log.e("MaleVideoCalling", "RtcEngine.destroy in onDestroy", e)
-                    FirebaseCrashlytics.getInstance().recordException(e)
-                }
-                agoraEngine = null
-            }.start()
-        }
+        // B143: deterministic teardown — disable audio+video, leave channel, then block on
+        // RtcEngine.destroy() so the mic/camera are released before this activity finishes.
+        stopMicRevokeWatcher()
+        agoraEngine = com.gmwapp.hima.utils.AgoraTeardownHelper.releaseEngineSync(
+            agoraEngine, "MaleVideoCalling", hasVideo = true
+        )
 
         if (isRemoteUserJoined==true&&isBlockWordDetected==false){
             val intent = Intent(this@MaleVideoCallingActivity, RatingActivity::class.java)
@@ -1133,6 +1120,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             )
             Log.d("AgoraTiming", "MaleVideo onJoinChannelSuccess at ${System.currentTimeMillis()}")
             startTimeoutTracking()
+            startMicRevokeWatcher()
         }
 
 
@@ -1576,18 +1564,12 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         } else {
             Log.d(TAG_END, "leaveChannel.joined path")
             stopCountdown()
-            try {
-                agoraEngine?.stopPreview()
-            } catch (e: Exception) {
-                Log.e("MaleVideoCalling", "stopPreview in leaveChannel", e)
-                FirebaseCrashlytics.getInstance().recordException(e)
-            }
-            try {
-                agoraEngine?.leaveChannel()
-            } catch (e: Exception) {
-                Log.e("MaleVideoCalling", "leaveChannel", e)
-                FirebaseCrashlytics.getInstance().recordException(e)
-            }
+            // B143: release mic/camera synchronously here too — onDestroy may run several seconds
+            // later (or be killed) and we want hardware freed at the moment the user hangs up.
+            stopMicRevokeWatcher()
+            agoraEngine = com.gmwapp.hima.utils.AgoraTeardownHelper.releaseEngineSync(
+                agoraEngine, "MaleVideoCalling", hasVideo = true
+            )
          //   showMessage("You left the channel")
             if (remoteSurfaceView != null) remoteSurfaceView!!.visibility = View.GONE
             if (localSurfaceView != null) localSurfaceView!!.visibility = View.GONE
@@ -1844,7 +1826,11 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             agoraEngine?.leaveChannel()
             Log.d(TAG_END, "finish() from onResume.micRevoked")
             finish()
+            return
         }
+
+        // B176: counterpart to onPause/onStop — bring local video back when user returns.
+        resumeLocalVideoAfterBackground()
     }
 
     override fun onPause() {
@@ -1852,6 +1838,10 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             TAG_END,
             "onPause isJoined=$isJoined isRemoteUserJoined=$isRemoteUserJoined elapsedTime=$elapsedTime isFinishing=$isFinishing"
         )
+        // B176: screen-off / app backgrounded must stop pushing camera frames to the peer.
+        // setShowWhenLocked(true) keeps this activity alive on the lock screen, so without this
+        // the remote side would keep receiving video while the local user thinks the call is paused.
+        pauseLocalVideoForBackground()
         super.onPause()
     }
 
@@ -1860,7 +1850,57 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             TAG_END,
             "onStop isJoined=$isJoined isRemoteUserJoined=$isRemoteUserJoined elapsedTime=$elapsedTime isFinishing=$isFinishing"
         )
+        // B176: release the camera hardware itself when the activity is no longer visible.
+        try {
+            agoraEngine?.stopPreview()
+        } catch (e: Exception) {
+            Log.e("MaleVideoCalling", "stopPreview in onStop", e)
+            FirebaseCrashlytics.getInstance().recordException(e)
+        }
         super.onStop()
+    }
+
+    private fun pauseLocalVideoForBackground() {
+        if (!isJoined) return
+        try {
+            agoraEngine?.muteLocalVideoStream(true)
+            videoMutedForBackground = true
+        } catch (e: Exception) {
+            Log.e("MaleVideoCalling", "muteLocalVideoStream(true) in pauseLocalVideoForBackground", e)
+            FirebaseCrashlytics.getInstance().recordException(e)
+        }
+    }
+
+    private fun resumeLocalVideoAfterBackground() {
+        if (!isJoined || !videoMutedForBackground) return
+        try {
+            agoraEngine?.startPreview()
+            agoraEngine?.muteLocalVideoStream(false)
+            videoMutedForBackground = false
+        } catch (e: Exception) {
+            Log.e("MaleVideoCalling", "resumeLocalVideoAfterBackground", e)
+            FirebaseCrashlytics.getInstance().recordException(e)
+        }
+    }
+
+    private fun startMicRevokeWatcher() {
+        if (micWatcher != null) return
+        val watcher = com.gmwapp.hima.utils.MicPermissionWatcher(this) {
+            if (isFinishing || isDestroyed) return@MicPermissionWatcher
+            showMessage("Microphone permission was revoked. Ending call.")
+            Log.d(TAG_END, "finish() from MicPermissionWatcher")
+            try {
+                agoraEngine?.leaveChannel()
+            } catch (_: Exception) { }
+            finish()
+        }
+        watcher.start()
+        micWatcher = watcher
+    }
+
+    private fun stopMicRevokeWatcher() {
+        micWatcher?.stop()
+        micWatcher = null
     }
     private fun onAddcoinClicked(){
         binding.timerContainer.setOnSingleClickListener {

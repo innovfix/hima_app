@@ -188,6 +188,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private var isJoined = false
     private var agoraEngine: RtcEngine? = null
 
+    // B127: real-time RECORD_AUDIO revoke listener; started on join, stopped on teardown.
+    private var micWatcher: com.gmwapp.hima.utils.MicPermissionWatcher? = null
+
     var receiverName = ""
 
     private var isMuted = false
@@ -1132,6 +1135,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             isJoined = true
             Log.d("AgoraTiming", "MaleAudio onJoinChannelSuccess at ${System.currentTimeMillis()}")
             startTimeoutTracking()
+            startMicRevokeWatcher()
         }
 
         override fun onNetworkQuality(uid: Int, txQuality: Int, rxQuality: Int) {
@@ -1365,28 +1369,14 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             finish()
         } else {
             stopCountdown()
-            try {
-                agoraEngine?.stopPreview()
-            } catch (e: Exception) {
-                Log.e("MaleAudioCalling", "stopPreview in leaveChannel", e)
-                FirebaseCrashlytics.getInstance().recordException(e)
-            }
-            try {
-                agoraEngine?.leaveChannel()
-            } catch (e: Exception) {
-                Log.e("MaleAudioCalling", "leaveChannel", e)
-                FirebaseCrashlytics.getInstance().recordException(e)
-            }
+            // B143: deterministic teardown — disable audio, leave channel, then block on
+            // RtcEngine.destroy() so the mic is released before this activity finishes.
+            stopMicRevokeWatcher()
+            agoraEngine = com.gmwapp.hima.utils.AgoraTeardownHelper.releaseEngineSync(
+                agoraEngine, "MaleAudioCalling", hasVideo = false
+            )
           //  showMessage("You left the channel")
             isJoined = false
-
-            try {
-                RtcEngine.destroy()
-            } catch (e: Exception) {
-                Log.e("MaleAudioCalling", "RtcEngine.destroy in leaveChannel", e)
-                FirebaseCrashlytics.getInstance().recordException(e)
-            }
-            agoraEngine = null
 
             HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
 
@@ -1438,24 +1428,6 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
         HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
         stopCountdown()
-        try {
-            agoraEngine?.let { engine ->
-                try {
-                    engine.stopPreview()
-                } catch (e: Exception) {
-                    Log.e("MaleAudioCalling", "stopPreview in onDestroy", e)
-                    FirebaseCrashlytics.getInstance().recordException(e)
-                }
-                try {
-                    engine.leaveChannel()
-                } catch (e: Exception) {
-                    Log.e("MaleAudioCalling", "leaveChannel in onDestroy", e)
-                    FirebaseCrashlytics.getInstance().recordException(e)
-                }
-            }
-        } catch (e: Exception) {
-            FirebaseCrashlytics.getInstance().recordException(e)
-        }
         cancelTimeoutTracking()
         stopCallingService()
 
@@ -1468,15 +1440,11 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         btWatcher?.unregister()
         btWatcher = null
 
-        Thread {
-            try {
-                RtcEngine.destroy()
-            } catch (e: Exception) {
-                Log.e("MaleAudioCalling", "RtcEngine.destroy in onDestroy", e)
-                FirebaseCrashlytics.getInstance().recordException(e)
-            }
-            agoraEngine = null
-        }.start()
+        // B143: deterministic teardown — disable audio, leave channel, then block on destroy.
+        stopMicRevokeWatcher()
+        agoraEngine = com.gmwapp.hima.utils.AgoraTeardownHelper.releaseEngineSync(
+            agoraEngine, "MaleAudioCalling", hasVideo = false
+        )
 
         if (isRemoteUserJoined==true && isBlockWordDetected==false){
             val intent = Intent(this@MaleAudioCallingActivity, RatingActivity::class.java)
@@ -1698,6 +1666,25 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             agoraEngine?.leaveChannel()
             finish()
         }
+    }
+
+    private fun startMicRevokeWatcher() {
+        if (micWatcher != null) return
+        val watcher = com.gmwapp.hima.utils.MicPermissionWatcher(this) {
+            if (isFinishing || isDestroyed) return@MicPermissionWatcher
+            showMessage("Microphone permission was revoked. Ending call.")
+            try {
+                agoraEngine?.leaveChannel()
+            } catch (_: Exception) { }
+            finish()
+        }
+        watcher.start()
+        micWatcher = watcher
+    }
+
+    private fun stopMicRevokeWatcher() {
+        micWatcher?.stop()
+        micWatcher = null
     }
 
     private fun onAddcoinClicked() {
