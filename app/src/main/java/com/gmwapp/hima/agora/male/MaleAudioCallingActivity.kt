@@ -1807,7 +1807,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                             storedRemainingTime = newTime // Store first-time value
                         }
 
-                        startCountdown(newTime, data.ends_at_ms)
+                        startCountdown(newTime, data.ends_at_ms, data.server_now_ms)
                     }
                 }
 
@@ -1815,14 +1815,21 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         }
     }
 
-    fun startCountdown(remainingTime: String, endsAtMs: Long? = null) {
+    fun startCountdown(remainingTime: String, endsAtMs: Long? = null, serverNowMs: Long? = null) {
         // B141: prefer the server-anchored absolute end timestamp when
         // available — both sides (male + female) compute remaining against
         // the same epoch ms, so their displays show the same value at the
         // same wall-clock instant. Fall back to the legacy "MM:SS" duration
         // string when the server hasn't deployed the v2 response yet.
         val totalMillis = if (endsAtMs != null && endsAtMs > 0L) {
-            (endsAtMs - System.currentTimeMillis()).coerceAtLeast(0L)
+            // When the server's own "now" is in the response, anchor against
+            // it so the math is purely server-side and the displayed timer is
+            // unaffected by client clock drift (emulator clocks, wrong-TZ
+            // phones, devices that haven't NTP-synced). Falling back to the
+            // device clock keeps backwards compat with older builds where the
+            // caller doesn't pass serverNowMs.
+            val anchor = serverNowMs ?: System.currentTimeMillis()
+            (endsAtMs - anchor).coerceAtLeast(0L)
         } else {
             val timeParts = remainingTime.split(":").map { it.toIntOrNull() ?: 0 }
             val mins = timeParts.getOrElse(0) { 0 }
@@ -1894,7 +1901,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                                     "remainingTimeUpdated"
                                 )
                                 stopCountdown()
-                                startCountdown(newTime, data.ends_at_ms)
+                                startCountdown(newTime, data.ends_at_ms, data.server_now_ms)
 
                             }
 
@@ -1907,7 +1914,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                                     "remainingTimeUpdated"
                                 )
                                 stopCountdown()
-                                startCountdown(newTime, data.ends_at_ms)
+                                startCountdown(newTime, data.ends_at_ms, data.server_now_ms)
                             }
 
 
@@ -1945,7 +1952,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                                 "remainingTimeUpdated"
                             )
                             stopCountdown()
-                            startCountdown(newTime, data.ends_at_ms)
+                            startCountdown(newTime, data.ends_at_ms, data.server_now_ms)
                         }
                     }
                 })
@@ -3048,7 +3055,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
                         stopCountdown()
                         storedRemainingTime = newTime // Store first-time value
-                        startCountdown(newTime, data.ends_at_ms)
+                        startCountdown(newTime, data.ends_at_ms, data.server_now_ms)
                     }
                 }
 
@@ -3086,7 +3093,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
                         stopCountdown()
                         storedVideoRemainingTime = newTime // Store first-time value
-                        startCountdown(newTime, data.ends_at_ms)
+                        startCountdown(newTime, data.ends_at_ms, data.server_now_ms)
                     }
                 }
 
