@@ -36,6 +36,7 @@ import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.activities.NewLoginActivity
 import com.gmwapp.hima.agora.female.FemaleAudioCallingActivity
 import com.gmwapp.hima.agora.female.FemaleCallAcceptActivity
+import com.gmwapp.hima.agora.female.FemaleCallConnectingActivity
 import com.gmwapp.hima.agora.female.FemaleVideoCallingActivity
 import com.gmwapp.hima.agora.male.MaleCallAcceptActivity
 import com.gmwapp.hima.agora.telecom.HimaConnection
@@ -272,6 +273,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                         // explicitly flipped in each CallingActivity.onCreate /
                         // onDestroy so it stays true across those dips.
                         if (currentActivity is FemaleCallAcceptActivity ||
+                            currentActivity is FemaleCallConnectingActivity ||
                             currentActivity is FemaleAudioCallingActivity ||
                             currentActivity is FemaleVideoCallingActivity ||
                             currentActivity is com.gmwapp.hima.activities.IplRoomCallActivity ||
@@ -373,11 +375,13 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     if (gender == "male") {
                         // Import male activities
                         val MaleCallAcceptActivity = com.gmwapp.hima.agora.male.MaleCallAcceptActivity::class.java
+                        val MaleCallConnectingActivity = com.gmwapp.hima.agora.male.MaleCallConnectingActivity::class.java
                         val MaleAudioCallingActivity = com.gmwapp.hima.agora.male.MaleAudioCallingActivity::class.java
                         val MaleVideoCallingActivity = com.gmwapp.hima.agora.male.MaleVideoCallingActivity::class.java
                         val IplRoomCallActivity = com.gmwapp.hima.activities.IplRoomCallActivity::class.java
 
                         if (currentActivity?.javaClass == MaleCallAcceptActivity ||
+                            currentActivity?.javaClass == MaleCallConnectingActivity ||
                             currentActivity?.javaClass == MaleAudioCallingActivity ||
                             currentActivity?.javaClass == MaleVideoCallingActivity ||
                             currentActivity?.javaClass == IplRoomCallActivity ||
