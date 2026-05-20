@@ -1,5 +1,6 @@
 package com.gmwapp.hima.agora
 
+import android.os.Looper
 import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -64,7 +65,19 @@ object FcmUtils {
     }
 
     fun clearCallStatus() {
-        _callStatus.postValue(null)
+        // Use setValue when called from the main thread so callers reading
+        // _callStatus.value on the very next line see null. postValue is
+        // posted to the main-thread message queue and leaves the previous
+        // value visible until the queue drains — MaleCallConnectingActivity
+        // calls clear-then-read inside lifecycleScope.launch (Main), and a
+        // stale Pair("accepted", oldChannel) from a prior call was making
+        // every new connecting activity auto-redirect to MainActivity
+        // ("call already accepted") before the call could even start.
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            _callStatus.value = null
+        } else {
+            _callStatus.postValue(null)
+        }
         Log.d("FcmUtils", "Call status cleared")
     }
 

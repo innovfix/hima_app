@@ -227,7 +227,7 @@
          drops below 60s. Tap a chip or "Go to wallet" to recharge mid-call;
          CallingService keeps audio alive while the user is in payment flow. -->
     <include
-        android:id="@+id/low_balance_banner"
+        android:id="@+id/low_balance_banner_root"
         layout="@layout/banner_low_balance"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

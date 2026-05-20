@@ -252,7 +252,7 @@
     <!-- I021 — see activity_male_audio_calling.xml for rationale. Banner
          elevation lets it draw above the remote video SurfaceView. -->
     <include
-        android:id="@+id/low_balance_banner"
+        android:id="@+id/low_balance_banner_root"
         layout="@layout/banner_low_balance"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
