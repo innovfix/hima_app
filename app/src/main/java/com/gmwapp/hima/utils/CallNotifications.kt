@@ -27,7 +27,6 @@ import com.bumptech.glide.request.transition.Transition
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.ChatActivityInHouse
-import com.gmwapp.hima.agora.CallActionReceiver
 import com.gmwapp.hima.agora.female.FemaleCallAcceptActivity
 import com.gmwapp.hima.agora.male.MaleCallAcceptActivity
 
@@ -110,8 +109,6 @@ object CallNotifications {
 
         val targetClass = if (isMale) MaleCallAcceptActivity::class.java else FemaleCallAcceptActivity::class.java
         val contentReq = if (isMale) 201 else 101
-        val acceptAction = if (isMale) "ACTION_ACCEPT_CALL_MALE" else "ACTION_ACCEPT_CALL"
-        val rejectAction = if (isMale) "ACTION_REJECT_CALL_MALE" else "ACTION_REJECT_CALL"
         val acceptReq = if (isMale) 202 else 102
         val rejectReq = if (isMale) 203 else 103
 
@@ -131,31 +128,22 @@ object CallNotifications {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val acceptIntent = Intent(context, CallActionReceiver::class.java).apply {
-            action = acceptAction
-            putExtra("CALL_TYPE", callType)
-            putExtra("SENDER_ID", senderId)
-            putExtra("CHANNEL_NAME", channelName)
-            putExtra("CALL_ID", callId)
-        }
-        val acceptPi = PendingIntent.getBroadcast(
+        // Accept / Reject buttons on the heads-up both just open the in-app call-accept
+        // screen — the user completes the actual action from there. This was changed away
+        // from the BroadcastReceiver path because, on Android 12+, a receiver-launched
+        // activity is throttled and races with the FCM-launched accept screen, and on
+        // process death after a cold notification tap the in-memory call state was already
+        // gone so the direct accept couldn't fetch the Agora token reliably.
+        val acceptPi = PendingIntent.getActivity(
             context,
             acceptReq,
-            acceptIntent,
+            tapIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-
-        val rejectIntent = Intent(context, CallActionReceiver::class.java).apply {
-            action = rejectAction
-            putExtra("CALL_TYPE", callType)
-            putExtra("SENDER_ID", senderId)
-            putExtra("CHANNEL_NAME", channelName)
-            putExtra("CALL_ID", callId)
-        }
-        val rejectPi = PendingIntent.getBroadcast(
+        val rejectPi = PendingIntent.getActivity(
             context,
             rejectReq,
-            rejectIntent,
+            tapIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
