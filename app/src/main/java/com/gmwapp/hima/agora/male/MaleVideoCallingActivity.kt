@@ -1626,22 +1626,16 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         if (startTime.isNotEmpty()) {
             endTime = dateFormat.format(Date()) // Set call end time only if startTime is not empty
         }
-        val constraints =
-            Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED)
-                .build()
-        val data: Data = Data.Builder().putInt(
-            DConstants.USER_ID,
-            BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
-        ).putInt(DConstants.CALL_ID, callId)
-            .putString(DConstants.STARTED_TIME, startTime)
-            .putBoolean(DConstants.IS_INDIVIDUAL, true)
-            .putString(DConstants.ENDED_TIME, endTime).build()
 
-        val oneTimeWorkRequest = OneTimeWorkRequest.Builder(
-            CallUpdateWorker::class.java
-        ).setInputData(data).setConstraints(constraints).build()
-        WorkManager.getInstance(this@MaleVideoCallingActivity)
-            .enqueue(oneTimeWorkRequest)
+        // See MaleAudioCallingActivity.updateCallEndDetails for rationale.
+        com.gmwapp.hima.utils.CallEndUpdater.enqueueIfFresh(
+            context = this@MaleVideoCallingActivity,
+            userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0,
+            callId = callId,
+            startedTime = startTime,
+            endedTime = endTime,
+            isIndividual = true
+        )
 
 
         if (switchCallID != 0) {

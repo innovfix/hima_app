@@ -1703,22 +1703,18 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             endTime = dateFormat.format(Date()) // Set call end time only if startTime is not empty
         }
 
-        val constraints =
-            Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED)
-                .build()
-        val data: Data = Data.Builder().putInt(
-            DConstants.USER_ID,receiverId
-
-        ).putInt(DConstants.CALL_ID, call_Id)
-            .putString(DConstants.STARTED_TIME, startTime)
-            .putBoolean(DConstants.IS_INDIVIDUAL, true)
-            .putString(DConstants.ENDED_TIME, endTime).build()
-
-        val oneTimeWorkRequest = OneTimeWorkRequest.Builder(
-            CallUpdateWorker::class.java
-        ).setInputData(data).setConstraints(constraints).build()
-        WorkManager.getInstance(this@FemaleAudioCallingActivity)
-            .enqueue(oneTimeWorkRequest)
+        // See MaleAudioCallingActivity.updateCallEndDetails for rationale —
+        // dedupe same-side duplicate enqueues so triple-billing doesn't
+        // happen when multiple lifecycle paths (onUserOffline + leaveChannel
+        // + late FCM observers) all fire end-of-call within milliseconds.
+        com.gmwapp.hima.utils.CallEndUpdater.enqueueIfFresh(
+            context = this@FemaleAudioCallingActivity,
+            userId = receiverId,
+            callId = call_Id,
+            startedTime = startTime,
+            endedTime = endTime,
+            isIndividual = true
+        )
 
         if (switchCallID!=0){
             call_Id = switchCallID

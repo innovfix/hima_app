@@ -1709,22 +1709,18 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             endTime = dateFormat.format(Date()) // Set call end time only if startTime is not empty
         }
 
-        val constraints =
-            Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED)
-                .build()
-        val data: Data = Data.Builder().putInt(
-            DConstants.USER_ID,
-            BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
-        ).putInt(DConstants.CALL_ID, callId)
-            .putString(DConstants.STARTED_TIME, startTime)
-            .putBoolean(DConstants.IS_INDIVIDUAL, true)
-            .putString(DConstants.ENDED_TIME, endTime).build()
-
-        val oneTimeWorkRequest = OneTimeWorkRequest.Builder(
-            CallUpdateWorker::class.java
-        ).setInputData(data).setConstraints(constraints).build()
-        WorkManager.getInstance(this@MaleAudioCallingActivity)
-            .enqueue(oneTimeWorkRequest)
+        // Tester report: 2-3 identical transactions per call. The fix lives
+        // in CallEndUpdater — it dedupes by callId so multiple lifecycle
+        // paths (onUserOffline + leaveChannel + late FCM observers) can't
+        // each enqueue a separate worker for the same call.
+        com.gmwapp.hima.utils.CallEndUpdater.enqueueIfFresh(
+            context = this@MaleAudioCallingActivity,
+            userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0,
+            callId = callId,
+            startedTime = startTime,
+            endedTime = endTime,
+            isIndividual = true
+        )
 
         if (switchCallID != 0) {
             callId = switchCallID
