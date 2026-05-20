@@ -1950,6 +1950,13 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     }
 
     fun startCountdown(remainingTime: String, endsAtMs: Long? = null, serverNowMs: Long? = null) {
+        // Cancel any previous CountDownTimer before scheduling a new one.
+        // get_remaining_time can fire multiple times per call (initial fetch +
+        // refresh on remainingTimeUpdated push); without this, every refresh
+        // stacks another timer and the displayed text flickers between two
+        // values as each timer's onTick stomps the other.
+        countDownTimer?.cancel()
+
         // B141: prefer the server-anchored absolute end timestamp when
         // available — both sides (male + female) compute remaining against
         // the same epoch ms, so their displays show the same value at the

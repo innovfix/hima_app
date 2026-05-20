@@ -32,6 +32,26 @@ class FcmTokenInvalidationWorker(
             Log.w(TAG, "Missing user_id; dropping work")
             return@withContext Result.failure()
         }
+
+        // If a user is currently signed in at the moment this worker actually
+        // runs, the logout that scheduled us has already been undone by a
+        // subsequent re-login (the login flow calls cancelUniqueWork, but if
+        // we'd already started executing, cancellation can't reach us). Posting
+        // token="0" here would clobber the freshly-registered token the new
+        // session just wrote and leave the user unreachable until they hit a
+        // path that triggers FcmTokenRegisterWorker again. Bail.
+        val currentUserId = runCatching {
+            com.gmwapp.hima.utils.DPreferences(applicationContext).getUserData()?.id ?: 0
+        }.getOrNull() ?: 0
+        if (currentUserId > 0) {
+            Log.w(
+                TAG,
+                "User is currently signed in (id=$currentUserId, invalidate-for=$userId) " +
+                    "— aborting invalidation to avoid clobbering the active session's token"
+            )
+            return@withContext Result.success()
+        }
+
         val authToken = inputData.getString(KEY_AUTH_TOKEN).orEmpty()
 
         val body = FormBody.Builder()

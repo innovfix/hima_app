@@ -282,14 +282,25 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                         // busy state below — needed for B204 missed-call posting.
                         val femaleOnAnotherAppCall = isOnAnotherAppCall()
 
-                        if (currentActivity is FemaleCallAcceptActivity ||
+                        // Split the busy check into "definitely busy right now"
+                        // (in-call activity is on screen, or another app holds
+                        // a telecom call) and "boolean flags say busy" (which
+                        // can stick across a crashed/killed call activity that
+                        // never ran its onDestroy cleanup). When only the flags
+                        // claim busy but no in-call activity is visible, the
+                        // flags are stale — reset them and proceed with the
+                        // incoming call instead of auto-rejecting forever.
+                        val inCallActivityShown =
+                            currentActivity is FemaleCallAcceptActivity ||
                             currentActivity is FemaleAudioCallingActivity ||
                             currentActivity is FemaleVideoCallingActivity ||
                             currentActivity is FemaleCallConnectingActivity ||
-                            currentActivity is com.gmwapp.hima.activities.IplRoomCallActivity ||
+                            currentActivity is com.gmwapp.hima.activities.IplRoomCallActivity
+                        val flagsSayBusy =
                             BaseApplication.getInstance()?.isInActiveCall() == true ||
-                            FcmUtils.isUserAvailable == 1 ||
-                            femaleOnAnotherAppCall) {
+                            FcmUtils.isUserAvailable == 1
+
+                        if (inCallActivityShown || femaleOnAnotherAppCall) {
 
                             // B134 — Connecting Activity instance counts as busy.
                             // B156a — FcmUtils.isUserAvailable closes the race window
@@ -314,6 +325,24 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                                 postBusyMissedCall(callType, senderId, receiverName, receiverImg)
                             }
                             return
+                        }
+
+                        if (flagsSayBusy) {
+                            // Flags say busy but no in-call activity is on top and
+                            // the system is not in a telecom call. The flags are
+                            // stale — most likely from a prior call activity that
+                            // was force-stopped / OEM-killed without running its
+                            // onDestroy cleanup. Reset and continue so this fresh
+                            // incoming call actually rings.
+                            Log.w(
+                                INCOMING_CALL_LOG_TAG,
+                                "Stale busy flags detected on female side " +
+                                    "(no in-call activity, no telecom call). " +
+                                    "Resetting isInActiveCall + isUserAvailable " +
+                                    "before processing this FCM."
+                            )
+                            BaseApplication.getInstance()?.markCallEnded()
+                            FcmUtils.isUserAvailable = 0
                         }
 
                         BaseApplication.getInstance()?.saveSenderId(senderId)
@@ -454,14 +483,23 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                         // busy state below — needed for B204 missed-call posting.
                         val maleOnAnotherAppCall = isOnAnotherAppCall()
 
-                        if (currentActivity?.javaClass == MaleCallAcceptActivity ||
+                        // Same split as the female branch above: separate "really
+                        // busy right now" (in-call activity on top or telecom
+                        // holds another call) from "boolean flags say busy"
+                        // (which can stick across a killed call activity). Only
+                        // auto-reject for the former; reset stale flags for the
+                        // latter and proceed with this incoming call.
+                        val inCallActivityShownMale =
+                            currentActivity?.javaClass == MaleCallAcceptActivity ||
                             currentActivity?.javaClass == MaleAudioCallingActivity ||
                             currentActivity?.javaClass == MaleVideoCallingActivity ||
                             currentActivity?.javaClass == MaleCallConnectingActivityClass ||
-                            currentActivity?.javaClass == IplRoomCallActivity ||
+                            currentActivity?.javaClass == IplRoomCallActivity
+                        val flagsSayBusyMale =
                             BaseApplication.getInstance()?.isInActiveCall() == true ||
-                            FcmUtils.isUserAvailable == 1 ||
-                            maleOnAnotherAppCall) {
+                            FcmUtils.isUserAvailable == 1
+
+                        if (inCallActivityShownMale || maleOnAnotherAppCall) {
 
                             // B134 + B156a (symmetric, male side) — same rationale
                             // as the female branch: FcmUtils.isUserAvailable is the
@@ -481,6 +519,18 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                                 postBusyMissedCall(callType, senderId, receiverName, receiverImg)
                             }
                             return
+                        }
+
+                        if (flagsSayBusyMale) {
+                            Log.w(
+                                INCOMING_CALL_LOG_TAG,
+                                "Stale busy flags detected on male side " +
+                                    "(no in-call activity, no telecom call). " +
+                                    "Resetting isInActiveCall + isUserAvailable " +
+                                    "before processing this FCM."
+                            )
+                            BaseApplication.getInstance()?.markCallEnded()
+                            FcmUtils.isUserAvailable = 0
                         }
 
                         BaseApplication.getInstance()?.saveSenderId(senderId)
