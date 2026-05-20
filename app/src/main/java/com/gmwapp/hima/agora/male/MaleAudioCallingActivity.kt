@@ -361,11 +361,16 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 if (!mutedByInterrupt && !isMuted) {
                     mutedByInterrupt = true
                     agoraEngine?.muteLocalAudioStream(true)
+                    // B001: also mute remote audio so the other Hima party's voice doesn't
+                    // keep playing through the speaker (which the GSM / WhatsApp call's mic
+                    // would then pick up).
+                    agoraEngine?.muteAllRemoteAudioStreams(true)
                 }
             } else {
                 if (mutedByInterrupt) {
                     mutedByInterrupt = false
                     if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
+                    agoraEngine?.muteAllRemoteAudioStreams(false)
                 }
             }
         }

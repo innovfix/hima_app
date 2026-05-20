@@ -376,11 +376,18 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                 if (!mutedByInterrupt && !isMuted) {
                     mutedByInterrupt = true
                     agoraEngine?.muteLocalAudioStream(true)
+                    // B001: also mute remote audio + video so the other Hima party's voice
+                    // doesn't keep playing through the speaker (which the GSM / WhatsApp call's
+                    // mic would then pick up) and so we stop pulling bandwidth during the interrupt.
+                    agoraEngine?.muteAllRemoteAudioStreams(true)
+                    agoraEngine?.muteAllRemoteVideoStreams(true)
                 }
             } else {
                 if (mutedByInterrupt) {
                     mutedByInterrupt = false
                     if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
+                    agoraEngine?.muteAllRemoteAudioStreams(false)
+                    agoraEngine?.muteAllRemoteVideoStreams(false)
                 }
             }
         }
