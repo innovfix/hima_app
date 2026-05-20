@@ -454,7 +454,16 @@ class ChatListAdapter(
 
         private fun launchCall(conversation: ChatConversation, callType: String) {
             val receiverId = conversation.userId.toIntOrNull() ?: return
-            val intent = Intent(activity, MaleCallConnectingActivity::class.java).apply {
+            // Female callers are recipients, not payers — route them through the
+            // female call flow so they don't hit the male coin gate and get bounced
+            // to WalletActivity. Mirrors the pattern in FavouriteFragment.
+            val callerGender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
+            val activityClass = if (callerGender == DConstants.FEMALE) {
+                com.gmwapp.hima.agora.female.FemaleCallConnectingActivity::class.java
+            } else {
+                MaleCallConnectingActivity::class.java
+            }
+            val intent = Intent(activity, activityClass).apply {
                 putExtra(DConstants.CALL_TYPE, callType)
                 putExtra(DConstants.RECEIVER_ID, receiverId)
                 putExtra(DConstants.RECEIVER_NAME, conversation.userName)
