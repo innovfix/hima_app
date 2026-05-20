@@ -153,6 +153,9 @@ class RecentFragment : BaseFragment(), Refreshable {
      * Re-fetches the calls list with the current sort/search filters.
      */
     override fun refresh() {
+        // Guard: see HomeFragment.refresh — MainActivity may fire this after a
+        // configuration change (e.g. split-screen) before our view is rebound.
+        if (view == null || !::binding.isInitialized) return
         loadCallsList(currentSortType, resetData = true, searchQuery = currentSearchQuery)
     }
 
@@ -252,6 +255,7 @@ class RecentFragment : BaseFragment(), Refreshable {
     }
 
     private fun setLoading(isLoading: Boolean) {
+        if (!::binding.isInitialized) return
         val shouldShow = isLoading && !binding.swipeRefreshLayout.isRefreshing
         binding.progressBar.visibility = if (shouldShow) View.VISIBLE else View.GONE
     }

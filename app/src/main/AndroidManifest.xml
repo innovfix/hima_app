@@ -268,7 +268,7 @@
             android:configChanges="uiMode" />
         <activity
             android:name=".activities.MainActivity"
-            android:configChanges="uiMode"
+            android:configChanges="uiMode|screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden|density"
             android:exported="true">
             <intent-filter
                 android:autoVerify="true"

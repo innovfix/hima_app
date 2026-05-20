@@ -398,11 +398,18 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
      * Re-fetches the female users list with the current filter.
      */
     override fun refresh() {
+        // Guard: MainActivity programmatically selects R.id.home in onCreate, which fires
+        // onNavigationItemSelected -> refresh() on the restored fragment. On a configuration
+        // change (e.g. enter/exit split-screen) the fragment is restored before its
+        // onCreateView has run, so `binding` hasn't been set yet. Bail out and let the
+        // user re-trigger refresh after the view is bound.
+        if (view == null || !::binding.isInitialized) return
         val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
         loadFemaleUsers(userId)
     }
 
     private fun setLoading(isLoading: Boolean) {
+        if (!::binding.isInitialized) return
         val shouldShow = isLoading && !binding.swipeRefreshLayout.isRefreshing
         binding.progressBar.visibility = if (shouldShow) View.VISIBLE else View.GONE
     }

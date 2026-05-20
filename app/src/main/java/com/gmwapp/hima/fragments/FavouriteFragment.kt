@@ -136,6 +136,9 @@ class FavouriteFragment : BaseFragment(), NetworkRetryable, Refreshable {
      * Re-fetches the favourites list.
      */
     override fun refresh() {
+        // Guard: see HomeFragment.refresh — MainActivity may fire this after a
+        // configuration change (e.g. split-screen) before our view is rebound.
+        if (view == null || !::binding.isInitialized) return
         loadFavouritesList(resetData = true)
     }
 
@@ -196,6 +199,7 @@ class FavouriteFragment : BaseFragment(), NetworkRetryable, Refreshable {
     }
 
     private fun setLoading(isLoading: Boolean) {
+        if (!::binding.isInitialized) return
         val shouldShow = isLoading && !binding.swipeRefreshLayout.isRefreshing
         binding.progressBar.visibility = if (shouldShow) View.VISIBLE else View.GONE
     }

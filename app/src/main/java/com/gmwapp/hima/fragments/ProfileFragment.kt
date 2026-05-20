@@ -196,6 +196,9 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
      * Re-fetches user profile data and IPL match suggestions.
      */
     override fun refresh() {
+        // Guard: see HomeFragment.refresh — MainActivity may fire this after a
+        // configuration change (e.g. split-screen) before our view is rebound.
+        if (view == null || !::binding.isInitialized) return
         val refreshUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
         profileViewModel.getUsers(refreshUserId)
         iplRoomViewModel.getMatchSuggestions()

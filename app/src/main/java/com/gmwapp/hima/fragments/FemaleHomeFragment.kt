@@ -1245,6 +1245,9 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
      * Re-fetches female reports / users / discovery so the screen shows current data.
      */
     override fun refresh() {
+        // Guard: see HomeFragment.refresh — MainActivity may fire this after a
+        // configuration change (e.g. split-screen) before our view is rebound.
+        if (view == null || !::binding.isInitialized) return
         val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
         femaleUsersViewModel.getReports(userId)
         femaleUsersViewModel.getFemaleUsers(userId)
