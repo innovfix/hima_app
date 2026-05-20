@@ -129,10 +129,31 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG_END = "MaleVideoEndFlow"
+        private const val TIMER_RESYNC_INTERVAL_MS = 30_000L
     }
 
     lateinit var binding: ActivityMaleVideoCallingBinding
     var receiverId = 0
+
+    // Periodic re-fetch of remaining_time so drift between the two clients
+    // can't accumulate past 30 s. See MaleAudioCallingActivity for full
+    // rationale.
+    private val timerResyncHandler = Handler(Looper.getMainLooper())
+    private val timerResyncRunnable = object : Runnable {
+        override fun run() {
+            if (!isFinishing && !isDestroyed && isJoined) {
+                newRemainingTime()
+                timerResyncHandler.postDelayed(this, TIMER_RESYNC_INTERVAL_MS)
+            }
+        }
+    }
+    private fun startTimerResync() {
+        timerResyncHandler.removeCallbacks(timerResyncRunnable)
+        timerResyncHandler.postDelayed(timerResyncRunnable, TIMER_RESYNC_INTERVAL_MS)
+    }
+    private fun stopTimerResync() {
+        timerResyncHandler.removeCallbacks(timerResyncRunnable)
+    }
 
 
     private var isMuted = false
@@ -1309,6 +1330,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             // I021 — load the package catalog now so the banner's chips are
             // populated by the time the timer drops below 60s.
             runOnUiThread { lowBalanceBanner?.prefetch() }
+            // Safety-net 30s re-fetch — see MaleAudioCallingActivity.
+            startTimerResync()
 
             startTime = dateFormat.format(Date()) // Set call end time in IST
             callStartMillis = System.currentTimeMillis() // B110: duration baseline
@@ -2005,6 +2028,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         switchDialog?.dismiss()
         switchDialog = null
         FcmUtils.clearCallSwitch()
+        stopTimerResync()
         if (!isJoined) {
             Log.d(TAG_END, "leaveChannel.notJoined path")
             HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)

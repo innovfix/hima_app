@@ -238,6 +238,28 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     private var agoraEngine: RtcEngine? = null
 
+    // Periodic re-fetch of remaining_time. See MaleAudioCallingActivity for
+    // full rationale (FCM push can be lost → local CountDownTimer drifts).
+    private val timerResyncHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val timerResyncRunnable = object : Runnable {
+        override fun run() {
+            if (!isFinishing && !isDestroyed && isJoined) {
+                newRemainingTime()
+                timerResyncHandler.postDelayed(this, TIMER_RESYNC_INTERVAL_MS)
+            }
+        }
+    }
+    private fun startTimerResync() {
+        timerResyncHandler.removeCallbacks(timerResyncRunnable)
+        timerResyncHandler.postDelayed(timerResyncRunnable, TIMER_RESYNC_INTERVAL_MS)
+    }
+    private fun stopTimerResync() {
+        timerResyncHandler.removeCallbacks(timerResyncRunnable)
+    }
+    private companion object {
+        private const val TIMER_RESYNC_INTERVAL_MS = 30_000L
+    }
+
     private var localSurfaceView: SurfaceView? = null
 
     private var remoteSurfaceView: SurfaceView? = null
@@ -1333,6 +1355,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             Log.d("AgoraTiming", "FemaleVideo onUserJoined at ${System.currentTimeMillis()}")
             isRemoteUserJoined=true
             getRemainingTime()
+            startTimerResync()
             startTime = dateFormat.format(Date()) // Set call end time in IST
 
             startCallingService()
@@ -1906,6 +1929,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         // may have hung up before our grace timer expired).
         cameraUnavailableNotice?.cancel()
         cameraUnavailableNotice = null
+        stopTimerResync()
         if (!isJoined) {
             HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
         //    showMessage("Join a channel first")

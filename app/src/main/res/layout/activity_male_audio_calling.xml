@@ -198,26 +198,14 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/reconnect_banner" />
 
-    <!-- B055 — "Peer is muted" pill driven by Agora's onUserMuteAudio so the
-         user can tell silence is intentional, not a connection problem.
-         Independent of users_container so it survives mid-call audio↔video
-         switches (where the avatar-overlay mute icons go invisible). -->
-    <TextView
+    <!-- B055 — top-bar "Peer is muted" pill was removed; the unsized
+         drawableStart icon rendered huge on real devices. The small
+         per-avatar femaleMute/maleMute badges in users_container are the
+         remaining mute indicator. -->
+    <View
         android:id="@+id/remote_mic_muted_pill"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:background="@drawable/bg_reconnect_pill"
-        android:drawableStart="@drawable/mute_img"
-        android:drawablePadding="6dp"
-        android:elevation="10dp"
-        android:paddingStart="10dp"
-        android:paddingEnd="12dp"
-        android:paddingTop="4dp"
-        android:paddingBottom="4dp"
-        android:text="@string/call_peer_muted"
-        android:textColor="@android:color/white"
-        android:textSize="12sp"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"

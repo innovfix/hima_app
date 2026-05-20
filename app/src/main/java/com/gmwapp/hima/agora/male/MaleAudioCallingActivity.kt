@@ -199,6 +199,34 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private var isJoined = false
     private var agoraEngine: RtcEngine? = null
 
+    // Tester report: in-call timer drifted ~60s between the two sides over a
+    // few minutes. B141 anchored the math to serverNowMs at each fetch, but
+    // BETWEEN fetches both sides relied on local CountDownTimer which loses
+    // precision under doze / background throttling / small system jitter,
+    // and the FCM-driven refresh path (remainingTimeUpdated) silently breaks
+    // if that push is lost. This handler self-paces a re-fetch every 30s as
+    // a safety net — drift can't accumulate past one interval, and both
+    // sides re-converge on the server's authoritative remaining_time.
+    private val timerResyncHandler = Handler(Looper.getMainLooper())
+    private val timerResyncRunnable = object : Runnable {
+        override fun run() {
+            if (!isFinishing && !isDestroyed && isJoined) {
+                newRemainingTime()
+                timerResyncHandler.postDelayed(this, TIMER_RESYNC_INTERVAL_MS)
+            }
+        }
+    }
+    private fun startTimerResync() {
+        timerResyncHandler.removeCallbacks(timerResyncRunnable)
+        timerResyncHandler.postDelayed(timerResyncRunnable, TIMER_RESYNC_INTERVAL_MS)
+    }
+    private fun stopTimerResync() {
+        timerResyncHandler.removeCallbacks(timerResyncRunnable)
+    }
+    companion object {
+        private const val TIMER_RESYNC_INTERVAL_MS = 30_000L
+    }
+
     var receiverName = ""
 
     private var isMuted = false
@@ -1428,6 +1456,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             // I021 — load the package catalog now so the banner's chips are
             // populated by the time the timer drops below 60s.
             runOnUiThread { lowBalanceBanner?.prefetch() }
+            // Safety-net 30s re-fetch — see TIMER_RESYNC_INTERVAL_MS rationale.
+            startTimerResync()
 
 //            agoraEngine?.registerAudioFrameObserver(audioFrameObserver)
 
@@ -1623,6 +1653,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         switchDialog?.dismiss()
         switchDialog = null
         FcmUtils.clearCallSwitch()
+        // Stop the 30s timer-resync handler so it doesn't fire newRemainingTime
+        // after the channel has already been left.
+        stopTimerResync()
         if (!isJoined) {
             HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
           //  showMessage("Join a channel first")

@@ -127,6 +127,31 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private var videoUid = 0
     private var isJoined = false
     private var agoraEngine: RtcEngine? = null
+
+    // Periodic re-fetch of remaining_time. The FCM "remainingTimeUpdated"
+    // push from the caller's side can be lost (DND, doze, network) and
+    // letting the local CountDownTimer drift between fetches surfaced a
+    // ~60 s skew across the two phones. Resyncing every 30 s caps drift
+    // tightly. See MaleAudioCallingActivity for fuller rationale.
+    private val timerResyncHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val timerResyncRunnable = object : Runnable {
+        override fun run() {
+            if (!isFinishing && !isDestroyed && isJoined) {
+                newRemainingTime()
+                timerResyncHandler.postDelayed(this, TIMER_RESYNC_INTERVAL_MS)
+            }
+        }
+    }
+    private fun startTimerResync() {
+        timerResyncHandler.removeCallbacks(timerResyncRunnable)
+        timerResyncHandler.postDelayed(timerResyncRunnable, TIMER_RESYNC_INTERVAL_MS)
+    }
+    private fun stopTimerResync() {
+        timerResyncHandler.removeCallbacks(timerResyncRunnable)
+    }
+    private companion object {
+        private const val TIMER_RESYNC_INTERVAL_MS = 30_000L
+    }
     private val profileViewModel: ProfileViewModel by viewModels()
     private val userAvatarViewModel: UserAvatarViewModel by viewModels()
     private val fcmNotificationViewModel: FcmNotificationViewModel by viewModels()
@@ -1429,6 +1454,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             videoUid = uid
             startCallingService()
             getRemainingTime()
+            startTimerResync()
 
 
                     femaleUsersViewModel.femaleCallAttend(receiverId,
@@ -1617,6 +1643,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         // Also drain any in-flight switch payload so a stale FCM that lands
         // during the 50ms finish delay can't fire the observer again.
         FcmUtils.clearCallSwitch()
+        stopTimerResync()
         // B081 — restore the creator's pre-switch video_status if this call
         // upgraded audio→video. The server flips video_status to 1 during
         // the per-call upgrade; without this restore she'd silently become
