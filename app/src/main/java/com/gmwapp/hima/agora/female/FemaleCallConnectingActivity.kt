@@ -66,7 +66,10 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
             elapsedTime++
             Log.d("CallTimeoutTracker", "Seconds passed: $elapsedTime")
 
-            if (elapsedTime >= 20) { // 20 seconds timeout
+            if (elapsedTime >= 40) { // 40 seconds timeout — Oplus/Realme ROMs defer the
+                                     // Telecom ringer UI up to ~15s after the FCM lands;
+                                     // a 20s caller-side cutoff was firing before the
+                                     // receiver's phone visibly rang and the user could tap.
                 disconnectCall()
             } else {
                 timeoutHandler.postDelayed(this, 1000) // Update every second
