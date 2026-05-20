@@ -392,36 +392,21 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                 channelName = "channel_$callId"  // Set channel name based on call ID
                 Log.d("CallID", "CallID: $callId, ChannelName: $channelName")
 
-                // B201 (female side) — symmetric to MaleCallConnectingActivity.
-                // The previous flow placed the call as soon as the API returned
-                // success, with no check on the recipient's availability — which
-                // meant a female tapping a male avatar bypassed his DND/offline
-                // status because the server's status fields were never read.
-                // `== 1` is the fail-closed value: null / 0 / anything else =
-                // do not call.
-                val audioStatus = it.data?.audio_status
-                val videoStatus = it.data?.video_status
-                val recipientAvailable = when (callType) {
-                    "audio" -> audioStatus == 1
-                    "video" -> videoStatus == 1
-                    else -> false
-                }
-                if (!recipientAvailable) {
-                    Log.d(
-                        "FemaleCallConnect",
-                        "Blocking call: callType=$callType audioStatus=$audioStatus videoStatus=$videoStatus"
-                    )
-                    Toast.makeText(
-                        this@FemaleCallConnectingActivity,
-                        "User is unavailable right now",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    val intent = Intent(this@FemaleCallConnectingActivity, MainActivity::class.java)
-                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    startActivity(intent)
-                    finish()
-                    return@Observer
-                }
+                // B201 (female side) used to gate on the male receiver's
+                // audio_status / video_status, mirroring the male->female
+                // direction. But those fields are the FEMALE opt-in toggle
+                // (the s_audio / s_video switches in fragment_female_home);
+                // males have no UI to flip them, and register() never seeds
+                // them, so the column stays 0 for every male in production.
+                // The gate therefore blocked F→M to every male, every time,
+                // surfacing as "User is unavailable right now" right after
+                // the chat-list call button. /api/auth/call_male_user
+                // already rejects the call upstream when the male is
+                // deleted, blocked by the caller, or currently on another
+                // call (UserCalls with no ended_time today) — so if we got
+                // success=true back, the male IS reachable per backend
+                // rules. Don't second-guess the server on a column that
+                // doesn't mean what this check thinks it means.
 
                 if (callId != 0) {
                     prefetchAgoraToken(channelName)
