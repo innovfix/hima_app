@@ -4075,9 +4075,17 @@ class ChatActivityInHouse : AppCompatActivity() {
             return
         }
         
-        // Check individual audio and video status (0 = disabled, 1 = enabled)
-        val isAudioEnabled = peerAudioStatus == 1
-        val isVideoEnabled = peerVideoStatus == 1
+        // Check individual audio and video status (0 = disabled, 1 = enabled).
+        // audio_status / video_status are the FEMALE creator's opt-in toggles
+        // (set via fragment_female_home.xml s_audio / s_video switches).
+        // Males have no UI to flip them and register() never seeds them, so
+        // the column stays 0 for every male in production. When the viewer
+        // is female calling a male, ignoring this gate is correct — there's
+        // no male signal here to respect. Mirrors B080 in FriendsTabFragment.
+        val isCurrentUserFemale = BaseApplication.getInstance()?.getPrefs()
+            ?.getUserData()?.gender?.equals(DConstants.FEMALE, ignoreCase = true) == true
+        val isAudioEnabled = isCurrentUserFemale || peerAudioStatus == 1
+        val isVideoEnabled = isCurrentUserFemale || peerVideoStatus == 1
         
         Log.d("CallButtons", "Final status - Audio: $isAudioEnabled ($peerAudioStatus), Video: $isVideoEnabled ($peerVideoStatus)")
         
@@ -4116,12 +4124,18 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun setupCallButtonListeners() {
+        // See updateCallButtonsState — when the viewer is female, the male's
+        // audio_status / video_status fields don't mean what this check
+        // assumes (males have no UI to flip them), so skip the gate.
+        val isCurrentUserFemale = BaseApplication.getInstance()?.getPrefs()
+            ?.getUserData()?.gender?.equals(DConstants.FEMALE, ignoreCase = true) == true
+
         cvAudioCall.setOnClickListener {
             when {
                 isCallBlocked -> {
                     showAppToast("You are blocked by this user", Toast.LENGTH_SHORT)
                 }
-                peerAudioStatus != 1 -> {
+                !isCurrentUserFemale && peerAudioStatus != 1 -> {
                     CallUnavailableFeedback.show(
                         this,
                         findViewById(android.R.id.content),
@@ -4133,13 +4147,13 @@ class ChatActivityInHouse : AppCompatActivity() {
                 }
             }
         }
-        
+
         cvVideoCall.setOnClickListener {
             when {
                 isCallBlocked -> {
                     showAppToast("You are blocked by this user", Toast.LENGTH_SHORT)
                 }
-                peerVideoStatus != 1 -> {
+                !isCurrentUserFemale && peerVideoStatus != 1 -> {
                     CallUnavailableFeedback.show(
                         this,
                         findViewById(android.R.id.content),
