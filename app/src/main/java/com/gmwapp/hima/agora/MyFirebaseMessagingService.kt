@@ -38,7 +38,10 @@ import com.gmwapp.hima.agora.female.FemaleAudioCallingActivity
 import com.gmwapp.hima.agora.female.FemaleCallAcceptActivity
 import com.gmwapp.hima.agora.female.FemaleCallConnectingActivity
 import com.gmwapp.hima.agora.female.FemaleVideoCallingActivity
+import com.gmwapp.hima.agora.male.MaleAudioCallingActivity
 import com.gmwapp.hima.agora.male.MaleCallAcceptActivity
+import com.gmwapp.hima.agora.male.MaleCallConnectingActivity
+import com.gmwapp.hima.agora.male.MaleVideoCallingActivity
 import com.gmwapp.hima.agora.telecom.HimaConnection
 import com.gmwapp.hima.agora.telecom.HimaTelecomManager
 import com.gmwapp.hima.repositories.FcmNotificationRepository
@@ -373,18 +376,16 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     // ========== MALE INCOMING CALL HANDLING ==========
                     // Added for males to receive calls from females
                     if (gender == "male") {
-                        // Import male activities
-                        val MaleCallAcceptActivity = com.gmwapp.hima.agora.male.MaleCallAcceptActivity::class.java
-                        val MaleCallConnectingActivity = com.gmwapp.hima.agora.male.MaleCallConnectingActivity::class.java
-                        val MaleAudioCallingActivity = com.gmwapp.hima.agora.male.MaleAudioCallingActivity::class.java
-                        val MaleVideoCallingActivity = com.gmwapp.hima.agora.male.MaleVideoCallingActivity::class.java
-                        val IplRoomCallActivity = com.gmwapp.hima.activities.IplRoomCallActivity::class.java
-
-                        if (currentActivity?.javaClass == MaleCallAcceptActivity ||
-                            currentActivity?.javaClass == MaleCallConnectingActivity ||
-                            currentActivity?.javaClass == MaleAudioCallingActivity ||
-                            currentActivity?.javaClass == MaleVideoCallingActivity ||
-                            currentActivity?.javaClass == IplRoomCallActivity ||
+                        // NB: Do NOT introduce local `val`s with the same names as these
+                        // activity classes. A prior version did so and the shadowing made
+                        // `Intent(this, MaleCallAcceptActivity::class.java)` below resolve to
+                        // `java.lang.Class.class`, causing ActivityNotFoundException and an
+                        // app crash when a female called a male user in foreground.
+                        if (currentActivity is MaleCallAcceptActivity ||
+                            currentActivity is MaleCallConnectingActivity ||
+                            currentActivity is MaleAudioCallingActivity ||
+                            currentActivity is MaleVideoCallingActivity ||
+                            currentActivity is com.gmwapp.hima.activities.IplRoomCallActivity ||
                             BaseApplication.getInstance()?.isInActiveCall() == true) {
 
                             Log.d("FCM", "Male user is already in a call. Ignoring incoming call notification.")
