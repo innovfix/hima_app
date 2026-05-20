@@ -2649,37 +2649,48 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             // Enable video module
             agoraEngine?.enableVideo()
 
+            // Defensive symmetry with FemaleAudio.switchToVideo — caller with
+            // a broken camera would crash on startPreview otherwise.
+            val cameraOk = com.gmwapp.hima.utils.CameraAvailability.isCameraAvailable(this)
+
             // Critical: the original joinChannel used audio-only ChannelMediaOptions
             // (publishCameraTrack = false, autoSubscribeVideo = false). Those options
             // persist unless we explicitly flip them here, so the camera track never
             // reaches the peer even after enableVideo(). Update them before setting up
             // the local surface so the track is publishing by the time the canvas binds.
-            agoraEngine?.enableLocalVideo(true)
-            agoraEngine?.muteLocalVideoStream(false)
+            agoraEngine?.enableLocalVideo(cameraOk)
+            agoraEngine?.muteLocalVideoStream(!cameraOk)
             agoraEngine?.updateChannelMediaOptions(ChannelMediaOptions().apply {
                 autoSubscribeAudio = true
                 autoSubscribeVideo = true
                 publishMicrophoneTrack = true
-                publishCameraTrack = true
+                publishCameraTrack = cameraOk
                 clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
             })
-            agoraEngine?.startPreview()
-            Log.d("AgoraTiming", "MaleAudio switched to VIDEO at ${System.currentTimeMillis()}")
+            if (cameraOk) {
+                agoraEngine?.startPreview()
+                Log.d("AgoraTiming", "MaleAudio switched to VIDEO at ${System.currentTimeMillis()}")
 
-            // Set up the local video view
-            val localContainer = binding.localVideoViewContainer
-            val localView = SurfaceView(this)
-            localView.setZOrderMediaOverlay(true)
-            localContainer.addView(localView)
+                // Set up the local video view
+                val localContainer = binding.localVideoViewContainer
+                val localView = SurfaceView(this)
+                localView.setZOrderMediaOverlay(true)
+                localContainer.addView(localView)
 
-            // Attach local video feed
-            agoraEngine?.setupLocalVideo(VideoCanvas(localView, VideoCanvas.RENDER_MODE_HIDDEN, 0))
+                // Attach local video feed
+                agoraEngine?.setupLocalVideo(VideoCanvas(localView, VideoCanvas.RENDER_MODE_HIDDEN, 0))
 
-            // Make video UI visible
-            binding.localVideoViewContainer.visibility = View.VISIBLE
-            binding.localCardView.visibility = View.VISIBLE
+                // Make video UI visible
+                binding.localVideoViewContainer.visibility = View.VISIBLE
+                binding.localCardView.visibility = View.VISIBLE
+                applySavedLocalPreviewPosition()
+            } else {
+                Log.w("CameraFallback", "MaleAudio.switchToVideo: camera unavailable, skipping local preview")
+                binding.localCardView.visibility = View.GONE
+                binding.localVideoViewContainer.visibility = View.GONE
+                showMessage(getString(R.string.call_no_camera_fallback))
+            }
             binding.remoteVideoViewContainer.visibility = View.VISIBLE
-            applySavedLocalPreviewPosition()
 
             // Notify remote user to switch to video (if required)
 

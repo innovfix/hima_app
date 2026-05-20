@@ -260,6 +260,15 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/remote_mic_muted_pill" />
 
+    <!-- Camera-unavailable countdown banner. Mirrors the creator-side
+         banner — fired by FCM 'cameraUnavailable' message so both sides
+         see why no video is showing during the 30s grace window. -->
+    <include
+        layout="@layout/banner_camera_unavailable"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/low_balance_banner_root" />
+
     <!-- User Avatars Container (Center) -->
     <LinearLayout
         android:id="@+id/users_container"

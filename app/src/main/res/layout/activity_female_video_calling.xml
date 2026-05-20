@@ -247,6 +247,16 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/on_hold_banner" />
 
+    <!-- Camera-unavailable countdown banner (creator with broken camera).
+         Reveals when CameraAvailability probe fails on join; ticks down 30s
+         then triggers leaveChannel. See CameraUnavailableNotice for the
+         lifecycle. -->
+    <include
+        layout="@layout/banner_camera_unavailable"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/remote_mic_muted_pill" />
+
     <!-- User Avatars Container (Center) -->
     <LinearLayout
         android:id="@+id/users_container"

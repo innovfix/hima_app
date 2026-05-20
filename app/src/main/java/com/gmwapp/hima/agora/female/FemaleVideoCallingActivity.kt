@@ -123,6 +123,16 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     lateinit var binding: ActivityFemaleVideoCallingBinding
     var receiverId = 0
 
+    // Tester report: creator with broken camera crashed on video accept.
+    // The flow now: skip camera setup (via CameraAvailability), connect
+    // audio-only, show a 30s countdown banner so both sides know what's
+    // happening, then disconnect with a clear dialog.
+    private var cameraUnavailableNotice: com.gmwapp.hima.utils.CameraUnavailableNotice? = null
+    // Latched while the camera-unavailable grace flow is active. Tells
+    // leaveChannel / onDestroy paths to skip the normal "remote user left"
+    // dialog (we've already shown our own reason).
+    private var cameraUnavailableActive: Boolean = false
+
 
     private var startTime: String = ""
     private var endTime: String = ""
@@ -1833,15 +1843,36 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
             options.channelProfile = Constants.CHANNEL_PROFILE_COMMUNICATION
             options.clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
-            setupLocalVideo()
-            localSurfaceView!!.visibility = View.VISIBLE
-            agoraEngine!!.startPreview()
+
+            // Tester report: creator with a non-functional camera crashed the
+            // app on incoming video call (Agora's Camera2 capture path threw
+            // when startPreview opened the camera). Detect that case BEFORE
+            // setupLocalVideo / startPreview. We then connect the channel
+            // audio-only, show a 30-second countdown banner so both sides
+            // see what's happening, and disconnect at the end with a clear
+            // dialog. See CameraAvailability for the probe.
+            val cameraOk = com.gmwapp.hima.utils.CameraAvailability.isCameraAvailable(this)
+            if (cameraOk) {
+                setupLocalVideo()
+                localSurfaceView!!.visibility = View.VISIBLE
+                agoraEngine!!.startPreview()
+            } else {
+                Log.w("CameraFallback", "FemaleVideo.joinChannel: camera unavailable, joining audio-only with 30s grace")
+                agoraEngine!!.enableLocalVideo(false)
+                agoraEngine!!.muteLocalVideoStream(true)
+                binding.localCardView.visibility = View.GONE
+                binding.localVideoViewContainer.visibility = View.GONE
+                startCameraUnavailableGrace()
+            }
+
             val result = agoraEngine!!.joinChannel(token, channelName, uid, options)
             if (result == 0) {
                 Log.d("AgorajoinChannel", "joinChannel: Success $result")
-                localSurfaceView!!.visibility = View.VISIBLE
-                var startpreview = agoraEngine!!.startPreview()
-                Log.d("startpreview", "$startpreview")
+                if (cameraOk) {
+                    localSurfaceView!!.visibility = View.VISIBLE
+                    var startpreview = agoraEngine!!.startPreview()
+                    Log.d("startpreview", "$startpreview")
+                }
 
             } else {
                 Log.e("AgorajoinChannel", "joinChannel failed with error code: $result")
@@ -1871,6 +1902,10 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         switchDialog?.dismiss()
         switchDialog = null
         FcmUtils.clearCallSwitch()
+        // Cancel the camera-unavailable countdown if it was running (peer
+        // may have hung up before our grace timer expired).
+        cameraUnavailableNotice?.cancel()
+        cameraUnavailableNotice = null
         if (!isJoined) {
             HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
         //    showMessage("Join a channel first")
@@ -2551,6 +2586,68 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     }
 
+    /**
+     * Reveal the camera-unavailable banner with a 30-second countdown, send
+     * the matching FCM to the caller so his screen mirrors the message, and
+     * schedule a clean disconnect at the end of the grace window.
+     * Idempotent — guarded by cameraUnavailableActive.
+     */
+    private fun startCameraUnavailableGrace() {
+        if (cameraUnavailableActive) return
+        cameraUnavailableActive = true
+
+        // Notify the caller so his banner can mirror the countdown.
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val femaleId = userData?.id
+        if (femaleId != null && receiverId > 0 && !channelName.isNullOrEmpty()) {
+            fcmNotificationViewModel.sendNotification(
+                senderId = femaleId,
+                receiverId = receiverId,
+                callType = "video",
+                channelName = channelName,
+                message = "cameraUnavailable"
+            )
+        } else {
+            Log.w("CameraFallback", "Skipping FCM (femaleId=$femaleId receiverId=$receiverId channel=$channelName)")
+        }
+
+        val banner = findViewById<android.widget.TextView>(R.id.camera_unavailable_banner)
+        if (banner == null) {
+            Log.e("CameraFallback", "camera_unavailable_banner view not found — falling back to immediate end")
+            showCameraUnavailableDialogAndEnd()
+            return
+        }
+        cameraUnavailableNotice = com.gmwapp.hima.utils.CameraUnavailableNotice(
+            context = this,
+            banner = banner,
+            bannerCopyRes = R.string.call_camera_unavailable_self_banner,
+            onTimeout = { showCameraUnavailableDialogAndEnd() }
+        ).also { it.start() }
+    }
+
+    /**
+     * Show the end-of-call reason dialog and trigger the existing leave path.
+     * Activity guards (isFinishing/isDestroyed) keep this safe if the user
+     * already navigated away during the grace window.
+     */
+    private fun showCameraUnavailableDialogAndEnd() {
+        if (isFinishing || isDestroyed) return
+        try {
+            androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle(R.string.call_camera_unavailable_self_dialog_title)
+                .setMessage(R.string.call_camera_unavailable_self_dialog_body)
+                .setCancelable(false)
+                .setPositiveButton(android.R.string.ok) { d, _ ->
+                    d.dismiss()
+                    leaveChannel(binding.LeaveButton)
+                }
+                .show()
+        } catch (e: Exception) {
+            Log.w("CameraFallback", "Dialog show failed; leaving channel directly", e)
+            leaveChannel(binding.LeaveButton)
+        }
+    }
+
     fun sendSwitchCallRequestNotification(senderId:Int, receiverId:Int, callType:String, message:String) {
         fcmNotificationViewModel.sendNotification(
             senderId = senderId,
@@ -2876,32 +2973,47 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             
             // Enable video module
             agoraEngine?.enableVideo()
-            
-            // Enable local video and start camera
-            agoraEngine?.enableLocalVideo(true)
-            agoraEngine?.muteLocalVideoStream(false)
 
-            // Set up the local video view
-            val localView = SurfaceView(this)
-            localView.setZOrderMediaOverlay(true)
-            localView.visibility = View.VISIBLE
-            binding.localVideoViewContainer.addView(localView)
+            // Tester report: creator with broken camera crashed when audio
+            // upgraded to video. Same fallback as the initial join — keep
+            // video disabled on this side and let the peer's avatar
+            // skeleton (B058) carry the visual. See CameraAvailability.
+            val cameraOk = com.gmwapp.hima.utils.CameraAvailability.isCameraAvailable(this)
+            if (cameraOk) {
+                // Enable local video and start camera
+                agoraEngine?.enableLocalVideo(true)
+                agoraEngine?.muteLocalVideoStream(false)
 
-            // Attach local video feed
-            agoraEngine?.setupLocalVideo(VideoCanvas(localView, VideoCanvas.RENDER_MODE_HIDDEN, 0))
-            
-            // Start local video preview
-            agoraEngine?.startPreview()
+                // Set up the local video view
+                val localView = SurfaceView(this)
+                localView.setZOrderMediaOverlay(true)
+                localView.visibility = View.VISIBLE
+                binding.localVideoViewContainer.addView(localView)
 
-            // Make video UI visible
-            binding.localVideoViewContainer.visibility = View.VISIBLE
-            binding.localCardView.visibility = View.VISIBLE
+                // Attach local video feed
+                agoraEngine?.setupLocalVideo(VideoCanvas(localView, VideoCanvas.RENDER_MODE_HIDDEN, 0))
+
+                // Start local video preview
+                agoraEngine?.startPreview()
+
+                // Make video UI visible
+                binding.localVideoViewContainer.visibility = View.VISIBLE
+                binding.localCardView.visibility = View.VISIBLE
+            } else {
+                Log.w("CameraFallback", "FemaleVideo.enableVideoCall: camera unavailable, video upgrade silent on our side")
+                agoraEngine?.enableLocalVideo(false)
+                agoraEngine?.muteLocalVideoStream(true)
+                binding.localCardView.visibility = View.GONE
+                binding.localVideoViewContainer.visibility = View.GONE
+                showMessage(getString(R.string.call_no_camera_fallback))
+            }
+
             binding.remoteVideoViewContainer.visibility = View.VISIBLE
             // B191 — restore the camera-flip button hidden by a prior
             // audio downgrade. Face-detection overlay manages its own
             // visibility once face detection resumes.
-            binding.btnCameraFlip.visibility = View.VISIBLE
-            applySavedLocalPreviewPosition()
+            binding.btnCameraFlip.visibility = if (cameraOk) View.VISIBLE else View.GONE
+            if (cameraOk) applySavedLocalPreviewPosition()
 
             // Bring video containers to front
             binding.localVideoViewContainer.bringToFront()

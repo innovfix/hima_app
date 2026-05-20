@@ -6,6 +6,17 @@
          participant mutes their microphone, so the user knows the silence is
          intentional (not a connection issue). -->
     <string name="call_peer_muted">Peer is muted</string>
+    <!-- Camera hardware unavailable on this device — banner + dialog text
+         shown when a creator with a non-functional camera accepts a video
+         call. We grant a brief grace window (30s) so both sides know what
+         happened, then disconnect. -->
+    <string name="call_no_camera_fallback">Camera unavailable on this device — joining with audio only.</string>
+    <string name="call_camera_unavailable_self_banner">Your camera isn\'t working — call ends in %1$ds</string>
+    <string name="call_camera_unavailable_peer_banner">Her camera isn\'t working — call ends in %1$ds</string>
+    <string name="call_camera_unavailable_self_dialog_title">Camera unavailable</string>
+    <string name="call_camera_unavailable_self_dialog_body">Your camera isn\'t working. The video call has ended. You can still receive audio calls.</string>
+    <string name="call_camera_unavailable_peer_dialog_title">Camera unavailable</string>
+    <string name="call_camera_unavailable_peer_dialog_body">The creator\'s camera isn\'t working. The call has ended. You can try an audio call from her profile.</string>
     <!-- I021 — low-balance warning banner shown when the in-call countdown
          timer drops below 60s, so the user can recharge mid-call. -->
     <string name="low_balance_title">❤ Balance low — recharge to continue</string>

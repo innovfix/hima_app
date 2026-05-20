@@ -675,6 +675,19 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 FcmUtils.updateCallStatus(message, senderId.toString())
             }
 
+            // Tester report → camera-unavailable handshake. The female side
+            // detected a broken camera, joined audio-only, and is in the 30s
+            // grace window before disconnecting. Forward the signal so the
+            // male-side calling activity can show a matching banner +
+            // dialog. channelName scopes the signal to THIS call (the
+            // observer ignores messages for other in-flight channels).
+            if (message == "cameraUnavailable" && gender == "male") {
+                Log.d("FCM", "route=cameraUnavailable_male channel=$channelName")
+                if (!channelName.isNullOrEmpty()) {
+                    FcmUtils.updateCameraUnavailable(channelName)
+                }
+            }
+
             if (message == "userBusy" && gender == "male") {
                 Log.d(
                     "MaleVideoEndFlow",

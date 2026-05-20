@@ -268,6 +268,12 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     private var lowBalanceBanner: com.gmwapp.hima.utils.LowBalanceBanner? = null
     private var pendingWalletReturn: Boolean = false
 
+    // Tester report: creator's broken camera triggers a 30s grace flow. We
+    // mirror the banner here so the caller sees the reason; latched so the
+    // disconnect handler shows the right dialog.
+    private var cameraUnavailableNotice: com.gmwapp.hima.utils.CameraUnavailableNotice? = null
+    private var cameraUnavailableLatched: Boolean = false
+
     var blockWords: List<String> = emptyList()
     var isBlockWordDetected : Boolean = false
 
@@ -649,6 +655,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         setupIplTeamBadges()
 
         observeCallSwitchRequest()
+        observeCameraUnavailable()
 
         handleCallSwitch()
         setupLocalPreviewDrag()
@@ -1403,18 +1410,31 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             )
             stopCountdown()
             updateCallEndDetails()
+
+            // Snapshot the latch on the Agora worker thread, then dispatch
+            // ALL UI work to the main thread. Avoids racing with the dialog
+            // flow that resets the latch inside showCameraUnavailablePeerDialogIfNeeded.
+            val cameraGraceActive = cameraUnavailableLatched
             runOnUiThread {
                 remoteSurfaceView?.let { // ✅ Safe check before accessing
                     it.visibility = View.GONE
                 }
+                if (cameraGraceActive) {
+                    // Tester report: creator with broken camera disconnected
+                    // before the 30s grace timer expired. Show the reason
+                    // dialog and let its OK button drive leaveChannel.
+                    cameraUnavailableNotice?.cancel()
+                    cameraUnavailableNotice = null
+                    showCameraUnavailablePeerDialogIfNeeded()
+                } else {
+                    Log.d(TAG_END, "onUserOffline -> startActivity(MainActivity) then finish()")
+                    val intent = Intent(this@MaleVideoCallingActivity, MainActivity::class.java)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    startActivity(intent)
+                    Log.d(TAG_END, "finish() from onUserOffline")
+                    finish()
+                }
             }
-
-            Log.d(TAG_END, "onUserOffline -> startActivity(MainActivity) then finish()")
-            val intent = Intent(this@MaleVideoCallingActivity, MainActivity::class.java)
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            startActivity(intent)
-            Log.d(TAG_END, "finish() from onUserOffline")
-            finish()
         }
 
         override fun onError(err: Int) {
@@ -1940,9 +1960,23 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
             options.channelProfile = Constants.CHANNEL_PROFILE_COMMUNICATION
             options.clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
-            setupLocalVideo()
-            localSurfaceView!!.visibility = View.VISIBLE
-            agoraEngine!!.startPreview()
+
+            // Defensive symmetry with the female-side fix: a caller with a
+            // broken camera would crash the same way. Skip camera setup, join
+            // audio-only, peer sees the avatar skeleton (B058).
+            val cameraOk = com.gmwapp.hima.utils.CameraAvailability.isCameraAvailable(this)
+            if (cameraOk) {
+                setupLocalVideo()
+                localSurfaceView!!.visibility = View.VISIBLE
+                agoraEngine!!.startPreview()
+            } else {
+                Log.w("CameraFallback", "MaleVideo.joinChannel: camera unavailable, joining audio-only")
+                agoraEngine!!.enableLocalVideo(false)
+                agoraEngine!!.muteLocalVideoStream(true)
+                binding.localCardView.visibility = View.GONE
+                showMessage(getString(R.string.call_no_camera_fallback))
+            }
+
             agoraEngine!!.joinChannel(token, channelName, uid, options)
         } else {
             // Permission revoked between onCreate and here — usually the OS
@@ -2799,6 +2833,72 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
 
         })
+    }
+
+    /**
+     * Tester report: when the creator has a broken camera, her side now
+     * connects audio-only and sends a "cameraUnavailable" FCM. We observe
+     * that signal and mirror the 30s countdown banner so the caller knows
+     * the call is ending and why. The actual disconnect happens on the
+     * creator side; we just sync the UI and show the explanation dialog
+     * when onUserOffline fires.
+     */
+    private fun observeCameraUnavailable() {
+        FcmUtils.cameraUnavailableStatus.observe(this) { signaledChannel ->
+            if (signaledChannel.isNullOrEmpty()) return@observe
+            // Scope the signal to THIS call — FCM may arrive while a prior
+            // channel's listener is still attached.
+            if (signaledChannel != channelName) {
+                Log.d("CameraFallback", "Ignoring camera-unavailable for other channel: $signaledChannel vs $channelName")
+                return@observe
+            }
+            // Idempotent — duplicate FCM deliveries don't re-arm the banner.
+            if (cameraUnavailableLatched) return@observe
+            cameraUnavailableLatched = true
+
+            val banner = findViewById<android.widget.TextView>(R.id.camera_unavailable_banner)
+            if (banner != null) {
+                cameraUnavailableNotice = com.gmwapp.hima.utils.CameraUnavailableNotice(
+                    context = this,
+                    banner = banner,
+                    bannerCopyRes = R.string.call_camera_unavailable_peer_banner,
+                    onTimeout = {
+                        // No leaveChannel here — the creator side owns the
+                        // actual disconnect. We just show the reason dialog
+                        // if the natural disconnect hasn't happened yet by
+                        // the time the countdown completes.
+                        showCameraUnavailablePeerDialogIfNeeded()
+                    }
+                ).also { it.start() }
+            }
+            // Clear the signal so we don't re-fire if the activity restarts.
+            FcmUtils.clearCameraUnavailable()
+        }
+    }
+
+    /**
+     * Show the "her camera was unavailable" dialog before navigating away.
+     * Called from the grace-timer onTimeout AND from onUserOffline (in case
+     * the creator side leaves earlier than 30s). Idempotent.
+     */
+    private fun showCameraUnavailablePeerDialogIfNeeded() {
+        if (!cameraUnavailableLatched) return
+        if (isFinishing || isDestroyed) return
+        cameraUnavailableLatched = false
+        try {
+            androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle(R.string.call_camera_unavailable_peer_dialog_title)
+                .setMessage(R.string.call_camera_unavailable_peer_dialog_body)
+                .setCancelable(false)
+                .setPositiveButton(android.R.string.ok) { d, _ ->
+                    d.dismiss()
+                    if (!isFinishing && !isDestroyed) leaveChannel(binding.LeaveButton)
+                }
+                .show()
+        } catch (e: Exception) {
+            Log.w("CameraFallback", "Peer dialog show failed; leaving channel", e)
+            if (!isFinishing && !isDestroyed) leaveChannel(binding.LeaveButton)
+        }
     }
 
     fun observeCallSwitchRequest() {

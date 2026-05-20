@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Tester report: a creator with a non-functional camera crashed the app
+    when accepting a video call. We now detect the broken camera before
+    Agora opens it (CameraAvailability), connect the channel as audio-only,
+    surface THIS banner so both sides see why no video is showing, and
+    disconnect after a 30-second grace period (CameraUnavailableNotice).
+
+    Placement: anchored below the existing reconnect / on-hold / mic-muted
+    pill stack, same horizontal style. Visibility="gone" by default —
+    activity code reveals it when the camera probe fails.
+-->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/camera_unavailable_banner"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_reconnect_pill"
+    android:drawableStart="@drawable/ic_videocam"
+    android:drawablePadding="6dp"
+    android:drawableTint="#FFFFFF"
+    android:elevation="10dp"
+    android:layout_marginTop="4dp"
+    android:paddingStart="10dp"
+    android:paddingEnd="12dp"
+    android:paddingTop="4dp"
+    android:paddingBottom="4dp"
+    android:textColor="@android:color/white"
+    android:textSize="12sp"
+    android:visibility="gone"
+    tools:ignore="UseAppTint"
+    xmlns:tools="http://schemas.android.com/tools" />

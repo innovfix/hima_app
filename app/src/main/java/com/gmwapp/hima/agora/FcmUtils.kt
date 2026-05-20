@@ -117,6 +117,22 @@ object FcmUtils {
         Log.d("FcmUtils", "User busy status cleared")
     }
 
+    // Camera-unavailable signal. Posted by MyFirebaseMessagingService when the
+    // creator-side detected a broken camera and is in the 30-second grace
+    // window before disconnecting. Carries the channel name so the caller's
+    // observer can ignore messages for other in-flight calls.
+    private val _cameraUnavailableStatus = MutableLiveData<String?>()
+    val cameraUnavailableStatus: LiveData<String?> get() = _cameraUnavailableStatus
+
+    fun updateCameraUnavailable(channelName: String) {
+        _cameraUnavailableStatus.postValue(channelName)
+        Log.d("FcmUtils", "Camera-unavailable signal: channel=$channelName")
+    }
+
+    fun clearCameraUnavailable() {
+        _cameraUnavailableStatus.postValue(null)
+    }
+
     fun updateLudoEvent(event: LudoEvent) {
         _ludoEvent.postValue(event)
         Log.d("FcmUtils", "Ludo event updated: type=${event.type}, invite=${event.inviteId}")
