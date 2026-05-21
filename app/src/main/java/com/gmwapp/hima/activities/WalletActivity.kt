@@ -604,7 +604,11 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                         binding.btnAddCoins.visibility = View.VISIBLE
                         amount = coin.price.toString()
                         pointsId = coin.id.toString()
-                        coin.pg?.takeIf { it.isNotEmpty() }?.let { paymentGateway = it }
+                        // 2026-05-21: reverted to match live APK behavior.
+                        // Auto-routing to coin.pg sent some users to PhonePe during the
+                        // PhonePe outage, lowering success rate vs. live APK which stays
+                        // on whichever gateway was last set. Restore that behavior:
+                        // paymentGateway = coin.pg.toString()  // disabled
 
                         selectedCoin = coin.coins.toString()
                         selectedSavePercent = coin.save.toString()
@@ -628,7 +632,8 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                     binding.btnAddCoins.visibility = View.VISIBLE
                     amount = firstCoin.price.toString()
                     pointsId = firstCoin.id.toString()
-                    firstCoin.pg?.takeIf { it.isNotEmpty() }?.let { paymentGateway = it }
+                    // 2026-05-21: reverted to match live APK behavior (same reason as per-coin path above)
+                    // paymentGateway = firstCoin.pg.toString()  // disabled
 
                     selectedCoin = firstCoin.coins.toString()
                     selectedSavePercent = firstCoin.save.toString()
@@ -1415,10 +1420,11 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                 if (paymentGateway.isNotEmpty()) {
                     when (paymentGateway) {
                         "phonepe" -> {
+                            // 2026-05-21: reverted to match live APK behavior — silent fail if PhonePe SDK
+                            // isn't ready (rather than showing a user-facing "PhonePe not ready" toast that
+                            // didn't exist in live APK). The button just doesn't progress; user can retry.
                             if (isPhonePeInitialized) {
                                 fetchOrderFromBackend(pointsId)
-                            } else {
-                                showAppToast("PhonePe not ready, please try again", Toast.LENGTH_SHORT)
                             }
                         }
 
@@ -1491,9 +1497,10 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                             showAppToast("Invalid Payment Gateway", Toast.LENGTH_SHORT)
                         }
                     }
-                } else {
-                    showAppToast("Payment gateway not available, please reopen the app", Toast.LENGTH_SHORT)
                 }
+                // 2026-05-21: removed "Payment gateway not available, please reopen the app" toast
+                // (was a NEW addition in autopay merge that didn't exist in live APK). Silent fail
+                // matches live APK behavior — user just sees no progression and can retry.
             }
         } else {
             showAppToast("Invalid input data", Toast.LENGTH_SHORT)
