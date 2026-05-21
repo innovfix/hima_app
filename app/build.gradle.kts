@@ -60,10 +60,10 @@ android {
         create("production") {
             dimension = "hima"
             isDefault = true
-            // productionDebug/Release: demohima backend + same OneSignal project the demo backend
-            // REST key uses (5cd4154a-...). For Play Store / himaapp.in, use a separate release
-            // branch or a release flavor with himaapp.in + 50cedb09-...
-            buildConfigField("String", "BASE_URL", "\"https://demohima.himaapp.in/api/auth/\"")
+            // productionDebug/Release: demolivedb backend (FCM verified working).
+            // demohima has a revoked FCM server key — pushes don't deliver from there.
+            // For Play Store / himaapp.in, use a separate release flavor.
+            buildConfigField("String", "BASE_URL", "\"https://demolivedb.himaapp.in/api/auth/\"")
             buildConfigField("String", "ONESIGNAL_APP_ID", "\"5cd4154a-1ece-4c3b-b6af-e88bafee64cd\"")
         }
     }
