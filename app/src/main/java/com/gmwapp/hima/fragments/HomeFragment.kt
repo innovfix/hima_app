@@ -62,7 +62,7 @@ import kotlinx.coroutines.launch
 @AndroidEntryPoint
 class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     private var isAllFabVisible: Boolean = false
-    private var filterType: String = "my_chats" // Default filter is "my_chats" — open on Chats tab
+    private var filterType: String = "all" // Default filter is "all" — open on creators list so users see who to call
     lateinit var binding: FragmentHomeBinding
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
     private val autopayViewModel: AutopayViewModel by viewModels()
@@ -1184,8 +1184,11 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
     override fun onPause() {
         super.onPause()
+        // Call-fix branch cleanup
         unregisterHomeChatListRefreshReceiver()
         unregisterNetworkRestoreListener()
+        // Autopay branch cleanup — stop the midnight-refresh handler
+        midnightHandler.removeCallbacks(midnightRunnable)
     }
 
     // B065 — without this, killing the network while the user is sitting on
@@ -1341,10 +1344,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         }
     }
 
-    override fun onPause() {
-        super.onPause()
-        midnightHandler.removeCallbacks(midnightRunnable)
-    }
+    // (onPause from autopay branch was merged into the unified onPause above)
 
     fun observeCoins() {
         BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
