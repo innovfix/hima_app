@@ -423,6 +423,25 @@ class RecentFragment : BaseFragment(), Refreshable {
         }
 
         loadMissedCallCount(seen = 0)
+
+        // B107 + B109 — CallUpdateWorker writes ended_time via WorkManager
+        // async, so when a user finishes a call and immediately opens Recent
+        // (or types the creator's name in search) the worker often hasn't
+        // fired yet → the just-ended call is missing from the response.
+        // Schedule a second refresh ~1.5s after onResume to catch the
+        // worker's write. Pass currentSearchQuery so an active search filter
+        // is preserved on re-query (B109): without this the deferred refresh
+        // would wipe the user's "san" search filter back to the unfiltered
+        // list. Idempotent: if the worker already fired, just re-fetches.
+        view?.postDelayed({
+            if (isAdded && !isDetached) {
+                loadCallsList(
+                    currentSortType,
+                    resetData = true,
+                    searchQuery = currentSearchQuery
+                )
+            }
+        }, 1500L)
     }
     
     override fun onDestroyView() {

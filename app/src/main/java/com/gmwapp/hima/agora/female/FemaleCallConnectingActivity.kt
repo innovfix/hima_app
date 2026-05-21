@@ -1,6 +1,7 @@
 package com.gmwapp.hima.agora.female
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -65,7 +66,10 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
             elapsedTime++
             Log.d("CallTimeoutTracker", "Seconds passed: $elapsedTime")
 
-            if (elapsedTime >= 20) { // 20 seconds timeout
+            if (elapsedTime >= 40) { // 40 seconds timeout — Oplus/Realme ROMs defer the
+                                     // Telecom ringer UI up to ~15s after the FCM lands;
+                                     // a 20s caller-side cutoff was firing before the
+                                     // receiver's phone visibly rang and the user could tap.
                 disconnectCall()
             } else {
                 timeoutHandler.postDelayed(this, 1000) // Update every second
@@ -84,10 +88,51 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // B067: refuse to start a Hima call while a SIM call is active.
+        // Android's telephony stack holds an exclusive lock on STREAM_VOICE_CALL
+        // in MODE_IN_CALL — Agora video frames still render but voice frames
+        // have nowhere to go, so the user "can see but can't hear." Block up
+        // front and surface the same message WhatsApp/Telegram show.
+        if (com.gmwapp.hima.utils.CallPhoneStateHelper.isCellularCallBusy(this)) {
+            android.widget.Toast.makeText(
+                this,
+                "You're on a phone call. End it to make a Hima call.",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            finish()
+            return
+        }
+        // B125 — refuse to start a second Hima call while one is already in
+        // progress (in-call activity alive). Without this, the previous
+        // video call screen would linger behind the new connecting screen
+        // and the new audio call's mic path would be hijacked by the
+        // existing Agora session.
+        if (BaseApplication.getInstance()?.isInRealCall() == true) {
+            android.widget.Toast.makeText(
+                this,
+                "You're already in a call. End it first.",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            finish()
+            return
+        }
         enableEdgeToEdge()
         binding = ActivityFemaleCallConnectingBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        window.statusBarColor = ContextCompat.getColor(this, R.color.black)
+        // B014 — match the connecting screen's white background instead of
+        // hardcoding black. Dark status-bar icons stay legible against white.
+        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.setSystemBarsAppearance(
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility =
+                window.decorView.systemUiVisibility or
+                    android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+        }
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
@@ -346,6 +391,23 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                 callId = it.data?.call_id ?: 0
                 channelName = "channel_$callId"  // Set channel name based on call ID
                 Log.d("CallID", "CallID: $callId, ChannelName: $channelName")
+
+                // B201 (female side) used to gate on the male receiver's
+                // audio_status / video_status, mirroring the male->female
+                // direction. But those fields are the FEMALE opt-in toggle
+                // (the s_audio / s_video switches in fragment_female_home);
+                // males have no UI to flip them, and register() never seeds
+                // them, so the column stays 0 for every male in production.
+                // The gate therefore blocked F→M to every male, every time,
+                // surfacing as "User is unavailable right now" right after
+                // the chat-list call button. /api/auth/call_male_user
+                // already rejects the call upstream when the male is
+                // deleted, blocked by the caller, or currently on another
+                // call (UserCalls with no ended_time today) — so if we got
+                // success=true back, the male IS reachable per backend
+                // rules. Don't second-guess the server on a column that
+                // doesn't mean what this check thinks it means.
+
                 if (callId != 0) {
                     prefetchAgoraToken(channelName)
                     sendCallNotification(userId!!, receiverId, callType!!, "incoming call $callId $myAvatar $myname")
@@ -482,6 +544,14 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        // B156a — clear the synchronous busy flag set at the click handler.
+        // If onDestroy fires because we successfully transitioned to the
+        // FemaleAudio/VideoCallingActivity, that activity already has
+        // isInActiveCall()==true + currentActivity covering the busy gate.
+        // If it fires because the user cancelled/backed out, leaving the
+        // flag at 1 would auto-reject every legitimate incoming call until
+        // the next real call ends. Mirrors MaleCallConnectingActivity:645.
+        FcmUtils.isUserAvailable = 0
         isRunning = false
         cancelTimeoutTracking()
         handler.removeCallbacksAndMessages(null)

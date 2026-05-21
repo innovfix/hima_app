@@ -3,6 +3,7 @@ package com.gmwapp.hima.agora.male
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
+import android.view.KeyEvent
 import android.view.View
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -25,6 +26,7 @@ import android.app.Dialog
 import android.content.Intent
 import android.content.res.Resources
 import android.graphics.PixelFormat
+import android.media.AudioManager
 import android.os.Build
 import android.os.CountDownTimer
 import android.os.Handler
@@ -151,9 +153,18 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private var currentAudioRoute: com.gmwapp.hima.utils.CallAudioRouter.AudioRoute =
         com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE
     private val ludoFcmViewModel: LudoFcmViewModel by viewModels()
+    // I021 — VM for the low-balance banner's "first 3 packages" prefetch.
+    private val walletViewModel: com.gmwapp.hima.viewmodels.WalletViewModel by viewModels()
 
     private var isSwitchingToAudio = false // ✅ Prevent multiple calls
     private var isSwitchingToVideo = false // ✅ Prevent multiple calls
+
+    // I021 — banner instance + flag flipped when we hand off to WalletActivity
+    // so onResume knows to refresh the remaining-time and (optimistically) hide
+    // the banner. Banner re-shows on the next sub-60s tick if the recharge
+    // didn't extend the timer enough.
+    private var lowBalanceBanner: com.gmwapp.hima.utils.LowBalanceBanner? = null
+    private var pendingWalletReturn: Boolean = false
 
 
     private var remoteSurfaceView: SurfaceView? = null
@@ -191,6 +202,34 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     // B127: real-time RECORD_AUDIO revoke listener; started on join, stopped on teardown.
     private var micWatcher: com.gmwapp.hima.utils.MicPermissionWatcher? = null
 
+    // Tester report: in-call timer drifted ~60s between the two sides over a
+    // few minutes. B141 anchored the math to serverNowMs at each fetch, but
+    // BETWEEN fetches both sides relied on local CountDownTimer which loses
+    // precision under doze / background throttling / small system jitter,
+    // and the FCM-driven refresh path (remainingTimeUpdated) silently breaks
+    // if that push is lost. This handler self-paces a re-fetch every 30s as
+    // a safety net — drift can't accumulate past one interval, and both
+    // sides re-converge on the server's authoritative remaining_time.
+    private val timerResyncHandler = Handler(Looper.getMainLooper())
+    private val timerResyncRunnable = object : Runnable {
+        override fun run() {
+            if (!isFinishing && !isDestroyed && isJoined) {
+                newRemainingTime()
+                timerResyncHandler.postDelayed(this, TIMER_RESYNC_INTERVAL_MS)
+            }
+        }
+    }
+    private fun startTimerResync() {
+        timerResyncHandler.removeCallbacks(timerResyncRunnable)
+        timerResyncHandler.postDelayed(timerResyncRunnable, TIMER_RESYNC_INTERVAL_MS)
+    }
+    private fun stopTimerResync() {
+        timerResyncHandler.removeCallbacks(timerResyncRunnable)
+    }
+    companion object {
+        private const val TIMER_RESYNC_INTERVAL_MS = 30_000L
+    }
+
     var receiverName = ""
 
     private var isMuted = false
@@ -200,6 +239,27 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private var audioRouter: CallAudioRouter? = null
     private var phoneStateHelper: CallPhoneStateHelper? = null
     private var btWatcher: com.gmwapp.hima.utils.BluetoothCallWatcher? = null
+    private var wiredWatcher: com.gmwapp.hima.utils.WiredHeadsetWatcher? = null
+    // B062 + B064 — auto-end after 30s of RECONNECTING/FAILED, and show a
+    // live countdown on the reconnect banner so the user knows when the
+    // call will give up instead of staring at an indefinite "Reconnecting…"
+    // pill. The banner visibility is still owned by CallQualityUi; we only
+    // update the text here.
+    private val reconnectWatchdog = com.gmwapp.hima.utils.ReconnectWatchdog(
+        onTick = { secondsRemaining ->
+            binding.reconnectBanner.text = "Reconnecting… ${secondsRemaining}s"
+        },
+        onTimeout = {
+            runOnUiThread {
+                Toast.makeText(
+                    this,
+                    "Network lost. Call ended.",
+                    Toast.LENGTH_LONG
+                ).show()
+                leaveChannel(binding.LeaveButton)
+            }
+        }
+    )
     private var mutedByInterrupt = false
 
     var maleUserId = 0
@@ -211,6 +271,12 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     private var startTime: String = ""
     private var endTime: String = ""
+    // B110: monotonic millis snapshot taken at onUserJoined so the hangup
+    // path can compute an accurate durationSeconds for saveCallStatus.
+    // Without this, durationSeconds defaulted to null on the backend, the
+    // call was recorded with duration=0, and the male's Recent tab classified
+    // his own outgoing call as "Missed."
+    private var callStartMillis: Long = 0L
 
     var blockWords: List<String> = emptyList()
     var isBlockWordDetected : Boolean = false
@@ -228,11 +294,21 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             elapsedTime++
             Log.d("CallTimeoutTracking", "Seconds passed: $elapsedTime")
 
-            if (elapsedTime >=10) { // 20 seconds timeout
+            if (elapsedTime >= 20) { // B042: bumped 10 → 20 seconds. Slow networks
+                // / OEM-throttled FCM regularly take 12-15 s for the peer to actually
+                // join Agora after accepting; the old 10 s window false-fired
+                // "User did not join" before the connection finished establishing.
                 if (isRemoteUserJoined==false){
                     Log.d("isUserJoinedTimer","Leave Button")
                     cancelTimeoutTracking()
-                    Toast.makeText(this@MaleAudioCallingActivity,"User did not join", Toast.LENGTH_LONG).show()
+                    // B043/B044 — the prior "User did not join" wording read like
+                    // the remote user actively refused. By this point the peer
+                    // already accepted (otherwise we wouldn't be in the calling
+                    // activity); the failure is the Agora session never
+                    // materialising — could be either side's network or app
+                    // state. Without a server-provided reason field we shouldn't
+                    // attribute fault.
+                    Toast.makeText(this@MaleAudioCallingActivity,"Couldn't connect — please try again", Toast.LENGTH_LONG).show()
                     leaveChannel(binding.LeaveButton)
                 }else{
                     cancelTimeoutTracking()
@@ -280,6 +356,14 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             finish()
             return
         }
+        // Grab EXCLUSIVE audio focus BEFORE Agora touches the audio HAL so any
+        // already-playing media (Spotify / YouTube / etc.) is paused before
+        // call audio starts. Previously the focus request was the LAST step in
+        // engine setup, so for the brief window between enableAudio() and the
+        // focus request, Spotify kept streaming and mixed with call audio
+        // (B139). [com.gmwapp.hima.utils.CallAudioFocusHelper] is idempotent
+        // — safe even though [setupCallInterruptHandlers] also calls it later.
+        setupCallInterruptHandlers()
         try {
             val config = RtcEngineConfig()
             config.mContext = baseContext
@@ -289,9 +373,16 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
             // Enable only audio module (Disable video)
             agoraEngine!!.enableAudio()
-            // Configure audio profile BEFORE joinChannel to avoid mid-session track reset
-            agoraEngine!!.setAudioProfile(Constants.AUDIO_PROFILE_SPEECH_STANDARD, Constants.AUDIO_SCENARIO_DEFAULT)
-            agoraEngine!!.enableAudioVolumeIndication(200, 3, true)
+            // Configure audio profile BEFORE joinChannel to avoid mid-session track reset.
+            // B186: SPEECH_STANDARD pinned codec to 32 kHz mono / 18 kbps;
+            // on OEMs whose mic captured outside that profile, codec negotiation
+            // failed and both sides connected silent. DEFAULT lets Agora pick per
+            // the channel profile (COMMUNICATION here).
+            agoraEngine!!.setAudioProfile(Constants.AUDIO_PROFILE_DEFAULT, Constants.AUDIO_SCENARIO_DEFAULT)
+            // B037: smoothFactor 1 (not 3) so the speak-wave reacts to actual
+            // speech bursts instead of a 600ms moving average that hid soft
+            // voices entirely; threshold lowered to 30 in onAudioVolumeIndication.
+            agoraEngine!!.enableAudioVolumeIndication(200, 1, true)
             // Set the SDK's default audio route + explicit current route so users hear
             // audio in the expected output immediately (also helps Bluetooth/headset).
             agoraEngine!!.setDefaultAudioRoutetoSpeakerphone(true)
@@ -299,16 +390,25 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             Log.d("AgoraTiming", "MaleAudio setupAudioSDKEngine done at ${System.currentTimeMillis()}")
 
             audioRouter?.release()
-            audioRouter = CallAudioRouter(this).also { it.init() }
+            audioRouter = CallAudioRouter(this).also { router ->
+                router.init()
+                // Reflect plug/unplug events while the call is active so the
+                // speaker icon never lies about the real audio route.
+                router.setRouteChangeListener { refreshAudioRouteIcon() }
+            }
             val btNow = audioRouter?.isBluetoothConnected() == true
+            val wiredNow = audioRouter?.isWiredHeadsetConnected() == true
             val initial = when {
                 btNow -> com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.BLUETOOTH
+                // A wired headset at call start owns the route — don't show
+                // speaker-on just because the saved-state happened to be ON.
+                wiredNow -> com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE
                 isSpeakerOn -> com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER
                 else -> com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE
             }
             Log.d(
                 "CallAudioRoute",
-                "Activity.setup initialRoute=$initial btConnected=$btNow isSpeakerOn=$isSpeakerOn"
+                "Activity.setup initialRoute=$initial btConnected=$btNow wiredConnected=$wiredNow isSpeakerOn=$isSpeakerOn"
             )
             applyAudioRoute(initial)
 
@@ -329,8 +429,11 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         if (phoneStateHelper == null) {
             phoneStateHelper = CallPhoneStateHelper(
                 context = this,
-                onCellularCallActive = { muteForInterrupt(true) },
-                onCellularCallEnded = { muteForInterrupt(false) }
+                // B196 — true second arg flips the on-hold banner visible so
+                // the user knows their Hima call is paused while the SIM call
+                // is active. Hidden again when the SIM call ends.
+                onCellularCallActive = { muteForInterrupt(true, showOnHoldBanner = true) },
+                onCellularCallEnded = { muteForInterrupt(false, showOnHoldBanner = true) }
             ).also { it.register() }
         }
         if (btWatcher == null) {
@@ -353,24 +456,57 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 }
             }.also { it.register() }
         }
+        if (wiredWatcher == null) {
+            wiredWatcher = com.gmwapp.hima.utils.WiredHeadsetWatcher(this) { plugged ->
+                Log.d(
+                    "CallAudioRoute",
+                    "Activity.wiredChange plugged=$plugged currentRoute=$currentAudioRoute"
+                )
+                if (plugged && currentAudioRoute == com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER) {
+                    // Headphones plugged in while speaker was on — the OS
+                    // re-routes audio to the wired output but our speaker
+                    // icon would otherwise stay lit (B048). Reflect reality.
+                    runOnUiThread {
+                        applyAudioRoute(com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE)
+                    }
+                }
+                // On unplug we don't auto-restore speaker: matches native
+                // phone/WhatsApp behavior. The user re-taps the icon if
+                // they want speaker back.
+            }.also { it.register() }
+        }
     }
 
-    private fun muteForInterrupt(muted: Boolean) {
+    /**
+     * @param showOnHoldBanner when true, also flips the on-hold banner
+     *   visible/hidden — used by the cellular phone-state path so the user
+     *   sees a clear "On hold — phone call in progress" pill (B196). The
+     *   audio-focus path leaves the banner alone since EXCLUSIVE focus means
+     *   we don't actually expect to lose focus to another app post-fix.
+     */
+    private fun muteForInterrupt(muted: Boolean, showOnHoldBanner: Boolean = false) {
         runOnUiThread {
             if (muted) {
-                if (!mutedByInterrupt && !isMuted) {
+                if (!mutedByInterrupt) {
                     mutedByInterrupt = true
-                    agoraEngine?.muteLocalAudioStream(true)
-                    // B001: also mute remote audio so the other Hima party's voice doesn't
-                    // keep playing through the speaker (which the GSM / WhatsApp call's mic
-                    // would then pick up).
+                    // Stop SENDING our mic to the other party.
+                    if (!isMuted) agoraEngine?.muteLocalAudioStream(true)
+                    // B148: stop PLAYING the remote audio locally — Spotify (resumed mid-call)
+                    // mixes with the caller's voice out of the same speaker otherwise.
+                    // B001: same effect when a GSM/WhatsApp call interrupts.
                     agoraEngine?.muteAllRemoteAudioStreams(true)
+                }
+                if (showOnHoldBanner) {
+                    runCatching { binding.onHoldBanner.visibility = View.VISIBLE }
                 }
             } else {
                 if (mutedByInterrupt) {
                     mutedByInterrupt = false
                     if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
                     agoraEngine?.muteAllRemoteAudioStreams(false)
+                }
+                if (showOnHoldBanner) {
+                    runCatching { binding.onHoldBanner.visibility = View.GONE }
                 }
             }
         }
@@ -379,6 +515,22 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Route the volume rocker to the in-call voice stream so volume up/down
+        // actually adjusts call audio while the call screen is up (B149).
+        // Default is STREAM_MUSIC, which has no effect on Agora's call audio.
+        volumeControlStream = AudioManager.STREAM_VOICE_CALL
+        // Grab EXCLUSIVE audio focus FIRST — before Agora setup / joinChannel —
+        // so background media (Spotify, YouTube, etc.) pauses immediately and
+        // doesn't get a chance to mix with the call audio during the brief
+        // engine-init window (B139). setupCallInterruptHandlers' null-check
+        // makes this safe to do twice.
+        if (audioFocusHelper == null) {
+            audioFocusHelper = CallAudioFocusHelper(
+                context = this,
+                onFocusLost = { muteForInterrupt(true) },
+                onFocusGained = { muteForInterrupt(false) }
+            ).also { it.request() }
+        }
         // Flip in-call flag ASAP so any racing FCM / OneSignal push about to
         // post another ring sees it and backs off. Sweep whatever is already
         // in the tray in case a call push landed a moment before we opened.
@@ -387,6 +539,10 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding = ActivityMaleAudioCallingBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        // B042: show "Connecting..." instead of stuck 00:00:00 while we wait
+        // for the peer to join the Agora channel. startCountdown() overwrites
+        // this on its first tick once onUserJoined() fires.
+        binding.tvRemainingTime?.text = "Connecting..."
 
         // Keep the call screen visible across lockscreen so users who lock
         // the phone mid-call can resume immediately.
@@ -420,6 +576,20 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             maleUserId = userData.id
         }
 
+        // I021 — instantiate the low-balance banner. View IDs come from the
+        // <include layout="@layout/banner_low_balance"> in the activity layout.
+        // The package catalog prefetch is deferred to onUserJoined so we don't
+        // waste a network call if the call never actually connects.
+        lowBalanceBanner = com.gmwapp.hima.utils.LowBalanceBanner(
+            activity = this,
+            rootView = findViewById(R.id.low_balance_banner_root),
+            chipContainer = findViewById(R.id.chip_container),
+            goToWalletTextView = findViewById(R.id.tv_go_to_wallet),
+            walletViewModel = walletViewModel,
+            userId = maleUserId,
+            onLaunchedWallet = { pendingWalletReturn = true }
+        )
+
 
         channelName = intent.getStringExtra("CHANNEL_NAME") ?: ""
         receiverId = intent.getIntExtra("RECEIVER_ID", -1)
@@ -452,11 +622,18 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         }
 
         onAddcoinClicked()
-        binding.btnMuteUnmute.setOnClickListener {
+        // B151: 500 ms debounce on the mute toggle so rapid taps can't outrun
+        // Agora's muteLocalAudioStream ack and leave the icon out of sync with
+        // the actual mic state.
+        binding.btnMuteUnmute.setOnSingleClickListener {
             toggleMute()
         }
 
-        binding.btnSpeaker.setOnClickListener {
+        // Debounced — the audio-routing chain (Telecom IPC + AudioManager
+        // clear/set + Agora SDK + verify read-back) is multi-step and a
+        // rapid double-tap would queue redundant work and leave state in
+        // an unpredictable mid-flip.
+        binding.btnSpeaker.setOnSingleClickListener {
             onSpeakerButtonClicked()
         }
 
@@ -568,7 +745,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
         profileViewModel.getUserLiveData.observe(this) { response ->
             val fresh = response?.data ?: return@observe
-            BaseApplication.getInstance()?.getPrefs()?.setUserData(fresh)
+            // B075 — match the female-side ludo refresh: preserve the user's
+            // toggle / DND intent so a mid-call refresh can't clobber it.
+            BaseApplication.getInstance()?.getPrefs()?.setUserDataPreservingLocalIntent(fresh)
             applyPlayLudoVisibility(fresh.play_ludo ?: false)
         }
         if (maleUserId != 0) {
@@ -610,6 +789,23 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         ludoFcmViewModel.ludoFcmErrorLiveData.observe(this) {
             pendingLudoAction = null
             Toast.makeText(this, it, Toast.LENGTH_SHORT).show()
+        }
+
+        // Server-driven force-end observer. Backend pushes `callEndedNoCoins`
+        // FCM when the male's coins run out during an active call; hangs us
+        // up immediately if the signal matches our current call, closing the
+        // gap where a stuck client countdown could let the male over-talk
+        // past his balance (B184 follow-up).
+        FcmUtils.forceEndCall.observe(this) { signal ->
+            if (signal == null) return@observe
+            val (signalCallId, reason) = signal
+            if (signalCallId == callId) {
+                Log.d("ForceEndCall", "Honoring server force-end callId=$signalCallId reason=$reason")
+                FcmUtils.clearForceEndCall()
+                if (!isFinishing && !isDestroyed) {
+                    leaveChannel(binding.LeaveButton)
+                }
+            }
         }
 
         FcmUtils.ludoEvent.observe(this) { event ->
@@ -1007,7 +1203,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
 
     private fun setMyAvatar(image: String, name: String) {
-        binding.tvMaleName.setText(name)
+        binding.tvMaleName.setText(com.gmwapp.hima.utils.DisplayName.clean(name))
         Glide.with(this)
             .load(image)
             .apply(RequestOptions.circleCropTransform())
@@ -1039,7 +1235,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                     .apply(RequestOptions.circleCropTransform())
                     .into(binding.ivFemaleUser)
 
-                binding.tvFemaleName.setText(response.data?.name)
+                binding.tvFemaleName.setText(com.gmwapp.hima.utils.DisplayName.clean(response.data?.name))
             }
         }
 
@@ -1055,6 +1251,21 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 showEndCallConfirmationDialog()
             }
         })
+    }
+
+    // I022 — wired headset hook / BT AVRCP play-pause = single-press end on
+    // the active-call screen, matching native phone / WhatsApp parity.
+    // MEDIA_PLAY_PAUSE covers BT headsets that map the button to the media
+    // key instead of HEADSETHOOK. We go straight to leaveChannel (no
+    // confirmation dialog) so the user can end with the phone in their
+    // pocket — the visible End button still routes through the dialog.
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_HEADSETHOOK ||
+            keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
+            leaveChannel(binding.LeaveButton)
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
     }
 
     private fun showExitDialog() {
@@ -1107,7 +1318,12 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
         Log.d("startCallingService","Service not returned")
 
-        val visible = lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+        // B137 — Android 14/15 lets a foreground service start while the
+        // activity is in the visible STARTED state, not only RESUMED. Using
+        // RESUMED forced us to wait until onResume; STARTED lets us fire
+        // from onStart instead, shaving ~100–300ms off the time before the
+        // session-in-progress notification appears in the tray.
+        val visible = lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
 
 
         val micGranted = ContextCompat.checkSelfPermission(
@@ -1118,6 +1334,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
 
         if (visible && micGranted) {
+            // B033 — tell CallingService which class to deep-link back to
+            // when the user taps the session notification.
+            CallingService.callerActivityClassName = this::class.java.name
             // ✅ Only start microphone FGS from a visible Activity with mic permission granted
             ContextCompat.startForegroundService(this, Intent(this, CallingService::class.java))
             Log.d("startCallingService","Service class called")
@@ -1139,16 +1358,30 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         override fun onJoinChannelSuccess(channel: String, uid: Int, elapsed: Int) {
             isJoined = true
             Log.d("AgoraTiming", "MaleAudio onJoinChannelSuccess at ${System.currentTimeMillis()}")
+            // B186 — defensive unmute. If a transient focus loss / interrupt
+            // fired during setup and left mutedByInterrupt=true with no
+            // matching gain to clear it, the channel would be joined with
+            // both streams muted ("call connected, no voice either side").
+            // At this point the channel IS connected and the user expects to
+            // hear and be heard; reset interrupt state and force-unmute
+            // everything except the user-controlled local mute (isMuted).
+            mutedByInterrupt = false
+            if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
+            agoraEngine?.muteAllRemoteAudioStreams(false)
             startTimeoutTracking()
             startMicRevokeWatcher()
         }
 
         override fun onNetworkQuality(uid: Int, txQuality: Int, rxQuality: Int) {
+            // I006 — pass the WORSE of the two directions. Agora's quality
+            // constants are ordered low-to-high = good-to-bad, so maxOf
+            // picks the worse one. Watching only rx (download) missed cases
+            // where our upload was struggling and the peer couldn't hear us.
             com.gmwapp.hima.utils.CallQualityUi.apply(
                 this@MaleAudioCallingActivity,
                 binding.ivSignalStrength,
                 binding.reconnectBanner,
-                rxQuality,
+                maxOf(txQuality, rxQuality),
                 null
             )
         }
@@ -1161,6 +1394,43 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 Constants.QUALITY_UNKNOWN,
                 state
             )
+            // B062 — arm the auto-end timer on RECONNECTING/FAILED, cancel
+            // on CONNECTED/DISCONNECTED. Without this Agora's retry loop
+            // ran indefinitely while the user stared at the banner.
+            reconnectWatchdog.armOrCancel(state)
+        }
+
+        // I024 — detect PEER-side network drops. onConnectionStateChanged
+        // only fires when OUR connection has issues; when the peer's network
+        // dies we just stop receiving their audio while Agora cheerfully
+        // tells us we're still connected. FROZEN/FAILED on the remote audio
+        // stream is the SDK's signal that the peer side has stalled. We
+        // arm the same watchdog (different reason) so the user sees the
+        // existing Reconnecting… banner + countdown + 30s auto-end instead
+        // of talking into silence until Agora finally gives up.
+        override fun onRemoteAudioStateChanged(uid: Int, state: Int, reason: Int, elapsed: Int) {
+            super.onRemoteAudioStateChanged(uid, state, reason, elapsed)
+            // Skip mute-driven freezes — peer explicitly muting is a normal
+            // user action, not a network outage. Existing B055 pill handles
+            // that path.
+            if (reason == Constants.REMOTE_AUDIO_REASON_REMOTE_MUTED) return
+            runOnUiThread {
+                when (state) {
+                    Constants.REMOTE_AUDIO_STATE_FROZEN,
+                    Constants.REMOTE_AUDIO_STATE_FAILED ->
+                        reconnectWatchdog.peerStreamStalled(stalled = true)
+                    Constants.REMOTE_AUDIO_STATE_DECODING,
+                    Constants.REMOTE_AUDIO_STATE_STARTING ->
+                        reconnectWatchdog.peerStreamStalled(stalled = false)
+                    // REMOTE_AUDIO_STATE_STOPPED — explicit mute, leave alone.
+                }
+                // Banner reflects "is either source stalled". Driving it off
+                // the watchdog's combined state keeps the peer-stream
+                // recovery from prematurely hiding the banner while OUR
+                // connection is still RECONNECTING.
+                binding.reconnectBanner.visibility =
+                    if (reconnectWatchdog.isArmed()) View.VISIBLE else View.GONE
+            }
         }
 
         override fun onUserOffline(uid: Int, reason: Int) {
@@ -1183,9 +1453,15 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             Log.d("videoUid", "$uid")
             videoUid = uid
             startTime = dateFormat.format(Date()) // Set call end time in IST
+            callStartMillis = System.currentTimeMillis() // B110: duration baseline
             startCallingService()
             getRemainingTime()
             initVosk()
+            // I021 — load the package catalog now so the banner's chips are
+            // populated by the time the timer drops below 60s.
+            runOnUiThread { lowBalanceBanner?.prefetch() }
+            // Safety-net 30s re-fetch — see TIMER_RESYNC_INTERVAL_MS rationale.
+            startTimerResync()
 
 //            agoraEngine?.registerAudioFrameObserver(audioFrameObserver)
 
@@ -1255,6 +1531,10 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                     }else{
                         binding.femaleMute.visibility= View.INVISIBLE
                     }
+                    // B055 — top pill is visible in BOTH audio and video modes
+                    // so the user always knows silence is intentional, even
+                    // after a mid-call audio→video switch hides the avatar.
+                    binding.remoteMicMutedPill.visibility = View.VISIBLE
                 }
 
             } else {
@@ -1262,6 +1542,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
                 runOnUiThread {
                     binding.femaleMute.visibility= View.INVISIBLE
+                    binding.remoteMicMutedPill.visibility = View.GONE
                 }
 
             }
@@ -1287,9 +1568,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 val uid = speaker.uid
                 val volume = speaker.volume
 
-                if (uid == 0 && volume > 50) {
+                if (uid == 0 && volume > 30) {
                     isLocalSpeaking = true
-                } else if (uid != 0 && volume > 50) {
+                } else if (uid != 0 && volume > 30) {
                     isRemoteSpeaking = true
                 }
             }
@@ -1365,6 +1646,20 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     }
 
     fun leaveChannel(view: View) {
+        // B181 — clear the "user is busy" guard BEFORE we navigate back to
+        // MainActivity. The fragments' onResume() checks this flag to decide
+        // whether to refresh creator availability; if we wait for onDestroy
+        // it can land after the next onResume and leave stale "in-call" data
+        // (greyed call buttons) on screen.
+        FcmUtils.isUserAvailable = 0
+        // B082 — close any switch-call dialog before tearing down so it
+        // doesn't linger over the next screen as a phantom popup.
+        switchDialog?.dismiss()
+        switchDialog = null
+        FcmUtils.clearCallSwitch()
+        // Stop the 30s timer-resync handler so it doesn't fire newRemainingTime
+        // after the channel has already been left.
+        stopTimerResync()
         if (!isJoined) {
             HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
           //  showMessage("Join a channel first")
@@ -1404,22 +1699,18 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             endTime = dateFormat.format(Date()) // Set call end time only if startTime is not empty
         }
 
-        val constraints =
-            Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED)
-                .build()
-        val data: Data = Data.Builder().putInt(
-            DConstants.USER_ID,
-            BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
-        ).putInt(DConstants.CALL_ID, callId)
-            .putString(DConstants.STARTED_TIME, startTime)
-            .putBoolean(DConstants.IS_INDIVIDUAL, true)
-            .putString(DConstants.ENDED_TIME, endTime).build()
-
-        val oneTimeWorkRequest = OneTimeWorkRequest.Builder(
-            CallUpdateWorker::class.java
-        ).setInputData(data).setConstraints(constraints).build()
-        WorkManager.getInstance(this@MaleAudioCallingActivity)
-            .enqueue(oneTimeWorkRequest)
+        // Tester report: 2-3 identical transactions per call. The fix lives
+        // in CallEndUpdater — it dedupes by callId so multiple lifecycle
+        // paths (onUserOffline + leaveChannel + late FCM observers) can't
+        // each enqueue a separate worker for the same call.
+        com.gmwapp.hima.utils.CallEndUpdater.enqueueIfFresh(
+            context = this@MaleAudioCallingActivity,
+            userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0,
+            callId = callId,
+            startedTime = startTime,
+            endedTime = endTime,
+            isIndividual = true
+        )
 
         if (switchCallID != 0) {
             callId = switchCallID
@@ -1429,6 +1720,11 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        // B181 backstop — covers system-killed activities that bypass leaveChannel.
+        FcmUtils.isUserAvailable = 0
+        // B082 backstop — close lingering switch-call dialog.
+        switchDialog?.dismiss()
+        switchDialog = null
         BaseApplication.getInstance()?.markCallEnded()
         BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
         HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
@@ -1444,6 +1740,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         phoneStateHelper = null
         btWatcher?.unregister()
         btWatcher = null
+        wiredWatcher?.unregister()
+        wiredWatcher = null
+        reconnectWatchdog.cancel()
 
         // B143: deterministic teardown — disable audio, leave channel, then block on destroy.
         stopMicRevokeWatcher()
@@ -1470,16 +1769,27 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     }
 
-    private fun getRemainingTime() {
+    private fun getRemainingTime(attempt: Int = 0) {
+        val maxRetries = 3
         maleUserId?.let {
             profileViewModel.getRemainingTime(it, "audio", object :
                 NetworkCallback<GetRemainingTimeResponse> {
                 override fun onNoNetwork() {
-                    TODO("Not yet implemented")
+                    Log.w("RemainingTime", "no network on attempt $attempt — retry in 3s")
+                    if (attempt < maxRetries) {
+                        Handler(Looper.getMainLooper()).postDelayed(
+                            { getRemainingTime(attempt + 1) }, 3_000L
+                        )
+                    }
                 }
 
                 override fun onFailure(call: Call<GetRemainingTimeResponse>, t: Throwable) {
-                    TODO("Not yet implemented")
+                    Log.w("RemainingTime", "failure on attempt $attempt: ${t.message} — retry in 3s")
+                    if (attempt < maxRetries) {
+                        Handler(Looper.getMainLooper()).postDelayed(
+                            { getRemainingTime(attempt + 1) }, 3_000L
+                        )
+                    }
                 }
 
                 override fun onResponse(
@@ -1494,7 +1804,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                             storedRemainingTime = newTime // Store first-time value
                         }
 
-                        startCountdown(newTime)
+                        startCountdown(newTime, data.ends_at_ms, data.server_now_ms)
                     }
                 }
 
@@ -1502,12 +1812,34 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         }
     }
 
-    fun startCountdown(remainingTime: String) {
-        // Convert "MM:SS" format to milliseconds
-        val timeParts = remainingTime.split(":").map { it.toInt() }
-        val minutes = timeParts[0]
-        val seconds = timeParts[1]
-        val totalMillis = (minutes * 60 + seconds) * 1000L
+    fun startCountdown(remainingTime: String, endsAtMs: Long? = null, serverNowMs: Long? = null) {
+        // Cancel any previous CountDownTimer before scheduling a new one.
+        // get_remaining_time can fire multiple times per call (initial fetch +
+        // refresh on remainingTimeUpdated push); without this, every refresh
+        // stacks another timer and the displayed text flickers between two
+        // values as each timer's onTick stomps the other.
+        countDownTimer?.cancel()
+
+        // B141: prefer the server-anchored absolute end timestamp when
+        // available — both sides (male + female) compute remaining against
+        // the same epoch ms, so their displays show the same value at the
+        // same wall-clock instant. Fall back to the legacy "MM:SS" duration
+        // string when the server hasn't deployed the v2 response yet.
+        val totalMillis = if (endsAtMs != null && endsAtMs > 0L) {
+            // When the server's own "now" is in the response, anchor against
+            // it so the math is purely server-side and the displayed timer is
+            // unaffected by client clock drift (emulator clocks, wrong-TZ
+            // phones, devices that haven't NTP-synced). Falling back to the
+            // device clock keeps backwards compat with older builds where the
+            // caller doesn't pass serverNowMs.
+            val anchor = serverNowMs ?: System.currentTimeMillis()
+            (endsAtMs - anchor).coerceAtLeast(0L)
+        } else {
+            val timeParts = remainingTime.split(":").map { it.toIntOrNull() ?: 0 }
+            val mins = timeParts.getOrElse(0) { 0 }
+            val secs = timeParts.getOrElse(1) { 0 }
+            (mins * 60 + secs) * 1000L
+        }
 
         countDownTimer = object : CountDownTimer(totalMillis, 1000) {
             override fun onTick(millisUntilFinished: Long) {
@@ -1519,6 +1851,12 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                     String.format("%02d:%02d:%02d", hours, minutes, secs)
                 Log.d("timechanging", "${String.format("%02d:%02d:%02d", hours, minutes, secs)}")
 
+                // I021 — reveal the low-balance banner on the first sub-60s
+                // tick. The banner is idempotent so it's safe to call every
+                // tick; once shown it stays visible until the activity ends
+                // or the user returns from a successful recharge (handled in
+                // onResume via hide()).
+                lowBalanceBanner?.maybeShow(millisUntilFinished)
             }
 
             override fun onFinish() {
@@ -1567,7 +1905,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                                     "remainingTimeUpdated"
                                 )
                                 stopCountdown()
-                                startCountdown(newTime)
+                                startCountdown(newTime, data.ends_at_ms, data.server_now_ms)
 
                             }
 
@@ -1580,7 +1918,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                                     "remainingTimeUpdated"
                                 )
                                 stopCountdown()
-                                startCountdown(newTime)
+                                startCountdown(newTime, data.ends_at_ms, data.server_now_ms)
                             }
 
 
@@ -1606,17 +1944,19 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                             val newTime = data.remaining_time
                             Log.d("resumedtag","audiocalltime - $newTime")
 
-                            if (storedRemainingTime != null) {
-                                storedRemainingTime = newTime // Update stored value
-                                sendUpdatedTimeNotification(
-                                    maleUserId,
-                                    receiverId,
-                                    "audio",
-                                    "remainingTimeUpdated"
-                                )
-                                stopCountdown()
-                                startCountdown(newTime)
-                            }
+                            // Always (re)start countdown — gating on stored != null
+                            // meant a failed first getRemainingTime left the timer
+                            // permanently stopped and the call had no auto-hangup
+                            // at 00:00 (pairs with B184 fix).
+                            storedRemainingTime = newTime
+                            sendUpdatedTimeNotification(
+                                maleUserId,
+                                receiverId,
+                                "audio",
+                                "remainingTimeUpdated"
+                            )
+                            stopCountdown()
+                            startCountdown(newTime, data.ends_at_ms, data.server_now_ms)
                         }
                     }
                 })
@@ -1657,11 +1997,45 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     }
 
 
+    override fun onStart() {
+        super.onStart()
+        // B137 — fire the foreground service as soon as the activity is
+        // visible (STARTED state), not just when it's resumed. The session
+        // notification appears in the tray ~100-300ms sooner this way.
+        startCallingService()
+    }
+
     override fun onResume() {
         super.onResume()
         Log.d("resumedtag", "resumed")
+        // B162 — if a permanent AUDIOFOCUS_LOSS left us in muted-by-interrupt
+        // state and the matching GAIN never came back (some apps grab focus
+        // and never return it), the receiver's voice would stay muted with
+        // no recovery path. Activity resume = user is actively on the call
+        // surface = they expect audio. Re-request focus (idempotent) and if
+        // we hold it, defensively clear the interrupt mute. If the interrupt
+        // is genuinely still active, the helper will re-fire onFocusLost
+        // and re-mute within milliseconds.
+        audioFocusHelper?.request()
+        if (mutedByInterrupt && audioFocusHelper?.hasFocus() == true) {
+            Log.d("B162", "MaleAudio onResume: clearing stuck interrupt mute (focus held)")
+            mutedByInterrupt = false
+            agoraEngine?.muteAllRemoteAudioStreams(false)
+            if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
+        }
         newRemainingTime()
         startCallingService()
+
+        // I021 — if we just came back from WalletActivity (either through the
+        // banner's chip tap or the "Go to wallet" link), hide the banner.
+        // newRemainingTime() above has already re-fetched the server's
+        // remaining-time and restarted the countdown; the next sub-60s tick
+        // will re-show the banner if the recharge wasn't enough to push past
+        // the threshold. Flag is one-shot.
+        if (pendingWalletReturn) {
+            pendingWalletReturn = false
+            lowBalanceBanner?.hide()
+        }
 
         if (isJoined && ContextCompat.checkSelfPermission(
                 this, Manifest.permission.RECORD_AUDIO
@@ -1704,6 +2078,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         agoraEngine?.muteLocalAudioStream(isMuted)  // Mute or unmute audio
         val muteIcon = if (isMuted) R.drawable.mute_img else R.drawable.unmute_img
         binding.btnMuteUnmute.setImageResource(muteIcon)
+        // B054 — flip the self-avatar mute badge so the user sees the same
+        // indicator on their own avatar that the peer already sees on theirs.
+        binding.maleMute.visibility = if (isMuted) View.VISIBLE else View.INVISIBLE
     }
 
     // Function to toggle speaker on/off
@@ -1726,7 +2103,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         if (router != null && router.isBluetoothConnected()) {
             com.gmwapp.hima.dialogs.BottomSheetAudioRoute.show(
                 supportFragmentManager,
-                router
+                router,
+                currentAudioRoute
             ) { route -> applyAudioRoute(route) }
         } else {
             toggleSpeaker()
@@ -1734,10 +2112,18 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     }
 
     private fun applyAudioRoute(route: com.gmwapp.hima.utils.CallAudioRouter.AudioRoute) {
+        // 0) OPTIMISTIC UI. Flip the icon and intent state immediately so the
+        //    tap feels instant. The actual routing work below talks to the
+        //    Telecom service + AudioFlinger via IPC and can take 50–300ms;
+        //    waiting for it before updating the icon is what made the toggle
+        //    feel laggy. If the OS later rejects the route (e.g. wired
+        //    headset on Android <12) the reconciliation block at the bottom
+        //    snaps the icon back and surfaces a toast.
         isSpeakerOn = route == com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER
         currentAudioRoute = route
+        binding.btnSpeaker.setImageResource(iconForRoute(route))
 
-        // 0) TELECOM-FIRST. On self-managed connections (Samsung One UI /
+        // 1) TELECOM-FIRST. On self-managed connections (Samsung One UI /
         //    Android 16 hits this) the system Telecom service owns the
         //    baseline audio route and silently overrides AudioManager. Route
         //    through the Connection API first so Samsung's CallAudioRouteController
@@ -1745,35 +2131,90 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         //    non-Telecom path.
         HimaTelecomManager.setAudioRoute(route)
 
-        // 1) Tell Agora. Agora's own routing flips Android's
+        // 2) Tell Agora. Agora's own routing flips Android's
         //    `isSpeakerphoneOn` flag; when that runs AFTER our
         //    `setCommunicationDevice` call it silently clears the explicit
         //    communication device we just set and lets Android fall back to
         //    the default route — which is usually Bluetooth when connected.
-        agoraEngine?.setEnableSpeakerphone(isSpeakerOn)
+        agoraEngine?.setEnableSpeakerphone(route == com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER)
 
-        // 2) Force the explicit communication device — last write wins when
-        //    no Telecom connection is active.
-        when (route) {
-            com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE -> audioRouter?.forceEarpiece()
-            com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER -> audioRouter?.forceSpeaker()
-            com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.BLUETOOTH -> audioRouter?.forceBluetooth()
+        // 3) Force the explicit communication device — last write wins when
+        //    no Telecom connection is active. Each force*() returns whether
+        //    the OS actually applied the route; we must not lie about state.
+        //    forceSpeaker may fail on wired-headset + Android <12.
+        //    forceEarpiece may fail on OEMs that need an explicit clear (the
+        //    router does that now, but verify anyway).
+        val applied = when (route) {
+            com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE ->
+                audioRouter?.forceEarpiece() ?: false
+            com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER ->
+                audioRouter?.forceSpeaker() ?: false
+            com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.BLUETOOTH ->
+                audioRouter?.forceBluetooth() ?: false
         }
 
-        // 3) Icon reflects the actual chosen route (Speaker / BT / Earpiece).
-        binding.btnSpeaker.setImageResource(iconForRoute(route))
-
+        // 4) Reconcile the optimistic icon flip with what the OS actually did.
+        //    Only roll back when the OS rejected the request — the happy path
+        //    needs no further work because we already pre-flipped the icon.
+        if (!applied) {
+            val actualRoute = audioRouter?.currentRoute() ?: route
+            if (route == com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER) {
+                Toast.makeText(
+                    this,
+                    "Unplug headphones to use the speaker.",
+                    Toast.LENGTH_LONG
+                ).show()
+            } else if (route == com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE &&
+                actualRoute == com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER
+            ) {
+                // User tapped speaker-off but the OS kept routing to speaker.
+                Toast.makeText(
+                    this,
+                    "Couldn't switch off the speaker. Please try again.",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+            isSpeakerOn = actualRoute == com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER
+            currentAudioRoute = actualRoute
+            binding.btnSpeaker.setImageResource(iconForRoute(actualRoute))
+        }
         Log.d(
             "CallAudioRoute",
-            "Activity.applyAudioRoute requested=$route actualAfter=${audioRouter?.currentRoute()} " +
-                "isSpeakerOn=$isSpeakerOn btConnected=${audioRouter?.isBluetoothConnected()}"
+            "Activity.applyAudioRoute requested=$route applied=$applied effective=$currentAudioRoute " +
+                "isSpeakerOn=$isSpeakerOn " +
+                "btConnected=${audioRouter?.isBluetoothConnected()} " +
+                "wiredConnected=${audioRouter?.isWiredHeadsetConnected()}"
         )
+        // Agora's worker thread may write isSpeakerphoneOn after we return.
+        // Verify once after the worker has flushed and re-apply if it raced.
+        audioRouter?.verifyAndReapply(currentAudioRoute)
     }
 
     private fun iconForRoute(route: com.gmwapp.hima.utils.CallAudioRouter.AudioRoute): Int = when (route) {
         com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER -> R.drawable.speakeron_img
         com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.BLUETOOTH -> R.drawable.ic_bluetooth_audio
         com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE -> R.drawable.speakeroff_img
+    }
+
+    /**
+     * Re-syncs the speaker icon with the OS-reported audio route. Called from
+     * the router's device-callback when a wired/BT headset is plugged or
+     * unplugged mid-call. The icon must follow hardware state, not the last
+     * button tap.
+     */
+    private fun refreshAudioRouteIcon() {
+        val router = audioRouter ?: return
+        val actual = router.currentRoute()
+        if (actual != currentAudioRoute) {
+            Log.d(
+                "CallAudioRoute",
+                "Activity.refreshIcon route changed in hardware: $currentAudioRoute -> $actual " +
+                    "wiredConnected=${router.isWiredHeadsetConnected()} btConnected=${router.isBluetoothConnected()}"
+            )
+            currentAudioRoute = actual
+            isSpeakerOn = actual == com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER
+            binding.btnSpeaker.setImageResource(iconForRoute(actual))
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -1800,6 +2241,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         binding.btnMuteUnmute.setImageResource(
             if (isMuted) R.drawable.mute_img else R.drawable.unmute_img
         )
+        // B054 — keep the self-avatar badge in sync with restored mute state.
+        binding.maleMute.visibility = if (isMuted) View.VISIBLE else View.INVISIBLE
         // applyAudioRoute re-runs Agora + router + icon in one atomic call so
         // there's no half-applied state after restore.
         applyAudioRoute(restoredRoute)
@@ -1838,7 +2281,13 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                     callDropStatus = 1
                 )
                 val endedByRole = if (isCaller) CallEndedBy.CALLER else CallEndedBy.RECEIVER
-                Log.d("CallStatus", "MaleAudio.hangup → ended/$endedByRole self=$maleUserId peer=$receiverId callId=$callId isCaller=$isCaller")
+                // B110: compute actual call duration from the onUserJoined
+                // baseline so the backend records a non-zero duration and the
+                // Recent tab doesn't classify this completed call as "missed."
+                val durationSec = if (callStartMillis > 0L) {
+                    ((System.currentTimeMillis() - callStartMillis) / 1000L).toInt().coerceAtLeast(0)
+                } else 0
+                Log.d("CallStatus", "MaleAudio.hangup → ended/$endedByRole self=$maleUserId peer=$receiverId callId=$callId isCaller=$isCaller durationSec=$durationSec")
                 callStatusViewModel.saveCallStatus(
                     userId = maleUserId,
                     receivedUserId = receiverId,
@@ -1846,6 +2295,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                     endReason = CallEndReason.ENDED,
                     endedBy = endedByRole,
                     endedByUserId = maleUserId,
+                    durationSeconds = durationSec,
                 )
             } else {
                 Log.w(
@@ -1908,23 +2358,31 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     
     private fun showIncomingSwitchVideoRequest(userid: Int?, requesterName: String): AlertDialog {
         val dialogView = layoutInflater.inflate(R.layout.dialog_switch_video, null)
+        // B068 — modal. Outside-tap and back can't dismiss this dialog; only
+        // Accept/Decline buttons close it. The setOnDismissListener below
+        // stays as a safety net for activity teardown (it self-guards via
+        // !isFinishing && !isDestroyed).
         val dialog = AlertDialog.Builder(this)
             .setView(dialogView)
-            .setCancelable(true)
+            .setCancelable(false)
             .create()
-        
+
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-        
+
         val tvMessage = dialogView.findViewById<TextView>(R.id.tv_dialog_message)
         tvMessage.text = "$requesterName requested for video session"
-        
+
         val btnNo = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_dialog_no)
         val btnYes = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_dialog_yes)
-        
+
         btnNo.text = "Decline"
         btnYes.text = "Accept"
-        
+
+        // B069 follow-up — outside-tap = implicit decline (see female-side fix).
+        var responded = false
+
         btnNo.setOnClickListener {
+            responded = true
             userid?.let {
                 sendCallAcceptNotification(
                     it,
@@ -1936,19 +2394,20 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             dialog.dismiss()
             FcmUtils.clearCallSwitch()
         }
-        
+
         btnYes.setOnClickListener {
             val remainingTime = binding.tvRemainingTime?.text.toString()
             val timeParts = remainingTime.split(":").map { it.toInt() }
-            
+
             if (timeParts.size == 3) {
                 val hours = timeParts[0]
                 val minutes = timeParts[1]
                 val seconds = timeParts[2]
                 val totalSeconds = (hours * 3600) + (minutes * 60) + seconds
-                
+
                 if (totalSeconds > 360) {
                     if (userid != null && switchCallID != 0) {
+                        responded = true
                         Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
                         sendCallAcceptNotification(
                             userid,
@@ -1962,6 +2421,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                         enableVideoCall()
                     }
                 } else {
+                    responded = true
                     Toast.makeText(
                         this,
                         "$requesterName don't have enough coins",
@@ -1972,34 +2432,41 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             }
             dialog.dismiss()
         }
-        
-        dialog.setOnDismissListener { switchDialog = null }
+
+        dialog.setOnDismissListener {
+            if (!responded && !isFinishing && !isDestroyed) {
+                userid?.let {
+                    sendCallAcceptNotification(
+                        it,
+                        receiverId,
+                        "video",
+                        "SwitchDeclined"
+                    )
+                }
+                FcmUtils.clearCallSwitch()
+            }
+            switchDialog = null
+        }
         dialog.show()
         return dialog
     }
 
     private fun handleCallSwitch() {
-
-        binding.btnVideoCall.setOnClickListener {
-            val currentDrawable = binding.btnVideoCall.drawable
-            val audioDrawable = ContextCompat.getDrawable(this, R.drawable.audiocall_img)
-            val videoDrawable = ContextCompat.getDrawable(this, R.drawable.videocall_img)
-
-            if (isSwitchRequestPending == false) {
-                if (currentDrawable != null && audioDrawable != null && currentDrawable.constantState == audioDrawable.constantState) {
-                    // If button image is AUDIO, switch to VIDEO
-                    switchToAudio()
-                } else if (currentDrawable != null && videoDrawable != null && currentDrawable.constantState == videoDrawable.constantState) {
-                    // If button image is VIDEO, switch to AUDIO
-                    switchToVideo()
-                } else {
-                    Toast.makeText(this, "Error: Unknown state", Toast.LENGTH_SHORT).show()
-                }
-            }else{
-                Toast.makeText(this,"Already Request Sent", Toast.LENGTH_SHORT).show()
+        // B151: debounce the audio↔video switch button so rapid double-taps
+        // don't queue two opposite switchTo*() calls before the first server
+        // ack lands. The isSwitchRequestPending guard below also helps but it
+        // only flips after the dialog appears.
+        binding.btnVideoCall.setOnSingleClickListener {
+            if (isSwitchRequestPending) {
+                Toast.makeText(this, "Already Request Sent", Toast.LENGTH_SHORT).show()
+                return@setOnSingleClickListener
             }
+            // B142 — decide direction from the call's actual mode flag, not
+            // from Drawable.constantState equality. Vector/ContextCompat
+            // drawables return fresh constantState instances and the
+            // comparison silently fell into the "Unknown state" branch.
+            if (isVideoCallGoing) switchToAudio() else switchToVideo()
         }
-
     }
 
     //Switch to video
@@ -2072,6 +2539,11 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
     fun observeCallSwitchAcceptance() {
         FcmUtils.updatedCallSwitch.observe(this, androidx.lifecycle.Observer { updatedCallSwitch ->
+            // B082 — drop late switch payloads once the activity is finishing.
+            if (isFinishing || isDestroyed) {
+                FcmUtils.clearCallSwitch()
+                return@Observer
+            }
             if (updatedCallSwitch != null) {
                 val (switchType, receiverId) = updatedCallSwitch
 
@@ -2170,6 +2642,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         FcmUtils.clearCallSwitch()
         updateCallEndDetails()
         isVideoCallGoing = true
+        // B060 — keep the top-bar label honest after a mid-call switch.
+        binding.tvCallType.setText(R.string.call_type_video)
         storedVideoRemainingTime = null  // Reset stored time
         storedRemainingTime = null
         Handler(Looper.getMainLooper()).postDelayed({
@@ -2191,37 +2665,48 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             // Enable video module
             agoraEngine?.enableVideo()
 
+            // Defensive symmetry with FemaleAudio.switchToVideo — caller with
+            // a broken camera would crash on startPreview otherwise.
+            val cameraOk = com.gmwapp.hima.utils.CameraAvailability.isCameraAvailable(this)
+
             // Critical: the original joinChannel used audio-only ChannelMediaOptions
             // (publishCameraTrack = false, autoSubscribeVideo = false). Those options
             // persist unless we explicitly flip them here, so the camera track never
             // reaches the peer even after enableVideo(). Update them before setting up
             // the local surface so the track is publishing by the time the canvas binds.
-            agoraEngine?.enableLocalVideo(true)
-            agoraEngine?.muteLocalVideoStream(false)
+            agoraEngine?.enableLocalVideo(cameraOk)
+            agoraEngine?.muteLocalVideoStream(!cameraOk)
             agoraEngine?.updateChannelMediaOptions(ChannelMediaOptions().apply {
                 autoSubscribeAudio = true
                 autoSubscribeVideo = true
                 publishMicrophoneTrack = true
-                publishCameraTrack = true
+                publishCameraTrack = cameraOk
                 clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
             })
-            agoraEngine?.startPreview()
-            Log.d("AgoraTiming", "MaleAudio switched to VIDEO at ${System.currentTimeMillis()}")
+            if (cameraOk) {
+                agoraEngine?.startPreview()
+                Log.d("AgoraTiming", "MaleAudio switched to VIDEO at ${System.currentTimeMillis()}")
 
-            // Set up the local video view
-            val localContainer = binding.localVideoViewContainer
-            val localView = SurfaceView(this)
-            localView.setZOrderMediaOverlay(true)
-            localContainer.addView(localView)
+                // Set up the local video view
+                val localContainer = binding.localVideoViewContainer
+                val localView = SurfaceView(this)
+                localView.setZOrderMediaOverlay(true)
+                localContainer.addView(localView)
 
-            // Attach local video feed
-            agoraEngine?.setupLocalVideo(VideoCanvas(localView, VideoCanvas.RENDER_MODE_HIDDEN, 0))
+                // Attach local video feed
+                agoraEngine?.setupLocalVideo(VideoCanvas(localView, VideoCanvas.RENDER_MODE_HIDDEN, 0))
 
-            // Make video UI visible
-            binding.localVideoViewContainer.visibility = View.VISIBLE
-            binding.localCardView.visibility = View.VISIBLE
+                // Make video UI visible
+                binding.localVideoViewContainer.visibility = View.VISIBLE
+                binding.localCardView.visibility = View.VISIBLE
+                applySavedLocalPreviewPosition()
+            } else {
+                Log.w("CameraFallback", "MaleAudio.switchToVideo: camera unavailable, skipping local preview")
+                binding.localCardView.visibility = View.GONE
+                binding.localVideoViewContainer.visibility = View.GONE
+                showMessage(getString(R.string.call_no_camera_fallback))
+            }
             binding.remoteVideoViewContainer.visibility = View.VISIBLE
-            applySavedLocalPreviewPosition()
 
             // Notify remote user to switch to video (if required)
 
@@ -2296,7 +2781,26 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
 
     fun observeCallSwitchRequest() {
+        // B069 — capture observer attach time so we can ignore any switch
+        // payload posted before this call's activity existed (stale from
+        // a previous call; LiveData re-fires its current value on attach).
+        val callSwitchObserverStartedAtMs = System.currentTimeMillis()
         FcmUtils.updatedCallSwitch.observe(this, androidx.lifecycle.Observer { updatedCallSwitch ->
+            // B082 — don't pop the switch-call dialog if the call has ended.
+            if (isFinishing || isDestroyed) {
+                FcmUtils.clearCallSwitch()
+                return@Observer
+            }
+            // B069 — drop stale payloads (posted before this observer).
+            val postedAt = FcmUtils.callSwitchPostedAt()
+            if (postedAt == 0L || postedAt < callSwitchObserverStartedAtMs) {
+                Log.d(
+                    "B069",
+                    "Dropping stale switch payload postedAt=$postedAt observerStart=$callSwitchObserverStartedAtMs"
+                )
+                FcmUtils.clearCallSwitch()
+                return@Observer
+            }
             if (updatedCallSwitch != null) {
                 val (switchType, newCallId) = updatedCallSwitch
 
@@ -2318,26 +2822,25 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
                     switchDialog?.dismiss()
 
+                    // B069 follow-up — outside-tap dismiss = implicit decline.
+                    var responded = false
                     switchDialog = AlertDialog.Builder(this)
                         .setTitle("Switch to audio Call ?")
                         .setMessage("$receiverName requested for audio call")
                         .setPositiveButton("Confirm") { _, _ ->
-
-                            if (userid != null && switchCallID !=0) {
+                            responded = true
+                            if (userid != null && switchCallID != 0) {
                                 Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
-
-                                sendCallAcceptNotification(userid,receiverId,"audio","AudioAccepted")
+                                sendCallAcceptNotification(userid, receiverId, "audio", "AudioAccepted")
                                 FcmUtils.clearCallSwitch()
-                                Log.d("NewCallID","$newCallId")
+                                Log.d("NewCallID", "$newCallId")
                                 stopCountdown()
                                 isSwitchingToAudio = false
-
                                 enableAudioCall()
                             }
-
                         }
-                        .setNegativeButton("Decline") { dialog, _ ->
-                            // Dismiss dialog if No is clicked
+                        .setNegativeButton("Decline") { d, _ ->
+                            responded = true
                             userid?.let {
                                 sendCallAcceptNotification(
                                     it,
@@ -2346,13 +2849,26 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                                     "SwitchDeclined"
                                 )
                             }
-                            dialog.dismiss()
+                            d.dismiss()
                             FcmUtils.clearCallSwitch()
-
                         }
-                        .setOnDismissListener { switchDialog = null }  // Reset when dismissed
-
-                        .show()
+                        .create().apply {
+                            setOnDismissListener {
+                                if (!responded && !isFinishing && !isDestroyed) {
+                                    userid?.let { uid ->
+                                        sendCallAcceptNotification(
+                                            uid,
+                                            receiverId,
+                                            "audio",
+                                            "SwitchDeclined"
+                                        )
+                                    }
+                                    FcmUtils.clearCallSwitch()
+                                }
+                                switchDialog = null
+                            }
+                            show()
+                        }
 
                 }
 
@@ -2484,6 +3000,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
         FcmUtils.clearCallSwitch()
         isVideoCallGoing = false
+        // B060 — keep the top-bar label honest after a mid-call switch.
+        binding.tvCallType.setText(R.string.call_type_audio)
 
         updateCallEndDetails()
         storedVideoRemainingTime = null  // Reset stored time
@@ -2548,11 +3066,17 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             profileViewModel.getRemainingTime(it, "audio", object :
                 NetworkCallback<GetRemainingTimeResponse> {
                 override fun onNoNetwork() {
-                    TODO("Not yet implemented")
+                    // Ignore: remaining-time is a non-critical refresh; throwing
+                    // here (the original Kotlin `TODO()`) was killing the call
+                    // activity on any network blip — same root cause as B184.
+                    Log.w("RemainingTime", "callback ignored — call continues")
                 }
 
                 override fun onFailure(call: Call<GetRemainingTimeResponse>, t: Throwable) {
-                    TODO("Not yet implemented")
+                    // Ignore: remaining-time is a non-critical refresh; throwing
+                    // here (the original Kotlin `TODO()`) was killing the call
+                    // activity on any network blip — same root cause as B184.
+                    Log.w("RemainingTime", "callback ignored — call continues")
                 }
 
                 override fun onResponse(
@@ -2565,7 +3089,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
                         stopCountdown()
                         storedRemainingTime = newTime // Store first-time value
-                        startCountdown(newTime)
+                        startCountdown(newTime, data.ends_at_ms, data.server_now_ms)
                     }
                 }
 
@@ -2580,11 +3104,17 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             profileViewModel.getRemainingTime(it, "video", object :
                 NetworkCallback<GetRemainingTimeResponse> {
                 override fun onNoNetwork() {
-                    TODO("Not yet implemented")
+                    // Ignore: remaining-time is a non-critical refresh; throwing
+                    // here (the original Kotlin `TODO()`) was killing the call
+                    // activity on any network blip — same root cause as B184.
+                    Log.w("RemainingTime", "callback ignored — call continues")
                 }
 
                 override fun onFailure(call: Call<GetRemainingTimeResponse>, t: Throwable) {
-                    TODO("Not yet implemented")
+                    // Ignore: remaining-time is a non-critical refresh; throwing
+                    // here (the original Kotlin `TODO()`) was killing the call
+                    // activity on any network blip — same root cause as B184.
+                    Log.w("RemainingTime", "callback ignored — call continues")
                 }
 
                 override fun onResponse(
@@ -2597,7 +3127,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
                         stopCountdown()
                         storedVideoRemainingTime = newTime // Store first-time value
-                        startCountdown(newTime)
+                        startCountdown(newTime, data.ends_at_ms, data.server_now_ms)
                     }
                 }
 
@@ -2610,9 +3140,21 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         val giftImage = binding.ivGiftImage
         val femaleImage = binding.ivFemaleUser
 
+        // B071 — cancel any in-flight gift animation so a rapid burst
+        // doesn't leave the view stuck in an indeterminate state.
+        giftImage.animate().cancel()
         // Reset visibility and alpha
         giftImage.alpha = 1f
         giftImage.visibility = View.VISIBLE
+        // B070 — `iv_gift_image` carries no elevation in XML, so sibling
+        // elevated views (gift_button_card 12dp, users_container 10dp,
+        // controls_container 10dp, top_bar 10dp) all drew over it and the
+        // sender saw no animation. Match the B203 video-side fix: bring to
+        // front + bump elevation so the gift sails above every other
+        // in-call surface for the duration of the animation.
+        giftImage.bringToFront()
+        giftImage.elevation = 32f
+        (giftImage.parent as? View)?.requestLayout()
 
         BaseApplication.getInstance()?.playSendGiftSound()
         Glide.with(this)

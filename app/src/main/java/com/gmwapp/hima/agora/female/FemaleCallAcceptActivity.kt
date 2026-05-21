@@ -5,12 +5,14 @@ import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.util.Log
+import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -60,6 +62,18 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // B024: this activity is the call UI; any system heads-up banner is
+        // now redundant. Wipe ALL incoming-call notifications (FCM + OneSignal
+        // paths) as the FIRST thing we do — before setContentView, Glide,
+        // viewmodels, etc. — so the banner+full-screen overlap window shrinks
+        // to roughly the FSI->process-start latency instead of ~300ms of
+        // onCreate setup. Cleared early on every entry, including cold-start.
+        BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
+        // Route the volume rocker to STREAM_RING while this activity is on
+        // screen so volume up/down adjusts the incoming ringtone (B027).
+        // Without this the default STREAM_MUSIC is targeted and the rocker
+        // appears to do nothing while the phone is ringing.
+        volumeControlStream = AudioManager.STREAM_RING
         val km = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
         Log.d(
             "HimaIncomingCall",
@@ -142,6 +156,10 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
             return
         }
 
+        // Activity now owns the call presentation; cancel the heads-up so the
+        // OS channel ringtone stops before MediaPlayer takes over the loop —
+        // otherwise both play in parallel on locked phones (B147 fix).
+        BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
         if (BaseApplication.getInstance()?.isRingtonePlaying() == false) {
             BaseApplication.getInstance()?.playIncomingCallSound()
         }
@@ -269,6 +287,57 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
 
             }
         })
+
+        // B021: When the Accept button on the notification was tapped while the
+        // app was killed, the FCM-service launched this activity with
+        // AUTO_ACCEPT=true. Post to the main queue so all observer/view wiring
+        // above finishes first, then perform the same click the user would do.
+        maybeAutoAccept(intent)
+    }
+
+    /**
+     * Re-entry path for AUTO_ACCEPT — singleTop launchMode means a notification
+     * tap on Accept while this activity is already in the stack will arrive via
+     * onNewIntent, not onCreate. Handle it here too so cold-start and warm-start
+     * notification-Accept paths converge on [binding.accpet]'s click handler.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        maybeAutoAccept(intent)
+    }
+
+    private fun maybeAutoAccept(intent: Intent?) {
+        val auto = intent?.getBooleanExtra("AUTO_ACCEPT", false) == true
+        if (!auto) return
+        // B022: this activity now owns the call lifecycle (and will start
+        // CallingService as the in-call FGS once accepted), so the warm-up
+        // service can shut down to free a foreground-service slot.
+        com.gmwapp.hima.agora.FcmCallService.stop(this)
+        // B022: don't fire performClick() immediately — wait briefly for the
+        // Agora token prefetch (kicked off in onCreate) to land so the calling
+        // activity receives it via the intent extras and can skip its own
+        // backend round-trip. Without this, cold-start accept duplicates the
+        // token fetch and the call can ring-out before joinChannel finishes.
+        val startMs = System.currentTimeMillis()
+        val maxWaitMs = 1500L
+        val pollHandler = Handler(Looper.getMainLooper())
+        val poll = object : Runnable {
+            override fun run() {
+                val ready = !prefetchedAgoraToken.isNullOrEmpty()
+                val timedOut = System.currentTimeMillis() - startMs >= maxWaitMs
+                if (ready || timedOut) {
+                    Log.d(
+                        "HimaIncomingCall",
+                        "FemaleCallAcceptActivity: AUTO_ACCEPT firing tokenReady=$ready timedOut=$timedOut waitedMs=${System.currentTimeMillis() - startMs}"
+                    )
+                    binding.accpet.performClick()
+                } else {
+                    pollHandler.postDelayed(this, 100L)
+                }
+            }
+        }
+        pollHandler.post(poll)
     }
 
     private fun avatarObservers() {
@@ -348,6 +417,33 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Log.e("PulseAnimation", "Error starting pulse animations: ${e.message}")
         }
+    }
+
+    /**
+     * One-press silence for the incoming ringtone — matches native phone-call
+     * behaviour. Consumes volume up/down while ringing so we stop the channel
+     * sound + MediaPlayer instead of just nudging STREAM_RING by one notch.
+     * The call screen stays up; user can still Accept/Decline.
+     */
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+            val ringing = BaseApplication.getInstance()?.isRingtonePlaying() == true
+            if (ringing) {
+                BaseApplication.getInstance()?.stopRingtone()
+                BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+                return true
+            }
+        }
+        // I022 — wired headset hook / BT AVRCP play-pause = single-press
+        // accept on the incoming-call screen, matching native phone /
+        // WhatsApp parity. MEDIA_PLAY_PAUSE covers BT headsets that map
+        // their button to the media key instead of HEADSETHOOK.
+        if (keyCode == KeyEvent.KEYCODE_HEADSETHOOK ||
+            keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
+            binding.accpet.performClick()
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
     }
 
     override fun onDestroy() {

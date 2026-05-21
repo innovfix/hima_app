@@ -53,7 +53,8 @@ class EarningsActivity : BaseActivity() {
 
         profileViewModel.getUserLiveData.observe(this, Observer {
             val prefs = BaseApplication.getInstance()?.getPrefs()
-            prefs?.setUserData(it?.data)
+            // B075 — earnings refresh: preserve toggle / DND intent.
+            prefs?.setUserDataPreservingLocalIntent(it?.data)
 
             val balance = it?.data?.balance ?: 0.0
             binding.tvCurrentBalance.text = "₹$balance"

@@ -140,7 +140,8 @@ class AddUpiActivity : AppCompatActivity() {
 
         // Keep prefs in sync
         profileViewModel.getUserLiveData.observe(this) { res ->
-            res?.data?.let { BaseApplication.getInstance()?.getPrefs()?.setUserData(it) }
+            // B075 — UPI refresh: preserve toggle / DND intent.
+            res?.data?.let { BaseApplication.getInstance()?.getPrefs()?.setUserDataPreservingLocalIntent(it) }
             etUpiId.setText("${res.data?.upi_id}")
 
         }

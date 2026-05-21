@@ -62,6 +62,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 //import im.zego.zegoexpress.constants.ZegoRoomStateChangedReason
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
@@ -145,6 +146,15 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
     /** While a toggle API call is in-flight, ignore stale GET /users that would snap switches back */
     private var pendingAudioStatus: Int? = null
     private var pendingVideoStatus: Int? = null
+
+    // B151 — rapid toggling fired one API request per tap. Network reordering
+    // then made the server's last-arriving response (not the user's last tap)
+    // win, leaving UI and server out of sync. Debounce so only the final
+    // intent in a burst hits the network; each fresh tap cancels the prior
+    // pending request.
+    private var audioToggleDebounceJob: Job? = null
+    private var videoToggleDebounceJob: Job? = null
+    private val TOGGLE_DEBOUNCE_MS = 400L
 
     /** Pull-to-refresh: wait for profile (/users) + reports before hiding the indicator */
     private var femaleHomeSwipeProfilePending = false
@@ -726,23 +736,43 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
             val data = response?.data ?: return@Observer
             if (!isAdded) return@Observer
             val prefsLocal = BaseApplication.getInstance()?.getPrefs() ?: return@Observer
-            prefsLocal.setUserData(data)
+            // B075 — preserve the user's toggle / DND intent. The updateCallStatus
+            // observer below is the legitimate writer for audio_status / video_status.
+            prefsLocal.setUserDataPreservingLocalIntent(data)
             binding.tvCoins.text = "₹" + data.balance.toString()
             binding.clStarCreatorBanner.visibility =
                 if (data.star == 1) View.VISIBLE else View.GONE
             refreshIplBanner()
 
-            val shouldSetAudio = pendingAudioStatus == null || pendingAudioStatus == data.audio_status
-            val shouldSetVideo = pendingVideoStatus == null || pendingVideoStatus == data.video_status
+            // B074 — pull-to-refresh used to overwrite the user's locally-ON
+            // toggle with the server's OFF state (a server-side auto-OFF that
+            // we never got notified about; same root cause family as B075).
+            // The observer would snap the visual switch to OFF and the user
+            // had to manually flip it back on. Treat the local ON intent as
+            // authoritative: re-push to the server and keep the UI on.
+            val effectiveAudio = if (pendingAudioStatus == null && binding.sAudio.isChecked && data.audio_status != 1) {
+                femaleUsersViewModel.updateCallStatus(data.id, DConstants.AUDIO, 1)
+                1
+            } else {
+                data.audio_status
+            }
+            val effectiveVideo = if (pendingVideoStatus == null && binding.sVideo.isChecked && data.video_status != 1) {
+                femaleUsersViewModel.updateCallStatus(data.id, DConstants.VIDEO, 1)
+                1
+            } else {
+                data.video_status
+            }
+            val shouldSetAudio = pendingAudioStatus == null || pendingAudioStatus == effectiveAudio
+            val shouldSetVideo = pendingVideoStatus == null || pendingVideoStatus == effectiveVideo
             if (shouldSetAudio || shouldSetVideo) {
                 binding.sAudio.setOnCheckedChangeListener(null)
                 binding.sVideo.setOnCheckedChangeListener(null)
                 if (shouldSetAudio) {
-                    binding.sAudio.isChecked = data.audio_status == 1
+                    binding.sAudio.isChecked = effectiveAudio == 1
                     pendingAudioStatus = null
                 }
                 if (shouldSetVideo) {
-                    binding.sVideo.isChecked = data.video_status == 1
+                    binding.sVideo.isChecked = effectiveVideo == 1
                     pendingVideoStatus = null
                 }
                 setupSwitchListeners(data)
@@ -875,40 +905,59 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
     }
 
     private fun setupSwitchListeners(userData: UserData?) {
-        if (userData == null) return
-
+        // B074: never early-return. Earlier this method bailed when [userData]
+        // was null (the error branches of updateCallStatus and an empty
+        // getUserLiveData response after pull-to-refresh both pass null),
+        // leaving sAudio / sVideo permanently un-listened until app restart.
+        // We always attach; the lambdas resolve a live user at click-time
+        // from prefs so a null param here can't permanently disable toggles.
         binding.sAudio.setOnCheckedChangeListener { _, isChecked ->
+            val user = userData ?: getInstance()?.getPrefs()?.getUserData()
+            ?: return@setOnCheckedChangeListener
             if (isChecked && !hasRecordAudioPermission()) {
                 binding.sAudio.setOnCheckedChangeListener(null)
                 binding.sAudio.isChecked = false
-                setupSwitchListeners(userData)
+                setupSwitchListeners(user)
                 audioCallEnablePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                 return@setOnCheckedChangeListener
             }
             pendingAudioStatus = if (isChecked) 1 else 0
             if (isChecked) promptPostNotificationsIfNeededForCalls()
-            femaleUsersViewModel.updateCallStatus(
-                userData.id,
-                DConstants.AUDIO,
-                if (isChecked) 1 else 0
-            )
+            // B151 — coalesce rapid taps. Each new tap cancels the pending
+            // launch; only the final state in a tap burst hits the server.
+            audioToggleDebounceJob?.cancel()
+            audioToggleDebounceJob = viewLifecycleOwner.lifecycleScope.launch {
+                delay(TOGGLE_DEBOUNCE_MS)
+                femaleUsersViewModel.updateCallStatus(
+                    user.id,
+                    DConstants.AUDIO,
+                    if (isChecked) 1 else 0
+                )
+            }
         }
 
         binding.sVideo.setOnCheckedChangeListener { _, isChecked ->
+            val user = userData ?: getInstance()?.getPrefs()?.getUserData()
+            ?: return@setOnCheckedChangeListener
             if (isChecked && (!hasCameraPermission() || !hasRecordAudioPermission())) {
                 binding.sVideo.setOnCheckedChangeListener(null)
                 binding.sVideo.isChecked = false
-                setupSwitchListeners(userData)
+                setupSwitchListeners(user)
                 startActivity(Intent(requireContext(), GrantPermissionsActivity::class.java))
                 return@setOnCheckedChangeListener
             }
             pendingVideoStatus = if (isChecked) 1 else 0
             if (isChecked) promptPostNotificationsIfNeededForCalls()
-            femaleUsersViewModel.updateCallStatus(
-                userData.id,
-                DConstants.VIDEO,
-                if (isChecked) 1 else 0
-            )
+            // B151 — debounced for the same reason as the audio toggle above.
+            videoToggleDebounceJob?.cancel()
+            videoToggleDebounceJob = viewLifecycleOwner.lifecycleScope.launch {
+                delay(TOGGLE_DEBOUNCE_MS)
+                femaleUsersViewModel.updateCallStatus(
+                    user.id,
+                    DConstants.VIDEO,
+                    if (isChecked) 1 else 0
+                )
+            }
         }
     }
 

@@ -26,6 +26,7 @@
     <uses-permission android:name="com.google.android.gms.permission.SMS_RETRIEVER" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
 
     <uses-feature
@@ -163,23 +164,27 @@
             android:exported="false" />
         <activity
             android:name=".agora.female.FemaleVideoCallingActivity"
-            android:configChanges="uiMode"
-            android:exported="false" />
+            android:exported="false"
+            android:supportsPictureInPicture="true"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|uiMode" />
         <activity
             android:name=".agora.female.FemaleAudioCallingActivity"
             android:configChanges="uiMode"
             android:exported="false"
             android:launchMode="singleTask"
+            android:resizeableActivity="false"
             android:showWhenLocked="true"
             android:turnScreenOn="true" />
         <activity
             android:name=".agora.male.MaleVideoCallingActivity"
-            android:configChanges="uiMode"
-            android:exported="false" />
+            android:exported="false"
+            android:supportsPictureInPicture="true"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|uiMode" />
         <activity
             android:name=".agora.male.MaleAudioCallingActivity"
             android:configChanges="uiMode"
-            android:exported="false" />
+            android:exported="false"
+            android:resizeableActivity="false" />
         <activity
             android:name=".agora.female.FemaleCallAcceptActivity"
             android:configChanges="uiMode"
@@ -190,7 +195,8 @@
         <activity
             android:name=".agora.female.FemaleCallConnectingActivity"
             android:configChanges="uiMode"
-            android:exported="false" />
+            android:exported="false"
+            android:resizeableActivity="false" />
         <activity
             android:name=".activities.ChatActivity"
             android:configChanges="uiMode"
@@ -217,7 +223,8 @@
         <activity
             android:name=".agora.male.MaleCallConnectingActivity"
             android:configChanges="uiMode"
-            android:exported="true" />
+            android:exported="true"
+            android:resizeableActivity="false" />
         <activity
             android:name=".agora.male.MaleCallAcceptActivity"
             android:configChanges="uiMode"

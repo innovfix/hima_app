@@ -86,6 +86,7 @@ class CallActionReceiver : BroadcastReceiver() {
 
                 // Instant UI feedback — do not wait for FCM round trip.
                 HimaTelecomManager.endActiveCall(DisconnectCause.REJECTED)
+                FcmCallService.stop(context)
                 BaseApplication.getInstance()?.stopRingtone()
                 BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
                 BaseApplication.getInstance()?.clearIncomingCall()
@@ -189,6 +190,7 @@ class CallActionReceiver : BroadcastReceiver() {
 
                 // Instant UI feedback — do not wait for FCM round trip.
                 HimaTelecomManager.endActiveCall(DisconnectCause.REJECTED)
+                FcmCallService.stop(context)
                 BaseApplication.getInstance()?.stopRingtone()
                 BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
                 BaseApplication.getInstance()?.clearIncomingCall()

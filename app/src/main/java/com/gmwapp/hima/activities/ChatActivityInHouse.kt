@@ -1360,9 +1360,16 @@ class ChatActivityInHouse : AppCompatActivity() {
             setRecordingUiVisible(false)
             if (recordingResult.durationMs < 1000L) {
                 recordingResult.file.delete()
-                // T45: hint the gesture instead of just saying "too short" — short
-                // taps are a common discoverability fail.
-                showAppToast("Hold to record", Toast.LENGTH_SHORT)
+                // B111: the original short "Hold to record" LENGTH_SHORT toast
+                // flashed for ~2 s at the bottom of the screen and testers
+                // missed it — they reported "voice note not sending, popup not
+                // clearly visible." Use a longer, more instructive message so
+                // the user understands WHY the voice note didn't send and how
+                // to fix it.
+                showAppToast(
+                    "Press and hold the mic to record a voice note. Release to send, slide up to cancel.",
+                    Toast.LENGTH_LONG
+                )
                 return
             }
 
@@ -3744,17 +3751,51 @@ class ChatActivityInHouse : AppCompatActivity() {
         // Make dialog background transparent
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
+        // B099 follow-up — WhatsApp-style optional "also delete chat" alongside
+        // the block action. Unchecked = current behaviour (chat-block only).
+        // Checked = block + clear local chat list so the conversation no longer
+        // shows on this device.
+        val alsoDeleteChat = dialogView.findViewById<android.widget.CheckBox>(R.id.cb_also_delete_chat)
+
         // Set button listeners
         dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_cancel).setOnClickListener {
             dialog.dismiss()
         }
 
         dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_block).setOnClickListener {
+            val deleteAlso = alsoDeleteChat?.isChecked == true
             blockUser()
+            if (deleteAlso) {
+                clearChatLocally()
+            }
             dialog.dismiss()
         }
 
         dialog.show()
+    }
+
+    /**
+     * Clears the local chat list (in-memory + history cache) for the current
+     * peer. Used by the "Also delete chat" option in the block dialog so the
+     * user doesn't keep seeing the conversation history on this device after
+     * blocking.
+     *
+     * Doesn't touch the server — the other side still has the chat, and so
+     * does our own server-side history (the user explicitly chose "clear for
+     * me", not "delete for everyone"). The empty snapshot in the cache means
+     * a same-session re-open won't restore the cleared messages; a fresh app
+     * launch may re-fetch from server, but at that point the peer is blocked
+     * and no new messages can arrive anyway.
+     */
+    private fun clearChatLocally() {
+        val sizeBefore = messages.size
+        messages.clear()
+        chatAdapter.notifyDataSetChanged()
+        runCatching { historyCache.putSnapshot(peerUserId, emptyList()) }
+        Log.d(
+            "ChatActivityInHouse",
+            "🧹 Cleared local chat for peer=$peerUserId messagesBefore=$sizeBefore"
+        )
     }
 
     private fun showUnblockConfirmationDialog() {
@@ -4034,9 +4075,17 @@ class ChatActivityInHouse : AppCompatActivity() {
             return
         }
         
-        // Check individual audio and video status (0 = disabled, 1 = enabled)
-        val isAudioEnabled = peerAudioStatus == 1
-        val isVideoEnabled = peerVideoStatus == 1
+        // Check individual audio and video status (0 = disabled, 1 = enabled).
+        // audio_status / video_status are the FEMALE creator's opt-in toggles
+        // (set via fragment_female_home.xml s_audio / s_video switches).
+        // Males have no UI to flip them and register() never seeds them, so
+        // the column stays 0 for every male in production. When the viewer
+        // is female calling a male, ignoring this gate is correct — there's
+        // no male signal here to respect. Mirrors B080 in FriendsTabFragment.
+        val isCurrentUserFemale = BaseApplication.getInstance()?.getPrefs()
+            ?.getUserData()?.gender?.equals(DConstants.FEMALE, ignoreCase = true) == true
+        val isAudioEnabled = isCurrentUserFemale || peerAudioStatus == 1
+        val isVideoEnabled = isCurrentUserFemale || peerVideoStatus == 1
         
         Log.d("CallButtons", "Final status - Audio: $isAudioEnabled ($peerAudioStatus), Video: $isVideoEnabled ($peerVideoStatus)")
         
@@ -4075,12 +4124,18 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun setupCallButtonListeners() {
+        // See updateCallButtonsState — when the viewer is female, the male's
+        // audio_status / video_status fields don't mean what this check
+        // assumes (males have no UI to flip them), so skip the gate.
+        val isCurrentUserFemale = BaseApplication.getInstance()?.getPrefs()
+            ?.getUserData()?.gender?.equals(DConstants.FEMALE, ignoreCase = true) == true
+
         cvAudioCall.setOnClickListener {
             when {
                 isCallBlocked -> {
                     showAppToast("You are blocked by this user", Toast.LENGTH_SHORT)
                 }
-                peerAudioStatus != 1 -> {
+                !isCurrentUserFemale && peerAudioStatus != 1 -> {
                     CallUnavailableFeedback.show(
                         this,
                         findViewById(android.R.id.content),
@@ -4092,13 +4147,13 @@ class ChatActivityInHouse : AppCompatActivity() {
                 }
             }
         }
-        
+
         cvVideoCall.setOnClickListener {
             when {
                 isCallBlocked -> {
                     showAppToast("You are blocked by this user", Toast.LENGTH_SHORT)
                 }
-                peerVideoStatus != 1 -> {
+                !isCurrentUserFemale && peerVideoStatus != 1 -> {
                     CallUnavailableFeedback.show(
                         this,
                         findViewById(android.R.id.content),

@@ -12,9 +12,14 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
+import android.media.AudioAttributes
+import android.media.AudioManager
+import android.media.RingtoneManager
 import android.os.Build
+import android.provider.Settings
 import android.os.Bundle
 import android.telecom.DisconnectCause
+import android.telecom.TelecomManager
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -275,22 +280,82 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                         // transitions / permission dialogs. isInActiveCall() is
                         // explicitly flipped in each CallingActivity.onCreate /
                         // onDestroy so it stays true across those dips.
-                        if (currentActivity is FemaleCallAcceptActivity ||
-                            currentActivity is FemaleCallConnectingActivity ||
+                        // Capture once so we can differentiate the source of the
+                        // busy state below — needed for B204 missed-call posting.
+                        val femaleOnAnotherAppCall = isOnAnotherAppCall()
+
+                        // Split the busy check into "definitely busy right now"
+                        // (in-call activity is on screen, or another app holds
+                        // a telecom call) and "boolean flags say busy" (which
+                        // can stick across a crashed/killed call activity that
+                        // never ran its onDestroy cleanup). When only the flags
+                        // claim busy but no in-call activity is visible, the
+                        // flags are stale — reset them and proceed with the
+                        // incoming call instead of auto-rejecting forever.
+                        val inCallActivityShown =
+                            currentActivity is FemaleCallAcceptActivity ||
                             currentActivity is FemaleAudioCallingActivity ||
                             currentActivity is FemaleVideoCallingActivity ||
-                            currentActivity is com.gmwapp.hima.activities.IplRoomCallActivity ||
-                            BaseApplication.getInstance()?.isInActiveCall() == true) {
+                            currentActivity is FemaleCallConnectingActivity ||
+                            currentActivity is com.gmwapp.hima.activities.IplRoomCallActivity
+                        val flagsSayBusy =
+                            BaseApplication.getInstance()?.isInActiveCall() == true ||
+                            FcmUtils.isUserAvailable == 1
 
+                        if (inCallActivityShown || femaleOnAnotherAppCall) {
+
+                            // B134 — Connecting Activity instance counts as busy.
+                            // B156a — FcmUtils.isUserAvailable closes the race window
+                            // between the user tapping Call (flag set synchronously
+                            // in the fragment click handler, before startActivity)
+                            // and the Connecting Activity actually being foregrounded
+                            // (currentActivity check otherwise misses that ~50ms gap).
+                            // Without this, an incoming FCM in that window launched a
+                            // second Accept Activity on top of the outgoing one and
+                            // both calls connected with mixed audio.
                             Log.d("FCM", "User is already in a call. Ignoring incoming call notification.")
 
                             val receiverId = senderId
                             sendAutoRejectNotification(userData?.id, receiverId, callType, channelName)
+
+                            // B204 — when the busy state was triggered by ANOTHER
+                            // app's VoIP/SIM call (not Hima's own), post a local
+                            // missed-call notification so the recipient can see and
+                            // tap-to-callback when they're free. Hima's own busy
+                            // state skips this (user is already in Hima, redundant).
+                            if (femaleOnAnotherAppCall) {
+                                postBusyMissedCall(callType, senderId, receiverName, receiverImg)
+                            }
                             return
                         }
 
+                        if (flagsSayBusy) {
+                            // Flags say busy but no in-call activity is on top and
+                            // the system is not in a telecom call. The flags are
+                            // stale — most likely from a prior call activity that
+                            // was force-stopped / OEM-killed without running its
+                            // onDestroy cleanup. Reset and continue so this fresh
+                            // incoming call actually rings.
+                            Log.w(
+                                INCOMING_CALL_LOG_TAG,
+                                "Stale busy flags detected on female side " +
+                                    "(no in-call activity, no telecom call). " +
+                                    "Resetting isInActiveCall + isUserAvailable " +
+                                    "before processing this FCM."
+                            )
+                            BaseApplication.getInstance()?.markCallEnded()
+                            FcmUtils.isUserAvailable = 0
+                        }
+
                         BaseApplication.getInstance()?.saveSenderId(senderId)
-                        BaseApplication.getInstance()?.playIncomingCallSound()
+                        // Ringtone is now played by the OS via the calls_v4 channel
+                        // (survives Doze / power saving). The foreground accept
+                        // activities take over with MediaPlayer once they open
+                        // — see B147 fix.
+                        // Grab transient audio focus so YouTube / Spotify / etc.
+                        // pause for the heads-up ringtone phase — fixes B150.
+                        // Auto-released after 45 s by the BaseApplication helper.
+                        BaseApplication.getInstance()?.requestRingtoneFocus()
 
                         callType?.let {
                             BaseApplication.getInstance()?.setIncomingCall(
@@ -298,6 +363,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                                 it, channelName, callId.toIntOrNull() ?: 0
                             )
                         }
+                        // B023 — cache caller display info so MainActivity
+                        // can re-launch the accept screen with avatar+name
+                        // if the user opens Hima via launcher while ringing.
+                        BaseApplication.getInstance()?.setIncomingCallerInfo(receiverName, receiverImg)
 
                         val intent = Intent(this, FemaleCallAcceptActivity::class.java).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -332,22 +401,51 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             INCOMING_CALL_LOG_TAG,
                             "female branch: after tryAddIncomingCall telecomOk=$telecomOkFemale (CallStyle still posted; self-managed has no system UI)"
                         )
-                        Log.d(INCOMING_CALL_LOG_TAG, "female branch: before notifyIncomingCallWithCallStyle")
-                        notifyIncomingCallWithCallStyle(
-                            isMale = false,
-                            callType,
-                            senderId,
-                            channelName,
-                            callId.toIntOrNull() ?: 0,
-                            receiverName,
-                            receiverImg
-                        )
-                        Log.d(INCOMING_CALL_LOG_TAG, "female branch: after notifyIncomingCallWithCallStyle")
+                        // Compute foreground/locked once, up front. Drives BOTH the
+                        // B030 skip-heads-up decision and the B020 belt-and-braces
+                        // direct-launch decision below.
+                        val fcmKgmFemale = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+                        val lockedFemale = fcmKgmFemale?.isKeyguardLocked == true
+                        val foregroundFemale = !isAppInBackground(applicationContext)
+
+                        // B030: When the app is foreground AND unlocked, the accept
+                        // activity itself is the call UI. Posting the CallStyle
+                        // notification on top of it shows a duplicate system heads-up
+                        // banner — which is what the user sees as "call comes as
+                        // system popup outside the app." Skip the notify() here; the
+                        // activity provides ringtone + accept/decline. Background
+                        // and locked still post (B147 channel ringtone + B020 FSI).
+                        if (!foregroundFemale || lockedFemale) {
+                            Log.d(INCOMING_CALL_LOG_TAG, "female branch: before notifyIncomingCallWithCallStyle (fg=$foregroundFemale locked=$lockedFemale)")
+                            notifyIncomingCallWithCallStyle(
+                                isMale = false,
+                                callType,
+                                senderId,
+                                channelName,
+                                callId.toIntOrNull() ?: 0,
+                                receiverName,
+                                receiverImg
+                            )
+                            Log.d(INCOMING_CALL_LOG_TAG, "female branch: after notifyIncomingCallWithCallStyle")
+                        } else {
+                            Log.d(INCOMING_CALL_LOG_TAG, "female branch: skipping heads-up — foreground + unlocked (B030)")
+                        }
 
                         Log.d("callType", "$callType")
-                        if (!isAppInBackground(applicationContext)) {
-                            Log.d("FCMService", "App is in foreground — launching FemaleCallAcceptActivity")
-                            startActivity(intent)
+                        // Direct-launch the accept activity when EITHER the app is
+                        // foreground OR the keyguard is locked. The locked case
+                        // backs up the notification's full-screen intent (FSI gets
+                        // blocked on some OEMs / when FSI permission is revoked);
+                        // the activity is launchMode=singleTop so this is idempotent
+                        // with FSI's own auto-launch. Fixes B020.
+                        if (foregroundFemale || lockedFemale) {
+                            Log.d(
+                                "FCMService",
+                                "Launching FemaleCallAcceptActivity (fg=$foregroundFemale locked=$lockedFemale)"
+                            )
+                            try { startActivity(intent) } catch (e: Exception) {
+                                Log.e("FCMService", "startActivity FemaleAccept threw: ${e.message}")
+                            }
                         }
 
 //                        if (BaseApplication.getInstance()?.isAppInForeground() == true) {
@@ -376,27 +474,75 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     // ========== MALE INCOMING CALL HANDLING ==========
                     // Added for males to receive calls from females
                     if (gender == "male") {
-                        // NB: Do NOT introduce local `val`s with the same names as these
-                        // activity classes. A prior version did so and the shadowing made
+                        // NB: Do NOT shadow these activity class names with local `val`s.
+                        // A prior version did so and the shadowing made
                         // `Intent(this, MaleCallAcceptActivity::class.java)` below resolve to
                         // `java.lang.Class.class`, causing ActivityNotFoundException and an
                         // app crash when a female called a male user in foreground.
-                        if (currentActivity is MaleCallAcceptActivity ||
+                        //
+                        // Capture once so we can differentiate the source of the
+                        // busy state below — needed for B204 missed-call posting.
+                        val maleOnAnotherAppCall = isOnAnotherAppCall()
+
+                        // Same split as the female branch above: separate "really
+                        // busy right now" (in-call activity on top or telecom
+                        // holds another call) from "boolean flags say busy"
+                        // (which can stick across a killed call activity). Only
+                        // auto-reject for the former; reset stale flags for the
+                        // latter and proceed with this incoming call.
+                        val inCallActivityShownMale =
+                            currentActivity is MaleCallAcceptActivity ||
                             currentActivity is MaleCallConnectingActivity ||
                             currentActivity is MaleAudioCallingActivity ||
                             currentActivity is MaleVideoCallingActivity ||
-                            currentActivity is com.gmwapp.hima.activities.IplRoomCallActivity ||
-                            BaseApplication.getInstance()?.isInActiveCall() == true) {
+                            currentActivity is com.gmwapp.hima.activities.IplRoomCallActivity
+                        val flagsSayBusyMale =
+                            BaseApplication.getInstance()?.isInActiveCall() == true ||
+                            FcmUtils.isUserAvailable == 1
 
+                        if (inCallActivityShownMale || maleOnAnotherAppCall) {
+
+                            // B134 + B156a (symmetric, male side) — same rationale
+                            // as the female branch: FcmUtils.isUserAvailable is the
+                            // synchronous intent flag set at the click handler before
+                            // the Connecting Activity has a chance to come up, closing
+                            // the race window the currentActivity check otherwise
+                            // misses.
                             Log.d("FCM", "Male user is already in a call. Ignoring incoming call notification.")
 
                             val receiverId = senderId
                             sendAutoRejectNotification(userData?.id, receiverId, callType, channelName)
+
+                            // B204 (symmetric, male side) — post local missed-call
+                            // notification when the busy state was an OTHER-app call
+                            // so the recipient can call back when they're free.
+                            if (maleOnAnotherAppCall) {
+                                postBusyMissedCall(callType, senderId, receiverName, receiverImg)
+                            }
                             return
                         }
 
+                        if (flagsSayBusyMale) {
+                            Log.w(
+                                INCOMING_CALL_LOG_TAG,
+                                "Stale busy flags detected on male side " +
+                                    "(no in-call activity, no telecom call). " +
+                                    "Resetting isInActiveCall + isUserAvailable " +
+                                    "before processing this FCM."
+                            )
+                            BaseApplication.getInstance()?.markCallEnded()
+                            FcmUtils.isUserAvailable = 0
+                        }
+
                         BaseApplication.getInstance()?.saveSenderId(senderId)
-                        BaseApplication.getInstance()?.playIncomingCallSound()
+                        // Ringtone is now played by the OS via the calls_v4 channel
+                        // (survives Doze / power saving). The foreground accept
+                        // activities take over with MediaPlayer once they open
+                        // — see B147 fix.
+                        // Grab transient audio focus so YouTube / Spotify / etc.
+                        // pause for the heads-up ringtone phase — fixes B150.
+                        // Auto-released after 45 s by the BaseApplication helper.
+                        BaseApplication.getInstance()?.requestRingtoneFocus()
 
                         callType?.let {
                             BaseApplication.getInstance()?.setIncomingCall(
@@ -404,6 +550,11 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                                 it, channelName, callId.toIntOrNull() ?: 0
                             )
                         }
+                        // B023 — same caller-info cache as the female branch
+                        // above; used by MainActivity to re-launch the accept
+                        // screen with avatar+name if user opens Hima via
+                        // launcher while ringing.
+                        BaseApplication.getInstance()?.setIncomingCallerInfo(receiverName, receiverImg)
 
                         val intent = Intent(this, MaleCallAcceptActivity::class.java).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -438,22 +589,51 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             INCOMING_CALL_LOG_TAG,
                             "male branch: after tryAddIncomingCall telecomOk=$telecomOkMale (CallStyle still posted; self-managed has no system UI)"
                         )
-                        Log.d(INCOMING_CALL_LOG_TAG, "male branch: before notifyIncomingCallWithCallStyle")
-                        notifyIncomingCallWithCallStyle(
-                            isMale = true,
-                            callType,
-                            senderId,
-                            channelName,
-                            callId.toIntOrNull() ?: 0,
-                            receiverName,
-                            receiverImg
-                        )
-                        Log.d(INCOMING_CALL_LOG_TAG, "male branch: after notifyIncomingCallWithCallStyle")
+                        // Compute foreground/locked once, up front. Drives BOTH the
+                        // B030 skip-heads-up decision and the B020 belt-and-braces
+                        // direct-launch decision below.
+                        val fcmKgmMale = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+                        val lockedMale = fcmKgmMale?.isKeyguardLocked == true
+                        val foregroundMale = !isAppInBackground(applicationContext)
+
+                        // B030: When the app is foreground AND unlocked, the accept
+                        // activity itself is the call UI. Posting the CallStyle
+                        // notification on top of it shows a duplicate system heads-up
+                        // banner — which is what the user sees as "call comes as
+                        // system popup outside the app." Skip the notify() here; the
+                        // activity provides ringtone + accept/decline. Background
+                        // and locked still post (B147 channel ringtone + B020 FSI).
+                        if (!foregroundMale || lockedMale) {
+                            Log.d(INCOMING_CALL_LOG_TAG, "male branch: before notifyIncomingCallWithCallStyle (fg=$foregroundMale locked=$lockedMale)")
+                            notifyIncomingCallWithCallStyle(
+                                isMale = true,
+                                callType,
+                                senderId,
+                                channelName,
+                                callId.toIntOrNull() ?: 0,
+                                receiverName,
+                                receiverImg
+                            )
+                            Log.d(INCOMING_CALL_LOG_TAG, "male branch: after notifyIncomingCallWithCallStyle")
+                        } else {
+                            Log.d(INCOMING_CALL_LOG_TAG, "male branch: skipping heads-up — foreground + unlocked (B030)")
+                        }
 
                         Log.d("MaleCallAccept_CallType", "$callType")
-                        if (!isAppInBackground(applicationContext)) {
-                            Log.d("FCMService_Male", "App is in foreground — launching MaleCallAcceptActivity")
-                            startActivity(intent)
+                        // Direct-launch the accept activity when EITHER the app is
+                        // foreground OR the keyguard is locked. Backs up the
+                        // notification's full-screen intent (FSI gets blocked on
+                        // some OEMs / when the FSI permission is revoked); the
+                        // activity is launchMode=singleTop so this is idempotent
+                        // with FSI's own auto-launch. Fixes B020.
+                        if (foregroundMale || lockedMale) {
+                            Log.d(
+                                "FCMService_Male",
+                                "Launching MaleCallAcceptActivity (fg=$foregroundMale locked=$lockedMale)"
+                            )
+                            try { startActivity(intent) } catch (e: Exception) {
+                                Log.e("FCMService_Male", "startActivity MaleAccept threw: ${e.message}")
+                            }
                         }
 
                         if (currentActivity !is MainActivity &&
@@ -469,14 +649,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
 
 
-//
-//                    val serviceIntent = Intent(this, FcmCallService::class.java).apply {
-//                        putExtra("CALL_TYPE", callType)
-//                        putExtra("SENDER_ID", senderId)
-//                        putExtra("CHANNEL_NAME", channelName)
-//                        putExtra("CALL_ID", callId)
-//                    }
-//                    startForegroundService(serviceIntent)
 
 
 
@@ -502,6 +674,19 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     "route=female_accepted_rejected_updateCallStatus message=$message senderId=$senderId currentActivity=${fcmCurrentActivity?.javaClass?.simpleName}"
                 )
                 FcmUtils.updateCallStatus(message, senderId.toString())
+            }
+
+            // Tester report → camera-unavailable handshake. The female side
+            // detected a broken camera, joined audio-only, and is in the 30s
+            // grace window before disconnecting. Forward the signal so the
+            // male-side calling activity can show a matching banner +
+            // dialog. channelName scopes the signal to THIS call (the
+            // observer ignores messages for other in-flight channels).
+            if (message == "cameraUnavailable" && gender == "male") {
+                Log.d("FCM", "route=cameraUnavailable_male channel=$channelName")
+                if (!channelName.isNullOrEmpty()) {
+                    FcmUtils.updateCameraUnavailable(channelName)
+                }
             }
 
             if (message == "userBusy" && gender == "male") {
@@ -562,59 +747,35 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 var previousSenderId = BaseApplication.getInstance()?.getSenderId()
                 if (senderId==previousSenderId) {
                     HimaTelecomManager.endActiveCall(DisconnectCause.REMOTE)
+                    com.gmwapp.hima.agora.FcmCallService.stop(this)
                     BaseApplication.getInstance()?.stopRingtone()
                     cancelIncomingCallNotification()
                     BaseApplication.getInstance()?.clearIncomingCall()
-//                    // Stop the foreground service
-//                    val serviceIntent = Intent(this, FcmCallService::class.java)
-//                    stopService(serviceIntent)  // Stop the service
 
-                    if (isScreenLocked) {
-                        // If the screen is locked, forcefully close the app
-                        Log.d("isScreenLocked", "$isScreenLocked")
-                        val mainIntent = Intent(this, MainActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    val currentActivity = BaseApplication.getInstance()?.getCurrentActivity()
+                    if (isScreenLocked || isAppInBackground(applicationContext)) {
+                        // B126 — when the caller cancels while we're in the
+                        // background (or screen-locked), don't yank Hima to
+                        // the foreground. The cleanup above already cancelled
+                        // the heads-up notification; the user stays in
+                        // whatever app they were using. If a call-accept
+                        // screen happens to be on top (full-screen intent
+                        // fired then user backgrounded), finish it quietly.
+                        Log.d("FCMService", "callDeclined while bg/locked — dismissing silently, no MainActivity launch")
+                        if (currentActivity is FemaleCallAcceptActivity ||
+                            currentActivity is MaleCallAcceptActivity) {
+                            currentActivity.finish()
                         }
-                        startActivity(mainIntent)
-                        currentActivity?.moveTaskToBack(true) // Move app to background
-                        currentActivity?.finishAffinity()
-                    }else{
-                        val currentActivity = BaseApplication.getInstance()?.getCurrentActivity()
-
-
-                        if (isAppInBackground(applicationContext)) {
-                            Log.d("FCMService", "App is in background (Minimized)")
+                    } else {
+                        Log.d("FCMService", "App is in foreground (Visible)")
+                        if (currentActivity !is MainActivity) {
                             val mainIntent = Intent(this, MainActivity::class.java).apply {
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                                flags =
+                                    Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                             }
                             startActivity(mainIntent)
-                            currentActivity?.moveTaskToBack(true) // Move app to background
-                            currentActivity?.finishAffinity()
-
-                        } else {
-                            Log.d("FCMService", "App is in foreground (Visible)")
-                            if (currentActivity !is MainActivity) {
-                                val mainIntent = Intent(this, MainActivity::class.java).apply {
-                                    flags =
-                                        Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                                }
-                                startActivity(mainIntent)
-                            }
-//                        Log.d("currentactvityt","$mainIntent")
-
-//                            if (currentActivity is FemaleCallAcceptActivity) {
-//                                currentActivity.finishAffinity() // Close all activities
-//                                currentActivity.moveTaskToBack(true) // Send app to background
-//                            }
-
+                        }
                     }
-
-
-
-                    }
-
-
-
                 }
 
             }
@@ -634,38 +795,31 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 
                 if (senderId == previousSenderId) {
                     HimaTelecomManager.endActiveCall(DisconnectCause.REMOTE)
+                    com.gmwapp.hima.agora.FcmCallService.stop(this)
                     BaseApplication.getInstance()?.stopRingtone()
                     cancelIncomingCallNotification()
                     BaseApplication.getInstance()?.clearIncomingCall()
 
-                    if (isScreenLocked) {
-                        // If the screen is locked, forcefully close the app
-                        Log.d("isScreenLocked_Male", "$isScreenLocked")
-                        val mainIntent = Intent(this, MainActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    val currentActivity = BaseApplication.getInstance()?.getCurrentActivity()
+                    if (isScreenLocked || isAppInBackground(applicationContext)) {
+                        // B126 — same fix as the female branch: don't
+                        // foreground Hima when the caller cancels while
+                        // we're backgrounded/locked. Notification cleanup
+                        // already ran above; the user stays in whatever
+                        // app they were using. Finish a lingering
+                        // call-accept screen if one is on top.
+                        Log.d("FCMService_Male", "callDeclined while bg/locked — dismissing silently, no MainActivity launch")
+                        if (currentActivity is FemaleCallAcceptActivity ||
+                            currentActivity is MaleCallAcceptActivity) {
+                            currentActivity.finish()
                         }
-                        startActivity(mainIntent)
-                        currentActivity?.moveTaskToBack(true) // Move app to background
-                        currentActivity?.finishAffinity()
                     } else {
-                        val currentActivity = BaseApplication.getInstance()?.getCurrentActivity()
-
-                        if (isAppInBackground(applicationContext)) {
-                            Log.d("FCMService_Male", "App is in background (Minimized)")
+                        Log.d("FCMService_Male", "App is in foreground (Visible)")
+                        if (currentActivity !is MainActivity) {
                             val mainIntent = Intent(this, MainActivity::class.java).apply {
                                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                             }
                             startActivity(mainIntent)
-                            currentActivity?.moveTaskToBack(true) // Move app to background
-                            currentActivity?.finishAffinity()
-                        } else {
-                            Log.d("FCMService_Male", "App is in foreground (Visible)")
-                            if (currentActivity !is MainActivity) {
-                                val mainIntent = Intent(this, MainActivity::class.java).apply {
-                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                                }
-                                startActivity(mainIntent)
-                            }
                         }
                     }
                 }
@@ -681,6 +835,20 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
                 }
 
+            }
+
+            // Server-driven force-end when male's coins are exhausted mid-call.
+            // Backend pushes this to BOTH parties (male + female). Forwarded to
+            // FcmUtils.forceEndCall so the active-call activities can hang up
+            // without relying on the client-side countdown timer (B184 follow-up).
+            if (message == "callEndedNoCoins") {
+                val callIdInt = remoteMessage.data["call_id"]?.toIntOrNull() ?: 0
+                if (callIdInt > 0) {
+                    Log.d(INCOMING_CALL_LOG_TAG, "callEndedNoCoins received callId=$callIdInt")
+                    FcmUtils.forceEndCall(callIdInt, "no_coins")
+                } else {
+                    Log.w(INCOMING_CALL_LOG_TAG, "callEndedNoCoins ignored — missing/invalid call_id")
+                }
             }
 
 
@@ -878,6 +1046,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
             // Stop any ongoing call UI/notifications/ringtone best-effort.
             HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
+            com.gmwapp.hima.agora.FcmCallService.stop(this)
             BaseApplication.getInstance()?.stopRingtone()
             cancelIncomingCallNotification()
             BaseApplication.getInstance()?.clearIncomingCall()
@@ -1000,10 +1169,105 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 "senderId=$senderId channel=$channelName keyguardLocked=$locked appInBackground=$bg " +
                 "postNotificationsGranted=$postNotificationsGranted " +
                 "canUseFullScreenIntent=$canUseFullScreenIntent manageOwnCallsGranted=$manageOwnCallsGranted " +
-                "calls_v3_channelImportance=$channelImportance"
+                "calls_v4_channelImportance=$channelImportance"
         )
     }
 
+
+    /**
+     * Returns true when the user is currently on a non-Hima voice/video
+     * call (WhatsApp / Telegram / Meet / Zoom / SIM call) — i.e. the OS
+     * audio mode is engaged for a call but the engagement isn't ours.
+     *
+     * Without this check (B131), an FCM arriving while the user is on a
+     * WhatsApp video call:
+     *   - falls through to the normal-incoming path, so the channel
+     *     ringtone plays,
+     *   - but the full-screen-intent / heads-up is hidden behind the
+     *     other app's call UI, so the user can't tap Accept/Decline,
+     *   - and the caller side stays on Connecting until server timeout.
+     *
+     * With this check we auto-reject up front; caller-side resolves to
+     * "user busy" within seconds and the recipient gets a missed-call
+     * notification they can call back from when they're free.
+     *
+     * Doesn't require any extra permission — `AudioManager.getMode()` is
+     * an unguarded read.
+     */
+    private fun isOnAnotherAppCall(): Boolean {
+        val ourCallActive = BaseApplication.getInstance()?.isInActiveCall() == true
+        if (ourCallActive) return false
+        // B067: cross-check both AudioManager.mode (catches MODE_IN_COMMUNICATION
+        // from other VoIP apps) AND TelephonyManager.callState (catches SIM
+        // calls — some OEMs, notably Samsung, don't flip AudioManager.mode to
+        // MODE_IN_CALL while a SIM call is in RINGING state, so the audio-mode
+        // check alone misses the window where an incoming Hima call lands on
+        // top of an incoming SIM call).
+        val audioModeBusy = try {
+            val am = applicationContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+            val mode = am?.mode ?: AudioManager.MODE_NORMAL
+            mode == AudioManager.MODE_IN_COMMUNICATION || mode == AudioManager.MODE_IN_CALL
+        } catch (e: Exception) {
+            Log.w("FCM", "isOnAnotherAppCall: AudioManager.mode threw: ${e.message}")
+            false
+        }
+        val telephonyBusy = com.gmwapp.hima.utils.CallPhoneStateHelper
+            .isCellularCallBusy(applicationContext)
+        // B131 — WhatsApp video doesn't reliably flip AudioManager.mode to
+        // MODE_IN_COMMUNICATION on every OEM build, so the audio-mode check
+        // alone lets a Hima call ring through while WhatsApp video is active.
+        // TelecomManager.isInCall covers every self-managed ConnectionService
+        // (WhatsApp video/voice, Signal, Telegram VoIP, Google Meet, plus SIM)
+        // and closes that gap. Requires READ_PHONE_STATE, which is already
+        // declared in the manifest; the catch is defensive for OEM-quirky
+        // SecurityExceptions on Android Q before runtime grant.
+        val telecomBusy = try {
+            val tm = applicationContext.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) tm?.isInCall == true else false
+        } catch (e: SecurityException) {
+            Log.w("FCM", "isOnAnotherAppCall: TelecomManager.isInCall denied: ${e.message}")
+            false
+        } catch (e: Exception) {
+            Log.w("FCM", "isOnAnotherAppCall: TelecomManager.isInCall threw: ${e.message}")
+            false
+        }
+        return audioModeBusy || telephonyBusy || telecomBusy
+    }
+
+    /**
+     * Posts a local "Missed call" notification using the existing
+     * [com.gmwapp.hima.utils.CallNotifications.showMissed] pipeline.
+     *
+     * Called from the FCM busy-check path when the busy state was caused
+     * by ANOTHER app's voice/video call (WhatsApp, SIM, Meet, etc.) — see
+     * B204. Without this the recipient had no record on their phone that
+     * someone tried to reach them on Hima while they were on the other
+     * call; they'd have to manually open Hima and dig into Recent to find
+     * out, often long after the moment passed.
+     *
+     * Failures (no FCM token, render exception, no POST_NOTIFICATIONS
+     * permission) are logged but never break the FCM dispatcher.
+     */
+    private fun postBusyMissedCall(
+        callType: String?,
+        senderId: Int,
+        callerName: String?,
+        callerImage: String?
+    ) {
+        try {
+            com.gmwapp.hima.utils.CallNotifications.showMissed(
+                this,
+                com.gmwapp.hima.utils.CallNotifications.MissedPayload(
+                    callType = callType,
+                    senderId = senderId,
+                    callerName = callerName.orEmpty(),
+                    callerImage = callerImage
+                )
+            )
+        } catch (e: Exception) {
+            Log.e(INCOMING_CALL_LOG_TAG, "postBusyMissedCall failed: ${e.message}", e)
+        }
+    }
 
     private fun sendAutoRejectNotification(senderId: Int?, receiverId: Int?, callType: String?, channelName: String?) {
         if (senderId != null && receiverId != null && callType != null && channelName != null) {
@@ -1035,10 +1299,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         receiverName: String,
         receiverImg: String
     ) {
-        // All the channel + CallStyle + avatar-refresh logic now lives in
-        // [com.gmwapp.hima.utils.CallNotifications.showIncoming] so the OneSignal
-        // NSE / foreground listener can post the same UI as the FCM path.
-        com.gmwapp.hima.utils.CallNotifications.showIncoming(
+        // B022: route FCM-driven incoming calls through [FcmCallService] so a
+        // foreground service keeps the process warm between FCM-arrival and
+        // accept-tap. The service uses [CallNotifications.buildIncomingCallNotification]
+        // for its `startForeground` notification, so the visible UI is identical
+        // to the legacy notify path (still used by OneSignal/BaseApplication).
+        com.gmwapp.hima.agora.FcmCallService.start(
             this,
             com.gmwapp.hima.utils.CallNotifications.IncomingPayload(
                 isMale = isMale,
@@ -1054,26 +1320,50 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val nm = getSystemService(NotificationManager::class.java) ?: return
+            if (nm.getNotificationChannel(CALLS_NOTIFICATION_CHANNEL_ID) != null) return
+            // Drop the silent v3 and the bypass-DND v4 so Settings doesn't show
+            // multiple "Incoming Calls" rows after the v5 bump (B199).
+            runCatching { nm.deleteNotificationChannel("calls_v3") }
+            runCatching { nm.deleteNotificationChannel("calls_v4") }
+            val ringtoneUri = RingtoneManager.getActualDefaultRingtoneUri(
+                applicationContext,
+                RingtoneManager.TYPE_RINGTONE
+            ) ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+                ?: Settings.System.DEFAULT_RINGTONE_URI
+            val ringtoneAttrs = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
             val channel = NotificationChannel(
                 CALLS_NOTIFICATION_CHANNEL_ID,
                 "Incoming Calls",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
-                setSound(null, null)
+                setSound(ringtoneUri, ringtoneAttrs)
                 enableVibration(true)
                 vibrationPattern = longArrayOf(0, 1000, 500, 1000)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    setBypassDnd(true)
-                }
+                // B199 — do NOT setBypassDnd. Hima is a social app, not a
+                // primary phone replacement; when the user enables system
+                // Do Not Disturb mode we must respect that and stay silent.
+                // The previous v4 channel set bypassDnd=true (carried over
+                // from the B147 Doze fix, but DND ≠ Doze — bypassing DND
+                // never helped with Doze and only annoyed users who'd
+                // explicitly muted their phone).
             }
-            getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
+            nm.createNotificationChannel(channel)
         }
     }
 
     companion object {
-        /** Channel ID bump: channel importance / options are immutable per ID on Android O+. */
-        const val CALLS_NOTIFICATION_CHANNEL_ID = "calls_v3"
+        /**
+         * Channel ID bump history (channels are immutable per ID on Android O+):
+         *   v3 → v4: added OS-played ringtone so Doze no longer suppressed the ring (B147).
+         *   v4 → v5: removed setBypassDnd(true) so system DND mode silences the
+         *            ringtone like every other social app (B199).
+         */
+        const val CALLS_NOTIFICATION_CHANNEL_ID = "calls_v5"
         private const val INCOMING_CALL_LOG_TAG = "HimaIncomingCall"
         private const val INCOMING_CALL_NOTIFICATION_ID = 1
     }
@@ -1081,6 +1371,13 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     fun cancelIncomingCallNotification() {
         BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+        // B171 — the incoming-call notification is the foreground notification
+        // of FcmCallService. NotificationManager.cancel() can't dismiss a
+        // foreground-service notification — only stopping the service does,
+        // which is why the heads-up used to linger up to FcmCallService's
+        // 35s self-timeout after the caller had already given up. Stopping
+        // the service tears down its notification immediately.
+        FcmCallService.stop(applicationContext)
     }
 
 }

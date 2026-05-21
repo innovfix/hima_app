@@ -136,8 +136,15 @@ class FemaleUserAdapter(
         // Audio & Video call buttons — always visible; show disabled state when
         // the creator isn't accepting that call type so the card layout stays
         // symmetric and users can see what options exist.
-        val audioEnabled = femaleUser.audio_status == 1
-        val videoEnabled = femaleUser.video_status == 1
+        // B095 — also disable when the creator is currently in another call.
+        // `is_busy` is derived server-side from active call_attend rows. Old
+        // backend builds that don't return the field default to 0 → no
+        // behaviour change. New backend builds flip busy creators to
+        // disabled so users don't waste taps on rows they can't actually
+        // reach right now.
+        val isBusy = (femaleUser.is_busy ?: 0) == 1
+        val audioEnabled = femaleUser.audio_status == 1 && !isBusy
+        val videoEnabled = femaleUser.video_status == 1 && !isBusy
         val disabledTextColor = android.graphics.Color.parseColor("#6B7280")
         val whiteColor = activity.resources.getColor(R.color.white, null)
 

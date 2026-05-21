@@ -206,11 +206,14 @@
                 android:clickable="true"
                 android:focusable="true">
 
+                <!-- B035 — ic_call_decline is already the Material call_end
+                     vector (hung-up phone shape). The previous 135° rotation
+                     tilted that to a non-standard angle that didn't read as
+                     a hangup icon. Render at native orientation. -->
                 <ImageView
                     android:layout_width="32dp"
                     android:layout_height="32dp"
                     android:layout_gravity="center"
-                    android:rotation="135"
                     android:src="@drawable/ic_call_decline"
                     android:contentDescription="Decline Call" />
             </FrameLayout>

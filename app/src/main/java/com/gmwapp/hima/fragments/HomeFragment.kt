@@ -8,7 +8,9 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Path
 import android.net.ConnectivityManager
+import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -19,6 +21,7 @@ import android.view.ViewGroup
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.AnimationUtils
 import android.widget.ImageView
+import android.widget.Toast
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -239,7 +242,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
         profileViewModel.getUserLiveData.observe(viewLifecycleOwner, Observer { response ->
             response?.data?.let { userData ->
-                BaseApplication.getInstance()?.getPrefs()?.setUserData(userData)
+                BaseApplication.getInstance()?.getPrefs()?.setUserDataPreservingLocalIntent(userData)
                 binding.tvCoins.text = userData.coins.toString()
                 Log.d("coinsvalue", "${userData.coins}")
                 Log.d("coinsvalue", "${userData.name}")
@@ -252,7 +255,15 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
 
 
+        // B066 — guard against launching a second call activity while one is
+        // already alive. Symptom of the missing guard: tapping the random
+        // button mid-call (or with the call screen still backgrounded) appears
+        // to do "nothing" because Telecom/Agora silently reject the new flow.
         binding.fabAudio.setOnSingleClickListener {
+            if (BaseApplication.getInstance()?.isInActiveCall() == true) {
+                Toast.makeText(context, "Already in a call", Toast.LENGTH_SHORT).show()
+                return@setOnSingleClickListener
+            }
             val intent = Intent(context, AgoraRandomCallActivity::class.java)
             intent.putExtra(DConstants.CALL_TYPE, "audio")
             intent.putExtra("RANDOM_FILTER", filterType)
@@ -261,6 +272,10 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         }
 
         binding.fabVideo.setOnSingleClickListener {
+            if (BaseApplication.getInstance()?.isInActiveCall() == true) {
+                Toast.makeText(context, "Already in a call", Toast.LENGTH_SHORT).show()
+                return@setOnSingleClickListener
+            }
             val intent = Intent(context, AgoraRandomCallActivity::class.java)
             intent.putExtra(DConstants.CALL_TYPE, "video")
             intent.putExtra("RANDOM_FILTER", filterType)
@@ -302,10 +317,18 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             refreshMaleHomeNetworkPlaceholder()
         })
 
-        femaleUsersViewModel.femaleUsersErrorLiveData.observe(viewLifecycleOwner, Observer {
+        femaleUsersViewModel.femaleUsersErrorLiveData.observe(viewLifecycleOwner, Observer { errorMessage ->
             binding.swipeRefreshLayout.isRefreshing = false
             setLoading(false)
             refreshMaleHomeNetworkPlaceholder()
+            // B102 — surface load failures so the user knows the tap "didn't
+            // take" and can retry. Previously this observer silently hid the
+            // spinner and the UI looked unchanged from a successful load.
+            if (!errorMessage.isNullOrBlank() && isAdded) {
+                context?.let { ctx ->
+                    Toast.makeText(ctx, "Couldn't load creators — pull to refresh", Toast.LENGTH_SHORT).show()
+                }
+            }
         })
 
         binding.btnRetryNoNetworkHome.setOnClickListener {
@@ -482,22 +505,40 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             Log.d("FilterButtons", "Filter already selected, returning")
             return
         }
+
+        // B102 — check preconditions BEFORE flipping pill state. Previously
+        // we updated filterType + visual highlight first, then silently
+        // skipped the load if userData was null or there was no internet,
+        // leaving the pill looking selected but the list unchanged (the
+        // "toggle not working" symptom). Now: if we can't load, we tell
+        // the user and leave the previous pill state intact so a retry tap
+        // on the same pill still works.
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val userId = userData?.id
+        val ctx = context
+        if (userId == null) {
+            Log.w("FilterButtons", "applyFilter: userData not ready — ignoring tap")
+            ctx?.let { Toast.makeText(it, "Please wait a moment and try again", Toast.LENGTH_SHORT).show() }
+            return
+        }
+        if (ctx == null || !isInternetAvailable(ctx)) {
+            Log.w("FilterButtons", "applyFilter: offline — ignoring tap")
+            ctx?.let { Toast.makeText(it, "No internet — check connection and retry", Toast.LENGTH_SHORT).show() }
+            return
+        }
+
+        // Preconditions OK — commit the state change and fire the load.
         filterType = selectedFilter
         updateFilterButtonStyles()
-                        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-                        userData?.id?.let { userId ->
-                            if (context?.let { it1 -> isInternetAvailable(it1) } == true) {
-                                if (selectedFilter == "my_chats") {
-                                    loadMyChats(userId)
-                                } else {
-                                    // Clear existing data
-                                    femaleUsersViewModel.femaleUsersResponseLiveData.value?.data?.clear()
-                                    (binding.rvProfiles.adapter as? FemaleUserAdapter)?.notifyDataSetChanged()
-                                    // Reload with new filter
-                                    loadFemaleUsers(userId)
-                                }
-                            }
-                        }
+        if (selectedFilter == "my_chats") {
+            loadMyChats(userId)
+        } else {
+            // Clear existing data
+            femaleUsersViewModel.femaleUsersResponseLiveData.value?.data?.clear()
+            (binding.rvProfiles.adapter as? FemaleUserAdapter)?.notifyDataSetChanged()
+            // Reload with new filter
+            loadFemaleUsers(userId)
+        }
     }
 
     private fun sortMyChatsPinnedFirst(
@@ -528,6 +569,14 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 binding.swipeRefreshLayout.isRefreshing = false
                 val chats = response.body()?.data?.chats ?: emptyList()
                 val activityCtx = activity ?: return
+                // B080 — `audioStatus` / `videoStatus` are creator-only fields
+                // (set by FemaleHomeFragment toggles). Male users never set
+                // them so the server returns 0, which the chat-list adapter
+                // renders as "Unavailable". When the viewer is female, the
+                // other party is male — there are no call-availability toggles
+                // to honor, so force-enable both call types.
+                val currentUserIsFemale = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
+                    ?.equals(DConstants.FEMALE, ignoreCase = true) == true
                 val mapped = chats.mapNotNull { item ->
                     try {
                         val ts = try {
@@ -538,6 +587,13 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                         val readUpTo = readChatLastMsgSeconds[item.user.id.toString()]
                         val incomingSec = ts?.seconds ?: 0L
                         val effectiveUnread = if (readUpTo != null && incomingSec <= readUpTo) 0 else item.unreadCount
+                        // B080 + B097 — resolve once so isOnline can also check
+                        // availability. For female viewers, the other party is
+                        // male and there are no audio/video toggles to honor —
+                        // both forced to 1. For male viewers, the server values
+                        // (creator's toggles) flow through unchanged.
+                        val audioAvail = if (currentUserIsFemale) 1 else (item.user.audioStatus ?: 1)
+                        val videoAvail = if (currentUserIsFemale) 1 else (item.user.videoStatus ?: 1)
                         com.gmwapp.hima.models.ChatConversation(
                             threadId = item.chatId,
                             userId = item.user.id.toString(),
@@ -547,11 +603,17 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                             lastMessageType = item.lastMessage?.messageType ?: "text",
                             lastMessageTime = ts,
                             unreadCount = effectiveUnread,
-                            // status == 1 from the backend means the creator is
-                            // currently active — mirror the "All" tab's green dot.
-                            isOnline = (item.user.status ?: 0) == 1,
-                            audioStatus = item.user.audioStatus ?: 1,
-                            videoStatus = item.user.videoStatus ?: 1,
+                            // B097 — green dot now requires BOTH recent activity
+                            // (status==1) AND at least one call mode available.
+                            // Previously a creator with both toggles off but
+                            // status==1 still got the dot, making her look
+                            // reachable when tapping anything said "Unavailable".
+                            // Mirrors FemaleUserAdapter's stricter "online means
+                            // callable" semantics.
+                            isOnline = (item.user.status ?: 0) == 1 &&
+                                (audioAvail == 1 || videoAvail == 1),
+                            audioStatus = audioAvail,
+                            videoStatus = videoAvail,
                             coinPerMinAudio = item.user.coinPerMinAudio ?: 10,
                             coinPerMinVideo = item.user.coinPerMinVideo ?: 60,
                             language = item.user.language,
@@ -609,7 +671,11 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         
         // Animations removed as per user request
         
-        binding.fabRandom.setOnSingleClickListener {
+        // B066 — short debounce (150ms) so users can rapidly tap-to-expand and
+        // tap-to-collapse without the second tap getting swallowed by the
+        // default 500ms guard. The Random FAB is a pure UI toggle, not an
+        // activity launcher, so 500ms is overkill here.
+        binding.fabRandom.setOnSingleClickListener(debounceMs = 150L) {
             if (!isAllFabVisible) {
                 showDimBackground()
                 binding.fabAudio.show()
@@ -717,11 +783,74 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             registerHomeChatListRefreshReceiver()
             startHomeCollectingSocketNewMessage()
         }
+
+        // B065 — refresh creator availability when network returns mid-screen.
+        registerNetworkRestoreListener()
     }
 
     override fun onPause() {
         super.onPause()
         unregisterHomeChatListRefreshReceiver()
+        unregisterNetworkRestoreListener()
+    }
+
+    // B065 — without this, killing the network while the user is sitting on
+    // the Home screen left the creator list stale until the user manually
+    // pulled to refresh or navigated away and back. Register a default
+    // network callback for the lifetime of the fragment being resumed; on
+    // a real offline → online transition (NOT on initial registration when
+    // we're already online), kick the existing loadFemaleUsers() path so
+    // creator availability statuses come back fresh.
+    private var networkRestoreCallback: ConnectivityManager.NetworkCallback? = null
+    private var wasOnline = true
+
+    private fun registerNetworkRestoreListener() {
+        if (networkRestoreCallback != null) return
+        val ctx = context ?: return
+        val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return
+        // Seed wasOnline from the current state so the first onAvailable
+        // (which fires immediately if we're already online) doesn't cause
+        // a spurious refresh on top of the onResume refresh.
+        wasOnline = isInternetAvailable(ctx)
+        val cb = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                if (!wasOnline) {
+                    wasOnline = true
+                    view?.post {
+                        if (!isAdded) return@post
+                        val uid = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
+                            ?: return@post
+                        Log.d("HomeFragment", "Network restored — refreshing creator list")
+                        if (filterType == "my_chats") loadMyChats(uid) else loadFemaleUsers(uid)
+                    }
+                }
+            }
+            override fun onLost(network: Network) {
+                wasOnline = false
+            }
+        }
+        try {
+            val request = NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .build()
+            cm.registerNetworkCallback(request, cb)
+            networkRestoreCallback = cb
+        } catch (e: Exception) {
+            Log.w("HomeFragment", "registerNetworkCallback failed: ${e.message}")
+        }
+    }
+
+    private fun unregisterNetworkRestoreListener() {
+        val cb = networkRestoreCallback ?: return
+        try {
+            val cm = context?.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            cm?.unregisterNetworkCallback(cb)
+        } catch (e: Exception) {
+            Log.w("HomeFragment", "unregisterNetworkCallback failed: ${e.message}")
+        } finally {
+            networkRestoreCallback = null
+        }
     }
 
     /** Receiver for [ACTION_CHAT_LIST_REFRESH] while the my_chats filter is active. */

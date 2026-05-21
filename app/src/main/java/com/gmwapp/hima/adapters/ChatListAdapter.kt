@@ -305,17 +305,34 @@ class ChatListAdapter(
             binding.ivVideoIcon.setColorFilter(if (showVideo) whiteColor else disabledTextColor)
             binding.tvAudioRate.setTextColor(if (showAudio) whiteColor else disabledTextColor)
             binding.tvVideoRate.setTextColor(if (showVideo) whiteColor else disabledTextColor)
-            binding.ivAudioCoin.visibility = if (showAudio) View.VISIBLE else View.GONE
-            binding.ivVideoCoin.visibility = if (showVideo) View.VISIBLE else View.GONE
+            // The per-minute coin rate (e.g. "10/min") is the caller's cost.
+            // Only males pay for calls in this app — females are recipients
+            // (the call_male_user backend doesn't deduct anything from her).
+            // Showing "10/min" on the female's chat row implies she's about
+            // to spend coins she doesn't have, which is misleading. When the
+            // viewer is female, hide the rate text + coin badge entirely;
+            // the call icon alone is the affordance. The "Unavailable" label
+            // for the disabled state still shows for male viewers seeing a
+            // creator who has audio/video turned off.
+            val isViewerFemale = BaseApplication.getInstance()?.getPrefs()
+                ?.getUserData()?.gender
+                ?.equals(DConstants.FEMALE, ignoreCase = true) == true
 
-            binding.tvAudioRate.text = if (showAudio)
-                "${conversation.coinPerMinAudio}/min"
-            else
-                activity.getString(R.string.call_unavailable)
-            binding.tvVideoRate.text = if (showVideo)
-                "${conversation.coinPerMinVideo}/min"
-            else
-                activity.getString(R.string.call_unavailable)
+            binding.ivAudioCoin.visibility =
+                if (showAudio && !isViewerFemale) View.VISIBLE else View.GONE
+            binding.ivVideoCoin.visibility =
+                if (showVideo && !isViewerFemale) View.VISIBLE else View.GONE
+
+            binding.tvAudioRate.text = when {
+                !showAudio -> activity.getString(R.string.call_unavailable)
+                isViewerFemale -> ""
+                else -> "${conversation.coinPerMinAudio}/min"
+            }
+            binding.tvVideoRate.text = when {
+                !showVideo -> activity.getString(R.string.call_unavailable)
+                isViewerFemale -> ""
+                else -> "${conversation.coinPerMinVideo}/min"
+            }
 
             binding.btnAudioCall.setOnSingleClickListener {
                 if (showAudio) launchCall(conversation, "audio")
@@ -454,7 +471,16 @@ class ChatListAdapter(
 
         private fun launchCall(conversation: ChatConversation, callType: String) {
             val receiverId = conversation.userId.toIntOrNull() ?: return
-            val intent = Intent(activity, MaleCallConnectingActivity::class.java).apply {
+            // Female callers are recipients, not payers — route them through the
+            // female call flow so they don't hit the male coin gate and get bounced
+            // to WalletActivity. Mirrors the pattern in FavouriteFragment.
+            val callerGender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
+            val activityClass = if (callerGender == DConstants.FEMALE) {
+                com.gmwapp.hima.agora.female.FemaleCallConnectingActivity::class.java
+            } else {
+                MaleCallConnectingActivity::class.java
+            }
+            val intent = Intent(activity, activityClass).apply {
                 putExtra(DConstants.CALL_TYPE, callType)
                 putExtra(DConstants.RECEIVER_ID, receiverId)
                 putExtra(DConstants.RECEIVER_NAME, conversation.userName)

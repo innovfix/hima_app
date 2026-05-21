@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- I021 — dark navy gradient backing for the in-call low-balance banner.
+     Matches the call screen's professional palette but with a hint of pink
+     in the border (set on the parent CardView) for the Hima brand accent. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="135"
+        android:startColor="#1F2A6B"
+        android:endColor="#0F1842"
+        android:type="linear" />
+    <corners android:radius="14dp" />
+</shape>

@@ -47,6 +47,16 @@ class GiftBottomSheetFragment(var callType: String, var femaleId:Int) : BottomSh
     val giftViewModel: GiftViewModel by viewModels()
     var count = 1
 
+    /**
+     * Cooldown between consecutive gift sends. Without this, 5–10 rapid taps
+     * fired the full pipeline (getRemainingTime + sendGift + animation +
+     * sound + FCM-to-peer) 5–10 times in parallel and froze video on both
+     * sides (B071). 1 second is a safe lower bound that matches the
+     * animation duration so a queue can never visually pile up.
+     */
+    private var lastGiftSendAt = 0L
+    private val giftSendCooldownMs = 1000L
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -59,6 +69,17 @@ class GiftBottomSheetFragment(var callType: String, var femaleId:Int) : BottomSh
 
 
         giftAdapter = GiftAdapter(requireContext()) { giftData ->
+            // B071 — throttle rapid taps so we never run the full send
+            // pipeline (API + animation + sound + FCM) more than once
+            // per second. Silently swallow extra taps in the cooldown.
+            val now = System.currentTimeMillis()
+            val sinceLast = now - lastGiftSendAt
+            if (sinceLast < giftSendCooldownMs) {
+                Log.d("GiftDebounce", "ignored — ${sinceLast}ms since last send")
+                return@GiftAdapter
+            }
+            lastGiftSendAt = now
+
             getRemainingTime(callType) { availableCoins ->
 
                 if (availableCoins >= giftData.coins) {
@@ -79,9 +100,24 @@ class GiftBottomSheetFragment(var callType: String, var femaleId:Int) : BottomSh
 
         recyclerView.adapter = giftAdapter
 
+        // B072 — render instantly from the prefetched catalog if MainActivity
+        // already warmed it. Falls back to the API fetch only on a cold cache
+        // (e.g. prefetch hit a network error or this sheet opened before
+        // MainActivity had a chance to prefetch — incoming call, etc).
+        val cached = com.gmwapp.hima.utils.GiftManager.getCachedGifts()
+        if (cached.isNotEmpty()) {
+            giftAdapter.updateGiftList(cached)
+        }
+        com.gmwapp.hima.utils.GiftManager.cachedGiftsLiveData.observe(viewLifecycleOwner) { list ->
+            if (!list.isNullOrEmpty()) giftAdapter.updateGiftList(list)
+        }
+
         giftImageViewModel.giftResponseLiveData.observe(viewLifecycleOwner, Observer { response ->
             response?.data?.let { giftList ->
                 giftAdapter.updateGiftList(giftList)
+                // B072 — populate the shared cache so the next open is instant
+                // even when this is the first fetch of the session.
+                com.gmwapp.hima.utils.GiftManager.updateGifts(giftList)
             }
         })
 
@@ -91,7 +127,11 @@ class GiftBottomSheetFragment(var callType: String, var femaleId:Int) : BottomSh
             }
         })
 
-        giftImageViewModel.fetchGiftImages() // Fetch images
+        // B072 — only call the API if the cache is empty. Saves a round-trip
+        // on every subsequent sheet open.
+        if (cached.isEmpty()) {
+            giftImageViewModel.fetchGiftImages()
+        }
 
         return binding.root
     }

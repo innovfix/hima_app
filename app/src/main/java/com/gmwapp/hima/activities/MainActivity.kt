@@ -59,6 +59,8 @@ import com.gmwapp.hima.adapters.CoinAdapter
 import com.gmwapp.hima.adapters.GiftAdapter
 import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.agora.ZohoHelper
+import com.gmwapp.hima.agora.female.FemaleCallAcceptActivity
+import com.gmwapp.hima.agora.male.MaleCallAcceptActivity
 import com.gmwapp.hima.callbacks.NetworkRetryable
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.callbacks.Refreshable
@@ -145,6 +147,16 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     BottomSheetWelcomeBonus.OnAddCoinsListener,
     BottomSheetInsufficientCoinsPaywall.OnPaywallAddCoinsListener,
     CFCheckoutResponseCallback {
+
+    companion object {
+        // B034 — deep-link key for "open MainActivity directly into a specific
+        // bottom-nav tab." Used by the missed-call notification PendingIntent
+        // so a tap lands on Recent instead of Home. Add new tab values as
+        // needed (right now only TAB_RECENT is consumed).
+        const val EXTRA_OPEN_TAB = "open_tab"
+        const val TAB_RECENT = "recent"
+    }
+
     lateinit var binding: ActivityMainBinding
     var isBackPressedAlready = false
     var userName: String? = null
@@ -177,6 +189,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
     @javax.inject.Inject
     lateinit var apiManager: ApiManager
+
+    // B072 — prefetch gift catalog + warm icon cache at app start so the
+    // first open of the gift bottom sheet in a session doesn't show an
+    // empty grid while the network fetch + per-icon Glide downloads race.
+    @javax.inject.Inject
+    lateinit var giftImageRepository: com.gmwapp.hima.repositories.GiftImageRepository
 
 
     private var blockWordDialog: Dialog? = null
@@ -253,7 +271,29 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        
+
+        // B120: if the device clock is set wildly wrong (years in the past or
+        // future), TLS handshakes fail and Agora rejects tokens as
+        // not-yet-valid / expired. The user sees "calls not received." The
+        // app can't fix the clock for them, so we prompt them to fix it.
+        // Throttled to once-per-day inside the checker.
+        com.gmwapp.hima.utils.DeviceTimeChecker.maybeWarnDeviceTime(this)
+
+        // B023 — if the user opened Hima via launcher while a call was
+        // ringing, the heads-up notification was the only surface they
+        // were tracking, and bringing MainActivity to the foreground used
+        // to leave the ring orphaned (no notification, no accept UI).
+        // Route them straight to the proper accept screen — same intent
+        // shape FCM uses, so the activity hydrates avatar/name correctly.
+        // isIncomingCallFresh() honours the 35–45s ring window so a stale
+        // flag never hijacks a normal app launch.
+        routeIncomingCallIfPending()
+
+        // B072 — prefetch gift catalog + warm Glide disk cache so the gift
+        // bottom sheet renders instantly the first time the user opens it.
+        // Idempotent: no-op if a cache is already populated.
+        com.gmwapp.hima.utils.GiftManager.prefetch(this, giftImageRepository)
+
         // Set status bar color to pink
         // Set colors
         window.statusBarColor = ContextCompat.getColor(this, R.color.white)
@@ -549,7 +589,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
         profileViewModel.getUserLiveData.observe(this, Observer { response ->
             response?.data?.let { userData ->
-                prefs?.setUserData(userData)
+                // B075 — bootstrap refresh; preserve toggle / DND intent.
+                prefs?.setUserDataPreservingLocalIntent(userData)
             } ?: run {
                 Log.e("Observer", "RegisterResponse is null")
             }
@@ -754,13 +795,47 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         }
         binding.bottomNavigationView.setOnNavigationItemSelectedListener(this)
         binding.bottomNavigationView.selectedItemId = R.id.home
-        
+
+        // B034 — if the launching intent asked for a specific tab (e.g.
+        // missed-call notification → "recent"), honour it AFTER the default
+        // Home selection so the deep-link wins. selectedItemId triggers
+        // onNavigationItemSelected → the right Fragment swap.
+        routeToTabIfRequested(intent)
+
         // Ensure bottom navigation is always visible on top
         binding.bottomNavigationView.bringToFront()
         binding.bottomNavigationView.invalidate()
-        
+
         removeShiftMode()
     }
+
+    /**
+     * B034 — when launched (or re-launched via singleTop's onNewIntent) with
+     * [EXTRA_OPEN_TAB], jump the bottom nav to the requested tab. Today the
+     * only consumer is the missed-call notification PendingIntent built in
+     * [com.gmwapp.hima.utils.CallNotifications.showMissed], routing to
+     * [TAB_RECENT].
+     */
+    private fun routeToTabIfRequested(routingIntent: Intent?) {
+        val tab = routingIntent?.getStringExtra(EXTRA_OPEN_TAB) ?: return
+        val targetItem = when (tab) {
+            TAB_RECENT -> R.id.recent
+            else -> {
+                android.util.Log.w("MainActivity", "Unknown OPEN_TAB extra: $tab")
+                return
+            }
+        }
+        if (binding.bottomNavigationView.menu.findItem(targetItem) == null) {
+            // The Recent menu item is hidden for gender-restricted users in
+            // some flows — bail rather than crash.
+            android.util.Log.w("MainActivity", "OPEN_TAB target $tab not in current bottom nav")
+            return
+        }
+        if (binding.bottomNavigationView.selectedItemId != targetItem) {
+            binding.bottomNavigationView.selectedItemId = targetItem
+        }
+    }
+
 
     /**
      * Avoids stacking multiple async [androidx.fragment.app.FragmentTransaction.replace] + [commit]
@@ -1218,6 +1293,41 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         requestPermissions()
     }
 
+    private fun routeIncomingCallIfPending() {
+        val app = BaseApplication.getInstance() ?: return
+        if (!app.isIncomingCallFresh()) return
+
+        val senderId = app.getSenderIdForSplashActivity()
+        if (senderId <= 0) return
+
+        val callType = app.getCallTypeForSplashActivity()
+        val channel = app.getChannelName()
+        val callId = app.getCallIdForSplashActivity() ?: 0
+        val callerName = app.getIncomingCallerName()
+        val callerImage = app.getIncomingCallerImage()
+
+        val gender = app.getPrefs()?.getUserData()?.gender
+        val acceptCls = if (gender == DConstants.FEMALE)
+            FemaleCallAcceptActivity::class.java
+        else
+            MaleCallAcceptActivity::class.java
+
+        val intent = Intent(this, acceptCls).apply {
+            // Use SINGLE_TOP so re-entering with the same call doesn't
+            // stack a second accept activity; CLEAR_TOP brings the
+            // existing one to front if it's already alive.
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("CALL_TYPE", callType)
+            putExtra("SENDER_ID", senderId)
+            putExtra("CHANNEL_NAME", channel)
+            putExtra("Caller_NAME", callerName)
+            putExtra("Caller_Image", callerImage)
+            putExtra("CALL_ID", callId)
+        }
+        Log.d("HimaIncomingCall", "MainActivity routing to $acceptCls (senderId=$senderId callType=$callType)")
+        startActivity(intent)
+    }
+
 
     private fun checkForInAppUpdate(){
 
@@ -1396,6 +1506,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        // B034 — honour tab-deep-link extras when MainActivity is reopened
+        // (e.g. missed-call notification while app already in background
+        // task). The setIntent() call above is what makes the new payload
+        // visible to routeToTabIfRequested.
+        routeToTabIfRequested(intent)
     }
 
     fun refreshRecentMissedCountBadge() {

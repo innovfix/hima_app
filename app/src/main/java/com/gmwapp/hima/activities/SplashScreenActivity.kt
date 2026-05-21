@@ -317,7 +317,11 @@ class SplashScreenActivity : BaseActivity() {
 
 
         profileViewModel.getUserLiveData.observe(this, Observer {
-            it?.data?.let { fresh -> prefs?.setUserData(fresh) }
+            // B075 — cold-start refresh: preserve toggle / DND intent from the
+            // previous session. Server can lag a creator's audio/video status to
+            // 0 between sessions; the user shouldn't have to re-toggle on every
+            // app open.
+            it?.data?.let { fresh -> prefs?.setUserDataPreservingLocalIntent(fresh) }
             userData = it?.data ?: prefs?.getUserData()
 
             intent = when {

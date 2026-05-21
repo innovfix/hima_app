@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    I021 — Low-balance warning banner shown in the male call screens when the
+    in-call countdown timer drops below 60 seconds. Lets the user tap one of
+    the top 3 recharge packages (or "Go to wallet") to top up mid-call without
+    cutting the audio. CallingService (foreground microphone) keeps Agora
+    alive while the user is in WalletActivity / payment sheet.
+
+    Root is a CardView so we get rounded corners + an elevation shadow. The
+    inner LinearLayout draws the dark navy gradient and lays out the title
+    row, the 3 chip slots, and the "Go to wallet" link.
+-->
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/low_balance_banner_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="16dp"
+    android:layout_marginEnd="16dp"
+    android:layout_marginTop="6dp"
+    android:visibility="gone"
+    app:cardBackgroundColor="@android:color/transparent"
+    app:cardCornerRadius="14dp"
+    app:cardElevation="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_low_balance_banner"
+        android:orientation="vertical"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="10dp">
+
+        <!-- Row 1: warning headline. Heart character is in the string itself
+             (❤) so we don't need a separate icon drawable. -->
+        <TextView
+            android:id="@+id/tv_low_balance_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:fontFamily="sans-serif-medium"
+            android:text="@string/low_balance_title"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp" />
+
+        <!-- Row 2: 3 chip slots. Populated programmatically by LowBalanceBanner. -->
+        <LinearLayout
+            android:id="@+id/chip_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:gravity="center"
+            android:orientation="horizontal" />
+
+        <!-- Row 3: secondary "Go to wallet" link. Tap → WalletActivity with
+             no pre-selected package. -->
+        <TextView
+            android:id="@+id/tv_go_to_wallet"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="8dp"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:fontFamily="sans-serif-medium"
+            android:padding="6dp"
+            android:text="@string/low_balance_go_to_wallet"
+            android:textColor="#E91E63"
+            android:textSize="13sp" />
+
+    </LinearLayout>
+
+</androidx.cardview.widget.CardView>

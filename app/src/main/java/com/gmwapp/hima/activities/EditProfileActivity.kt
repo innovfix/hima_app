@@ -335,7 +335,8 @@ class EditProfileActivity : BaseActivity() {
                 
                 showAppToast(getString(R.string.profile_updated), Toast.LENGTH_LONG)
 
-                BaseApplication.getInstance()?.getPrefs()?.setUserData(it.data)
+                // B075 — profile edit shouldn't touch call availability; preserve toggle / DND intent.
+                BaseApplication.getInstance()?.getPrefs()?.setUserDataPreservingLocalIntent(it.data)
                 
                 // ✅ Update profile picture in Firebase
                 updateProfilePicInFirebase(it.data.id, it.data.image)

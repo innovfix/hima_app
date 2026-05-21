@@ -1,6 +1,7 @@
 package com.gmwapp.hima.agora.male
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -68,7 +69,10 @@ class MaleCallConnectingActivity : AppCompatActivity() {
             elapsedTime++
             Log.d("CallTimeoutTracker", "Seconds passed: $elapsedTime")
 
-            if (elapsedTime >= 20) { // 20 seconds timeout
+            if (elapsedTime >= 40) { // 40 seconds timeout — Oplus/Realme ROMs defer the
+                                     // Telecom ringer UI up to ~15s after the FCM lands;
+                                     // a 20s caller-side cutoff was firing before the
+                                     // receiver's phone visibly rang and the user could tap.
                 Log.d("CreatorCallDiag", "MConn.timeoutFired elapsed=$elapsedTime -> disconnect (no answer)")
                 disconnectCall()
             } else {
@@ -88,10 +92,56 @@ class MaleCallConnectingActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // B067: refuse to start a Hima call while a SIM call is active.
+        // Android's telephony stack holds an exclusive lock on STREAM_VOICE_CALL
+        // in MODE_IN_CALL — Agora video frames still render but voice frames
+        // have nowhere to go, so the user "can see but can't hear." Block up
+        // front and surface the same message WhatsApp/Telegram show.
+        if (com.gmwapp.hima.utils.CallPhoneStateHelper.isCellularCallBusy(this)) {
+            android.widget.Toast.makeText(
+                this,
+                "You're on a phone call. End it to make a Hima call.",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            finish()
+            return
+        }
+        // B125 — refuse to start a second Hima call while one is already
+        // running. The first call's in-call activity sets isCallActive=true
+        // in its onCreate (and clears it in onDestroy); if it's still alive
+        // here, the user attempted to initiate a 2nd call via Random Call
+        // FAB / Recent / etc. Without this gate, two Agora channels would
+        // join concurrently, the previous video activity would stay on
+        // screen, and the 2nd call's audio path would lose its mic.
+        if (BaseApplication.getInstance()?.isInRealCall() == true) {
+            android.widget.Toast.makeText(
+                this,
+                "You're already in a call. End it first.",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            finish()
+            return
+        }
         enableEdgeToEdge()
         binding =ActivityMaleCallConnectingBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        window.statusBarColor = ContextCompat.getColor(this, R.color.black)
+        // B014 — the connecting layout has a white background (bg_white).
+        // Hardcoding the status bar to black created the jarring "completely
+        // black bar over a white screen" look. Match it to the page bg and
+        // ask the OS to render the status-bar icons in dark colors so they
+        // stay legible against white.
+        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.setSystemBarsAppearance(
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility =
+                window.decorView.systemUiVisibility or
+                    android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+        }
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
@@ -360,17 +410,29 @@ class MaleCallConnectingActivity : AppCompatActivity() {
 
                 Log.d("callid", "$callId")
 
-                // ✅ Check callType against corresponding status
+                // B201 — fail-CLOSED gate. Previously this used `!= 0`, but
+                // `audioStatus` / `videoStatus` are nullable: `null != 0` is
+                // true, so any code path that triggered callFemaleUser with a
+                // response payload missing the status field (e.g. the avatar-
+                // tap bypass Ranjini reported) silently skipped the DND check
+                // and the call went through anyway. Requiring `== 1` treats
+                // both `0` (DND on / unavailable) and `null` (status unknown)
+                // as "do not place the call".
                 val shouldSendNotification = when (callType) {
-                    "audio" -> audioStatus != 0
-                    "video" -> videoStatus != 0
+                    "audio" -> audioStatus == 1
+                    "video" -> videoStatus == 1
                     else -> false
                 }
 
                 if (!shouldSendNotification) {
-                    Log.d("Notification", "Not sending notification because callType=$callType has status=0")
+                    Log.d(
+                        "Notification",
+                        "Blocking call: callType=$callType audioStatus=$audioStatus videoStatus=$videoStatus"
+                    )
                     Toast.makeText(
-                        this@MaleCallConnectingActivity, "User is offline", Toast.LENGTH_LONG
+                        this@MaleCallConnectingActivity,
+                        "Creator is unavailable right now",
+                        Toast.LENGTH_LONG
                     ).show()
                     navigateToMain()
                     return@Observer

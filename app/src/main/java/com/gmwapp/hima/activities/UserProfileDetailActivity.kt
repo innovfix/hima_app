@@ -976,7 +976,16 @@ class UserProfileDetailActivity : AppCompatActivity() {
             return
         }
 
-        val intent = Intent(this, MaleCallConnectingActivity::class.java).apply {
+        // Female callers are recipients, not payers — route them through the
+        // female call flow so they don't hit the male coin gate. Mirrors the
+        // pattern in FavouriteFragment / ChatListAdapter.
+        val callerGender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
+        val activityClass = if (callerGender == DConstants.FEMALE) {
+            com.gmwapp.hima.agora.female.FemaleCallConnectingActivity::class.java
+        } else {
+            MaleCallConnectingActivity::class.java
+        }
+        val intent = Intent(this, activityClass).apply {
             putExtra(DConstants.CALL_TYPE, callType)
             putExtra(DConstants.RECEIVER_ID, userId)
             putExtra(DConstants.RECEIVER_NAME, userName)

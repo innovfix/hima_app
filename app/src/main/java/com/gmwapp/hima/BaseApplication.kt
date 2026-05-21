@@ -6,6 +6,8 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Intent
 import android.content.IntentFilter
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.os.Bundle
 import android.content.Context
@@ -19,11 +21,15 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.Uri
 import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.util.Base64
 import android.util.Log
 import java.net.URLDecoder
 import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
+import java.util.concurrent.atomic.AtomicInteger
 import android.view.WindowManager
 import androidx.lifecycle.MutableLiveData
 import androidx.work.Configuration
@@ -32,7 +38,6 @@ import com.android.installreferrer.api.InstallReferrerStateListener
 import com.android.installreferrer.api.ReferrerDetails
 import com.facebook.FacebookSdk
 import com.facebook.appevents.AppEventsLogger
-import com.gmwapp.hima.BuildConfig
 import com.gmwapp.hima.agora.telecom.HimaTelecomManager
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.repositories.CallStatusRepository
@@ -85,7 +90,21 @@ class BaseApplication : Application(), Configuration.Provider {
     private var callType: String? = null
     private var roomId: String? = null
     private var mediaPlayer: MediaPlayer? = null
+    // Separate player for the gift "send" sound effect, kept distinct from
+    // the incoming-call ringtone player so a rapid burst of gifts doesn't
+    // tear down the ringtone path (B071 fix). Also lets us prepareAsync
+    // without blocking the main thread on each gift tap.
+    private var giftSoundPlayer: MediaPlayer? = null
     private var endCallUpdatePending: Boolean? = null
+
+    // Audio focus for the incoming-call ringtone phase. Holding focus with
+    // USAGE_NOTIFICATION_RINGTONE makes YouTube / Spotify / other media pause
+    // while Hima is ringing — without this the ringtone gets mixed with /
+    // drowned out by whatever the user is already playing (B150).
+    private var ringtoneFocusRequest: AudioFocusRequest? = null
+    private val ringtoneFocusAutoReleaseHandler =
+        android.os.Handler(android.os.Looper.getMainLooper())
+    private val ringtoneFocusAutoRelease = Runnable { releaseRingtoneFocus() }
 
     val networkConnectedLiveData = MutableLiveData<Boolean>()
     private var appConnectivityManager: ConnectivityManager? = null
@@ -101,6 +120,11 @@ class BaseApplication : Application(), Configuration.Provider {
     private var channelName: String? = null
     private var callIdForSplashActivity: Int? = null
     private var incomingCall: Boolean = false
+    // B023 — cached caller display info so MainActivity can hand off to the
+    // call-accept activity (with proper avatar/name) when the user opens the
+    // app while a call is ringing, instead of the ring being dropped silently.
+    private var incomingCallerName: String? = null
+    private var incomingCallerImage: String? = null
 
 
     var messageCameWhenIsAlive = 0
@@ -118,6 +142,12 @@ class BaseApplication : Application(), Configuration.Provider {
                     if (Build.VERSION.SDK_INT != Build.VERSION_CODES.O) {
                         activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                     }
+                }
+                if (activity.javaClass.simpleName in CALL_ACTIVITY_NAMES) {
+                    // B156a — mark the app as in-a-call from the moment any
+                    // call screen is *created*, not when it reaches resume.
+                    // FCM-incoming busy-check reads this via isInActiveCall().
+                    activeCallActivityCount.incrementAndGet()
                 }
                 ZohoSalesIQ.showLauncher(false)
             }
@@ -164,6 +194,15 @@ class BaseApplication : Application(), Configuration.Provider {
                 if (currentActivity == activity) {
                     currentActivity = null
                 }
+                if (activity.javaClass.simpleName in CALL_ACTIVITY_NAMES) {
+                    // Defensive: only decrement if we're still above 0.
+                    // ActivityLifecycleCallbacks pair onCreate→onDestroy reliably
+                    // on the main thread, but rare WindowManager/process-kill
+                    // paths can drop an onCreate without a paired onDestroy.
+                    activeCallActivityCount.updateAndGet { current ->
+                        if (current > 0) current - 1 else 0
+                    }
+                }
             }
 
         }
@@ -193,6 +232,21 @@ class BaseApplication : Application(), Configuration.Provider {
 
         lateinit var firebaseAnalytics: FirebaseAnalytics
             private set
+
+        // B156a — simpleName lookup avoids importing all 8 call activities
+        // into BaseApplication. Checked in onActivityCreated / onActivityDestroyed
+        // to keep the live-call-activity counter (`activeCallActivityCount`)
+        // in sync. If any class moves package the entry still matches.
+        private val CALL_ACTIVITY_NAMES: Set<String> = setOf(
+            "FemaleCallConnectingActivity",
+            "FemaleCallAcceptActivity",
+            "FemaleAudioCallingActivity",
+            "FemaleVideoCallingActivity",
+            "MaleCallConnectingActivity",
+            "MaleCallAcceptActivity",
+            "MaleAudioCallingActivity",
+            "MaleVideoCallingActivity"
+        )
 
         /**
          * DND check that can be called from notification listeners (FCM + OneSignal).
@@ -1007,10 +1061,130 @@ class BaseApplication : Application(), Configuration.Provider {
         }
     }
 
+    /**
+     * Grab transient audio focus for the ringtone so any media app (YouTube /
+     * Spotify / etc.) pauses while Hima is ringing — fixes B150. Idempotent;
+     * safe to call from the FCM service for the heads-up phase AND from
+     * [playIncomingCallSound] for the activity-phase MediaPlayer.
+     *
+     * Includes a 45 s auto-release safety net for the case where neither
+     * [stopRingtone] nor the accept/decline paths get a chance to run (e.g.
+     * the OS auto-cancels the 35 s incoming notification on timeout).
+     */
+    fun requestRingtoneFocus() {
+        val am = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        if (ringtoneFocusRequest != null) {
+            // Already holding focus; just reset the auto-release timer.
+            ringtoneFocusAutoReleaseHandler.removeCallbacks(ringtoneFocusAutoRelease)
+            ringtoneFocusAutoReleaseHandler.postDelayed(ringtoneFocusAutoRelease, 45_000L)
+            return
+        }
+        val attrs = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+        // GAIN_TRANSIENT_EXCLUSIVE matches native phone-call ringer behaviour:
+        // while we hold focus, the system denies any other app's request (e.g.
+        // user tapping Play in Spotify while Hima is ringing). Plain TRANSIENT
+        // would let the other app grab focus and play over the ringtone.
+        val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
+            .setAudioAttributes(attrs)
+            .setOnAudioFocusChangeListener { /* no-op — we don't pause our own ring on focus loss */ }
+            .build()
+        val result = try { am.requestAudioFocus(req) } catch (e: Exception) {
+            Log.e("HimaIncomingCall", "requestRingtoneFocus threw", e)
+            AudioManager.AUDIOFOCUS_REQUEST_FAILED
+        }
+        if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+            ringtoneFocusRequest = req
+            ringtoneFocusAutoReleaseHandler.postDelayed(ringtoneFocusAutoRelease, 45_000L)
+            Log.d("HimaIncomingCall", "requestRingtoneFocus: granted")
+        } else {
+            Log.w("HimaIncomingCall", "requestRingtoneFocus: denied result=$result")
+        }
+    }
+
+    fun releaseRingtoneFocus() {
+        ringtoneFocusAutoReleaseHandler.removeCallbacks(ringtoneFocusAutoRelease)
+        val am = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: run {
+            ringtoneFocusRequest = null
+            return
+        }
+        ringtoneFocusRequest?.let {
+            try { am.abandonAudioFocusRequest(it) } catch (e: Exception) {
+                Log.e("HimaIncomingCall", "releaseRingtoneFocus threw", e)
+            }
+        }
+        ringtoneFocusRequest = null
+    }
+
+    /**
+     * Vibrator handle held for the duration of an incoming-call ring. Started
+     * in [playIncomingCallSound] alongside the MediaPlayer ringtone so the
+     * phone vibrates whether ringer mode is NORMAL or VIBRATE (B028) — the
+     * MediaPlayer is silenced by the OS in VIBRATE mode but vibration runs
+     * independently. Cancelled in [stopRingtone].
+     */
+    private var ringtoneVibrator: Vibrator? = null
+
+    private fun startIncomingCallVibration() {
+        val am = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        // Respect SILENT mode — user explicitly asked for no buzz.
+        if (am.ringerMode == AudioManager.RINGER_MODE_SILENT) {
+            Log.d("HimaIncomingCall", "startIncomingCallVibration: ringer SILENT, skip")
+            return
+        }
+        val v: Vibrator? = try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vm = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                vm?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            }
+        } catch (e: Exception) {
+            Log.e("HimaIncomingCall", "Failed to acquire Vibrator", e)
+            null
+        }
+        if (v == null || !v.hasVibrator()) return
+        // Match the channel vibration cadence so foreground+unlocked rings
+        // (where the OS notification is suppressed by B030) feel identical to
+        // background rings driven by the channel.
+        val pattern = longArrayOf(0, 1000, 500, 1000)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                v.vibrate(VibrationEffect.createWaveform(pattern, 0)) // 0 = loop
+            } else {
+                @Suppress("DEPRECATION")
+                v.vibrate(pattern, 0)
+            }
+            ringtoneVibrator = v
+            Log.d("HimaIncomingCall", "startIncomingCallVibration: started ringerMode=${am.ringerMode}")
+        } catch (e: Exception) {
+            Log.e("HimaIncomingCall", "Vibrator.vibrate threw", e)
+        }
+    }
+
+    private fun stopIncomingCallVibration() {
+        try { ringtoneVibrator?.cancel() } catch (e: Exception) {
+            Log.e("HimaIncomingCall", "Vibrator.cancel threw", e)
+        }
+        ringtoneVibrator = null
+    }
+
     fun playIncomingCallSound() {
         Log.d("HimaIncomingCall", "playIncomingCallSound: begin")
         // Stop any previous ringtone first
         stopRingtone()
+        // Grab audio focus so background media (YouTube, Spotify, etc.) pauses
+        // while we ring (B150). No-op if FCM service already grabbed it.
+        requestRingtoneFocus()
+        // B028: also vibrate. The MediaPlayer below uses USAGE_NOTIFICATION_RINGTONE
+        // so in VIBRATE ringer mode the OS silences its sound — without an
+        // explicit vibration the user gets neither sound NOR buzz. Channel-side
+        // rings already vibrate via enableVibration(true) + pattern; this covers
+        // the activity-only path (B030 skip-heads-up case).
+        startIncomingCallVibration()
 
         try {
             val audioAttributes = AudioAttributes.Builder()
@@ -1055,21 +1229,55 @@ class BaseApplication : Application(), Configuration.Provider {
         }
     }
 
+    /**
+     * Plays the gift "send" sound effect. Reworked for B071:
+     *  - Uses a dedicated [giftSoundPlayer] so a rapid burst of gifts no
+     *    longer tears down the incoming-call ringtone player.
+     *  - `prepareAsync()` instead of `prepare()` — synchronous prepare
+     *    blocked the UI thread ~50-200ms per gift, which stacked when
+     *    users tapped 5-10 gifts back-to-back and starved Agora's
+     *    SurfaceView compositing, freezing video on both sides.
+     *  - Releases its own MediaPlayer on completion / error so we don't
+     *    leak a handle per gift.
+     */
     fun playSendGiftSound() {
-        stopRingtone()
+        try {
+            // Tear down the previous gift-sound player (if any) so back-to-back
+            // sends don't leak. Does NOT touch the ringtone player anymore.
+            giftSoundPlayer?.let { prev ->
+                try { prev.release() } catch (_: Exception) {}
+            }
+            giftSoundPlayer = null
 
-        val audioAttributes = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE) // makes it respect silent mode
-            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-            .build()
+            val audioAttributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE) // respects silent mode, matches prior behaviour
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build()
 
-        val uri = Uri.parse("android.resource://${packageName}/${R.raw.gift_tune}")
-        mediaPlayer = MediaPlayer()
-        mediaPlayer?.apply {
-            setAudioAttributes(audioAttributes)
-            setDataSource(applicationContext, uri)
-            prepare()
-            start()
+            val uri = Uri.parse("android.resource://${packageName}/${R.raw.gift_tune}")
+            giftSoundPlayer = MediaPlayer().apply {
+                setAudioAttributes(audioAttributes)
+                setDataSource(applicationContext, uri)
+                setOnPreparedListener { mp ->
+                    try { mp.start() } catch (e: Exception) {
+                        Log.w("GiftSound", "start() failed: ${e.message}")
+                    }
+                }
+                setOnCompletionListener { mp ->
+                    try { mp.release() } catch (_: Exception) {}
+                    if (giftSoundPlayer === mp) giftSoundPlayer = null
+                }
+                setOnErrorListener { mp, what, extra ->
+                    Log.w("GiftSound", "MediaPlayer error what=$what extra=$extra")
+                    try { mp.release() } catch (_: Exception) {}
+                    if (giftSoundPlayer === mp) giftSoundPlayer = null
+                    true
+                }
+                prepareAsync()
+            }
+        } catch (e: Exception) {
+            Log.e("GiftSound", "playSendGiftSound: ${e.message}", e)
+            giftSoundPlayer = null
         }
     }
 
@@ -1108,6 +1316,12 @@ class BaseApplication : Application(), Configuration.Provider {
             Log.e("MediaPlayer", "Error stopping ringtone: ${e.message}")
         } finally {
             mediaPlayer = null
+            // Release ringtone audio focus so paused media (YouTube etc.) can
+            // resume — paired with requestRingtoneFocus in playIncomingCallSound
+            // and the FCM service for the B150 fix.
+            releaseRingtoneFocus()
+            // B028: stop the incoming-call vibration paired with the ringtone.
+            stopIncomingCallVibration()
             Log.d("HimaIncomingCall", "stopRingtone: end released")
             Log.d("MediaPlayer", "Ringtone stopped and released safely.")
         }
@@ -1257,9 +1471,28 @@ class BaseApplication : Application(), Configuration.Provider {
     @Volatile
     private var isCallActive: Boolean = false
 
+    // B156a — process-wide live-call-activity counter, updated by
+    // ActivityLifecycleCallbacks. `currentActivity` only updates in
+    // onActivityStarted/Resumed, leaving a ~50-200ms window between user
+    // tap and onResume where the previous activity is still "current".
+    // FCM-incoming busy-checks could squeeze through that window and
+    // launch a second call. Counting from onActivityCreated closes it.
+    // AtomicInteger is read by FCM on a background thread.
+    private val activeCallActivityCount = AtomicInteger(0)
+
     fun markCallActive() { isCallActive = true }
     fun markCallEnded() { isCallActive = false }
-    fun isInActiveCall(): Boolean = isCallActive
+    fun isInActiveCall(): Boolean =
+        isCallActive || activeCallActivityCount.get() > 0
+
+    /**
+     * B125 — narrower variant of [isInActiveCall] that returns true only when
+     * one of the 4 in-call activities (Male/Female × Audio/Video) is alive.
+     * Used by the *connecting* activities to detect "user is trying to start
+     * a second call while the first is still going" without falsely triggering
+     * on their own ActivityLifecycleCallbacks counter increment.
+     */
+    fun isInRealCall(): Boolean = isCallActive
 
     fun setIncomingCall(senderId: Int, callType: String, channelName: String, callId: Int) {
         this.senderId = senderId
@@ -1270,6 +1503,20 @@ class BaseApplication : Application(), Configuration.Provider {
         this.incomingCallSetAt = System.currentTimeMillis()
         this.lastIncomingCallTag = callId.toString()
     }
+
+    /**
+     * B023 — caller display info is stored alongside the routing fields so
+     * MainActivity can re-launch the proper accept screen (avatar + name
+     * populated) when the user opens Hima via launcher while a call is
+     * still ringing.
+     */
+    fun setIncomingCallerInfo(name: String?, image: String?) {
+        this.incomingCallerName = name
+        this.incomingCallerImage = image
+    }
+
+    fun getIncomingCallerName(): String = incomingCallerName.orEmpty()
+    fun getIncomingCallerImage(): String = incomingCallerImage.orEmpty()
 
     fun getLastIncomingCallTag(): String? = lastIncomingCallTag
 
@@ -1286,7 +1533,7 @@ class BaseApplication : Application(), Configuration.Provider {
 
     /**
      * Bulk-cancels every outstanding incoming-call notification in the tray:
-     * the FCM `calls_v3` CallStyle path and any OneSignal server-side call
+     * the FCM `calls_v4` CallStyle path and any OneSignal server-side call
      * push that happened to slip through before the NSE suppressor ran.
      *
      * Chat pushes share the OneSignal default channel so we do NOT cancel by
@@ -1332,6 +1579,8 @@ class BaseApplication : Application(), Configuration.Provider {
         this.incomingCall = false
         this.incomingCallSetAt = 0L
         this.lastIncomingCallTag = null
+        this.incomingCallerName = null
+        this.incomingCallerImage = null
     }
 
     fun isIncomingCall(): Boolean = incomingCall

@@ -1,5 +1,6 @@
 package com.gmwapp.hima.utils
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.NotificationManager
 import android.content.Context
@@ -49,8 +50,15 @@ object CallPermissionHelper {
     }
 
     /**
-     * One-time dialog offering to open app details so the user can disable battery restrictions (OEM-dependent).
+     * One-time dialog asking the user to exempt Hima from battery
+     * optimizations. Uses the direct one-tap system dialog
+     * (`ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`) — that intent requires
+     * the manifest permission of the same name, and Play policy allows it
+     * for calling apps whose ringtone/wakeup must survive Doze.
+     * Falls back to the app-details screen if the direct intent is
+     * unavailable on a given OEM build.
      */
+    @SuppressLint("BatteryLife")
     fun maybePromptBatteryOptimizationExemption(activity: Activity) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
         val pm = activity.getSystemService(PowerManager::class.java) ?: return
@@ -63,18 +71,26 @@ object CallPermissionHelper {
         AlertDialog.Builder(activity)
             .setTitle("Reliable incoming calls")
             .setMessage(
-                "To hear calls when the screen is off, allow this app to run without battery restrictions " +
-                    "(Battery → Unrestricted or turn off battery saver for Hima)."
+                "Allow Hima to run without battery restrictions so incoming-call " +
+                    "ringtones still play when the screen is off."
             )
-            .setPositiveButton("Open settings") { _, _ ->
+            .setPositiveButton("Allow") { _, _ ->
+                val directIntent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = Uri.parse("package:${activity.packageName}")
+                }
                 try {
-                    activity.startActivity(
-                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                            data = Uri.fromParts("package", activity.packageName, null)
-                        }
-                    )
+                    activity.startActivity(directIntent)
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to open app details: ${e.message}")
+                    Log.e(TAG, "Direct battery-opt intent unavailable: ${e.message}")
+                    try {
+                        activity.startActivity(
+                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.fromParts("package", activity.packageName, null)
+                            }
+                        )
+                    } catch (e2: Exception) {
+                        Log.e(TAG, "App-details fallback also failed: ${e2.message}")
+                    }
                 }
             }
             .setNegativeButton(android.R.string.cancel, null)
