@@ -908,6 +908,75 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    // --- Autopay & Daily Coins (feature/autopay-wireup) ---------------------
+
+    fun languageConfig(
+        userId: Int,
+        language: String,
+        callback: NetworkCallback<com.gmwapp.hima.retrofit.responses.LanguageConfigResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            getApiInterface().languageConfig(userId, language).enqueue(callback)
+        } else callback.onNoNetwork()
+    }
+
+    fun autopayInitiate(
+        userId: Int,
+        planType: String,
+        callback: NetworkCallback<com.gmwapp.hima.retrofit.responses.AutopayInitiateResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            getApiInterface().autopayInitiate(userId, planType).enqueue(callback)
+        } else callback.onNoNetwork()
+    }
+
+    fun subscriptionStatus(
+        userId: Int,
+        callback: NetworkCallback<com.gmwapp.hima.retrofit.responses.SubscriptionStatusResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            getApiInterface().subscriptionStatus(userId).enqueue(callback)
+        } else callback.onNoNetwork()
+    }
+
+    fun subscriptionCancel(
+        userId: Int,
+        reasonId: Int?,
+        reasonText: String?,
+        callback: NetworkCallback<com.gmwapp.hima.retrofit.responses.SubscriptionCancelResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            getApiInterface().subscriptionCancel(userId, reasonId, reasonText).enqueue(callback)
+        } else callback.onNoNetwork()
+    }
+
+    fun dailyClaimStatus(
+        userId: Int,
+        callback: NetworkCallback<com.gmwapp.hima.retrofit.responses.DailyClaimStatusResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            getApiInterface().dailyClaimStatus(userId).enqueue(callback)
+        } else callback.onNoNetwork()
+    }
+
+    fun dailyClaim(
+        userId: Int,
+        callback: NetworkCallback<com.gmwapp.hima.retrofit.responses.DailyClaimResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            getApiInterface().dailyClaim(userId).enqueue(callback)
+        } else callback.onNoNetwork()
+    }
+
+    fun trialOfferConfig(
+        userId: Int,
+        callback: NetworkCallback<com.gmwapp.hima.retrofit.responses.TrialOfferConfigResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            getApiInterface().trialOfferConfig(userId).enqueue(callback)
+        } else callback.onNoNetwork()
+    }
+
     fun getCategoriesList(
         userId: Int,
         language: String,
@@ -2659,6 +2728,54 @@ interface ApiInterface {
     @FormUrlEncoded
     @POST("claim_free_coins")
     fun claimFreeCoins(@Field("user_id") userId: Int): Call<ClaimFreeCoinsResponse>
+
+    // --- Autopay & Daily Coins (feature/autopay-wireup) ---------------------
+
+    @FormUrlEncoded
+    @POST("language_config")
+    fun languageConfig(
+        @Field("user_id") userId: Int,
+        @Field("language") language: String
+    ): Call<com.gmwapp.hima.retrofit.responses.LanguageConfigResponse>
+
+    @FormUrlEncoded
+    @POST("autopay_initiate")
+    fun autopayInitiate(
+        @Field("user_id") userId: Int,
+        @Field("plan_type") planType: String
+    ): Call<com.gmwapp.hima.retrofit.responses.AutopayInitiateResponse>
+
+    @FormUrlEncoded
+    @POST("subscription_status")
+    fun subscriptionStatus(
+        @Field("user_id") userId: Int
+    ): Call<com.gmwapp.hima.retrofit.responses.SubscriptionStatusResponse>
+
+    @FormUrlEncoded
+    @POST("subscription_cancel")
+    fun subscriptionCancel(
+        @Field("user_id") userId: Int,
+        @Field("reason_id") reasonId: Int?,
+        @Field("reason_text") reasonText: String?
+    ): Call<com.gmwapp.hima.retrofit.responses.SubscriptionCancelResponse>
+
+    @FormUrlEncoded
+    @POST("daily_claim_status")
+    fun dailyClaimStatus(
+        @Field("user_id") userId: Int
+    ): Call<com.gmwapp.hima.retrofit.responses.DailyClaimStatusResponse>
+
+    @FormUrlEncoded
+    @POST("daily_claim")
+    fun dailyClaim(
+        @Field("user_id") userId: Int
+    ): Call<com.gmwapp.hima.retrofit.responses.DailyClaimResponse>
+
+    @FormUrlEncoded
+    @POST("trial_offer_config")
+    fun trialOfferConfig(
+        @Field("user_id") userId: Int
+    ): Call<com.gmwapp.hima.retrofit.responses.TrialOfferConfigResponse>
 
     @FormUrlEncoded
     @POST("categories_list")

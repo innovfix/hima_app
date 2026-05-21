@@ -20,6 +20,49 @@
     android:keepScreenOn="true"
     android:background="@drawable/professional_call_background">
 
+    <!-- Earnings overlay — shown at call end -->
+    <LinearLayout
+        android:id="@+id/ll_earnings_overlay"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="32dp"
+        android:background="@drawable/bg_creator_rate_chip_light"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="18dp"
+        android:paddingVertical="10dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/poppins_regular"
+            android:text="💰 "
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/tv_call_earnings"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/poppins_bold"
+            android:text="+₹12.50 earned"
+            android:textColor="#1A1A1A"
+            android:textSize="15sp" />
+
+        <TextView
+            android:id="@+id/tv_call_rate_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:fontFamily="@font/poppins_regular"
+            android:text="(Rising Star rate)"
+            android:textColor="#9CA3AF"
+            android:textSize="12sp" />
+    </LinearLayout>
+
     <!-- Video Containers -->
     <androidx.cardview.widget.CardView
         android:id="@+id/localCardView"

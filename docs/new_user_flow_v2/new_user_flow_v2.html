@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HIma — New User Flow v2</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #F5F6F8;
+    color: #1A1A2E;
+    line-height: 1.5;
+    padding: 40px 20px;
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+  header {
+    background: linear-gradient(135deg, #FF1381, #C11063);
+    color: white;
+    padding: 40px 32px;
+    border-radius: 20px;
+    margin-bottom: 40px;
+    box-shadow: 0 8px 24px rgba(255, 19, 129, 0.25);
+  }
+  header h1 { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
+  header p { font-size: 16px; opacity: 0.95; }
+  .badge-row { margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .badge {
+    background: rgba(255,255,255,0.22);
+    border: 1px solid rgba(255,255,255,0.35);
+    padding: 6px 14px;
+    border-radius: 14px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .step {
+    background: white;
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 28px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 32px;
+    align-items: start;
+  }
+  @media (max-width: 800px) { .step { grid-template-columns: 1fr; } }
+  .phone-frame { position: relative; display: inline-block; width: 100%; max-width: 320px; }
+  .phone-frame img {
+    width: 100%; height: auto; border-radius: 24px;
+    border: 4px solid #1A1A2E; box-shadow: 0 10px 30px rgba(0,0,0,0.15); display: block;
+  }
+  .arrow {
+    position: absolute; font-size: 34px; color: #FF1381;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.25); animation: bounce 1.5s infinite;
+  }
+  @keyframes bounce { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-6px);} }
+  .label {
+    position: absolute; background: #FF1381; color: white;
+    padding: 5px 12px; font-size: 11px; font-weight: 700; border-radius: 12px;
+    white-space: nowrap; box-shadow: 0 2px 8px rgba(255,19,129,0.4);
+  }
+  .label.blue { background: #2388F2; box-shadow: 0 2px 8px rgba(35,136,242,0.4); }
+  .label.green { background: #019A66; box-shadow: 0 2px 8px rgba(1,154,102,0.4); }
+  .label.orange { background: #E07B00; box-shadow: 0 2px 8px rgba(224,123,0,0.4); }
+  .arrow.blue { color: #2388F2; }
+  .arrow.green { color: #019A66; }
+  .arrow.orange { color: #E07B00; }
+  .step-body h2 { font-size: 22px; font-weight: 700; margin-bottom: 4px; color: #1A1A2E; }
+  .step-number {
+    display: inline-block; background: #FF1381; color: white;
+    width: 32px; height: 32px; line-height: 32px; text-align: center;
+    border-radius: 50%; font-weight: 700; margin-right: 10px; vertical-align: middle;
+  }
+  .sub { color: #757575; font-size: 13px; margin-bottom: 16px; }
+  .desc { font-size: 14px; color: #374151; margin-bottom: 14px; }
+  .action-box {
+    background: #FFF0F7; border-left: 4px solid #FF1381;
+    padding: 12px 16px; border-radius: 8px; margin-bottom: 12px;
+  }
+  .action-box strong { color: #C11063; }
+  .tech {
+    background: #F5F6F8; border: 1px solid #E5E7EB;
+    padding: 10px 14px; border-radius: 8px; font-family: 'Courier New', monospace;
+    font-size: 12px; color: #4B5563; margin-top: 10px; word-break: break-all;
+  }
+  .result {
+    display: flex; gap: 10px; align-items: flex-start;
+    background: #E6F7F0; border-left: 4px solid #019A66;
+    padding: 12px 16px; border-radius: 8px; margin-top: 12px;
+    font-size: 13px; color: #014C33;
+  }
+  .result strong { color: #019A66; }
+  .warn {
+    background: #FFF4E5; border-left: 4px solid #E07B00;
+    padding: 12px 16px; border-radius: 8px; margin-top: 12px;
+    font-size: 13px; color: #7A3E00;
+  }
+  .warn strong { color: #E07B00; }
+  .flow-summary {
+    background: white; border-radius: 16px;
+    padding: 28px 32px; margin-bottom: 28px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  }
+  .flow-summary h3 { font-size: 18px; margin-bottom: 12px; color: #C11063; }
+  .flow-chain { display: flex; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+  .chip {
+    background: #FFF0F7; color: #C11063;
+    padding: 6px 14px; border-radius: 14px; font-weight: 600; white-space: nowrap;
+  }
+  .chip.arr { background: transparent; color: #9CA3AF; padding: 6px 0; }
+  footer {
+    text-align: center; padding: 24px;
+    color: #9CA3AF; font-size: 13px; margin-top: 40px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>HIma — New User Flow (v2)</h1>
+    <p>Full walkthrough from the 2026-04-22 8:08 PM screen recording: new user activates trial, uses it, then cancels</p>
+    <div class="badge-row">
+      <span class="badge">Variant: New User (coins = 0)</span>
+      <span class="badge">Entry points: Dev toggle, Coin tap, Chat pill</span>
+      <span class="badge">14 steps · 50 s recording</span>
+    </div>
+  </header>
+
+  <!-- FLOW SUMMARY -->
+  <div class="flow-summary">
+    <h3>Flow overview</h3>
+    <div class="flow-chain">
+      <span class="chip">Dev: Old user</span>
+      <span class="chip arr">→</span>
+      <span class="chip">Dev: New user</span>
+      <span class="chip arr">→</span>
+      <span class="chip">Home (paid)</span>
+      <span class="chip arr">→</span>
+      <span class="chip">Trial sheet</span>
+      <span class="chip arr">→</span>
+      <span class="chip">Chat pill</span>
+      <span class="chip arr">→</span>
+      <span class="chip">Chat trial sheet</span>
+      <span class="chip arr">→</span>
+      <span class="chip">Chat typing</span>
+      <span class="chip arr">→</span>
+      <span class="chip">Chat sent</span>
+      <span class="chip arr">→</span>
+      <span class="chip">Home (active)</span>
+      <span class="chip arr">→</span>
+      <span class="chip">Profile active card</span>
+      <span class="chip arr">→</span>
+      <span class="chip">Active Subscription</span>
+      <span class="chip arr">→</span>
+      <span class="chip">Cancel sheet</span>
+      <span class="chip arr">→</span>
+      <span class="chip">Cancel feedback</span>
+      <span class="chip arr">→</span>
+      <span class="chip">Back to trial</span>
+    </div>
+  </div>
+
+  <!-- STEP 1 -->
+  <div class="step">
+    <div class="phone-frame">
+      <img src="01_profile_dev_old.jpg" alt="Profile — Dev: Old user">
+      <span class="arrow" style="top: 56%; right: 6%;">⬅</span>
+      <span class="label" style="top: 60%; right: 18%;">Dev toggle (OFF = Old)</span>
+      <span class="label blue" style="top: 51%; left: 4%;">Current: Old user</span>
+    </div>
+    <div class="step-body">
+      <h2><span class="step-number">1</span>Start — Dev User Type: Old User</h2>
+      <p class="sub">Screen: <code>ProfileFragment</code> (scrolled)</p>
+      <p class="desc">
+        Recording starts on the Profile page with the
+        <strong>Dev: User Type</strong> row showing
+        <em>Current: Old user</em> (toggle OFF). This is the QA entry point
+        used to simulate the new-user experience without re-creating an account.
+      </p>
+      <div class="action-box">
+        <strong>Next action:</strong> tap the toggle to switch to
+        <em>New user</em> mode.
+      </div>
+      <div class="tech">
+        ProfileFragment.kt · switchDevUserType → DevUserMode.setNewUser(context, true)
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step">
+    <div class="phone-frame">
+      <img src="02_profile_dev_new.jpg" alt="Dev toggle flipped to New user">
+      <span class="arrow green" style="top: 55%; right: 6%;">⬅</span>
+      <span class="label green" style="top: 60%; right: 18%;">Toggle ON = New</span>
+      <span class="label blue" style="top: 51%; left: 4%;">Current: New user</span>
+    </div>
+    <div class="step-body">
+      <h2><span class="step-number">2</span>Dev Toggle — New User Mode</h2>
+      <p class="sub">Transition during recording (frame 10s)</p>
+      <p class="desc">
+        After flipping the switch, the status text updates to
+        <strong>Current: New user</strong> and the toggle turns green. Home
+        behavior will now use the new-user branch on all entry points.
+      </p>
+      <div class="result">
+        <strong>✓</strong><span>DevUserMode override is now set; isNewUser() returns true regardless of coins or subscription history.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="step">
+    <div class="phone-frame">
+      <img src="03_home_newuser.jpg" alt="Home — new user, paid buttons">
+      <span class="arrow" style="top: 4%; right: 4%;">⬈</span>
+      <span class="label" style="top: 1%; right: 22%;">coins badge (0)</span>
+      <span class="arrow blue" style="top: 25%; left: 30%;">⬅</span>
+      <span class="label blue" style="top: 28%; left: 44%;">Paid Call 10/min</span>
+    </div>
+    <div class="step-body">
+      <h2><span class="step-number">3</span>Home — New User, Pre-Trial</h2>
+      <p class="sub">Screen: <code>HomeFragment</code> (All tab)</p>
+      <p class="desc">
+        Back on Home, coins badge shows <strong>0</strong>. Creator list
+        (Mohana, supriya, Tripti, Akhila, ruby...) renders with paid purple
+        <strong>Call 10/min</strong> and green <strong>Chat 60/min</strong>
+        buttons. No Free Call chip because trial is not active.
+      </p>
+      <div class="action-box">
+        <strong>Tap coin badge</strong> → opens the trial bottom sheet
+        (step 4), because <code>isNewUser() == true</code>.
+      </div>
+      <div class="tech">
+        HomeFragment.kt:100 — on clCoins click, routes to BottomSheetTrialOffer for new users.
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="step">
+    <div class="phone-frame">
+      <img src="04_trial_sheet.jpg" alt="Trial bottom sheet — ₹1">
+      <span class="arrow" style="top: 18%; left: 32%;">⬇</span>
+      <span class="label" style="top: 12%; left: 22%;">Start your free trial</span>
+      <span class="arrow orange" style="top: 30%; left: 40%;">⬅</span>
+      <span class="label orange" style="top: 33%; left: 56%;">₹1 price badge</span>
+      <span class="arrow green" style="bottom: 10%; left: 36%;">⬇</span>
+      <span class="label green" style="bottom: 4%; left: 22%;">Try Now CTA</span>
+    </div>
+    <div class="step-body">
+      <h2><span class="step-number">4</span>Trial Bottom Sheet — ₹1 Offer</h2>
+      <p class="sub">Trigger: tap coin badge on step 3</p>
+      <p class="desc">
+        A full-screen bottom sheet slides up:
+        <strong>Start your free trial</strong> with a
+        <strong>₹1</strong> price badge, a dark blue hero area, benefits
+        <em>Unlimited Chats · Daily Free 1 Call</em>, and small print
+        <em>"Autopay ₹399 every 10 days unless cancelled."</em> Big pink
+        <strong>Try Now</strong> CTA at the bottom.
+      </p>
+      <div class="action-box">
+        <strong>Try Now</strong> opens <code>DummySubscriptionActivity</code>
+        (subscription activation screen).
+      </div>
+      <div class="tech">
+        BottomSheetTrialOffer.kt — reused across Home coin tap, chat pill, and Profile subscribe entry.
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 5 -->
+  <div class="step">
+    <div class="phone-frame">
+      <img src="05_chat_subscribe_pill.jpg" alt="Chat — Subscribe pill">
+      <span class="arrow" style="top: 2%; left: 20%;">⬇</span>
+      <span class="label" style="top: -3%; left: 10%;">Chat opened</span>
+      <span class="arrow blue" style="top: 78%; right: 6%;">⬅</span>
+      <span class="label blue" style="top: 81%; right: 18%;">Trial "Hi" bubbles</span>
+      <span class="arrow" style="bottom: 6%; left: 36%;">⬇</span>
+      <span class="label" style="bottom: 1%; left: 20%;">🔒 Subscribe pill</span>
+    </div>
+    <div class="step-body">
+      <h2><span class="step-number">5</span>Chat — Subscribe-to-Unlock Pill</h2>
+      <p class="sub">Screen: <code>ChatActivity</code> (non-subscribed state)</p>
+      <p class="desc">
+        Opening a creator chat shows two previous "Hi" bubbles (04:35 pm,
+        07:08 pm) but the message input is <em>replaced</em> by a pink
+        <strong>🔒 Subscribe to unlock unlimited chats</strong> pill pinned to
+        the bottom. The header call/video icons are visible.
+      </p>
+      <div class="action-box">
+        <strong>Tap the pill</strong> → opens the same trial sheet as step 4,
+        this time summoned from inside the chat (step 6).
+      </div>
+      <div class="tech">
+        ChatActivity.kt:190 — btn_subscribe_unlock click → showTrialOfferSheet()
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 6 -->
+  <div class="step">
+    <div class="phone-frame">
+      <img src="06_chat_trial_sheet.jpg" alt="Trial sheet opened from chat">
+      <span class="arrow" style="top: 17%; left: 30%;">⬇</span>
+      <span class="label" style="top: 11%; left: 20%;">Same trial sheet</span>
+      <span class="arrow blue" style="top: 4%; left: 4%;">⬇</span>
+      <span class="label blue" style="top: -2%; left: 4%;">Chat visible above</span>
+      <span class="arrow green" style="bottom: 10%; left: 36%;">⬇</span>
+      <span class="label green" style="bottom: 4%; left: 22%;">Try Now</span>
+    </div>
+    <div class="step-body">
+      <h2><span class="step-number">6</span>Trial Sheet — From Chat Pill</h2>
+      <p class="sub">Trigger: tap the pink pill on step 5</p>
+      <p class="desc">
+        The exact same <strong>Start your free trial · ₹1</strong> sheet
+        opens over the chat screen (chat partially visible at the top).
+        This is the only subscribe entry point a new user ever sees — no
+        yellow "Subscribe Now ₹399" banner like the old-user flow has.
+      </p>
+      <div class="warn">
+        <strong>UX note:</strong> reusing the same sheet component across
+        entry points keeps the messaging and pricing consistent for new
+        users.
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 7 -->
+  <div class="step">
+    <div class="phone-frame">
+      <img src="07_chat_keyboard.jpg" alt="Chat — typing with keyboard">
+      <span class="arrow green" style="top: 2%; left: 20%;">⬇</span>
+      <span class="label green" style="top: -3%; left: 4%;">Subscribed — input unlocked</span>
+      <span class="arrow" style="top: 56%; left: 36%;">⬇</span>
+      <span class="label" style="top: 50%; left: 20%;">Type a message</span>
+    </div>
+    <div class="step-body">
+      <h2><span class="step-number">7</span>Chat — Typing After Subscribe</h2>
+      <p class="sub">Screen: <code>ChatActivity</code> (subscribed, keyboard open)</p>
+      <p class="desc">
+        After the user tapped Try Now and subscription activated, the pink
+        pill is replaced with the real input bar:
+        <strong>+ attach · Type a message... · pink mic</strong>. System
+        keyboard is up. Both "Hi" bubbles remain in thread history.
+      </p>
+      <div class="result">
+        <strong>✓</strong><span>Unlimited chats unlocked. Input bar always rendered; subscribe pill gone.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 8 -->
+  <div class="step">
+    <div class="phone-frame">
+      <img src="08_chat_sent.jpg" alt="Chat — messages sent, idle">
+      <span class="arrow" style="top: 65%; right: 6%;">⬅</span>
+      <span class="label" style="top: 68%; right: 18%;">Sent bubbles</span>
+      <span class="arrow green" style="bottom: 8%; left: 36%;">⬇</span>
+      <span class="label green" style="bottom: 2%; left: 22%;">Input idle · no pill</span>
+    </div>
+    <div class="step-body">
+      <h2><span class="step-number">8</span>Chat — Messages Sent (Idle)</h2>
+      <p class="sub">Screen: <code>ChatActivity</code> (keyboard dismissed)</p>
+      <p class="desc">
+        With the keyboard closed, the full thread reads:
+        <strong>Hi 04:35 pm · Hi 07:08 pm</strong> right-aligned pink bubbles.
+        Input bar at the bottom, ready for the next message. The pink pill
+        is permanently gone on this thread while subscription stays active.
+      </p>
+    </div>
+  </div>
+
+  <!-- STEP 9 -->
+  <div class="step">
+    <div class="phone-frame">
+      <img src="09_home_active.jpg" alt="Home — Free Call chip active">
+      <span class="arrow green" style="bottom: 12%; left: 2%;">⬇</span>
+      <span class="label green" style="bottom: 20%; left: 18%;">Free Call · trial active</span>
+      <span class="arrow" style="top: 22%; right: 4%;">⬅</span>
+      <span class="label" style="top: 18%; right: 14%;">Chat · FREE badge</span>
+    </div>
+    <div class="step-body">
+      <h2><span class="step-number">9</span>Home — Trial Active Indicator</h2>
+      <p class="sub">Screen: <code>HomeFragment</code> (Chats tab)</p>
+      <p class="desc">
+        Back on Home, the green <strong>Free Call · 1 min · trial active</strong>
+        chip sits at the bottom-left. The Aaradhana chat card now carries a
+        green <strong>Chat · FREE</strong> badge. Bottom tabs show the user
+        was previously on Recent before returning to Home.
+      </p>
+      <div class="action-box">
+        <strong>Chip taps</strong> → the free-call-per-day flow
+        (<code>MaleCallAcceptActivity</code>-style screen).
+      </div>
+      <div class="tech">
+        HomeFragment.kt · refreshFreeCallFab() — chip visibility driven by KEY_ACTIVE subscription pref.
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 10 -->
+  <div class="step">
+    <div class="phone-frame">
+      <img src="10_profile_active.jpg" alt="Profile — Active Subscription card">
+      <span class="arrow green" style="top: 77%; left: 30%;">⬇</span>
+      <span class="label green" style="top: 71%; left: 10%;">Active · Tap to manage</span>
+    </div>
+    <div class="step-body">
+      <h2><span class="step-number">10</span>Profile — Active Subscription Card</h2>
+      <p class="sub">Screen: <code>ProfileFragment</code> (scrolled)</p>
+      <p class="desc">
+        Profile now shows a green-tinted <strong>Active Subscription</strong>
+        row under Settings &amp; Support with subtitle
+        <em>"Active · Tap to manage"</em>. The trial/subscribe entry row is
+        no longer visible (hidden when active).
+      </p>
+      <div class="action-box">
+        <strong>Tap the row</strong> → opens the Active Subscription manage
+        page (step 11).
+      </div>
+      <div class="tech">
+        ProfileFragment.kt:378 — when active, cvActiveSubscription is VISIBLE
+        and clicks launch CancelSubscriptionActivity.
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 11 -->
+  <div class="step">
+    <div class="phone-frame">
+      <img src="11_active_sub.jpg" alt="Active Subscription page">
+      <span class="arrow" style="top: 13%; left: 30%;">⬇</span>
+      <span class="label" style="top: 7%; left: 16%;">Free Trial Subscription</span>
+      <span class="arrow green" style="top: 22%; left: 30%;">⬇</span>
+      <span class="label green" style="top: 18%; left: 2%;">Status: Active</span>
+      <span class="arrow orange" style="top: 42%; left: 40%;">⬇</span>
+      <span class="label orange" style="top: 36%; left: 22%;">Cancel Subscription</span>
+    </div>
+    <div class="step-body">
+      <h2><span class="step-number">11</span>Active Subscription — Manage Page</h2>
+      <p class="sub">Screen: <code>CancelSubscriptionActivity</code></p>
+      <p class="desc">
+        Title <strong>Active Subscription</strong>. Card:
+        <strong>Free Trial Subscription · Status: Active · Price ₹1 ·
+        Renewal ₹399 / 10 days · Benefits Unlimited Chats · Free Call Daily</strong>,
+        and a red <strong>Cancel Subscription</strong> button.
+      </p>
+      <div class="action-box">
+        <strong>Tap Cancel Subscription</strong> → confirmation bottom sheet (step 12).
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 12 -->
+  <div class="step">
+    <div class="phone-frame">
+      <img src="12_cancel_sheet.jpg" alt="Cancel confirmation sheet">
+      <span class="arrow" style="top: 56%; left: 40%;">⬇</span>
+      <span class="label" style="top: 50%; left: 24%;">Cancel Subscription?</span>
+      <span class="arrow" style="top: 80%; right: 6%;">⬅</span>
+      <span class="label" style="top: 83%; right: 22%;">Keep</span>
+      <span class="arrow orange" style="bottom: 6%; right: 6%;">⬅</span>
+      <span class="label orange" style="bottom: 10%; right: 22%;">Confirm Cancel</span>
+    </div>
+    <div class="step-body">
+      <h2><span class="step-number">12</span>Cancel Confirmation Sheet</h2>
+      <p class="sub">Trigger: Cancel Subscription button on step 11</p>
+      <p class="desc">
+        Bottom sheet: <strong>Cancel Subscription?</strong> with body
+        <em>"You will lose access to your Free Calls and other benefits
+        immediately."</em> Two buttons: pink
+        <strong>Keep Subscription</strong> (primary, safe) and outlined
+        red <strong>Confirm Cancel</strong> (destructive).
+      </p>
+      <div class="warn">
+        <strong>Destructive guard:</strong> Keep is placed first and styled
+        as the primary action to discourage accidental cancel.
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 13 -->
+  <div class="step">
+    <div class="phone-frame">
+      <img src="13_cancel_feedback.jpg" alt="Cancel feedback form">
+      <span class="arrow" style="top: 16%; left: 30%;">⬇</span>
+      <span class="label" style="top: 10%; left: 14%;">Why are you cancelling?</span>
+      <span class="arrow green" style="top: 26%; left: 30%;">⬅</span>
+      <span class="label green" style="top: 30%; left: 46%;">Reason selected</span>
+      <span class="arrow orange" style="bottom: 6%; left: 36%;">⬇</span>
+      <span class="label orange" style="bottom: 1%; left: 18%;">Final Cancel button</span>
+    </div>
+    <div class="step-body">
+      <h2><span class="step-number">13</span>Cancel Feedback — Reason Picker</h2>
+      <p class="sub">Screen: Cancel-reason form after Confirm Cancel</p>
+      <p class="desc">
+        A second screen asks <strong>Why are you cancelling?</strong> with
+        single-choice options:
+        <em>It's too expensive · I'm not using it enough · Poor call
+        quality · Found a better app · Other reason</em>. One radio is
+        preselected (green). Large red <strong>Cancel Subscription</strong>
+        at the bottom commits the cancel.
+      </p>
+      <div class="result">
+        <strong>✓</strong><span>Once committed, KEY_ACTIVE flips to false. The user returns to Home and subscription indicators disappear.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 14 -->
+  <div class="step">
+    <div class="phone-frame">
+      <img src="14_back_to_trial.jpg" alt="After cancel — trial sheet again">
+      <span class="arrow" style="top: 18%; left: 32%;">⬇</span>
+      <span class="label" style="top: 11%; left: 22%;">Start your free trial</span>
+      <span class="arrow orange" style="top: 30%; left: 40%;">⬅</span>
+      <span class="label orange" style="top: 33%; left: 56%;">₹1 again</span>
+    </div>
+    <div class="step-body">
+      <h2><span class="step-number">14</span>After Cancel — Back to Trial Offer</h2>
+      <p class="sub">Home coin tap after subscription cancelled</p>
+      <p class="desc">
+        With the Dev toggle still set to <em>New user</em>, tapping the
+        coin badge on Home re-opens the same <strong>Start your free
+        trial · ₹1</strong> sheet. The user is back at the very beginning
+        of the funnel — fresh signup experience.
+      </p>
+      <div class="warn">
+        <strong>Note:</strong> in real flow (without Dev override), the
+        new <code>KEY_EVER_ACTIVE</code> flag makes this user an
+        <em>old user</em> after cancel, so they'd see the Wallet screen
+        instead — see the Old User Flow doc. This video was recorded before
+        that change and uses the Dev override.
+      </div>
+      <div class="tech">
+        Current logic: DevUserMode.isNewUser() returns true if dev override set; otherwise
+        checks KEY_EVER_ACTIVE before falling back to coins == 0.
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-summary">
+    <h3>Notes on the recording</h3>
+    <p class="desc">
+      Source: <code>WhatsApp Video 2026-04-22 at 8.08.56 PM.mp4</code>
+      (50.6 s, 382×848, 43.64 fps, 45 sampled frames). Steps 1–14 selected
+      to cover every distinct screen in the new-user journey.
+    </p>
+    <p class="desc" style="margin-top:8px;">
+      Compare with the <a href="../old_user_flow/old_user_flow.html"
+      style="color:#2388F2; font-weight:600;">Old User Flow</a>: the
+      critical difference is that old users see the yellow
+      <strong>Subscribe Now ₹399</strong> banner (Wallet, insufficient-talktime
+      sheet, chat sheet) while new users always see the
+      <strong>Start your free trial ₹1</strong> sheet.
+    </p>
+  </div>
+
+  <footer>HIma · New User Flow v2 · Generated 2026-04-22</footer>
+
+</div>
+</body>
+</html>

@@ -185,6 +185,13 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         intializePhonpe()
         checkReferralOffer()
 
+        // Re-gate when admin flips enabled_feature or re_subscription_enabled
+        // while Wallet is open. Registered once in onCreate (the lifecycle
+        // owner cleans this up on destroy).
+        com.gmwapp.hima.utils.LanguageFeatureCache.updates.observe(this) {
+            refreshSubscribeBannerVisibility()
+        }
+
         messageCameWhenIsAlive = BaseApplication.getInstance()?.messageCameWhenIsAlive ?: 0
 
 
@@ -222,12 +229,34 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         userData?.id?.let { profileViewModel.getUsers(it) }
         BaseApplication.getInstance()?.getPrefs()?.getUserData()?.let { WalletViewModel.getCoins(it.id) }
         checkIndividualPaymentType()
+        refreshSubscribeBannerVisibility()
         Log.d("cashfreeLastOrderId","$cashfreeLastOrderId")
         if (cashfreeLastOrderId.isNotEmpty()){
             checkCashfreeOderStatus(cashfreeLastOrderId)
             cashfreeLastOrderId = "" // reset so it won't run again
 
         }
+    }
+
+    /**
+     * Subscribe banner visibility — pure state read, safe to call repeatedly.
+     * Hidden for: languages where admin disabled autopay, users currently
+     * active, and lapsed users when admin has disabled re-subscription
+     * for their language. Lapsed users in re-subscription-allowed
+     * languages DO see the banner — the CTA routes them to PLAN_DIRECT_OLD
+     * (₹299 first charge, no second free trial).
+     */
+    private fun refreshSubscribeBannerVisibility() {
+        val isActive = com.gmwapp.hima.utils.SubscriptionStateCache.isActive(this)
+        val everActive = com.gmwapp.hima.utils.SubscriptionStateCache.everActive(this)
+        val autopayLanguage = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(this)
+        val reSubEnabled = com.gmwapp.hima.utils.LanguageFeatureCache.isReSubscriptionEnabled(this)
+        val lapsedAndBlocked = everActive && !isActive && !reSubEnabled
+        val showSubscribeBanner = autopayLanguage && !isActive && !lapsedAndBlocked
+        binding.cvSubscribeBanner.visibility = if (showSubscribeBanner) View.VISIBLE else View.GONE
+        // Banner CTA copy mirrors the plan_type that openCheckout will pick:
+        // never-ever-active → ₹1 trial; lapsed/cancelled → ₹299 direct.
+        binding.btnSubscribeNow.text = if (!everActive) "₹1 only" else "₹299 only"
     }
 
 
@@ -479,6 +508,21 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         binding.tvCoins.text = userData?.coins.toString()
 
 
+        refreshSubscribeBannerVisibility()
+
+        val openCheckout = {
+            // Plan-type rule mirrors the chat-side trial sheet: anyone who
+            // has never had an autopay mandate gets the ₹1 trial; lapsed /
+            // cancelled subscribers go to ₹299 direct.
+            val planType = if (!com.gmwapp.hima.utils.SubscriptionStateCache.everActive(this))
+                AutopayCheckoutActivity.PLAN_TRIAL_NEW
+            else
+                AutopayCheckoutActivity.PLAN_DIRECT_OLD
+            startActivity(AutopayCheckoutActivity.intentFor(this, planType))
+        }
+        binding.cvSubscribeBanner.setOnSingleClickListener { openCheckout() }
+        binding.btnSubscribeNow.setOnSingleClickListener { openCheckout() }
+
         val layoutManager = GridLayoutManager(this, 3)
         binding.cvBack.setOnSingleClickListener {
             if (fromDeepLink){
@@ -560,7 +604,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                         binding.btnAddCoins.visibility = View.VISIBLE
                         amount = coin.price.toString()
                         pointsId = coin.id.toString()
-                        //paymentGateway = coin.pg.toString()
+                        coin.pg?.takeIf { it.isNotEmpty() }?.let { paymentGateway = it }
 
                         selectedCoin = coin.coins.toString()
                         selectedSavePercent = coin.save.toString()
@@ -584,7 +628,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                     binding.btnAddCoins.visibility = View.VISIBLE
                     amount = firstCoin.price.toString()
                     pointsId = firstCoin.id.toString()
-                   // paymentGateway = firstCoin.pg.toString()
+                    firstCoin.pg?.takeIf { it.isNotEmpty() }?.let { paymentGateway = it }
 
                     selectedCoin = firstCoin.coins.toString()
                     selectedSavePercent = firstCoin.save.toString()
@@ -1373,6 +1417,8 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                         "phonepe" -> {
                             if (isPhonePeInitialized) {
                                 fetchOrderFromBackend(pointsId)
+                            } else {
+                                showAppToast("PhonePe not ready, please try again", Toast.LENGTH_SHORT)
                             }
                         }
 
@@ -1445,6 +1491,8 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                             showAppToast("Invalid Payment Gateway", Toast.LENGTH_SHORT)
                         }
                     }
+                } else {
+                    showAppToast("Payment gateway not available, please reopen the app", Toast.LENGTH_SHORT)
                 }
             }
         } else {

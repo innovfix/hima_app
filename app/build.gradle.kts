@@ -53,7 +53,6 @@ android {
             // JSON + sender id 1061192153396) completed before pushes actually
             // deliver on this flavor — until then expect empty subscription
             // records (token="", enabled=false). In-app behaviour is unaffected.
-            // buildConfigField("String", "BASE_URL", "\"http://192.168.29.190/hima-admin-panel/public/api/auth/\"")
             buildConfigField("String", "BASE_URL", "\"https://demohima.himaapp.in/api/auth/\"")
             buildConfigField("String", "ONESIGNAL_APP_ID", "\"5cd4154a-1ece-4c3b-b6af-e88bafee64cd\"")
         }

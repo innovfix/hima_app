@@ -56,7 +56,7 @@ object AppModule {
                 
                 // ✅ Get auth token and check if it's valid
                 val authToken = BaseApplication.getInstance()?.getPrefs()?.getAuthenticationToken() ?: ""
-                
+
                 // ✅ Log COMPLETE REQUEST for FCM API calls
                 if (chain.request().url.toString().contains("send-fcm-notification")) {
                     android.util.Log.i("FCM_REQUEST_DEBUG", "════════════════════════════════════════")

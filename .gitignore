@@ -23,3 +23,7 @@ app/production/release/*.apk
 /autopay_api_test/
 /build_bug_pdf.py
 /RANJINI_DB_ACCESS_HANDOVER.md
+
+# Local API testing artifacts (admin cookies, login dumps, captured response
+# bodies) — sensitive, must never be pushed.
+/autopay_api_test/

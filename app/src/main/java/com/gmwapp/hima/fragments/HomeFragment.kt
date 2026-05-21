@@ -31,6 +31,10 @@ import com.gmwapp.hima.agora.male.MaleCallConnectingActivity
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.IplRoomsActivity
 import com.gmwapp.hima.activities.WalletActivity
+import com.gmwapp.hima.utils.SubscriptionStateCache
+import com.gmwapp.hima.utils.UserSegment
+import com.gmwapp.hima.viewmodels.AutopayViewModel
+import com.gmwapp.hima.viewmodels.DailyClaimViewModel
 import com.gmwapp.hima.adapters.FemaleUserAdapter
 import com.gmwapp.hima.agora.AgoraRandomCallActivity
 import com.gmwapp.hima.agora.FcmUtils
@@ -39,6 +43,7 @@ import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.callbacks.Refreshable
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentHomeBinding
+import com.gmwapp.hima.dialogs.BottomSheetTrialOffer
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponseData
 import com.gmwapp.hima.utils.Helper
 import com.gmwapp.hima.utils.PinnedChatsPrefsHelper
@@ -60,6 +65,9 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     private var filterType: String = "my_chats" // Default filter is "my_chats" — open on Chats tab
     lateinit var binding: FragmentHomeBinding
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
+    private val autopayViewModel: AutopayViewModel by viewModels()
+    private val dailyClaimViewModel: DailyClaimViewModel by viewModels()
+    private var dailyCoinsDialog: androidx.appcompat.app.AlertDialog? = null
 
     @javax.inject.Inject
     lateinit var myChatsApiManager: com.gmwapp.hima.retrofit.ApiManager
@@ -112,9 +120,39 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
     private fun initUI() {
         binding.clCoins.setOnSingleClickListener {
-            val intent = Intent(context, WalletActivity::class.java)
-            startActivity(intent)
+            // Subscribed (any state) → open wallet directly; Wallet hides the banner on its own.
+            // Never had autopay (and not subscribed) → trial sheet, but only if
+            // the user's language has autopay enabled per admin config. Otherwise
+            // the trial surface stays hidden and the coin tap just opens Wallet.
+            //
+            // Cold-start race: SubscriptionStateCache.everActive defaults to
+            // false until APIs land, so !everActive is true on cold start →
+            // trial sheet shows optimistically. LanguageFeatureCache.isAutopayEligible()
+            // handles the language-side cold start internally (cache OR static
+            // whitelist fallback), so the same single helper is used by
+            // HomeFragment and AutopayCheckoutActivity — gates can't disagree.
+            val ctx = requireContext()
+            val isSubscribed = SubscriptionStateCache.isActive(ctx)
+            val autopayEligible = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEligible(ctx)
+            val cachesPopulated = com.gmwapp.hima.utils.LanguageFeatureCache.isPopulated(ctx) &&
+                SubscriptionStateCache.isPopulated()
+            if (!isSubscribed && autopayEligible &&
+                (!SubscriptionStateCache.everActive(ctx) || !cachesPopulated)
+            ) {
+                val sheet = BottomSheetTrialOffer()
+                sheet.setOnTryNowClickListener {
+                    startActivity(com.gmwapp.hima.activities.AutopayCheckoutActivity.intentFor(
+                        requireContext(),
+                        com.gmwapp.hima.activities.AutopayCheckoutActivity.PLAN_TRIAL_NEW
+                    ))
+                }
+                sheet.show(parentFragmentManager, "trial_offer")
+            } else {
+                startActivity(android.content.Intent(requireContext(), WalletActivity::class.java))
+            }
         }
+
+        setupSubscriptionObservers()
 
         // IPL Room Calls banner — male opens room list screen
         binding.cardIplRooms.setOnClickListener {
@@ -242,8 +280,14 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
         profileViewModel.getUserLiveData.observe(viewLifecycleOwner, Observer { response ->
             response?.data?.let { userData ->
+                // Use call-fix branch's preserving setter (keeps locally-set intent flags)
                 BaseApplication.getInstance()?.getPrefs()?.setUserDataPreservingLocalIntent(userData)
-                binding.tvCoins.text = userData.coins.toString()
+                // Autopay UX: new users with no subscription history display zero coins
+                // until they take action; matches refreshCoinsDisplayFromCache.
+                val displayCoins =
+                    if (UserSegment.isNewUser(requireContext()) && !SubscriptionStateCache.isActive(requireContext())) 0
+                    else userData.coins
+                binding.tvCoins.text = displayCoins.toString()
                 Log.d("coinsvalue", "${userData.coins}")
                 Log.d("coinsvalue", "${userData.name}")
                 // Refresh IPL banner visibility once user data arrives from server
@@ -306,7 +350,20 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                     override fun onItemSelected(data: FemaleUsersResponseData) {}
                 }
                 val transactionAdapter = activity?.let { context ->
-                    FemaleUserAdapter(context, it.data, noOpListener, noOpListener)
+                    FemaleUserAdapter(
+                        context,
+                        it.data,
+                        object : OnItemSelectionListener<FemaleUsersResponseData> {
+                            override fun onItemSelected(data: FemaleUsersResponseData) {
+                                handleCallClick(data, DConstants.AUDIO)
+                            }
+                        },
+                        object : OnItemSelectionListener<FemaleUsersResponseData> {
+                            override fun onItemSelected(data: FemaleUsersResponseData) {
+                                handleCallClick(data, DConstants.VIDEO)
+                            }
+                        }
+                    )
                 }
                 binding.rvProfiles.adapter = transactionAdapter
             }
@@ -343,6 +400,338 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         refreshMaleHomeNetworkPlaceholder()
 
         initFab()
+    }
+
+    private fun handleCallClick(data: FemaleUsersResponseData, callType: String) {
+        val ctx = context ?: return
+        if (UserSegment.isNewUser(ctx)) {
+            if (isSubscriptionActive()) {
+                startCallActivity(data, callType)
+            } else {
+                showTrialOfferSheet()
+            }
+            return
+        }
+        if (hasEnoughCoinsForCall(data, callType)) {
+            startCallActivity(data, callType)
+        } else {
+            showInsufficientFundsSheet()
+        }
+    }
+
+    private fun hasEnoughCoinsForCall(data: FemaleUsersResponseData, callType: String): Boolean {
+        val coins = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.coins ?: 0
+        val required = if (callType == DConstants.VIDEO) {
+            data.coin_per_min_video ?: 60
+        } else {
+            data.coin_per_min_audio ?: 10
+        }
+        return coins >= required
+    }
+
+    private fun showTrialOfferSheet() {
+        if (!isAdded) return
+        val ctx = context ?: return
+        // Trial offer is autopay-only. For non-autopay languages, send the
+        // user to Wallet to buy coin packs instead — that's the legacy
+        // pre-autopay coin-only flow this language is supposed to use.
+        if (!com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(ctx)) {
+            startActivity(Intent(ctx, WalletActivity::class.java))
+            return
+        }
+        val existing = childFragmentManager.findFragmentByTag(BottomSheetTrialOffer.TAG)
+        if (existing is BottomSheetTrialOffer && existing.isAdded) return
+        BottomSheetTrialOffer.newInstance().apply {
+            setOnTryNowClickListener {
+                val c = context ?: return@setOnTryNowClickListener
+                startActivity(com.gmwapp.hima.activities.AutopayCheckoutActivity.intentFor(
+                    c, com.gmwapp.hima.activities.AutopayCheckoutActivity.PLAN_TRIAL_NEW
+                ))
+            }
+        }.show(childFragmentManager, BottomSheetTrialOffer.TAG)
+    }
+
+    private fun showInsufficientFundsSheet() {
+        if (!isAdded) return
+        val ctx = context ?: return
+
+        // Non-autopay language → no subscribe sheet ever. Route to Wallet
+        // for coin top-up (legacy flow).
+        if (!com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(ctx)) {
+            startActivity(Intent(ctx, WalletActivity::class.java))
+            return
+        }
+
+        // Per-language re-enable prevention: when admin has disabled
+        // re-subscription for this language (LanguageFeatureCache says
+        // re_subscription_enabled=false), lapsed users (everActive &&
+        // !isActive) are routed to Wallet for coin-pack purchase instead of
+        // the subscribe sheet. When the toggle is ON (default) lapsed users
+        // see BottomSheetOldUserSubscribe and re-subscribe via
+        // AutopayCheckoutActivity → PLAN_DIRECT_OLD (₹299 direct charge).
+        if (SubscriptionStateCache.everActive(ctx)
+            && !SubscriptionStateCache.isActive(ctx)
+            && !com.gmwapp.hima.utils.LanguageFeatureCache.isReSubscriptionEnabled(ctx)
+        ) {
+            startActivity(Intent(ctx, WalletActivity::class.java))
+            return
+        }
+
+        val tag = com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe.TAG
+        val existing = childFragmentManager.findFragmentByTag(tag)
+        if (existing is com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe && existing.isAdded) return
+        // Insufficient-talktime is a mid-call-flow popup; the user wants to
+        // call right now, so we keep the coin grid (low-friction recharge)
+        // but still surface the right subscribe price. Never-ever-active →
+        // ₹1 trial; lapsed/cancelled → ₹299 direct. The ₹1 path skips the
+        // explainer video here on purpose — the video is already shown at
+        // the primary entry points (chat lock, top-right coin pill, wallet),
+        // and a video gate would block users in their moment of urgency.
+        val isNeverSubscribed = !SubscriptionStateCache.everActive(ctx)
+        val planType = if (isNeverSubscribed)
+            com.gmwapp.hima.activities.AutopayCheckoutActivity.PLAN_TRIAL_NEW
+        else
+            com.gmwapp.hima.activities.AutopayCheckoutActivity.PLAN_DIRECT_OLD
+        val subscribeButtonText = if (isNeverSubscribed) "₹1 only" else "₹299 only"
+        com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe.newInstance(
+            bannerOnly = false,
+            title = "You have insufficient talktime balance to make this call. Please recharge",
+            subscribeButtonText = subscribeButtonText
+        ).apply {
+            setOnSubscribeClickListener {
+                val c = context ?: return@setOnSubscribeClickListener
+                startActivity(com.gmwapp.hima.activities.AutopayCheckoutActivity.intentFor(
+                    c, planType
+                ))
+            }
+        }.show(childFragmentManager, tag)
+    }
+
+    private fun refreshCoinsDisplayFromCache() {
+        if (!isAdded || !::binding.isInitialized) return
+        val cached = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
+        // Daily-claim coins are credited server-side via /daily_claim;
+        // users.coins reflects the new total directly, no local bonus.
+        val displayCoins = if (UserSegment.isNewUser(requireContext()) && !SubscriptionStateCache.isActive(requireContext())) 0
+                           else (cached.coins ?: 0)
+        binding.tvCoins.text = displayCoins.toString()
+    }
+
+    private fun refreshPremiumCrown() {
+        if (!::binding.isInitialized) return
+        // Crown is an autopay status reflection. Hide for languages without
+        // autopay so non-autopay users never see it. Existing subscribers
+        // (everActive) keep it until their subscription naturally lapses,
+        // so a mid-flight admin flip doesn't strip their visible status.
+        val ctx = requireContext()
+        val autopayLanguage = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(ctx)
+        val everActive = SubscriptionStateCache.everActive(ctx)
+        val show = isSubscriptionActive() && (autopayLanguage || everActive)
+        binding.ivPremiumCrownHome.visibility = if (show) View.VISIBLE else View.GONE
+    }
+
+    /**
+     * Kick off the two API calls whose responses (via observers in
+     * setupSubscriptionObservers) decide whether to show the daily-claim
+     * dialog or the autopay-failed dialog. Called on resume + on the
+     * midnight handler tick.
+     */
+    private fun maybeShowDailyCoinsDialog() {
+        if (!isAdded) return
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
+        val userId = userData.id
+        if (userId <= 0) return
+        autopayViewModel.subscriptionStatus(userId)
+        dailyClaimViewModel.dailyClaimStatus(userId)
+        // Refresh the per-language admin flag alongside subscription status
+        // so non-autopay-language users get their gating updated on every
+        // foreground without an extra round-trip elsewhere.
+        com.gmwapp.hima.utils.LanguageFeatureCache.refresh(
+            requireContext(), myChatsApiManager, userId, userData.language
+        )
+    }
+
+    companion object {
+        private var autopayDialogShownThisSession = false
+    }
+
+    private val midnightHandler = Handler(Looper.getMainLooper())
+    private val midnightRunnable: Runnable = Runnable {
+        if (isAdded) {
+            maybeShowDailyCoinsDialog()
+            scheduleMidnightRefresh()
+        }
+    }
+
+    private fun msUntilMidnight(): Long {
+        val cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("Asia/Kolkata"))
+        cal.add(java.util.Calendar.DAY_OF_MONTH, 1)
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        cal.set(java.util.Calendar.MINUTE, 0)
+        cal.set(java.util.Calendar.SECOND, 0)
+        cal.set(java.util.Calendar.MILLISECOND, 0)
+        return cal.timeInMillis - System.currentTimeMillis()
+    }
+
+    private fun scheduleMidnightRefresh() {
+        midnightHandler.removeCallbacks(midnightRunnable)
+        midnightHandler.postDelayed(midnightRunnable, msUntilMidnight())
+    }
+
+    private fun wasEverSubscribed(): Boolean =
+        SubscriptionStateCache.everActive(requireContext())
+
+    private fun showDailyCoinsDialog() {
+        // Guard against stacking — observer can fire repeatedly (resume + midnight).
+        if (dailyCoinsDialog?.isShowing == true) return
+        val view = layoutInflater.inflate(R.layout.dialog_daily_coins, null)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setView(view)
+            .setCancelable(true)
+            .create()
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.window?.setDimAmount(0.5f)
+        val btn = view.findViewById<View>(R.id.btnAwesome)
+        btn.setOnClickListener {
+            val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
+            if (userId == null) {
+                dialog.dismiss()
+                return@setOnClickListener
+            }
+            // Disable to prevent double-tap; re-enables on dialog dismiss.
+            btn.isEnabled = false
+            dailyClaimViewModel.dailyClaim(userId)
+            // Dismissal happens in the claim observer (success or failure).
+        }
+        dialog.setOnDismissListener {
+            btn.isEnabled = true
+            refreshCoinsDisplayFromCache()
+        }
+        dailyCoinsDialog = dialog
+        dialog.show()
+    }
+
+    private fun showAutopayFailedDialog(status: String?) {
+        val view = layoutInflater.inflate(R.layout.dialog_autopay_failed, null)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setView(view)
+            .setCancelable(true)
+            .create()
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.window?.setDimAmount(0.5f)
+
+        val titleView = view.findViewById<android.widget.TextView>(R.id.tvAutopayFailedTitle)
+        val subtitleView = view.findViewById<android.widget.TextView>(R.id.tvAutopayFailedSubtitle)
+        when (status?.lowercase()) {
+            "failed" -> {
+                titleView.text = "Autopay Renewal Failed"
+                subtitleView.text =
+                    "Your bank declined the autopay renewal.\n" +
+                    "Please check your balance or update your payment method."
+            }
+            "cancelled" -> {
+                titleView.text = "Autopay Cancelled"
+                subtitleView.text =
+                    "You cancelled your autopay.\n" +
+                    "Subscribe again to unlock chat."
+            }
+            else -> Unit
+        }
+
+        view.findViewById<View>(R.id.btnBuyCoins).setOnClickListener {
+            dialog.dismiss()
+            startActivity(android.content.Intent(requireContext(), WalletActivity::class.java))
+        }
+        view.findViewById<View>(R.id.tvDismiss).setOnClickListener {
+            dialog.dismiss()
+        }
+        dialog.show()
+    }
+
+    private fun isSubscriptionActive(): Boolean =
+        SubscriptionStateCache.isActive(requireContext())
+
+    /**
+     * Wires the AutopayViewModel and DailyClaimViewModel observers.
+     * Called once from initUI; the actual API requests are kicked off
+     * from maybeShowDailyCoinsDialog (onResume + midnight handler).
+     */
+    private fun setupSubscriptionObservers() {
+        // Subscription status → cache + UI refresh + autopay-failed dialog.
+        autopayViewModel.statusLiveData.observe(viewLifecycleOwner) { resp ->
+            val data = resp?.data ?: return@observe
+            SubscriptionStateCache.update(data)
+            refreshPremiumCrown()
+            refreshCoinsDisplayFromCache()
+            // Suppress the autopay-failed dialog when the user is on a
+            // non-autopay language and has never been a subscriber. Prevents
+            // a stale "ever_active" flag (or test data) from popping a
+            // dialog that doesn't apply.
+            val ctx = requireContext()
+            val autopayLanguage = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(ctx)
+            if (!data.is_active && data.ever_active &&
+                !autopayDialogShownThisSession && (autopayLanguage || data.ever_active)) {
+                autopayDialogShownThisSession = true
+                if (isAdded) showAutopayFailedDialog(data.status)
+            }
+        }
+
+        // Daily-claim status → show the claim dialog when the server says we can.
+        // Daily-claim is a subscriber perk; suppress for non-autopay-language
+        // users who never subscribed (defensive — server should not say
+        // can_claim for them, but we guard anyway).
+        dailyClaimViewModel.statusLiveData.observe(viewLifecycleOwner) { resp ->
+            val data = resp?.data ?: return@observe
+            val ctx = requireContext()
+            val autopayLanguage = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(ctx)
+            val everActive = SubscriptionStateCache.everActive(ctx)
+            if (data.can_claim && isAdded && (autopayLanguage || everActive)) {
+                binding.root.post { if (isAdded) showDailyCoinsDialog() }
+            }
+        }
+
+        // Re-gate UI when admin flips the language flag while the app is open.
+        com.gmwapp.hima.utils.LanguageFeatureCache.updates.observe(viewLifecycleOwner) {
+            refreshPremiumCrown()
+            refreshCoinsDisplayFromCache()
+        }
+
+        // Daily-claim result → dismiss + refresh.
+        dailyClaimViewModel.claimLiveData.observe(viewLifecycleOwner) { resp ->
+            val total = resp?.data?.total_coins
+            if (total != null && ::binding.isInitialized) {
+                binding.tvCoins.text = total.toString()
+                // Keep the cached UserData fresh so other screens see the new total.
+                BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
+                    profileViewModel.getUsers(it)
+                }
+            }
+            dailyCoinsDialog?.dismiss()
+            dailyCoinsDialog = null
+        }
+
+        // Errors are silent — the UI just doesn't show the dialog this resume.
+        autopayViewModel.errorLiveData.observe(viewLifecycleOwner) { msg ->
+            Log.w("Autopay", "subscription_status: $msg")
+        }
+        dailyClaimViewModel.errorLiveData.observe(viewLifecycleOwner) { msg ->
+            Log.w("DailyClaim", msg)
+            // Re-enable the dialog button if it's still showing.
+            dailyCoinsDialog?.findViewById<View>(R.id.btnAwesome)?.isEnabled = true
+        }
+    }
+
+    private fun startCallActivity(data: FemaleUsersResponseData, callType: String) {
+        val intent = Intent(requireContext(), MaleCallConnectingActivity::class.java).apply {
+            putExtra(DConstants.CALL_TYPE, callType)
+            putExtra(DConstants.RECEIVER_ID, data.id)
+            putExtra(DConstants.RECEIVER_NAME, data.name)
+            putExtra(DConstants.CALL_ID, 0)
+            putExtra(DConstants.IMAGE, data.image)
+            putExtra(DConstants.IS_RECEIVER_DETAILS_AVAILABLE, true)
+            putExtra(DConstants.TEXT, "Connecting to ${data.name}…")
+        }
+        startActivity(intent)
     }
 
     private fun refreshMaleHomeNetworkPlaceholder() {
@@ -773,6 +1162,11 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             }
         }
 
+        refreshCoinsDisplayFromCache()
+        refreshPremiumCrown()
+        maybeShowDailyCoinsDialog()
+        scheduleMidnightRefresh()
+
         // Sync selected filter button styles when resuming
         updateFilterButtonStyles()
 
@@ -945,6 +1339,11 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 }
             }
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        midnightHandler.removeCallbacks(midnightRunnable)
     }
 
     fun observeCoins() {

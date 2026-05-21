@@ -314,6 +314,21 @@
             android:name=".activities.TransactionsActivity"
             android:configChanges="uiMode" />
         <activity
+            android:name=".activities.AutopayCheckoutActivity"
+            android:configChanges="uiMode" />
+        <activity
+            android:name=".activities.CancelSubscriptionActivity"
+            android:configChanges="uiMode" />
+        <activity
+            android:name=".activities.CancelFeedbackActivity"
+            android:configChanges="uiMode" />
+        <activity
+            android:name=".activities.SettingsActivity"
+            android:configChanges="uiMode" />
+        <activity
+            android:name=".activities.CreatorLevelActivity"
+            android:configChanges="uiMode" />
+        <activity
             android:name=".activities.FemaleTransactionsActivity"
             android:configChanges="uiMode" />
         <activity

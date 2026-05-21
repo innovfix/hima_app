@@ -1,6 +1,7 @@
 package com.gmwapp.hima.activities
 
 import com.gmwapp.hima.utils.showAppToast
+import com.gmwapp.hima.activities.WalletActivity
 
 import android.os.Bundle
 import android.util.Log
@@ -144,7 +145,155 @@ class ChatActivity : AppCompatActivity() {
         checkIfUserIsBlocked()  // Check block status before setting up listener
         setupClickListeners()
         observeNotificationResponse()
+        applySubscriptionGate()
         Log.d("checkPagiantion", "🏁 ChatActivity onCreate() completed")
+    }
+
+    private var messageInputContainer: View? = null
+    private var subscribeLockContainer: View? = null
+    private var autopayFailedLockContainer: View? = null
+    private var autopayFailedLockLabel: android.widget.TextView? = null
+    private var chatEndedBanner: View? = null
+    private var chatEndedBannerText: android.widget.TextView? = null
+    private val autopayViewModel: com.gmwapp.hima.viewmodels.AutopayViewModel by viewModels()
+
+    private fun isSubscriptionActive(): Boolean =
+        com.gmwapp.hima.utils.SubscriptionStateCache.isActive(this)
+
+    private fun wasEverSubscribed(): Boolean =
+        com.gmwapp.hima.utils.SubscriptionStateCache.everActive(this)
+
+    private fun applySubscriptionGate() {
+        // Females are creators (recipients) — they earn from chat, never pay.
+        // The autopay gate applies to males only. Skip the gate entirely for any non-male user.
+        val gender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
+        if (!gender.equals("male", ignoreCase = true)) {
+            messageInputContainer?.visibility = View.VISIBLE
+            subscribeLockContainer?.visibility = View.GONE
+            autopayFailedLockContainer?.visibility = View.GONE
+            return
+        }
+        // Languages where admin disabled autopay never see the chat lock.
+        // Existing subscribers (everActive) keep the lock states so a mid-flight
+        // admin flip doesn't strip the lock from a lapsed user.
+        val autopayLanguage = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(this)
+        val ever = wasEverSubscribed()
+        if (!autopayLanguage && !ever) {
+            messageInputContainer?.visibility = View.VISIBLE
+            subscribeLockContainer?.visibility = View.GONE
+            autopayFailedLockContainer?.visibility = View.GONE
+            return
+        }
+        // Per-language re-enable prevention: when admin disabled
+        // re-subscription for this language, lapsed users see the
+        // autopay-failed lock (Buy Coins CTA) instead of the Subscribe lock.
+        // Lapsed in re-sub-enabled languages, and fresh users in any
+        // autopay-enabled language, get the regular Subscribe lock.
+        val reSubEnabled = com.gmwapp.hima.utils.LanguageFeatureCache.isReSubscriptionEnabled(this)
+        val lapsedAndBlocked = ever && !isSubscriptionActive() && !reSubEnabled
+        when {
+            isSubscriptionActive() -> {
+                messageInputContainer?.visibility = View.VISIBLE
+                subscribeLockContainer?.visibility = View.GONE
+                autopayFailedLockContainer?.visibility = View.GONE
+            }
+            lapsedAndBlocked -> {
+                messageInputContainer?.visibility = View.GONE
+                subscribeLockContainer?.visibility = View.GONE
+                autopayFailedLockContainer?.visibility = View.VISIBLE
+                applyAutopayFailedLockLabel()
+            }
+            else -> {
+                // Both fresh users and lapsed-but-allowed users see the same
+                // Subscribe lock. The Subscribe CTA's onClick uses
+                // UserSegment.isNewUser() to decide PLAN_TRIAL_NEW (₹1) vs
+                // PLAN_DIRECT_OLD (₹299), so re-subscribers automatically
+                // pay full price without a second free trial.
+                messageInputContainer?.visibility = View.GONE
+                subscribeLockContainer?.visibility = View.VISIBLE
+                autopayFailedLockContainer?.visibility = View.GONE
+            }
+        }
+    }
+
+    /**
+     * Foreground reaction to a OneSignal subscription_status push.
+     * Re-fetches /subscription_status (response observer updates the cache),
+     * applies the gate, and flashes the chat-ended banner for 5s.
+     */
+    private fun observeAutopayPushEvents() {
+        com.gmwapp.hima.utils.SubscriptionStateCache.pushEvent.observe(this) { event ->
+            val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return@observe
+            autopayViewModel.subscriptionStatus(userId)
+            showChatEndedBanner(event)
+        }
+        autopayViewModel.statusLiveData.observe(this) { resp ->
+            val data = resp?.data ?: return@observe
+            com.gmwapp.hima.utils.SubscriptionStateCache.update(data)
+            applySubscriptionGate()
+        }
+        // Re-gate when admin flips the language flag while chat is open.
+        com.gmwapp.hima.utils.LanguageFeatureCache.updates.observe(this) {
+            applySubscriptionGate()
+        }
+    }
+
+    private fun showChatEndedBanner(
+        event: com.gmwapp.hima.utils.SubscriptionStateCache.PushEvent
+    ) {
+        val banner = chatEndedBanner ?: return
+        chatEndedBannerText?.text = when (event) {
+            com.gmwapp.hima.utils.SubscriptionStateCache.PushEvent.FAILED ->
+                "Chat ended — bank declined the autopay renewal"
+            com.gmwapp.hima.utils.SubscriptionStateCache.PushEvent.CANCELLED ->
+                "Chat ended — autopay was cancelled"
+        }
+        banner.visibility = View.VISIBLE
+        banner.postDelayed({ banner.visibility = View.GONE }, 5000L)
+    }
+
+    /**
+     * Sets the lock-container label based on the cached subscription status.
+     * "failed" = bank/payment-side renewal failure; "cancelled" = user-initiated.
+     * Falls back to the generic label until the cache is populated.
+     */
+    private fun applyAutopayFailedLockLabel() {
+        val label = autopayFailedLockLabel ?: return
+        label.text = when (com.gmwapp.hima.utils.SubscriptionStateCache.status()?.lowercase()) {
+            "failed" -> "Renewal failed — your bank declined autopay"
+            "cancelled" -> "Autopay cancelled — chat is locked"
+            else -> "Autopay cancelled — chat is locked"
+        }
+    }
+
+    private fun showTrialOfferSheet() {
+        // Trial sheet (with explainer video) shows for everyone who has
+        // never had an autopay mandate active. Once they've subscribed once
+        // (lapsed or cancelled), they get the simpler banner sheet — they
+        // don't need the pitch again. Cold-start safe: everActive returns
+        // false until /subscription_status populates the cache, so users
+        // optimistically see the trial sheet on a fresh launch.
+        if (!com.gmwapp.hima.utils.SubscriptionStateCache.everActive(this)) {
+            val sheet = com.gmwapp.hima.dialogs.BottomSheetTrialOffer.newInstance()
+            sheet.setOnTryNowClickListener {
+                startActivity(AutopayCheckoutActivity.intentFor(
+                    this, AutopayCheckoutActivity.PLAN_TRIAL_NEW
+                ))
+            }
+            sheet.show(supportFragmentManager, com.gmwapp.hima.dialogs.BottomSheetTrialOffer.TAG)
+        } else {
+            // Lapsed / cancelled subscriber → ₹299/10d direct subscribe.
+            val sheet = com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe.newInstance(
+                bannerOnly = true,
+                title = "Subscribe to unlock unlimited chats"
+            )
+            sheet.setOnSubscribeClickListener {
+                startActivity(AutopayCheckoutActivity.intentFor(
+                    this, AutopayCheckoutActivity.PLAN_DIRECT_OLD
+                ))
+            }
+            sheet.show(supportFragmentManager, com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe.TAG)
+        }
     }
 
     private fun initializeViews() {
@@ -152,6 +301,17 @@ class ChatActivity : AppCompatActivity() {
         etMessage = findViewById(R.id.et_message)
         btnSend = findViewById(R.id.btn_send)
         ivBack = findViewById(R.id.iv_back)
+        messageInputContainer = findViewById(R.id.message_input_container)
+        subscribeLockContainer = findViewById(R.id.subscribe_lock_container)
+        autopayFailedLockContainer = findViewById(R.id.autopay_failed_lock_container)
+        autopayFailedLockLabel = findViewById(R.id.tv_autopay_failed_lock_label)
+        chatEndedBanner = findViewById(R.id.ll_chat_ended_banner)
+        chatEndedBannerText = findViewById(R.id.tv_chat_ended_banner_text)
+        findViewById<View>(R.id.btn_subscribe_unlock)?.setOnClickListener { showTrialOfferSheet() }
+        findViewById<View>(R.id.btn_buy_coins_unlock)?.setOnClickListener {
+            startActivity(android.content.Intent(this, WalletActivity::class.java))
+        }
+        observeAutopayPushEvents()
         ivUser = findViewById(R.id.iv_user)
         tvUserName = findViewById(R.id.tv_user_name)
         tvUserStatus = findViewById(R.id.tv_user_status)
@@ -1467,6 +1627,18 @@ class ChatActivity : AppCompatActivity() {
         super.onResume()
         // User is now viewing the chat - mark it as visible
         isChatVisible = true
+
+        // Re-check subscription: user may be returning from AutopayCheckoutActivity,
+        // OR may have just revoked the UPI mandate from inside GPay/PhonePe and
+        // come back to the app. The backend's subscription_status endpoint
+        // reconciles against Cashfree on every call (60s cache), so this single
+        // hit catches UPI-side cancels even when no webhook has arrived yet.
+        // Cached gate applies first for instant feedback; observer at
+        // observeAutopayPushEvents() re-applies the gate when the response lands.
+        applySubscriptionGate()
+        BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let { uid ->
+            autopayViewModel.subscriptionStatus(uid)
+        }
         Log.d("ChatActivity", "Chat is now visible - marking pending messages as read")
         Log.d("lastseenlog", "📱 My User ID: $myUserId - Resuming chat with user $peerUserId")
 

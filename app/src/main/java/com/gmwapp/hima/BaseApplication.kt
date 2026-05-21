@@ -439,11 +439,33 @@ class BaseApplication : Application(), Configuration.Provider {
             }
         }.onFailure { Log.e("CreatorCallDiag", "BaseApp.fcmTokenSync threw: ${it.message}") }
 
-        // ====== DND + in-call: suppress OneSignal notifications when DND is
-        // active OR when the user is already inside a call and the push looks
-        // like another call notification. ======
+        // ====== Foreground OneSignal lifecycle listener handles 3 cases:
+        //   1) DND active                       → suppress notification
+        //   2) Already in a call + call push    → suppress (no double-ring)
+        //   3) subscription_status push (autopay failed/cancelled) → bypass DND,
+        //      hand to SubscriptionStateCache so foreground screens lock instantly
+        // ======
         OneSignal.Notifications.addForegroundLifecycleListener(object : com.onesignal.notifications.INotificationLifecycleListener {
             override fun onWillDisplay(event: com.onesignal.notifications.INotificationWillDisplayEvent) {
+                val data = event.notification.additionalData
+                val type = data?.optString("type")
+
+                // Subscription status push (autopay failed / cancelled) — clear
+                // cache + emit in-app event so foreground chat screens lock
+                // instantly. Bypasses DND: the user must know the subscription
+                // is no longer active.
+                if (type == "subscription_status") {
+                    val ev = data.optString("event")
+                    val pushEvent = when (ev) {
+                        "failed" -> com.gmwapp.hima.utils.SubscriptionStateCache.PushEvent.FAILED
+                        "cancelled" -> com.gmwapp.hima.utils.SubscriptionStateCache.PushEvent.CANCELLED
+                        else -> null
+                    }
+                    pushEvent?.let { com.gmwapp.hima.utils.SubscriptionStateCache.postPushEvent(it) }
+                    Log.d("OneSignal_AutopayPush", "subscription_status event=$ev")
+                    return
+                }
+
                 val userData = getInstance()?.getPrefs()?.getUserData()
                 if (isDndActiveStatic(userData)) {
                     Log.d("OneSignal_DND", "DND is active — suppressing OneSignal notification")
@@ -884,6 +906,23 @@ class BaseApplication : Application(), Configuration.Provider {
             EventBus.getDefault().register(this)
         }
 
+        refreshLanguageFeatureFlag()
+    }
+
+    /**
+     * Pulls the per-language `enabled_feature` flag and writes it to
+     * [com.gmwapp.hima.utils.LanguageFeatureCache]. Called on cold start
+     * so that autopay UI surfaces (Wallet banner, Chat lock, trial sheet,
+     * crown, etc.) gate correctly even on a deeplink-into-Chat path that
+     * never visits HomeFragment.
+     */
+    private fun refreshLanguageFeatureFlag() {
+        val userData = getPrefs()?.getUserData() ?: return
+        val userId = userData.id
+        val language = userData.language.orEmpty()
+        if (userId <= 0 || language.isBlank()) return
+        val apiManager = getApiManager() ?: return
+        com.gmwapp.hima.utils.LanguageFeatureCache.refresh(this, apiManager, userId, language)
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
