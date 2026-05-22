@@ -197,6 +197,31 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private var audioRouter: CallAudioRouter? = null
     private var phoneStateHelper: CallPhoneStateHelper? = null
     private var btWatcher: com.gmwapp.hima.utils.BluetoothCallWatcher? = null
+    // Auto-end after 30s of RECONNECTING/FAILED with a live countdown on the
+    // reconnect banner. Banner visibility is driven exclusively by the
+    // watchdog (single source of truth); peer-stream jitter is debounced so
+    // the pill doesn't flash on healthy calls.
+    private val reconnectWatchdog = com.gmwapp.hima.utils.ReconnectWatchdog(
+        onTick = { secondsRemaining ->
+            binding.reconnectBanner.text = "Reconnecting… ${secondsRemaining}s"
+        },
+        onArmedChanged = { armed ->
+            runOnUiThread {
+                binding.reconnectBanner.visibility =
+                    if (armed) View.VISIBLE else View.GONE
+            }
+        },
+        onTimeout = {
+            runOnUiThread {
+                Toast.makeText(
+                    this,
+                    "Network lost. Call ended.",
+                    Toast.LENGTH_LONG
+                ).show()
+                leaveChannel(binding.LeaveButton)
+            }
+        }
+    )
     private var mutedByInterrupt = false
 
     var maleUserId = 0
@@ -1153,13 +1178,38 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         }
 
         override fun onConnectionStateChanged(state: Int, reason: Int) {
+            // Banner visibility is owned by reconnectWatchdog.onArmedChanged
+            // — passing null here so peer-stream and own-connection sources
+            // can't disagree (CONNECTED used to hide the banner prematurely
+            // while the peer stream was still FROZEN).
             com.gmwapp.hima.utils.CallQualityUi.apply(
                 this@MaleAudioCallingActivity,
                 binding.ivSignalStrength,
-                binding.reconnectBanner,
+                null,
                 Constants.QUALITY_UNKNOWN,
                 state
             )
+            reconnectWatchdog.armOrCancel(state)
+        }
+
+        // Detect PEER-side stalls. onConnectionStateChanged only fires when
+        // OUR connection has issues; if the peer's network dies we stop
+        // receiving their audio while Agora still reports us as CONNECTED.
+        // Arm the same watchdog so the user sees Reconnecting… + 30s auto-end.
+        override fun onRemoteAudioStateChanged(uid: Int, state: Int, reason: Int, elapsed: Int) {
+            super.onRemoteAudioStateChanged(uid, state, reason, elapsed)
+            // Skip explicit-mute freezes — those are handled by the mute pill.
+            if (reason == Constants.REMOTE_AUDIO_REASON_REMOTE_MUTED) return
+            runOnUiThread {
+                when (state) {
+                    Constants.REMOTE_AUDIO_STATE_FROZEN,
+                    Constants.REMOTE_AUDIO_STATE_FAILED ->
+                        reconnectWatchdog.peerStreamStalled(stalled = true)
+                    Constants.REMOTE_AUDIO_STATE_DECODING,
+                    Constants.REMOTE_AUDIO_STATE_STARTING ->
+                        reconnectWatchdog.peerStreamStalled(stalled = false)
+                }
+            }
         }
 
         override fun onUserOffline(uid: Int, reason: Int) {
@@ -1447,6 +1497,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
         HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
         stopCountdown()
+        reconnectWatchdog.cancel()
         try {
             agoraEngine?.let { engine ->
                 try {

@@ -128,6 +128,31 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     private var audioRouter: CallAudioRouter? = null
     private var phoneStateHelper: CallPhoneStateHelper? = null
     private var btWatcher: com.gmwapp.hima.utils.BluetoothCallWatcher? = null
+    // Auto-end after 30s of RECONNECTING/FAILED with a live countdown on the
+    // reconnect banner. Banner visibility is driven exclusively by the
+    // watchdog (single source of truth); peer-stream jitter is debounced so
+    // the pill doesn't flash on healthy calls.
+    private val reconnectWatchdog = com.gmwapp.hima.utils.ReconnectWatchdog(
+        onTick = { secondsRemaining ->
+            binding.reconnectBanner.text = "Reconnecting… ${secondsRemaining}s"
+        },
+        onArmedChanged = { armed ->
+            runOnUiThread {
+                binding.reconnectBanner.visibility =
+                    if (armed) View.VISIBLE else View.GONE
+            }
+        },
+        onTimeout = {
+            runOnUiThread {
+                Toast.makeText(
+                    this,
+                    "Network lost. Call ended.",
+                    Toast.LENGTH_LONG
+                ).show()
+                leaveChannel(binding.LeaveButton)
+            }
+        }
+    )
     private var mutedByInterrupt = false
     var isClicked : Boolean = false
 
@@ -1067,11 +1092,12 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
         stopCallingService()
         cancelTimeoutTracking()
-        
+
         // Clean up face detection handlers
         cancelFacePreviewTransition()
         faceDetectedHandler = null
         faceDetectedRunnable = null
+        reconnectWatchdog.cancel()
 
         audioFocusHelper?.abandon()
         audioFocusHelper = null
@@ -1135,13 +1161,34 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                 "FemaleVideo.connectionState state=$state reason=$reason channel=$channelName callId=$call_Id " +
                     "isJoined=$isJoined remoteJoined=$isRemoteUserJoined"
             )
+            // Banner visibility is owned by reconnectWatchdog.onArmedChanged
+            // — passing null here so peer-stream and own-connection sources
+            // can't disagree.
             com.gmwapp.hima.utils.CallQualityUi.apply(
                 this@FemaleVideoCallingActivity,
                 binding.ivSignalStrength,
-                binding.reconnectBanner,
+                null,
                 Constants.QUALITY_UNKNOWN,
                 state
             )
+            reconnectWatchdog.armOrCancel(state)
+        }
+
+        // Detect PEER-side stalls so the user sees Reconnecting… + 30s
+        // auto-end even when our own connection looks fine.
+        override fun onRemoteAudioStateChanged(uid: Int, state: Int, reason: Int, elapsed: Int) {
+            super.onRemoteAudioStateChanged(uid, state, reason, elapsed)
+            if (reason == Constants.REMOTE_AUDIO_REASON_REMOTE_MUTED) return
+            runOnUiThread {
+                when (state) {
+                    Constants.REMOTE_AUDIO_STATE_FROZEN,
+                    Constants.REMOTE_AUDIO_STATE_FAILED ->
+                        reconnectWatchdog.peerStreamStalled(stalled = true)
+                    Constants.REMOTE_AUDIO_STATE_DECODING,
+                    Constants.REMOTE_AUDIO_STATE_STARTING ->
+                        reconnectWatchdog.peerStreamStalled(stalled = false)
+                }
+            }
         }
 
         override fun onUserJoined(uid: Int, elapsed: Int) {
