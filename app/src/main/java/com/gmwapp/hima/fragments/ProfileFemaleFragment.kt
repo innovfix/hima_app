@@ -71,6 +71,11 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
         savedInstanceState: Bundle?
     ): View {
         binding = FragmentProfileFemaleBinding.inflate(layoutInflater)
+        // 2026-05-22 v17 — force-hide Creator Level card IMMEDIATELY after
+        // binding inflation, before any other init. XML already says
+        // visibility="gone" but force here in case install/cache weirdness
+        // overrides it. Also hidden again in onResume as backstop.
+        binding.cvCreatorLevelProfile.visibility = View.GONE
         setupStatusBarInsets()
         initUI()
         whatsapp()
@@ -458,6 +463,15 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
     override fun onResume() {
         super.onResume()
             panVerification()
+        // 2026-05-22 v17 — force-hide Creator Level card on EVERY onResume.
+        // refresh() only runs on pull-to-refresh; XML visibility="gone" should
+        // work but tester reports the card still showing. Hide here too so
+        // it can never appear regardless of binding/inflation state.
+        try {
+            binding.cvCreatorLevelProfile.visibility = View.GONE
+        } catch (t: Throwable) {
+            android.util.Log.w("ProfileFemaleFragment", "Force-hide creator level failed: ${t.message}")
+        }
     }
 
 }
