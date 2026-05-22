@@ -736,13 +736,14 @@
         app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
         app:layout_constraintTop_toBottomOf="@id/cv_price_slab" />
 
-    <!-- Creator Level Card -->
+    <!-- Creator Level Card — HIDDEN 2026-05-22: mock UI only, real badge system ships in 2-3 weeks. To restore: remove android:visibility="gone" -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/cv_creator_level"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="16dp"
         android:layout_marginTop="12dp"
+        android:visibility="gone"
         android:clickable="true"
         android:focusable="true"
         android:foreground="@drawable/ripple_effect"

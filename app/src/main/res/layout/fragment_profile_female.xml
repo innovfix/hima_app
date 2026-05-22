@@ -524,12 +524,13 @@
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- Creator Level Card -->
+                <!-- Creator Level Card — HIDDEN 2026-05-22: mock UI only, real badge system ships in 2-3 weeks. To restore: remove android:visibility="gone" -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/cv_creator_level_profile"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="16dp"
+                    android:visibility="gone"
                     android:clickable="true"
                     android:focusable="true"
                     android:foreground="@drawable/ripple_effect"
