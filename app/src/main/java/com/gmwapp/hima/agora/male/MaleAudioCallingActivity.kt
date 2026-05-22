@@ -240,11 +240,18 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     // B062 + B064 — auto-end after 30s of RECONNECTING/FAILED, and show a
     // live countdown on the reconnect banner so the user knows when the
     // call will give up instead of staring at an indefinite "Reconnecting…"
-    // pill. The banner visibility is still owned by CallQualityUi; we only
-    // update the text here.
+    // pill. I038 — banner visibility is driven exclusively by the watchdog
+    // (single source of truth); sub-second peer-stream jitter is debounced
+    // inside the watchdog so the pill no longer flashes for healthy calls.
     private val reconnectWatchdog = com.gmwapp.hima.utils.ReconnectWatchdog(
         onTick = { secondsRemaining ->
             binding.reconnectBanner.text = "Reconnecting… ${secondsRemaining}s"
+        },
+        onArmedChanged = { armed ->
+            runOnUiThread {
+                binding.reconnectBanner.visibility =
+                    if (armed) View.VISIBLE else View.GONE
+            }
         },
         onTimeout = {
             runOnUiThread {
@@ -1383,10 +1390,14 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         }
 
         override fun onConnectionStateChanged(state: Int, reason: Int) {
+            // I038 — pass null for the banner; visibility is now owned by the
+            // watchdog via onArmedChanged so peer-stream and own-connection
+            // sources can't disagree (CONNECTED used to prematurely hide the
+            // banner while the peer stream was still FROZEN).
             com.gmwapp.hima.utils.CallQualityUi.apply(
                 this@MaleAudioCallingActivity,
                 binding.ivSignalStrength,
-                binding.reconnectBanner,
+                null,
                 Constants.QUALITY_UNKNOWN,
                 state
             )
@@ -1420,12 +1431,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                         reconnectWatchdog.peerStreamStalled(stalled = false)
                     // REMOTE_AUDIO_STATE_STOPPED — explicit mute, leave alone.
                 }
-                // Banner reflects "is either source stalled". Driving it off
-                // the watchdog's combined state keeps the peer-stream
-                // recovery from prematurely hiding the banner while OUR
-                // connection is still RECONNECTING.
-                binding.reconnectBanner.visibility =
-                    if (reconnectWatchdog.isArmed()) View.VISIBLE else View.GONE
+                // I038 — banner visibility is driven by reconnectWatchdog.onArmedChanged.
             }
         }
 

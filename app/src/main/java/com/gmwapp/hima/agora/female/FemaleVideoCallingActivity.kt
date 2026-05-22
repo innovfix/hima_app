@@ -143,11 +143,17 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     private var audioRouter: CallAudioRouter? = null
     private var phoneStateHelper: CallPhoneStateHelper? = null
     private var btWatcher: com.gmwapp.hima.utils.BluetoothCallWatcher? = null
-    // B062 + B064 — auto-end after 30s + show countdown on banner.
-    // See MaleAudioCallingActivity for full rationale.
+    // B062 + B064 + I038 — auto-end after 30s + countdown on banner +
+    // peer-stream debounce. See MaleAudioCallingActivity for full rationale.
     private val reconnectWatchdog = com.gmwapp.hima.utils.ReconnectWatchdog(
         onTick = { secondsRemaining ->
             binding.reconnectBanner.text = "Reconnecting… ${secondsRemaining}s"
+        },
+        onArmedChanged = { armed ->
+            runOnUiThread {
+                binding.reconnectBanner.visibility =
+                    if (armed) View.VISIBLE else View.GONE
+            }
         },
         onTimeout = {
             runOnUiThread {
@@ -1320,10 +1326,11 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         }
 
         override fun onConnectionStateChanged(state: Int, reason: Int) {
+            // I038 — banner visibility now owned by reconnectWatchdog.onArmedChanged.
             com.gmwapp.hima.utils.CallQualityUi.apply(
                 this@FemaleVideoCallingActivity,
                 binding.ivSignalStrength,
-                binding.reconnectBanner,
+                null,
                 Constants.QUALITY_UNKNOWN,
                 state
             )
@@ -1345,8 +1352,7 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                     Constants.REMOTE_AUDIO_STATE_STARTING ->
                         reconnectWatchdog.peerStreamStalled(stalled = false)
                 }
-                binding.reconnectBanner.visibility =
-                    if (reconnectWatchdog.isArmed()) View.VISIBLE else View.GONE
+                // I038 — banner visibility is driven by reconnectWatchdog.onArmedChanged.
             }
         }
 
