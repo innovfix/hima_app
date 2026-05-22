@@ -219,6 +219,23 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/top_bar" />
 
+    <!-- Remote mic-muted badge — toggled by onUserMuteAudio when the peer mutes. -->
+    <ImageView
+        android:id="@+id/iv_remote_mic_muted"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/professional_control_button_bg"
+        android:contentDescription="Peer microphone muted"
+        android:elevation="10dp"
+        android:padding="10dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/mute_img"
+        android:visibility="invisible"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/reconnect_banner" />
+
     <!-- User Avatars Container (Center) -->
     <LinearLayout
         android:id="@+id/users_container"

@@ -1248,6 +1248,13 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                 }
             }
 
+        override fun onUserMuteAudio(uid: Int, muted: Boolean) {
+            super.onUserMuteAudio(uid, muted)
+            runOnUiThread {
+                binding.ivRemoteMicMuted.visibility = if (muted) View.VISIBLE else View.INVISIBLE
+            }
+        }
+
     }
 
     private fun setupRemoteVideo(uid: Int) {

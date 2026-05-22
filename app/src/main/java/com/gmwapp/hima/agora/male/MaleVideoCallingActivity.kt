@@ -1249,7 +1249,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
                     }else{
                         hideRemoteBlurState()
-                        
+
                         // Re-setup remote video to ensure it's properly rendered when switching from audio to video
                         binding.remoteVideoViewContainer.removeAllViews()
                         remoteSurfaceView = SurfaceView(this@MaleVideoCallingActivity)
@@ -1268,6 +1268,13 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                     }
                 }
 
+        }
+
+        override fun onUserMuteAudio(uid: Int, muted: Boolean) {
+            super.onUserMuteAudio(uid, muted)
+            runOnUiThread {
+                binding.ivRemoteMicMuted.visibility = if (muted) View.VISIBLE else View.INVISIBLE
+            }
         }
     }
 
