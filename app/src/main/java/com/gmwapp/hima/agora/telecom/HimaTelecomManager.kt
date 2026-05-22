@@ -1,18 +1,15 @@
 package com.gmwapp.hima.agora.telecom
 
-import android.Manifest
 import android.content.ComponentName
 import android.content.Context
-import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.telecom.DisconnectCause
 import android.telecom.PhoneAccount
 import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
-import android.telephony.TelephonyManager
 import android.util.Log
-import androidx.core.app.ActivityCompat
 import com.gmwapp.hima.R
 
 /**
@@ -76,10 +73,13 @@ object HimaTelecomManager {
                 ComponentName(appContext, HimaConnectionService::class.java),
                 PHONE_ACCOUNT_ID
             )
-            if (!isCellularIdle(appContext)) {
-                Log.d(INCOMING_CALL_LOG_TAG, "tryAddIncomingCall: cellular not idle, skip addNewIncomingCall")
-                return false
-            }
+            // I039 — previously we bailed if TelephonyManager reported a cellular call in
+            // progress. That was the wrong instinct: the whole reason to use self-managed
+            // Telecom is so the system can coordinate a second incoming call (hold/switch/
+            // end-and-answer) over an active SIM or VoIP call. Forwarding to Telecom is now
+            // unconditional; HimaConnection.onShowIncomingCallUi launches our accept screen
+            // and Telecom grants it permission to surface over an active call (the only
+            // path that bypasses the "no full-screen intent during a call" restriction).
             telecom.addNewIncomingCall(handle, extras)
             Log.d(INCOMING_CALL_LOG_TAG, "tryAddIncomingCall: addNewIncomingCall invoked ok")
             true
@@ -92,15 +92,53 @@ object HimaTelecomManager {
         }
     }
 
-    private fun isCellularIdle(context: Context): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true
-        val telephony = context.getSystemService(TelephonyManager::class.java) ?: return true
-        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            return true
+    /**
+     * I039 — symmetric to [tryAddIncomingCall]. Lets the outgoing call path
+     * (MaleCallConnectingActivity / FemaleCallConnectingActivity) register the
+     * call with Telecom so the system can offer Hold & Answer / End & Answer
+     * when a SIM or other VoIP call arrives mid-Hima-call.
+     *
+     * @return true on a successful placeCall dispatch. False on permission
+     *   errors, missing TelecomManager, or any unexpected exception — callers
+     *   should continue with the existing Agora flow; the only thing lost is
+     *   the system-coordinated second-call UX.
+     */
+    fun tryPlaceOutgoingCall(context: Context, extras: Bundle): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            Log.d(INCOMING_CALL_LOG_TAG, "tryPlaceOutgoingCall: skip SDK<26 (O)")
+            return false
         }
-        return telephony.callState == TelephonyManager.CALL_STATE_IDLE
+        return try {
+            val appContext = context.applicationContext
+            registerPhoneAccountIfNeeded(appContext)
+            val telecom = appContext.getSystemService(TelecomManager::class.java)
+            if (telecom == null) {
+                Log.w(INCOMING_CALL_LOG_TAG, "tryPlaceOutgoingCall: no TelecomManager service")
+                return false
+            }
+            val handle = PhoneAccountHandle(
+                ComponentName(appContext, HimaConnectionService::class.java),
+                PHONE_ACCOUNT_ID
+            )
+            // tel: scheme is a placeholder — the Hima call has no PSTN number. The
+            // peer is identified inside `extras` (sender id, channel name). Telecom
+            // accepts any tel: URI for self-managed accounts; the URI itself is
+            // never dialed.
+            val callUri = Uri.fromParts("tel", "hima", null)
+            val outgoingExtras = Bundle().apply {
+                putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, handle)
+                putBundle(TelecomManager.EXTRA_OUTGOING_CALL_EXTRAS, extras)
+            }
+            telecom.placeCall(callUri, outgoingExtras)
+            Log.d(INCOMING_CALL_LOG_TAG, "tryPlaceOutgoingCall: placeCall invoked ok")
+            true
+        } catch (e: SecurityException) {
+            Log.e(INCOMING_CALL_LOG_TAG, "tryPlaceOutgoingCall: placeCall SecurityException ${e.message}", e)
+            false
+        } catch (e: Exception) {
+            Log.e(INCOMING_CALL_LOG_TAG, "tryPlaceOutgoingCall: exception ${e.message}", e)
+            false
+        }
     }
 
     /**
