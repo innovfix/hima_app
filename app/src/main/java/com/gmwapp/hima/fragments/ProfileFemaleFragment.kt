@@ -321,6 +321,11 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
             startActivity(intent)
         }
 
+        // 2026-05-22 v14 — belt-and-braces runtime force-hide. XML already sets
+        // visibility="gone" but tester reports the card still showing on
+        // some installs (likely device/install-cache weirdness). Force at
+        // runtime too so XML override at install can't expose the mock UI.
+        binding.cvCreatorLevelProfile.visibility = View.GONE
         binding.cvCreatorLevelProfile.setOnSingleClickListener {
             startActivity(Intent(context, CreatorLevelActivity::class.java))
         }
