@@ -1398,6 +1398,16 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             // on CONNECTED/DISCONNECTED. Without this Agora's retry loop
             // ran indefinitely while the user stared at the banner.
             reconnectWatchdog.armOrCancel(state)
+            // 2026-05-22 v16 — when our connection comes back, check if peer
+            // ended the call while we were offline. Avoids the cosmetic
+            // 5-30s lag waiting for Agora's lazy onUserOffline delivery.
+            if (state == Constants.CONNECTION_STATE_CONNECTED && callId > 0) {
+                com.gmwapp.hima.utils.CallAliveChecker.checkAndEndIfDead(callId) {
+                    if (!isFinishing && !isDestroyed) {
+                        leaveChannel(binding.LeaveButton)
+                    }
+                }
+            }
         }
 
         // I024 — detect PEER-side network drops. onConnectionStateChanged

@@ -1422,6 +1422,15 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             )
             // B062 — auto-end on prolonged reconnect.
             reconnectWatchdog.armOrCancel(state)
+            // 2026-05-22 v16 — when our connection comes back, check if peer
+            // ended the call while we were offline. See MaleAudioCallingActivity.
+            if (state == Constants.CONNECTION_STATE_CONNECTED && call_Id > 0) {
+                com.gmwapp.hima.utils.CallAliveChecker.checkAndEndIfDead(call_Id) {
+                    if (!isFinishing && !isDestroyed) {
+                        leaveChannel(binding.LeaveButton)
+                    }
+                }
+            }
         }
 
         // I024 — detect PEER-side network drops. See MaleAudioCallingActivity

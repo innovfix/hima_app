@@ -1483,6 +1483,15 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             )
             // B062 — auto-end on prolonged reconnect.
             reconnectWatchdog.armOrCancel(state)
+            // 2026-05-22 v16 — when our connection comes back, check if peer
+            // ended the call while we were offline. See MaleAudioCallingActivity.
+            if (state == Constants.CONNECTION_STATE_CONNECTED && callId > 0) {
+                com.gmwapp.hima.utils.CallAliveChecker.checkAndEndIfDead(callId) {
+                    if (!isFinishing && !isDestroyed) {
+                        leaveChannel(binding.LeaveButton)
+                    }
+                }
+            }
             // 2026-05-22 — when WE lose internet, the peer's video stream
             // freezes for us but onRemoteVideoStateChanged(FROZEN) doesn't
             // always fire (the SDK can't decode without our connection). Show
