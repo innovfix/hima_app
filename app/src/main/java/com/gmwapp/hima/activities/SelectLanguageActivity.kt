@@ -82,40 +82,46 @@ class SelectLanguageActivity : BaseActivity() {
                 // Socket.IO will connect only when ChatActivityInHouse opens
                 Log.d("SocketIOCheck", "✅ Registration successful - Socket.IO will connect when chat opens")
 
+                // Registration analytics — fire for BOTH male AND female signups.
+                // (2026-05-22 fix: previously male-only, which broke marketing's
+                // Google Ads funnel — voice_verified (female-only) appeared to
+                // exceed registration (male-only) because female signups were
+                // never tracked. Now both genders fire af_complete_registration
+                // + EVENT_NAME_COMPLETED_REGISTRATION + SIGN_UP + backend log.)
+                val registrationEvent = HashMap<String, Any>()
+                registrationEvent["user_id"] = "${it.data.id}"
+                registrationEvent["gender"] = it.data.gender ?: ""
+
+                AppsFlyerLib.getInstance().logEvent(
+                    this,
+                    "af_complete_registration",
+                    registrationEvent
+                )
+
+                val params = Bundle()
+                params.putString("user_id", "${it.data.id}")
+                params.putString("gender", it.data.gender ?: "")
+                AppEventsLogger.newLogger(this).logEvent(AppEventsConstants.EVENT_NAME_COMPLETED_REGISTRATION, params)
+
+                val bundle = Bundle().apply {
+                    putString("user_id", "${it.data.id}")
+                    putString("gender", it.data.gender ?: "")
+                }
+
+                BaseApplication.firebaseAnalytics.logEvent(FirebaseAnalytics.Event.SIGN_UP, bundle)
+
+                AppEventLogger.logEvent(
+                    context = this,
+                    eventName = "sign_up",
+                    platform = "firebase",
+                    userId = it.data.id,
+                    params = AppEventLogger.bundleToMap(bundle)
+                )
+
                 if (it.data.gender == DConstants.MALE) {
-                    // New male users: registration analytics fire synchronously,
-                    // then we hit /language_config to decide whether the next
-                    // screen is AI onboarding (legacy path) or skip-to-home
-                    // (autopay-eligible language). Mutually exclusive per
-                    // language config (see backend feature/autopay-wireup).
-
-                    val registrationEvent = HashMap<String, Any>()
-                    registrationEvent["user_id"] = "${it.data.id}"
-
-                    AppsFlyerLib.getInstance().logEvent(
-                        this,
-                        "af_complete_registration",
-                        registrationEvent
-                    )
-
-                    val params = Bundle()
-                    params.putString("user_id", "${it.data.id}")
-                    AppEventsLogger.newLogger(this).logEvent(AppEventsConstants.EVENT_NAME_COMPLETED_REGISTRATION, params)
-
-                    val bundle = Bundle().apply {
-                        putString("user_id", "${it.data.id}")
-                    }
-
-                    BaseApplication.firebaseAnalytics.logEvent(FirebaseAnalytics.Event.SIGN_UP, bundle)
-
-                    AppEventLogger.logEvent(
-                        context = this,
-                        eventName = "sign_up",
-                        platform = "firebase",
-                        userId = it.data.id,
-                        params = AppEventLogger.bundleToMap(bundle)
-                    )
-
+                    // Male-only routing: hit /language_config to decide
+                    // AI onboarding vs autopay/skip-to-home (mutually
+                    // exclusive per language config, see feature/autopay-wireup).
                     val userId = it.data.id
                     val avatarId = getIntent().getIntExtra(DConstants.AVATAR_ID, 0)
                     val language = selectedLanguage ?: ""
