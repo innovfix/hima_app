@@ -174,6 +174,11 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         setContentView(binding.root)
         applySystemBarInsets(binding.root, R.color.white, darkStatusBarIcons = true)
 
+        // 2026-05-22 — Add Payment Info event when wallet/payment screen opens.
+        // Fires to both Meta (AppEventsConstants.EVENT_NAME_ADDED_PAYMENT_INFO)
+        // and Firebase (Event.ADD_PAYMENT_INFO).
+        com.gmwapp.hima.utils.HimaAnalytics.logAddPaymentInfo(this, success = true)
+
         window.navigationBarColor = resources.getColor(android.R.color.white, null)
 
         fromDeepLink = intent.getBooleanExtra("from_deeplink", false)
@@ -922,6 +927,17 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                 putString("coin_id", "$coinId")
             }
             AppEventsLogger.newLogger(this).logEvent(AppEventsConstants.EVENT_NAME_PURCHASED, coinAmount, params)
+
+            // 2026-05-22 — Day-1 Multiple Purchase tracking (marketing request).
+            // Fires alongside PURCHASE if user is within 24h of signup and this
+            // is their 2nd+ purchase. See HimaAnalytics.logPurchaseAndMaybeD1mp.
+            val signupAtMs = userData?.created_at?.let {
+                try {
+                    java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
+                        .parse(it)?.time ?: 0L
+                } catch (e: Exception) { 0L }
+            } ?: 0L
+            com.gmwapp.hima.utils.HimaAnalytics.logPurchaseAndMaybeD1mp(this, signupAtMs, coinAmount, "INR")
         } else {
             Log.w("FB_Event", "Skipped PURCHASE event. Invalid coinAmount = $coinAmount")
         }

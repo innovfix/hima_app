@@ -1311,6 +1311,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 "onUserJoined uid=$uid isRemoteUserJoined=$isRemoteUserJoined isJoined=$isJoined"
             )
             Log.d("AgoraTiming", "MaleVideo onUserJoined at ${System.currentTimeMillis()}")
+            // 2026-05-22 — Contact event for Meta + Firebase.
+            com.gmwapp.hima.utils.HimaAnalytics.logContact(this@MaleVideoCallingActivity, contentType = "video_call")
             startCallingService()
             isRemoteUserJoined= true
             videoUid = uid
@@ -1651,6 +1653,27 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             endedTime = endTime,
             isIndividual = true
         )
+
+        // 2026-05-22 — Spend Credits event for video (60 coins/min). See
+        // MaleAudioCallingActivity for the same pattern (audio = 10 coins/min).
+        if (callId > 0 && startTime.isNotEmpty()) {
+            try {
+                val sdf = dateFormat
+                val durationSec = ((sdf.parse(endTime)?.time ?: 0L) - (sdf.parse(startTime)?.time ?: 0L)) / 1000
+                if (durationSec > 0) {
+                    val minutes = ((durationSec + 59) / 60).coerceAtLeast(1)
+                    val estimatedCoins = (minutes * 60).toInt()  // video rate
+                    com.gmwapp.hima.utils.HimaAnalytics.logSpendCredits(
+                        ctx = this,
+                        coinsSpent = estimatedCoins,
+                        contentType = "video_call",
+                        contentId = callId.toString(),
+                    )
+                }
+            } catch (t: Throwable) {
+                Log.w("HimaAnalytics", "MaleVideo SpendCredits estimate failed: ${t.message}")
+            }
+        }
 
 
         if (switchCallID != 0) {

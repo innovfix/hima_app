@@ -1454,6 +1454,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             videoUid = uid
             startTime = dateFormat.format(Date()) // Set call end time in IST
             callStartMillis = System.currentTimeMillis() // B110: duration baseline
+            // 2026-05-22 — Contact event (Meta + Firebase). Fires on the first
+            // remote join of THIS call session — once per call, not per app open.
+            com.gmwapp.hima.utils.HimaAnalytics.logContact(this@MaleAudioCallingActivity, contentType = "audio_call")
             startCallingService()
             getRemainingTime()
             initVosk()
@@ -1714,6 +1717,28 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             endedTime = endTime,
             isIndividual = true
         )
+
+        // 2026-05-22 — Spend Credits event (Meta + Firebase). Estimate coins
+        // from duration: audio = 10 coins/min, video uses different rates.
+        // Fires once per call, dedup'd by CallEndUpdater above (same call).
+        if (callId > 0 && startTime.isNotEmpty()) {
+            try {
+                val sdf = dateFormat
+                val durationSec = ((sdf.parse(endTime)?.time ?: 0L) - (sdf.parse(startTime)?.time ?: 0L)) / 1000
+                if (durationSec > 0) {
+                    val minutes = ((durationSec + 59) / 60).coerceAtLeast(1)
+                    val estimatedCoins = (minutes * 10).toInt()  // audio rate
+                    com.gmwapp.hima.utils.HimaAnalytics.logSpendCredits(
+                        ctx = this,
+                        coinsSpent = estimatedCoins,
+                        contentType = "audio_call",
+                        contentId = callId.toString(),
+                    )
+                }
+            } catch (t: Throwable) {
+                android.util.Log.w("HimaAnalytics", "MaleAudio SpendCredits estimate failed: ${t.message}")
+            }
+        }
 
         if (switchCallID != 0) {
             callId = switchCallID

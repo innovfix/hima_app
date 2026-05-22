@@ -202,6 +202,15 @@ class RatingActivity : BaseActivity() {
                 // Proceed with rating submission
                 wasRatingApiCalled = true
 
+                // 2026-05-22 — Rate event to Meta + Firebase. Fires only on
+                // actual rating submit (rating > 0).
+                com.gmwapp.hima.utils.HimaAnalytics.logRate(
+                    ctx = this,
+                    rating = rating,
+                    maxRating = 5,
+                    contentType = "creator",
+                )
+
                 if (isBlocking) {
                     blockMale(userid, call_userid)
                 }

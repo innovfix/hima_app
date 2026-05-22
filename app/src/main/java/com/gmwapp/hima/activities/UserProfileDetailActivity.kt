@@ -100,6 +100,19 @@ class UserProfileDetailActivity : AppCompatActivity() {
         // Get data from intent
         getUserDataFromIntent()
 
+        // 2026-05-22 — View Content event: log every creator profile view to
+        // Meta + Firebase. Marketing uses this for retargeting + lookalike audiences.
+        // userId is set inside getUserDataFromIntent (set as profile.id) — pass
+        // safely as String to dedupe in Ads Manager.
+        val viewedUserId = intent?.getIntExtra("user_id", 0) ?: 0
+        if (viewedUserId > 0) {
+            com.gmwapp.hima.utils.HimaAnalytics.logViewContent(
+                ctx = this,
+                contentId = viewedUserId.toString(),
+                contentType = "creator_profile",
+            )
+        }
+
         // Setup toolbar
         setupToolbar()
 
