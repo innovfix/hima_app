@@ -736,16 +736,15 @@
         app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
         app:layout_constraintTop_toBottomOf="@id/cv_price_slab" />
 
-    <!-- Creator Level Card — HIDDEN 2026-05-22: mock UI only, real badge system ships in 2-3 weeks. To restore: remove android:visibility="gone" -->
+    <!-- Creator Level Card — partial hide 2026-05-22: outer card kept VISIBLE because it contains real Today Earnings + Today Calls stats. Mock-data children (level name, stars, rate chip, journey chart, "see all levels" link) individually hidden below until real badge system ships in 2-3 weeks. To restore full mock UI: remove the android:visibility="gone" on each child element. -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/cv_creator_level"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="16dp"
         android:layout_marginTop="12dp"
-        android:visibility="gone"
-        android:clickable="true"
-        android:focusable="true"
+        android:clickable="false"
+        android:focusable="false"
         android:foreground="@drawable/ripple_effect"
         app:cardCornerRadius="20dp"
         app:cardElevation="6dp"
@@ -769,13 +768,14 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/poppins_medium"
                 android:letterSpacing="0.12"
-                android:text="MY CREATOR LEVEL"
+                android:text="TODAY"
+                android:visibility="gone"
                 android:textColor="#A0B8D8"
                 android:textSize="10sp"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
-            <!-- Level name -->
+            <!-- Level name — hidden 2026-05-22 (mock UI) -->
             <TextView
                 android:id="@+id/tv_creator_level_name"
                 android:layout_width="0dp"
@@ -787,18 +787,20 @@
                 android:letterSpacing="-0.01"
                 android:maxLines="1"
                 android:text="L2 · Rising Creator"
+                android:visibility="gone"
                 android:textColor="@color/white"
                 android:textSize="22sp"
                 app:layout_constraintEnd_toStartOf="@id/chip_creator_rate"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/tv_creator_level_label" />
 
-            <!-- Star row -->
+            <!-- Star row — hidden 2026-05-22 (mock UI) -->
             <LinearLayout
                 android:id="@+id/ll_creator_stars"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
+                android:visibility="gone"
                 android:orientation="horizontal"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/tv_creator_level_name">
@@ -846,12 +848,13 @@
                     app:tint="#FFFFFF" />
             </LinearLayout>
 
-            <!-- Rate chip top-right -->
+            <!-- Rate chip top-right — hidden 2026-05-22 (mock UI: hardcoded ₹1.25/heart) -->
             <LinearLayout
                 android:id="@+id/chip_creator_rate"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:background="@drawable/bg_creator_rate_chip"
+                android:visibility="gone"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:paddingHorizontal="10dp"
@@ -876,12 +879,13 @@
                     android:textSize="11sp" />
             </LinearLayout>
 
-            <!-- Level Journey Chart -->
+            <!-- Level Journey Chart — hidden 2026-05-22 (mock UI: L1-L5 bar chart with fake position) -->
             <LinearLayout
                 android:id="@+id/ll_level_chart"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
+                android:visibility="gone"
                 android:background="@drawable/bg_creator_stat_tile"
                 android:orientation="vertical"
                 android:paddingHorizontal="12dp"
@@ -1178,12 +1182,13 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- View all levels link -->
+            <!-- View all levels link — hidden 2026-05-22 (opens mock CreatorLevelActivity) -->
             <LinearLayout
                 android:id="@+id/ll_view_levels"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
+                android:visibility="gone"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 app:layout_constraintEnd_toEndOf="parent"
