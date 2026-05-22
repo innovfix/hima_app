@@ -32,6 +32,11 @@ import io.agora.rtc2.Constants
 class ReconnectWatchdog(
     private val timeoutMillis: Long = DEFAULT_TIMEOUT_MS,
     private val onTick: (secondsRemaining: Int) -> Unit = {},
+    // I038 — single source of truth for banner visibility. Fires only on
+    // armed→unarmed transitions so the activity can flip the pill view in
+    // one place instead of duplicating `isArmed()` checks across every
+    // Agora callback (and racing with CallQualityUi's banner toggling).
+    private val onArmedChanged: (Boolean) -> Unit = {},
     private val onTimeout: () -> Unit
 ) {
     private val handler = Handler(Looper.getMainLooper())
@@ -45,6 +50,20 @@ class ReconnectWatchdog(
     // Separate from the source flags so we don't depend on
     // Handler.hasCallbacks (API 29+) just to know if our timer is running.
     private var timerActive = false
+    // Tracks the last value passed to onArmedChanged so duplicate calls
+    // (e.g. peer-already-down + own-just-went-down) don't re-notify.
+    private var lastNotifiedArmed = false
+
+    // I038 — defer treating a peer-stream FROZEN as a real stall until it's
+    // persisted for PEER_STALL_DEBOUNCE_MS. Agora reports FROZEN on tiny
+    // jitter bursts (sub-second) which used to flash the "Reconnecting…"
+    // pill on otherwise-healthy calls; that ruins perceived quality. If
+    // DECODING arrives first, this runnable never fires and the user never
+    // sees the banner.
+    private val peerStallDebounceRunnable = Runnable {
+        peerStreamDown = true
+        armIfNeeded()
+    }
 
     private val timeoutRunnable = Runnable {
         Log.w(TAG, "Watchdog timeout after ${timeoutMillis}ms (own=$ownConnectionDown peer=$peerStreamDown) — ending call")
@@ -52,6 +71,8 @@ class ReconnectWatchdog(
         peerStreamDown = false
         timerActive = false
         handler.removeCallbacks(tickRunnable)
+        handler.removeCallbacks(peerStallDebounceRunnable)
+        notifyArmedIfChanged()
         try {
             onTimeout()
         } catch (e: Exception) {
@@ -86,20 +107,40 @@ class ReconnectWatchdog(
         // from "everything fine" to "something down". Subsequent flag flips
         // from the OTHER source piggy-back on the same in-flight timer so
         // the user's perceived wait clock doesn't reset.
-        if (timerActive) return
+        if (timerActive) {
+            notifyArmedIfChanged()
+            return
+        }
         timerActive = true
         startedAt = System.currentTimeMillis()
         handler.postDelayed(timeoutRunnable, timeoutMillis)
         handler.post(tickRunnable) // fire first tick immediately
+        notifyArmedIfChanged()
         Log.d(TAG, "Armed watchdog (own=$ownConnectionDown peer=$peerStreamDown timeoutMs=$timeoutMillis)")
     }
 
     private fun cancelIfClear() {
-        if (isArmed() || !timerActive) return
+        if (isArmed() || !timerActive) {
+            notifyArmedIfChanged()
+            return
+        }
         timerActive = false
         handler.removeCallbacks(timeoutRunnable)
         handler.removeCallbacks(tickRunnable)
+        notifyArmedIfChanged()
         Log.d(TAG, "Cancelled watchdog (own + peer both clear)")
+    }
+
+    private fun notifyArmedIfChanged() {
+        val nowArmed = isArmed()
+        if (nowArmed != lastNotifiedArmed) {
+            lastNotifiedArmed = nowArmed
+            try {
+                onArmedChanged(nowArmed)
+            } catch (e: Exception) {
+                Log.e(TAG, "onArmedChanged callback threw", e)
+            }
+        }
     }
 
     /**
@@ -134,8 +175,20 @@ class ReconnectWatchdog(
      *                non-mute reason; false on DECODING / STARTING (recovery).
      */
     fun peerStreamStalled(stalled: Boolean) {
-        peerStreamDown = stalled
-        if (stalled) armIfNeeded() else cancelIfClear()
+        if (stalled) {
+            // Already counted as down — nothing to schedule.
+            if (peerStreamDown) return
+            // I038 — debounce. Defer arming until the peer's audio has been
+            // FROZEN for PEER_STALL_DEBOUNCE_MS continuously. Sub-debounce
+            // jitter never paints the pill. Own-connection RECONNECTING is
+            // unaffected (Agora already only emits it after sustained trouble).
+            handler.removeCallbacks(peerStallDebounceRunnable)
+            handler.postDelayed(peerStallDebounceRunnable, PEER_STALL_DEBOUNCE_MS)
+        } else {
+            handler.removeCallbacks(peerStallDebounceRunnable)
+            peerStreamDown = false
+            cancelIfClear()
+        }
     }
 
     /**
@@ -143,18 +196,26 @@ class ReconnectWatchdog(
      * sources and tears down the timer/ticks unconditionally.
      */
     fun cancel() {
+        handler.removeCallbacks(peerStallDebounceRunnable)
         if (!timerActive && !ownConnectionDown && !peerStreamDown) return
         ownConnectionDown = false
         peerStreamDown = false
         timerActive = false
         handler.removeCallbacks(timeoutRunnable)
         handler.removeCallbacks(tickRunnable)
+        notifyArmedIfChanged()
         Log.d(TAG, "Force-cancelled watchdog (activity teardown)")
     }
 
     companion object {
         const val DEFAULT_TIMEOUT_MS = 30_000L
         private const val TICK_INTERVAL_MS = 1_000L
+        // I038 — minimum FROZEN duration before we treat a peer stall as
+        // real. Tuned for Indian mobile networks where multi-second jitter
+        // bursts on otherwise-fine calls are routine; real outages last
+        // much longer. Banner appears ~3.5s after stall start; the 30s
+        // auto-end safety net is unaffected (it begins when this fires).
+        private const val PEER_STALL_DEBOUNCE_MS = 3_500L
         private const val TAG = "ReconnectWatchdog"
     }
 }
