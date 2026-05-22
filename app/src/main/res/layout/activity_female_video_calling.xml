@@ -268,6 +268,23 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/reconnect_banner" />
 
+    <!-- Visible mute badge (Perumal 2026-05-22, simplified from d0739380): toggled by onUserMuteAudio (peer mute) AND by toggleMute (self mute). Replaces the invisible remote_mic_muted_pill which was anchor-only. -->
+    <ImageView
+        android:id="@+id/iv_remote_mic_muted"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/professional_control_button_bg"
+        android:contentDescription="Microphone muted"
+        android:elevation="10dp"
+        android:padding="10dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/mute_img"
+        android:visibility="invisible"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/on_hold_banner" />
+
     <!-- B055 — see activity_male_audio_calling.xml for rationale. -->
     <View
         android:id="@+id/remote_mic_muted_pill"

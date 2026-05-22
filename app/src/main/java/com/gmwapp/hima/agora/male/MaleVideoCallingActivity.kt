@@ -1602,8 +1602,19 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             super.onUserMuteAudio(uid, muted)
             runOnUiThread {
                 binding.remoteMicMutedPill.visibility = if (muted) View.VISIBLE else View.GONE
+                // Perumal 2026-05-22: also drive the visible badge for peer mute.
+                updateMuteBadge(peerMuted = muted)
             }
         }
+    }
+
+    // Perumal 2026-05-22: tracks peer mute state so self-mute toggle can OR with it.
+    private var isPeerMutedBadge = false
+
+    private fun updateMuteBadge(peerMuted: Boolean? = null, selfMutedOverride: Boolean? = null) {
+        if (peerMuted != null) isPeerMutedBadge = peerMuted
+        val showBadge = (selfMutedOverride ?: isMuted) || isPeerMutedBadge
+        binding.ivRemoteMicMuted.visibility = if (showBadge) View.VISIBLE else View.INVISIBLE
     }
 
     private val dateFormat = SimpleDateFormat("HH:mm:ss").apply {
@@ -2457,10 +2468,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         agoraEngine?.muteLocalAudioStream(isMuted)  // Mute or unmute audio
         val muteIcon = if (isMuted) R.drawable.mute_img else R.drawable.unmute_img
         binding.btnMuteUnmute.setImageResource(muteIcon)
-        // B054 — MaleVideo's users_container has no femaleMute/maleMute badge
-        // (asymmetry with FemaleVideo), so the icon change on btnMuteUnmute is
-        // the only self-mute cue here. If a self-badge is added in future,
-        // flip it here too.
+        // Perumal 2026-05-22: reflect self-mute on the visible top-center badge too.
+        updateMuteBadge(selfMutedOverride = isMuted)
     }
 
     // Function to toggle speaker on/off

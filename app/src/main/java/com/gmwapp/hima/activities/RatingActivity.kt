@@ -368,10 +368,14 @@ class RatingActivity : BaseActivity() {
     fun showFavouriteToggle(){
         var gender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
         if(gender=="male"){
-            // Initially show the toggle, then check if user is already favorite
+            // 2026-05-22: always show for males. Previously we'd hide if the
+            // checkFavorite API returned is_favorite=true, but that produced
+            // intermittent disappearance (testers saw the toggle missing for
+            // already-favourited callees). Now backend dedupes on the
+            // add_favorite call instead. Box defaults UNCHECKED so re-adding
+            // requires an explicit user action.
             binding.llFavouriteUser.visibility = View.VISIBLE
-            // Check if the user is already in favorites before showing the toggle
-            checkIfUserIsAlreadyFavorite()
+            binding.cbFavouriteUser.isChecked = false
         }
     }
     

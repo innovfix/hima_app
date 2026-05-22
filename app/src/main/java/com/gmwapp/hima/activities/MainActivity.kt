@@ -601,11 +601,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
         userID?.toIntOrNull()?.let { offerViewModel.getOffer(it) }
         
-        // Favourite is shown to both genders. Chat tab stays creator-only.
-        // Female nav: Home, Chat, Recent, Favourite, Profile (5 items).
+        // 2026-05-22: Favourite is now MALE-only (female creators don't favourite back —
+        // the Add-to-Favourite action lives on the male side after a call ends).
+        // Female nav: Home, Chat, Recent, Profile (4 items).
         // Male nav:   Home, Recent, Favourite, Profile (4 items; Chat hidden).
         val userGender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
-        binding.bottomNavigationView.menu.findItem(R.id.favourite)?.isVisible = true
+        binding.bottomNavigationView.menu.findItem(R.id.favourite)?.isVisible = (userGender == DConstants.MALE)
         binding.bottomNavigationView.menu.findItem(R.id.chat)?.isVisible = (userGender == DConstants.FEMALE)
         
         binding.bottomNavigationView.setOnNavigationItemSelectedListener(this)

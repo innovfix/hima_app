@@ -1501,9 +1501,20 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             super.onUserMuteAudio(uid, muted)
             runOnUiThread {
                 binding.remoteMicMutedPill.visibility = if (muted) View.VISIBLE else View.GONE
+                // Perumal 2026-05-22: also drive the visible badge for peer mute.
+                updateMuteBadge(peerMuted = muted)
             }
         }
 
+    }
+
+    // Perumal 2026-05-22: tracks peer mute state so self-mute toggle can OR with it.
+    private var isPeerMutedBadge = false
+
+    private fun updateMuteBadge(peerMuted: Boolean? = null, selfMutedOverride: Boolean? = null) {
+        if (peerMuted != null) isPeerMutedBadge = peerMuted
+        val showBadge = (selfMutedOverride ?: isMuted) || isPeerMutedBadge
+        binding.ivRemoteMicMuted.visibility = if (showBadge) View.VISIBLE else View.INVISIBLE
     }
 
     private fun setupRemoteVideo(uid: Int) {
@@ -2397,6 +2408,8 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         // same indicator on her own avatar (visible during audio-mode UI in
         // this activity, e.g. after a mid-call video→audio switch).
         binding.femaleMute.visibility = if (isMuted) View.VISIBLE else View.INVISIBLE
+        // Perumal 2026-05-22: reflect self-mute on the visible top-center badge too.
+        updateMuteBadge(selfMutedOverride = isMuted)
     }
 
     // Function to toggle speaker on/off
