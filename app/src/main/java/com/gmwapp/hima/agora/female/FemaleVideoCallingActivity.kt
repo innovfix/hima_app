@@ -627,6 +627,10 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     }
 
     private fun setupIcebreakerIfFemale() {
+        // 2026-05-22: icebreaker feature hidden until ready. See FemaleAudioCallingActivity.
+        binding.icebreakerHintButton.visibility = View.GONE
+        return
+        @Suppress("UNREACHABLE_CODE")
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
         if (!userData.gender.equals("female", ignoreCase = true)) {
             binding.icebreakerHintButton.visibility = View.GONE
