@@ -130,6 +130,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
 
     private var isMuted = false
+    private var isPeerMuted = false
     private var isSpeakerOn = true
 
     private var audioFocusHelper: CallAudioFocusHelper? = null
@@ -439,6 +440,10 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         BaseApplication.getInstance()?.markCallActive()
         BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
+        // I039 — bridge Telecom hold/unhold → muteForInterrupt. See MaleAudioCallingActivity.
+        com.gmwapp.hima.agora.telecom.TelecomCallController.register { onHold ->
+            muteForInterrupt(onHold)
+        }
         enableEdgeToEdge()
         binding = ActivityMaleVideoCallingBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -1010,6 +1015,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        com.gmwapp.hima.agora.telecom.TelecomCallController.clear()
         stopHeartbeat()
         Log.d(
             TAG_END,
@@ -1273,7 +1279,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         override fun onUserMuteAudio(uid: Int, muted: Boolean) {
             super.onUserMuteAudio(uid, muted)
             runOnUiThread {
-                binding.ivRemoteMicMuted.visibility = if (muted) View.VISIBLE else View.INVISIBLE
+                isPeerMuted = muted
+                updateMutedBadge()
             }
         }
     }
@@ -1921,6 +1928,12 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         agoraEngine?.muteLocalAudioStream(isMuted)  // Mute or unmute audio
         val muteIcon = if (isMuted) R.drawable.mute_img else R.drawable.unmute_img
         binding.btnMuteUnmute.setImageResource(muteIcon)
+        updateMutedBadge()
+    }
+
+    private fun updateMutedBadge() {
+        binding.ivRemoteMicMuted.visibility =
+            if (isMuted || isPeerMuted) View.VISIBLE else View.INVISIBLE
     }
 
     // Function to toggle speaker on/off
@@ -1999,6 +2012,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         binding.btnMuteUnmute.setImageResource(
             if (isMuted) R.drawable.mute_img else R.drawable.unmute_img
         )
+        updateMutedBadge()
         applyAudioRoute(restoredRoute)
     }
 
