@@ -1481,6 +1481,20 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             )
             // B062 — auto-end on prolonged reconnect.
             reconnectWatchdog.armOrCancel(state)
+            // 2026-05-22 — when WE lose internet, the peer's video stream
+            // freezes for us but onRemoteVideoStateChanged(FROZEN) doesn't
+            // always fire (the SDK can't decode without our connection). Show
+            // the peer's avatar so the user sees who they're trying to
+            // reconnect to instead of a frozen / black video tile.
+            runOnUiThread {
+                when (state) {
+                    Constants.CONNECTION_STATE_RECONNECTING,
+                    Constants.CONNECTION_STATE_FAILED -> showRemoteAvatarSkeleton()
+                    // CONNECTED: don't hide here — let onRemoteVideoStateChanged(DECODING)
+                    // hide once the actual video frames resume, otherwise we'd briefly
+                    // expose the black SurfaceView between reconnect and decode.
+                }
+            }
             super.onConnectionStateChanged(state, reason)
         }
 
@@ -2015,6 +2029,11 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             TAG_END,
             "leaveChannel() enter isJoined=$isJoined viewId=${view.id} isRemoteUserJoined=$isRemoteUserJoined"
         )
+        // 2026-05-22 — instant peer-hangup propagation. Fire-and-forget FCM
+        // push so the peer's app disconnects within seconds instead of waiting
+        // ~25s for Agora onUserOffline. Background thread + 3s timeout — never
+        // blocks teardown. Skipped if no callId/receiverId (e.g., not yet joined).
+        FcmUtils.notifyPeerOfHangup(receiverId, callId)
         // B181 — clear the "user is busy" guard before navigating back so
         // fragments' onResume can refresh creator availability.
         FcmUtils.isUserAvailable = 0

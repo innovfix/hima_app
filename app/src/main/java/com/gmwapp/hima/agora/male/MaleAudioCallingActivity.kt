@@ -1646,6 +1646,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     }
 
     fun leaveChannel(view: View) {
+        // 2026-05-22 — instant peer-hangup FCM (fire-and-forget). See
+        // MaleVideoCallingActivity for full rationale.
+        FcmUtils.notifyPeerOfHangup(receiverId, callId)
         // B181 — clear the "user is busy" guard BEFORE we navigate back to
         // MainActivity. The fragments' onResume() checks this flag to decide
         // whether to refresh creator availability; if we wait for onDestroy

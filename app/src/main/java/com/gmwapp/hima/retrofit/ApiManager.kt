@@ -1347,6 +1347,11 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    // notifyCallEnd is called from FcmUtils.notifyPeerOfHangup using raw OkHttp
+    // (not through this ApiManager wrapper) because the active-call activities
+    // don't @Inject ApiManager. The retrofit @POST("notify_call_end") binding
+    // below is left in place in case a future caller wants to use it.
+
     fun sendMessageNotification(
         senderId: Int,
         receiverId: Int,
@@ -2943,6 +2948,18 @@ interface ApiInterface {
         @Field("channelName") channelName: String,
         @Field("message") message: String
     ): Call<FcmNotificationResponse>
+
+    // 2026-05-22 — instant peer-hangup notification. Called by every call
+    // activity right before tearing down the Agora engine so the other side
+    // disconnects immediately instead of waiting ~25s for Agora onUserOffline.
+    // Fire-and-forget on the client side; backend pushes a callEnded FCM that
+    // MyFirebaseMessagingService converts into FcmUtils.forceEndCall.
+    @FormUrlEncoded
+    @POST("notify_call_end")
+    fun notifyCallEnd(
+        @Field("receiver_id") receiverId: Int,
+        @Field("call_id") callId: Int
+    ): Call<okhttp3.ResponseBody>
 
 
     @FormUrlEncoded

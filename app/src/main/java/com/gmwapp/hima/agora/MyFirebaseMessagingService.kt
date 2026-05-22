@@ -851,6 +851,21 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 }
             }
 
+            // 2026-05-22 — instant peer-hangup propagation. When the OTHER side
+            // taps the red button, their app fires POST /api/auth/notify_call_end
+            // which pushes us this FCM. Without this, we'd wait ~25s for Agora's
+            // onUserOffline (or our 30s watchdog) to detect they're gone. Now
+            // disconnect immediately for both parties.
+            if (message == "callEnded") {
+                val callIdInt = remoteMessage.data["call_id"]?.toIntOrNull() ?: 0
+                if (callIdInt > 0) {
+                    Log.d(INCOMING_CALL_LOG_TAG, "callEnded received callId=$callIdInt — peer hung up")
+                    FcmUtils.forceEndCall(callIdInt, "peer_hangup")
+                } else {
+                    Log.w(INCOMING_CALL_LOG_TAG, "callEnded ignored — missing/invalid call_id")
+                }
+            }
+
 
             if (message.startsWith("switchToVideo") && gender == "female") {
                     val parts = message.split(" ")

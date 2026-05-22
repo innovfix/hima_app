@@ -178,4 +178,47 @@ object FcmUtils {
     fun clearForceEndCall() {
         _forceEndCall.postValue(null)
     }
+
+    // 2026-05-22 — fire-and-forget call to POST /api/auth/notify_call_end so
+    // the peer's app gets an immediate "callEnded" FCM and disconnects without
+    // waiting for Agora's ~25s onUserOffline. Called from every active-call
+    // activity right before tearing down the Agora engine on local hang-up.
+    //
+    // Errors are swallowed (logged at WARN). If the network call fails or
+    // peer has no FCM token, Agora's onUserOffline + our 30s ReconnectWatchdog
+    // still end the call as a fallback — this just makes the common case fast.
+    // Fire-and-forget OkHttp POST to /api/auth/notify_call_end. Uses a raw
+    // background thread + 3s timeouts so it never blocks the activity teardown
+    // or hangs on bad network. Errors are swallowed (logged at WARN). On
+    // failure the existing Agora onUserOffline + 30s ReconnectWatchdog still
+    // end the call — this just makes the common case fast.
+    fun notifyPeerOfHangup(receiverId: Int, callId: Int) {
+        if (receiverId <= 0 || callId <= 0) {
+            Log.d("FcmUtils", "notifyPeerOfHangup skipped (receiverId=$receiverId callId=$callId)")
+            return
+        }
+        Thread({
+            try {
+                val url = com.gmwapp.hima.BuildConfig.BASE_URL + "notify_call_end"
+                val client = okhttp3.OkHttpClient.Builder()
+                    .connectTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
+                    .writeTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
+                    .readTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
+                    .build()
+                val body = okhttp3.FormBody.Builder()
+                    .add("receiver_id", receiverId.toString())
+                    .add("call_id", callId.toString())
+                    .build()
+                val req = okhttp3.Request.Builder()
+                    .url(url)
+                    .post(body)
+                    .build()
+                client.newCall(req).execute().use { resp ->
+                    Log.d("FcmUtils", "notifyPeerOfHangup HTTP ${resp.code} callId=$callId receiver=$receiverId")
+                }
+            } catch (t: Throwable) {
+                Log.w("FcmUtils", "notifyPeerOfHangup failed (Agora onUserOffline fallback will end call): ${t.message}")
+            }
+        }, "NotifyPeerHangup-$callId").start()
+    }
 }

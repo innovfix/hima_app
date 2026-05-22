@@ -1318,6 +1318,14 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             )
             // B062 — auto-end on prolonged reconnect.
             reconnectWatchdog.armOrCancel(state)
+            // 2026-05-22 — show peer avatar on own-side reconnect so user
+            // sees who they're trying to reconnect to. See male counterpart.
+            runOnUiThread {
+                when (state) {
+                    Constants.CONNECTION_STATE_RECONNECTING,
+                    Constants.CONNECTION_STATE_FAILED -> showRemoteAvatarSkeleton()
+                }
+            }
         }
 
         // I024 — detect PEER-side network drops. See MaleAudioCallingActivity
@@ -1911,6 +1919,9 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     }
 
     fun leaveChannel(view: View) {
+        // 2026-05-22 — instant peer-hangup FCM (fire-and-forget). See
+        // MaleVideoCallingActivity for full rationale.
+        FcmUtils.notifyPeerOfHangup(receiverId, call_Id)
         // B181 — clear the "user is busy" guard before navigating back so
         // fragments' onResume can refresh creator/availability data.
         FcmUtils.isUserAvailable = 0
