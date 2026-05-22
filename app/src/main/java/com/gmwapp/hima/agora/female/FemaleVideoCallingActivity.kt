@@ -2419,11 +2419,16 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         agoraEngine?.muteLocalAudioStream(isMuted)  // Mute or unmute audio
         val muteIcon = if (isMuted) R.drawable.mute_img else R.drawable.unmute_img
         binding.btnMuteUnmute.setImageResource(muteIcon)
-        // B054 — flip the self-avatar mute badge so the creator sees the
-        // same indicator on her own avatar (visible during audio-mode UI in
-        // this activity, e.g. after a mid-call video→audio switch).
-        binding.femaleMute.visibility = if (isMuted) View.VISIBLE else View.INVISIBLE
-        // Perumal 2026-05-22: reflect self-mute on the visible top-center badge too.
+        // 2026-05-22 v14: stopped toggling binding.femaleMute here. That icon
+        // sits inside users_container which (despite being intended for
+        // audio-mode UI) is shown VISIBLE during regular video calls by
+        // onPictureInPictureModeChanged — so the femaleMute badge was
+        // appearing in the middle-left of the screen, looking misaligned.
+        // The top-center iv_remote_mic_muted badge (set below via
+        // updateMuteBadge) is the single source of truth for mute indication
+        // in video calls now — visible to both self and peer via the same view.
+        binding.femaleMute.visibility = View.GONE
+        // Perumal 2026-05-22: reflect self-mute on the visible top-center badge.
         updateMuteBadge(selfMutedOverride = isMuted)
     }
 
