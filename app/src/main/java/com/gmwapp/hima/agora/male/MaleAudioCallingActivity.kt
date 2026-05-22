@@ -375,6 +375,14 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         // post another ring sees it and backs off. Sweep whatever is already
         // in the tray in case a call push landed a moment before we opened.
         BaseApplication.getInstance()?.markCallActive()
+        // I039 — bridge Telecom hold/unhold to existing muteForInterrupt path. When
+        // the user picks Hold & Answer on a system second-call UI (or another self-
+        // managed VoIP app takes priority), Telecom invokes HimaConnection.onHold,
+        // which dispatches here so we mute Agora outbound exactly like a SIM call
+        // interrupt would.
+        com.gmwapp.hima.agora.telecom.TelecomCallController.register { onHold ->
+            muteForInterrupt(onHold)
+        }
         BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
         enableEdgeToEdge()
         binding = ActivityMaleAudioCallingBinding.inflate(layoutInflater)
@@ -1433,6 +1441,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        com.gmwapp.hima.agora.telecom.TelecomCallController.clear()
         super.onDestroy()
         BaseApplication.getInstance()?.markCallEnded()
         BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()

@@ -442,8 +442,11 @@ class MaleCallConnectingActivity : AppCompatActivity() {
                 if (userId != null && receiverId != -1 && callType != null) {
                     sendCallNotification(userId!!, receiverId,callType!!,"incoming call $callId $myAvatar $myname")
                     startTimeoutTracking()
-
-
+                    // I039 — register the outgoing call with Telecom so a SIM / WhatsApp
+                    // call arriving mid-Hima-call triggers the system second-call UI
+                    // (Hold & Answer / End & Answer) instead of ringing on top of the
+                    // Agora audio with no coordination.
+                    registerOutgoingWithTelecom()
 
                 } else {
                     Log.e("MaleCallConnectingActivity", "Missing required data: userId=$userId, receiverId=$receiverId, callType=$callType")
@@ -491,6 +494,12 @@ class MaleCallConnectingActivity : AppCompatActivity() {
     private fun disconnectCall() {
         var currentActivity = BaseApplication.getInstance()?.getCurrentActivity()
         if (currentActivity is MaleCallConnectingActivity){
+            // I039 — local cancel (timeout or user back-pressed). Tear down the Telecom
+            // outgoing connection alongside the FCM decline so we don't leak a self-
+            // managed call that the system would otherwise treat as still in progress.
+            com.gmwapp.hima.agora.telecom.HimaTelecomManager.endActiveCall(
+                android.telecom.DisconnectCause.LOCAL
+            )
             if (userId != null && receiverId != -1 && callType != null) {
                 sendCallNotification(userId!!, receiverId, callType!!, "callDeclined")
                 Log.d("CallStatus", "MaleConnecting.timeout → not_answered/receiver self=$userId peer=$receiverId callId=$callId")
@@ -528,6 +537,26 @@ class MaleCallConnectingActivity : AppCompatActivity() {
                 finish()
             }
         }
+    }
+
+    /**
+     * I039 — symmetric to HimaTelecomManager.tryAddIncomingCall on the receive side.
+     * Bundles up the same EXTRA_* keys HimaConnection expects so the outgoing
+     * connection identifies the peer correctly in the system second-call UI.
+     */
+    private fun registerOutgoingWithTelecom() {
+        val ch = currentCallChannelName ?: return
+        val ct = callType ?: return
+        val extras = Bundle().apply {
+            putString(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_CALL_TYPE, ct)
+            putInt(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_SENDER_ID, receiverId)
+            putString(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_CHANNEL_NAME, ch)
+            putInt(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_CALL_ID, callId)
+            putString(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_CALLER_NAME, receiverName ?: "Hima call")
+            putString(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_CALLER_IMAGE, receiverImg ?: "")
+            putString(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_RECEIVER_GENDER, "male")
+        }
+        com.gmwapp.hima.agora.telecom.HimaTelecomManager.tryPlaceOutgoingCall(this, extras)
     }
 
     fun sendCallNotification(senderId:Int, receiverId:Int, callType:String, message:String) {
@@ -583,6 +612,9 @@ class MaleCallConnectingActivity : AppCompatActivity() {
 
                 if (status == "accepted") {
                     FcmUtils.clearCallStatus()  // Clear before moving to AudioCallingActivity
+                    // I039 — transition the Telecom outgoing connection from DIALING → ACTIVE
+                    // so the system tracks this Hima call for hold/switch coordination.
+                    com.gmwapp.hima.agora.telecom.HimaTelecomManager.markActive()
 
                     var currentActivity = BaseApplication.getInstance()?.getCurrentActivity()
                     if (currentActivity !is MainActivity){
@@ -622,6 +654,12 @@ class MaleCallConnectingActivity : AppCompatActivity() {
                     }
                 } else if (status == "rejected") {
                     FcmUtils.clearCallStatus()  // Clear before moving to MainActivity
+                    // I039 — clean up the Telecom outgoing connection so the system stops
+                    // treating us as busy. Without this, a subsequent quick-retry outgoing
+                    // call would find the previous self-managed account still "active".
+                    com.gmwapp.hima.agora.telecom.HimaTelecomManager.endActiveCall(
+                        android.telecom.DisconnectCause.REJECTED
+                    )
 
                     cancelTimeoutTracking()
 

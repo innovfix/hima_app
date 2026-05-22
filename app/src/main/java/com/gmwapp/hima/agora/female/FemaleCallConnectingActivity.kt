@@ -413,6 +413,9 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                     prefetchAgoraToken(channelName)
                     sendCallNotification(userId!!, receiverId, callType!!, "incoming call $callId $myAvatar $myname")
                     observeNotificationResponse()
+                    // I039 — register outgoing call with Telecom so a SIM / WhatsApp
+                    // call mid-Hima triggers the system second-call UI.
+                    registerOutgoingWithTelecom()
                 }
             }
         })
@@ -435,6 +438,24 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                 Toast.makeText(this, "Failed to connect: $it", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    /**
+     * I039 — symmetric to HimaTelecomManager.tryAddIncomingCall on the receive side.
+     */
+    private fun registerOutgoingWithTelecom() {
+        if (designOnly) return
+        val ct = callType ?: return
+        val extras = android.os.Bundle().apply {
+            putString(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_CALL_TYPE, ct)
+            putInt(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_SENDER_ID, receiverId)
+            putString(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_CHANNEL_NAME, channelName)
+            putInt(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_CALL_ID, callId)
+            putString(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_CALLER_NAME, receiverName ?: "Hima call")
+            putString(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_CALLER_IMAGE, "")
+            putString(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_RECEIVER_GENDER, "female")
+        }
+        com.gmwapp.hima.agora.telecom.HimaTelecomManager.tryPlaceOutgoingCall(this, extras)
     }
 
     fun sendCallNotification(senderId: Int, receiverId: Int, callType: String, message: String) {
@@ -472,7 +493,9 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                     cancelTimeoutTracking()
                     isRunning = false
                     FcmUtils.clearCallStatus()
-                    
+                    // I039 — transition outgoing Telecom connection DIALING → ACTIVE.
+                    com.gmwapp.hima.agora.telecom.HimaTelecomManager.markActive()
+
                     Log.d("FemaleCallConnect", "Male accepted! Joining channel: $channelName")
                     
                     // Navigate to the appropriate calling activity
@@ -495,6 +518,11 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                     cancelTimeoutTracking()
                     isRunning = false
                     FcmUtils.clearCallStatus()
+                    // I039 — tear down outgoing Telecom connection so the system doesn't
+                    // keep treating us as in-call after a rejection.
+                    com.gmwapp.hima.agora.telecom.HimaTelecomManager.endActiveCall(
+                        android.telecom.DisconnectCause.REJECTED
+                    )
                     FcmUtils.shouldRefreshCallList = 1
                     Log.d("CallStatus", "FemaleConnecting.peerRejected (observed, no post — peer already posted) self=$userId peer=$receiverId callId=$callId status=$status")
                     Toast.makeText(
@@ -510,6 +538,9 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                     cancelTimeoutTracking()
                     isRunning = false
                     FcmUtils.clearCallStatus()
+                    com.gmwapp.hima.agora.telecom.HimaTelecomManager.endActiveCall(
+                        android.telecom.DisconnectCause.CANCELED
+                    )
                     val intent = Intent(this@FemaleCallConnectingActivity, MainActivity::class.java)
                     intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                     startActivity(intent)
@@ -522,6 +553,10 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
     private fun disconnectCall() {
         isRunning = false
         cancelTimeoutTracking()
+        // I039 — local cancel (timeout or user back-pressed). Mirror the male side.
+        com.gmwapp.hima.agora.telecom.HimaTelecomManager.endActiveCall(
+            android.telecom.DisconnectCause.LOCAL
+        )
      //   Toast.makeText(this, "$receiverName is not responding", Toast.LENGTH_SHORT).show()
         if (!designOnly && userId != null && callType != null) {
             sendCallNotification(userId!!, receiverId, callType!!, "callDeclined")

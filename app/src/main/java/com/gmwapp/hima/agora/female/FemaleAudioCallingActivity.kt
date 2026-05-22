@@ -354,6 +354,10 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         BaseApplication.getInstance()?.markCallActive()
         BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
+        // I039 — bridge Telecom hold/unhold → muteForInterrupt. See MaleAudioCallingActivity.
+        com.gmwapp.hima.agora.telecom.TelecomCallController.register { onHold ->
+            muteForInterrupt(onHold)
+        }
         enableEdgeToEdge()
         binding = ActivityFemaleAudioCallingBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -1601,6 +1605,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        com.gmwapp.hima.agora.telecom.TelecomCallController.clear()
         super.onDestroy()
         BaseApplication.getInstance()?.markCallEnded()
         BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
