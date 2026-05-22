@@ -46,17 +46,39 @@ class ReconnectWatchdog(
     // Handler.hasCallbacks (API 29+) just to know if our timer is running.
     private var timerActive = false
 
+    // 2026-05-22 — debounce peer-stream recovery. Agora flaps the remote-audio
+    // state between FROZEN and DECODING when the peer's network drops (the SDK
+    // briefly thinks the stream recovered before realizing the peer is gone),
+    // which used to de-arm the watchdog and hide the "Reconnecting…" banner on
+    // the un-affected side after ~5s while the peer was actually offline.
+    // We now require sustained DECODING/STARTING for PEER_RECOVERY_CONFIRM_MS
+    // before truly clearing the peer-down flag. Any FROZEN/FAILED within that
+    // window cancels the pending de-arm.
+    private var peerRecoveryScheduled = false
+
     private val timeoutRunnable = Runnable {
         Log.w(TAG, "Watchdog timeout after ${timeoutMillis}ms (own=$ownConnectionDown peer=$peerStreamDown) — ending call")
         ownConnectionDown = false
         peerStreamDown = false
         timerActive = false
+        peerRecoveryScheduled = false
         handler.removeCallbacks(tickRunnable)
+        handler.removeCallbacks(peerRecoveryRunnable)
         try {
             onTimeout()
         } catch (e: Exception) {
             Log.e(TAG, "onTimeout callback threw", e)
         }
+    }
+
+    // Fires PEER_RECOVERY_CONFIRM_MS after the FIRST sustained DECODING/STARTING
+    // following a stall. If a fresh FROZEN/FAILED arrives in the meantime,
+    // [peerStreamStalled] cancels this runnable and resets the schedule flag.
+    private val peerRecoveryRunnable = Runnable {
+        peerStreamDown = false
+        peerRecoveryScheduled = false
+        Log.d(TAG, "Peer recovery confirmed after ${PEER_RECOVERY_CONFIRM_MS}ms of sustained DECODING — clearing peer-down flag")
+        cancelIfClear()
     }
 
     // B064 — emit a per-second countdown so the activity can update the
@@ -130,12 +152,36 @@ class ReconnectWatchdog(
      * Agora is fine. Without this, the user just hears silence for 20-30s
      * until Agora gives up and calls onUserOffline.
      *
+     * 2026-05-22: Recovery (stalled=false) is now debounced. Agora flaps
+     * FROZEN ↔ DECODING during a real peer disconnect, which used to clear
+     * the peer-down flag after ~5s and hide the banner while the peer was
+     * still offline. Now the first DECODING after a stall schedules a
+     * recovery confirmation in [PEER_RECOVERY_CONFIRM_MS]; a fresh
+     * FROZEN/FAILED in that window cancels the confirmation. So both sides
+     * of a real disconnect see the "Reconnecting…" banner for roughly the
+     * same duration.
+     *
      * @param stalled true if the peer's audio is FROZEN / FAILED for a
      *                non-mute reason; false on DECODING / STARTING (recovery).
      */
     fun peerStreamStalled(stalled: Boolean) {
-        peerStreamDown = stalled
-        if (stalled) armIfNeeded() else cancelIfClear()
+        if (stalled) {
+            // Cancel any pending recovery — peer is still / again stalled.
+            if (peerRecoveryScheduled) {
+                handler.removeCallbacks(peerRecoveryRunnable)
+                peerRecoveryScheduled = false
+            }
+            peerStreamDown = true
+            armIfNeeded()
+        } else {
+            // Only the FIRST DECODING after a stall starts the confirmation
+            // timer. Subsequent DECODINGs don't re-arm or re-schedule (they're
+            // expected during a healthy stream). If we weren't stalled to
+            // begin with, ignore — nothing to clear.
+            if (!peerStreamDown || peerRecoveryScheduled) return
+            peerRecoveryScheduled = true
+            handler.postDelayed(peerRecoveryRunnable, PEER_RECOVERY_CONFIRM_MS)
+        }
     }
 
     /**
@@ -143,18 +189,30 @@ class ReconnectWatchdog(
      * sources and tears down the timer/ticks unconditionally.
      */
     fun cancel() {
-        if (!timerActive && !ownConnectionDown && !peerStreamDown) return
+        if (!timerActive && !ownConnectionDown && !peerStreamDown && !peerRecoveryScheduled) return
         ownConnectionDown = false
         peerStreamDown = false
+        peerRecoveryScheduled = false
         timerActive = false
         handler.removeCallbacks(timeoutRunnable)
         handler.removeCallbacks(tickRunnable)
+        handler.removeCallbacks(peerRecoveryRunnable)
         Log.d(TAG, "Force-cancelled watchdog (activity teardown)")
     }
 
     companion object {
         const val DEFAULT_TIMEOUT_MS = 30_000L
         private const val TICK_INTERVAL_MS = 1_000L
+        // 2026-05-22 — minimum sustained DECODING/STARTING window before we
+        // accept that the peer's stream has truly recovered. Lower = banner
+        // can hide too early during a real disconnect (Agora's noisy FROZEN
+        // ↔ DECODING flapping fooled the previous instant-de-arm logic into
+        // hiding after ~5s while peer was still offline). Higher = brief
+        // healthy-network blips show the banner for longer. 12s balances
+        // both: longer than Agora's typical 5-8s flap cycle on a real drop,
+        // shorter than the 30s watchdog timeout so a true recovery still
+        // de-arms in time to keep the call alive.
+        private const val PEER_RECOVERY_CONFIRM_MS = 12_000L
         private const val TAG = "ReconnectWatchdog"
     }
 }
