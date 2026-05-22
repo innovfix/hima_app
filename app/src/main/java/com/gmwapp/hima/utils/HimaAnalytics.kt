@@ -3,7 +3,6 @@ package com.gmwapp.hima.utils
 import android.content.Context
 import android.os.Bundle
 import android.util.Log
-import androidx.preference.PreferenceManager
 import com.facebook.appevents.AppEventsConstants
 import com.facebook.appevents.AppEventsLogger
 import com.gmwapp.hima.BaseApplication

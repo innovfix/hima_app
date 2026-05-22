@@ -3226,7 +3226,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             agoraEngine?.updateChannelMediaOptions(ChannelMediaOptions().apply {
                 autoSubscribeAudio = true
                 autoSubscribeVideo = false
-                publishMicrophoneTrack = true
+                // 2026-05-22 v18 — preserve mute state across switch
+                publishMicrophoneTrack = !isMuted
                 publishCameraTrack = false
                 clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
             })

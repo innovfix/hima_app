@@ -2717,7 +2717,10 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             agoraEngine?.updateChannelMediaOptions(ChannelMediaOptions().apply {
                 autoSubscribeAudio = true
                 autoSubscribeVideo = true
-                publishMicrophoneTrack = true
+                // 2026-05-22 v18 — preserve current mute state across the
+                // audio→video switch. Was unconditionally true, which silently
+                // unmuted users who had pressed mute before switching.
+                publishMicrophoneTrack = !isMuted
                 publishCameraTrack = cameraOk
                 clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
             })
@@ -3065,7 +3068,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             agoraEngine?.updateChannelMediaOptions(ChannelMediaOptions().apply {
                 autoSubscribeAudio = true
                 autoSubscribeVideo = false
-                publishMicrophoneTrack = true
+                // 2026-05-22 v18 — preserve mute state across video→audio switch
+                publishMicrophoneTrack = !isMuted
                 publishCameraTrack = false
                 clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
             })
