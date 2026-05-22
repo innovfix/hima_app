@@ -1295,6 +1295,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         val userData = prefs?.getUserData()
         userData?.id?.let { userId ->
             callPaywallVideoContentApi(userId)
+            // Warm the trial-offer video cache so when the user opens the
+            // wallet (or any surface that shows BottomSheetTrialOffer) the
+            // mp4 plays from disk in <1 s instead of streaming the 20+ MB
+            // clip from demohima on every open. Safe to call repeatedly —
+            // single-flight + skips if the file is already cached.
+            com.gmwapp.hima.utils.TrialOfferConfigCache.prefetch(this, apiManager, userId)
         }
         if (userData?.gender=="female") {
             ZohoHelper.initZohoWithUser(userData, zohoMailViewModel)

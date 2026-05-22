@@ -7,6 +7,11 @@ data class TrialOfferConfigResponse(
 )
 
 data class TrialOfferConfigData(
+    // Absolute URL of an admin-uploaded mp4. Preferred field — new APKs
+    // play this via VideoView. Null = no video uploaded for this language.
+    val video_url: String?,
+    // Legacy YouTube link kept on the server for one transition release.
+    // New APKs ignore this field; only video_url drives playback.
     val youtube_url: String?,
     val headline: String?,
     // Per-language admin overrides for the BottomSheetTrialOffer copy.
