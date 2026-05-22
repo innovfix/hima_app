@@ -106,6 +106,14 @@ class SelectLanguageActivity : BaseActivity() {
                 val bundle = Bundle().apply {
                     putString("user_id", "${it.data.id}")
                     putString("gender", it.data.gender ?: "")
+                    // 2026-05-22: enrich SIGN_UP for Google Ads conversion-value
+                    // tracking. Marketing imports SIGN_UP from Firebase as a
+                    // conversion action in Google Ads, and the value+currency
+                    // let bid optimisation use realistic per-signup value.
+                    // ₹1 is a placeholder LTV — adjust once we have data.
+                    putString("method", "phone")
+                    putString(FirebaseAnalytics.Param.CURRENCY, "INR")
+                    putDouble(FirebaseAnalytics.Param.VALUE, 1.0)
                 }
 
                 BaseApplication.firebaseAnalytics.logEvent(FirebaseAnalytics.Event.SIGN_UP, bundle)
