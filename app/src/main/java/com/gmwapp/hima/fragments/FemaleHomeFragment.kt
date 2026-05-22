@@ -683,9 +683,24 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                     binding.tvApproxEarnings.text = it.data[0].today_earnings.toString()
                     binding.tvTotalCalls.text = it.data[0].today_calls.toString()
 
-                    // Call rates image hidden — autopay's CreatorLevelActivity shows rate now
-                    binding.ivCallRates.visibility = View.GONE
-                    binding.cvCallRates.visibility = View.GONE
+                    // Restored 2026-05-22: load admin-uploaded call rates poster.
+                    // (Autopay merge had hidden this; user confirmed the admin poster
+                    // is the source of truth for the female-home Earnings Details card.)
+                    it.data[0].call_rates?.let { imageUrl ->
+                        if (imageUrl.isNotEmpty()) {
+                            binding.ivCallRates.visibility = View.VISIBLE
+                            binding.cvCallRates.visibility = View.VISIBLE
+                            Glide.with(requireContext())
+                                .load(imageUrl)
+                                .into(binding.ivCallRates)
+                        } else {
+                            binding.ivCallRates.visibility = View.GONE
+                            binding.cvCallRates.visibility = View.GONE
+                        }
+                    } ?: run {
+                        binding.ivCallRates.visibility = View.GONE
+                        binding.cvCallRates.visibility = View.GONE
+                    }
 
                     var firstCall = it.data[0].first_call
                     if (firstCall==1){
