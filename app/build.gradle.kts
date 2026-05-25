@@ -44,10 +44,13 @@ android {
         applicationId = "com.gmwapp.hima"
         // 2026-05-25 v1076 — minSdk back to 24 (was 26) so existing prod users on
         // Android 7.x can upgrade. Play Console blocked v1075 rollout otherwise.
+        // 2026-05-25 v1077 — merged origin/final_bug_fixes (20 conflicts resolved).
+        // 2026-05-25 v1078 — merged 5 more Perumal commits from innovfix123 fork
+        //   (native SDK autopay, DND call gate, trial-offer video, female missed-call).
         minSdk = 24
         targetSdk = 35
-        versionCode = 1076
-        versionName = "1076"
+        versionCode = 1078
+        versionName = "1078"
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
