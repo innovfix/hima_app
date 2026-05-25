@@ -154,10 +154,10 @@ class BottomSheetTrialOffer : BottomSheetDialogFragment() {
         cover.alpha = 1f
         cover.visibility = View.VISIBLE
 
-        // Autoplay muted on a loop — same UX as the previous YouTube
-        // embed: ambient hero video with no user controls. setVolume(0,0)
-        // both for the MediaPlayer (audio track) and matches the YouTube
-        // mute=1 behaviour we had before.
+        // Autoplay looping at device media volume. Earlier revisions muted
+        // this with setVolume(0,0) to mirror the previous YouTube embed's
+        // mute=1 — product called for audio on, so MediaPlayer now uses
+        // its default volume against STREAM_MUSIC.
         video.setOnInfoListener { _, what, _ ->
             // MEDIA_INFO_VIDEO_RENDERING_START fires the moment the first
             // frame is actually painted onto the SurfaceView — fade the
@@ -169,7 +169,6 @@ class BottomSheetTrialOffer : BottomSheetDialogFragment() {
         }
         video.setOnPreparedListener { mp ->
             mp.isLooping = true
-            mp.setVolume(0f, 0f)
             // Show the video at its natural aspect ratio — never stretch
             // or crop. The hero container shrinks to match (see
             // resizeHeroContainerToRatio below) so portrait 9:16 clips
