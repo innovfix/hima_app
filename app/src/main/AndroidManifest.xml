@@ -58,6 +58,14 @@
             android:name="com.onesignal.NotificationServiceExtension"
             android:value="com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension" />
 
+        <!-- Cashfree SDK: enables in-app subscription (UPI mandate) checkout flow.
+             Without this the SDK falls back to one-time-payment mode and our
+             doSubscriptionPayment() call throws CFException. -->
+        <meta-data
+            android:name="cashfree_subscription_flow_enable"
+            android:value="true"
+            tools:replace="android:value" />
+
         <!-- Disable default WorkManager init so Hilt's HiltWorkerFactory is used -->
         <provider
             android:name="androidx.work.impl.WorkManagerInitializer"

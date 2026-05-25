@@ -231,7 +231,9 @@ dependencies {
 
 
     //Cashfree
-    implementation ("com.cashfree.pg:api:2.2.8")
+    // 2.3.2 adds CFSubscriptionPayment / doSubscriptionPayment / CFSubscriptionResponseCallback
+    // needed for native in-app UPI mandate checkout (replaces our Custom Tabs handoff).
+    implementation ("com.cashfree.pg:api:2.3.2")
 
     implementation ("com.google.android.gms:play-services-auth-api-phone:18.2.0")
 
