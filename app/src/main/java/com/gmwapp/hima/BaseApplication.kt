@@ -314,8 +314,17 @@ class BaseApplication : Application(), Configuration.Provider {
 
         appflyer()
 
+        // 2026-05-25 v1075 — Meta SDK v18 defaults AutoInit/AutoLog to FALSE for
+        // GDPR compliance. Events won't reach Meta Events Manager unless we
+        // explicitly enable them BEFORE sdkInitialize. Discovered after marketing
+        // reported 0 events arriving in Meta dashboard for v1074.
         FacebookSdk.setApplicationId(getString(R.string.facebook_app_id))
+        FacebookSdk.setClientToken(getString(R.string.facebook_client_token))
+        FacebookSdk.setAutoInitEnabled(true)
+        FacebookSdk.setAutoLogAppEventsEnabled(true)
+        FacebookSdk.setAdvertiserIDCollectionEnabled(true)
         FacebookSdk.sdkInitialize(applicationContext)
+        FacebookSdk.fullyInitialize()
         AppEventsLogger.activateApp(this)
 
         // Snapchat App Ads Kit - Install Tracking
@@ -408,6 +417,41 @@ class BaseApplication : Application(), Configuration.Provider {
                 com.google.firebase.messaging.FirebaseMessaging.getInstance().token
                     .addOnSuccessListener { token ->
                         Log.d("CreatorCallDiag", "BaseApp.fcmTokenSync tokenPrefix=${token?.take(12)}…")
+                        // 2026-05-23 v1070 — fire DIRECT POST to /api/auth/update_fcm_token
+                        // immediately on a background thread. WorkManager's queue can
+                        // sit for minutes on some OEM ROMs (Xiaomi/Vivo aggressive
+                        // power-save), leaving the backend with the previous token
+                        // and silently breaking incoming-call FCM (female "accepted"
+                        // signal can't reach the new install). Direct push happens
+                        // in <2s on any network.
+                        if (!token.isNullOrBlank()) {
+                            Thread({
+                                try {
+                                    val url = com.gmwapp.hima.BuildConfig.BASE_URL + "send_fcm_token"
+                                    val client = okhttp3.OkHttpClient.Builder()
+                                        .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+                                        .writeTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+                                        .readTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+                                        .build()
+                                    val body = okhttp3.FormBody.Builder()
+                                        .add("user_id", signedInUserId.toString())
+                                        .add("token", token)
+                                        .build()
+                                    val req = okhttp3.Request.Builder()
+                                        .url(url)
+                                        .post(body)
+                                        .header("Authorization", "Bearer $authToken")
+                                        .build()
+                                    client.newCall(req).execute().use { resp ->
+                                        Log.d("CreatorCallDiag", "BaseApp.fcmTokenSync.direct HTTP ${resp.code}")
+                                    }
+                                } catch (t: Throwable) {
+                                    Log.w("CreatorCallDiag", "BaseApp.fcmTokenSync.direct failed (worker fallback active): ${t.message}")
+                                }
+                            }, "fcm-token-direct-$signedInUserId").start()
+                        }
+                        // Belt-and-braces: also enqueue the worker so retries
+                        // happen on backoff if the direct push above fails.
                         val input = androidx.work.Data.Builder()
                             .putInt(com.gmwapp.hima.workers.FcmTokenRegisterWorker.KEY_USER_ID, signedInUserId)
                             .putString(com.gmwapp.hima.workers.FcmTokenRegisterWorker.KEY_TOKEN, token ?: "")

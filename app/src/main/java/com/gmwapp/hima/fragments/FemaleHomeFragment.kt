@@ -602,9 +602,10 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
             startActivity(intent)
         })
 
-        binding.cvCreatorLevel.setOnSingleClickListener {
-            startActivity(Intent(context, CreatorLevelActivity::class.java))
-        }
+        // 2026-05-22 v21 — belt&suspenders: also hide at runtime + kill the
+        // navigation. Creator Level feature held for later release.
+        binding.cvCreatorLevel.visibility = View.GONE
+        binding.cvCreatorLevel.setOnSingleClickListener { /* disabled */ }
 
         // IPL Room Calls banner click — visibility handled by refreshIplBanner()
         binding.cardIplRooms.setOnClickListener {
@@ -711,6 +712,14 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                             putString("first_call_status", "Received")
                         }
                         BaseApplication.firebaseAnalytics.logEvent("first_call", bundle)
+
+                        // 2026-05-24 v1074 — mirror first_call to Meta per marketing.
+                        try {
+                            com.facebook.appevents.AppEventsLogger.newLogger(requireContext())
+                                .logEvent("first_call", bundle)
+                        } catch (t: Throwable) {
+                            android.util.Log.w("HimaAnalytics", "Meta first_call failed: ${t.message}")
+                        }
 
                         // Log to backend
                         AppEventLogger.logEvent(

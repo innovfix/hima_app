@@ -27,3 +27,7 @@ app/production/release/*.apk
 # Local API testing artifacts (admin cookies, login dumps, captured response
 # bodies) — sensitive, must never be pushed.
 /autopay_api_test/
+
+# 2026-05-22 — local signing config (contains keystore password, never commit)
+app/keystore.properties
+keystore.properties

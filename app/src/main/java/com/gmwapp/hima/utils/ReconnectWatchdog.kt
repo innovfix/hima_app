@@ -104,16 +104,11 @@ class ReconnectWatchdog(
     fun isArmed(): Boolean = ownConnectionDown || peerStreamDown
 
     private fun armIfNeeded() {
-        // Edge-triggered: only start a fresh countdown when transitioning
-        // from "everything fine" to "something down". Subsequent flag flips
-        // from the OTHER source piggy-back on the same in-flight timer so
-        // the user's perceived wait clock doesn't reset.
-        if (timerActive) return
-        timerActive = true
-        startedAt = System.currentTimeMillis()
-        handler.postDelayed(timeoutRunnable, timeoutMillis)
-        handler.post(tickRunnable) // fire first tick immediately
-        Log.d(TAG, "Armed watchdog (own=$ownConnectionDown peer=$peerStreamDown timeoutMs=$timeoutMillis)")
+        // 2026-05-23 v1069 — DISABLED. The 30s auto-end timer was potentially
+        // ending calls during initial Agora join when state flapped. Reverting
+        // to Play Store v1064 behavior where Agora's own onUserOffline is the
+        // only call-end signal. Method kept as no-op for callers.
+        return
     }
 
     private fun cancelIfClear() {

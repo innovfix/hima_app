@@ -595,11 +595,12 @@
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- Level Progress Card (SL-05 + SL-07) -->
+                <!-- Level Progress Card (SL-05 + SL-07) — HIDDEN 2026-05-22 v19: actual Bright Star card (no ID = hide via XML only). -->
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="16dp"
+                    android:visibility="gone"
                     app:cardCornerRadius="16dp"
                     app:cardElevation="0dp"
                     app:strokeColor="#EBEBED"

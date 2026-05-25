@@ -857,13 +857,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             // onUserOffline (or our 30s watchdog) to detect they're gone. Now
             // disconnect immediately for both parties.
             if (message == "callEnded") {
-                val callIdInt = remoteMessage.data["call_id"]?.toIntOrNull() ?: 0
-                if (callIdInt > 0) {
-                    Log.d(INCOMING_CALL_LOG_TAG, "callEnded received callId=$callIdInt — peer hung up")
-                    FcmUtils.forceEndCall(callIdInt, "peer_hangup")
-                } else {
-                    Log.w(INCOMING_CALL_LOG_TAG, "callEnded ignored — missing/invalid call_id")
-                }
+                // 2026-05-23 v1069 — DISABLED. Paired with notifyPeerOfHangup
+                // being no-op'd in FcmUtils. Agora's onUserOffline is the
+                // canonical peer-end signal, same as Play Store v1064 behavior.
+                Log.d(INCOMING_CALL_LOG_TAG, "callEnded handler disabled (v1069)")
             }
 
 

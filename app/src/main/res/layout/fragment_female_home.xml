@@ -737,12 +737,16 @@
         app:layout_constraintTop_toBottomOf="@id/cv_price_slab" />
 
     <!-- Creator Level Card — partial hide 2026-05-22: outer card kept VISIBLE because it contains real Today Earnings + Today Calls stats. Mock-data children (level name, stars, rate chip, journey chart, "see all levels" link) individually hidden below until real badge system ships in 2-3 weeks. To restore full mock UI: remove the android:visibility="gone" on each child element. -->
+    <!-- 2026-05-22 v21 — HIDDEN. Black "TODAY EARNINGS / TODAY CALLS" card.
+         Was redirecting to CreatorLevelActivity (the still-existing mock Creator Level
+         screen). Full feature is being held for a later release. -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/cv_creator_level"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="16dp"
         android:layout_marginTop="12dp"
+        android:visibility="gone"
         android:clickable="false"
         android:focusable="false"
         android:foreground="@drawable/ripple_effect"

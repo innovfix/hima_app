@@ -1438,8 +1438,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 // the watchdog's combined state keeps the peer-stream
                 // recovery from prematurely hiding the banner while OUR
                 // connection is still RECONNECTING.
-                binding.reconnectBanner.visibility =
-                    if (reconnectWatchdog.isArmed()) View.VISIBLE else View.GONE
+                // 2026-05-23 v1072 — banner DISABLED. See MaleVideo for rationale.
             }
         }
 
@@ -1728,25 +1727,23 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             isIndividual = true
         )
 
-        // 2026-05-22 — Spend Credits event (Meta + Firebase). Estimate coins
-        // from duration: audio = 10 coins/min, video uses different rates.
-        // Fires once per call, dedup'd by CallEndUpdater above (same call).
+        // 2026-05-23 v26 — Spend Credits event removed per marketing. Fire
+        // 2min_call event instead: marker for "this call lasted long enough
+        // to be a real engagement" (>= 120s).
         if (callId > 0 && startTime.isNotEmpty()) {
             try {
                 val sdf = dateFormat
                 val durationSec = ((sdf.parse(endTime)?.time ?: 0L) - (sdf.parse(startTime)?.time ?: 0L)) / 1000
-                if (durationSec > 0) {
-                    val minutes = ((durationSec + 59) / 60).coerceAtLeast(1)
-                    val estimatedCoins = (minutes * 10).toInt()  // audio rate
-                    com.gmwapp.hima.utils.HimaAnalytics.logSpendCredits(
+                if (durationSec >= 120) {
+                    com.gmwapp.hima.utils.HimaAnalytics.log2MinCall(
                         ctx = this,
-                        coinsSpent = estimatedCoins,
+                        callId = callId,
                         contentType = "audio_call",
-                        contentId = callId.toString(),
+                        durationSec = durationSec,
                     )
                 }
             } catch (t: Throwable) {
-                android.util.Log.w("HimaAnalytics", "MaleAudio SpendCredits estimate failed: ${t.message}")
+                android.util.Log.w("HimaAnalytics", "MaleAudio 2min_call estimate failed: ${t.message}")
             }
         }
 
@@ -2724,6 +2721,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 publishCameraTrack = cameraOk
                 clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
             })
+            // 2026-05-22 v19 — belt & suspenders: also enforce device-level mute.
+            agoraEngine?.muteLocalAudioStream(isMuted)
             if (cameraOk) {
                 agoraEngine?.startPreview()
                 Log.d("AgoraTiming", "MaleAudio switched to VIDEO at ${System.currentTimeMillis()}")
@@ -3073,6 +3072,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 publishCameraTrack = false
                 clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
             })
+            // 2026-05-22 v19 — belt & suspenders: also enforce device-level mute.
+            agoraEngine?.muteLocalAudioStream(isMuted)
             agoraEngine?.stopPreview()
             agoraEngine?.disableVideo()
             Log.d("AgoraTiming", "MaleAudio switched back to AUDIO at ${System.currentTimeMillis()}")

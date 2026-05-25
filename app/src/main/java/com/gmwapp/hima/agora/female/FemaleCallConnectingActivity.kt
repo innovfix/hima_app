@@ -29,6 +29,7 @@ import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityFemaleCallConnectingBinding
 import com.gmwapp.hima.retrofit.responses.CallEndReason
 import com.gmwapp.hima.retrofit.responses.CallEndedBy
+import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.AgoraViewModel
 import com.gmwapp.hima.viewmodels.CallStatusViewModel
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
@@ -51,6 +52,11 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
     private var callId = 0
     private var channelName: String = ""  // Store channel name to ensure consistency
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
+    // 2026-05-22 v20 — wire callRejectCount from female side so unanswered/cancelled
+    // calls also count toward the 3-strike block. Previously only fired when male
+    // explicitly tapped RED reject button, which never happens when male is
+    // offline / app killed / notification dismissed — the most common case.
+    private val accountViewModel: AccountViewModel by viewModels()
     private var prefetchedAgoraToken: String? = null
     private var prefetchedAgoraAppId: String? = null
     private lateinit var progressBar: ProgressBar
@@ -191,6 +197,9 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                 if (!designOnly && userId != null && receiverId != -1 && callType != null) {
                     sendCallNotification(userId!!, receiverId, callType!!, "callDeclined")
                     Log.d("CallStatus", "FemaleConnecting.cancel → not_answered/caller self=$userId peer=$receiverId callId=$callId")
+                    // 2026-05-22 v20 — count this as a reject toward the 3-strike block.
+                    // male_user_id = receiverId (the male who didn't answer), female_user_id = userId
+                    accountViewModel.callRejectCount(receiverId, userId!!)
                     callStatusViewModel.saveCallStatus(
                         userId = userId!!,
                         receivedUserId = receiverId,
@@ -525,6 +534,13 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
         if (!designOnly && userId != null && callType != null) {
             sendCallNotification(userId!!, receiverId, callType!!, "callDeclined")
             Log.d("CallStatus", "FemaleConnecting.timeout → not_answered/receiver self=$userId peer=$receiverId callId=$callId")
+            // 2026-05-22 v20 — count timeout as a reject toward the 3-strike block.
+            // This is the main path: female calls, male doesn't pick up in 40s,
+            // disconnectCall() fires. Without this, the male's reject_count never
+            // increments unless he's actively pressing the RED reject button.
+            if (receiverId != -1) {
+                accountViewModel.callRejectCount(receiverId, userId!!)
+            }
             callStatusViewModel.saveCallStatus(
                 userId = userId!!,
                 receivedUserId = receiverId,

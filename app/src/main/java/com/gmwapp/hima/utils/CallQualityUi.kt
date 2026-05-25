@@ -1,6 +1,8 @@
 package com.gmwapp.hima.utils
 
 import android.app.Activity
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.widget.ImageView
 import com.gmwapp.hima.R
@@ -41,6 +43,17 @@ object CallQualityUi {
     @Volatile private var lastAppliedBucket: Bucket? = null
     @Volatile private var consecutiveWorseCount: Int = 0
     @Volatile private var forcedPoorByReconnect: Boolean = false
+
+    // 2026-05-22 v25 — debounce banner show. Tier-2/3 users see frequent
+    // sub-second network blips that all flashed the banner. Only show after
+    // BANNER_SHOW_DELAY_MS of sustained reconnect; if recovery happens in
+    // that window, the user never sees the banner. 8s = chosen by product
+    // for tier-2/3 friendliness; brief flaps stay invisible, sustained
+    // disconnects still show the countdown (banner appears with ~22s
+    // remaining on the 30s watchdog).
+    private const val BANNER_SHOW_DELAY_MS = 8000L
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var pendingBannerShow: Runnable? = null
 
     /**
      * @param activity        the hosting activity (used for runOnUiThread)
@@ -140,13 +153,20 @@ object CallQualityUi {
 
     private fun applyConnectionBanner(banner: View?, state: Int) {
         if (banner == null) return
-        val visible = when (state) {
-            Constants.CONNECTION_STATE_RECONNECTING,
-            Constants.CONNECTION_STATE_FAILED -> true
+        // 2026-05-23 v1067 — "Reconnecting…" banner DISABLED entirely per user
+        // request. Tier-2/3 users found it irritating on every brief blip.
+        // 30s watchdog still runs silently and auto-ends call if network never
+        // comes back; user just sees the call end with a Toast at that point.
+        // Hide kept active so any pre-existing visible banner clears on first
+        // CONNECTED/DISCONNECTED event.
+        when (state) {
             Constants.CONNECTION_STATE_CONNECTED,
-            Constants.CONNECTION_STATE_DISCONNECTED -> false
-            else -> return
+            Constants.CONNECTION_STATE_DISCONNECTED -> {
+                pendingBannerShow?.let { mainHandler.removeCallbacks(it) }
+                pendingBannerShow = null
+                banner.visibility = View.GONE
+            }
+            else -> { /* RECONNECTING / FAILED / CONNECTING — never show banner */ }
         }
-        banner.visibility = if (visible) View.VISIBLE else View.GONE
     }
 }

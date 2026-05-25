@@ -193,6 +193,12 @@ object FcmUtils {
     // failure the existing Agora onUserOffline + 30s ReconnectWatchdog still
     // end the call — this just makes the common case fast.
     fun notifyPeerOfHangup(receiverId: Int, callId: Int) {
+        // 2026-05-23 v1068 — DISABLED. Was potentially firing callEnded FCM
+        // to peer during normal call lifecycle, dismissing the call screen on
+        // the other side and breaking connection. Agora's onUserOffline +
+        // 30s watchdog handle this naturally. User-reported regression vs
+        // Play Store v1064 where this code didn't exist.
+        return
         if (receiverId <= 0 || callId <= 0) {
             Log.d("FcmUtils", "notifyPeerOfHangup skipped (receiverId=$receiverId callId=$callId)")
             return

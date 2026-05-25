@@ -1447,8 +1447,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                     Constants.REMOTE_AUDIO_STATE_STARTING ->
                         reconnectWatchdog.peerStreamStalled(stalled = false)
                 }
-                binding.reconnectBanner.visibility =
-                    if (reconnectWatchdog.isArmed()) View.VISIBLE else View.GONE
+                // 2026-05-23 v1072 — banner DISABLED. See MaleVideo for rationale.
             }
         }
 
@@ -2436,6 +2435,11 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                 publishCameraTrack = cameraOk
                 clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
             })
+            // 2026-05-22 v19 — belt & suspenders: also enforce device-level mute.
+            // updateChannelMediaOptions alone was still letting peers hear the
+            // caller in some cases (publishMicrophoneTrack flag race during
+            // audio→video transition).
+            agoraEngine?.muteLocalAudioStream(isMuted)
             if (cameraOk) {
                 agoraEngine?.startPreview()
                 Log.d("AgoraTiming", "FemaleAudio switched to VIDEO at ${System.currentTimeMillis()}")
@@ -2993,6 +2997,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                 publishCameraTrack = false
                 clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
             })
+            // 2026-05-22 v19 — belt & suspenders: also enforce device-level mute.
+            agoraEngine?.muteLocalAudioStream(isMuted)
             agoraEngine?.stopPreview()
             agoraEngine?.disableVideo()
             Log.d("AgoraTiming", "FemaleAudio switched back to AUDIO at ${System.currentTimeMillis()}")

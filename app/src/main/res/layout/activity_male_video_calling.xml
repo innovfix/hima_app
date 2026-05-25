@@ -76,6 +76,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:scaleType="centerCrop"
+        android:visibility="gone"
         android:background="@drawable/call_blur_placeholder_background"
         android:contentDescription="Peer avatar"
         app:layout_constraintTop_toTopOf="parent"

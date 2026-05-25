@@ -993,22 +993,25 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
         total_amount = "$amount"
 
+        // 2026-05-24 v1074 — Meta initial_checkout RESTORED per marketing:
+        // they now want every Firebase/Google-Ads event also in Meta.
         val checkoutAmount = amount.toDoubleOrNull() ?: 0.0
         if (checkoutAmount > 0.0) {
-            val checkoutParams = Bundle().apply {
-                putString(AppEventsConstants.EVENT_PARAM_CURRENCY, "INR")
-                putDouble(AppEventsConstants.EVENT_PARAM_VALUE_TO_SUM, checkoutAmount)
-                putString("user_id", "$userId")
-                putString("coin_id", "$pointsId")
+            try {
+                val metaParams = Bundle().apply {
+                    putString(AppEventsConstants.EVENT_PARAM_CURRENCY, "INR")
+                    putDouble(AppEventsConstants.EVENT_PARAM_VALUE_TO_SUM, checkoutAmount)
+                    putString("user_id", "$userId")
+                    putString("coin_id", "$pointsId")
+                }
+                AppEventsLogger.newLogger(this).logEvent(
+                    "initial_checkout",
+                    checkoutAmount,
+                    metaParams
+                )
+            } catch (t: Throwable) {
+                Log.w("FB_Event", "Meta initial_checkout failed: ${t.message}")
             }
-
-            AppEventsLogger.newLogger(this).logEvent(
-                AppEventsConstants.EVENT_NAME_INITIATED_CHECKOUT,
-                checkoutAmount,
-                checkoutParams
-            )
-        } else {
-            Log.w("FB_Event", "Skipped INITIATED_CHECKOUT event. Invalid amount = $checkoutAmount")
         }
 
 

@@ -60,41 +60,9 @@ object CallPermissionHelper {
      */
     @SuppressLint("BatteryLife")
     fun maybePromptBatteryOptimizationExemption(activity: Activity) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
-        val pm = activity.getSystemService(PowerManager::class.java) ?: return
-        if (pm.isIgnoringBatteryOptimizations(activity.packageName)) return
-
-        val prefs = activity.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        if (prefs.getBoolean(KEY_BATTERY_OPT_PROMPTED, false)) return
-        prefs.edit().putBoolean(KEY_BATTERY_OPT_PROMPTED, true).apply()
-
-        AlertDialog.Builder(activity)
-            .setTitle("Reliable incoming calls")
-            .setMessage(
-                "Allow Hima to run without battery restrictions so incoming-call " +
-                    "ringtones still play when the screen is off."
-            )
-            .setPositiveButton("Allow") { _, _ ->
-                val directIntent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                    data = Uri.parse("package:${activity.packageName}")
-                }
-                try {
-                    activity.startActivity(directIntent)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Direct battery-opt intent unavailable: ${e.message}")
-                    try {
-                        activity.startActivity(
-                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                data = Uri.fromParts("package", activity.packageName, null)
-                            }
-                        )
-                    } catch (e2: Exception) {
-                        Log.e(TAG, "App-details fallback also failed: ${e2.message}")
-                    }
-                }
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+        // 2026-05-22 v23 — disabled. Dialog removed at user request.
+        // Kept function signature so existing callers compile.
+        return
     }
 
     /** Run FSI prompt (daily) and battery prompt (once) for male/female callers. */

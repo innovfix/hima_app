@@ -54,107 +54,77 @@ object HimaAnalytics {
      * @param contentId   the call_id (so Meta can dedupe within a session)
      */
     fun logSpendCredits(ctx: Context, coinsSpent: Int, contentType: String, contentId: String? = null) {
-        if (coinsSpent <= 0) return
-        try {
-            val params = Bundle().apply {
-                putString(AppEventsConstants.EVENT_PARAM_CONTENT_TYPE, contentType)
-                contentId?.let { putString(AppEventsConstants.EVENT_PARAM_CONTENT_ID, it) }
-                putString(AppEventsConstants.EVENT_PARAM_CURRENCY, "INR")
-            }
-            // valueToSum (in coins) — Facebook uses this for SUM aggregation in Ads Manager.
-            AppEventsLogger.newLogger(ctx).logEvent(META_EVENT_SPEND_CREDITS, coinsSpent.toDouble(), params)
-
-            // Firebase mirror — uses standard SPEND_VIRTUAL_CURRENCY event
-            val fbBundle = Bundle().apply {
-                putString(FirebaseAnalytics.Param.VIRTUAL_CURRENCY_NAME, "coins")
-                putLong(FirebaseAnalytics.Param.VALUE, coinsSpent.toLong())
-                putString(FirebaseAnalytics.Param.ITEM_NAME, contentType)
-                contentId?.let { putString(FirebaseAnalytics.Param.ITEM_ID, it) }
-            }
-            BaseApplication.firebaseAnalytics.logEvent(FirebaseAnalytics.Event.SPEND_VIRTUAL_CURRENCY, fbBundle)
-        } catch (t: Throwable) {
-            Log.w(TAG, "logSpendCredits failed: ${t.message}")
-        }
+        // 2026-05-23 v26 — DISABLED per marketing. They keep only:
+        // purchase, complete_registration, activate_app, app_install,
+        // new_user_purchase, new_user_first_purchase, voice_verified,
+        // 2min_call. Method kept as no-op so existing call sites compile.
+        return
     }
 
     // -----------------------------------------------------------------
     // 2. View Content — fires when male views female profile
     // -----------------------------------------------------------------
     fun logViewContent(ctx: Context, contentId: String, contentType: String = "creator_profile", value: Double = 0.0) {
-        try {
-            val params = Bundle().apply {
-                putString(AppEventsConstants.EVENT_PARAM_CONTENT_ID, contentId)
-                putString(AppEventsConstants.EVENT_PARAM_CONTENT_TYPE, contentType)
-                putString(AppEventsConstants.EVENT_PARAM_CURRENCY, "INR")
-            }
-            AppEventsLogger.newLogger(ctx).logEvent(META_EVENT_VIEW_CONTENT, value, params)
-
-            val fbBundle = Bundle().apply {
-                putString(FirebaseAnalytics.Param.ITEM_ID, contentId)
-                putString(FirebaseAnalytics.Param.ITEM_NAME, contentType)
-                putString(FirebaseAnalytics.Param.CURRENCY, "INR")
-                if (value > 0.0) putDouble(FirebaseAnalytics.Param.VALUE, value)
-            }
-            BaseApplication.firebaseAnalytics.logEvent(FirebaseAnalytics.Event.VIEW_ITEM, fbBundle)
-        } catch (t: Throwable) {
-            Log.w(TAG, "logViewContent failed: ${t.message}")
-        }
+        // 2026-05-23 v26 — DISABLED per marketing.
+        return
     }
 
     // -----------------------------------------------------------------
     // 3. Add Payment Info — fires when payment screen opens
     // -----------------------------------------------------------------
     fun logAddPaymentInfo(ctx: Context, success: Boolean = true) {
-        try {
-            val params = Bundle().apply {
-                putInt(AppEventsConstants.EVENT_PARAM_SUCCESS, if (success) 1 else 0)
-            }
-            AppEventsLogger.newLogger(ctx).logEvent(META_EVENT_ADD_PAYMENT_INFO, params)
-
-            val fbBundle = Bundle().apply {
-                putString(FirebaseAnalytics.Param.PAYMENT_TYPE, "selected")
-                putString("success", success.toString())
-            }
-            BaseApplication.firebaseAnalytics.logEvent(FirebaseAnalytics.Event.ADD_PAYMENT_INFO, fbBundle)
-        } catch (t: Throwable) {
-            Log.w(TAG, "logAddPaymentInfo failed: ${t.message}")
-        }
+        // 2026-05-23 v26 — DISABLED per marketing.
+        return
     }
 
     // -----------------------------------------------------------------
     // 4. Contact — fires on first call connection
     // -----------------------------------------------------------------
     fun logContact(ctx: Context, contentType: String = "voice_call") {
-        try {
-            val params = Bundle().apply {
-                putString(AppEventsConstants.EVENT_PARAM_CONTENT_TYPE, contentType)
-            }
-            AppEventsLogger.newLogger(ctx).logEvent(META_EVENT_CONTACT, params)
-            BaseApplication.firebaseAnalytics.logEvent("contact", params)
-        } catch (t: Throwable) {
-            Log.w(TAG, "logContact failed: ${t.message}")
-        }
+        // 2026-05-23 v26 — DISABLED per marketing. The 2-min-call event below
+        // replaces this for true engagement signal.
+        return
     }
 
     // -----------------------------------------------------------------
     // 5. Rate — fires on user rating submit
     // -----------------------------------------------------------------
     fun logRate(ctx: Context, rating: Int, maxRating: Int = 5, contentType: String = "creator") {
+        // 2026-05-23 v26 — DISABLED per marketing.
+        return
+    }
+
+    // -----------------------------------------------------------------
+    // 2026-05-23 v26 — 2-Minute Call event (new, per marketing request)
+    // -----------------------------------------------------------------
+    /**
+     * Fired ONCE per call when the connected call duration reaches 120 seconds.
+     * Use a per-callId flag in the calling activity so this fires at most once
+     * per call_id (even across reconnects or switch-audio-to-video).
+     *
+     * @param callId      the user_calls.id for this session (dedup key)
+     * @param contentType "audio_call" / "video_call"
+     * @param durationSec actual duration in seconds (>=120)
+     */
+    fun log2MinCall(ctx: Context, callId: Int, contentType: String, durationSec: Long) {
         try {
             val params = Bundle().apply {
-                putInt(AppEventsConstants.EVENT_PARAM_MAX_RATING_VALUE, maxRating)
                 putString(AppEventsConstants.EVENT_PARAM_CONTENT_TYPE, contentType)
+                putString(AppEventsConstants.EVENT_PARAM_CONTENT_ID, callId.toString())
+                putLong("duration_seconds", durationSec)
             }
-            AppEventsLogger.newLogger(ctx).logEvent(META_EVENT_RATE, rating.toDouble(), params)
+            AppEventsLogger.newLogger(ctx).logEvent("2min_call", durationSec.toDouble(), params)
 
             val fbBundle = Bundle().apply {
-                putLong("rating", rating.toLong())
-                putLong("max_rating", maxRating.toLong())
                 putString("content_type", contentType)
+                putString("call_id", callId.toString())
+                putLong("duration_seconds", durationSec)
             }
-            BaseApplication.firebaseAnalytics.logEvent("rate", fbBundle)
+            BaseApplication.firebaseAnalytics.logEvent("2min_call", fbBundle)
+
+            Log.d(TAG, "2min_call fired: callId=$callId type=$contentType dur=${durationSec}s")
         } catch (t: Throwable) {
-            Log.w(TAG, "logRate failed: ${t.message}")
+            Log.w(TAG, "log2MinCall failed: ${t.message}")
         }
     }
 

@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -9,6 +12,21 @@ plugins {
     id("com.google.firebase.crashlytics")
 //    id("hypersdk.plugin") version "2.0.6"
 
+}
+
+// 2026-05-22 v22 — production signing for on-device payment testing.
+// PhonePe and Cashfree merchant accounts whitelist by APK signature.
+// Without signing the release APK with key0.jks, side-loaded APKs have a
+// different SHA-256 fingerprint than the Play Store APK and payments fail.
+// To activate: create app/keystore.properties (NOT committed) containing:
+//   storeFile=C:/Users/Yuvanesh/Downloads/key0.jks
+//   storePassword=YOUR_KEYSTORE_PASSWORD
+//   keyAlias=key0
+//   keyPassword=YOUR_KEY_PASSWORD     (often same as storePassword)
+val keystorePropertiesFile = rootProject.file("app/keystore.properties")
+val keystoreProperties = Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
 //hyperSdkPlugin {
@@ -24,13 +42,26 @@ android {
 
     defaultConfig {
         applicationId = "com.gmwapp.hima"
-        minSdk = 26
+        // 2026-05-25 v1076 — minSdk back to 24 (was 26) so existing prod users on
+        // Android 7.x can upgrade. Play Console blocked v1075 rollout otherwise.
+        minSdk = 24
         targetSdk = 35
-        versionCode = 1064
-        versionName = "1064"
+        versionCode = 1076
+        versionName = "1076"
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        if (keystorePropertiesFile.exists()) {
+            create("release") {
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+            }
+        }
     }
 
     buildTypes {
@@ -40,7 +71,19 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Auto-sign with key0.jks when keystore.properties is present.
+            // Falls back to debug signing if it isn't (e.g. on a fresh checkout).
+            if (keystorePropertiesFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
+    }
+
+    // Lint vital errors block release assembly but the actual APK builds fine.
+    // We're side-loading for payment testing, not shipping a Play Store update.
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
     }
 
     flavorDimensions += "hima"

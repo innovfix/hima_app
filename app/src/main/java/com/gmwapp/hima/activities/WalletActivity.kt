@@ -1406,11 +1406,17 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                 putString("coin_id", "$pointsId")
             }
 
-            AppEventsLogger.newLogger(this).logEvent(
-                AppEventsConstants.EVENT_NAME_INITIATED_CHECKOUT,
-                checkoutAmount,
-                checkoutParams
-            )
+            // 2026-05-24 v1074 — Meta initial_checkout RESTORED per marketing
+            // (they now want every Firebase/Google-Ads event also in Meta).
+            try {
+                AppEventsLogger.newLogger(this).logEvent(
+                    "initial_checkout",
+                    checkoutAmount,
+                    checkoutParams
+                )
+            } catch (t: Throwable) {
+                Log.w("FB_Event", "Meta initial_checkout failed: ${t.message}")
+            }
 
             // Log to backend (only Firebase events)
             AppEventLogger.logEvent(

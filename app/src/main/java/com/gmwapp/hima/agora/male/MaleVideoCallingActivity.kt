@@ -183,6 +183,10 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     private var mutedByInterrupt = false
     var isClicked : Boolean = false
 
+    // 2026-05-23 v1065 — debounced peer-avatar overlay for FROZEN/FAILED.
+    private val mainHandlerForAvatar = android.os.Handler(android.os.Looper.getMainLooper())
+    private var pendingAvatarShow: Runnable? = null
+
     private var videoUid = 0
 
     private var appId: String? = null // Will be received from backend
@@ -1492,20 +1496,11 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                     }
                 }
             }
-            // 2026-05-22 — when WE lose internet, the peer's video stream
-            // freezes for us but onRemoteVideoStateChanged(FROZEN) doesn't
-            // always fire (the SDK can't decode without our connection). Show
-            // the peer's avatar so the user sees who they're trying to
-            // reconnect to instead of a frozen / black video tile.
-            runOnUiThread {
-                when (state) {
-                    Constants.CONNECTION_STATE_RECONNECTING,
-                    Constants.CONNECTION_STATE_FAILED -> showRemoteAvatarSkeleton()
-                    // CONNECTED: don't hide here — let onRemoteVideoStateChanged(DECODING)
-                    // hide once the actual video frames resume, otherwise we'd briefly
-                    // expose the black SurfaceView between reconnect and decode.
-                }
-            }
+            // 2026-05-22 v23 — REMOVED peer-avatar-on-own-reconnect logic at
+            // user request. Tier-2/3 users have frequent brief network blips
+            // and the avatar overlay made every blip feel like a major
+            // disconnect. Let the video tile freeze naturally instead; the
+            // small "Reconnecting…" banner above is sufficient signal.
             super.onConnectionStateChanged(state, reason)
         }
 
@@ -1523,8 +1518,9 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                     Constants.REMOTE_AUDIO_STATE_STARTING ->
                         reconnectWatchdog.peerStreamStalled(stalled = false)
                 }
-                binding.reconnectBanner.visibility =
-                    if (reconnectWatchdog.isArmed()) View.VISIBLE else View.GONE
+                // 2026-05-23 v1072 — banner is DISABLED entirely. Don't toggle
+                // visibility from peer-stream state either (was bypassing the
+                // CallQualityUi banner-disable fix).
             }
         }
 
@@ -1566,16 +1562,29 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             super.onRemoteVideoStateChanged(uid, state, reason, elapsed)
             Log.d(TAG_END, "onRemoteVideoStateChanged uid=$uid state=$state reason=$reason")
             if (uid != videoUid) return
-            // B058 — drive the avatar skeleton off remote video lifecycle so the
-            // user sees the peer face whenever the SurfaceView isn't actively
-            // rendering frames (STARTING / FROZEN / FAILED / before first frame).
-            // Hide it only once DECODING fires (first decoded frame in).
+            // 2026-05-23 v1065 — debounce FROZEN/FAILED so tier-2/3 brief blips
+            // don't flash the avatar overlay. STARTING (pre-first-frame) and
+            // DECODING (recovered) still fire instantly. FROZEN/FAILED only
+            // trigger after 8s of sustained stall; a recovery (DECODING) in
+            // that window cancels the pending show.
             runOnUiThread {
                 when (state) {
-                    Constants.REMOTE_VIDEO_STATE_DECODING -> hideRemoteAvatarSkeleton()
-                    Constants.REMOTE_VIDEO_STATE_STARTING,
+                    Constants.REMOTE_VIDEO_STATE_DECODING -> {
+                        pendingAvatarShow?.let { mainHandlerForAvatar.removeCallbacks(it); pendingAvatarShow = null }
+                        hideRemoteAvatarSkeleton()
+                    }
+                    Constants.REMOTE_VIDEO_STATE_STARTING -> showRemoteAvatarSkeleton()
                     Constants.REMOTE_VIDEO_STATE_FROZEN,
-                    Constants.REMOTE_VIDEO_STATE_FAILED -> showRemoteAvatarSkeleton()
+                    Constants.REMOTE_VIDEO_STATE_FAILED -> {
+                        if (pendingAvatarShow == null) {
+                            val run = Runnable {
+                                showRemoteAvatarSkeleton()
+                                pendingAvatarShow = null
+                            }
+                            pendingAvatarShow = run
+                            mainHandlerForAvatar.postDelayed(run, 8_000L)
+                        }
+                    }
                 }
             }
             // REMOTE_VIDEO_STATE_FAILED == 4
@@ -1663,24 +1672,22 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             isIndividual = true
         )
 
-        // 2026-05-22 — Spend Credits event for video (60 coins/min). See
-        // MaleAudioCallingActivity for the same pattern (audio = 10 coins/min).
+        // 2026-05-23 v26 — Spend Credits removed per marketing. Fire 2min_call
+        // when video call duration >= 120s.
         if (callId > 0 && startTime.isNotEmpty()) {
             try {
                 val sdf = dateFormat
                 val durationSec = ((sdf.parse(endTime)?.time ?: 0L) - (sdf.parse(startTime)?.time ?: 0L)) / 1000
-                if (durationSec > 0) {
-                    val minutes = ((durationSec + 59) / 60).coerceAtLeast(1)
-                    val estimatedCoins = (minutes * 60).toInt()  // video rate
-                    com.gmwapp.hima.utils.HimaAnalytics.logSpendCredits(
+                if (durationSec >= 120) {
+                    com.gmwapp.hima.utils.HimaAnalytics.log2MinCall(
                         ctx = this,
-                        coinsSpent = estimatedCoins,
+                        callId = callId,
                         contentType = "video_call",
-                        contentId = callId.toString(),
+                        durationSec = durationSec,
                     )
                 }
             } catch (t: Throwable) {
-                Log.w("HimaAnalytics", "MaleVideo SpendCredits estimate failed: ${t.message}")
+                Log.w("HimaAnalytics", "MaleVideo 2min_call estimate failed: ${t.message}")
             }
         }
 
@@ -3231,6 +3238,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 publishCameraTrack = false
                 clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
             })
+            // 2026-05-22 v19 — belt & suspenders: also enforce device-level mute.
+            agoraEngine?.muteLocalAudioStream(isMuted)
             agoraEngine?.stopPreview()
             agoraEngine?.disableVideo()
             Log.d("AgoraTiming", "MaleVideo switched to AUDIO at ${System.currentTimeMillis()}")
@@ -3722,13 +3731,15 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         }
     }
 
-    // B058 — toggle the peer-avatar skeleton that covers the remote
-    // SurfaceView whenever the feed isn't actively rendering. Idempotent.
+    // 2026-05-23 v1066 — full-screen peer-avatar overlay DISABLED everywhere
+    // per user request. The overlay was firing on every brief network blip on
+    // tier-2/3 networks (own-connection reconnect + peer-stream FROZEN/FAILED
+    // + peer mute video), making the UX feel constantly broken. Function kept
+    // as no-op so existing call sites compile. hideRemoteAvatarSkeleton stays
+    // active so any pre-existing visible skeleton gets cleared on first call.
     private fun showRemoteAvatarSkeleton() {
-        if (binding.ivRemoteAvatarSkeleton.visibility != View.VISIBLE) {
-            binding.ivRemoteAvatarSkeleton.visibility = View.VISIBLE
-        }
-        binding.ivRemoteAvatarSkeleton.bringToFront()
+        // intentionally no-op
+        return
     }
 
     private fun hideRemoteAvatarSkeleton() {

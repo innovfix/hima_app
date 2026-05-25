@@ -37,6 +37,11 @@ object CallAliveChecker {
      *                    NOT called if call is alive, network fails, or any error.
      */
     fun checkAndEndIfDead(callId: Int, onShouldEnd: () -> Unit) {
+        // 2026-05-23 v1068 — DISABLED. Was causing calls to end immediately
+        // for some users when backend race or timing made the call look "dead"
+        // right after Agora CONNECTED. Reverting to Agora's natural onUserOffline
+        // + the 30s watchdog as fallback. User-reported regression vs Play Store v1064.
+        return
         if (callId <= 0) {
             Log.d(TAG, "skip: callId=$callId")
             return

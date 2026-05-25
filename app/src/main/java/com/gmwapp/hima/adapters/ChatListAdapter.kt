@@ -286,37 +286,52 @@ class ChatListAdapter(
             binding.btnAudioCall.visibility = View.VISIBLE
             binding.btnVideoCall.visibility = View.VISIBLE
 
+            val isViewerFemale = BaseApplication.getInstance()?.getPrefs()
+                ?.getUserData()?.gender
+                ?.equals(DConstants.FEMALE, ignoreCase = true) == true
+
             binding.btnAudioCall.background = activity.resources.getDrawable(
                 if (showAudio) R.drawable.button_audio_gradient else R.drawable.button_disabled_gradient,
                 null
             )
+            // 2026-05-22 v22 — females can't video-call males (backend has no
+            // female→male video flow). Repurpose the second button as a MESSAGE
+            // button when the viewer is female: always enabled, opens the chat.
             binding.btnVideoCall.background = activity.resources.getDrawable(
-                if (showVideo) R.drawable.button_video_gradient else R.drawable.button_disabled_gradient,
+                when {
+                    isViewerFemale -> R.drawable.button_video_gradient
+                    showVideo -> R.drawable.button_video_gradient
+                    else -> R.drawable.button_disabled_gradient
+                },
                 null
             )
             binding.btnAudioCall.isEnabled = showAudio
-            binding.btnVideoCall.isEnabled = showVideo
+            binding.btnVideoCall.isEnabled = isViewerFemale || showVideo
             binding.btnAudioCall.isClickable = showAudio
-            binding.btnVideoCall.isClickable = showVideo
+            binding.btnVideoCall.isClickable = isViewerFemale || showVideo
+
+            // Female viewer: swap the video-camera icon for a chat bubble.
+            if (isViewerFemale) {
+                binding.ivVideoIcon.setImageResource(R.drawable.ic_chat_bubble)
+            } else {
+                binding.ivVideoIcon.setImageResource(R.drawable.baseline_video_chat_24)
+            }
 
             // Readable text & icon colors on both enabled gradient (white) and
             // disabled grey background (darker grey) — white on grey is invisible.
             binding.ivAudioIcon.setColorFilter(if (showAudio) whiteColor else disabledTextColor)
-            binding.ivVideoIcon.setColorFilter(if (showVideo) whiteColor else disabledTextColor)
+            binding.ivVideoIcon.setColorFilter(
+                if (isViewerFemale || showVideo) whiteColor else disabledTextColor
+            )
             binding.tvAudioRate.setTextColor(if (showAudio) whiteColor else disabledTextColor)
-            binding.tvVideoRate.setTextColor(if (showVideo) whiteColor else disabledTextColor)
+            binding.tvVideoRate.setTextColor(
+                if (isViewerFemale || showVideo) whiteColor else disabledTextColor
+            )
             // The per-minute coin rate (e.g. "10/min") is the caller's cost.
             // Only males pay for calls in this app — females are recipients
             // (the call_male_user backend doesn't deduct anything from her).
             // Showing "10/min" on the female's chat row implies she's about
-            // to spend coins she doesn't have, which is misleading. When the
-            // viewer is female, hide the rate text + coin badge entirely;
-            // the call icon alone is the affordance. The "Unavailable" label
-            // for the disabled state still shows for male viewers seeing a
-            // creator who has audio/video turned off.
-            val isViewerFemale = BaseApplication.getInstance()?.getPrefs()
-                ?.getUserData()?.gender
-                ?.equals(DConstants.FEMALE, ignoreCase = true) == true
+            // to spend coins she doesn't have, which is misleading.
 
             binding.ivAudioCoin.visibility =
                 if (showAudio && !isViewerFemale) View.VISIBLE else View.GONE
@@ -329,8 +344,8 @@ class ChatListAdapter(
                 else -> "${conversation.coinPerMinAudio}/min"
             }
             binding.tvVideoRate.text = when {
+                isViewerFemale -> ""  // female viewer: button is "message", icon-only
                 !showVideo -> activity.getString(R.string.call_unavailable)
-                isViewerFemale -> ""
                 else -> "${conversation.coinPerMinVideo}/min"
             }
 
@@ -338,7 +353,11 @@ class ChatListAdapter(
                 if (showAudio) launchCall(conversation, "audio")
             }
             binding.btnVideoCall.setOnSingleClickListener {
-                if (showVideo) launchCall(conversation, "video")
+                if (isViewerFemale) {
+                    onItemClick(conversation)  // open chat with this male
+                } else if (showVideo) {
+                    launchCall(conversation, "video")
+                }
             }
 
             // Notify-when-online bell icon — tap to toggle subscription.
