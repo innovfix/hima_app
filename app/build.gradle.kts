@@ -47,10 +47,12 @@ android {
         // 2026-05-25 v1077 — merged origin/final_bug_fixes (20 conflicts resolved).
         // 2026-05-25 v1078 — merged 5 more Perumal commits from innovfix123 fork
         //   (native SDK autopay, DND call gate, trial-offer video, female missed-call).
+        // 2026-05-25 v1079 — merged Perumal c572d5e6 autopay checkout UI redesign
+        //   (4 new drawables, hero ring + benefits card + sticky CTA, retry CTA).
         minSdk = 24
         targetSdk = 35
-        versionCode = 1078
-        versionName = "1078"
+        versionCode = 1079
+        versionName = "1079"
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -99,6 +101,9 @@ android {
             // JSON + sender id 1061192153396) completed before pushes actually
             // deliver on this flavor — until then expect empty subscription
             // records (token="", enabled=false). In-app behaviour is unaffected.
+            // demohima hosts the demo_autopay backend branch (Cashfree subscription
+            // endpoints, plan IDs, webhook secret). demolivedb does not — pointing
+            // dev there breaks /autopay_initiate and the trial sheet config endpoints.
             buildConfigField("String", "BASE_URL", "\"https://demohima.himaapp.in/api/auth/\"")
             buildConfigField("String", "ONESIGNAL_APP_ID", "\"5cd4154a-1ece-4c3b-b6af-e88bafee64cd\"")
         }

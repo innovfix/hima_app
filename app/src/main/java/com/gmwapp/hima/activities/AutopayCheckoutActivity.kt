@@ -5,6 +5,8 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
@@ -47,7 +49,11 @@ class AutopayCheckoutActivity : AppCompatActivity(), CFSubscriptionResponseCallb
 
     private lateinit var progress: ProgressBar
     private lateinit var status: TextView
+    private lateinit var statusTitle: TextView
+    private lateinit var statusIcon: ImageView
     private lateinit var btnClose: MaterialButton
+    private lateinit var btnRetry: MaterialButton
+    private lateinit var btnBack: ImageButton
 
     private var planType: String = PLAN_TRIAL_NEW
     private var checkoutLaunched: Boolean = false
@@ -97,8 +103,14 @@ class AutopayCheckoutActivity : AppCompatActivity(), CFSubscriptionResponseCallb
 
         progress = findViewById(R.id.progress)
         status = findViewById(R.id.tv_status)
+        statusTitle = findViewById(R.id.tv_status_title)
+        statusIcon = findViewById(R.id.iv_status_icon)
         btnClose = findViewById(R.id.btn_close)
+        btnRetry = findViewById(R.id.btn_retry)
+        btnBack = findViewById(R.id.btn_back)
         btnClose.setOnClickListener { finish() }
+        btnBack.setOnClickListener { finish() }
+        btnRetry.setOnClickListener { retryInitiate() }
 
         planType = intent.getStringExtra(EXTRA_PLAN_TYPE) ?: PLAN_TRIAL_NEW
 
@@ -113,7 +125,7 @@ class AutopayCheckoutActivity : AppCompatActivity(), CFSubscriptionResponseCallb
 
         val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
         if (userId == null) {
-            failWithMessage("Session expired. Please log in again.")
+            showFailure("Session expired", "Please log in again.")
             return
         }
 
@@ -121,7 +133,7 @@ class AutopayCheckoutActivity : AppCompatActivity(), CFSubscriptionResponseCallb
         autopayViewModel.initiateLiveData.observe(this) { resp ->
             if (resp == null || checkoutLaunched) return@observe
             if (!resp.success || resp.data == null) {
-                failWithMessage(resp?.message ?: "Could not start autopay.")
+                showFailure("Couldn't start autopay", resp?.message ?: "Please try again.")
                 return@observe
             }
             val data = resp.data!!
@@ -133,7 +145,7 @@ class AutopayCheckoutActivity : AppCompatActivity(), CFSubscriptionResponseCallb
             // hard-block the user).
             if (!sessionId.isNullOrEmpty() && !subscriptionId.isNullOrEmpty()) {
                 checkoutLaunched = true
-                status.text = "Opening UPI mandate…"
+                showLoading("Opening UPI mandate", "Approve the autopay request in your UPI app.")
                 try {
                     launchCashfreeSdk(sessionId, subscriptionId)
                 } catch (e: CFException) {
@@ -142,10 +154,10 @@ class AutopayCheckoutActivity : AppCompatActivity(), CFSubscriptionResponseCallb
                 }
             } else if (!data.redirect_url.isNullOrEmpty()) {
                 checkoutLaunched = true
-                status.text = "Opening UPI mandate…"
+                showLoading("Opening UPI mandate", "Approve the autopay request in your UPI app.")
                 fallbackToBrowser(data.redirect_url)
             } else {
-                failWithMessage("Could not start autopay.")
+                showFailure("Couldn't start autopay", "Please try again.")
             }
         }
 
@@ -159,18 +171,20 @@ class AutopayCheckoutActivity : AppCompatActivity(), CFSubscriptionResponseCallb
                 Toast.makeText(this, "Autopay active. Enjoy!", Toast.LENGTH_SHORT).show()
                 finish()
             } else if (checkoutLaunched && !data.is_active) {
-                // User came back without completing — show manual close.
-                status.text = "Mandate not yet active. You can close this and try again later."
-                progress.visibility = View.GONE
-                btnClose.visibility = View.VISIBLE
+                // User came back without completing — show retry/close.
+                showFailure(
+                    "Mandate not yet active",
+                    "Your bank may still be processing. Try again or close and come back later."
+                )
             }
         }
 
         autopayViewModel.errorLiveData.observe(this) { msg ->
-            failWithMessage(msg ?: "Network error.")
+            showFailure("Network error", msg ?: "Please check your connection and try again.")
         }
 
         // Kick off.
+        showLoading("Setting up autopay", "Just a moment while we prepare your subscription.")
         autopayViewModel.autopayInitiate(userId, planType)
     }
 
@@ -182,9 +196,7 @@ class AutopayCheckoutActivity : AppCompatActivity(), CFSubscriptionResponseCallb
         // never fired (process kill, intent app crash), this is our backstop.
         if (checkoutLaunched && !checkoutComplete) {
             val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
-            status.text = "Checking mandate status…"
-            progress.visibility = View.VISIBLE
-            btnClose.visibility = View.GONE
+            showLoading("Confirming subscription", "Checking with our server…")
             autopayViewModel.subscriptionStatus(userId)
         }
     }
@@ -221,7 +233,7 @@ class AutopayCheckoutActivity : AppCompatActivity(), CFSubscriptionResponseCallb
 
     private fun fallbackToBrowser(url: String?) {
         if (url.isNullOrEmpty()) {
-            failWithMessage("Could not start autopay.")
+            showFailure("Couldn't start autopay", "Please try again.")
             return
         }
         try {
@@ -230,7 +242,10 @@ class AutopayCheckoutActivity : AppCompatActivity(), CFSubscriptionResponseCallb
             try {
                 startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
             } catch (e2: Exception) {
-                failWithMessage("No app available to open the payment page.")
+                showFailure(
+                    "No browser available",
+                    "Install a browser app to complete the UPI mandate."
+                )
             }
         }
     }
@@ -248,10 +263,33 @@ class AutopayCheckoutActivity : AppCompatActivity(), CFSubscriptionResponseCallb
         tab.launchUrl(this, Uri.parse(url))
     }
 
-    private fun failWithMessage(msg: String) {
+    private fun showLoading(title: String, detail: String) {
+        statusTitle.text = title
+        status.text = detail
+        progress.visibility = View.VISIBLE
+        statusIcon.visibility = View.GONE
+        btnRetry.visibility = View.GONE
+        btnClose.visibility = View.GONE
+    }
+
+    private fun showFailure(title: String, detail: String) {
+        statusTitle.text = title
+        status.text = detail
         progress.visibility = View.GONE
-        status.text = msg
+        statusIcon.visibility = View.VISIBLE
+        btnRetry.visibility = View.VISIBLE
         btnClose.visibility = View.VISIBLE
+    }
+
+    private fun retryInitiate() {
+        val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: run {
+            showFailure("Session expired", "Please log in again.")
+            return
+        }
+        checkoutLaunched = false
+        checkoutComplete = false
+        showLoading("Setting up autopay", "Just a moment while we prepare your subscription.")
+        autopayViewModel.autopayInitiate(userId, planType)
     }
 
     // ----- Cashfree SDK callbacks -----
@@ -261,21 +299,17 @@ class AutopayCheckoutActivity : AppCompatActivity(), CFSubscriptionResponseCallb
     override fun onSubscriptionVerify(cfSubscriptionResponse: CFSubscriptionResponse?) {
         Log.d(TAG, "Cashfree onSubscriptionVerify resp=$cfSubscriptionResponse")
         val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
-        status.text = "Confirming mandate…"
-        progress.visibility = View.VISIBLE
-        btnClose.visibility = View.GONE
+        showLoading("Confirming mandate", "Activating your subscription…")
         autopayViewModel.subscriptionStatus(userId)
     }
 
     override fun onSubscriptionFailure(cfErrorResponse: CFErrorResponse?) {
-        val msg = cfErrorResponse?.message ?: "Payment cancelled."
+        val msg = cfErrorResponse?.message ?: "Payment was cancelled."
         Log.w(TAG, "Cashfree onSubscriptionFailure msg=$msg")
         // Don't surface a hard "failure" toast — the webhook may still
         // have flipped state if the user actually completed and then
         // dismissed the SDK. onResume polls status and closes us if so.
-        status.text = msg
-        progress.visibility = View.GONE
-        btnClose.visibility = View.VISIBLE
+        showFailure("Payment didn't go through", msg)
     }
 
     companion object {
