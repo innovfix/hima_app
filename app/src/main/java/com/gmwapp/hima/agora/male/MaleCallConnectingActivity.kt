@@ -19,6 +19,7 @@ import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.utils.DndCallGate
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.agora.FcmUtils
@@ -106,55 +107,27 @@ class MaleCallConnectingActivity : AppCompatActivity() {
             insets
         }
 
-        FcmUtils.isUserAvailable=1
-
-        Log.d("FcmUtils.isUserAvailable","${FcmUtils.isUserAvailable}")
-
-        // Pre-request RECORD_AUDIO so the permission dialog is out of the way before the call screen
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 100)
-        }
-
-        // Read intent extras immediately (outside coroutine) so they're available for onBackPressed
+        // Read intent extras immediately (outside coroutine) so they're
+        // available for onBackPressed AND for the DND-cancel navigation below.
         callType = intent.getStringExtra(DConstants.CALL_TYPE)
         receiverId = intent.getIntExtra(DConstants.RECEIVER_ID, -1)
         receiverImg = intent.getStringExtra(DConstants.IMAGE)
         receiverName = intent.getStringExtra(DConstants.RECEIVER_NAME)
         fromChat = intent.getBooleanExtra("FROM_CHAT", false)
         chatPeerUserId = intent.getIntExtra("CHAT_PEER_USER_ID", -1)
-        
+
         Log.d("MaleCallConnecting", "fromChat=$fromChat, chatPeerUserId=$chatPeerUserId, receiverId=$receiverId")
 
-        lifecycleScope.launch {
-             FcmUtils.clearCallStatus()
-             FcmUtils.clearUserBusyStatus()
-
-             Log.d("callStatusValueLog", "${FcmUtils.callStatus.value}")
-             val callStatusValue = FcmUtils.callStatus.value
-             if (callStatusValue?.first == "accepted") {
-
-               //  Toast.makeText(this, "Try again", Toast.LENGTH_LONG).show()
-                 Log.d("NavigationDebug", "Redirecting to MainActivity due to call accepted.")
-
-                 val intent = Intent(this@MaleCallConnectingActivity, MainActivity::class.java)
-                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                 startActivity(intent)
-                 finish()
-             }
-
-
-             val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-
-             userData?.id?.let { userId = userData?.id }
-
-             getCallId()
-
-
-             initUI()
-             observeCallAcceptance()
-             observeUserBusyStatus()
-
-         }
+        // Pre-flight DND gate. If the user has DND on, show the blocking
+        // dialog before any call API fires or any FCM/Telecom side effects
+        // run. The dialog disables DND server-side and then calls onProceed;
+        // Cancel routes back to the entry point with zero side effects.
+        DndCallGate.gate(
+            activity = this,
+            apiManager = apiManager,
+            onProceed = { startCallSetup() },
+            onCancel = { abortDueToDnd() }
+        )
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -223,6 +196,68 @@ class MaleCallConnectingActivity : AppCompatActivity() {
             }
         })
 
+    }
+
+    /**
+     * Runs the original call-setup pipeline (marks user busy, requests mic
+     * permission, places the call via the appropriate ViewModel API, observes
+     * acceptance / busy / FCM). Extracted from [onCreate] so the [DndCallGate]
+     * can defer it until the user has either confirmed they want to turn off
+     * DND, or DND was off to begin with.
+     */
+    private fun startCallSetup() {
+        FcmUtils.isUserAvailable = 1
+        Log.d("FcmUtils.isUserAvailable", "${FcmUtils.isUserAvailable}")
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 100)
+        }
+
+        lifecycleScope.launch {
+            FcmUtils.clearCallStatus()
+            FcmUtils.clearUserBusyStatus()
+
+            Log.d("callStatusValueLog", "${FcmUtils.callStatus.value}")
+            val callStatusValue = FcmUtils.callStatus.value
+            if (callStatusValue?.first == "accepted") {
+                Log.d("NavigationDebug", "Redirecting to MainActivity due to call accepted.")
+                val intent = Intent(this@MaleCallConnectingActivity, MainActivity::class.java)
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                startActivity(intent)
+                finish()
+            }
+
+            val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+            userData?.id?.let { userId = userData?.id }
+
+            getCallId()
+            initUI()
+            observeCallAcceptance()
+            observeUserBusyStatus()
+        }
+    }
+
+    /**
+     * User tapped Cancel on the DND-blocked dialog. We haven't made any call
+     * API yet (no UserCalls row, no FCM, no Telecom registration), so just
+     * route them back to the screen they came from with zero teardown.
+     */
+    private fun abortDueToDnd() {
+        Log.d("MaleCallConnecting", "abortDueToDnd fromChat=$fromChat chatPeerUserId=$chatPeerUserId")
+        if (fromChat && chatPeerUserId != -1) {
+            val intent = Intent(this, com.gmwapp.hima.activities.ChatActivityInHouse::class.java).apply {
+                putExtra("USER_ID", chatPeerUserId)
+                putExtra("USER_NAME", receiverName ?: "")
+                putExtra("USER_IMAGE", receiverImg ?: "")
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
+            startActivity(intent)
+        } else {
+            val intent = Intent(this, MainActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            startActivity(intent)
+        }
+        finish()
     }
 
     fun initUI(){

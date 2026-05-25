@@ -83,15 +83,14 @@ class AgoraRandomCallActivity : AppCompatActivity() {
             it == "all" || it == "new" || it == "star"
         } ?: "all"
 
-        // Clear any stale status before starting
-        FcmUtils.clearUserBusyStatus()
-
-        getRandomUser()
-
-        initUI()
-        observeCallAcceptance()
-        observeRandomUser()
-        observeUserBusyStatus()
+        // DND gate — if user has DND on, popup blocks the random call until
+        // they disable DND (one tap) or cancel back out to home.
+        com.gmwapp.hima.utils.DndCallGate.gate(
+            activity = this,
+            apiManager = apiManager,
+            onProceed = { startRandomCallSetup() },
+            onCancel = { finish() }
+        )
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -121,6 +120,20 @@ class AgoraRandomCallActivity : AppCompatActivity() {
         })
 
 
+    }
+
+    /**
+     * Original random-call bootstrap, extracted so [com.gmwapp.hima.utils.DndCallGate]
+     * can defer it until the user confirms they want to disable DND (or DND was
+     * already off). No side effects fire before this runs.
+     */
+    private fun startRandomCallSetup() {
+        FcmUtils.clearUserBusyStatus()
+        getRandomUser()
+        initUI()
+        observeCallAcceptance()
+        observeRandomUser()
+        observeUserBusyStatus()
     }
 
     fun initUI(){
