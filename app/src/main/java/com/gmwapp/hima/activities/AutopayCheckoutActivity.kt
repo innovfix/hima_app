@@ -3,6 +3,7 @@ package com.gmwapp.hima.activities
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -12,6 +13,14 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.browser.customtabs.CustomTabColorSchemeParams
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.content.ContextCompat
+import com.cashfree.pg.api.CFPaymentGatewayService
+import com.cashfree.pg.core.api.CFSubscriptionSession
+import com.cashfree.pg.core.api.callback.CFSubscriptionResponseCallback
+import com.cashfree.pg.core.api.exception.CFException
+import com.cashfree.pg.core.api.subscription.CFSubscriptionPayment
+import com.cashfree.pg.core.api.utils.CFErrorResponse
+import com.cashfree.pg.core.api.utils.CFSubscriptionResponse
+import com.cashfree.pg.core.api.webcheckout.CFWebCheckoutTheme
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.utils.SubscriptionStateCache
@@ -20,17 +29,19 @@ import com.google.android.material.button.MaterialButton
 import dagger.hilt.android.AndroidEntryPoint
 
 /**
- * Triggers /autopay_initiate, opens the Cashfree mandate URL in the
- * user's browser, and polls /subscription_status on resume to detect
- * when the mandate completes.
+ * Triggers /autopay_initiate, hands the cashfree_session_id to the
+ * Cashfree Android SDK so the UPI mandate UI runs in-app, and falls
+ * back to a Custom Tab redirect if the SDK can't be launched.
  *
- * The actual UPI authorisation happens in Cashfree's hosted page;
- * we just bridge the API call and the URL hand-off here.
+ * The SDK's verify/failure callbacks plus the existing onResume status
+ * re-fetch both reconcile against /subscription_status — the webhook is
+ * still the source of truth, so the UI is correct even if a callback is
+ * missed (e.g. SDK process killed).
  *
  * Caller must pass EXTRA_PLAN_TYPE = "trial_new" | "direct_old".
  */
 @AndroidEntryPoint
-class AutopayCheckoutActivity : AppCompatActivity() {
+class AutopayCheckoutActivity : AppCompatActivity(), CFSubscriptionResponseCallback {
 
     private val autopayViewModel: AutopayViewModel by viewModels()
 
@@ -39,7 +50,7 @@ class AutopayCheckoutActivity : AppCompatActivity() {
     private lateinit var btnClose: MaterialButton
 
     private var planType: String = PLAN_TRIAL_NEW
-    private var redirectAttempted: Boolean = false
+    private var checkoutLaunched: Boolean = false
     private var checkoutComplete: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,10 +72,10 @@ class AutopayCheckoutActivity : AppCompatActivity() {
         val active = com.gmwapp.hima.utils.SubscriptionStateCache.isActive(this)
         val reSubEnabled = com.gmwapp.hima.utils.LanguageFeatureCache.isReSubscriptionEnabled(this)
         if (!autopayLanguage && !ever) {
-            android.widget.Toast.makeText(
+            Toast.makeText(
                 this,
                 "Subscription is not available for your language.",
-                android.widget.Toast.LENGTH_SHORT
+                Toast.LENGTH_SHORT
             ).show()
             finish()
             return
@@ -73,10 +84,10 @@ class AutopayCheckoutActivity : AppCompatActivity() {
         // language should never reach checkout — entry surfaces are gated,
         // but this catches stale taps and any deeplink path.
         if (ever && !active && !reSubEnabled) {
-            android.widget.Toast.makeText(
+            Toast.makeText(
                 this,
                 "Re-subscription is not available for your language.",
-                android.widget.Toast.LENGTH_SHORT
+                Toast.LENGTH_SHORT
             ).show()
             finish()
             return
@@ -91,35 +102,54 @@ class AutopayCheckoutActivity : AppCompatActivity() {
 
         planType = intent.getStringExtra(EXTRA_PLAN_TYPE) ?: PLAN_TRIAL_NEW
 
+        // Register SDK callback BEFORE doSubscriptionPayment. SDK requires
+        // this in onCreate so it can re-attach the callback after process
+        // recreation (e.g. when the system kills us while UPI app is open).
+        try {
+            CFPaymentGatewayService.getInstance().setSubscriptionCheckoutCallback(this)
+        } catch (e: CFException) {
+            Log.e(TAG, "Cashfree setSubscriptionCheckoutCallback failed", e)
+        }
+
         val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
         if (userId == null) {
             failWithMessage("Session expired. Please log in again.")
             return
         }
 
-        // Initiate response → open redirect URL (once).
+        // Initiate response → launch SDK (or fallback to Custom Tab).
         autopayViewModel.initiateLiveData.observe(this) { resp ->
-            if (resp == null || redirectAttempted) return@observe
-            if (!resp.success || resp.data?.redirect_url.isNullOrEmpty()) {
-                failWithMessage(resp.message ?: "Could not start autopay.")
+            if (resp == null || checkoutLaunched) return@observe
+            if (!resp.success || resp.data == null) {
+                failWithMessage(resp?.message ?: "Could not start autopay.")
                 return@observe
             }
-            redirectAttempted = true
-            status.text = "Opening UPI mandate…"
-            try {
-                openInCustomTab(resp.data!!.redirect_url!!)
-            } catch (e: Exception) {
-                // Fallback to external browser if no Custom Tabs provider is
-                // installed (rare — Chrome ships on virtually all Play devices).
+            val data = resp.data!!
+            val sessionId = data.cashfree_session_id
+            val subscriptionId = data.cashfree_subscription_id
+            // Prefer native SDK when we have both IDs. Fallback to redirect
+            // URL only if either is missing (defensive — backend always
+            // returns both, but a stale build or transient bug shouldn't
+            // hard-block the user).
+            if (!sessionId.isNullOrEmpty() && !subscriptionId.isNullOrEmpty()) {
+                checkoutLaunched = true
+                status.text = "Opening UPI mandate…"
                 try {
-                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(resp.data!!.redirect_url)))
-                } catch (e2: Exception) {
-                    failWithMessage("No app available to open the payment page.")
+                    launchCashfreeSdk(sessionId, subscriptionId)
+                } catch (e: CFException) {
+                    Log.e(TAG, "Cashfree SDK launch failed, falling back to browser", e)
+                    fallbackToBrowser(data.redirect_url)
                 }
+            } else if (!data.redirect_url.isNullOrEmpty()) {
+                checkoutLaunched = true
+                status.text = "Opening UPI mandate…"
+                fallbackToBrowser(data.redirect_url)
+            } else {
+                failWithMessage("Could not start autopay.")
             }
         }
 
-        // Status re-fetch (called from onResume after browser return) →
+        // Status re-fetch (called on resume + after SDK callback) →
         // close on success.
         autopayViewModel.statusLiveData.observe(this) { resp ->
             val data = resp?.data ?: return@observe
@@ -128,7 +158,7 @@ class AutopayCheckoutActivity : AppCompatActivity() {
                 checkoutComplete = true
                 Toast.makeText(this, "Autopay active. Enjoy!", Toast.LENGTH_SHORT).show()
                 finish()
-            } else if (redirectAttempted && !data.is_active) {
+            } else if (checkoutLaunched && !data.is_active) {
                 // User came back without completing — show manual close.
                 status.text = "Mandate not yet active. You can close this and try again later."
                 progress.visibility = View.GONE
@@ -146,15 +176,62 @@ class AutopayCheckoutActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // After returning from the Cashfree page (or any backgrounding),
-        // re-check status. The webhook should have already flipped the
-        // server-side state by the time the user is back.
-        if (redirectAttempted && !checkoutComplete) {
+        // After the SDK closes (success/failure) or the user returns from
+        // the browser fallback, re-check status. The webhook should have
+        // already flipped the server-side state — but if the SDK callback
+        // never fired (process kill, intent app crash), this is our backstop.
+        if (checkoutLaunched && !checkoutComplete) {
             val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
             status.text = "Checking mandate status…"
             progress.visibility = View.VISIBLE
             btnClose.visibility = View.GONE
             autopayViewModel.subscriptionStatus(userId)
+        }
+    }
+
+    private fun launchCashfreeSdk(sessionId: String, subscriptionId: String) {
+        // Production: backend always creates real Cashfree subscriptions
+        // against api.cashfree.com/pg (see CashfreeSubscriptionsClient
+        // guardEnvParity), so the SDK must point at PRODUCTION too. A
+        // sandbox session ID against PRODUCTION env (or vice versa) gets
+        // rejected as "Invalid session_id".
+        val cfSession = CFSubscriptionSession.CFSubscriptionSessionBuilder()
+            .setEnvironment(CFSubscriptionSession.Environment.PRODUCTION)
+            .setSubscriptionSessionID(sessionId)
+            .setSubscriptionId(subscriptionId)
+            .build()
+
+        val brandHex = String.format(
+            "#%06X",
+            0xFFFFFF and ContextCompat.getColor(this, R.color.colorPrimary)
+        )
+        val theme = CFWebCheckoutTheme.CFWebCheckoutThemeBuilder()
+            .setNavigationBarBackgroundColor(brandHex)
+            .setNavigationBarTextColor("#FFFFFF")
+            .build()
+
+        val payment = CFSubscriptionPayment.CFSubscriptionCheckoutBuilder()
+            .setSubscriptionSession(cfSession)
+            .setSubscriptionUITheme(theme)
+            .build()
+
+        CFPaymentGatewayService.getInstance()
+            .doSubscriptionPayment(this, payment)
+    }
+
+    private fun fallbackToBrowser(url: String?) {
+        if (url.isNullOrEmpty()) {
+            failWithMessage("Could not start autopay.")
+            return
+        }
+        try {
+            openInCustomTab(url)
+        } catch (e: Exception) {
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            } catch (e2: Exception) {
+                failWithMessage("No app available to open the payment page.")
+            }
         }
     }
 
@@ -177,7 +254,33 @@ class AutopayCheckoutActivity : AppCompatActivity() {
         btnClose.visibility = View.VISIBLE
     }
 
+    // ----- Cashfree SDK callbacks -----
+    // SDK fires onSubscriptionVerify after a successful mandate authorisation.
+    // We don't trust the SDK payload directly — the webhook is the source
+    // of truth — so we just re-poll subscriptionStatus to close the screen.
+    override fun onSubscriptionVerify(cfSubscriptionResponse: CFSubscriptionResponse?) {
+        Log.d(TAG, "Cashfree onSubscriptionVerify resp=$cfSubscriptionResponse")
+        val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
+        status.text = "Confirming mandate…"
+        progress.visibility = View.VISIBLE
+        btnClose.visibility = View.GONE
+        autopayViewModel.subscriptionStatus(userId)
+    }
+
+    override fun onSubscriptionFailure(cfErrorResponse: CFErrorResponse?) {
+        val msg = cfErrorResponse?.message ?: "Payment cancelled."
+        Log.w(TAG, "Cashfree onSubscriptionFailure msg=$msg")
+        // Don't surface a hard "failure" toast — the webhook may still
+        // have flipped state if the user actually completed and then
+        // dismissed the SDK. onResume polls status and closes us if so.
+        status.text = msg
+        progress.visibility = View.GONE
+        btnClose.visibility = View.VISIBLE
+    }
+
     companion object {
+        private const val TAG = "AutopayCheckout"
+
         const val EXTRA_PLAN_TYPE = "extra_plan_type"
         const val PLAN_TRIAL_NEW = "trial_new"
         const val PLAN_DIRECT_OLD = "direct_old"

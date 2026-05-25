@@ -1,17 +1,19 @@
 package com.gmwapp.hima.dialogs
 
-import android.annotation.SuppressLint
 import android.app.Dialog
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.graphics.Paint
+import android.graphics.drawable.BitmapDrawable
+import android.media.MediaPlayer
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import android.widget.TextView
+import android.widget.VideoView
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.WalletActivity
@@ -30,8 +32,9 @@ class BottomSheetTrialOffer : BottomSheetDialogFragment() {
 
     private lateinit var binding: BottomSheetTrialOfferBinding
     private var onTryNowClick: (() -> Unit)? = null
-    private var heroWebView: WebView? = null
-    private var heroLoadingMask: View? = null
+    private var heroVideoView: VideoView? = null
+    private var heroPlaceholderCover: View? = null
+    private var currentVideoUrl: String? = null
 
     @Inject
     lateinit var apiManager: ApiManager
@@ -73,15 +76,14 @@ class BottomSheetTrialOffer : BottomSheetDialogFragment() {
     private fun loadHeroVideo() {
         val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
         TrialOfferConfigCache.load(requireContext(), apiManager, userId, object : TrialOfferConfigCache.Listener {
-            override fun onConfig(youtubeUrl: String?, texts: TrialOfferConfigCache.TextOverrides) {
+            override fun onConfig(videoUrl: String?, texts: TrialOfferConfigCache.TextOverrides) {
                 if (!isAdded) return
-                applyConfig(youtubeUrl, texts)
+                applyConfig(videoUrl, texts)
             }
         })
     }
 
-    @SuppressLint("SetJavaScriptEnabled", "ClickableViewAccessibility")
-    private fun applyConfig(youtubeUrl: String?, texts: TrialOfferConfigCache.TextOverrides) {
+    private fun applyConfig(videoUrl: String?, texts: TrialOfferConfigCache.TextOverrides) {
         if (!::binding.isInitialized) return
 
         // Per-language admin text overrides. Each line falls back to the
@@ -95,114 +97,159 @@ class BottomSheetTrialOffer : BottomSheetDialogFragment() {
         applyTextOverride(binding.btnTryNow, texts.ctaText)
         applyTextOverride(binding.tvPurchaseCoins, texts.secondaryLinkText)
 
-        val videoId = TrialOfferConfigCache.extractVideoId(youtubeUrl)
-        if (videoId == null) {
-            // Either no admin asset yet OR the URL didn't parse — leave the
-            // static placeholder drawable in flHeroContainer untouched.
+        if (videoUrl.isNullOrBlank()) {
+            // Admin hasn't uploaded a video for this language yet — leave
+            // the static placeholder drawable in flHeroContainer untouched.
             return
         }
+        // Skip reload if the URL is unchanged — avoids the player stutter
+        // when the background refresh returns the same value we already
+        // rendered from cache.
+        if (videoUrl == currentVideoUrl && heroVideoView != null) return
+        currentVideoUrl = videoUrl
 
-        // Resize the hero container to match the video's aspect ratio so
-        // there are no letterbox/pillarbox bars and no cropping. Detected
-        // from URL pattern: shorts → 9:16, everything else → 16:9 (the
-        // overwhelming default for non-shorts uploads).
-        val aspectRatio = aspectRatioFor(youtubeUrl)
-        resizeHeroContainerToRatio(aspectRatio)
-
-        // Build (or reuse) a WebView inside flHeroContainer.
         val container = binding.flHeroContainer
-        val web = heroWebView ?: WebView(requireContext()).also {
+        val video = heroVideoView ?: VideoView(requireContext()).also {
             it.layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
-            it.setBackgroundColor(0x00000000)
-            it.settings.javaScriptEnabled = true
-            it.settings.mediaPlaybackRequiresUserGesture = false
-            it.settings.domStorageEnabled = true
-            it.webViewClient = WebViewClient()
             container.removeAllViews()
             container.addView(it)
-            // Transparent click-blocker on top so taps can't surface
-            // YouTube's controls / share / "Watch on YouTube" links.
-            // The video stays ambient — autoplay + mute + loop, no
-            // interaction. Without this overlay any tap brings the
-            // YouTube UI back even with controls=0.
-            val touchBlocker = View(requireContext()).apply {
-                layoutParams = FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                    FrameLayout.LayoutParams.MATCH_PARENT
-                )
-                setOnTouchListener { _, _ -> true }
-            }
-            container.addView(touchBlocker)
-            // Black mask shown for ~1.6s on first paint so the YouTube
-            // chrome flash (title bar, controls) is hidden until controls=0
-            // takes effect and the player auto-hides its UI.
-            val mask = View(requireContext()).apply {
-                layoutParams = FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                    FrameLayout.LayoutParams.MATCH_PARENT
-                )
-                setBackgroundColor(0xFF000000.toInt())
-                isClickable = false
-            }
-            container.addView(mask)
-            heroLoadingMask = mask
-            heroWebView = it
+            heroVideoView = it
         }
-        // Reset mask to opaque on every config change so re-bound
-        // sheets don't show the chrome flash.
-        heroLoadingMask?.let { mask ->
-            mask.alpha = 1f
-            mask.animate().alpha(0f).setStartDelay(1600L).setDuration(220L).start()
+        // Stack a placeholder cover ON TOP of the VideoView so the user
+        // sees the gradient placeholder (not the VideoView's opaque-black
+        // SurfaceView) while MediaPlayer prepares. We can't hide the
+        // VideoView itself — SurfaceView destroys its surface when
+        // INVISIBLE, which blocks MediaPlayer from ever firing prepared
+        // on subsequent fragment instances.
+        val cover = heroPlaceholderCover ?: View(requireContext()).also {
+            it.layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+            // Block taps so the user can't interact with the (audio-only)
+            // VideoView underneath while we're showing the placeholder.
+            it.isClickable = true
+            container.addView(it)
+            heroPlaceholderCover = it
         }
+        // Prefer the cached first-frame poster as the cover so the swap
+        // from cover → playback is imperceptible (same image, then it
+        // moves). Falls back to the container's gradient drawable when
+        // the poster hasn't been extracted yet (first-ever prefetch run).
+        val poster = TrialOfferConfigCache.getCachedPosterFile(requireContext(), videoUrl)
+        cover.background = if (poster != null) {
+            BitmapFactory.decodeFile(poster.absolutePath)?.let {
+                BitmapDrawable(resources, it)
+            } ?: container.background
+        } else {
+            container.background
+        }
+        // Ensure the cover is on top of the VideoView and starts fully
+        // opaque — re-bound sheets must show the placeholder again while
+        // their MediaPlayer prepares.
+        cover.bringToFront()
+        cover.alpha = 1f
+        cover.visibility = View.VISIBLE
 
-        // YouTube IFrame Player API — start muted (browsers/WebView block
-        // autoplay with audio), then unmute programmatically once the
-        // player is ready so the user actually hears the trial pitch.
-        // Loop via loop+playlist trick. UI-hiding flags YouTube still
-        // respects: no controls, no fullscreen, no captions overlay by
-        // default, no annotations, no keyboard input, no related grid.
-        val embedHtml = """
-            <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
-            <style>html,body{margin:0;padding:0;background:#000;height:100%;width:100%;overflow:hidden;}
-            #player,iframe{position:absolute;top:0;left:0;width:100%!important;height:100%!important;border:0;}</style>
-            </head><body>
-            <div id="player"></div>
-            <script src="https://www.youtube.com/iframe_api"></script>
-            <script>
-            var player;
-            function onYouTubeIframeAPIReady() {
-              player = new YT.Player('player', {
-                width: '100%', height: '100%',
-                videoId: '$videoId',
-                playerVars: {
-                  autoplay: 1, mute: 1, loop: 1, playlist: '$videoId',
-                  controls: 0, modestbranding: 1, playsinline: 1,
-                  rel: 0, fs: 0, disablekb: 1,
-                  iv_load_policy: 3, cc_load_policy: 0
-                },
-                events: {
-                  onReady: function(e) {
-                    // Autoplay started muted (browser policy). Unmute now
-                    // that playback is registered so the user actually
-                    // hears the trial pitch. Brief setTimeout lets the
-                    // muted-play heuristic stick first.
-                    setTimeout(function() {
-                      try { player.unMute(); player.setVolume(100); } catch (e) {}
-                    }, 250);
-                  }
-                }
-              });
+        // Autoplay looping at device media volume. Earlier revisions muted
+        // this with setVolume(0,0) to mirror the previous YouTube embed's
+        // mute=1 — product called for audio on, so MediaPlayer now uses
+        // its default volume against STREAM_MUSIC.
+        video.setOnInfoListener { _, what, _ ->
+            // MEDIA_INFO_VIDEO_RENDERING_START fires the moment the first
+            // frame is actually painted onto the SurfaceView — fade the
+            // placeholder cover then so the swap is smooth.
+            if (what == MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START) {
+                fadeOutCover()
             }
-            </script>
-            </body></html>
-        """.trimIndent()
-        // baseURL must be a non-youtube origin so the iframe is cross-origin
-        // to the parent document — same-origin embeds (baseURL=youtube.com)
-        // trigger YouTube's self-embed protection (error 152).
-        web.loadDataWithBaseURL("https://hima.app/", embedHtml, "text/html", "utf-8", null)
+            false
+        }
+        video.setOnPreparedListener { mp ->
+            mp.isLooping = true
+            // Show the video at its natural aspect ratio — never stretch
+            // or crop. The hero container shrinks to match (see
+            // resizeHeroContainerToRatio below) so portrait 9:16 clips
+            // appear as a centered narrower frame and landscape 16:9
+            // fills the sheet width.
+            val w = mp.videoWidth
+            val h = mp.videoHeight
+            if (w > 0 && h > 0) {
+                resizeHeroContainerToRatio(w.toFloat() / h.toFloat())
+            }
+            video.start()
+            // Fallback: some devices / codecs never fire
+            // MEDIA_INFO_VIDEO_RENDERING_START (e.g. emulators with broken
+            // OMX). After prepare we wait briefly for the first frame to
+            // paint, then drop the cover regardless.
+            cover.postDelayed({
+                if (isAdded && cover.alpha > 0f) fadeOutCover()
+            }, 600L)
+        }
+        video.setOnErrorListener { _, _, _ ->
+            // Network/codec failure — leave the placeholder cover up so
+            // the user sees the gradient instead of a black surface, and
+            // remove the (broken) VideoView. Return true so MediaPlayer
+            // doesn't post the system "Can't play this video" dialog.
+            container.removeView(video)
+            heroVideoView = null
+            currentVideoUrl = null
+            true
+        }
+        // Prefer the disk-cached copy when available — playback starts
+        // in <1 s instead of the 5–7 s the user reported while streaming
+        // the 20+ MB clip from demohima. Falls back to the remote URL
+        // when the prefetch hasn't completed (or failed).
+        val localFile = TrialOfferConfigCache.getCachedVideoFile(requireContext(), videoUrl)
+        if (localFile != null) {
+            video.setVideoURI(Uri.fromFile(localFile))
+        } else {
+            video.setVideoURI(Uri.parse(videoUrl))
+        }
+    }
+
+    /**
+     * Resize the hero container to match the source video's aspect
+     * ratio. Width is capped at the parent's available width; height
+     * is capped at ~360 dp so a portrait 9:16 clip never pushes the
+     * sheet past ~70 % of the viewport. Within those caps the video
+     * shows at its natural aspect — no stretching, no cropping.
+     */
+    private fun resizeHeroContainerToRatio(ratio: Float) {
+        if (!::binding.isInitialized) return
+        val container = binding.flHeroContainer
+        container.post {
+            if (!::binding.isInitialized) return@post
+            val parent = container.parent as? View ?: return@post
+            val parentWidth = parent.width.coerceAtLeast(container.width)
+            if (parentWidth <= 0) return@post
+            val availableWidth = parentWidth - parent.paddingLeft - parent.paddingRight
+            val maxHeightPx = (360f * resources.displayMetrics.density).toInt()
+            var height = (availableWidth / ratio).toInt()
+            var width = availableWidth
+            if (height > maxHeightPx) {
+                height = maxHeightPx
+                width = (maxHeightPx * ratio).toInt()
+            }
+            val params = container.layoutParams
+            if (params.height != height || params.width != width) {
+                params.height = height
+                params.width = width
+                container.layoutParams = params
+            }
+        }
+    }
+
+    private fun fadeOutCover() {
+        val cover = heroPlaceholderCover ?: return
+        if (cover.alpha == 0f) return
+        cover.animate()
+            .alpha(0f)
+            .setDuration(200L)
+            .withEndAction { cover.visibility = View.INVISIBLE }
+            .start()
     }
 
     /**
@@ -217,18 +264,6 @@ class BottomSheetTrialOffer : BottomSheetDialogFragment() {
     }
 
     /**
-     * Aspect ratio (width / height) inferred from the YouTube URL pattern:
-     * `/shorts/...` is always 9:16, everything else is treated as 16:9 —
-     * the dominant default for regular YouTube uploads. Anything outside
-     * those two ratios (rare 4:3 / 1:1 / vertical-non-shorts) will still
-     * letterbox slightly; admins are expected to upload the right format.
-     */
-    private fun aspectRatioFor(url: String?): Float {
-        val u = url?.lowercase() ?: return 16f / 9f
-        return if (u.contains("/shorts/")) 9f / 16f else 16f / 9f
-    }
-
-    /**
      * Resize the hero container so width:height matches the supplied
      * aspect ratio, while capping height so the rest of the sheet (title,
      * badge, benefits card, CTA, link) always fits on screen without the
@@ -240,56 +275,29 @@ class BottomSheetTrialOffer : BottomSheetDialogFragment() {
      * frame instead of stretching the sheet vertically. Container has
      * start+end constraints to parent, so a narrower width auto-centers.
      */
-    private fun resizeHeroContainerToRatio(ratio: Float) {
-        if (!::binding.isInitialized) return
-        val container = binding.flHeroContainer
-        container.post {
-            if (!::binding.isInitialized) return@post
-            val parent = container.parent as? View ?: return@post
-            val parentWidth = parent.width.coerceAtLeast(container.width)
-            if (parentWidth <= 0) return@post
-
-            // Available width inside the parent's horizontal padding.
-            val availableWidth = parentWidth - parent.paddingLeft - parent.paddingRight
-            // Cap hero at 40% of screen height — leaves ~60% for the
-            // rest of the sheet on every phone size, so the sheet never
-            // becomes taller than viewport and never scrolls.
-            val maxHeight = (resources.displayMetrics.heightPixels * 0.40f).toInt()
-
-            var height = (availableWidth / ratio).toInt()
-            var width = availableWidth
-            if (height > maxHeight) {
-                height = maxHeight
-                width = (maxHeight * ratio).toInt()
-            }
-
-            val params = container.layoutParams
-            if (params.height != height || params.width != width) {
-                params.height = height
-                params.width = width
-                container.layoutParams = params
-            }
-        }
-    }
-
     override fun onPause() {
         super.onPause()
-        heroWebView?.onPause()
+        // VideoView pauses cleanly via pause(); MediaPlayer keeps its
+        // position so onResume() resumes from where the loop was.
+        heroVideoView?.pause()
     }
 
     override fun onResume() {
         super.onResume()
-        heroWebView?.onResume()
+        heroVideoView?.start()
     }
 
     override fun onDestroyView() {
-        // Tear down the WebView properly to avoid leaks.
-        heroWebView?.let {
-            it.loadUrl("about:blank")
+        heroVideoView?.let {
+            it.stopPlayback()
             (it.parent as? ViewGroup)?.removeView(it)
-            it.destroy()
         }
-        heroWebView = null
+        heroPlaceholderCover?.let {
+            (it.parent as? ViewGroup)?.removeView(it)
+        }
+        heroVideoView = null
+        heroPlaceholderCover = null
+        currentVideoUrl = null
         super.onDestroyView()
     }
 

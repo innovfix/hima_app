@@ -441,15 +441,25 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
     fun getCallId() {
         if (designOnly) return // UI-only: skip API
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        var userId = userData?.id
-        receiverId?.let { receiverId ->
-            userId?.let { userId ->
-                // For female calling male, use callMaleUser API
-                Log.d("callMaleUserApi","$userId $receiverId")
-                femaleUsersViewModel.callMaleUser(userId, receiverId, callType!!, 0)
-            }
-            callIdObserver()
+        val myId = userData?.id
+        // Guard: missed-call-tap with a missing/synthetic sender used to fire
+        // callMaleUser(myId, -1, ...) and silently spin. Bail out visibly.
+        if (myId == null || receiverId <= 0 || callType.isNullOrBlank()) {
+            Log.e(
+                "FemaleCallConnectingActivity",
+                "getCallId aborted: myId=$myId receiverId=$receiverId callType=$callType"
+            )
+            Toast.makeText(
+                this,
+                "Couldn't start the call. Please try again from Recent.",
+                Toast.LENGTH_LONG
+            ).show()
+            abortToMain()
+            return
         }
+        Log.d("callMaleUserApi", "$myId $receiverId")
+        femaleUsersViewModel.callMaleUser(myId, receiverId, callType!!, 0)
+        callIdObserver()
     }
 
     private fun callIdObserver() {
@@ -457,7 +467,7 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val myAvatar = userData?.image
         val myname = userData?.name
-        
+
         femaleUsersViewModel.callMaleUserResponseLiveData.observe(this, Observer {
             if (it != null && it.success) {
                 callId = it.data?.call_id ?: 0
@@ -479,6 +489,13 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                 // success=true back, the male IS reachable per backend
                 // rules. Don't second-guess the server on a column that
                 // doesn't mean what this check thinks it means.
+                //
+                // NOTE for Perumal: your 7a0758a8 commit re-added this gate
+                // to surface missed-call callback failures. The intent is
+                // good but the mechanism (audio_status on male) is broken
+                // because males have no UI to set that column — it stays 0
+                // and re-blocks all F→M calls. Detect failure via timeout or
+                // a new backend field instead.
 
                 if (callId != 0) {
                     prefetchAgoraToken(channelName)
@@ -487,9 +504,56 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                     // I039 — register outgoing call with Telecom so a SIM / WhatsApp
                     // call mid-Hima triggers the system second-call UI.
                     registerOutgoingWithTelecom()
+                } else {
+                    Toast.makeText(
+                        this@FemaleCallConnectingActivity,
+                        "Couldn't start the call. Please try again.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    abortToMain()
                 }
+            } else {
+                val message = it?.message?.takeIf { msg -> msg.isNotBlank() }
+                    ?: "Couldn't reach this user right now. Please try again."
+                Toast.makeText(
+                    this@FemaleCallConnectingActivity,
+                    message,
+                    Toast.LENGTH_LONG
+                ).show()
+                abortToMain()
             }
         })
+
+        // Without this, network failures / HTTP errors leave the connecting
+        // screen spinning forever — exactly the missed-call-tap bug.
+        femaleUsersViewModel.callMaleUserErrorLiveData.observe(this, Observer { err ->
+            if (err.isNullOrBlank()) return@Observer
+            Toast.makeText(
+                this@FemaleCallConnectingActivity,
+                err,
+                Toast.LENGTH_LONG
+            ).show()
+            abortToMain()
+        })
+    }
+
+    /**
+     * Stop the connecting UI and return to MainActivity. Used by every
+     * failure path in [callIdObserver] so the user never gets stranded on a
+     * spinner when the male-call API rejects the request.
+     */
+    private fun abortToMain() {
+        isRunning = false
+        cancelTimeoutTracking()
+        com.gmwapp.hima.agora.telecom.HimaTelecomManager.endActiveCall(
+            android.telecom.DisconnectCause.LOCAL
+        )
+        FcmUtils.clearCallStatus()
+        FcmUtils.isUserAvailable = 0
+        val intent = Intent(this@FemaleCallConnectingActivity, MainActivity::class.java)
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        startActivity(intent)
+        finish()
     }
 
     fun observeNotificationResponse() {

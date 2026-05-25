@@ -31,11 +31,11 @@
             android:id="@+id/tvTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/_16sdp"
+            android:layout_marginTop="@dimen/_12sdp"
             android:fontFamily="@font/poppins_semibold"
             android:text="Start your 10-day free trial"
             android:textColor="@color/black"
-            android:textSize="20sp"
+            android:textSize="17sp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/vDragHandle" />
@@ -44,12 +44,12 @@
             android:id="@+id/flPriceBadge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/_10sdp"
+            android:layout_marginTop="@dimen/_6sdp"
             android:background="@drawable/bg_trial_price_badge"
-            android:paddingStart="@dimen/_18sdp"
-            android:paddingEnd="@dimen/_18sdp"
-            android:paddingTop="@dimen/_6sdp"
-            android:paddingBottom="@dimen/_6sdp"
+            android:paddingStart="@dimen/_14sdp"
+            android:paddingEnd="@dimen/_14sdp"
+            android:paddingTop="@dimen/_4sdp"
+            android:paddingBottom="@dimen/_4sdp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/tvTitle">
@@ -61,14 +61,14 @@
                 android:fontFamily="@font/poppins_semibold"
                 android:text="₹1"
                 android:textColor="@color/black"
-                android:textSize="28sp" />
+                android:textSize="22sp" />
         </FrameLayout>
 
         <FrameLayout
             android:id="@+id/flHeroContainer"
             android:layout_width="match_parent"
             android:layout_height="@dimen/_200sdp"
-            android:layout_marginTop="@dimen/_14sdp"
+            android:layout_marginTop="@dimen/_10sdp"
             android:background="@drawable/bg_trial_hero_placeholder"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
@@ -78,13 +78,13 @@
             android:id="@+id/llBenefits"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/_14sdp"
+            android:layout_marginTop="@dimen/_10sdp"
             android:background="@drawable/bg_trial_benefits_card"
             android:orientation="vertical"
-            android:paddingStart="@dimen/_16sdp"
-            android:paddingEnd="@dimen/_16sdp"
-            android:paddingTop="@dimen/_14sdp"
-            android:paddingBottom="@dimen/_12sdp"
+            android:paddingStart="@dimen/_14sdp"
+            android:paddingEnd="@dimen/_14sdp"
+            android:paddingTop="@dimen/_10sdp"
+            android:paddingBottom="@dimen/_8sdp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/flHeroContainer">
@@ -96,8 +96,8 @@
                 android:orientation="horizontal">
 
                 <ImageView
-                    android:layout_width="@dimen/_20sdp"
-                    android:layout_height="@dimen/_20sdp"
+                    android:layout_width="@dimen/_18sdp"
+                    android:layout_height="@dimen/_18sdp"
                     android:src="@drawable/ic_chat_bubble"
                     app:tint="@color/black"
                     tools:ignore="ContentDescription" />
@@ -109,19 +109,19 @@
                     android:layout_marginStart="@dimen/_12sdp"
                     android:text="Unlimited Chats"
                     android:textColor="@color/black"
-                    android:textSize="15sp" />
+                    android:textSize="13sp" />
             </LinearLayout>
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/_10sdp"
+                android:layout_marginTop="@dimen/_6sdp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
                 <ImageView
-                    android:layout_width="@dimen/_20sdp"
-                    android:layout_height="@dimen/_20sdp"
+                    android:layout_width="@dimen/_18sdp"
+                    android:layout_height="@dimen/_18sdp"
                     android:src="@drawable/ic_phone"
                     app:tint="@color/black"
                     tools:ignore="ContentDescription" />
@@ -133,7 +133,7 @@
                     android:layout_marginStart="@dimen/_12sdp"
                     android:text="Daily Free 1 Call"
                     android:textColor="@color/black"
-                    android:textSize="15sp" />
+                    android:textSize="13sp" />
             </LinearLayout>
 
             <TextView
@@ -141,23 +141,23 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:layout_marginTop="@dimen/_10sdp"
+                android:layout_marginTop="@dimen/_6sdp"
                 android:text="Autopay ₹299 every 10 days unless cancelled"
                 android:textColor="#6B6B6B"
-                android:textSize="11sp" />
+                android:textSize="10sp" />
         </LinearLayout>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnTryNow"
             android:layout_width="match_parent"
-            android:layout_height="@dimen/_48sdp"
-            android:layout_marginTop="@dimen/_16sdp"
+            android:layout_height="@dimen/_44sdp"
+            android:layout_marginTop="@dimen/_12sdp"
             android:backgroundTint="@color/pink"
             android:fontFamily="@font/poppins_semibold"
             android:text="Try 10 Days — ₹1"
             android:textAllCaps="false"
             android:textColor="@color/white"
-            android:textSize="16sp"
+            android:textSize="15sp"
             app:cornerRadius="28dp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
@@ -167,12 +167,12 @@
             android:id="@+id/tvPurchaseCoins"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/_10sdp"
-            android:padding="@dimen/_6sdp"
+            android:layout_marginTop="@dimen/_6sdp"
+            android:padding="@dimen/_4sdp"
             android:fontFamily="@font/poppins_medium"
             android:text="or purchase coins"
             android:textColor="@color/pink"
-            android:textSize="13sp"
+            android:textSize="12sp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/btnTryNow" />
