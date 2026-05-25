@@ -10,15 +10,13 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
-import android.media.AudioAttributes
-import android.media.RingtoneManager
 import android.os.Build
-import android.provider.Settings
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
+import androidx.core.content.ContextCompat
 import androidx.core.content.LocusIdCompat
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
@@ -29,11 +27,14 @@ import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
-import com.gmwapp.hima.activities.ChatActivityInHouse
 import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.agora.CallActionReceiver
 import com.gmwapp.hima.agora.female.FemaleCallAcceptActivity
+import com.gmwapp.hima.agora.female.FemaleCallConnectingActivity
 import com.gmwapp.hima.agora.male.MaleCallAcceptActivity
+import com.gmwapp.hima.agora.male.MaleCallConnectingActivity
+import com.gmwapp.hima.constants.DConstants
+import java.util.concurrent.TimeUnit
 
 /**
  * Single source of truth for both incoming and missed call notifications.
@@ -41,19 +42,17 @@ import com.gmwapp.hima.agora.male.MaleCallAcceptActivity
  * - [showIncoming] posts a `NotificationCompat.CallStyle.forIncomingCall`
  *   heads-up identical to the FCM path so an OneSignal incoming-call push
  *   renders the same Answer/Decline UI as the FCM-driven one.
- * - [showMissed] posts a quieter rich notification with `Call back` + `Message`
- *   actions on a dedicated default-importance channel (vibrate, no ringer).
+ * - [showMissed] posts a [NotificationCompat.MessagingStyle] notification on the
+ *   same channel/group as chat so it matches chat message notifications (tap
+ *   to call back; no separate Call back / Message actions).
  */
 object CallNotifications {
 
     private const val TAG = "HimaIncomingCall"
+    private const val MISSED_CALL_DIAG_TAG = "MissedCallDiag"
 
-    /**
-     * Mirrors [com.gmwapp.hima.agora.MyFirebaseMessagingService.CALLS_NOTIFICATION_CHANNEL_ID].
-     * v3 → v4: OS plays the channel ringtone (B147).
-     * v4 → v5: removed bypassDnd so system DND silences the ringtone (B199).
-     */
-    private const val CALLS_NOTIFICATION_CHANNEL_ID = "calls_v5"
+    /** Mirrors [com.gmwapp.hima.agora.MyFirebaseMessagingService.CALLS_NOTIFICATION_CHANNEL_ID]. */
+    private const val CALLS_NOTIFICATION_CHANNEL_ID = "calls_v3"
     const val INCOMING_CALL_NOTIFICATION_ID = 1
 
     /**
@@ -72,6 +71,36 @@ object CallNotifications {
     /** OR'd with peerId so missed-call ids don't collide with chat (`0x40000000`) or call (`0x00000001`). */
     private const val MISSED_CALL_ID_MASK = 0x60000000
 
+    /**
+     * Strips "Missed call from …" / similar prefixes from server or OneSignal title
+     * so [Person] name and avatar initial match the real peer (e.g. "Kishore12").
+     * Safe to call on already-clean names (idempotent).
+     */
+    fun normalizeMissedCallCallerName(raw: String?): String {
+        if (raw.isNullOrBlank()) return ""
+        val cleaned = raw.trim().removeSuffix("…").trim()
+        // Extract the caller name AFTER "missed call from" / "missed call:" /
+        // "missed call - " anywhere in the string. Crucial because the server
+        // sends e.g. "📞 Missed call from Kishore12" (phone emoji + space prefix),
+        // which a `^missed\s+call\s+from` strip-style regex would never match.
+        val extract = Regex(
+            "missed\\s+call(?:\\s+from)?\\s*[:\\-]?\\s+(.+?)\\s*\$",
+            RegexOption.IGNORE_CASE
+        ).find(cleaned)?.groupValues?.getOrNull(1)
+            ?.trim()?.removeSuffix("…")?.trim()
+        if (!extract.isNullOrBlank()) return extract
+        // No "missed call …" pattern matched — strip any leading non-letter /
+        // non-digit characters (emoji, symbols, whitespace) and return.
+        return cleaned
+            .replace(Regex("^[^\\p{L}\\p{N}]+"), "")
+            .trim()
+            .removeSuffix("…")
+            .trim()
+    }
+
+    /** T26-style cache: avoid pushDynamicShortcut on every missed-call for same peer. */
+    private val missedCallPushedShortcutIds = mutableSetOf<String>()
+
     data class IncomingPayload(
         val isMale: Boolean,
         val callType: String?,        // "audio" / "video"
@@ -86,24 +115,113 @@ object CallNotifications {
         val callType: String?,        // "audio" / "video"
         val senderId: Int,
         val callerName: String,
-        val callerImage: String?
+        val callerImage: String?,
+        /**
+         * `true` when [senderId] was synthesised from the caller name because
+         * the OneSignal push didn't carry a real peer id. Used by [showMissed]
+         * to route the tap to MainActivity (instead of a wrong chat thread)
+         * and to skip the conversation shortcut.
+         */
+        val isSynthetic: Boolean = false
     )
 
     /**
-     * Build (but don't post) the incoming-call CallStyle notification.
-     * Public so [com.gmwapp.hima.agora.FcmCallService] can hand the same
-     * notification to `startForeground` (B022) instead of posting a parallel
-     * one that would either duplicate or downgrade the user-visible UI.
-     *
-     * The legacy notify path used by OneSignal/BaseApplication still goes
-     * through [showIncoming], which delegates to this builder.
+     * Builds (but does not post) an incoming-call CallStyle notification.
+     * Used by [FcmCallService] which needs the [Notification] for
+     * [Service.startForeground]; for normal "just post it" callers use
+     * [showIncoming] instead.
      */
     fun buildIncomingCallNotification(
         context: Context,
         payload: IncomingPayload,
-        callerAvatar: Bitmap? = null,
+        avatar: Bitmap? = null
     ): Notification {
         ensureCallsChannel(context)
+        val isMale = payload.isMale
+        val targetClass = if (isMale) MaleCallAcceptActivity::class.java else FemaleCallAcceptActivity::class.java
+        val contentReq = if (isMale) 201 else 101
+        val acceptAction = if (isMale) "ACTION_ACCEPT_CALL_MALE" else "ACTION_ACCEPT_CALL"
+        val rejectAction = if (isMale) "ACTION_REJECT_CALL_MALE" else "ACTION_REJECT_CALL"
+        val acceptReq = if (isMale) 202 else 102
+        val rejectReq = if (isMale) 203 else 103
+
+        val tapIntent = Intent(context, targetClass).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("CALL_TYPE", payload.callType)
+            putExtra("SENDER_ID", payload.senderId)
+            putExtra("CHANNEL_NAME", payload.channelName)
+            putExtra("CALL_ID", payload.callId)
+            putExtra("Caller_NAME", payload.callerName)
+            putExtra("Caller_Image", payload.callerImage.orEmpty())
+        }
+        val contentPi = PendingIntent.getActivity(
+            context, contentReq, tapIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val acceptIntent = Intent(context, CallActionReceiver::class.java).apply {
+            action = acceptAction
+            putExtra("CALL_TYPE", payload.callType)
+            putExtra("SENDER_ID", payload.senderId)
+            putExtra("CHANNEL_NAME", payload.channelName)
+            putExtra("CALL_ID", payload.callId)
+        }
+        val acceptPi = PendingIntent.getBroadcast(
+            context, acceptReq, acceptIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val rejectIntent = Intent(context, CallActionReceiver::class.java).apply {
+            action = rejectAction
+            putExtra("CALL_TYPE", payload.callType)
+            putExtra("SENDER_ID", payload.senderId)
+            putExtra("CHANNEL_NAME", payload.channelName)
+            putExtra("CALL_ID", payload.callId)
+        }
+        val rejectPi = PendingIntent.getBroadcast(
+            context, rejectReq, rejectIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val personBuilder = Person.Builder()
+            .setName(payload.callerName)
+            .setImportant(true)
+        if (avatar != null) personBuilder.setIcon(IconCompat.createWithBitmap(avatar))
+        val caller = personBuilder.build()
+
+        return NotificationCompat.Builder(context, CALLS_NOTIFICATION_CHANNEL_ID)
+            .setSmallIcon(R.drawable.notification_icon)
+            .setStyle(
+                NotificationCompat.CallStyle.forIncomingCall(caller, rejectPi, acceptPi)
+            )
+            .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setContentIntent(contentPi)
+            .setFullScreenIntent(contentPi, true)
+            .setOngoing(true)
+            .setAutoCancel(false)
+            .setTimeoutAfter(35_000L)
+            .addPerson(caller)
+            .build()
+    }
+
+    fun showIncoming(context: Context, payload: IncomingPayload) {
+        ensureCallsChannel(context)
+        val chImp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            (context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)
+                ?.getNotificationChannel(CALLS_NOTIFICATION_CHANNEL_ID)?.importance
+        } else null
+        Log.d(
+            TAG,
+            "showIncoming: begin isMale=${payload.isMale} callId=${payload.callId} senderId=${payload.senderId} calls_v3_importance=$chImp"
+        )
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val granted = ActivityCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+            Log.d(TAG, "showIncoming: POST_NOTIFICATIONS granted=$granted")
+        }
 
         val isMale = payload.isMale
         val callType = payload.callType
@@ -115,6 +233,7 @@ object CallNotifications {
 
         val targetClass = if (isMale) MaleCallAcceptActivity::class.java else FemaleCallAcceptActivity::class.java
         val contentReq = if (isMale) 201 else 101
+        val acceptAction = if (isMale) "ACTION_ACCEPT_CALL_MALE" else "ACTION_ACCEPT_CALL"
         val rejectAction = if (isMale) "ACTION_REJECT_CALL_MALE" else "ACTION_REJECT_CALL"
         val acceptReq = if (isMale) 202 else 102
         val rejectReq = if (isMale) 203 else 103
@@ -129,26 +248,23 @@ object CallNotifications {
             putExtra("Caller_Image", receiverImg)
         }
         val contentPi = PendingIntent.getActivity(
-            context, contentReq, tapIntent,
+            context,
+            contentReq,
+            tapIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // B021: Accept routes through the accept activity (singleTop) with
-        // AUTO_ACCEPT=true instead of through CallActionReceiver — a
-        // BroadcastReceiver's startActivity() is silently blocked under some
-        // BAL rules when the app was killed before notification tap.
-        val acceptIntent = Intent(context, targetClass).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        val acceptIntent = Intent(context, CallActionReceiver::class.java).apply {
+            action = acceptAction
             putExtra("CALL_TYPE", callType)
             putExtra("SENDER_ID", senderId)
             putExtra("CHANNEL_NAME", channelName)
             putExtra("CALL_ID", callId)
-            putExtra("Caller_NAME", receiverName)
-            putExtra("Caller_Image", receiverImg)
-            putExtra("AUTO_ACCEPT", true)
         }
-        val acceptPi = PendingIntent.getActivity(
-            context, acceptReq, acceptIntent,
+        val acceptPi = PendingIntent.getBroadcast(
+            context,
+            acceptReq,
+            acceptIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
@@ -160,55 +276,40 @@ object CallNotifications {
             putExtra("CALL_ID", callId)
         }
         val rejectPi = PendingIntent.getBroadcast(
-            context, rejectReq, rejectIntent,
+            context,
+            rejectReq,
+            rejectIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val person = Person.Builder()
+        val caller = Person.Builder()
             .setName(receiverName)
             .setImportant(true)
-            .apply { if (callerAvatar != null) setIcon(IconCompat.createWithBitmap(callerAvatar)) }
             .build()
 
-        return NotificationCompat.Builder(context, CALLS_NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(R.drawable.notification_icon)
-            .setStyle(NotificationCompat.CallStyle.forIncomingCall(person, rejectPi, acceptPi))
-            .setCategory(NotificationCompat.CATEGORY_CALL)
-            .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setContentIntent(contentPi)
-            .setFullScreenIntent(contentPi, true)
-            .setOngoing(true)
-            .setAutoCancel(false)
-            .setTimeoutAfter(35_000L)
-            // Avatar-refresh re-notify (Glide) updates the same tag+id;
-            // setOnlyAlertOnce keeps the OS from re-triggering the channel
-            // ringtone on the second post (would double-ring on AOSP).
-            .setOnlyAlertOnce(true)
-            .addPerson(person)
-            .build()
-    }
-
-    fun showIncoming(context: Context, payload: IncomingPayload) {
-        val chImp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            (context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)
-                ?.getNotificationChannel(CALLS_NOTIFICATION_CHANNEL_ID)?.importance
-        } else null
-        Log.d(
-            TAG,
-            "showIncoming: begin isMale=${payload.isMale} callId=${payload.callId} senderId=${payload.senderId} calls_v4_importance=$chImp"
-        )
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val granted = ActivityCompat.checkSelfPermission(
-                context,
-                Manifest.permission.POST_NOTIFICATIONS
-            ) == PackageManager.PERMISSION_GRANTED
-            Log.d(TAG, "showIncoming: POST_NOTIFICATIONS granted=$granted")
+        fun buildNotification(person: Person): Notification {
+            return NotificationCompat.Builder(context, CALLS_NOTIFICATION_CHANNEL_ID)
+                .setSmallIcon(R.drawable.notification_icon)
+                .setStyle(
+                    NotificationCompat.CallStyle.forIncomingCall(
+                        person,
+                        rejectPi,
+                        acceptPi
+                    )
+                )
+                .setCategory(NotificationCompat.CATEGORY_CALL)
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setContentIntent(contentPi)
+                .setFullScreenIntent(contentPi, true)
+                .setOngoing(true)
+                .setAutoCancel(false)
+                .setTimeoutAfter(35_000L)
+                .addPerson(person)
+                .build()
         }
 
-        val notifTag = payload.callId.toString()
-        val receiverImg = payload.callerImage.orEmpty()
+        val notifTag = callId.toString()
         try {
             Log.d(
                 TAG,
@@ -217,37 +318,40 @@ object CallNotifications {
             NotificationManagerCompat.from(context).notify(
                 notifTag,
                 INCOMING_CALL_NOTIFICATION_ID,
-                buildIncomingCallNotification(context, payload)
+                buildNotification(caller)
             )
             Log.d(
                 TAG,
-                "showIncoming: CallStyle notification posted (isMale=${payload.isMale}, tag=$notifTag, id=$INCOMING_CALL_NOTIFICATION_ID)"
+                "showIncoming: CallStyle notification posted (isMale=$isMale, tag=$notifTag, id=$INCOMING_CALL_NOTIFICATION_ID)"
             )
 
             // Async avatar refresh — re-notify with bitmap once Glide resolves.
-            if (receiverImg.isNotBlank()) {
-                Glide.with(context.applicationContext)
-                    .asBitmap()
-                    .load(receiverImg)
-                    .apply(RequestOptions.circleCropTransform())
-                    .into(object : CustomTarget<Bitmap>() {
-                        override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-                            val currentTag = BaseApplication.getInstance()?.getLastIncomingCallTag()
-                            if (currentTag != notifTag) {
-                                Log.d(TAG, "avatar refresh skipped: call $notifTag no longer pending (current=$currentTag)")
-                                return
-                            }
-                            NotificationManagerCompat.from(context.applicationContext).notify(
-                                notifTag,
-                                INCOMING_CALL_NOTIFICATION_ID,
-                                buildIncomingCallNotification(context, payload, resource)
-                            )
-                            Log.d(TAG, "showIncoming: refreshed with caller avatar bitmap")
+            Glide.with(context.applicationContext)
+                .asBitmap()
+                .load(receiverImg)
+                .apply(RequestOptions.circleCropTransform())
+                .into(object : CustomTarget<Bitmap>() {
+                    override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                        val currentTag = BaseApplication.getInstance()?.getLastIncomingCallTag()
+                        if (currentTag != notifTag) {
+                            Log.d(TAG, "avatar refresh skipped: call $notifTag no longer pending (current=$currentTag)")
+                            return
                         }
+                        val personWithIcon = Person.Builder()
+                            .setName(receiverName)
+                            .setImportant(true)
+                            .setIcon(IconCompat.createWithBitmap(resource))
+                            .build()
+                        NotificationManagerCompat.from(context.applicationContext).notify(
+                            notifTag,
+                            INCOMING_CALL_NOTIFICATION_ID,
+                            buildNotification(personWithIcon)
+                        )
+                        Log.d(TAG, "showIncoming: refreshed with caller avatar bitmap")
+                    }
 
-                        override fun onLoadCleared(placeholder: Drawable?) {}
-                    })
-            }
+                    override fun onLoadCleared(placeholder: Drawable?) {}
+                })
         } catch (e: SecurityException) {
             Log.e(TAG, "showIncoming: SecurityException ${e.message}", e)
         } catch (e: Exception) {
@@ -261,36 +365,63 @@ object CallNotifications {
      * the caller as a `Person` (avatar + name) and a single message line of
      * "Missed audio call. Tap to call back." (or video).
      *
-     * Tap opens the chat thread for that peer. There are no inline action
-     * buttons — the heads-up should be indistinguishable from a chat message
-     * notification so it lands inside the Conversations section on Android 11+.
+     * Tap starts a callback ([MaleCallConnectingActivity] / [FemaleCallConnectingActivity])
+     * for that peer when we have a real peer id; synthetic id routes to [MainActivity].
+     * There are no inline action buttons — the heads-up should be indistinguishable
+     * from a chat message notification so it lands inside the Conversations section on Android 11+.
      *
      * @return `true` on a successful `notify`, `false` if anything threw or
      *   the user revoked POST_NOTIFICATIONS.
      */
     fun showMissed(context: Context, payload: MissedPayload): Boolean {
-        // Defensive: callers come from OneSignal / FCM payloads with varying
-        // shapes. Compute safe values up-front so a downstream Person/Icon
-        // call can't throw on empty / null fields.
-        val safeName = payload.callerName.takeIf { it.isNotBlank() } ?: "Caller"
+        // Defensive: normalize upstream title/body (e.g. "📞 Missed call from Kishore12")
+        // so Person name + avatar initial match chat-style notifications.
+        val cleanedName = normalizeMissedCallCallerName(payload.callerName)
+        val safeName = cleanedName.ifBlank { "Caller" }
         val safeCallType = (payload.callType ?: "audio").lowercase()
         val senderId = payload.senderId
-        val callerImage = payload.callerImage.orEmpty()
+        // OneSignal missed-call payloads from the server typically don't carry an
+        // avatar field, so fall back to the most-recent chat-notification image
+        // we cached for this peer (set by ChatNotificationStore.saveMeta on every
+        // chat push). This makes the notification AND the connecting screen show
+        // the real photo when the user has chatted with this peer before.
+        val rawImage = payload.callerImage.orEmpty()
+        val cachedImage = if (rawImage.isBlank() && !payload.isSynthetic && senderId > 0) {
+            ChatNotificationStore.getMeta(context, senderId).second.orEmpty()
+        } else ""
+        val callerImage = rawImage.ifBlank { cachedImage }
 
+        // First letter for the avatar circle. If the name starts with a non-letter
+        // (e.g. leftover emoji), fall back to "?" so AvatarBitmap doesn't try to
+        // render a multi-codepoint character that would degrade to garbled text.
+        val firstChar = safeName.firstOrNull()
+        val firstLetter = if (firstChar != null && firstChar.isLetter())
+            firstChar.uppercaseChar().toString()
+        else "?"
         Log.d(
-            TAG,
-            "showMissed begin senderId=$senderId callType=$safeCallType nameLen=${payload.callerName.length} imgBlank=${callerImage.isBlank()}"
+            MISSED_CALL_DIAG_TAG,
+            "showMissed-entry rawName=\"${payload.callerName}\" safeName=\"$safeName\" " +
+                "firstLetter=$firstLetter senderId=$senderId callType=$safeCallType " +
+                "imgUrl=\"$callerImage\" imgBlank=${callerImage.isBlank()} synthetic=${payload.isSynthetic}"
         )
 
         return runCatching {
-            // 1. Person + bitmap — same fallback ChatNotifications.show uses.
+            // 1. Person + bitmap — align with ChatNotifications.show (bitmap Person icon).
             val remoteBitmap: Bitmap? = runCatching {
                 if (callerImage.isBlank()) null else loadBitmap(context, callerImage)
             }.getOrNull()
-            val peerBitmap: Bitmap = remoteBitmap ?: AvatarBitmap.circleWithInitial(safeName)
+            val peerBitmap: Bitmap = remoteBitmap
+                ?: AvatarBitmap.circleWithInitial(
+                    if (firstLetter == "?") "?" else safeName
+                )
+            Log.d(
+                MISSED_CALL_DIAG_TAG,
+                "showMissed-bitmap source=${if (remoteBitmap != null) "remote" else "initial"} " +
+                    "size=${peerBitmap.width}x${peerBitmap.height} initialUsed=$firstLetter"
+            )
             val peerIcon: IconCompat = IconCompat.createWithBitmap(peerBitmap)
             val peerPerson = Person.Builder()
-                .setName(safeName)
+                .setName(safeName.ifBlank { "User" })
                 .setKey(senderId.toString())
                 .setIcon(peerIcon)
                 .build()
@@ -318,119 +449,186 @@ object CallNotifications {
                 )
             )
 
-            // 4. B034 — tap opens MainActivity's Recent tab (the missed-call
-            //    list) rather than the per-peer chat thread. SINGLE_TOP +
-            //    CLEAR_TOP brings an existing MainActivity to front and
-            //    delivers the intent via onNewIntent (so the resume path
-            //    can switch tabs without rebuilding the activity).
-            val openRecent = Intent(context, MainActivity::class.java).apply {
-                action = Intent.ACTION_VIEW
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                    Intent.FLAG_ACTIVITY_SINGLE_TOP
-                putExtra(MainActivity.EXTRA_OPEN_TAB, MainActivity.TAB_RECENT)
-                putExtra("FROM_MISSED_CALL", true)
-                // Carry peer info so a future enhancement could deep-link
-                // into a specific Recent row; for now the Recent tab itself
-                // is the destination.
-                putExtra("USER_ID", senderId)
-                putExtra("USER_NAME", safeName)
-                putExtra("USER_IMAGE", callerImage)
-            }
-            // The dynamic shortcut (below, step 5) still needs an Intent
-            // that opens *something* when long-pressed — keep the per-peer
-            // chat intent for the shortcut, since shortcuts are explicitly
-            // about that conversation.
-            val openChat = Intent(context, ChatActivityInHouse::class.java).apply {
-                action = Intent.ACTION_VIEW
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra("USER_ID", senderId)
-                putExtra("USER_NAME", safeName)
-                putExtra("USER_IMAGE", callerImage)
-                putExtra("FROM_MISSED_CALL", true)
+            // 4. Tap intent. Real senderId -> start call-connecting (callback).
+            //    Synthetic id (push didn't carry a peer id) -> open MainActivity
+            //    so we don't start a call with a bogus peer id.
+            //
+            //    `action = Intent.ACTION_VIEW` is required by
+            //    ShortcutManagerCompat.pushDynamicShortcut on Android 11+ — without
+            //    it, the shortcut push throws "intent's action must be set", the
+            //    notification fails Conversation promotion, and the collapsed row
+            //    falls back to the small icon (HiMa logo) instead of the
+            //    Person.icon avatar. Mirrors ChatNotifications.show.
+            val openIntent = if (payload.isSynthetic) {
+                Intent(context, MainActivity::class.java).apply {
+                    action = Intent.ACTION_VIEW
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    putExtra("FROM_MISSED_CALL", true)
+                }
+            } else {
+                val myUser = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                val callbackClass = if (myUser?.gender == DConstants.FEMALE) {
+                    FemaleCallConnectingActivity::class.java
+                } else {
+                    MaleCallConnectingActivity::class.java
+                }
+                Intent(context, callbackClass).apply {
+                    action = Intent.ACTION_VIEW
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    putExtra(DConstants.CALL_TYPE, safeCallType)
+                    putExtra(DConstants.RECEIVER_ID, senderId)
+                    putExtra(DConstants.RECEIVER_NAME, safeName)
+                    putExtra(DConstants.CALL_ID, 0)
+                    putExtra(DConstants.IMAGE, callerImage)
+                    putExtra(DConstants.IS_RECEIVER_DETAILS_AVAILABLE, true)
+                    putExtra(
+                        DConstants.TEXT,
+                        context.getString(R.string.wait_user_hint, safeName)
+                    )
+                    putExtra("FROM_MISSED_CALL", true)
+                }
             }
             val contentPi = PendingIntent.getActivity(
                 context,
                 senderId,
-                openRecent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                openIntent,
+                pendingIntentFlagsForMissed(mutable = false)
             )
 
-            // 5. Same dynamic Conversation shortcut id chat uses, so the OS
-            //    treats this as the same conversation row in Conversations.
-            val shortcutId = "chat_peer_$senderId"
-            val shortcut = ShortcutInfoCompat.Builder(context, shortcutId)
-                .setShortLabel(safeName)
-                .setLongLabel(safeName)
-                .setIntent(openChat)
-                .setIcon(peerIcon)
-                .setPerson(peerPerson)
-                .setLongLived(true)
-                .setCategories(setOf("android.shortcut.conversation"))
-                .build()
-            val alreadyOnDisk = runCatching {
-                ShortcutManagerCompat.getDynamicShortcuts(context).any { it.id == shortcutId }
-            }.getOrDefault(false)
-            val shortcutPushed = if (alreadyOnDisk) {
-                true
-            } else {
-                runCatching { ShortcutManagerCompat.pushDynamicShortcut(context, shortcut) }
-                    .map { true }
-                    .getOrElse {
-                        Log.w(TAG, "showMissed: pushDynamicShortcut failed: ${it.message}")
-                        false
+            // 5. Conversation shortcut — mirror ChatNotifications (disk + in-memory cache).
+            val shortcutId = if (payload.isSynthetic) null else "chat_peer_$senderId"
+            val shortcutPushed = if (shortcutId != null) {
+                val shortcut = ShortcutInfoCompat.Builder(context, shortcutId)
+                    .setShortLabel(safeName.ifBlank { "Chat" })
+                    .setLongLabel(safeName.ifBlank { "Chat" })
+                    .setIntent(openIntent)
+                    .setIcon(peerIcon)
+                    .setPerson(peerPerson)
+                    .setLongLived(true)
+                    .setCategories(setOf("android.shortcut.conversation"))
+                    .build()
+                val alreadyOnDisk = runCatching {
+                    ShortcutManagerCompat.getDynamicShortcuts(context).any { it.id == shortcutId }
+                }.getOrDefault(false)
+                when {
+                    shortcutId in missedCallPushedShortcutIds || alreadyOnDisk -> {
+                        if (shortcutId !in missedCallPushedShortcutIds && alreadyOnDisk) {
+                            missedCallPushedShortcutIds.add(shortcutId)
+                        }
+                        true
                     }
+                    else -> {
+                        runCatching {
+                            ShortcutManagerCompat.pushDynamicShortcut(context, shortcut)
+                            missedCallPushedShortcutIds.add(shortcutId)
+                            true
+                        }.getOrElse {
+                            Log.w(TAG, "showMissed: pushDynamicShortcut failed: ${it.message}")
+                            false
+                        }
+                    }
+                }
+            } else {
+                false
             }
 
             // 6. Builder — chat channel + group so the row sits next to actual
             //    chat notifications. Distinct id from chat (`0x40000000`) so a
             //    later chat message doesn't replace the missed-call line.
             val notifId = MISSED_CALL_ID_MASK or (senderId and 0x0FFFFFFF)
+            // CATEGORY_MESSAGE (not CATEGORY_MISSED_CALL) so Android renders this
+            // identically to a chat heads-up — same Conversations-section row,
+            // same bundling under the chat group summary, no Android default
+            // missed-call card. The body text still says "Missed audio/video
+            // call …" so the user sees what happened.
             val builder = NotificationCompat.Builder(context, CHAT_NOTIFICATION_CHANNEL_ID)
                 .setSmallIcon(R.drawable.logo) // matches ChatNotifications
                 .setStyle(style)
-                .setCategory(NotificationCompat.CATEGORY_MISSED_CALL)
+                .setCategory(NotificationCompat.CATEGORY_MESSAGE)
                 .setAutoCancel(true)
                 .setOnlyAlertOnce(true)
                 .setContentIntent(contentPi)
                 .setGroup(CHAT_GROUP_KEY)
-                .setShortcutId(shortcutId)
-                .setLocusId(LocusIdCompat(shortcutId))
+                // Force title/text so the fallback (non-MessagingStyle) row and any
+                // wrapper that overrides MessagingStyle's auto-derived title still
+                // show the cleaned caller name (e.g. "Kishore12") instead of the
+                // server's "Missed call from Kishore12" line.
+                .setContentTitle(safeName)
+                .setContentText(bodyText)
+            if (shortcutId != null) {
+                builder.setShortcutId(shortcutId)
+                builder.setLocusId(LocusIdCompat(shortcutId))
+            }
 
             // On API < R or when the shortcut wasn't pushed (OEM throttle / no
-            // permission), fall back to setLargeIcon so the avatar still shows.
+            // permission / pre-R), fall back to setLargeIcon so the avatar still
+            // shows. On Android 11+ with shortcutPushed=true we intentionally
+            // *omit* setLargeIcon so Android promotes this to a Conversation row
+            // and uses Person.icon as the collapsed-row avatar (with the small
+            // icon as a tiny badge), matching ChatNotifications behaviour.
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R || !shortcutPushed) {
                 builder.setLargeIcon(peerBitmap)
             }
 
             if (!canPostNotifications(context)) {
-                Log.w(TAG, "showMissed: POST_NOTIFICATIONS not granted — skipping notify")
+                Log.w(
+                    MISSED_CALL_DIAG_TAG,
+                    "showMissed skipped: POST_NOTIFICATIONS not granted senderId=$senderId shortcutId=$shortcutId"
+                )
                 return@runCatching false
             }
 
-            NotificationManagerCompat.from(context).notify(notifId, builder.build())
+            val built = builder.build()
+            val extras = built.extras
+            val hasLargeIcon = extras?.get(Notification.EXTRA_LARGE_ICON) != null ||
+                extras?.get(Notification.EXTRA_LARGE_ICON_BIG) != null
+            val builtTitle = extras?.getCharSequence(Notification.EXTRA_TITLE)?.toString()
+            val builtText = extras?.getCharSequence(Notification.EXTRA_TEXT)?.toString()
+            val template = extras?.getString(Notification.EXTRA_TEMPLATE)
             Log.d(
-                TAG,
-                "showMissed posted notifId=$notifId senderId=$senderId channel=$CHAT_NOTIFICATION_CHANNEL_ID shortcutPushed=$shortcutPushed"
+                MISSED_CALL_DIAG_TAG,
+                "showMissed-built notifId=$notifId title=\"$builtTitle\" text=\"$builtText\" " +
+                    "template=$template hasLargeIcon=$hasLargeIcon shortcutPushed=$shortcutPushed " +
+                    "shortcutId=$shortcutId sdk=${Build.VERSION.SDK_INT} synthetic=${payload.isSynthetic}"
             )
+
+            try {
+                NotificationManagerCompat.from(context).notify(notifId, built)
+                Log.d(
+                    MISSED_CALL_DIAG_TAG,
+                    "showMissed-notify OK notifId=$notifId senderId=$senderId " +
+                        "channel=$CHAT_NOTIFICATION_CHANNEL_ID shortcutPushed=$shortcutPushed"
+                )
+            } catch (t: Throwable) {
+                Log.e(MISSED_CALL_DIAG_TAG, "showMissed-notify FAIL notifId=$notifId: ${t.message}", t)
+                throw t
+            }
+            ChatNotifications.postGroupSummary(context)
             true
         }.getOrElse { t ->
-            Log.e(TAG, "showMissed threw senderId=$senderId: ${t.message}", t)
+            Log.e(MISSED_CALL_DIAG_TAG, "showMissed-outer threw senderId=$senderId: ${t.message}", t)
             false
         }
     }
 
     private fun canPostNotifications(context: Context): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
-        return ActivityCompat.checkSelfPermission(
+        return ContextCompat.checkSelfPermission(
             context, Manifest.permission.POST_NOTIFICATIONS
         ) == PackageManager.PERMISSION_GRANTED
     }
 
+    private fun pendingIntentFlagsForMissed(mutable: Boolean): Int {
+        val base = PendingIntent.FLAG_UPDATE_CURRENT
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            base or if (mutable) PendingIntent.FLAG_MUTABLE else PendingIntent.FLAG_IMMUTABLE
+        } else {
+            base
+        }
+    }
+
     /**
-     * Loads a remote bitmap via Glide, blocking up to its default timeout.
-     * Used by [showMissed]'s synchronous bitmap path so the heads-up posts with
-     * the real avatar (when reachable) instead of always doing an async refresh.
+     * Loads a remote bitmap via Glide, blocking up to 2s — same bound as [ChatNotifications].
      */
     private fun loadBitmap(context: Context, url: String): Bitmap? {
         return runCatching {
@@ -439,7 +637,7 @@ object CallNotifications {
                 .load(url)
                 .apply(RequestOptions.circleCropTransform())
                 .submit(256, 256)
-                .get()
+                .get(2, TimeUnit.SECONDS)
         }.getOrNull()
     }
 
@@ -456,27 +654,13 @@ object CallNotifications {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
         if (nm.getNotificationChannel(CALLS_NOTIFICATION_CHANNEL_ID) != null) return
-        // Delete the silent v3 channel if present so Settings doesn't show
-        // two "Incoming Calls" rows after upgrade.
-        runCatching { nm.deleteNotificationChannel("calls_v3") }
-        val ringtoneUri = RingtoneManager.getActualDefaultRingtoneUri(
-            context.applicationContext,
-            RingtoneManager.TYPE_RINGTONE
-        ) ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-            ?: Settings.System.DEFAULT_RINGTONE_URI
-        val ringtoneAttrs = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-            .build()
         val channel = NotificationChannel(
             CALLS_NOTIFICATION_CHANNEL_ID,
             "Incoming Calls",
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
             lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
-            // Channel-played ringtone survives Doze / power saving because
-            // IMPORTANCE_HIGH + CATEGORY_CALL + bypassDnd is treated as critical.
-            setSound(ringtoneUri, ringtoneAttrs)
+            setSound(null, null)
             enableVibration(true)
             vibrationPattern = longArrayOf(0, 1000, 500, 1000)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

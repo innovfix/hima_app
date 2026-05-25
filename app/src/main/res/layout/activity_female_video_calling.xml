@@ -81,8 +81,8 @@
             android:layout_height="match_parent"
             android:background="@android:color/black">
 
-            <!-- Front/back camera flip — overlaid on the local preview so it
-                 only appears when the user is actively sending video. -->
+            <!-- Camera flip is not a shipped feature; hidden so testers
+                 don't trip over it (B057 is therefore N/A in current build). -->
             <ImageButton
                 android:id="@+id/btn_camera_flip"
                 android:layout_width="32dp"
@@ -93,6 +93,7 @@
                 android:contentDescription="Flip camera"
                 android:padding="6dp"
                 android:scaleType="fitCenter"
+                android:visibility="gone"
                 android:src="@drawable/ic_camera_flip" />
         </FrameLayout>
     </androidx.cardview.widget.CardView>
@@ -103,7 +104,26 @@
         android:layout_height="match_parent"
         android:visibility="gone"
         android:layout_centerHorizontal="true"
-        android:background="@android:color/darker_gray" />
+        android:background="@android:color/transparent" />
+
+    <!-- B058 — peer-avatar skeleton drawn ON TOP of the remote SurfaceView.
+         Visible until onRemoteVideoStateChanged(DECODING) fires (first decoded
+         frame), then hidden so the live feed shows. Re-shown on STARTING /
+         FROZEN / FAILED and on onUserMuteVideo so the creator never sees a
+         fully blank screen during the SurfaceView hole-punch gap. Must be
+         drawn AFTER the container so it covers the hole. -->
+    <ImageView
+        android:id="@+id/iv_remote_avatar_skeleton"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:visibility="gone"
+        android:background="@drawable/call_blur_placeholder_background"
+        android:contentDescription="Peer avatar"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- Top Bar Container -->
     <LinearLayout
@@ -126,6 +146,18 @@
             android:src="@drawable/ic_signal_strong"
             android:contentDescription="Signal Strength"
             android:layout_marginEnd="8dp"/>
+
+        <!-- B060 — explicit call-type label so the creator can tell at a
+             glance this is a Video call (not Audio), even before the remote
+             camera feed arrives or when own camera is off. -->
+        <TextView
+            android:id="@+id/tv_call_type"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/call_type_video"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:fontFamily="sans-serif-medium"/>
 
         <!-- Spacer -->
         <View
@@ -219,14 +251,32 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/top_bar" />
 
-    <!-- Remote mic-muted badge — toggled by onUserMuteAudio when the peer mutes. -->
+    <!-- B196 — see activity_male_audio_calling.xml for rationale. -->
+    <TextView
+        android:id="@+id/on_hold_banner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/bg_reconnect_pill"
+        android:elevation="10dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:text="@string/call_on_hold_phone_busy"
+        android:textColor="@android:color/white"
+        android:textSize="12sp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/reconnect_banner" />
+
+    <!-- Visible mute badge (Perumal 2026-05-22, simplified from d0739380): toggled by onUserMuteAudio (peer mute) AND by toggleMute (self mute). Replaces the invisible remote_mic_muted_pill which was anchor-only. -->
     <ImageView
         android:id="@+id/iv_remote_mic_muted"
         android:layout_width="40dp"
         android:layout_height="40dp"
         android:layout_marginTop="8dp"
         android:background="@drawable/professional_control_button_bg"
-        android:contentDescription="Peer microphone muted"
+        android:contentDescription="Microphone muted"
         android:elevation="10dp"
         android:padding="10dp"
         android:scaleType="fitCenter"
@@ -234,7 +284,27 @@
         android:visibility="invisible"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/reconnect_banner" />
+        app:layout_constraintTop_toBottomOf="@id/on_hold_banner" />
+
+    <!-- B055 — see activity_male_audio_calling.xml for rationale. -->
+    <View
+        android:id="@+id/remote_mic_muted_pill"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/on_hold_banner" />
+
+    <!-- Camera-unavailable countdown banner (creator with broken camera).
+         Reveals when CameraAvailability probe fails on join; ticks down 30s
+         then triggers leaveChannel. See CameraUnavailableNotice for the
+         lifecycle. -->
+    <include
+        layout="@layout/banner_camera_unavailable"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/remote_mic_muted_pill" />
 
     <!-- User Avatars Container (Center) -->
     <LinearLayout
@@ -297,7 +367,8 @@
                 android:id="@+id/tv_female_name"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="User"
+                android:text=""
+                tools:text="User"
                 android:textColor="#FFFFFF"
                 android:textSize="16sp"
                 android:fontFamily="sans-serif-medium"
@@ -390,7 +461,8 @@
                 android:id="@+id/tv_male_name"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="User"
+                android:text=""
+                tools:text="User"
                 android:textColor="#FFFFFF"
                 android:textSize="16sp"
                 android:fontFamily="sans-serif-medium"
@@ -576,6 +648,9 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent">
 
+                <!-- Video↔audio switch not shipped — gone so B191's downgrade
+                     trigger is unreachable even if a layout_buttons parent
+                     ever flips visible at runtime. -->
                 <ImageView
                     android:id="@+id/btn_video_call"
                     android:layout_width="match_parent"
@@ -584,6 +659,7 @@
                     android:src="@drawable/audiocall_img"
                     android:padding="14dp"
                     android:scaleType="fitCenter"
+                    android:visibility="gone"
                     android:contentDescription="Video"/>
 
             </FrameLayout>

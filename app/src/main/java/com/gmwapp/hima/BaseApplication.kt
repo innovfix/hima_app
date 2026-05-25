@@ -17,7 +17,6 @@ import android.content.pm.PackageManager
 import android.content.pm.PackageInfo
 import android.media.AudioAttributes
 import android.media.AudioDeviceInfo
-import android.media.AudioManager
 import android.media.RingtoneManager
 import android.net.ConnectivityManager
 import android.net.Network
