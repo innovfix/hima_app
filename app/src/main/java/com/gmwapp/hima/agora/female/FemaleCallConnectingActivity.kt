@@ -27,8 +27,11 @@ import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityFemaleCallConnectingBinding
+import com.gmwapp.hima.retrofit.ApiManager
+import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.CallEndReason
 import com.gmwapp.hima.retrofit.responses.CallEndedBy
+import com.gmwapp.hima.retrofit.responses.RegisterResponse
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.AgoraViewModel
 import com.gmwapp.hima.viewmodels.CallStatusViewModel
@@ -36,6 +39,9 @@ import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import retrofit2.Call
+import retrofit2.Response
+import javax.inject.Inject
 
 
 @AndroidEntryPoint
@@ -57,6 +63,8 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
     // explicitly tapped RED reject button, which never happens when male is
     // offline / app killed / notification dismissed — the most common case.
     private val accountViewModel: AccountViewModel by viewModels()
+    @Inject
+    lateinit var apiManager: ApiManager
     private var prefetchedAgoraToken: String? = null
     private var prefetchedAgoraAppId: String? = null
     private lateinit var progressBar: ProgressBar
@@ -268,10 +276,25 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
             .apply(RequestOptions.circleCropTransform())
             .into(binding.ivCallerProfile)
 
+        // Placeholder + error fallback so the receiver avatar circle isn't blank
+        // when the missed-call OneSignal payload didn't carry an image URL and
+        // we have nothing cached for this peer either. Matches the silhouette
+        // used by the chat-list / creator-notification adapters.
         Glide.with(this)
             .load(receiverImg)
             .apply(RequestOptions.circleCropTransform())
+            .placeholder(R.drawable.small_profile)
+            .error(R.drawable.small_profile)
             .into(binding.ivLogo)
+
+        // Missed-call OneSignal payloads from the server typically don't carry an
+        // avatar URL and ChatNotificationStore may not have one cached either
+        // (e.g. user hasn't received a chat push from this peer in this session).
+        // Fall back to the userdetails endpoint so we can replace the silhouette
+        // placeholder with the real photo as soon as the network responds.
+        if (receiverImg.isNullOrBlank() && receiverId > 0) {
+            fetchReceiverImage(receiverId)
+        }
 
         Glide.with(this)
             .load(R.drawable.double_arrow_svg)
@@ -283,6 +306,46 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
         binding.tvCancel.setOnClickListener {
             onBackPressedDispatcher.onBackPressed()
         }
+    }
+
+    /**
+     * Pulls the receiver's profile (image) from the userdetails endpoint when the
+     * intent didn't carry one — typical for missed-call notification taps where
+     * the OneSignal payload had no avatar field. On success the local
+     * [receiverImg] is updated and Glide is reloaded so the silhouette
+     * placeholder is replaced by the real photo. Failures are silent — the
+     * placeholder simply stays.
+     */
+    private fun fetchReceiverImage(peerId: Int) {
+        apiManager.getUser(peerId, object : NetworkCallback<RegisterResponse> {
+            override fun onResponse(
+                call: Call<RegisterResponse>,
+                response: Response<RegisterResponse>
+            ) {
+                if (isFinishing || isDestroyed) return
+                if (!response.isSuccessful) return
+                val fetched = response.body()?.data?.image.orEmpty()
+                if (fetched.isBlank()) return
+                receiverImg = fetched
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    Glide.with(this@FemaleCallConnectingActivity)
+                        .load(fetched)
+                        .apply(RequestOptions.circleCropTransform())
+                        .placeholder(R.drawable.small_profile)
+                        .error(R.drawable.small_profile)
+                        .into(binding.ivLogo)
+                }
+            }
+
+            override fun onFailure(call: Call<RegisterResponse>, t: Throwable) {
+                Log.w("FemaleCallConnecting", "fetchReceiverImage failed: ${t.message}")
+            }
+
+            override fun onNoNetwork() {
+                Log.w("FemaleCallConnecting", "fetchReceiverImage skipped: no network")
+            }
+        })
     }
 
 
@@ -421,6 +484,9 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                     prefetchAgoraToken(channelName)
                     sendCallNotification(userId!!, receiverId, callType!!, "incoming call $callId $myAvatar $myname")
                     observeNotificationResponse()
+                    // I039 — register outgoing call with Telecom so a SIM / WhatsApp
+                    // call mid-Hima triggers the system second-call UI.
+                    registerOutgoingWithTelecom()
                 }
             }
         })
@@ -443,6 +509,24 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                 Toast.makeText(this, "Failed to connect: $it", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    /**
+     * I039 — symmetric to HimaTelecomManager.tryAddIncomingCall on the receive side.
+     */
+    private fun registerOutgoingWithTelecom() {
+        if (designOnly) return
+        val ct = callType ?: return
+        val extras = android.os.Bundle().apply {
+            putString(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_CALL_TYPE, ct)
+            putInt(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_SENDER_ID, receiverId)
+            putString(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_CHANNEL_NAME, channelName)
+            putInt(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_CALL_ID, callId)
+            putString(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_CALLER_NAME, receiverName ?: "Hima call")
+            putString(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_CALLER_IMAGE, "")
+            putString(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_RECEIVER_GENDER, "female")
+        }
+        com.gmwapp.hima.agora.telecom.HimaTelecomManager.tryPlaceOutgoingCall(this, extras)
     }
 
     fun sendCallNotification(senderId: Int, receiverId: Int, callType: String, message: String) {
@@ -480,7 +564,9 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                     cancelTimeoutTracking()
                     isRunning = false
                     FcmUtils.clearCallStatus()
-                    
+                    // I039 — transition outgoing Telecom connection DIALING → ACTIVE.
+                    com.gmwapp.hima.agora.telecom.HimaTelecomManager.markActive()
+
                     Log.d("FemaleCallConnect", "Male accepted! Joining channel: $channelName")
                     
                     // Navigate to the appropriate calling activity
@@ -503,6 +589,11 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                     cancelTimeoutTracking()
                     isRunning = false
                     FcmUtils.clearCallStatus()
+                    // I039 — tear down outgoing Telecom connection so the system doesn't
+                    // keep treating us as in-call after a rejection.
+                    com.gmwapp.hima.agora.telecom.HimaTelecomManager.endActiveCall(
+                        android.telecom.DisconnectCause.REJECTED
+                    )
                     FcmUtils.shouldRefreshCallList = 1
                     Log.d("CallStatus", "FemaleConnecting.peerRejected (observed, no post — peer already posted) self=$userId peer=$receiverId callId=$callId status=$status")
                     Toast.makeText(
@@ -518,6 +609,9 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                     cancelTimeoutTracking()
                     isRunning = false
                     FcmUtils.clearCallStatus()
+                    com.gmwapp.hima.agora.telecom.HimaTelecomManager.endActiveCall(
+                        android.telecom.DisconnectCause.CANCELED
+                    )
                     val intent = Intent(this@FemaleCallConnectingActivity, MainActivity::class.java)
                     intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                     startActivity(intent)
@@ -530,6 +624,10 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
     private fun disconnectCall() {
         isRunning = false
         cancelTimeoutTracking()
+        // I039 — local cancel (timeout or user back-pressed). Mirror the male side.
+        com.gmwapp.hima.agora.telecom.HimaTelecomManager.endActiveCall(
+            android.telecom.DisconnectCause.LOCAL
+        )
      //   Toast.makeText(this, "$receiverName is not responding", Toast.LENGTH_SHORT).show()
         if (!designOnly && userId != null && callType != null) {
             sendCallNotification(userId!!, receiverId, callType!!, "callDeclined")

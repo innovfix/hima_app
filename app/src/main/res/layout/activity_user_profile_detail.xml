@@ -469,6 +469,92 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Report & Block Section (placed near Notify so it stays visible without scrolling) -->
+            <LinearLayout
+                android:id="@+id/cv_report_block_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:clipChildren="false"
+                android:orientation="vertical">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    app:cardBackgroundColor="@color/white"
+                    app:cardCornerRadius="18dp"
+                    app:cardElevation="4dp"
+                    app:strokeColor="#F0F0F0"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:id="@+id/ll_report_user"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:padding="16dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?attr/selectableItemBackground">
+
+                        <ImageView
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:src="@drawable/ic_warning"
+                            app:tint="#F59E0B" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
+                            android:fontFamily="@font/poppins_medium"
+                            android:text="Report user"
+                            android:textColor="#111827"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    app:cardBackgroundColor="@color/white"
+                    app:cardCornerRadius="18dp"
+                    app:cardElevation="4dp"
+                    app:strokeColor="#F0F0F0"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:id="@+id/ll_block_user"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:padding="16dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?attr/selectableItemBackground">
+
+                        <ImageView
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:src="@drawable/ic_close"
+                            app:tint="#EF4444" />
+
+                        <TextView
+                            android:id="@+id/tv_block_user"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
+                            android:fontFamily="@font/poppins_medium"
+                            android:text="Block user"
+                            android:textColor="#111827"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
             <!-- Action Buttons Section -->
             <LinearLayout
                 android:id="@+id/ll_action_buttons"
@@ -701,92 +787,6 @@
                         </LinearLayout>
                     </com.google.android.material.card.MaterialCardView>
                 </LinearLayout>
-            </LinearLayout>
-
-            <!-- Report & Block Section (separate cards to match Languages / Interests rhythm) -->
-            <LinearLayout
-                android:id="@+id/cv_report_block_section"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:clipChildren="false"
-                android:orientation="vertical">
-
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="12dp"
-                    app:cardBackgroundColor="@color/white"
-                    app:cardCornerRadius="18dp"
-                    app:cardElevation="4dp"
-                    app:strokeColor="#F0F0F0"
-                    app:strokeWidth="1dp">
-
-                    <LinearLayout
-                        android:id="@+id/ll_report_user"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:padding="16dp"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:foreground="?attr/selectableItemBackground">
-
-                        <ImageView
-                            android:layout_width="22dp"
-                            android:layout_height="22dp"
-                            android:src="@drawable/ic_warning"
-                            app:tint="#F59E0B" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="12dp"
-                            android:fontFamily="@font/poppins_medium"
-                            android:text="Report user"
-                            android:textColor="#111827"
-                            android:textSize="14sp" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="12dp"
-                    app:cardBackgroundColor="@color/white"
-                    app:cardCornerRadius="18dp"
-                    app:cardElevation="4dp"
-                    app:strokeColor="#F0F0F0"
-                    app:strokeWidth="1dp">
-
-                    <LinearLayout
-                        android:id="@+id/ll_block_user"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:padding="16dp"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:foreground="?attr/selectableItemBackground">
-
-                        <ImageView
-                            android:layout_width="22dp"
-                            android:layout_height="22dp"
-                            android:src="@drawable/ic_close"
-                            app:tint="#EF4444" />
-
-                        <TextView
-                            android:id="@+id/tv_block_user"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="12dp"
-                            android:fontFamily="@font/poppins_medium"
-                            android:text="Block user"
-                            android:textColor="#111827"
-                            android:textSize="14sp" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
 
         </LinearLayout>

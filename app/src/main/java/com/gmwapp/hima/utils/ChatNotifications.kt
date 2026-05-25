@@ -220,8 +220,11 @@ object ChatNotifications {
     /**
      * T27: WhatsApp-style summary notification for the chat group key. Cheap to
      * re-post (Android dedupes by id), so we just refresh it on every chat push.
+     *
+     * Made `internal` so missed-call notifications (which share the same chat
+     * channel + GROUP_KEY) can refresh the bundle header too.
      */
-    private fun postGroupSummary(context: Context) {
+    internal fun postGroupSummary(context: Context) {
         val summary = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.logo)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
@@ -234,7 +237,7 @@ object ChatNotifications {
         }
     }
 
-    private const val GROUP_SUMMARY_ID = 0x40FFFFFF
+    internal const val GROUP_SUMMARY_ID = 0x40FFFFFF
 
     /**
      * Log every precondition Android checks before promoting a MessagingStyle

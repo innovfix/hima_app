@@ -180,46 +180,73 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
     }
 
     /**
-     * If the push is a "missed call …" notice, post our own custom rich
-     * notification (Call back / Message actions on a quieter channel) and
-     * suppress the OneSignal default. Returns true when handled.
+     * If the push is a "missed call …" notice, post our own MessagingStyle
+     * notification (same pattern as chat messages) and suppress the OneSignal default.
      */
     private fun maybeHandleMissedCall(
         context: Context,
         event: INotificationReceivedEvent
     ): Boolean {
         if (!isMissedCallPush(event.notification)) return false
-        val data = event.notification.additionalData ?: return false
+        val data = event.notification.additionalData
+        Log.d(
+            "MissedCallDiag",
+            "nse-entry title=\"${event.notification.title}\" body=\"${event.notification.body}\" " +
+                "dataKeys=${data?.keys()?.asSequence()?.toList()} dataDump=${data?.toString()?.take(500)}"
+        )
 
-        val callType = firstNonEmpty(data, "callType", "call_type") ?: "audio"
-        val senderId = data.optInt("senderId", 0).takeIf { it > 0 }
-            ?: data.optInt("sender_id", 0).takeIf { it > 0 }
-            ?: data.optInt("user_id", 0)
-        val callerName = firstNonEmpty(data, "callerName", "sender_name", "name", "title")
-            ?: event.notification.title?.removePrefix("Missed call from")?.trim().orEmpty()
-        val callerImage = firstNonEmpty(data, "callerImage", "sender_image", "image", "avatar").orEmpty()
+        val callType = data?.let { firstNonEmpty(it, "callType", "call_type") } ?: "audio"
+        // Aliases observed across server templates — anything numeric and >0 wins.
+        val realSenderId = if (data == null) 0 else
+            listOf(
+                "senderId", "sender_id", "user_id",
+                "callerId", "caller_id",
+                "from_user_id", "from_id", "peer_id", "sender_user_id"
+            ).firstNotNullOfOrNull { k -> data.optInt(k, 0).takeIf { it > 0 } } ?: 0
+        val titleLine = event.notification.title?.trim().orEmpty()
+        val rawCaller = (data?.let { firstNonEmpty(it, "callerName", "sender_name", "name", "title") }
+            ?: titleLine.takeIf { it.isNotBlank() })
+            .orEmpty()
+        val callerName = com.gmwapp.hima.utils.CallNotifications.normalizeMissedCallCallerName(rawCaller)
+            .ifBlank { "Caller" }
+        val callerImage = (data?.let {
+            firstNonEmpty(it, "callerImage", "sender_image", "image", "avatar")
+        }).orEmpty()
 
-        if (senderId <= 0) return false
+        // No real id -> derive a stable one from the normalized caller name so repeat
+        // missed calls from the same caller dedupe under one row.
+        val isSynthetic = realSenderId <= 0
+        val effectiveSenderId = if (!isSynthetic) realSenderId
+            else (callerName.hashCode() and 0x0FFFFFFF).coerceAtLeast(1)
 
-        // showMissed returns true only after successfully posting; if it threw,
-        // we let OneSignal's default render so the user still sees *something*.
-        val posted = runCatching {
+        Log.d(
+            "MissedCallDiag",
+            "nse-parsed rawCaller=\"$rawCaller\" callerName=\"$callerName\" callerImage=\"$callerImage\" " +
+                "realSenderId=$realSenderId synthetic=$isSynthetic effectiveId=$effectiveSenderId callType=$callType"
+        )
+
+        // Suppress OneSignal's default missed-call UI BEFORE we try to post our
+        // own. If showMissed throws or returns false we accept the silent miss;
+        // the diagnostic Log lines tell us why.
+        event.preventDefault()
+        Log.d("MissedCallDiag", "nse-preventDefault called effectiveId=$effectiveSenderId")
+        val showResult = runCatching {
             com.gmwapp.hima.utils.CallNotifications.showMissed(
                 context,
                 com.gmwapp.hima.utils.CallNotifications.MissedPayload(
                     callType = callType,
-                    senderId = senderId,
+                    senderId = effectiveSenderId,
                     callerName = callerName,
-                    callerImage = callerImage
+                    callerImage = callerImage,
+                    isSynthetic = isSynthetic
                 )
             )
-        }.getOrElse {
-            Log.e(TAG, "showMissed threw senderId=$senderId: ${it.message}", it)
-            false
         }
-        if (!posted) return false
-        event.preventDefault()
-        Log.d(TAG, "OneSignal missed call push -> custom posted senderId=$senderId callType=$callType")
+        showResult.onSuccess {
+            Log.d("MissedCallDiag", "nse-showMissed returned=$it effectiveId=$effectiveSenderId")
+        }.onFailure {
+            Log.e("MissedCallDiag", "nse-showMissed threw effectiveId=$effectiveSenderId: ${it.message}", it)
+        }
         return true
     }
 

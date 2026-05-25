@@ -1521,6 +1521,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         loadRecentMissedCountBadge()
     }
 
+    fun setRecentMissedCount(count: Int) {
+        recentMissedCount = count.coerceAtLeast(0)
+        updateRecentBadge()
+    }
+
     private fun loadRecentMissedCountBadge() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
         apiManager.getMissedCallCount(userData.id, 0, object : NetworkCallback<MissedCallCountResponse> {

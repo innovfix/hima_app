@@ -1344,8 +1344,6 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         }
     }
 
-    // (onPause from autopay branch was merged into the unified onPause above)
-
     fun observeCoins() {
         BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
             profileViewModel.getUsers(it)

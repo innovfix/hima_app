@@ -133,7 +133,7 @@ class RecentCallsAdapter(
             }
             // Chat button always enabled
             holder.binding.ivChatCircle.setOnSingleClickListener {
-                val intent = android.content.Intent(activity, com.gmwapp.hima.activities.ChatActivity::class.java)
+                val intent = android.content.Intent(activity, com.gmwapp.hima.activities.ChatActivityInHouse::class.java)
                 intent.putExtra("USER_ID", call.id)
                 intent.putExtra("USER_NAME", call.name)
                 intent.putExtra("USER_IMAGE", call.image)
@@ -171,7 +171,7 @@ class RecentCallsAdapter(
 
             // Chat button (design only)
             holder.binding.ivChatCircle.setOnSingleClickListener {
-                val intent = android.content.Intent(activity, com.gmwapp.hima.activities.ChatActivity::class.java)
+                val intent = android.content.Intent(activity, com.gmwapp.hima.activities.ChatActivityInHouse::class.java)
                 intent.putExtra("USER_ID", call.id)
                 intent.putExtra("USER_NAME", call.name)
                 intent.putExtra("USER_IMAGE", call.image)

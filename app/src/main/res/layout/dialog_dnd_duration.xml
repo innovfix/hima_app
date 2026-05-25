@@ -49,11 +49,11 @@
         app:cornerRadius="14dp" />
 
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/btn_dnd_3h"
+        android:id="@+id/btn_dnd_2h"
         android:layout_width="match_parent"
         android:layout_height="52dp"
         android:layout_marginTop="10dp"
-        android:text="@string/dnd_duration_3h"
+        android:text="@string/dnd_duration_2h"
         android:textAllCaps="false"
         android:textSize="15sp"
         android:fontFamily="@font/poppins_semibold"
@@ -62,11 +62,11 @@
         app:cornerRadius="14dp" />
 
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/btn_dnd_24h"
+        android:id="@+id/btn_dnd_4h"
         android:layout_width="match_parent"
         android:layout_height="52dp"
         android:layout_marginTop="10dp"
-        android:text="@string/dnd_duration_24h"
+        android:text="@string/dnd_duration_4h"
         android:textAllCaps="false"
         android:textSize="15sp"
         android:fontFamily="@font/poppins_semibold"

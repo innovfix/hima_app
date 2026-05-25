@@ -4,10 +4,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import android.widget.Toast
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.agora.female.FemaleAudioCallingActivity
-import com.gmwapp.hima.agora.female.FemaleCallAcceptActivity
 import com.gmwapp.hima.agora.female.FemaleVideoCallingActivity
 import com.gmwapp.hima.agora.male.MaleAudioCallingActivity
 import com.gmwapp.hima.agora.male.MaleVideoCallingActivity
@@ -20,8 +20,6 @@ import com.gmwapp.hima.retrofit.responses.CallEndedBy
 import com.gmwapp.hima.retrofit.responses.CallStatusRequest
 import com.gmwapp.hima.retrofit.responses.CallStatusResponse
 import com.gmwapp.hima.retrofit.responses.FcmNotificationResponse
-import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
 
 class CallActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -36,12 +34,21 @@ class CallActionReceiver : BroadcastReceiver() {
             "ACTION_ACCEPT_CALL" -> {
                 val extras = intent.extras
                 val callType = extras?.getString("CALL_TYPE")
-                val senderId = extras?.getInt("SENDER_ID")
+                val senderId = extras?.getInt("SENDER_ID", -1) ?: -1
                 val channelName = extras?.getString("CHANNEL_NAME")
                 val callId = extras?.getInt("CALL_ID", -1)
 
                 Log.d("CallReceiver", "Call Accepted: callType=$callType, senderId=$senderId, channelName=$channelName, callId=$callId")
 
+                val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
+                sendAcceptedFcmFireAndForget(
+                    context,
+                    selfUserId = userId,
+                    peerUserId = senderId,
+                    callType = callType,
+                    channelName = channelName,
+                    branchTag = "ACTION_ACCEPT_CALL"
+                )
 
                 if (callType=="audio"){
                     val callIntent = Intent(context, FemaleAudioCallingActivity::class.java).apply {
@@ -143,11 +150,72 @@ class CallActionReceiver : BroadcastReceiver() {
             "ACTION_ACCEPT_CALL_MALE" -> {
                 val extras = intent.extras
                 val callType = extras?.getString("CALL_TYPE")
-                val senderId = extras?.getInt("SENDER_ID")
+                val senderId = extras?.getInt("SENDER_ID", -1) ?: -1
                 val channelName = extras?.getString("CHANNEL_NAME")
                 val callId = extras?.getInt("CALL_ID", -1)
 
                 Log.d("CallReceiver_Male", "Call Accepted: callType=$callType, senderId=$senderId, channelName=$channelName, callId=$callId")
+
+                val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                val userId = userData?.id
+                val currentCoins = userData?.coins ?: 0
+                if (currentCoins < 10) {
+                    Log.d(
+                        "MaleCallAccept",
+                        "Heads-up answer blocked: insufficient coins=$currentCoins (req=10)"
+                    )
+                    HimaTelecomManager.endActiveCall(DisconnectCause.REJECTED)
+                    BaseApplication.getInstance()?.stopRingtone()
+                    BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+                    BaseApplication.getInstance()?.clearIncomingCall()
+                    if (userId != null && senderId > 0 && !callType.isNullOrEmpty() && !channelName.isNullOrEmpty()) {
+                        val repo = (context.applicationContext as BaseApplication).fcmNotificationRepository
+                        repo.sendFcmNotification(
+                            userId, senderId, callType, channelName, "rejected",
+                            object : NetworkCallback<FcmNotificationResponse> {
+                                override fun onResponse(
+                                    call: retrofit2.Call<FcmNotificationResponse>,
+                                    response: retrofit2.Response<FcmNotificationResponse>
+                                ) {
+                                    Log.d(
+                                        "FCMNotification_Male",
+                                        "Heads-up insufficient-coins reject sent: ${response.body()?.message}"
+                                    )
+                                }
+
+                                override fun onFailure(
+                                    call: retrofit2.Call<FcmNotificationResponse>,
+                                    t: Throwable
+                                ) {
+                                    Log.e("FCMNotification_Male", "Heads-up insufficient-coins reject failed", t)
+                                }
+
+                                override fun onNoNetwork() {
+                                    Log.e("FCMNotification_Male", "Heads-up insufficient-coins reject — no network")
+                                }
+                            }
+                        )
+                    }
+                    Toast.makeText(
+                        context.applicationContext,
+                        "You don't have enough coins to attend the call. Recharge now!",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    val mainIntent = Intent(context.applicationContext, MainActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    }
+                    context.applicationContext.startActivity(mainIntent)
+                    return
+                }
+
+                sendAcceptedFcmFireAndForget(
+                    context,
+                    selfUserId = userId,
+                    peerUserId = senderId,
+                    callType = callType,
+                    channelName = channelName,
+                    branchTag = "ACTION_ACCEPT_CALL_MALE"
+                )
 
                 if (callType=="audio"){
                     val callIntent = Intent(context, MaleAudioCallingActivity::class.java).apply {
@@ -241,6 +309,58 @@ class CallActionReceiver : BroadcastReceiver() {
             // ========== END MALE CALL ACTIONS ==========
 
         }
+    }
+
+    /**
+     * Heads-up "Answer" skips FemaleCallAcceptActivity / MaleCallAcceptActivity, which normally
+     * send `accepted` so the caller leaves Connecting and joins Agora. Fire-and-forget here.
+     */
+    private fun sendAcceptedFcmFireAndForget(
+        context: Context,
+        selfUserId: Int?,
+        peerUserId: Int,
+        callType: String?,
+        channelName: String?,
+        branchTag: String,
+    ) {
+        if (selfUserId == null || peerUserId <= 0 || callType.isNullOrEmpty() || channelName.isNullOrEmpty()) {
+            Log.w(
+                "HimaIncomingCall",
+                "$branchTag: skip accepted FCM self=$selfUserId peer=$peerUserId ct=$callType ch=$channelName"
+            )
+            return
+        }
+        val repo = (context.applicationContext as BaseApplication).fcmNotificationRepository
+        Log.d(
+            "HimaIncomingCall",
+            "$branchTag: sending accepted FCM userId=$selfUserId receiverId=$peerUserId"
+        )
+        repo.sendFcmNotification(
+            selfUserId,
+            peerUserId,
+            callType,
+            channelName,
+            "accepted",
+            object : NetworkCallback<FcmNotificationResponse> {
+                override fun onResponse(
+                    call: retrofit2.Call<FcmNotificationResponse>,
+                    response: retrofit2.Response<FcmNotificationResponse>
+                ) {
+                    Log.d("FCMNotification", "Accept-FCM ok body=${response.body()?.message} ($branchTag)")
+                }
+
+                override fun onFailure(
+                    call: retrofit2.Call<FcmNotificationResponse>,
+                    t: Throwable
+                ) {
+                    Log.e("FCMNotification", "Accept-FCM failure ($branchTag): ${t.message}", t)
+                }
+
+                override fun onNoNetwork() {
+                    Log.e("FCMNotification", "Accept-FCM no network ($branchTag)")
+                }
+            }
+        )
     }
 
     private fun reportCallStatusRejected(

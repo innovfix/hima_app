@@ -163,6 +163,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        Log.d("BlockUserAPI", "LIFECYCLE onResume peer=$userId — re-checking block status")
         checkBlockStatus()
     }
 
@@ -275,6 +276,11 @@ class UserProfileDetailActivity : AppCompatActivity() {
                 showAppToast(response.message, Toast.LENGTH_SHORT)
                 isUserBlocked = true
                 updateBlockButtonUI()
+                Log.d(
+                    "BlockUserAPI",
+                    "AFTER-BLOCK observed peer=$userId self=${BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id} " +
+                        "respBody=$response"
+                )
                 checkBlockStatus()
             }
         })
@@ -301,8 +307,11 @@ class UserProfileDetailActivity : AppCompatActivity() {
                     (statusFromPayload != null && statusFromPayload != 0)
 
                 Log.d(
-                    "UserProfileDetail",
-                    "blockedStatus=$statusFromPayload isBlockedBool=$isBlockedBool => isUserBlocked=$isUserBlocked"
+                    "BlockUserAPI",
+                    "DECIDE peer=$userId self=${BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id} " +
+                        "topIsBlocked=${response.isBlocked} dataIsBlocked=${response.data?.isBlocked} " +
+                        "topBlockedStatus=${response.blockedStatus} dataBlockedStatus=${response.data?.blockedStatus} " +
+                        "computedIsUserBlocked=$isUserBlocked"
                 )
                 updateBlockButtonUI()
             }
@@ -410,15 +419,12 @@ class UserProfileDetailActivity : AppCompatActivity() {
             binding.tvAbout.text = "No description available"
         }
         
-        // Show report/block section only for female users (creators)
-        val currentUserGender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender?.lowercase()
-        if (currentUserGender == DConstants.FEMALE) {
-            binding.cvReportBlockSection.visibility = View.VISIBLE
-        } else {
-            binding.cvReportBlockSection.visibility = View.GONE
-        }
+        // Report/Block is available to anyone viewing someone else's profile.
+        binding.cvReportBlockSection.visibility =
+            if (shouldShowReportBlockSection()) View.VISIBLE else View.GONE
 
         // Show online notify UI only for male users (UI only, logic to be added later)
+        val currentUserGender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender?.lowercase()
         if (currentUserGender == DConstants.MALE) {
             binding.cvOnlineNotifySection.visibility = View.VISIBLE
         } else {
@@ -842,6 +848,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
             showAppToast("Unable to block user. Please try again.", Toast.LENGTH_SHORT)
             return
         }
+        Log.d("BlockUserAPI", "USER-INTENT block peer=$userId self=$currentUserId")
         blockUserViewModel.blockUser(currentUserId, userId, 1)
     }
     
@@ -851,17 +858,12 @@ class UserProfileDetailActivity : AppCompatActivity() {
             showAppToast("Unable to unblock user. Please try again.", Toast.LENGTH_SHORT)
             return
         }
-        Log.d("UserProfileDetail", "🔓 Unblocking user $userId")
+        Log.d("BlockUserAPI", "USER-INTENT unblock peer=$userId self=$currentUserId")
         blockUserViewModel.unblockUser(currentUserId, userId)
     }
     
     private fun checkBlockStatus() {
-        val currentUserGender =
-            BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender?.lowercase()
-        if (currentUserGender != DConstants.FEMALE) {
-            Log.d("UserProfileDetail", "Skipping block status check - not a female user")
-            return
-        }
+        if (!shouldShowReportBlockSection()) return
 
         val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
         if (currentUserId == 0) {
@@ -871,6 +873,17 @@ class UserProfileDetailActivity : AppCompatActivity() {
 
         Log.d("UserProfileDetail", "🔍 Checking block status for user $userId")
         blockUserViewModel.checkBlockStatus(currentUserId, userId)
+    }
+
+    /**
+     * Report/Block is shown for anyone viewing another user's profile. We hide it only when
+     * the target id is missing or matches the current user (self-profile entry points).
+     */
+    private fun shouldShowReportBlockSection(): Boolean {
+        if (userId <= 0) return false
+        val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+        if (currentUserId == 0) return false
+        return userId != currentUserId
     }
     
     private fun updateBlockButtonUI() {
@@ -1081,19 +1094,26 @@ class UserProfileDetailActivity : AppCompatActivity() {
      */
     private fun checkFavoriteStatus() {
         val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
-        
+
         if (currentUserId == 0) {
             Log.e("UserProfileDetail", "Unable to check favorite status - invalid user ID")
-            return
-        }
-        
-        // Only male users can add favorites
-        val userGender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
-        if (userGender != DConstants.MALE) {
             binding.cvFavourite.visibility = View.GONE
             return
         }
-        
+
+        // Hide on self-profile — you can't favourite yourself. The favourite
+        // toggle itself is gender-agnostic (both male and creator/female users
+        // can favourite other users); FavouriteFragment already filters by the
+        // viewer's gender so the result list is correct on either side.
+        if (currentUserId == userId) {
+            binding.cvFavourite.visibility = View.GONE
+            return
+        }
+
+        // Reset visibility in case a previous run on the same activity instance
+        // hid the heart (e.g. self-profile check above on a previous call).
+        binding.cvFavourite.visibility = View.VISIBLE
+
         Log.d("UserProfileDetail", "🔍 Checking favorite status for user: $userId")
         
         apiManager.checkFavorite(currentUserId, userId, object : NetworkCallback<CheckFavoriteResponse> {

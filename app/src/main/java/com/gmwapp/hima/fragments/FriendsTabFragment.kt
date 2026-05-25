@@ -1040,7 +1040,7 @@ class FriendsTabFragment : Fragment() {
         friendsList.forEach { friend ->
             val friendId = friend.friend_id.toString()
             
-            // Generate thread ID (same logic as ChatActivity)
+            // Generate thread ID (same logic as ChatActivityInHouse)
             val threadId = if (myUserId.toInt() < friendId.toInt()) {
                 "${myUserId}_${friendId}"
             } else {

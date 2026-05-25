@@ -212,7 +212,13 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
         updateIplBadge()
         iplRoomViewModel.getMatchSuggestions() // Fetch today's matches for team picker
 
-        dndController = DndController(this, binding.switchDnd, binding.tvDndStatus, profileViewModel)
+        dndController = DndController(
+            this,
+            binding.switchDnd,
+            binding.tvDndStatus,
+            profileViewModel,
+            cvDnd = binding.cvDnd
+        )
 
         // Refresh user data from server (handles auto-clear of expired ipl_team / dnd)
         val refreshUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id

@@ -13,9 +13,11 @@ data class ChatConversation(
     val lastMessageTime: Timestamp? = null,
     val unreadCount: Int = 0,
     val isOnline: Boolean = false,
-    // Call availability + per-minute pricing. Defaults mirror the rest of the
-    // app (10 coins/min audio, 60 coins/min video) for chats whose API payload
-    // doesn't include these fields yet.
+    // Call availability + per-minute pricing. Status defaults to 1 (enabled)
+    // because the my_chat API frequently omits these fields entirely;
+    // showing the row as enabled keeps the call buttons tappable. The
+    // downstream call-connection flow does the authoritative availability
+    // check and falls back to a toast if the creator is genuinely offline.
     val audioStatus: Int = 1,
     val videoStatus: Int = 1,
     val coinPerMinAudio: Int = 10,

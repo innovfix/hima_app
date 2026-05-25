@@ -28,8 +28,11 @@ import com.gmwapp.hima.databinding.ActivityMaleCallConnectingBinding
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
+import com.gmwapp.hima.retrofit.ApiManager
+import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.CallEndReason
 import com.gmwapp.hima.retrofit.responses.CallEndedBy
+import com.gmwapp.hima.retrofit.responses.RegisterResponse
 import com.gmwapp.hima.viewmodels.AgoraViewModel
 import com.gmwapp.hima.viewmodels.CallStatusViewModel
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
@@ -37,6 +40,9 @@ import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
+import retrofit2.Call
+import retrofit2.Response
+import javax.inject.Inject
 
 
 @AndroidEntryPoint
@@ -54,6 +60,8 @@ class MaleCallConnectingActivity : AppCompatActivity() {
     private var fromChat: Boolean = false
     private var chatPeerUserId: Int = -1
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
+    @Inject
+    lateinit var apiManager: ApiManager
     private var currentCallChannelName: String? = null
     private var prefetchedAgoraToken: String? = null
     private var prefetchedAgoraAppId: String? = null
@@ -291,10 +299,25 @@ class MaleCallConnectingActivity : AppCompatActivity() {
             .apply(RequestOptions.circleCropTransform())
             .into(binding.ivCallerProfile)
 
+        // Placeholder + error fallback so the receiver avatar circle isn't blank
+        // when the missed-call OneSignal payload didn't carry an image URL and
+        // we have nothing cached for this peer either. Matches the silhouette
+        // used by the chat-list / creator-notification adapters.
         Glide.with(this)
             .load(receiverImg)
             .apply(RequestOptions.circleCropTransform())
+            .placeholder(R.drawable.small_profile)
+            .error(R.drawable.small_profile)
             .into(binding.ivLogo)
+
+        // Missed-call OneSignal payloads from the server typically don't carry an
+        // avatar URL and ChatNotificationStore may not have one cached either
+        // (e.g. user hasn't received a chat push from this peer in this session).
+        // Fall back to the userdetails endpoint so we can replace the silhouette
+        // placeholder with the real photo as soon as the network responds.
+        if (receiverImg.isNullOrBlank() && receiverId > 0) {
+            fetchReceiverImage(receiverId)
+        }
 
         Glide.with(this)
             .load(R.drawable.double_arrow_svg)
@@ -319,7 +342,47 @@ class MaleCallConnectingActivity : AppCompatActivity() {
         // Subtle connecting dots animation
         startConnectingDotsAnimation()
     }
-    
+
+    /**
+     * Pulls the receiver's profile (image) from the userdetails endpoint when the
+     * intent didn't carry one — typical for missed-call notification taps where
+     * the OneSignal payload had no avatar field. On success the local
+     * [receiverImg] is updated and Glide is reloaded so the silhouette
+     * placeholder is replaced by the real photo. Failures are silent — the
+     * placeholder simply stays.
+     */
+    private fun fetchReceiverImage(peerId: Int) {
+        apiManager.getUser(peerId, object : NetworkCallback<RegisterResponse> {
+            override fun onResponse(
+                call: Call<RegisterResponse>,
+                response: Response<RegisterResponse>
+            ) {
+                if (isFinishing || isDestroyed) return
+                if (!response.isSuccessful) return
+                val fetched = response.body()?.data?.image.orEmpty()
+                if (fetched.isBlank()) return
+                receiverImg = fetched
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    Glide.with(this@MaleCallConnectingActivity)
+                        .load(fetched)
+                        .apply(RequestOptions.circleCropTransform())
+                        .placeholder(R.drawable.small_profile)
+                        .error(R.drawable.small_profile)
+                        .into(binding.ivLogo)
+                }
+            }
+
+            override fun onFailure(call: Call<RegisterResponse>, t: Throwable) {
+                Log.w("MaleCallConnecting", "fetchReceiverImage failed: ${t.message}")
+            }
+
+            override fun onNoNetwork() {
+                Log.w("MaleCallConnecting", "fetchReceiverImage skipped: no network")
+            }
+        })
+    }
+
     private fun startConnectingDotsAnimation() {
         try {
             val dot1 = findViewById<android.view.View>(R.id.dot1)
@@ -441,8 +504,11 @@ class MaleCallConnectingActivity : AppCompatActivity() {
                 if (userId != null && receiverId != -1 && callType != null) {
                     sendCallNotification(userId!!, receiverId,callType!!,"incoming call $callId $myAvatar $myname")
                     startTimeoutTracking()
-
-
+                    // I039 — register the outgoing call with Telecom so a SIM / WhatsApp
+                    // call arriving mid-Hima-call triggers the system second-call UI
+                    // (Hold & Answer / End & Answer) instead of ringing on top of the
+                    // Agora audio with no coordination.
+                    registerOutgoingWithTelecom()
 
                 } else {
                     Log.e("MaleCallConnectingActivity", "Missing required data: userId=$userId, receiverId=$receiverId, callType=$callType")
@@ -490,6 +556,12 @@ class MaleCallConnectingActivity : AppCompatActivity() {
     private fun disconnectCall() {
         var currentActivity = BaseApplication.getInstance()?.getCurrentActivity()
         if (currentActivity is MaleCallConnectingActivity){
+            // I039 — local cancel (timeout or user back-pressed). Tear down the Telecom
+            // outgoing connection alongside the FCM decline so we don't leak a self-
+            // managed call that the system would otherwise treat as still in progress.
+            com.gmwapp.hima.agora.telecom.HimaTelecomManager.endActiveCall(
+                android.telecom.DisconnectCause.LOCAL
+            )
             if (userId != null && receiverId != -1 && callType != null) {
                 sendCallNotification(userId!!, receiverId, callType!!, "callDeclined")
                 Log.d("CallStatus", "MaleConnecting.timeout → not_answered/receiver self=$userId peer=$receiverId callId=$callId")
@@ -527,6 +599,26 @@ class MaleCallConnectingActivity : AppCompatActivity() {
                 finish()
             }
         }
+    }
+
+    /**
+     * I039 — symmetric to HimaTelecomManager.tryAddIncomingCall on the receive side.
+     * Bundles up the same EXTRA_* keys HimaConnection expects so the outgoing
+     * connection identifies the peer correctly in the system second-call UI.
+     */
+    private fun registerOutgoingWithTelecom() {
+        val ch = currentCallChannelName ?: return
+        val ct = callType ?: return
+        val extras = Bundle().apply {
+            putString(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_CALL_TYPE, ct)
+            putInt(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_SENDER_ID, receiverId)
+            putString(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_CHANNEL_NAME, ch)
+            putInt(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_CALL_ID, callId)
+            putString(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_CALLER_NAME, receiverName ?: "Hima call")
+            putString(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_CALLER_IMAGE, receiverImg ?: "")
+            putString(com.gmwapp.hima.agora.telecom.HimaConnection.EXTRA_RECEIVER_GENDER, "male")
+        }
+        com.gmwapp.hima.agora.telecom.HimaTelecomManager.tryPlaceOutgoingCall(this, extras)
     }
 
     fun sendCallNotification(senderId:Int, receiverId:Int, callType:String, message:String) {
@@ -582,6 +674,9 @@ class MaleCallConnectingActivity : AppCompatActivity() {
 
                 if (status == "accepted") {
                     FcmUtils.clearCallStatus()  // Clear before moving to AudioCallingActivity
+                    // I039 — transition the Telecom outgoing connection from DIALING → ACTIVE
+                    // so the system tracks this Hima call for hold/switch coordination.
+                    com.gmwapp.hima.agora.telecom.HimaTelecomManager.markActive()
 
                     var currentActivity = BaseApplication.getInstance()?.getCurrentActivity()
                     if (currentActivity !is MainActivity){
@@ -621,6 +716,12 @@ class MaleCallConnectingActivity : AppCompatActivity() {
                     }
                 } else if (status == "rejected") {
                     FcmUtils.clearCallStatus()  // Clear before moving to MainActivity
+                    // I039 — clean up the Telecom outgoing connection so the system stops
+                    // treating us as busy. Without this, a subsequent quick-retry outgoing
+                    // call would find the previous self-managed account still "active".
+                    com.gmwapp.hima.agora.telecom.HimaTelecomManager.endActiveCall(
+                        android.telecom.DisconnectCause.REJECTED
+                    )
 
                     cancelTimeoutTracking()
 

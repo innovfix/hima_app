@@ -22,13 +22,18 @@ import com.gmwapp.hima.retrofit.responses.FcmNotificationResponse
  */
 class HimaConnection(
     private val appContext: Context,
-    private val extras: Bundle
+    private val extras: Bundle,
+    // I039 — outgoing connections start in DIALING (no system ringer on our side; we
+    // already have our own connecting UI). Incoming stays in RINGING so Telecom's
+    // self-managed second-call UI can offer Hold & Answer / End & Answer against
+    // another active call.
+    private val isIncoming: Boolean = true
 ) : Connection() {
 
     init {
         connectionProperties = PROPERTY_SELF_MANAGED
         setAudioModeIsVoip(true)
-        val name = extras.getString(EXTRA_CALLER_NAME) ?: "Incoming call"
+        val name = extras.getString(EXTRA_CALLER_NAME) ?: "Hima call"
         setCallerDisplayName(name, TelecomManager.PRESENTATION_ALLOWED)
         val callType = extras.getString(EXTRA_CALL_TYPE) ?: "audio"
         if (callType == "video") {
@@ -36,13 +41,88 @@ class HimaConnection(
         } else {
             setVideoState(VideoProfile.STATE_AUDIO_ONLY)
         }
-        connectionCapabilities = CAPABILITY_MUTE
-        setRinging()
+        // CAPABILITY_HOLD + CAPABILITY_SUPPORT_HOLD let Telecom offer the system
+        // second-call UI ("Hold & Answer", "End & Answer") when another call
+        // arrives while this Hima call is active — and route the user's choice
+        // back to us via onHold() / onUnhold(). Without these, Telecom would
+        // only offer "End & Answer" and audio mixing would persist.
+        connectionCapabilities = CAPABILITY_MUTE or CAPABILITY_HOLD or CAPABILITY_SUPPORT_HOLD
+        if (isIncoming) {
+            setRinging()
+        } else {
+            setDialing()
+        }
         val vs = videoState
         Log.d(
             INCOMING_CALL_LOG_TAG,
-            "HimaConnection init callType=$callType videoState=$vs extrasKeys=${extras.keySet()}"
+            "HimaConnection init isIncoming=$isIncoming callType=$callType videoState=$vs extrasKeys=${extras.keySet()}"
         )
+    }
+
+    /**
+     * Telecom hands hold control to us when the user chose "Hold & Answer" on the
+     * system second-call UI (or accepted another self-managed VoIP call). Mute the
+     * Agora outbound stream via [TelecomCallController] (which the active calling
+     * activity registered against in onCreate) and flip our state to HELD so
+     * Telecom shows the right indicator.
+     */
+    override fun onHold() {
+        super.onHold()
+        Log.d(TAG, "onHold — muting Agora outbound and entering HELD state")
+        TelecomCallController.dispatchHold(true)
+        setOnHold()
+    }
+
+    override fun onUnhold() {
+        super.onUnhold()
+        Log.d(TAG, "onUnhold — unmuting Agora outbound and returning to ACTIVE state")
+        TelecomCallController.dispatchHold(false)
+        setActive()
+    }
+
+    /**
+     * I039 — called by Telecom when the system wants this self-managed connection to show
+     * its own incoming-call UI. The crucial property: Telecom grants this launch permission
+     * to surface over an active call (SIM or another self-managed VoIP app). Without this
+     * override, Android's "no full-screen intent over a call" restriction made our incoming
+     * UI invisible to users already on a phone call, and the call quietly converted to a
+     * missed-call notification.
+     *
+     * Mirrors the activity + extras shape used by [com.gmwapp.hima.utils.CallNotifications.showIncoming]
+     * so the accept screen looks the same whether it was launched here or via the heads-up
+     * notification's content intent.
+     */
+    override fun onShowIncomingCallUi() {
+        super.onShowIncomingCallUi()
+        Log.d(TAG, "onShowIncomingCallUi — launching accept activity")
+        // Pull values out of the constructor `extras` Bundle before building the Intent —
+        // inside `apply { }` the implicit receiver shadows it with Intent.getExtras (nullable).
+        val gender = extras.getString(EXTRA_RECEIVER_GENDER)
+        val callType = extras.getString(EXTRA_CALL_TYPE)
+        val senderId = extras.getInt(EXTRA_SENDER_ID, -1)
+        val channelName = extras.getString(EXTRA_CHANNEL_NAME)
+        val callId = extras.getInt(EXTRA_CALL_ID, 0)
+        val callerName = extras.getString(EXTRA_CALLER_NAME)
+        val callerImage = extras.getString(EXTRA_CALLER_IMAGE)
+
+        val targetClass = if (gender == "male") {
+            com.gmwapp.hima.agora.male.MaleCallAcceptActivity::class.java
+        } else {
+            com.gmwapp.hima.agora.female.FemaleCallAcceptActivity::class.java
+        }
+        val intent = Intent(appContext, targetClass)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            .putExtra("CALL_TYPE", callType)
+            .putExtra("SENDER_ID", senderId)
+            .putExtra("CHANNEL_NAME", channelName)
+            .putExtra("CALL_ID", callId)
+            .putExtra("Caller_NAME", callerName)
+            .putExtra("Caller_Image", callerImage)
+        try {
+            appContext.startActivity(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "onShowIncomingCallUi: startActivity failed ${e.message}", e)
+        }
     }
 
     override fun onAnswer() {

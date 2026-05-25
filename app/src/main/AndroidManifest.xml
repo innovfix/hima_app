@@ -26,7 +26,6 @@
     <uses-permission android:name="com.google.android.gms.permission.SMS_RETRIEVER" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
 
     <uses-feature
@@ -75,36 +74,23 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <!--
-            Every activity below declares `uiMode` in `android:configChanges` so the
-            system does NOT destroy + recreate the activity when the user flips the
-            system theme (light ↔ dark) from the Quick Settings tile while the app
-            is in the foreground. BaseApplication pins AppCompatDelegate to
-            MODE_NIGHT_NO so the app never needs to re-resolve resources for night
-            mode, but the default behaviour was still to recreate the activity on
-            uiMode change — and that recreation path was crashing for users (lost
-            in-memory call/audio state, late-init properties unset, etc).
-        -->
         <activity
             android:name=".activities.IplRoomsActivity"
             android:exported="false"
-            android:configChanges="uiMode"
             android:screenOrientation="portrait" />
         <activity
             android:name=".activities.IplRoomCallActivity"
             android:exported="false"
             android:launchMode="singleTask"
             android:screenOrientation="portrait"
-            android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
+            android:configChanges="orientation|screenSize|keyboardHidden"
             android:showWhenLocked="true"
             android:turnScreenOn="true" />
         <activity
             android:name=".AddUpiActivity"
-            android:configChanges="uiMode"
             android:exported="false" />
         <activity
             android:name=".activities.DeepLinkActivity"
-            android:configChanges="uiMode"
             android:exported="true">
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
@@ -119,19 +105,15 @@
         </activity>
         <activity
             android:name=".activities.CommunityGuidelineActivity"
-            android:configChanges="uiMode"
             android:exported="false" />
         <activity
             android:name=".activities.TermConditionWebViewActivity"
-            android:configChanges="uiMode"
             android:exported="false" />
         <activity
             android:name=".activities.RefundWebViewActivity"
-            android:configChanges="uiMode"
             android:exported="false" />
         <activity
             android:name=".activities.KycActivity"
-            android:configChanges="uiMode"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
 
@@ -141,16 +123,6 @@
         <meta-data
             android:name="com.facebook.sdk.ClientToken"
             android:value="@string/facebook_client_token" />
-        <!-- 2026-05-25 v1075 — FB SDK 17+ defaults these to false; force true so events fire. -->
-        <meta-data
-            android:name="com.facebook.sdk.AutoInitEnabled"
-            android:value="true" />
-        <meta-data
-            android:name="com.facebook.sdk.AutoLogAppEventsEnabled"
-            android:value="true" />
-        <meta-data
-            android:name="com.facebook.sdk.AdvertiserIDCollectionEnabled"
-            android:value="true" />
 
         <!-- Snapchat App Ads Kit - Install Tracking -->
         <meta-data
@@ -166,104 +138,74 @@
             tools:replace="android:theme" />
         <activity
             android:name=".activities.DemoActivity"
-            android:configChanges="uiMode"
             android:exported="false" />
         <activity
             android:name=".agora.AgoraRandomCallActivity"
-            android:configChanges="uiMode"
             android:exported="false" />
         <activity
             android:name=".agora.female.FemaleVideoCallingActivity"
-            android:exported="false"
-            android:supportsPictureInPicture="true"
-            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|uiMode" />
+            android:exported="false" />
         <activity
             android:name=".agora.female.FemaleAudioCallingActivity"
-            android:configChanges="uiMode"
             android:exported="false"
             android:launchMode="singleTask"
-            android:resizeableActivity="false"
             android:showWhenLocked="true"
             android:turnScreenOn="true" />
         <activity
             android:name=".agora.male.MaleVideoCallingActivity"
-            android:exported="false"
-            android:supportsPictureInPicture="true"
-            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|uiMode" />
+            android:exported="false" />
         <activity
             android:name=".agora.male.MaleAudioCallingActivity"
-            android:configChanges="uiMode"
-            android:exported="false"
-            android:resizeableActivity="false" />
+            android:exported="false" />
         <activity
             android:name=".agora.female.FemaleCallAcceptActivity"
-            android:configChanges="uiMode"
             android:exported="false"
             android:launchMode="singleTop"
             android:showWhenLocked="true"
             android:turnScreenOn="true" />
         <activity
             android:name=".agora.female.FemaleCallConnectingActivity"
-            android:configChanges="uiMode"
-            android:exported="false"
-            android:resizeableActivity="false" />
-        <activity
-            android:name=".activities.ChatActivity"
-            android:configChanges="uiMode"
-            android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
+            android:exported="false" />
         <activity
             android:name=".activities.ChatListActivity"
-            android:configChanges="uiMode"
             android:exported="false" />
         <activity
             android:name=".activities.UserProfileDetailActivity"
-            android:configChanges="uiMode"
             android:exported="false" />
         <activity
             android:name=".activities.FriendsListActivity"
-            android:configChanges="uiMode"
             android:exported="false" />
         <activity
             android:name=".activities.ChatActivityInHouse"
-            android:configChanges="uiMode"
             android:exported="false"
             android:launchMode="singleTop"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".agora.male.MaleCallConnectingActivity"
-            android:configChanges="uiMode"
-            android:exported="true"
-            android:resizeableActivity="false" />
+            android:exported="true" />
         <activity
             android:name=".agora.male.MaleCallAcceptActivity"
-            android:configChanges="uiMode"
             android:exported="true"
             android:launchMode="singleTop"
             android:showWhenLocked="true"
             android:turnScreenOn="true" />
         <activity
             android:name=".YoutubeRechargeActivity"
-            android:configChanges="uiMode"
             android:exported="false" />
         <activity
             android:name=".PaymentWebViewActivity"
-            android:configChanges="uiMode"
             android:exported="false" />
         <activity
             android:name=".activities.RatingActivity"
-            android:configChanges="uiMode"
             android:exported="false"
             android:windowSoftInputMode="adjustPan" />
         <activity
             android:name=".activities.BankUpdateActivity"
-            android:configChanges="uiMode"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".activities.SplashScreenActivity"
             android:theme="@style/SplashTheme"
-            android:configChanges="uiMode"
             android:exported="true"
             android:resizeableActivity="true">
             <intent-filter>
@@ -280,12 +222,9 @@
                 <data android:scheme="opensplash" />
             </intent-filter>
         </activity>
-        <activity
-            android:name=".activities.VerifyOTPActivity"
-            android:configChanges="uiMode" />
+        <activity android:name=".activities.VerifyOTPActivity" />
         <activity
             android:name=".activities.MainActivity"
-            android:configChanges="uiMode|screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden|density"
             android:exported="true">
             <intent-filter
                 android:autoVerify="true"
@@ -309,7 +248,6 @@
         </activity>
         <activity
             android:name=".activities.WalletActivity"
-            android:configChanges="uiMode"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
@@ -320,142 +258,70 @@
                 <data android:scheme="gmwapp" />
             </intent-filter>
         </activity>
-        <activity
-            android:name=".activities.TransactionsActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name=".activities.AutopayCheckoutActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name=".activities.CancelSubscriptionActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name=".activities.CancelFeedbackActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name=".activities.SettingsActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name=".activities.CreatorLevelActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name=".activities.FemaleTransactionsActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name=".activities.AccountPrivacyActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name=".activities.ManageNotificationsActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name=".activities.CreatorWarningsActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name=".activities.MyWarningsActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name=".activities.HelpAndSupportActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name=".activities.SubqueriesActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name=".activities.SubqueryDetailActivity"
-            android:configChanges="uiMode" />
+        <activity android:name=".activities.TransactionsActivity" />
+        <activity android:name=".activities.AutopayCheckoutActivity" />
+        <activity android:name=".activities.CancelSubscriptionActivity" />
+        <activity android:name=".activities.CancelFeedbackActivity" />
+        <activity android:name=".activities.SettingsActivity" />
+        <activity android:name=".activities.CreatorLevelActivity" />
+        <activity android:name=".activities.FemaleTransactionsActivity" />
+        <activity android:name=".activities.AccountPrivacyActivity" />
+        <activity android:name=".activities.ManageNotificationsActivity" />
+        <activity android:name=".activities.CreatorWarningsActivity" />
+        <activity android:name=".activities.MyWarningsActivity" />
+        <activity android:name=".activities.HelpAndSupportActivity" />
+        <activity android:name=".activities.SubqueriesActivity" />
+        <activity android:name=".activities.SubqueryDetailActivity" />
         <activity android:name=".activities.SubmitTicketActivity"
-            android:configChanges="uiMode"
             android:windowSoftInputMode="adjustResize" />
-        <activity
-            android:name=".activities.StarCreatorAppliedActivity"
-            android:configChanges="uiMode" />
+        <activity android:name=".activities.StarCreatorAppliedActivity" />
         <activity android:name=".activities.StarCreatorApplicationActivity"
-            android:configChanges="uiMode"
             android:windowSoftInputMode="adjustResize" />
         <activity android:name=".activities.StarCreatorVideoRecordActivity"
-            android:configChanges="uiMode"
             android:exported="false"
             android:screenOrientation="portrait" />
-        <activity
-            android:name=".activities.TicketsListActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name=".activities.DeleteAccountActivity"
-            android:configChanges="uiMode" />
+        <activity android:name=".activities.TicketsListActivity" />
+        <activity android:name=".activities.DeleteAccountActivity" />
         <activity android:name=".activities.EditProfileActivity"
-            android:configChanges="uiMode"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".activities.PaymentActivity"
-            android:configChanges="uiMode"
             tools:ignore="DuplicateActivity" />
         <activity android:name=".activities.CouponActivity"
-            android:configChanges="uiMode"
             android:windowSoftInputMode="adjustResize" />
-        <activity
-            android:name=".activities.ShareActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name=".activities.SelectGenderActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name=".activities.SelectLanguageActivity"
-            android:configChanges="uiMode" />
+        <activity android:name=".activities.ShareActivity" />
+        <activity android:name=".activities.SelectGenderActivity" />
+        <activity android:name=".activities.SelectLanguageActivity" />
         <activity android:name=".activities.AiOnboardingActivity"
-            android:configChanges="uiMode"
             android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize" />
         <activity android:name=".activities.GetNameActivity"
-            android:configChanges="uiMode"
             android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize" />
-        <activity
-            android:name=".activities.LoginActivity"
-            android:configChanges="uiMode" />
+        <activity android:name=".activities.LoginActivity" />
         <activity
             android:name=".activities.NewLoginActivity"
-            android:configChanges="uiMode"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".activities.FemaleAboutActivity"
-            android:configChanges="uiMode"
             android:resizeableActivity="true" />
-        <activity
-            android:name=".activities.AlmostDoneActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name=".activities.VoiceIdentificationActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name=".activities.EarningsActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name=".activities.WebviewActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name=".activities.YoutubeActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name=".activities.RandomUserActivity"
-            android:configChanges="uiMode" />
-        <activity
-            android:name=".activities.GrantPermissionsActivity"
-            android:configChanges="uiMode" />
+        <activity android:name=".activities.AlmostDoneActivity" />
+        <activity android:name=".activities.VoiceIdentificationActivity" />
+        <activity android:name=".activities.EarningsActivity" />
+        <activity android:name=".activities.WebviewActivity" />
+        <activity android:name=".activities.YoutubeActivity" />
+        <activity android:name=".activities.RandomUserActivity" />
+        <activity android:name=".activities.GrantPermissionsActivity" />
         <activity
             android:name=".activities.NotificationImportanceActivity"
-            android:configChanges="uiMode"
             android:launchMode="singleTop"
             android:noHistory="true" />
-        <activity
-            android:name=".activities.ReviewActivity"
-            android:configChanges="uiMode" />
+        <activity android:name=".activities.ReviewActivity" />
         <activity
             android:name=".activities.WithdrawActivity"
-            android:configChanges="uiMode"
             android:resizeableActivity="true"
             android:windowSoftInputMode="adjustResize" />
-        <activity
-            android:name=".activities.PaymentInitiatedActivity"
-            android:configChanges="uiMode" />
+        <activity android:name=".activities.PaymentInitiatedActivity" />
 
         <provider
             android:name="androidx.startup.InitializationProvider"
