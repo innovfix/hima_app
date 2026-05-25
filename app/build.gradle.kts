@@ -54,7 +54,10 @@ android {
             // deliver on this flavor — until then expect empty subscription
             // records (token="", enabled=false). In-app behaviour is unaffected.
             // buildConfigField("String", "BASE_URL", "\"http://192.168.29.190/hima-admin-panel/public/api/auth/\"")
-            buildConfigField("String", "BASE_URL", "\"https://demolivedb.himaapp.in/api/auth/\"")
+            // demohima hosts the demo_autopay backend branch (Cashfree subscription
+            // endpoints, plan IDs, webhook secret). demolivedb does not — pointing
+            // dev there breaks /autopay_initiate and the trial sheet config endpoints.
+            buildConfigField("String", "BASE_URL", "\"https://demohima.himaapp.in/api/auth/\"")
             buildConfigField("String", "ONESIGNAL_APP_ID", "\"5cd4154a-1ece-4c3b-b6af-e88bafee64cd\"")
         }
         create("production") {
