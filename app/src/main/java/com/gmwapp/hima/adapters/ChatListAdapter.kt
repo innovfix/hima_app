@@ -135,18 +135,23 @@ class ChatListAdapter(
         lastMessageText: String,
         lastMessageType: String,
         lastMessageTime: com.google.firebase.Timestamp,
-        suppressUnreadIncrement: Boolean = false
+        suppressUnreadIncrement: Boolean = false,
+        sentByMe: Boolean = false,
+        lastMessageId: Long = 0L
     ): Boolean {
         val idx = conversations.indexOfFirst { it.userId == peerUserId }
         if (idx < 0) return false
 
         val current = conversations[idx]
-        val nextUnread = if (suppressUnreadIncrement) 0 else current.unreadCount + 1
+        val nextUnread = if (sentByMe || suppressUnreadIncrement) 0 else current.unreadCount + 1
         val updated = current.copy(
             lastMessage = lastMessageText,
             lastMessageType = lastMessageType,
             lastMessageTime = lastMessageTime,
-            unreadCount = nextUnread
+            unreadCount = nextUnread,
+            lastMessageSentByMe = sentByMe,
+            lastMessageIsRead = false,
+            lastMessageId = if (lastMessageId > 0L) lastMessageId else current.lastMessageId
         )
 
         // Compute new order: pinned rows keep their stored order; unpinned rows
@@ -164,6 +169,27 @@ class ChatListAdapter(
             it.lastMessageTime?.toDate()?.time ?: 0L
         }
         updateConversations(sortedPinned + sortedUnpinned)
+        return true
+    }
+
+    fun applyMessagesRead(peerUserId: String, lastReadMessageId: Long?, readMessageIds: List<Long>): Boolean {
+        val idx = conversations.indexOfFirst { it.userId == peerUserId }
+        if (idx < 0) return false
+        val current = conversations[idx]
+        if (!current.lastMessageSentByMe) return false
+        if (current.lastMessageIsRead) return true
+        val covered = when {
+            readMessageIds.isNotEmpty() && current.lastMessageId > 0L ->
+                readMessageIds.contains(current.lastMessageId)
+            lastReadMessageId != null && current.lastMessageId > 0L ->
+                current.lastMessageId <= lastReadMessageId
+            else -> true
+        }
+        if (!covered) return false
+        val updated = current.copy(lastMessageIsRead = true)
+        val newList = conversations.toMutableList()
+        newList[idx] = updated
+        updateConversations(newList)
         return true
     }
 
@@ -255,6 +281,23 @@ class ChatListAdapter(
                     } else {
                         activity.getString(R.string.chat_preview_unsupported)
                     }
+            }
+
+            if (conversation.lastMessageSentByMe && !isBlocked) {
+                binding.ivLastMessageTick.visibility = View.VISIBLE
+                if (conversation.lastMessageIsRead) {
+                    binding.ivLastMessageTick.setImageResource(R.drawable.ic_chat_double_check)
+                    binding.ivLastMessageTick.imageTintList = ColorStateList.valueOf(
+                        ContextCompat.getColor(activity, R.color.chat_read_receipt)
+                    )
+                } else {
+                    binding.ivLastMessageTick.setImageResource(R.drawable.ic_chat_single_check)
+                    binding.ivLastMessageTick.imageTintList = ColorStateList.valueOf(
+                        ContextCompat.getColor(activity, R.color.grey_medium)
+                    )
+                }
+            } else {
+                binding.ivLastMessageTick.visibility = View.GONE
             }
 
             // Set time

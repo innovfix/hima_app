@@ -288,9 +288,11 @@ class FriendsTabFragment : Fragment() {
                 com.gmwapp.hima.socket.SocketManager.getInstance().newMessage.collect { msg ->
                     if (!isAdded || !::chatAdapter.isInitialized) return@collect
                     val mySelfId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
-                    val peerId = msg.fromUserId ?: return@collect
-                    // Skip own outgoing echoes — the thread already handles those.
-                    if (peerId == mySelfId) return@collect
+                    val fromId = msg.fromUserId ?: return@collect
+                    // For own outgoing the row is keyed by toUserId; for incoming
+                    // it's keyed by fromUserId. Either way we refresh the preview.
+                    val sentByMe = fromId == mySelfId
+                    val rowPeerId = if (sentByMe) (msg.toUserId ?: return@collect) else fromId
                     val previewType = msg.messageType.lowercase().ifBlank { "text" }
                     val previewText = msg.message.ifBlank {
                         when (previewType) {
@@ -302,17 +304,36 @@ class FriendsTabFragment : Fragment() {
                         }
                     }
                     val ts = com.google.firebase.Timestamp.now()
-                    val suppressUnread = com.gmwapp.hima.utils.ActiveChatTracker.isActiveFor(context, peerId)
+                    val suppressUnread = sentByMe ||
+                        com.gmwapp.hima.utils.ActiveChatTracker.isActiveFor(context, rowPeerId)
                     val handled = chatAdapter.applyIncomingMessage(
-                        peerUserId = peerId.toString(),
+                        peerUserId = rowPeerId.toString(),
                         lastMessageText = previewText,
                         lastMessageType = previewType,
                         lastMessageTime = ts,
-                        suppressUnreadIncrement = suppressUnread
+                        suppressUnreadIncrement = suppressUnread,
+                        sentByMe = sentByMe,
+                        lastMessageId = msg.id
                     )
                     if (!handled) {
                         loadChatConversations()
                     }
+                }
+            }
+        }
+
+        // Read-receipt fanout — flip the chat-list tick from grey ✓ to
+        // blue ✓✓ when the peer marks our latest message as read.
+        owner.lifecycleScope.launch {
+            owner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                com.gmwapp.hima.socket.SocketManager.getInstance().messagesRead.collect { event ->
+                    if (!isAdded || !::chatAdapter.isInitialized) return@collect
+                    val readerId = event.readerId ?: return@collect
+                    chatAdapter.applyMessagesRead(
+                        peerUserId = readerId.toString(),
+                        lastReadMessageId = event.lastMessageId,
+                        readMessageIds = event.messageIds
+                    )
                 }
             }
         }
@@ -745,6 +766,8 @@ class FriendsTabFragment : Fragment() {
             null
         }
         val u = chatItem.user
+        val mySelfId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+        val sentByMe = lastMessage != null && mySelfId > 0 && lastMessage.fromUserId == mySelfId
         return ChatConversation(
             threadId = chatItem.chatId,
             userId = u.id.toString(),
@@ -770,7 +793,10 @@ class FriendsTabFragment : Fragment() {
                     .isBlocked(requireContext(), u.id.toString())
             } else {
                 false
-            }
+            },
+            lastMessageSentByMe = sentByMe,
+            lastMessageIsRead = lastMessage?.isRead == true,
+            lastMessageId = (lastMessage?.id ?: 0).toLong()
         )
     }
 

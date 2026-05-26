@@ -95,7 +95,15 @@ class SocketManager private constructor() {
      */
     private val _chatMessageDeleted = eventFlow<String>()
     val chatMessageDeleted: SharedFlow<String> = _chatMessageDeleted.asSharedFlow()
-    
+
+    /**
+     * Fired when the peer marks our messages as read. Carries the message
+     * IDs that just flipped to is_read=1 so the chat thread can bump those
+     * bubbles to READ and the chat list can flip the row tick to blue.
+     */
+    private val _messagesRead = eventFlow<MessagesReadEvent>()
+    val messagesRead: SharedFlow<MessagesReadEvent> = _messagesRead.asSharedFlow()
+
     /**
      * Connect to Socket.IO server using userId
      * After connection, automatically joins user room
@@ -553,6 +561,39 @@ class SocketManager private constructor() {
                     Log.e("ChatDelete", "Error parsing message_deleted: ${e.message}", e)
                 }
             }
+
+            on("messages_read") { args ->
+                try {
+                    val payload = args.firstOrNull() as? JSONObject ?: return@on
+                    val chatIdVal = payload.optString("chat_id", "")
+                    val readerId = if (payload.has("reader_id") && !payload.isNull("reader_id"))
+                        payload.optInt("reader_id", -1).takeIf { it > 0 } else null
+                    val senderId = if (payload.has("sender_id") && !payload.isNull("sender_id"))
+                        payload.optInt("sender_id", -1).takeIf { it > 0 } else null
+                    val lastId = if (payload.has("last_message_id") && !payload.isNull("last_message_id"))
+                        payload.optLong("last_message_id", 0L).takeIf { it > 0L } else null
+                    val ids = mutableListOf<Long>()
+                    val arr = payload.optJSONArray("message_ids")
+                    if (arr != null) {
+                        for (i in 0 until arr.length()) {
+                            val v = arr.optLong(i, 0L)
+                            if (v > 0L) ids.add(v)
+                        }
+                    }
+                    _messagesRead.tryEmit(
+                        MessagesReadEvent(
+                            chatId = chatIdVal,
+                            readerId = readerId,
+                            senderId = senderId,
+                            lastMessageId = lastId,
+                            messageIds = ids
+                        )
+                    )
+                    Log.d("ChatReadReceipt", "Socket messages_read chat=$chatIdVal reader=$readerId ids=${ids.size}")
+                } catch (e: Exception) {
+                    Log.e("ChatReadReceipt", "Error parsing messages_read: ${e.message}", e)
+                }
+            }
         }
     }
 
@@ -818,6 +859,14 @@ data class ReactionUpdateEvent(
     val userId: Int,
     val reactionEmoji: String?,
     val allReactions: List<Map<String, Any>>?  // Array of {user_id, reaction_emoji}
+)
+
+data class MessagesReadEvent(
+    val chatId: String,
+    val readerId: Int?,
+    val senderId: Int?,
+    val lastMessageId: Long?,
+    val messageIds: List<Long>
 )
 
 data class ChatUpdatedEvent(

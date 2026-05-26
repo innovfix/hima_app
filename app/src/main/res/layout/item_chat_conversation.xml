@@ -104,12 +104,30 @@
             app:layout_constraintTop_toTopOf="@id/iv_notify_bell"
             app:tint="@color/chat_list_bell_inactive" />
 
+        <!-- Read-receipt tick — visible only when the current user sent the
+             latest message in this thread. Single grey ✓ = sent/delivered;
+             double blue ✓✓ = read. -->
+        <ImageView
+            android:id="@+id/iv_last_message_tick"
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="2dp"
+            android:contentDescription="@null"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_chat_single_check"
+            android:visibility="gone"
+            app:tint="@color/grey_medium"
+            app:layout_constraintBottom_toBottomOf="@id/tv_last_message"
+            app:layout_constraintStart_toEndOf="@id/fl_image_container"
+            app:layout_constraintTop_toTopOf="@id/tv_last_message" />
+
         <!-- Last Message -->
         <TextView
             android:id="@+id/tv_last_message"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
+            android:layout_marginStart="4dp"
             android:layout_marginTop="2dp"
             android:layout_marginEnd="8dp"
             android:fontFamily="@font/poppins_regular"
@@ -120,8 +138,9 @@
             android:textSize="13sp"
             app:layout_constraintBottom_toBottomOf="@id/fl_image_container"
             app:layout_constraintEnd_toStartOf="@id/tv_unread_count"
-            app:layout_constraintStart_toEndOf="@id/fl_image_container"
+            app:layout_constraintStart_toEndOf="@id/iv_last_message_tick"
             app:layout_constraintTop_toBottomOf="@id/tv_user_name"
+            app:layout_goneMarginStart="12dp"
             tools:text="Hey! How are you doing today?" />
 
         <!-- Unread Count Badge — inline with the time, to its left, so it never

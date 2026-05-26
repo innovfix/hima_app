@@ -2075,8 +2075,33 @@ class ChatActivityInHouse : AppCompatActivity() {
                 Log.d("ChatDelete", "✅ Applied remote tombstone for id=$deletedId idx=$idx")
             }
         }
+
+        // Read-receipt: peer marked our messages as read → flip bubbles to ✓✓-blue.
+        lifecycleScope.launch {
+            socketManager.messagesRead.collect { event ->
+                if (!isUiSafe()) return@collect
+                if (event.chatId.isNotEmpty() && event.chatId != chatId) return@collect
+                if (event.messageIds.isEmpty() && event.lastMessageId == null) return@collect
+                val targetIds = event.messageIds.map { it.toString() }.toHashSet()
+                val cutoff = event.lastMessageId
+                var changed = false
+                messages.forEachIndexed { idx, msg ->
+                    if (msg.isDateHeader || !msg.isSentByMe || msg.isDeleted) return@forEachIndexed
+                    if (msg.deliveryStatus == MessageDeliveryStatus.READ) return@forEachIndexed
+                    val numericId = msg.id.toLongOrNull()
+                    val matchesIdList = msg.id in targetIds
+                    val matchesCutoff = cutoff != null && numericId != null && numericId <= cutoff
+                    if (matchesIdList || matchesCutoff) {
+                        messages[idx] = msg.copy(deliveryStatus = MessageDeliveryStatus.READ)
+                        chatAdapter.notifyItemChanged(idx)
+                        changed = true
+                    }
+                }
+                if (changed) Log.d("ChatReadReceipt", "✓✓ flipped bubbles to READ for chat=${event.chatId}")
+            }
+        }
     }
-    
+
     private fun handleIncomingReaction(reactionUpdate: com.gmwapp.hima.socket.ReactionUpdateEvent) {
         val messageId = reactionUpdate.messageId.toString()
         val messageIndex = messages.indexOfFirst { it.id == messageId }

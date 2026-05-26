@@ -27,6 +27,12 @@ data class ChatConversation(
     val isPinned: Boolean = false,
     /** True when the current user has blocked this peer (from [com.gmwapp.hima.utils.BlockedPeersPrefsHelper]). */
     val isBlocked: Boolean = false,
+    /** WhatsApp-style chat-list tick: shown only when the current user sent the latest message. */
+    val lastMessageSentByMe: Boolean = false,
+    /** When lastMessageSentByMe, upgrades the tick from grey ✓ to blue ✓✓. */
+    val lastMessageIsRead: Boolean = false,
+    /** Numeric id of the last message — used by the messages_read socket event to match the row. */
+    val lastMessageId: Long = 0L,
 )
 
 

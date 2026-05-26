@@ -938,7 +938,12 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                             language = item.user.language,
                             isPinned = PinnedChatsPrefsHelper.isPinned(activityCtx, item.user.id.toString()),
                             isBlocked = com.gmwapp.hima.utils.BlockedPeersPrefsHelper
-                                .isBlocked(activityCtx, item.user.id.toString())
+                                .isBlocked(activityCtx, item.user.id.toString()),
+                            lastMessageSentByMe = item.lastMessage != null &&
+                                (BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0) > 0 &&
+                                item.lastMessage.fromUserId == (BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0),
+                            lastMessageIsRead = item.lastMessage?.isRead == true,
+                            lastMessageId = (item.lastMessage?.id ?: 0).toLong()
                         )
                     } catch (_: Exception) { null }
                 }
