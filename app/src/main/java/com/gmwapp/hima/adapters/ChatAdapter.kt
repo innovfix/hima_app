@@ -532,6 +532,7 @@ class ChatAdapter(
             if (message.isDeleted) {
                 imageView.visibility = View.GONE
                 imageView.setOnClickListener(null)
+                imageView.setOnLongClickListener(null)
                 layoutImageTimeChip?.visibility = View.GONE
                 clearDeliveryIndicator(itemView)
                 tvTime.visibility = View.GONE
@@ -559,6 +560,18 @@ class ChatAdapter(
             tvTime.text = message.timestamp
             bindReaction(tvReaction, message)
             bindLongClick(bubbleContainer, itemView) { bindingAdapterPosition }
+            // CHAT-014 / CHAT-050: the imageView's setOnClickListener (below)
+            // makes it clickable, which swallows long-press before it can bubble
+            // up to itemView. Re-route long-press here so it reaches the same
+            // popup-menu handler bindLongClick uses.
+            imageView.setOnLongClickListener {
+                val pos = bindingAdapterPosition
+                if (pos == RecyclerView.NO_POSITION || pos == -1) return@setOnLongClickListener false
+                val msg = messages.getOrNull(pos) ?: return@setOnLongClickListener false
+                if (msg.isDateHeader) return@setOnLongClickListener false
+                onMessageLongPress?.invoke(bubbleContainer, msg, pos)
+                true
+            }
 
             Glide.with(itemView)
                 .load(source)
@@ -623,6 +636,7 @@ class ChatAdapter(
                 tvTime.visibility = View.GONE
                 tvReaction.visibility = View.GONE
                 ivPlayPause.setOnClickListener(null)
+                ivPlayPause.setOnLongClickListener(null)
                 tvTombstone?.let {
                     it.visibility = View.VISIBLE
                     it.text = itemView.context.getString(R.string.chat_message_deleted_tombstone)
@@ -659,6 +673,18 @@ class ChatAdapter(
             }
             bindReaction(tvReaction, message)
             bindLongClick(bubbleContainer, itemView) { bindingAdapterPosition }
+            // CHAT-050: ivPlayPause has setOnClickListener (below) so long-press
+            // on the play button is eaten before reaching itemView. Re-route it
+            // to the same popup-menu handler so long-press works everywhere on
+            // the audio bubble, not just on the non-button areas.
+            ivPlayPause.setOnLongClickListener {
+                val pos = bindingAdapterPosition
+                if (pos == RecyclerView.NO_POSITION || pos == -1) return@setOnLongClickListener false
+                val msg = messages.getOrNull(pos) ?: return@setOnLongClickListener false
+                if (msg.isDateHeader) return@setOnLongClickListener false
+                onMessageLongPress?.invoke(bubbleContainer, msg, pos)
+                true
+            }
 
             ivPlayPause.setImageResource(if (isPlaying) R.drawable.pause else R.drawable.play)
             if (isSent) {
