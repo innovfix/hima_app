@@ -92,6 +92,7 @@ import com.gmwapp.hima.utils.CallUnavailableFeedback
 import com.gmwapp.hima.utils.AudioRecorderController
 import com.gmwapp.hima.utils.ChatHistoryMemoryCache
 import com.gmwapp.hima.utils.ImageCompressor
+import com.gmwapp.hima.utils.LocallyDeletedMessagesStore
 
 @AndroidEntryPoint
 class ChatActivityInHouse : AppCompatActivity() {
@@ -782,6 +783,9 @@ class ChatActivityInHouse : AppCompatActivity() {
         menuInflater.inflate(R.menu.menu_chat_message, popup.menu)
         // Delete-for-everyone is only offered to the sender of the message.
         popup.menu.findItem(R.id.action_delete)?.isVisible = message.isSentByMe
+        // Delete-for-me works for any non-pending message (sent or received).
+        // Don't offer it on optimistic rows — the messageId isn't stable yet.
+        popup.menu.findItem(R.id.action_delete_for_me)?.isVisible = !isPendingMessage(message)
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 R.id.action_reply -> {
@@ -796,10 +800,49 @@ class ChatActivityInHouse : AppCompatActivity() {
                     confirmDeleteMessage(message)
                     true
                 }
+                R.id.action_delete_for_me -> {
+                    confirmDeleteForMe(message)
+                    true
+                }
                 else -> false
             }
         }
         popup.show()
+    }
+
+    /**
+     * CHAT-138: local-only hide. Server is never told; peer's view is unaffected.
+     * Persisted in [LocallyDeletedMessagesStore] so the hide survives chat reloads.
+     */
+    private fun confirmDeleteForMe(message: ChatMessage) {
+        if (!isUiSafe()) return
+        if (message.isDateHeader) return
+        if (isPendingMessage(message)) return
+        AlertDialog.Builder(this)
+            .setTitle(R.string.chat_delete_for_me_title)
+            .setMessage(R.string.chat_delete_for_me_message)
+            .setPositiveButton(R.string.chat_delete_confirm) { _, _ ->
+                performDeleteForMe(message)
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun performDeleteForMe(message: ChatMessage) {
+        if (!isUiSafe()) return
+        LocallyDeletedMessagesStore.add(this, myUserId, peerUserId, message.id)
+        // Reply-target safety: if the row I'm about to remove is the active
+        // reply anchor, clear the composer state so the reply preview doesn't
+        // point at a vanished message.
+        if (pendingReplyTo?.id == message.id) {
+            pendingReplyTo = null
+            updateReplyPreviewUi()
+        }
+        val index = messages.indexOfFirst { it.id == message.id && !it.isDateHeader }
+        if (index != -1) {
+            messages.removeAt(index)
+            chatAdapter.notifyItemRemoved(index)
+        }
     }
 
     private fun confirmDeleteMessage(message: ChatMessage) {
@@ -1884,10 +1927,14 @@ class ChatActivityInHouse : AppCompatActivity() {
                 }
                 val idx = messages.indexOfFirst { m -> m.isSentByMe && m.id == messageId }
                 if (idx != -1) {
+                    // CHAT-025: server-ack means SENT (single tick), not
+                    // DELIVERED. DELIVERED is reserved for an explicit
+                    // peer-device delivery signal; without one we'd jump
+                    // straight from no-tick to double-tick on every send.
                     val nextStatus = if (sock.isRead) {
                         MessageDeliveryStatus.READ
                     } else {
-                        MessageDeliveryStatus.DELIVERED
+                        MessageDeliveryStatus.SENT
                     }
                     messages[idx] = messages[idx].copy(deliveryStatus = nextStatus)
                     chatAdapter.notifyItemChanged(idx)
@@ -2949,10 +2996,15 @@ class ChatActivityInHouse : AppCompatActivity() {
 
         Log.d("ChatTimeFix", "Message ID: ${apiMsg.id}, Using: ${if (apiMsg.createdAt != null) "created_at" else "timestamp"}, Value: $timestampString")
 
+        // CHAT-025: outgoing-but-unread messages are SENT (single tick), not
+        // DELIVERED — skipping straight to double-tick hides genuine delivery
+        // failures and breaks parity with every other messaging app.
+        // The !isSentByMe branch is a no-op visually (adapter ignores
+        // deliveryStatus for inbound rows) but kept for completeness.
         val deliveryStatus = when {
             !isSentByMe -> MessageDeliveryStatus.DELIVERED
             apiMsg.isRead -> MessageDeliveryStatus.READ
-            else -> MessageDeliveryStatus.DELIVERED
+            else -> MessageDeliveryStatus.SENT
         }
         return ChatMessage(
             id = apiMsg.id.toString(),
@@ -2980,10 +3032,12 @@ class ChatActivityInHouse : AppCompatActivity() {
             reactionsMap[userId] = emoji
         }
         
+        // CHAT-025: socket-echoed outgoing message is SENT (single tick),
+        // not DELIVERED. See convertApiMessageToChatMessage for rationale.
         val deliveryStatus = when {
             !isSentByMe -> MessageDeliveryStatus.DELIVERED
             socketMsg.isRead -> MessageDeliveryStatus.READ
-            else -> MessageDeliveryStatus.DELIVERED
+            else -> MessageDeliveryStatus.SENT
         }
         return ChatMessage(
             id = socketMsg.id.toString(),
@@ -3012,10 +3066,12 @@ class ChatActivityInHouse : AppCompatActivity() {
         
         Log.d("ChatTimeFix", "Fallback Message ID: ${fallbackMsg.id}, Using: ${if (fallbackMsg.createdAt != null) "created_at" else "timestamp"}, Value: $timestampString")
         
+        // CHAT-025: REST-fallback outgoing message is SENT (single tick),
+        // not DELIVERED. See convertApiMessageToChatMessage for rationale.
         val deliveryStatus = when {
             !isSentByMe -> MessageDeliveryStatus.DELIVERED
             fallbackMsg.isRead -> MessageDeliveryStatus.READ
-            else -> MessageDeliveryStatus.DELIVERED
+            else -> MessageDeliveryStatus.SENT
         }
         return ChatMessage(
             id = fallbackMsg.id.toString(),
@@ -3099,8 +3155,21 @@ class ChatActivityInHouse : AppCompatActivity() {
 
     private fun rebuildMessagesWithHeaders(source: List<ChatMessage>) {
         messages.clear()
-        messages.addAll(sortedChatMessages(source))
+        // CHAT-138: drop anything the user "Deleted for me" on this device.
+        val filtered = filterOutLocallyDeleted(source)
+        messages.addAll(sortedChatMessages(filtered))
         updateTopHeader(messages)
+    }
+
+    /**
+     * CHAT-138: removes messages whose IDs are in this user's local
+     * "Delete for me" set for the current peer. Date headers always pass.
+     */
+    private fun filterOutLocallyDeleted(source: List<ChatMessage>): List<ChatMessage> {
+        if (myUserId <= 0 || peerUserId <= 0) return source
+        val deletedSet = LocallyDeletedMessagesStore.getAll(this, myUserId, peerUserId)
+        if (deletedSet.isEmpty()) return source
+        return source.filter { it.isDateHeader || !deletedSet.contains(it.id) }
     }
 
     private fun pendingPayloadMatchesMessage(
@@ -3316,6 +3385,15 @@ class ChatActivityInHouse : AppCompatActivity() {
      * For bulk loads use [updateTopHeader] + range/full notify instead.
      */
     private fun appendMessageWithOptionalDateHeader(newMsg: ChatMessage) {
+        // CHAT-138: if the user already deleted this messageId for themselves
+        // on this device, don't let it come back via a socket replay or chat
+        // history pagination. Date headers and pending optimistic rows skip.
+        if (!newMsg.isDateHeader && !isPendingMessage(newMsg) && newMsg.id.isNotBlank() &&
+            myUserId > 0 && peerUserId > 0 &&
+            LocallyDeletedMessagesStore.isLocallyDeleted(this, myUserId, peerUserId, newMsg.id)
+        ) {
+            return
+        }
         val prev = lastNonHeaderMessage()
         if (prev == null) {
             if (newMsg.date != null) {
