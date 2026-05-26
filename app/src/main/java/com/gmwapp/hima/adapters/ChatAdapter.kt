@@ -284,32 +284,49 @@ class ChatAdapter(
     }
 
     private fun bindLongClick(anchor: View, itemView: View, positionProvider: () -> Int) {
-        when {
-            onMessageLongPress != null -> {
-                itemView.setOnLongClickListener {
-                    val pos = positionProvider()
-                    if (pos == RecyclerView.NO_POSITION || pos == -1) return@setOnLongClickListener false
-                    val msg = messages.getOrNull(pos) ?: return@setOnLongClickListener false
-                    if (msg.isDateHeader) return@setOnLongClickListener false
-                    onMessageLongPress.invoke(anchor, msg, pos)
-                    true
+        val listener: View.OnLongClickListener? = when {
+            onMessageLongPress != null -> View.OnLongClickListener {
+                val pos = positionProvider()
+                if (pos == RecyclerView.NO_POSITION || pos == -1) return@OnLongClickListener false
+                val msg = messages.getOrNull(pos) ?: return@OnLongClickListener false
+                if (msg.isDateHeader) return@OnLongClickListener false
+                onMessageLongPress.invoke(anchor, msg, pos)
+                true
+            }
+            enableReactions -> View.OnLongClickListener {
+                val pos = positionProvider()
+                if (pos != RecyclerView.NO_POSITION && pos != -1) {
+                    showReactionPopupForPosition(anchor, pos)
                 }
-                itemView.isLongClickable = true
+                true
             }
-            enableReactions -> {
-                itemView.setOnLongClickListener {
-                    val pos = positionProvider()
-                    if (pos != RecyclerView.NO_POSITION && pos != -1) {
-                        showReactionPopupForPosition(anchor, pos)
-                    }
-                    true
-                }
-                itemView.isLongClickable = true
+            else -> null
+        }
+
+        if (listener == null) {
+            itemView.setOnLongClickListener(null)
+            itemView.isLongClickable = false
+            if (anchor !== itemView) {
+                anchor.setOnLongClickListener(null)
+                anchor.isLongClickable = false
             }
-            else -> {
-                itemView.setOnLongClickListener(null)
-                itemView.isLongClickable = false
-            }
+            return
+        }
+
+        itemView.setOnLongClickListener(listener)
+        itemView.isLongClickable = true
+        // CHAT-098: the anchor (the text view, or the image/audio bubble
+        // container) is often `isLongClickable=true` for selection or to claim
+        // touches inside the bubble. Android treats long-clickable views as
+        // clickable for hit testing, so the inner view captures the DOWN event
+        // and the long-press dispatched there never bubbles up to the row's
+        // listener — long-press on the actual message text used to do nothing,
+        // only the padding around the bubble worked. Attaching the SAME
+        // listener to the anchor closes that gap without needing a separate
+        // per-view handler in each ViewHolder.
+        if (anchor !== itemView) {
+            anchor.setOnLongClickListener(listener)
+            anchor.isLongClickable = true
         }
     }
 
