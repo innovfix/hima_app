@@ -106,6 +106,26 @@ class MaleCallConnectingActivity : AppCompatActivity() {
             insets
         }
 
+        // CALL-104: per-peer rapid-call cooldown gate. 4 failed attempts
+        // against the SAME peer → 1-minute block for calls TO that peer
+        // only. Tap during cooldown → toast + activity finishes
+        // immediately, before any API/FCM call fires. Counter is cleared
+        // on successful connect (see acceptCall branch) and on cooldown
+        // expiry. Read receiverId early — the rest of the intent extras
+        // are reread below, this is just to scope the gate.
+        val cooldownPeerId = intent.getIntExtra(DConstants.RECEIVER_ID, -1)
+        if (cooldownPeerId > 0 &&
+            com.gmwapp.hima.utils.CallAttemptTracker.isInCooldown(this, cooldownPeerId)
+        ) {
+            android.widget.Toast.makeText(
+                this,
+                getString(R.string.call_throttle_toast),
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+            finish()
+            return
+        }
+
         FcmUtils.isUserAvailable=1
 
         Log.d("FcmUtils.isUserAvailable","${FcmUtils.isUserAvailable}")
@@ -171,6 +191,11 @@ class MaleCallConnectingActivity : AppCompatActivity() {
                         endedBy = CallEndedBy.CALLER,
                         endedByUserId = userId,
                         durationSeconds = 0,
+                    )
+                    // CALL-104: user-cancel counts as a failed attempt
+                    // against this specific peer.
+                    com.gmwapp.hima.utils.CallAttemptTracker.recordFailedAttempt(
+                        this@MaleCallConnectingActivity, receiverId
                     )
                     FcmUtils.clearCallStatus()  // Clear before moving to MainActivity
 
@@ -503,6 +528,9 @@ class MaleCallConnectingActivity : AppCompatActivity() {
                     endedByUserId = receiverId,
                     durationSeconds = 0,
                 )
+                // CALL-104: timeout (no pickup) counts as a failed attempt
+                // against this specific peer.
+                com.gmwapp.hima.utils.CallAttemptTracker.recordFailedAttempt(this, receiverId)
             }
             cancelTimeoutTracking()
             FcmUtils.clearCallStatus()  // Clear before moving to MainActivity
@@ -583,6 +611,10 @@ class MaleCallConnectingActivity : AppCompatActivity() {
 
                 if (status == "accepted") {
                     FcmUtils.clearCallStatus()  // Clear before moving to AudioCallingActivity
+                    // CALL-104: a successful connect to this peer resets that
+                    // peer's failed-attempt counter so a recovered run starts
+                    // with the full budget against them.
+                    com.gmwapp.hima.utils.CallAttemptTracker.clearAttempts(this, receiverId)
 
                     var currentActivity = BaseApplication.getInstance()?.getCurrentActivity()
                     if (currentActivity !is MainActivity){
@@ -625,6 +657,9 @@ class MaleCallConnectingActivity : AppCompatActivity() {
 
                     cancelTimeoutTracking()
 
+                    // CALL-104: peer-reject counts as a failed attempt
+                    // against this specific peer.
+                    com.gmwapp.hima.utils.CallAttemptTracker.recordFailedAttempt(this, receiverId)
                     Log.d("CallStatus", "MaleConnecting.peerRejected (observed, no post — peer already posted) self=$userId peer=$receiverId callId=$callId")
                     Log.d("MaleCallConnecting", "Call rejected - fromChat=$fromChat, chatPeerUserId=$chatPeerUserId")
                     
