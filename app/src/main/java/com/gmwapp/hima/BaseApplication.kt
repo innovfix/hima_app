@@ -995,6 +995,7 @@ class BaseApplication : Application(), Configuration.Provider {
         runCatching {
             chatHistoryMemoryCache.clearAll()
             com.gmwapp.hima.utils.PinnedChatsPrefsHelper.clearAll(this)
+            com.gmwapp.hima.utils.BlockedPeersPrefsHelper.clearAll(this)
             com.gmwapp.hima.utils.ChatNotificationStore.clearAll(this)
         }
         // Drop the throttle so the next login fires the heartbeat immediately.

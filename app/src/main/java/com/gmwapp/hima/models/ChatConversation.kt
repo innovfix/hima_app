@@ -25,6 +25,8 @@ data class ChatConversation(
     val language: String? = null,
     /** Local pin state for list sorting; from [com.gmwapp.hima.utils.PinnedChatsPrefsHelper]. */
     val isPinned: Boolean = false,
+    /** True when the current user has blocked this peer (from [com.gmwapp.hima.utils.BlockedPeersPrefsHelper]). */
+    val isBlocked: Boolean = false,
 )
 
 

@@ -106,6 +106,7 @@ class BottomSheetLogout : BottomSheetDialogFragment() {
             BaseApplication.getInstance()?.chatHistoryMemoryCache?.clearAll()
             val ctx = requireContext().applicationContext
             com.gmwapp.hima.utils.PinnedChatsPrefsHelper.clearAll(ctx)
+            com.gmwapp.hima.utils.BlockedPeersPrefsHelper.clearAll(ctx)
             com.gmwapp.hima.utils.ChatNotificationStore.clearAll(ctx)
         }
         val hostActivity = activity ?: return

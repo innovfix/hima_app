@@ -26,6 +26,7 @@ import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.view.WindowManager
 import android.widget.Toast
@@ -238,6 +239,10 @@ class ChatActivityInHouse : AppCompatActivity() {
     // Track if user is blocked
     private var iHaveBlockedThisUser: Boolean = false
 
+    // T-CHAT-021: persistent blocked-state banner shown above the composer
+    // when the current user has blocked this peer. Mirrors [iHaveBlockedThisUser].
+    private var llBlockedBanner: LinearLayout? = null
+
     /** Peer display name (for add-friend banner / toasts). */
     private var peerName: String = ""
 
@@ -419,6 +424,12 @@ class ChatActivityInHouse : AppCompatActivity() {
         initAddFriendBanner()
         setupClickListeners()
         setupComposer()
+        // T-CHAT-021: seed blocked-state from the local prefs cache so the
+        // banner + disabled composer render immediately on entry, without
+        // waiting for chat-history to come back with `iHaveBlockedThisUser`.
+        iHaveBlockedThisUser = com.gmwapp.hima.utils.BlockedPeersPrefsHelper
+            .isBlocked(this, peerUserId.toString())
+        applyBlockedUiState()
         applySubscriptionGate()
         connectSocket()
         suppressNextResumeHistoryReload = true
@@ -505,6 +516,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         btnSend = findViewById(R.id.btn_send)
         btnMic = findViewById(R.id.btn_mic)
         ivAttach = findViewById(R.id.iv_attach)
+        llBlockedBanner = findViewById(R.id.ll_blocked_banner)
         messageInputContainer = findViewById(R.id.message_input_container)
         subscribeLockContainer = findViewById(R.id.subscribe_lock_container)
         autopayFailedLockContainer = findViewById(R.id.autopay_failed_lock_container)
@@ -1159,6 +1171,55 @@ class ChatActivityInHouse : AppCompatActivity() {
         // Profile icon click - open UserProfileDetailActivity
         ivUser.setOnClickListener {
             openUserProfile()
+        }
+    }
+
+    /**
+     * T-CHAT-021: drive the persistent blocked-state UI from
+     * [iHaveBlockedThisUser]. Renders the banner above the composer and
+     * disables every send affordance so the user can't compose a message
+     * that will only fail at send time. Also persists the state into the
+     * local prefs cache and broadcasts a list refresh so the chat list
+     * Blocked badge updates without an app restart.
+     */
+    private fun applyBlockedUiState() {
+        val blocked = iHaveBlockedThisUser
+        llBlockedBanner?.visibility = if (blocked) View.VISIBLE else View.GONE
+
+        // Composer affordances — keep them visible but inert so the layout
+        // doesn't reflow on every block/unblock. The banner above explains why.
+        etMessage.isEnabled = !blocked
+        etMessage.isFocusable = !blocked
+        etMessage.isFocusableInTouchMode = !blocked
+        etMessage.hint = if (blocked) {
+            getString(R.string.chat_blocked_input_hint)
+        } else {
+            getString(R.string.chat_input_hint)
+        }
+        if (blocked) {
+            etMessage.setText("")
+            // Drop the keyboard if it was open over the now-disabled field.
+            val imm = getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
+                as? android.view.inputmethod.InputMethodManager
+            imm?.hideSoftInputFromWindow(etMessage.windowToken, 0)
+        }
+        btnSend.isEnabled = !blocked
+        btnMic.isEnabled = !blocked
+        ivAttach.isEnabled = !blocked
+        val composerAlpha = if (blocked) 0.5f else 1.0f
+        etMessage.alpha = composerAlpha
+        btnSend.alpha = composerAlpha
+        btnMic.alpha = composerAlpha
+        ivAttach.alpha = composerAlpha
+
+        // Mirror into local cache + tell every chat-list listener to re-bind.
+        if (peerUserId > 0) {
+            com.gmwapp.hima.utils.BlockedPeersPrefsHelper
+                .setBlocked(this, peerUserId.toString(), blocked)
+            val refresh = android.content.Intent(
+                com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_REFRESH
+            ).setPackage(packageName)
+            sendBroadcast(refresh)
         }
     }
 
@@ -2185,6 +2246,9 @@ class ChatActivityInHouse : AppCompatActivity() {
                             
                             // Update blocked status (for UI display purposes)
                             iHaveBlockedThisUser = data.iHaveBlockedThisUser
+                            // T-CHAT-021: persist + refresh banner / composer
+                            // / chat-list badge from the authoritative server flag.
+                            applyBlockedUiState()
                             
                             Log.d("ChatPagination", "═══════════════════════════════════════")
                             Log.d("ChatPagination", "✅ INITIAL LOAD RESPONSE:")
@@ -3227,6 +3291,15 @@ class ChatActivityInHouse : AppCompatActivity() {
         if (::chatAdapter.isInitialized) {
             chatAdapter.notifyDataSetChanged()
         }
+        // T-CHAT-021: re-seed blocked-state from prefs for the new peer so the
+        // banner / composer can't carry over from chat A into chat B.
+        iHaveBlockedThisUser = if (peerUserId > 0) {
+            com.gmwapp.hima.utils.BlockedPeersPrefsHelper
+                .isBlocked(this, peerUserId.toString())
+        } else {
+            false
+        }
+        applyBlockedUiState()
     }
 
     private fun latestReceivedMessageId(): String? =
@@ -3902,6 +3975,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                         if (responseBody?.success == true) {
                             iHaveBlockedThisUser = true
                             cancelInFlightSendsForBlock()
+                            applyBlockedUiState()
                             showAppToast(responseBody.message, Toast.LENGTH_SHORT)
                             Log.d("ChatActivityInHouse", "✅ User blocked successfully")
                             // Reload chat history to update blocked status
@@ -3938,6 +4012,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                         val responseBody = response.body()
                         if (responseBody?.success == true) {
                             iHaveBlockedThisUser = false
+                            applyBlockedUiState()
                             showAppToast(responseBody.message, Toast.LENGTH_SHORT)
                             Log.d("ChatActivityInHouse", "✅ User unblocked successfully")
                             // Reload chat history to update blocked status

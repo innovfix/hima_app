@@ -412,6 +412,39 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
+        <!-- T-CHAT-021: persistent banner shown while the current user has
+             blocked the peer. Composer is disabled in code alongside this. -->
+        <LinearLayout
+            android:id="@+id/ll_blocked_banner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="#FDECEC"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="10dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_block"
+                app:tint="#D32F2F" />
+
+            <TextView
+                android:id="@+id/tv_blocked_banner"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:fontFamily="@font/poppins_medium"
+                android:text="@string/chat_blocked_banner"
+                android:textColor="#7F1D1D"
+                android:textSize="13sp" />
+        </LinearLayout>
+
         <LinearLayout
             android:id="@+id/layout_reply_preview"
             android:layout_width="match_parent"

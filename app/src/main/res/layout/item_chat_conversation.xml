@@ -60,12 +60,32 @@
             android:text="User Name"
             android:textColor="@color/black_light"
             android:textSize="16sp"
-            app:layout_constraintEnd_toStartOf="@id/iv_pin"
+            app:layout_constraintEnd_toStartOf="@id/tv_blocked_badge"
             app:layout_constraintStart_toEndOf="@id/fl_image_container"
             app:layout_constraintTop_toTopOf="@id/fl_image_container"
             app:layout_constraintBottom_toTopOf="@id/tv_last_message"
             app:layout_constraintVertical_chainStyle="packed"
             tools:text="Sarah Johnson" />
+
+        <!-- Blocked badge — sits inline with the user name when current user has
+             blocked the peer. Source: BlockedPeersPrefsHelper. -->
+        <TextView
+            android:id="@+id/tv_blocked_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_blocked_badge"
+            android:fontFamily="@font/poppins_semibold"
+            android:includeFontPadding="false"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="2dp"
+            android:text="@string/chat_blocked_badge"
+            android:textColor="@color/white"
+            android:textSize="9sp"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@id/tv_user_name"
+            app:layout_constraintEnd_toStartOf="@id/iv_pin"
+            app:layout_constraintTop_toTopOf="@id/tv_user_name"
+            tools:visibility="visible" />
 
         <!-- Pin chat (local, max 3) — to the left of notify bell -->
         <ImageView

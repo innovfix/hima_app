@@ -172,11 +172,16 @@ class ChatListAdapter(
 
         fun bind(conversation: ChatConversation) {
             val pinned = PinnedChatsPrefsHelper.isPinned(activity, conversation.userId)
+            // T-CHAT-021: surface blocked-state in the list so users don't waste
+            // time composing messages that will only fail at send time.
+            val isBlocked = conversation.isBlocked
 
             // Set user name (extract name only, remove trailing numbers).
             // Pin state is shown only by iv_pin (filled/outline + tint), not a compound drawable on the name.
             binding.tvUserName.text = extractNameOnly(conversation.userName)
             binding.tvUserName.setCompoundDrawablesRelative(null, null, null, null)
+
+            binding.tvBlockedBadge.visibility = if (isBlocked) View.VISIBLE else View.GONE
 
             binding.ivPin.setImageResource(
                 if (pinned) R.drawable.ic_pin_filled else R.drawable.ic_pin_outline
@@ -233,7 +238,11 @@ class ChatListAdapter(
 
             // Set last message — show type-aware preview so image/audio rows
             // don't appear as "No messages yet" when the text body is empty.
-            binding.tvLastMessage.text = when (conversation.lastMessageType.lowercase()) {
+            // When the peer is blocked, override the preview entirely so the
+            // row reads as a blocked thread at a glance.
+            binding.tvLastMessage.text = if (isBlocked) {
+                activity.getString(R.string.chat_blocked_preview)
+            } else when (conversation.lastMessageType.lowercase()) {
                 "image" -> activity.getString(R.string.chat_preview_photo)
                 "audio" -> activity.getString(R.string.chat_preview_voice)
                 "video" -> activity.getString(R.string.chat_preview_video)
@@ -278,8 +287,10 @@ class ChatListAdapter(
             // disabled (grey) state instead of hiding so the row stays
             // visually balanced. Label shows per-minute coin rate when
             // enabled, "Unavailable" otherwise.
-            val showAudio = conversation.audioStatus == 1
-            val showVideo = conversation.videoStatus == 1
+            // Blocked threads can't initiate calls either — force both buttons
+            // into the disabled (grey) state regardless of audio/video status.
+            val showAudio = !isBlocked && conversation.audioStatus == 1
+            val showVideo = !isBlocked && conversation.videoStatus == 1
             val disabledTextColor = activity.getColor(R.color.chat_list_call_disabled_text)
             val whiteColor = activity.getColor(R.color.white)
 

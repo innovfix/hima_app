@@ -262,6 +262,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
             if (response != null) {
                 showAppToast(response.message, Toast.LENGTH_SHORT)
                 isUserBlocked = true
+                syncBlockedPrefs(true)
                 updateBlockButtonUI()
                 Log.d(
                     "BlockUserAPI",
@@ -292,6 +293,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
                 // API may return 1 or 2 for "blocked" after POST uses blocked=1; treat any non‑zero as blocked
                 isUserBlocked = isBlockedBool ||
                     (statusFromPayload != null && statusFromPayload != 0)
+                syncBlockedPrefs(isUserBlocked)
 
                 Log.d(
                     "BlockUserAPI",
@@ -316,6 +318,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
             if (response != null) {
                 showAppToast(response.message, Toast.LENGTH_SHORT)
                 isUserBlocked = false
+                syncBlockedPrefs(false)
                 updateBlockButtonUI()
                 checkBlockStatus()
             }
@@ -860,6 +863,21 @@ class UserProfileDetailActivity : AppCompatActivity() {
 
         Log.d("UserProfileDetail", "🔍 Checking block status for user $userId")
         blockUserViewModel.checkBlockStatus(currentUserId, userId)
+    }
+
+    /**
+     * T-CHAT-021: keep the local blocked-peers cache in sync with whatever the
+     * server says, and tell every chat-list listener to re-bind so its
+     * Blocked badge updates without an app restart.
+     */
+    private fun syncBlockedPrefs(blocked: Boolean) {
+        if (userId <= 0) return
+        com.gmwapp.hima.utils.BlockedPeersPrefsHelper
+            .setBlocked(this, userId.toString(), blocked)
+        val refresh = android.content.Intent(
+            com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_REFRESH
+        ).setPackage(packageName)
+        sendBroadcast(refresh)
     }
 
     /**

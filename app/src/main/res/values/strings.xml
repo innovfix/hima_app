@@ -82,6 +82,10 @@
     <string name="chat_unblock_user_title">Unblock User?</string>
     <string name="chat_unblock_user_message">Once you unblock this user, you\'ll be able to send and receive messages from them again.</string>
     <string name="chat_unblock_action">Unblock</string>
+    <string name="chat_blocked_badge">BLOCKED</string>
+    <string name="chat_blocked_preview">You blocked this user</string>
+    <string name="chat_blocked_banner">You blocked this user. Unblock to send messages.</string>
+    <string name="chat_blocked_input_hint">You can\'t message a blocked user</string>
     <string name="chat_audio_unavailable">Audio unavailable</string>
     <string name="chat_back_desc">Back</string>
     <string name="chat_audio_call_desc">Audio Call</string>

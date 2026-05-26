@@ -448,6 +448,17 @@ class RatingActivity : BaseActivity() {
     fun observeBlockuser(){
         blockUserViewModel.blockUserLiveData.observe(this) {
             showAppToast(it.message, Toast.LENGTH_SHORT)
+            // T-CHAT-021: mirror the block into the local prefs cache so the
+            // chat list renders the Blocked badge without restart.
+            val peerId = intent.getIntExtra(com.gmwapp.hima.constants.DConstants.RECEIVER_ID, 0)
+            if (peerId > 0) {
+                com.gmwapp.hima.utils.BlockedPeersPrefsHelper
+                    .setBlocked(this, peerId.toString(), true)
+                val refresh = android.content.Intent(
+                    com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_REFRESH
+                ).setPackage(packageName)
+                sendBroadcast(refresh)
+            }
             if (selectedRating == 0) {
                 finish()
             }

@@ -764,6 +764,12 @@ class FriendsTabFragment : Fragment() {
                 PinnedChatsPrefsHelper.isPinned(requireContext(), u.id.toString())
             } else {
                 false
+            },
+            isBlocked = if (isAdded) {
+                com.gmwapp.hima.utils.BlockedPeersPrefsHelper
+                    .isBlocked(requireContext(), u.id.toString())
+            } else {
+                false
             }
         )
     }
