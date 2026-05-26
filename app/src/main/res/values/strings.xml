@@ -88,6 +88,10 @@
     <string name="chat_blocked_input_hint">You can\'t message a blocked user</string>
     <string name="chat_read_more">Read more</string>
     <string name="chat_show_less">Show less</string>
+    <string name="chat_mic_hold_to_record">Hold to record</string>
+    <string name="chat_recording_canceled">Recording canceled</string>
+    <string name="chat_recording_start_failed">Couldn\'t start recording</string>
+    <string name="chat_voice_save_failed">Couldn\'t save voice note</string>
     <string name="chat_audio_unavailable">Audio unavailable</string>
     <string name="chat_back_desc">Back</string>
     <string name="chat_audio_call_desc">Audio Call</string>

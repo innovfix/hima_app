@@ -1488,7 +1488,7 @@ class ChatActivityInHouse : AppCompatActivity() {
             Log.e("ChatMedia", "Audio recording start failed: ${e.message}", e)
             isRecording = false
             setRecordingUiVisible(false)
-            showAppToast("Couldn't start recording", Toast.LENGTH_SHORT)
+            showAppToast(getString(R.string.chat_recording_start_failed), Toast.LENGTH_SHORT)
         }
     }
 
@@ -1499,9 +1499,10 @@ class ChatActivityInHouse : AppCompatActivity() {
             setRecordingUiVisible(false)
             if (recordingResult.durationMs < 1000L) {
                 recordingResult.file.delete()
-                // T45: hint the gesture instead of just saying "too short" — short
-                // taps are a common discoverability fail.
-                showAppToast("Hold to record", Toast.LENGTH_SHORT)
+                // CHAT-040 / T45: hint the gesture instead of just saying "too short"
+                // — short taps are a common discoverability fail on a hold-to-record
+                // affordance.
+                showAppToast(getString(R.string.chat_mic_hold_to_record), Toast.LENGTH_SHORT)
                 return
             }
 
@@ -1515,16 +1516,31 @@ class ChatActivityInHouse : AppCompatActivity() {
             Log.e("ChatMedia", "Audio recording stop failed: ${e.message}", e)
             isRecording = false
             setRecordingUiVisible(false)
-            showAppToast("Couldn't save voice note", Toast.LENGTH_SHORT)
+            showAppToast(getString(R.string.chat_voice_save_failed), Toast.LENGTH_SHORT)
         }
     }
 
     private fun cancelAudioRecording(showToast: Boolean) {
+        // CHAT-040: a parent that intercepts the touch fires ACTION_CANCEL after
+        // a casual tap, which previously surfaced "Recording canceled" — same
+        // misleading error a single tap on the mic used to produce. If the
+        // touch lasted less than a second, treat it as a tap and show the
+        // friendly hint instead.
+        val durationMs = if (recordingStartedAtMs > 0L) {
+            SystemClock.elapsedRealtime() - recordingStartedAtMs
+        } else {
+            Long.MAX_VALUE
+        }
         audioRecorderController.cancel()
         isRecording = false
         setRecordingUiVisible(false)
         if (showToast) {
-            showAppToast("Recording canceled", Toast.LENGTH_SHORT)
+            val msgRes = if (durationMs < 1000L) {
+                R.string.chat_mic_hold_to_record
+            } else {
+                R.string.chat_recording_canceled
+            }
+            showAppToast(getString(msgRes), Toast.LENGTH_SHORT)
         }
     }
 
