@@ -92,6 +92,7 @@ import com.gmwapp.hima.utils.CallUnavailableFeedback
 import com.gmwapp.hima.utils.AudioRecorderController
 import com.gmwapp.hima.utils.ChatHistoryMemoryCache
 import com.gmwapp.hima.utils.ImageCompressor
+import com.gmwapp.hima.utils.LastSeenFormatter
 import com.gmwapp.hima.utils.LocallyDeletedMessagesStore
 
 @AndroidEntryPoint
@@ -1881,37 +1882,42 @@ class ChatActivityInHouse : AppCompatActivity() {
         // UI will be updated based on last_online_status from API
     }
     
-    private fun updateOnlineStatusFromAPI(lastOnlineStatus: String?) {
-        this.lastOnlineStatus = lastOnlineStatus
+    /**
+     * CHAT-095: format the chat-history `last_online` timestamp (now
+     * sourced from users.last_active_at server-side) into one of 7 display
+     * states. Always sets the status TextView VISIBLE — the previous code
+     * left it stuck on GONE once the empty branch fired, which is why the
+     * "no last seen at all" complaint kept coming back.
+     */
+    private fun updateOnlineStatusFromAPI(lastOnlineTimestamp: String?, legacyStatus: String?) {
+        this.lastOnlineStatus = lastOnlineTimestamp ?: legacyStatus
         mainHandler.post {
             if (!isUiSafe()) return@post
-            // Show status only if it's not null or empty
-            if (!lastOnlineStatus.isNullOrEmpty()) {
-                tvUserStatus.text = formatLastOnlineStatus(lastOnlineStatus)
-                vOnlineIndicator.visibility = View.VISIBLE
+            val display = if (!lastOnlineTimestamp.isNullOrBlank()) {
+                LastSeenFormatter.format(lastOnlineTimestamp)
+            } else if (!legacyStatus.isNullOrBlank()) {
+                // Pre-migration users / older server response. Strip the
+                // redundant "active " prefix and render as a single-line
+                // last-seen string in the muted color (no green dot).
+                LastSeenFormatter.Display(
+                    text = "Last seen ${legacyStatus.trim().removePrefix("active ").trim()}",
+                    isOnline = false
+                )
             } else {
-                // Hide status if null or empty
-                tvUserStatus.text = ""
-                tvUserStatus.visibility = View.GONE
-                vOnlineIndicator.visibility = View.GONE
+                LastSeenFormatter.Display(text = "Offline", isOnline = false)
             }
 
+            tvUserStatus.text = display.text
+            tvUserStatus.visibility = View.VISIBLE
+            val color = if (display.isOnline) {
+                ContextCompat.getColor(this, R.color.online_green)
+            } else {
+                ContextCompat.getColor(this, R.color.grey_medium)
+            }
+            tvUserStatus.setTextColor(color)
+            vOnlineIndicator.visibility = if (display.isOnline) View.VISIBLE else View.GONE
             // Removed: Update call buttons state based on online status
             // Buttons are now controlled only by check_call_availability API response
-        }
-    }
-
-    /**
-     * Backend sends strings like "active 6 hours ago" / "active 5 minutes ago" /
-     * "Online" / "Just now". Strip the redundant leading "active " so the header
-     * just reads "6 hours ago" — `Online` / `Just now` are passed through.
-     */
-    private fun formatLastOnlineStatus(raw: String): String {
-        val trimmed = raw.trim()
-        return when {
-            trimmed.startsWith("active ", ignoreCase = true) ->
-                trimmed.substring("active ".length).trim()
-            else -> trimmed
         }
     }
 
@@ -2408,8 +2414,11 @@ class ChatActivityInHouse : AppCompatActivity() {
                                 }
                             }
                             
-                            // Update online status from API response
-                            updateOnlineStatusFromAPI(data.lastOnlineStatus)
+                            // CHAT-095: pass the raw `last_online` timestamp now (sourced
+                            // from users.last_active_at server-side) so the header can
+                            // render WhatsApp-style absolute timing. Falls back to the
+                            // legacy buckets only if the timestamp is missing.
+                            updateOnlineStatusFromAPI(data.lastOnline, data.lastOnlineStatus)
                             
                             // Mark messages as read using the new API with last message id
                             if (apiMessages.isNotEmpty()) {
