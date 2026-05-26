@@ -3404,9 +3404,20 @@ class ChatActivityInHouse : AppCompatActivity() {
     private fun isRecyclerNearBottom(): Boolean {
         if (messages.isEmpty()) return true
         val layoutManager = rvMessages.layoutManager as? LinearLayoutManager ?: return true
+        val lastIndex = messages.size - 1
+        // CHAT-119: "near bottom" must mean the very last row's bottom edge is
+        // on screen — not just that any pixel of the last 2 rows is poking out.
+        // The old `lastVisible >= size - 2` returned true while the user was
+        // reading the second-to-last bubble, so any incoming message yanked
+        // them out of place instead of surfacing the "N new messages" pill.
+        val lastFullyVisible = layoutManager.findLastCompletelyVisibleItemPosition()
+        if (lastFullyVisible == lastIndex) return true
+        // Layout-in-flight fallback: if the absolute last row is partly visible
+        // AND RecyclerView reports no content below the viewport, we are at the
+        // bottom for all practical purposes.
         val lastVisible = layoutManager.findLastVisibleItemPosition()
         if (lastVisible == RecyclerView.NO_POSITION) return true
-        return lastVisible >= messages.size - 2
+        return lastVisible == lastIndex && !rvMessages.canScrollVertically(1)
     }
 
     private fun updateNewMessagePill() {
