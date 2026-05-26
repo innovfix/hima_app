@@ -1160,7 +1160,16 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
             userId = userId,
             params = AppEventLogger.bundleToMap(firebaseBundle)
         )
-        
+
+        // Bug #7 fix (2026-05-25): persist that we've fired this event for
+        // this user so subsequent app opens skip the re-fire. Without this
+        // the SharedPrefs gate in checkAndLogTwoMinDuration always read
+        // false (because nothing was writing true), so marketing was seeing
+        // two_min_duration_completed fire on every app open instead of once.
+        sharedPreferences.edit()
+            .putBoolean("last_two_min_duration_logged_${userData.id}", true)
+            .apply()
+
         Log.d("FemaleHomeFragment", "✅ two_min_duration_completed event logged for user $userId ($totalMinutes minutes)")
     }
 

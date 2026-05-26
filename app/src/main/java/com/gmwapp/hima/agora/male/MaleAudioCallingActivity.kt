@@ -594,6 +594,13 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         channelName = intent.getStringExtra("CHANNEL_NAME") ?: ""
         receiverId = intent.getIntExtra("RECEIVER_ID", -1)
         callId = intent.getIntExtra("CALL_ID", 0)
+        // Bug #1 fix (2026-05-25): persist peer id so MyFirebaseMessagingService
+        // can match incoming switchToVideo/switchToAudio FCMs (it checks
+        // senderId == BaseApplication.getSenderId(); on incoming calls this
+        // was set by the FCM handler, but on male-initiated outbound calls
+        // nothing was setting it — so the receiver's switch request was
+        // silently dropped at line 876 of MyFirebaseMessagingService).
+        if (receiverId > 0) BaseApplication.getInstance()?.saveSenderId(receiverId)
         Log.d(
             "MaleAudioCallingLog",
             "Channel: $channelName, Receiver: $receiverId, callId : $callId"
@@ -1675,37 +1682,36 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         // Stop the 30s timer-resync handler so it doesn't fire newRemainingTime
         // after the channel has already been left.
         stopTimerResync()
-        if (!isJoined) {
-            HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
-          //  showMessage("Join a channel first")
+        // Bug #5B fix (2026-05-25): ALWAYS attempt Agora teardown regardless of
+        // isJoined. Previously the `!isJoined` branch skipped releaseEngineSync,
+        // so when a low-balance early disconnect (or any path that flipped
+        // isJoined=false before leaveChannel ran) fired, the Agora channel
+        // stayed live in the background — both peers could keep talking for
+        // free until the SDK GC'd the engine ~30s later. releaseEngineSync is
+        // idempotent (handles already-left channels gracefully), so the extra
+        // call on the !isJoined path is safe.
+        stopCountdown()
+        stopMicRevokeWatcher()
+        try {
+            agoraEngine = com.gmwapp.hima.utils.AgoraTeardownHelper.releaseEngineSync(
+                agoraEngine, "MaleAudioCalling", hasVideo = false
+            )
+        } catch (t: Throwable) {
+            Log.w("MaleAudioCalling", "leaveChannel teardown threw (safe): ${t.message}")
+        }
+        val wasJoined = isJoined
+        isJoined = false
+        HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
+        if (wasJoined) {
+            updateCallEndDetails()
+        }
+        Handler(Looper.getMainLooper()).postDelayed({
+            if (isFinishing || isDestroyed) return@postDelayed
             val intent = Intent(this@MaleAudioCallingActivity, MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             startActivity(intent)
             finish()
-        } else {
-            stopCountdown()
-            // B143: deterministic teardown — disable audio, leave channel, then block on
-            // RtcEngine.destroy() so the mic is released before this activity finishes.
-            stopMicRevokeWatcher()
-            agoraEngine = com.gmwapp.hima.utils.AgoraTeardownHelper.releaseEngineSync(
-                agoraEngine, "MaleAudioCalling", hasVideo = false
-            )
-          //  showMessage("You left the channel")
-            isJoined = false
-
-            HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
-
-            updateCallEndDetails()
-
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (isFinishing || isDestroyed) return@postDelayed
-                val intent = Intent(this@MaleAudioCallingActivity, MainActivity::class.java)
-                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                startActivity(intent)
-                finish()
-            }, 50L)
-        }
-
+        }, 50L)
     }
 
     fun updateCallEndDetails() {
@@ -1870,10 +1876,19 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             val anchor = serverNowMs ?: System.currentTimeMillis()
             (endsAtMs - anchor).coerceAtLeast(0L)
         } else {
+            // Bug #5A fix (2026-05-25): handle both HH:MM:SS (server format) and
+            // MM:SS (legacy). Old code took parts[0] as minutes regardless,
+            // so "00:02:00" (2 minutes) was parsed as 0 min + 2 sec = 2 sec
+            // and CountDownTimer fired onFinish almost immediately, ending
+            // low-balance calls way before the user's actual budget ran out.
             val timeParts = remainingTime.split(":").map { it.toIntOrNull() ?: 0 }
-            val mins = timeParts.getOrElse(0) { 0 }
-            val secs = timeParts.getOrElse(1) { 0 }
-            (mins * 60 + secs) * 1000L
+            val totalSeconds = when (timeParts.size) {
+                3 -> timeParts[0] * 3600L + timeParts[1] * 60L + timeParts[2]
+                2 -> timeParts[0] * 60L + timeParts[1]
+                1 -> timeParts[0].toLong()
+                else -> 0L
+            }
+            (totalSeconds * 1000L).coerceAtLeast(0L)
         }
 
         countDownTimer = object : CountDownTimer(totalMillis, 1000) {

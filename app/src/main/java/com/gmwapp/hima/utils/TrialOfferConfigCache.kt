@@ -33,6 +33,10 @@ object TrialOfferConfigCache {
 
     private const val PREFS = "TrialOfferConfigCache"
     private const val KEY_VIDEO = "video_url"
+    // 2026-05-26 — restored YouTube fallback. mp4 (video_url) wins when both
+    // are set; we surface the YouTube URL only as a fallback for admins who
+    // already have a YouTube link saved and haven't switched to mp4 yet.
+    private const val KEY_YOUTUBE = "youtube_url"
     private const val VIDEO_CACHE_DIR = "trial_videos"
     private val downloadExecutor = Executors.newSingleThreadExecutor()
     @Volatile private var inFlightDownloadUrl: String? = null
@@ -65,7 +69,13 @@ object TrialOfferConfigCache {
     }
 
     interface Listener {
-        fun onConfig(videoUrl: String?, texts: TextOverrides)
+        /**
+         * @param videoUrl absolute mp4 URL the app should play in VideoView.
+         *                 When non-blank, takes priority over [youtubeUrl].
+         * @param youtubeUrl YouTube watch/share/shorts URL the app should
+         *                   embed via YouTubePlayerView when [videoUrl] is null.
+         */
+        fun onConfig(videoUrl: String?, youtubeUrl: String?, texts: TextOverrides)
     }
 
     /**
@@ -77,6 +87,7 @@ object TrialOfferConfigCache {
     fun load(context: Context, apiManager: ApiManager, userId: Int, listener: Listener) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val cachedUrl = prefs.getString(KEY_VIDEO, null)
+        val cachedYoutube = prefs.getString(KEY_YOUTUBE, null)
         val cachedTexts = TextOverrides(
             headline = prefs.getString(KEY_HEADLINE, null),
             priceText = prefs.getString(KEY_PRICE, null),
@@ -89,7 +100,7 @@ object TrialOfferConfigCache {
 
         // 1) Fire immediately with whatever the cache has (even if null/stale)
         //    so the bottom sheet renders without a network round-trip wait.
-        listener.onConfig(cachedUrl, cachedTexts)
+        listener.onConfig(cachedUrl, cachedYoutube, cachedTexts)
 
         // 2) Always background refresh — admin uploads/edits should propagate
         //    on the very next sheet open, not after a 24h TTL. The cached
@@ -116,6 +127,7 @@ object TrialOfferConfigCache {
                 data.video_url?.let { prefetchVideoFile(context.applicationContext, it) }
                 prefs.edit()
                     .putString(KEY_VIDEO, data.video_url)
+                    .putString(KEY_YOUTUBE, data.youtube_url)
                     .putString(KEY_HEADLINE, freshTexts.headline)
                     .putString(KEY_PRICE, freshTexts.priceText)
                     .putString(KEY_FEATURE1, freshTexts.feature1Text)
@@ -126,8 +138,8 @@ object TrialOfferConfigCache {
                     .putLong(KEY_FETCHED_AT, System.currentTimeMillis())
                     .apply()
                 // Only re-emit if values actually changed; avoids flicker.
-                if (data.video_url != cachedUrl || freshTexts != cachedTexts) {
-                    listener.onConfig(data.video_url, freshTexts)
+                if (data.video_url != cachedUrl || data.youtube_url != cachedYoutube || freshTexts != cachedTexts) {
+                    listener.onConfig(data.video_url, data.youtube_url, freshTexts)
                 }
             }
             override fun onFailure(call: Call<TrialOfferConfigResponse>, t: Throwable) {
@@ -149,8 +161,29 @@ object TrialOfferConfigCache {
      */
     fun prefetch(context: Context, apiManager: ApiManager, userId: Int) {
         load(context, apiManager, userId, object : Listener {
-            override fun onConfig(videoUrl: String?, texts: TextOverrides) { /* no-op */ }
+            override fun onConfig(videoUrl: String?, youtubeUrl: String?, texts: TextOverrides) { /* no-op */ }
         })
+    }
+
+    /**
+     * Extract the 11-char YouTube video id from common URL forms
+     * (youtu.be/ID, youtube.com/watch?v=ID, youtube.com/shorts/ID,
+     * youtube.com/embed/ID). Returns null on anything else so the
+     * caller can fall back to the static placeholder hero.
+     */
+    fun extractYouTubeId(url: String?): String? {
+        if (url.isNullOrBlank()) return null
+        val patterns = listOf(
+            Regex("""youtu\.be/([a-zA-Z0-9_-]{11})"""),
+            Regex("""youtube\.com/shorts/([a-zA-Z0-9_-]{11})"""),
+            Regex("""youtube\.com/embed/([a-zA-Z0-9_-]{11})"""),
+            Regex("""[?&]v=([a-zA-Z0-9_-]{11})""")
+        )
+        for (p in patterns) {
+            val m = p.find(url) ?: continue
+            return m.groupValues[1]
+        }
+        return null
     }
 
     /**

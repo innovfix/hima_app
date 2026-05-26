@@ -24,6 +24,10 @@ import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.options.IFramePlayerOptions
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -34,7 +38,10 @@ class BottomSheetTrialOffer : BottomSheetDialogFragment() {
     private var onTryNowClick: (() -> Unit)? = null
     private var heroVideoView: VideoView? = null
     private var heroPlaceholderCover: View? = null
+    private var heroYouTubePlayerView: YouTubePlayerView? = null
+    private var heroYouTubePlayer: YouTubePlayer? = null
     private var currentVideoUrl: String? = null
+    private var currentYouTubeId: String? = null
 
     @Inject
     lateinit var apiManager: ApiManager
@@ -55,6 +62,17 @@ class BottomSheetTrialOffer : BottomSheetDialogFragment() {
     ): View {
         binding = BottomSheetTrialOfferBinding.inflate(inflater, container, false)
         binding.btnTryNow.setOnSingleClickListener {
+            // 2026-05-26 — track INTENT in our backend funnel only (not
+            // marketing platforms). Marketing's StartTrial event fires
+            // post-payment in AutopayCheckoutActivity once the mandate
+            // is active — see "trial_active" block there. Keeping this
+            // backend event lets /autopay-events show the click→pay
+            // conversion ratio.
+            val language = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.language
+            com.gmwapp.hima.utils.AutopayEventTracker.trackStartTrial(
+                apiManager, planType = "trial_new", language = language
+            )
+
             onTryNowClick?.invoke()
             dismissAllowingStateLoss()
         }
@@ -76,14 +94,22 @@ class BottomSheetTrialOffer : BottomSheetDialogFragment() {
     private fun loadHeroVideo() {
         val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
         TrialOfferConfigCache.load(requireContext(), apiManager, userId, object : TrialOfferConfigCache.Listener {
-            override fun onConfig(videoUrl: String?, texts: TrialOfferConfigCache.TextOverrides) {
+            override fun onConfig(
+                videoUrl: String?,
+                youtubeUrl: String?,
+                texts: TrialOfferConfigCache.TextOverrides
+            ) {
                 if (!isAdded) return
-                applyConfig(videoUrl, texts)
+                applyConfig(videoUrl, youtubeUrl, texts)
             }
         })
     }
 
-    private fun applyConfig(videoUrl: String?, texts: TrialOfferConfigCache.TextOverrides) {
+    private fun applyConfig(
+        videoUrl: String?,
+        youtubeUrl: String?,
+        texts: TrialOfferConfigCache.TextOverrides
+    ) {
         if (!::binding.isInitialized) return
 
         // Per-language admin text overrides. Each line falls back to the
@@ -97,11 +123,27 @@ class BottomSheetTrialOffer : BottomSheetDialogFragment() {
         applyTextOverride(binding.btnTryNow, texts.ctaText)
         applyTextOverride(binding.tvPurchaseCoins, texts.secondaryLinkText)
 
-        if (videoUrl.isNullOrBlank()) {
-            // Admin hasn't uploaded a video for this language yet — leave
-            // the static placeholder drawable in flHeroContainer untouched.
+        // mp4 (video_url) wins when both are set. Falls through to the
+        // YouTube embed when admin only saved a YouTube link, and to the
+        // static placeholder when neither is configured.
+        if (!videoUrl.isNullOrBlank()) {
+            tearDownYouTubeHero()
+            applyVideoHero(videoUrl)
             return
         }
+        val ytId = TrialOfferConfigCache.extractYouTubeId(youtubeUrl)
+        if (ytId != null) {
+            tearDownVideoHero()
+            applyYouTubeHero(ytId)
+            return
+        }
+        // Neither mp4 nor parseable YouTube URL — placeholder drawable in
+        // flHeroContainer stays as-is.
+        tearDownVideoHero()
+        tearDownYouTubeHero()
+    }
+
+    private fun applyVideoHero(videoUrl: String) {
         // Skip reload if the URL is unchanged — avoids the player stutter
         // when the background refresh returns the same value we already
         // rendered from cache.
@@ -211,6 +253,80 @@ class BottomSheetTrialOffer : BottomSheetDialogFragment() {
     }
 
     /**
+     * Fallback path: admin saved a YouTube URL but no uploaded mp4. We
+     * load the parsed video id into a YouTubePlayerView placed inside the
+     * same flHeroContainer the mp4 path would use. Autoplay + loop are
+     * driven by IFramePlayerOptions; the placeholder cover stays out of
+     * the way here because YouTube renders its own poster.
+     */
+    private fun applyYouTubeHero(videoId: String) {
+        if (videoId == currentYouTubeId && heroYouTubePlayerView != null) return
+        currentYouTubeId = videoId
+        val container = binding.flHeroContainer
+        val playerView = heroYouTubePlayerView ?: YouTubePlayerView(requireContext()).also {
+            it.layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+            it.enableAutomaticInitialization = false
+            container.removeAllViews()
+            container.addView(it)
+            viewLifecycleOwner.lifecycle.addObserver(it)
+            heroYouTubePlayerView = it
+            // 16:9 cap — YouTube clips are landscape; resize the hero
+            // container so the sheet doesn't reserve dead space below.
+            resizeHeroContainerToRatio(16f / 9f)
+        }
+        // Loop the same video by re-cuing it on END. autoplay=1, mute=1
+        // (browsers/Android both require muted for unattended autoplay).
+        val options = IFramePlayerOptions.Builder(requireContext())
+            .controls(0)
+            .autoplay(1)
+            .mute(1)
+            .rel(0)
+            .ivLoadPolicy(3)
+            .build()
+        playerView.initialize(object : AbstractYouTubePlayerListener() {
+            override fun onReady(player: YouTubePlayer) {
+                heroYouTubePlayer = player
+                player.loadVideo(videoId, 0f)
+            }
+            override fun onStateChange(
+                player: YouTubePlayer,
+                state: com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants.PlayerState
+            ) {
+                if (state == com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants.PlayerState.ENDED) {
+                    player.loadVideo(videoId, 0f)
+                }
+            }
+        }, options)
+    }
+
+    private fun tearDownVideoHero() {
+        heroVideoView?.let {
+            it.stopPlayback()
+            (it.parent as? ViewGroup)?.removeView(it)
+        }
+        heroPlaceholderCover?.let {
+            (it.parent as? ViewGroup)?.removeView(it)
+        }
+        heroVideoView = null
+        heroPlaceholderCover = null
+        currentVideoUrl = null
+    }
+
+    private fun tearDownYouTubeHero() {
+        heroYouTubePlayer?.pause()
+        heroYouTubePlayerView?.let {
+            it.release()
+            (it.parent as? ViewGroup)?.removeView(it)
+        }
+        heroYouTubePlayer = null
+        heroYouTubePlayerView = null
+        currentYouTubeId = null
+    }
+
+    /**
      * Resize the hero container to match the source video's aspect
      * ratio. Width is capped at the parent's available width; height
      * is capped at ~360 dp so a portrait 9:16 clip never pushes the
@@ -280,24 +396,18 @@ class BottomSheetTrialOffer : BottomSheetDialogFragment() {
         // VideoView pauses cleanly via pause(); MediaPlayer keeps its
         // position so onResume() resumes from where the loop was.
         heroVideoView?.pause()
+        heroYouTubePlayer?.pause()
     }
 
     override fun onResume() {
         super.onResume()
         heroVideoView?.start()
+        heroYouTubePlayer?.play()
     }
 
     override fun onDestroyView() {
-        heroVideoView?.let {
-            it.stopPlayback()
-            (it.parent as? ViewGroup)?.removeView(it)
-        }
-        heroPlaceholderCover?.let {
-            (it.parent as? ViewGroup)?.removeView(it)
-        }
-        heroVideoView = null
-        heroPlaceholderCover = null
-        currentVideoUrl = null
+        tearDownVideoHero()
+        tearDownYouTubeHero()
         super.onDestroyView()
     }
 

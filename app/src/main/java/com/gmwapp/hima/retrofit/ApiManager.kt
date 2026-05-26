@@ -977,6 +977,42 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         } else callback.onNoNetwork()
     }
 
+    /**
+     * Fire-and-forget click tracker for /api/auth/notification_clicked.
+     * Either field can be empty: notificationLogId is preferred (exact
+     * match against notification_logs.id) but absent until the send-side
+     * embeds it; notificationType lets the backend fuzzy-match against
+     * the user's most-recent unopened notification of that type. Backend
+     * never 5xx's, so the callback is best-effort — UI should not gate
+     * any user-visible behavior on this.
+     */
+    fun notificationClicked(
+        notificationLogId: Long,
+        notificationType: String,
+        callback: NetworkCallback<com.gmwapp.hima.retrofit.responses.NotificationClickResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            getApiInterface().notificationClicked(notificationLogId, notificationType)
+                .enqueue(callback)
+        } else callback.onNoNetwork()
+    }
+
+    /**
+     * Funnel event for the autopay journey. Fire-and-forget — backend
+     * always returns 200, and reuses NotificationClickResponse since
+     * the response shape (success/reason) is identical.
+     * eventType examples: "start_trial", "sheet_shown", "session_returned_success".
+     */
+    fun autopayEvent(
+        eventType: String,
+        metadata: String,
+        callback: NetworkCallback<com.gmwapp.hima.retrofit.responses.NotificationClickResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            getApiInterface().autopayEvent(eventType, metadata).enqueue(callback)
+        } else callback.onNoNetwork()
+    }
+
     fun getCategoriesList(
         userId: Int,
         language: String,
@@ -2781,6 +2817,20 @@ interface ApiInterface {
     fun trialOfferConfig(
         @Field("user_id") userId: Int
     ): Call<com.gmwapp.hima.retrofit.responses.TrialOfferConfigResponse>
+
+    @FormUrlEncoded
+    @POST("notification_clicked")
+    fun notificationClicked(
+        @Field("notification_log_id") notificationLogId: Long,
+        @Field("notification_type") notificationType: String
+    ): Call<com.gmwapp.hima.retrofit.responses.NotificationClickResponse>
+
+    @FormUrlEncoded
+    @POST("autopay_event")
+    fun autopayEvent(
+        @Field("event_type") eventType: String,
+        @Field("metadata") metadata: String
+    ): Call<com.gmwapp.hima.retrofit.responses.NotificationClickResponse>
 
     @FormUrlEncoded
     @POST("categories_list")

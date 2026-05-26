@@ -229,6 +229,12 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private var countDownTimer: CountDownTimer? = null
 
     private var startTime: String = ""
+    // Bug #4 fix (2026-05-25): also capture a monotonic millis snapshot so we
+    // can compute duration with sub-second accuracy and avoid the wall-clock
+    // drift that made male-vs-female call durations diverge (male side uses
+    // System.currentTimeMillis(), female was using SimpleDateFormat HH:mm:ss
+    // strings which truncated by up to 999ms on each end).
+    private var callStartMillis: Long = 0L
     private var endTime: String = ""
     private var isSwitchRequestPending = false
 
@@ -494,6 +500,10 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         channelName = intent.getStringExtra("CHANNEL_NAME") ?: ""
         receiverId = intent.getIntExtra("RECEIVER_ID", -1)
         call_Id = intent.getIntExtra("CALL_ID", 0)
+        // Bug #1 fix (2026-05-25): persist peer id so MyFirebaseMessagingService
+        // can match incoming switchToVideo/switchToAudio FCMs. See twin fix in
+        // MaleAudioCallingActivity for the full root-cause comment.
+        if (receiverId > 0) BaseApplication.getInstance()?.saveSenderId(receiverId)
 
         Log.d("FemaleAudioCallingCheck", "Channel: $channelName, Receiver: $receiverId, callID : $call_Id")
         Log.d("FemaleAudioCallingCheck", "$call_Id")
@@ -1467,6 +1477,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
          //   showMessage("Remote user joined $uid")
             Log.d("AgoraTiming", "FemaleAudio onUserJoined at ${System.currentTimeMillis()}")
             startTime = dateFormat.format(Date()) // Set call end time in IST
+            // Bug #4 fix — snapshot monotonic millis at the same instant.
+            callStartMillis = System.currentTimeMillis()
             isRemoteUserJoined= true
             videoUid = uid
             startCallingService()
@@ -1669,29 +1681,25 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         // the per-call upgrade; without this restore she'd silently become
         // "accepting video calls" globally for everyone after the call ends.
         restoreGlobalVideoStatusIfSwitched()
-        if (!isJoined) {
-            HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
-           // showMessage("Join a channel first")
-            val intent = Intent(this@FemaleAudioCallingActivity, MainActivity::class.java)
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            startActivity(intent)
-            finish()
-        } else {
-            // B143: deterministic teardown — disable audio, leave channel, then block on
-            // RtcEngine.destroy() so the mic is released before this activity finishes.
-            stopMicRevokeWatcher()
+        // Bug #5B fix (2026-05-25): always teardown Agora regardless of isJoined
+        // (see MaleAudioCallingActivity twin for full comment). releaseEngineSync
+        // is idempotent so it's safe to call even when !isJoined.
+        stopCountdown()
+        stopMicRevokeWatcher()
+        try {
             agoraEngine = com.gmwapp.hima.utils.AgoraTeardownHelper.releaseEngineSync(
                 agoraEngine, "FemaleAudioCalling", hasVideo = false
             )
-          //  showMessage("You left the channel")
-            isJoined = false
-
-            HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
-
+        } catch (t: Throwable) {
+            Log.w("FemaleAudioCalling", "leaveChannel teardown threw (safe): ${t.message}")
+        }
+        val wasJoined = isJoined
+        isJoined = false
+        HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
+        if (wasJoined) {
             updateCallEndDetails()
-
-            stopCountdown()
-            Handler(Looper.getMainLooper()).postDelayed({
+        }
+        Handler(Looper.getMainLooper()).postDelayed({
                 if (isFinishing || isDestroyed) return@postDelayed
                 val intent = Intent(this@FemaleAudioCallingActivity, MainActivity::class.java)
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -1699,8 +1707,6 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                 startActivity(intent)
                 finish()
             }, 50L)
-        }
-
     }
 
     fun updateCallEndDetails(){
@@ -1802,10 +1808,15 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             val anchor = serverNowMs ?: System.currentTimeMillis()
             (endsAtMs - anchor).coerceAtLeast(0L)
         } else {
+            // Bug #5A fix — see MaleAudioCallingActivity twin for full comment.
             val timeParts = remainingTime.split(":").map { it.toIntOrNull() ?: 0 }
-            val mins = timeParts.getOrElse(0) { 0 }
-            val secs = timeParts.getOrElse(1) { 0 }
-            (mins * 60 + secs) * 1000L
+            val totalSeconds = when (timeParts.size) {
+                3 -> timeParts[0] * 3600L + timeParts[1] * 60L + timeParts[2]
+                2 -> timeParts[0] * 60L + timeParts[1]
+                1 -> timeParts[0].toLong()
+                else -> 0L
+            }
+            (totalSeconds * 1000L).coerceAtLeast(0L)
         }
 
         countDownTimer =  object : CountDownTimer(totalMillis, 1000) {

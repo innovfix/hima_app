@@ -49,10 +49,26 @@ android {
         //   (native SDK autopay, DND call gate, trial-offer video, female missed-call).
         // 2026-05-25 v1079 — merged Perumal c572d5e6 autopay checkout UI redesign
         //   (4 new drawables, hero ring + benefits card + sticky CTA, retry CTA).
+        // 2026-05-25 v1080 — Bug #1 fix: persist peer id on outbound calls so
+        //   switchToVideo/switchToAudio FCMs reach the receiver
+        //   (MaleAudio + FemaleAudio now call saveSenderId(receiverId) in onCreate).
+        // 2026-05-25 v1081 — Bug #4 partial: female now captures callStartMillis
+        //   monotonic snapshot in onUserJoined to align with male side.
+        //   Bug #5A: countdown timer correctly parses HH:MM:SS server format
+        //   in all 4 call activities (was treating "00:02:00" as 2 sec instead
+        //   of 120 sec, ending low-balance calls prematurely).
+        //   Bug #7: two_min_duration_completed analytics now writes its dedupe
+        //   flag after firing, so it stops re-firing on every app open.
+        // 2026-05-25 v1082 — Bug #3: ReconnectWatchdog timeout 30s→15s so the
+        //   OTHER side doesn't sit stuck on "in call" for 30s when peer's
+        //   network drops. Bug #5B: leaveChannel now ALWAYS attempts Agora
+        //   teardown regardless of isJoined flag, so low-balance early ends
+        //   (and any path that flips isJoined=false before leaveChannel runs)
+        //   don't leave the Agora channel live for free talk time.
         minSdk = 24
         targetSdk = 35
-        versionCode = 1079
-        versionName = "1079"
+        versionCode = 1088
+        versionName = "1088"
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

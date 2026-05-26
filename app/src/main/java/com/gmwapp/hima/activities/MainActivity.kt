@@ -289,6 +289,14 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         // flag never hijacks a normal app launch.
         routeIncomingCallIfPending()
 
+        // 2026-05-26 — marketing wants notification open-rate analytics.
+        // When MainActivity is launched via a notification tap, FCM
+        // populates intent.extras with the push payload's data block.
+        // The tracker reads notification_log_id / notification_type and
+        // fires /api/auth/notification_clicked. Fire-and-forget — no UI
+        // gating; failure here never blocks the launch path.
+        com.gmwapp.hima.utils.NotificationClickTracker.maybeTrack(intent, apiManager)
+
         // B072 — prefetch gift catalog + warm Glide disk cache so the gift
         // bottom sheet renders instantly the first time the user opens it.
         // Idempotent: no-op if a cache is already populated.
@@ -1521,6 +1529,10 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         // task). The setIntent() call above is what makes the new payload
         // visible to routeToTabIfRequested.
         routeToTabIfRequested(intent)
+        // 2026-05-26 — also track notification opens when the app was
+        // already running and brought forward by a tap (vs cold-start
+        // which onCreate handles). Same fire-and-forget contract.
+        com.gmwapp.hima.utils.NotificationClickTracker.maybeTrack(intent, apiManager)
     }
 
     fun refreshRecentMissedCountBadge() {

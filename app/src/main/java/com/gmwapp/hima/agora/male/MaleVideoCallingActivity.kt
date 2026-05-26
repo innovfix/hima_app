@@ -2082,42 +2082,34 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         switchDialog = null
         FcmUtils.clearCallSwitch()
         stopTimerResync()
-        if (!isJoined) {
-            Log.d(TAG_END, "leaveChannel.notJoined path")
-            HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
-         //   showMessage("Join a channel first")
-            val intent = Intent(this@MaleVideoCallingActivity, MainActivity::class.java)
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            startActivity(intent)
-            Log.d(TAG_END, "leaveChannel finishing activity (notJoined)")
-            Log.d(TAG_END, "finish() from leaveChannel.notJoined")
-            finish()
-        } else {
-            Log.d(TAG_END, "leaveChannel.joined path")
-            stopCountdown()
-            // B143: release mic/camera synchronously here too — onDestroy may run several seconds
-            // later (or be killed) and we want hardware freed at the moment the user hangs up.
-            stopMicRevokeWatcher()
+        // Bug #5B fix (2026-05-25): always teardown Agora regardless of isJoined.
+        // releaseEngineSync is idempotent. See MaleAudioCallingActivity twin
+        // for full comment.
+        stopCountdown()
+        stopMicRevokeWatcher()
+        try {
             agoraEngine = com.gmwapp.hima.utils.AgoraTeardownHelper.releaseEngineSync(
                 agoraEngine, "MaleVideoCalling", hasVideo = true
             )
-         //   showMessage("You left the channel")
-            if (remoteSurfaceView != null) remoteSurfaceView!!.visibility = View.GONE
-            if (localSurfaceView != null) localSurfaceView!!.visibility = View.GONE
-            isJoined = false
-            HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
-            updateCallEndDetails()
-
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (isFinishing || isDestroyed) return@postDelayed
-                val intent = Intent(this@MaleVideoCallingActivity, MainActivity::class.java)
-                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                startActivity(intent)
-                Log.d(TAG_END, "leaveChannel finishing activity (joined delayed)")
-                Log.d(TAG_END, "finish() from leaveChannel.joinedDelayed")
-                finish()
-            }, 50L)
+        } catch (t: Throwable) {
+            Log.w(TAG_END, "leaveChannel teardown threw (safe): ${t.message}")
         }
+        if (remoteSurfaceView != null) remoteSurfaceView!!.visibility = View.GONE
+        if (localSurfaceView != null) localSurfaceView!!.visibility = View.GONE
+        val wasJoined = isJoined
+        isJoined = false
+        HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
+        if (wasJoined) {
+            updateCallEndDetails()
+        }
+        Handler(Looper.getMainLooper()).postDelayed({
+            if (isFinishing || isDestroyed) return@postDelayed
+            val intent = Intent(this@MaleVideoCallingActivity, MainActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            startActivity(intent)
+            Log.d(TAG_END, "finish() from leaveChannel (always-teardown path)")
+            finish()
+        }, 50L)
     }
 
     private fun getRemainingTime(attempt: Int = 0) {
@@ -2182,10 +2174,15 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             val anchor = serverNowMs ?: System.currentTimeMillis()
             (endsAtMs - anchor).coerceAtLeast(0L)
         } else {
+            // Bug #5A fix — see MaleAudioCallingActivity twin for full comment.
             val timeParts = remainingTime.split(":").map { it.toIntOrNull() ?: 0 }
-            val mins = timeParts.getOrElse(0) { 0 }
-            val secs = timeParts.getOrElse(1) { 0 }
-            (mins * 60 + secs) * 1000L
+            val totalSeconds = when (timeParts.size) {
+                3 -> timeParts[0] * 3600L + timeParts[1] * 60L + timeParts[2]
+                2 -> timeParts[0] * 60L + timeParts[1]
+                1 -> timeParts[0].toLong()
+                else -> 0L
+            }
+            (totalSeconds * 1000L).coerceAtLeast(0L)
         }
 
         countDownTimer =  object : CountDownTimer(totalMillis, 1000) {
