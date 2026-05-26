@@ -27,6 +27,13 @@ data class ChatMessageApi(
     val reactions: List<MessageReaction>? = null,  // Array of {user_id, reaction_emoji}
     /** 1 when the sender has deleted-for-everyone; backend also blanks `message`/`attachment_url`. */
     @SerializedName("is_deleted")
-    val isDeleted: Int? = null
+    val isDeleted: Int? = null,
+    /**
+     * CHAT-034: sender-measured voice-note length so the bubble can render the
+     * duration without waiting for MediaPlayer.prepare(). Null for non-audio
+     * rows and for audio rows that pre-date the backend migration.
+     */
+    @SerializedName("audio_duration_ms")
+    val audioDurationMs: Long? = null
 )
 

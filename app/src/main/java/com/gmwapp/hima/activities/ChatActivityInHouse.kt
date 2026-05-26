@@ -229,7 +229,10 @@ class ChatActivityInHouse : AppCompatActivity() {
     private data class PendingOutgoingPayload(
         val message: String,
         val messageType: String,
-        val attachmentUrl: String?
+        val attachmentUrl: String?,
+        // CHAT-034: keep the recorded duration around so re-sends after a
+        // socket reconnect or REST fallback also carry it to the server.
+        val audioDurationMs: Long? = null
     )
 
     private val pendingOutgoingByTempId = LinkedHashMap<String, PendingOutgoingPayload>()
@@ -1596,7 +1599,13 @@ class ChatActivityInHouse : AppCompatActivity() {
         )
 
         appendMessageWithOptionalDateHeader(tempMessage)
-        rememberPendingOutgoing(tempId, "", messageType, localAttachmentUrl)
+        rememberPendingOutgoing(
+            tempId = tempId,
+            message = "",
+            messageType = messageType,
+            attachmentUrl = localAttachmentUrl,
+            audioDurationMs = audioDurationMs.takeIf { it > 0 }
+        )
         rvMessages.post {
             rvMessages.smoothScrollToPosition(messages.size - 1)
         }
@@ -1624,12 +1633,14 @@ class ChatActivityInHouse : AppCompatActivity() {
         tempId: String,
         message: String,
         messageType: String,
-        attachmentUrl: String? = null
+        attachmentUrl: String? = null,
+        audioDurationMs: Long? = null
     ) {
         pendingOutgoingByTempId[tempId] = PendingOutgoingPayload(
             message = message,
             messageType = messageType,
-            attachmentUrl = attachmentUrl
+            attachmentUrl = attachmentUrl,
+            audioDurationMs = audioDurationMs
         )
     }
 
@@ -1699,7 +1710,17 @@ class ChatActivityInHouse : AppCompatActivity() {
                     updateTempMessage(tempId) { current ->
                         current.copy(attachmentUrl = remoteUrl)
                     }
-                    rememberPendingOutgoing(tempId, "", messageType, remoteUrl)
+                    // CHAT-034: preserve the recorded duration across the
+                    // localUrl → remoteUrl swap so the pending payload and
+                    // any downstream re-send / fallback still ship it.
+                    val durationToShip = pendingOutgoingByTempId[tempId]?.audioDurationMs
+                    rememberPendingOutgoing(
+                        tempId = tempId,
+                        message = "",
+                        messageType = messageType,
+                        attachmentUrl = remoteUrl,
+                        audioDurationMs = durationToShip
+                    )
 
                     if (!socketManager.isConnected()) {
                         sendMediaViaFallbackAPI(tempId, messageType, remoteUrl!!)
@@ -1709,11 +1730,12 @@ class ChatActivityInHouse : AppCompatActivity() {
 
                     messageSendMethod[tempId] = "socket"
                     socketManager.sendMessage(
-                        myUserId,
-                        peerUserId,
-                        "",
-                        messageType,
-                        remoteUrl
+                        fromUserId = myUserId,
+                        toUserId = peerUserId,
+                        message = "",
+                        messageType = messageType,
+                        attachmentUrl = remoteUrl,
+                        audioDurationMs = durationToShip
                     )
                     file.delete()
                 }
@@ -1752,12 +1774,16 @@ class ChatActivityInHouse : AppCompatActivity() {
      */
     private fun sendMediaViaFallbackAPI(tempId: String, messageType: String, attachmentUrl: String) {
         messageSendMethod[tempId] = "api"
+        // CHAT-034: forward the recorded duration so the bubble can render the
+        // length once the chat history reloads — same as the socket path does.
+        val durationToShip = pendingOutgoingByTempId[tempId]?.audioDurationMs
         val apiCall = apiManager.fallbackSendMessage(
             fromUserId = myUserId,
             toUserId = peerUserId,
             message = "",
             messageType = messageType,
             attachmentUrl = attachmentUrl,
+            audioDurationMs = durationToShip,
             callback = object : NetworkCallback<FallbackSendMessageResponse> {
                 override fun onResponse(
                     call: Call<FallbackSendMessageResponse>,
@@ -3031,6 +3057,9 @@ class ChatActivityInHouse : AppCompatActivity() {
             reactions = reactionsMap,
             messageType = apiMsg.messageType,
             attachmentUrl = if (isDeleted) null else apiMsg.attachmentUrl,
+            // CHAT-034: surface stored duration from chat_history so the bubble
+            // can render the length without a MediaPlayer.prepare() round-trip.
+            audioDurationMs = apiMsg.audioDurationMs ?: 0L,
             deliveryStatus = deliveryStatus,
             isDeleted = isDeleted
         )
@@ -3064,6 +3093,9 @@ class ChatActivityInHouse : AppCompatActivity() {
             reactions = reactionsMap,
             messageType = socketMsg.messageType,
             attachmentUrl = socketMsg.attachmentUrl,
+            // CHAT-034: pass through server-stored duration; 0L keeps the
+            // existing "--:--" fallback when the server didn't (yet) record it.
+            audioDurationMs = socketMsg.audioDurationMs ?: 0L,
             deliveryStatus = deliveryStatus,
             // T6: carry through the server's tombstone flag so a socket-only delivery
             // (no API refresh in flight) renders the deleted-bubble state immediately.

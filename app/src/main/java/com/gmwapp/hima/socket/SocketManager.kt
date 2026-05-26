@@ -348,7 +348,9 @@ class SocketManager private constructor() {
                             timestamp = messageData.optString("timestamp", ""),
                             fromUserId = messageData.optInt("from_user_id", 0).takeIf { it > 0 },
                             toUserId = messageData.optInt("to_user_id", 0).takeIf { it > 0 },
-                            isDeleted = messageData.optInt("is_deleted", 0) == 1
+                            isDeleted = messageData.optInt("is_deleted", 0) == 1,
+                            audioDurationMs = if (messageData.isNull("audio_duration_ms")) null
+                                else messageData.optLong("audio_duration_ms", 0L).takeIf { it > 0 }
                         )
                         Log.d(
                             "RealtimeChat",
@@ -380,7 +382,9 @@ class SocketManager private constructor() {
                             timestamp = messageData.optString("timestamp", ""),
                             fromUserId = messageData.optInt("from_user_id", 0).takeIf { it > 0 },
                             toUserId = messageData.optInt("to_user_id", 0).takeIf { it > 0 },
-                            isDeleted = messageData.optInt("is_deleted", 0) == 1
+                            isDeleted = messageData.optInt("is_deleted", 0) == 1,
+                            audioDurationMs = if (messageData.isNull("audio_duration_ms")) null
+                                else messageData.optLong("audio_duration_ms", 0L).takeIf { it > 0 }
                         )
                         _messageSent.tryEmit(message)
                         Log.d("SocketIOCheck", "✅ Message sent confirmation received - ID: ${message.id}")
@@ -432,7 +436,9 @@ class SocketManager private constructor() {
                             fromUserId = messageObj.optInt("from_user_id", 0).takeIf { it > 0 },
                             toUserId = messageObj.optInt("to_user_id", 0).takeIf { it > 0 },
                             reactions = if (reactionsList.isNotEmpty()) reactionsList else null,
-                            isDeleted = messageObj.optInt("is_deleted", 0) == 1
+                            isDeleted = messageObj.optInt("is_deleted", 0) == 1,
+                            audioDurationMs = if (messageObj.isNull("audio_duration_ms")) null
+                                else messageObj.optLong("audio_duration_ms", 0L).takeIf { it > 0 }
                         )
                         Log.d(
                             "RealtimeChat",
@@ -604,7 +610,14 @@ class SocketManager private constructor() {
      * @param messageType Message type: "text", "image", "file", "audio", "video"
      * @param attachmentUrl Optional attachment URL for media messages
      */
-    fun sendMessage(fromUserId: Int, toUserId: Int, message: String, messageType: String = "text", attachmentUrl: String? = null) {
+    fun sendMessage(
+        fromUserId: Int,
+        toUserId: Int,
+        message: String,
+        messageType: String = "text",
+        attachmentUrl: String? = null,
+        audioDurationMs: Long? = null
+    ) {
         if (!isConnected()) {
             Log.e("SocketIOCheck", "❌ Cannot send message: Socket.IO not connected")
             _messageError.tryEmit("Socket.IO not connected")
@@ -619,6 +632,12 @@ class SocketManager private constructor() {
                 put("message_type", messageType)
                 if (attachmentUrl != null) {
                     put("attachment_url", attachmentUrl)
+                }
+                // CHAT-034: include duration only for audio rows with a real value.
+                if (messageType.equals("audio", ignoreCase = true) &&
+                    audioDurationMs != null && audioDurationMs > 0
+                ) {
+                    put("audio_duration_ms", audioDurationMs)
                 }
             }
 
@@ -787,7 +806,10 @@ data class ChatMessageSocket(
     val reactions: List<Map<String, Any>>? = null,  // Array of {user_id, reaction_emoji}
     // T6: server may signal a tombstone in the socket payload; carry it through so
     // a user with no API refresh in flight still sees the deleted-bubble state.
-    val isDeleted: Boolean = false
+    val isDeleted: Boolean = false,
+    // CHAT-034: sender-measured voice-note length. Null for non-audio and for
+    // pre-migration audio rows.
+    val audioDurationMs: Long? = null
 )
 
 data class ReactionUpdateEvent(
