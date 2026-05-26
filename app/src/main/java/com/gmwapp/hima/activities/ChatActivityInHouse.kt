@@ -405,6 +405,36 @@ class ChatActivityInHouse : AppCompatActivity() {
         }
     }
 
+    /**
+     * CHAT-047: result from [FullscreenImageActivity]. The viewer can return
+     * RESULT_OK with an action extra (Reply / React) — we route that back
+     * into the in-thread flow by finding the message by id and calling the
+     * existing handlers, so the viewer stays a dumb display surface.
+     */
+    private val fullscreenImageResultLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode != RESULT_OK) return@registerForActivityResult
+        val data = result.data ?: return@registerForActivityResult
+        val action = data.getStringExtra(FullscreenImageActivity.EXTRA_RESULT_ACTION)
+            ?: return@registerForActivityResult
+        val msgId = data.getStringExtra(FullscreenImageActivity.EXTRA_MESSAGE_ID)
+            ?: return@registerForActivityResult
+        val idx = messages.indexOfFirst { !it.isDateHeader && it.id == msgId }
+        if (idx < 0) return@registerForActivityResult
+        val msg = messages[idx]
+        when (action) {
+            FullscreenImageActivity.ACTION_REPLY -> beginReplyTo(msg)
+            FullscreenImageActivity.ACTION_REACT -> {
+                rvMessages.post {
+                    val holder = rvMessages.findViewHolderForAdapterPosition(idx)
+                    val anchor = holder?.itemView ?: rvMessages
+                    chatAdapter.showReactionPopupForPosition(anchor, idx)
+                }
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.setFlags(
@@ -629,7 +659,8 @@ class ChatActivityInHouse : AppCompatActivity() {
             onReactionChanged = { message, reactionEmoji -> handleReactionUpdate(message, reactionEmoji) },
             onReactionClick = { message, emoji -> showReactionDetails(message, emoji) },
             onMessageLongPress = { anchor, msg, pos -> showChatMessageContextMenu(anchor, msg, pos) },
-            onReplyQuoteTap = { msg -> scrollToInlineReplyOriginal(msg) }
+            onReplyQuoteTap = { msg -> scrollToInlineReplyOriginal(msg) },
+            onImageBubbleTap = { msg -> openFullscreenImageViewer(msg) }
         )
         rvMessages.apply {
             setHasFixedSize(true)
@@ -1315,6 +1346,39 @@ class ChatActivityInHouse : AppCompatActivity() {
             putExtra("VIDEO_STATUS", peerVideoStatus ?: 0)
         }
         startActivity(intent)
+    }
+
+    /**
+     * CHAT-047: launch the WhatsApp-style image viewer for an image bubble.
+     * Sender label is "You" for outgoing messages and the peer name otherwise;
+     * the timestamp is formatted into the same human shape the WhatsApp header
+     * uses ("22 May, 4:34 pm") so the chrome reads natural.
+     */
+    private fun openFullscreenImageViewer(message: ChatMessage) {
+        val url = message.attachmentUrl?.takeIf { it.isNotBlank() } ?: return
+        val senderLabel = if (message.isSentByMe) {
+            getString(R.string.chat_reply_you)
+        } else {
+            peerName.takeIf { it.isNotBlank() } ?: getString(R.string.chat_reply_you)
+        }
+        val avatar = if (message.isSentByMe) {
+            ""
+        } else {
+            intent.getStringExtra("USER_IMAGE").orEmpty()
+        }
+        val tsLabel = message.date?.let { dt ->
+            java.text.SimpleDateFormat("d MMM, h:mm a", java.util.Locale.getDefault()).format(dt)
+        } ?: message.timestamp
+        fullscreenImageResultLauncher.launch(
+            FullscreenImageActivity.intent(
+                context = this,
+                imageUrl = url,
+                peerName = senderLabel,
+                peerAvatar = avatar,
+                timestamp = tsLabel,
+                messageId = message.id,
+            )
+        )
     }
 
     private fun updateComposerActionState() {

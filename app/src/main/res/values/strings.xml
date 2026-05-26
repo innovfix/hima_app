@@ -89,6 +89,8 @@
     <string name="chat_blocked_input_hint">You can\'t message a blocked user</string>
     <string name="chat_read_more">Read more</string>
     <string name="chat_show_less">Show less</string>
+    <string name="chat_image_viewer_reply">Reply</string>
+    <string name="chat_image_viewer_react">React</string>
     <string name="chat_mic_hold_to_record">Hold to record</string>
     <string name="chat_recording_canceled">Recording canceled</string>
     <string name="chat_recording_start_failed">Couldn\'t start recording</string>
