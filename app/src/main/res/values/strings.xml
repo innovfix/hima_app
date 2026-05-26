@@ -130,6 +130,8 @@
     <string name="chat_deletechat_message">This chat will be removed from your chat list. Messages will be deleted from this device.</string>
     <string name="chat_deletechat_confirm">Delete</string>
     <string name="chat_deletechat_toast">Chat deleted</string>
+    <string name="chat_image_viewer_reply">Reply</string>
+    <string name="chat_image_viewer_react">React</string>
     <string name="chat_audio_unavailable">Audio unavailable</string>
     <string name="chat_back_desc">Back</string>
     <string name="chat_audio_call_desc">Audio Call</string>

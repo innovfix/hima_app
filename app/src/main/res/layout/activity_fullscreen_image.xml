@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  CHAT-047 image viewer.
+  Photo behind, two semi-transparent gradient bars above (top: back +
+  sender + time; bottom: Reply + React). Tap on the photo toggles the
+  chrome with a 200ms fade. While zoomed (PhotoView scale > 1) the
+  chrome stays hidden — pinch back to fit to bring it back.
+-->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000"
+    android:fitsSystemWindows="false">
+
+    <com.github.chrisbanes.photoview.PhotoView
+        android:id="@+id/photo_view"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:contentDescription="@string/chat_peer_avatar_desc"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- TOP CHROME -->
+    <FrameLayout
+        android:id="@+id/chrome_top"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_chat_image_viewer_top_scrim"
+        android:fitsSystemWindows="true"
+        android:paddingHorizontal="8dp"
+        android:paddingBottom="14dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/btn_close"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:contentDescription="@string/chat_back_desc"
+                android:focusable="true"
+                android:padding="12dp"
+                android:src="@drawable/ic_back"
+                app:tint="@android:color/white" />
+
+            <de.hdodenhof.circleimageview.CircleImageView
+                android:id="@+id/iv_peer_avatar"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginStart="4dp"
+                android:contentDescription="@string/chat_peer_avatar_desc"
+                android:src="@drawable/small_profile"
+                app:civ_border_color="#80FFFFFF"
+                app:civ_border_width="1.5dp" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tv_peer_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/poppins_semibold"
+                    android:maxLines="1"
+                    android:shadowColor="#66000000"
+                    android:shadowRadius="2"
+                    android:textColor="@android:color/white"
+                    android:textSize="14sp"
+                    tools:text="sRebx" />
+
+                <TextView
+                    android:id="@+id/tv_timestamp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:alpha="0.85"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/poppins_regular"
+                    android:maxLines="1"
+                    android:shadowColor="#66000000"
+                    android:shadowRadius="2"
+                    android:textColor="@android:color/white"
+                    android:textSize="11sp"
+                    tools:text="22 May, 4:34 pm" />
+            </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- BOTTOM CHROME -->
+    <LinearLayout
+        android:id="@+id/chrome_bottom"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_chat_image_viewer_bottom_scrim"
+        android:fitsSystemWindows="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="14dp"
+        android:paddingTop="18dp"
+        android:paddingBottom="18dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <TextView
+            android:id="@+id/btn_reply"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_marginEnd="6dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_chat_image_viewer_pill"
+            android:clickable="true"
+            android:drawablePadding="6dp"
+            android:focusable="true"
+            android:fontFamily="@font/poppins_semibold"
+            android:gravity="center"
+            android:text="@string/chat_image_viewer_reply"
+            android:textColor="@android:color/white"
+            android:textSize="13sp"
+            app:drawableStartCompat="@drawable/ic_reply"
+            app:drawableTint="@android:color/white" />
+
+        <TextView
+            android:id="@+id/btn_react"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="6dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_chat_image_viewer_pill"
+            android:clickable="true"
+            android:focusable="true"
+            android:fontFamily="@font/poppins_semibold"
+            android:gravity="center"
+            android:text="@string/chat_image_viewer_react"
+            android:textColor="@android:color/white"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

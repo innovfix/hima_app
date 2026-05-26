@@ -232,6 +232,10 @@ dependencies {
     implementation("de.hdodenhof:circleimageview:3.1.0")
     implementation("org.greenrobot:eventbus:3.3.1")
 
+    // CHAT-047 image viewer — pinch + double-tap zoom on the fullscreen
+    // image bubble. Resolved via the jitpack maven entry in settings.gradle.
+    implementation("com.github.chrisbanes:PhotoView:2.3.0")
+
     implementation(libs.androidx.hilt.common)
     implementation(libs.androidx.hilt.work)
     implementation(libs.androidx.work.runtime)

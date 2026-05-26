@@ -39,7 +39,14 @@ class ChatAdapter(
     private val onReactionClick: ((ChatMessage, String) -> Unit)? = null,
     /** If set, long-press opens this menu instead of jumping straight to reactions. */
     private val onMessageLongPress: ((anchor: View, message: ChatMessage, position: Int) -> Unit)? = null,
-    private val onReplyQuoteTap: ((ChatMessage) -> Unit)? = null
+    private val onReplyQuoteTap: ((ChatMessage) -> Unit)? = null,
+    /**
+     * CHAT-047: tap on an image bubble. When set, the adapter delegates to the
+     * host instead of opening the legacy bare-dialog full-screen image — the
+     * host launches FullscreenImageActivity with peer/timestamp/message-id and
+     * wires the Reply/React result back into the in-thread reply/react flow.
+     */
+    private val onImageBubbleTap: ((ChatMessage) -> Unit)? = null
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     init {
@@ -598,7 +605,13 @@ class ChatAdapter(
                 // T21: dropped the redundant Glide.into(imageView) — the bubble
                 // already has the bitmap from the bind above; re-loading on tap
                 // triggered a second network fetch.
-                if (source.isNotBlank()) {
+                // CHAT-047: route to the host so it can open FullscreenImageActivity
+                // with peer + timestamp chrome; fall back to the legacy bare
+                // full-screen dialog when no host handler is provided.
+                val host = onImageBubbleTap
+                if (host != null) {
+                    host.invoke(message)
+                } else if (source.isNotBlank()) {
                     openImagePreview(source, itemView)
                 }
             }
