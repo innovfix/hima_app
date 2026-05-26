@@ -344,6 +344,16 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
         text: String
     ) {
         try {
+            val publicVersion = androidx.core.app.NotificationCompat.Builder(
+                context,
+                "f49d2168-bc20-4a4b-a984-a7abffe0d6aa"
+            )
+                .setSmallIcon(com.gmwapp.hima.R.drawable.logo)
+                .setContentTitle(context.getString(com.gmwapp.hima.R.string.chat_notification_redacted_title))
+                .setCategory(androidx.core.app.NotificationCompat.CATEGORY_MESSAGE)
+                .setVisibility(androidx.core.app.NotificationCompat.VISIBILITY_PUBLIC)
+                .setAutoCancel(true)
+                .build()
             val builder = androidx.core.app.NotificationCompat.Builder(
                 context,
                 "f49d2168-bc20-4a4b-a984-a7abffe0d6aa" // same channel id as ChatNotifications
@@ -352,6 +362,8 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
                 .setContentTitle(peerName.ifBlank { "New message" })
                 .setContentText(text)
                 .setAutoCancel(true)
+                .setVisibility(androidx.core.app.NotificationCompat.VISIBILITY_PRIVATE)
+                .setPublicVersion(publicVersion)
                 .setCategory(androidx.core.app.NotificationCompat.CATEGORY_MESSAGE)
             androidx.core.app.NotificationManagerCompat.from(context)
                 .notify(ChatNotifications.notifIdFor(peerId), builder.build())

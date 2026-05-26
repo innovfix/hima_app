@@ -2,6 +2,7 @@ package com.gmwapp.hima
 
 import android.app.Activity
 import android.app.Application
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Intent
@@ -701,6 +702,9 @@ class BaseApplication : Application(), Configuration.Provider {
                 setSound(soundUri, audioAttributes)
                 enableLights(true)
                 enableVibration(true)
+                // CHAT-005 / CHAT-071: redact sender + message body on the lockscreen.
+                // Per-notification setPublicVersion(...) provides the redacted view.
+                lockscreenVisibility = Notification.VISIBILITY_PRIVATE
             }
 
             val manager = getSystemService(NotificationManager::class.java)

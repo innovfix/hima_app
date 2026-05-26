@@ -172,10 +172,23 @@ object ChatNotifications {
                 "count=${ShortcutManagerCompat.getDynamicShortcuts(context).size}"
         )
 
+        // Redacted variant Android shows on the lockscreen when the user has
+        // "Hide sensitive notification content" turned on. Sender name and body
+        // are omitted by design.
+        val publicVersion = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.logo)
+            .setContentTitle(context.getString(R.string.chat_notification_redacted_title))
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setAutoCancel(true)
+            .build()
+
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.logo)
             .setStyle(style)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(publicVersion)
             .setAutoCancel(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(contentPi)
@@ -228,6 +241,7 @@ object ChatNotifications {
         val summary = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.logo)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setGroup(GROUP_KEY)
             .setGroupSummary(true)
             .setAutoCancel(true)

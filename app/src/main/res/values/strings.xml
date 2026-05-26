@@ -135,6 +135,7 @@
     <string name="chat_send_canceled">Send canceled</string>
     <string name="chat_search_no_results_title">No results</string>
     <string name="chat_search_no_results_desc">No chats found for \"%1$s\"</string>
+    <string name="chat_notification_redacted_title">New message</string>
     <plurals name="chat_new_messages">
         <item quantity="one">%1$d new message</item>
         <item quantity="other">%1$d new messages</item>
