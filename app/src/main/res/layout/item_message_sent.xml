@@ -40,12 +40,30 @@
                 android:id="@+id/tv_message"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="10"
                 android:text="I'm doing great! Thanks for asking."
                 android:textSize="14.5sp"
                 android:textColor="@color/chat_text_sent"
                 android:fontFamily="@font/poppins_regular"
                 android:lineHeight="20dp"
                 android:lineSpacingExtra="1dp" />
+
+            <!-- CHAT-127: WhatsApp-style "Read more / Show less" toggle for long
+                 messages. Shown only when [tv_message] is truncated by the
+                 maxLines clamp above (or when the user has manually expanded). -->
+            <TextView
+                android:id="@+id/tv_read_more"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:background="?attr/selectableItemBackground"
+                android:fontFamily="@font/poppins_semibold"
+                android:paddingVertical="2dp"
+                android:text="@string/chat_read_more"
+                android:textColor="@color/chat_text_sent"
+                android:textSize="12sp"
+                android:visibility="gone" />
 
             <LinearLayout
                 android:layout_width="wrap_content"

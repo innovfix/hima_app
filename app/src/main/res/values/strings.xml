@@ -86,6 +86,8 @@
     <string name="chat_blocked_preview">You blocked this user</string>
     <string name="chat_blocked_banner">You blocked this user. Unblock to send messages.</string>
     <string name="chat_blocked_input_hint">You can\'t message a blocked user</string>
+    <string name="chat_read_more">Read more</string>
+    <string name="chat_show_less">Show less</string>
     <string name="chat_audio_unavailable">Audio unavailable</string>
     <string name="chat_back_desc">Back</string>
     <string name="chat_audio_call_desc">Audio Call</string>

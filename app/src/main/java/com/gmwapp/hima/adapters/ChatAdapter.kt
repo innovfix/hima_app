@@ -55,10 +55,21 @@ class ChatAdapter(
         private const val VIEW_TYPE_SENT_AUDIO = 6
         private const val VIEW_TYPE_RECEIVED_AUDIO = 7
         private val REACTIONS = listOf("👍", "❤️", "😂", "😮", "🙏")
+
+        /** CHAT-127: line cap before the Read more toggle appears. Matches the
+         *  `maxLines` set on tv_message in item_message_*.xml — keep in sync. */
+        private const val COLLAPSED_LINE_LIMIT = 10
     }
 
     private var currentPopupWindow: PopupWindow? = null
     private lateinit var audioPlayer: ChatAudioPlayer
+
+    /**
+     * CHAT-127: per-message expanded state for the Read more / Show less toggle.
+     * Kept process-local — WhatsApp behavior is to collapse on app restart,
+     * which falls out naturally because the set lives with the adapter.
+     */
+    private val expandedMessageIds = mutableSetOf<String>()
 
     /** Parsed breakdown of an inline reply-prefixed message; display-time only. */
     private data class InlineReply(val author: String, val snippet: String, val body: String)
@@ -429,6 +440,7 @@ class ChatAdapter(
         private val isSent: Boolean
     ) : RecyclerView.ViewHolder(itemView) {
         private val tvMessage: TextView = itemView.findViewById(R.id.tv_message)
+        private val tvReadMore: TextView = itemView.findViewById(R.id.tv_read_more)
         private val tvTime: TextView = itemView.findViewById(R.id.tv_time)
         private val tvReaction: TextView = itemView.findViewById(R.id.tv_reaction)
         private val layoutReplyQuote: View = itemView.findViewById(R.id.layout_reply_quote)
@@ -454,6 +466,9 @@ class ChatAdapter(
                 itemView.isLongClickable = false
                 tvMessage.setOnLongClickListener(null)
                 tvMessage.isLongClickable = false
+                // Tombstone is always a single short line — no Read more needed.
+                tvReadMore.visibility = View.GONE
+                tvReadMore.setOnClickListener(null)
                 return
             }
 
@@ -483,6 +498,59 @@ class ChatAdapter(
                 tvMessage.setTextColor(ContextCompat.getColor(itemView.context, R.color.chat_text_received))
             } else {
                 bindDeliveryIndicator(itemView, message)
+            }
+            applyReadMoreState(message)
+        }
+
+        /**
+         * CHAT-127: collapse messages past [COLLAPSED_LINE_LIMIT] lines and show a
+         * Read more / Show less toggle. The toggle is also wired to long-press so
+         * users can still bring up the reactions menu without tap-eating the
+         * expand action.
+         */
+        private fun applyReadMoreState(message: ChatMessage) {
+            val expanded = expandedMessageIds.contains(message.id)
+            if (expanded) {
+                tvMessage.maxLines = Integer.MAX_VALUE
+                tvMessage.ellipsize = null
+            } else {
+                tvMessage.maxLines = COLLAPSED_LINE_LIMIT
+                tvMessage.ellipsize = android.text.TextUtils.TruncateAt.END
+            }
+
+            // Decide visibility AFTER layout so we can read tv_message.layout's
+            // ellipsis count. Hide eagerly to avoid a flash on short messages.
+            tvReadMore.visibility = View.GONE
+            tvReadMore.setOnClickListener(null)
+            tvMessage.post {
+                val layout = tvMessage.layout ?: return@post
+                val truncated = if (expanded) {
+                    // Once expanded, we still want Show less visible so the user
+                    // can collapse. Cheap heuristic: line count > limit.
+                    layout.lineCount > COLLAPSED_LINE_LIMIT
+                } else {
+                    val last = (layout.lineCount - 1).coerceAtLeast(0)
+                    layout.getEllipsisCount(last) > 0
+                }
+                if (!truncated) {
+                    tvReadMore.visibility = View.GONE
+                    return@post
+                }
+                tvReadMore.visibility = View.VISIBLE
+                tvReadMore.text = itemView.context.getString(
+                    if (expanded) R.string.chat_show_less else R.string.chat_read_more
+                )
+                tvReadMore.setOnClickListener {
+                    if (expandedMessageIds.contains(message.id)) {
+                        expandedMessageIds.remove(message.id)
+                    } else {
+                        expandedMessageIds.add(message.id)
+                    }
+                    val pos = bindingAdapterPosition
+                    if (pos != RecyclerView.NO_POSITION) {
+                        notifyItemChanged(pos)
+                    }
+                }
             }
         }
 
