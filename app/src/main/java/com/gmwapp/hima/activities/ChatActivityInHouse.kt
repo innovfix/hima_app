@@ -3157,8 +3157,81 @@ class ChatActivityInHouse : AppCompatActivity() {
         messages.clear()
         // CHAT-138: drop anything the user "Deleted for me" on this device.
         val filtered = filterOutLocallyDeleted(source)
-        messages.addAll(sortedChatMessages(filtered))
+        // CHAT-030: drop orphan SENDING temps whose server-confirmed twin is
+        // already in the list. Stops the bubble spinner from sticking while
+        // the chat list (which reads server state) already shows delivered.
+        val deduped = dropAbsorbedSendingTemps(sortedChatMessages(filtered))
+        messages.addAll(deduped)
         updateTopHeader(messages)
+    }
+
+    /**
+     * CHAT-030: reconciliation safety net for the optimistic-temp lifecycle.
+     *
+     * Strict content-match in [findPendingTempIndexForSocket] /
+     * [pendingPayloadMatchesMessage] can miss when the server normalises the
+     * message body (e.g. trimming, smart-quote substitution, CRLF→LF). When
+     * the match misses, the server-confirmed row is inserted as a new entry
+     * and the temp_ row stays in SENDING — visible only as a stuck spinner
+     * while the chat-list screen (which reads server state) shows the
+     * message as delivered. This pass runs on every list rebuild: for each
+     * SENDING temp_ owned by the local user, if a confirmed (non-temp) row
+     * with the same messageType + body/attachmentUrl already exists, drop
+     * the temp and release its pending bookkeeping.
+     */
+    private fun dropAbsorbedSendingTemps(list: List<ChatMessage>): List<ChatMessage> {
+        val hasOrphanCandidate = list.any { m ->
+            m.isSentByMe && !m.isDateHeader &&
+                m.id.startsWith("temp_") &&
+                m.deliveryStatus == MessageDeliveryStatus.SENDING
+        }
+        if (!hasOrphanCandidate) return list
+
+        val confirmedKeys = HashSet<String>()
+        list.forEach { m ->
+            if (m.isSentByMe && !m.isDateHeader && !m.id.startsWith("temp_")) {
+                confirmedReconcileKey(m)?.let { confirmedKeys.add(it) }
+            }
+        }
+        if (confirmedKeys.isEmpty()) return list
+
+        val survivors = ArrayList<ChatMessage>(list.size)
+        list.forEach { m ->
+            val isOrphan = m.isSentByMe && !m.isDateHeader &&
+                m.id.startsWith("temp_") &&
+                m.deliveryStatus == MessageDeliveryStatus.SENDING
+            if (isOrphan) {
+                val key = confirmedReconcileKey(m)
+                if (key != null && confirmedKeys.contains(key)) {
+                    pendingOutgoingByTempId.remove(m.id)
+                    messageSendMethod.remove(m.id)
+                    Log.d(
+                        "ChatDelivery",
+                        "CHAT-030 dropped orphan SENDING temp ${m.id} — server-confirmed twin already in list"
+                    )
+                    return@forEach
+                }
+            }
+            survivors.add(m)
+        }
+        return survivors
+    }
+
+    /**
+     * CHAT-030: reconciliation key. Trim text bodies so server-side whitespace
+     * normalisation doesn't keep an orphan alive. Media rows match on the
+     * resolved remote URL — the temp's url is set to the remote one by
+     * [uploadAndSendAttachment] before the socket emit, so this lines up.
+     */
+    private fun confirmedReconcileKey(m: ChatMessage): String? {
+        val type = m.messageType.lowercase()
+        return when (type) {
+            "image", "audio" -> {
+                val url = m.attachmentUrl
+                if (url.isNullOrBlank()) null else "$type::$url"
+            }
+            else -> "$type::${m.message.trim()}"
+        }
     }
 
     /**
