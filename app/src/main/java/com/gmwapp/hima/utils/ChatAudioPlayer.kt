@@ -105,6 +105,14 @@ class ChatAudioPlayer(
                 AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_MEDIA)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .apply {
+                        // Block system screen recorders (MediaProjection +
+                        // AudioPlaybackCapture) from tapping the voice-note
+                        // audio stream. API 29+ only.
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            setAllowedCapturePolicy(AudioAttributes.ALLOW_CAPTURE_BY_NONE)
+                        }
+                    }
                     .build()
             )
             setOnPreparedListener { prepared ->
