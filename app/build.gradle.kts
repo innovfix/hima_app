@@ -54,16 +54,20 @@ android {
             // deliver on this flavor — until then expect empty subscription
             // records (token="", enabled=false). In-app behaviour is unaffected.
             // buildConfigField("String", "BASE_URL", "\"http://192.168.29.190/hima-admin-panel/public/api/auth/\"")
-            buildConfigField("String", "BASE_URL", "\"https://demolivedb.himaapp.in/api/auth/\"")
+            // Moved off demolivedb 2026-05-26 — chat delete-for-everyone fix
+            // (CHAT-013/014) and the rest of the chat_delete_endpoint branch
+            // live on demohima only. Bringing both flavors to demohima so the
+            // app hits the same backend the admin panel deploys to.
+            buildConfigField("String", "BASE_URL", "\"https://demohima.himaapp.in/api/auth/\"")
             buildConfigField("String", "ONESIGNAL_APP_ID", "\"5cd4154a-1ece-4c3b-b6af-e88bafee64cd\"")
         }
         create("production") {
             dimension = "hima"
             isDefault = true
-            // productionDebug/Release: demolivedb backend + same OneSignal project the demo backend
-            // REST key uses (5cd4154a-...). For Play Store / himaapp.in, use a separate release
-            // branch or a release flavor with himaapp.in + 50cedb09-...
-            buildConfigField("String", "BASE_URL", "\"https://demolivedb.himaapp.in/api/auth/\"")
+            // Same demohima backend as `development` for now — see comment above.
+            // Re-point at himaapp.in (or a dedicated production backend) when we
+            // cut a real release flavor.
+            buildConfigField("String", "BASE_URL", "\"https://demohima.himaapp.in/api/auth/\"")
             buildConfigField("String", "ONESIGNAL_APP_ID", "\"5cd4154a-1ece-4c3b-b6af-e88bafee64cd\"")
         }
     }
