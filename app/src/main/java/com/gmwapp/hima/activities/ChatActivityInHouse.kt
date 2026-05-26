@@ -1214,8 +1214,9 @@ class ChatActivityInHouse : AppCompatActivity() {
             showOptionsMenu()
         }
 
-        // Profile icon click - open UserProfileDetailActivity
-        ivUser.setOnClickListener {
+        // CHAT-099: tap anywhere on the header user strip (avatar + name +
+        // online status) opens the profile — not just the small 42dp avatar.
+        findViewById<View>(R.id.ll_header_user)?.setOnClickListener {
             openUserProfile()
         }
     }

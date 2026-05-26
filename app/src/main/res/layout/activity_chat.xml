@@ -51,63 +51,80 @@
 
             </androidx.cardview.widget.CardView>
 
-            <de.hdodenhof.circleimageview.CircleImageView
-                android:id="@+id/iv_user"
-                android:layout_width="42dp"
-                android:layout_height="42dp"
-                android:layout_marginStart="12dp"
-                android:contentDescription="@string/chat_peer_avatar_desc"
-                android:src="@drawable/logo"
-                app:civ_border_width="2dp"
-                app:civ_border_color="#FFE5F1" />
-
+            <!-- CHAT-099: wrap avatar + name/status into one tappable strip so
+                 taps on the name or online-status row also open the profile,
+                 not just the small 42dp avatar circle. -->
             <LinearLayout
+                android:id="@+id/ll_header_user"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:orientation="vertical"
-                android:layout_marginStart="12dp">
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:minHeight="48dp"
+                android:orientation="horizontal"
+                android:paddingVertical="2dp">
 
-                <TextView
-                    android:id="@+id/tv_user_name"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Username"
-                    android:textSize="17sp"
-                    android:textColor="@color/chat_text_received"
-                    android:fontFamily="@font/poppins_semibold"
-                    android:letterSpacing="-0.01"
-                    android:maxLines="1"
-                    android:ellipsize="end" />
+                <de.hdodenhof.circleimageview.CircleImageView
+                    android:id="@+id/iv_user"
+                    android:layout_width="42dp"
+                    android:layout_height="42dp"
+                    android:layout_marginStart="12dp"
+                    android:contentDescription="@string/chat_peer_avatar_desc"
+                    android:src="@drawable/logo"
+                    app:civ_border_width="2dp"
+                    app:civ_border_color="#FFE5F1" />
 
                 <LinearLayout
-                    android:layout_width="match_parent"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginTop="1dp">
-
-                    <View
-                        android:id="@+id/v_online_indicator"
-                        android:layout_width="6dp"
-                        android:layout_height="6dp"
-                        android:visibility="gone"
-                        android:background="@drawable/splash_circle"
-                        android:backgroundTint="@color/online_green" />
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="12dp">
 
                     <TextView
-                        android:id="@+id/tv_user_status"
-                        android:layout_width="0dp"
+                        android:id="@+id/tv_user_name"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:layout_marginStart="4dp"
-                        android:text=""
-                        android:textSize="12sp"
-                        android:textColor="@color/online_green"
-                        android:fontFamily="@font/poppins_medium"
+                        android:text="Username"
+                        android:textSize="17sp"
+                        android:textColor="@color/chat_text_received"
+                        android:fontFamily="@font/poppins_semibold"
+                        android:letterSpacing="-0.01"
                         android:maxLines="1"
-                        android:ellipsize="end"
-                        android:includeFontPadding="false" />
+                        android:ellipsize="end" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginTop="1dp">
+
+                        <View
+                            android:id="@+id/v_online_indicator"
+                            android:layout_width="6dp"
+                            android:layout_height="6dp"
+                            android:visibility="gone"
+                            android:background="@drawable/splash_circle"
+                            android:backgroundTint="@color/online_green" />
+
+                        <TextView
+                            android:id="@+id/tv_user_status"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="4dp"
+                            android:text=""
+                            android:textSize="12sp"
+                            android:textColor="@color/online_green"
+                            android:fontFamily="@font/poppins_medium"
+                            android:maxLines="1"
+                            android:ellipsize="end"
+                            android:includeFontPadding="false" />
+                    </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
 
