@@ -216,14 +216,29 @@ class RecentCallsAdapter(
             holder.binding.llDuration.visibility = View.VISIBLE
             holder.binding.tvTime.text = call.started_time ?: ""
             val rawDuration = call.duration?.trim().orEmpty()
+            val isMissedRow = rawDuration.isEmpty() || parseDuration(rawDuration) <= 0
             // Missed calls come back from the backend with an empty or 0 duration,
-            // which left the clock-icon row visually empty. Show "Missed" instead.
-            // For connected calls, roll 60+ minutes into hours so "1265 min 29 sec"
-            // renders as "21 hr 5 min 29 sec".
-            holder.binding.tvDuration.text = if (rawDuration.isEmpty() || parseDuration(rawDuration) <= 0) {
+            // which left the clock-icon row visually empty. Show "Missed call"
+            // instead. For connected calls, roll 60+ minutes into hours so
+            // "1265 min 29 sec" renders as "21 hr 5 min 29 sec".
+            holder.binding.tvDuration.text = if (isMissedRow) {
                 activity.getString(R.string.missed_call_label)
             } else {
                 formatDuration(rawDuration)
+            }
+            // CALL-102: missed rows use the dialer-convention red phone-with-
+            // down-left-arrow icon (intrinsic red — clear tint so colorAccent
+            // doesn't override). Connected rows reset to the grey-tinted clock
+            // so a recycled holder doesn't carry the missed look over.
+            if (isMissedRow) {
+                holder.binding.ivDurationIcon.setImageResource(R.drawable.ic_missed_call)
+                holder.binding.ivDurationIcon.imageTintList = null
+            } else {
+                holder.binding.ivDurationIcon.setImageResource(R.drawable.ic_clock)
+                holder.binding.ivDurationIcon.imageTintList =
+                    android.content.res.ColorStateList.valueOf(
+                        ContextCompat.getColor(activity, R.color.colorAccent)
+                    )
             }
             // Remove click listener for non-favorite mode
             holder.binding.tvTime.setOnClickListener(null)
