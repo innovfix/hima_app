@@ -1521,7 +1521,23 @@ class ChatActivityInHouse : AppCompatActivity() {
             Log.e("ChatMedia", "Audio recording stop failed: ${e.message}", e)
             isRecording = false
             setRecordingUiVisible(false)
-            showAppToast(getString(R.string.chat_voice_save_failed), Toast.LENGTH_SHORT)
+            // CHAT-040: a really fast tap (~100-200ms) makes MediaRecorder.stop()
+            // throw because no audio frames were captured yet. The duration-check
+            // above never runs in that case — the controller throws straight
+            // through to this catch. Treat sub-second elapsed time as a tap and
+            // show the friendly Hold-to-record hint instead of the generic
+            // "Couldn't save voice note" toast, which reads like an app bug.
+            val elapsed = if (recordingStartedAtMs > 0L) {
+                SystemClock.elapsedRealtime() - recordingStartedAtMs
+            } else {
+                Long.MAX_VALUE
+            }
+            val msgRes = if (elapsed < 1000L) {
+                R.string.chat_mic_hold_to_record
+            } else {
+                R.string.chat_voice_save_failed
+            }
+            showAppToast(getString(msgRes), Toast.LENGTH_SHORT)
         }
     }
 
