@@ -149,6 +149,7 @@
     <string name="chat_wait_until_sent_before_deleting">Wait until the message is sent before deleting</string>
     <string name="chat_message_too_long">Messages can be up to %1$d characters</string>
     <string name="chat_send_canceled">Send canceled</string>
+    <string name="chat_reply_original_not_loaded">Original message not loaded</string>
     <string name="chat_search_no_results_title">No results</string>
     <string name="chat_search_no_results_desc">No chats found for \"%1$s\"</string>
     <string name="chat_notification_redacted_title">New message</string>

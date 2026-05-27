@@ -826,18 +826,119 @@ class ChatActivityInHouse : AppCompatActivity() {
         return header.substring(separator + 2).trim().takeIf { it.isNotEmpty() }
     }
 
+    /**
+     * CHAT-084: tap on a reply bubble's quote strip — scroll the list to the
+     * original message and briefly flash its row so the user can tell which
+     * message is being referenced.
+     *
+     * The inline-reply payload only carries author + snippet (no original
+     * message id), so we match by snippet. To avoid picking the wrong "ok" /
+     * "yes" we scan **backwards** from the reply's own position — a reply can
+     * only refer to a message that came before it.
+     */
     private fun scrollToInlineReplyOriginal(message: ChatMessage) {
         val snippet = parseInlineReplySnippet(message.message) ?: return
-        val targetIndex = messages.indexOfFirst { candidate ->
-            !candidate.isDateHeader &&
-                candidate.id != message.id &&
-                !candidate.isDeleted &&
-                candidate.message.contains(snippet, ignoreCase = true)
+        val replyIndex = messages.indexOfFirst { it.id == message.id }
+        if (replyIndex <= 0) {
+            android.widget.Toast.makeText(
+                this,
+                R.string.chat_reply_original_not_loaded,
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+            return
         }
-        if (targetIndex != -1) {
-            rvMessages.smoothScrollToPosition(targetIndex)
-            chatAdapter.notifyItemChanged(targetIndex)
+        var targetIndex = -1
+        for (i in (replyIndex - 1) downTo 0) {
+            val c = messages[i]
+            if (c.isDateHeader || c.isDeleted) continue
+            if (c.message.contains(snippet, ignoreCase = true)) {
+                targetIndex = i
+                break
+            }
         }
+        if (targetIndex == -1) {
+            android.widget.Toast.makeText(
+                this,
+                R.string.chat_reply_original_not_loaded,
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+        rvMessages.smoothScrollToPosition(targetIndex)
+        scheduleReplyFlash(targetIndex)
+    }
+
+    /**
+     * CHAT-084: run the flash as soon as the target row is on screen and the
+     * RecyclerView has settled. Three paths covered:
+     *  1) Target already visible — animate immediately.
+     *  2) Scroll in flight — listen for SCROLL_STATE_IDLE, then animate.
+     *  3) Safety timeout — if neither fires within 1500ms (e.g. row was already
+     *     visible so smoothScroll was a no-op and never produced an IDLE event),
+     *     try one more lookup and animate if found.
+     */
+    private fun scheduleReplyFlash(index: Int) {
+        val immediate = rvMessages.findViewHolderForAdapterPosition(index)?.itemView
+        if (immediate != null) {
+            animateReplyFlash(immediate)
+            return
+        }
+        val listener = object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
+            override fun onScrollStateChanged(
+                rv: androidx.recyclerview.widget.RecyclerView,
+                newState: Int
+            ) {
+                if (newState != androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_IDLE) return
+                rv.removeOnScrollListener(this)
+                rv.findViewHolderForAdapterPosition(index)?.itemView?.let { animateReplyFlash(it) }
+            }
+        }
+        rvMessages.addOnScrollListener(listener)
+        rvMessages.postDelayed({
+            rvMessages.removeOnScrollListener(listener)
+            if (replyFlashAnimator?.isRunning != true) {
+                rvMessages.findViewHolderForAdapterPosition(index)?.itemView
+                    ?.let { animateReplyFlash(it) }
+            }
+        }, 1500L)
+    }
+
+    private var replyFlashAnimator: android.animation.ValueAnimator? = null
+
+    /**
+     * CHAT-084: 1000ms flash on a row — 200ms fade-in (alpha 0→64/255), 500ms
+     * hold, 300ms fade-out. Uses [View.foreground] so we don't touch the
+     * bubble drawable and don't need per-holder layout changes. Alpha caps at
+     * 64 (~25%) so the bubble text stays readable through the tint.
+     */
+    private fun animateReplyFlash(row: android.view.View) {
+        replyFlashAnimator?.cancel()
+        val flashColor = androidx.core.content.ContextCompat.getColor(this, R.color.chat_reply_flash)
+        val fg = android.graphics.drawable.ColorDrawable(flashColor).apply { alpha = 0 }
+        row.foreground = fg
+        val anim = android.animation.ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 1000L
+            addUpdateListener { v ->
+                val frac = v.animatedValue as Float
+                val intensity = when {
+                    frac < 0.2f -> frac / 0.2f
+                    frac < 0.7f -> 1f
+                    else -> (1f - frac) / 0.3f
+                }
+                fg.alpha = (intensity * 64f).toInt().coerceIn(0, 64)
+                row.invalidate()
+            }
+            addListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: android.animation.Animator) {
+                    row.foreground = null
+                }
+                override fun onAnimationCancel(animation: android.animation.Animator) {
+                    row.foreground = null
+                }
+            })
+        }
+        replyFlashAnimator = anim
+        anim.start()
     }
 
     private fun beginReplyTo(message: ChatMessage) {

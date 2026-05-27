@@ -123,6 +123,8 @@
     <color name="chat_bubble_received">#FFFFFF</color>
     <color name="chat_bubble_received_stroke">#ECECEC</color>
     <color name="chat_read_receipt">#53BDEB</color>
+    <!-- CHAT-084: brand pink overlay used for the brief reply-quote tap flash. -->
+    <color name="chat_reply_flash">#FF1383</color>
     <color name="chat_tick_on_bubble">#99A0A7B0</color>
     <color name="chat_text_sent">#1F2937</color>
     <color name="chat_text_received">#1F2937</color>
@@ -142,7 +144,9 @@
     <color name="chat_reply_quote_strip_received">#9C1DF9</color>
     <color name="chat_reply_quote_author">#C11063</color>
     <color name="chat_reply_quote_author_received">#1F2937</color>
-    <color name="chat_reply_quote_snippet">#4B5563</color>
+    <!-- CHAT-092: bumped from #4B5563 to match body text — survives OEM force-dark
+         skinning that washes out medium greys against darkened bubbles. -->
+    <color name="chat_reply_quote_snippet">#1F2937</color>
     <color name="chat_reply_quote_bg_sent">#1FFF1381</color>
     <color name="chat_reply_quote_bg_received">#0F000000</color>
 
