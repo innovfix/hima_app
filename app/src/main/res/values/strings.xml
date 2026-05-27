@@ -33,6 +33,9 @@
     <string name="friends_empty_state_subtitle">Start connecting with people\nby sending friend requests</string>
     <string name="chat_empty_state_title">No chats yet</string>
     <string name="chat_empty_state_subtitle">Messages from users will appear here</string>
+    <!-- CHAT-106: Home → My Chats empty state for new users (no chats yet). -->
+    <string name="home_my_chats_empty_subtitle">Tap a creator from Home or Random Match to start your first conversation.</string>
+    <string name="home_my_chats_browse_creators">Browse creators</string>
     <string name="chat_tab_friends">Friends</string>
     <string name="chat_tab_general">General</string>
     <string name="chat_friends_empty_state_title">No friends yet</string>

@@ -865,6 +865,9 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         }
         filterType = selectedFilter
         updateFilterButtonStyles()
+        // CHAT-106: hide the chat-empty state instantly when leaving my_chats so
+        // it doesn't briefly show on top of the creator list during the swap.
+        updateMyChatsEmptyState()
                         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
                         userData?.id?.let { userId ->
                             if (context?.let { it1 -> isInternetAvailable(it1) } == true) {
@@ -976,18 +979,39 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 binding.rvProfiles.layoutManager = LinearLayoutManager(activity, LinearLayoutManager.VERTICAL, false)
                 binding.rvProfiles.adapter = chatListAdapter
                 binding.rvProfiles.visibility = View.VISIBLE
+                updateMyChatsEmptyState()
             }
 
             override fun onFailure(call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.MyChatResponse>, t: Throwable) {
                 setLoading(false)
                 binding.swipeRefreshLayout.isRefreshing = false
+                updateMyChatsEmptyState()
             }
 
             override fun onNoNetwork() {
                 setLoading(false)
                 binding.swipeRefreshLayout.isRefreshing = false
+                updateMyChatsEmptyState()
             }
         })
+    }
+
+    /**
+     * CHAT-106: show the "No chats yet" empty state on Home → My Chats when a
+     * new user has no conversations. Hidden in every other state — different
+     * filter, currently loading, offline (handled by tvNointernet), or list
+     * already has rows. Idempotent and cheap; safe to call from anywhere.
+     */
+    private fun updateMyChatsEmptyState() {
+        if (!isAdded) return
+        val empty = binding.homeMyChatsEmptyState
+        val isLoading = binding.progressBar.visibility == View.VISIBLE ||
+            binding.swipeRefreshLayout.isRefreshing
+        val show = filterType == "my_chats" &&
+            !isLoading &&
+            (homeMyChatsAdapter?.itemCount ?: 0) == 0 &&
+            binding.tvNointernet.visibility != View.VISIBLE
+        empty.visibility = if (show) View.VISIBLE else View.GONE
     }
 
     fun initFab() {
@@ -1034,6 +1058,13 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         // through to the chat list / bottom nav while the menu is open.
         binding.dimBackground.setOnClickListener {
             if (isAllFabVisible) collapseFabMenu()
+        }
+
+        // CHAT-106: empty-state "Browse creators" CTA — switches the chip filter
+        // back to "all" so the user lands on the creator list and can pick
+        // someone to chat with.
+        binding.btnHomeMyChatsBrowseCreators.setOnClickListener {
+            applyFilter("all")
         }
     }
 

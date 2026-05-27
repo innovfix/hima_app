@@ -476,6 +476,63 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
+    <!-- CHAT-106: empty state shown on Home → My Chats when the user has no
+         conversations yet. Centered overlay; HomeFragment toggles visibility
+         based on filterType + adapter.itemCount + loading + online state. -->
+    <LinearLayout
+        android:id="@+id/home_my_chats_empty_state"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingHorizontal="24dp"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:alpha="0.3"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_chat_bubble"
+            app:tint="@color/grey_medium" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:fontFamily="@font/poppins_semibold"
+            android:text="@string/chat_empty_state_title"
+            android:textColor="@color/grey_dark"
+            android:textSize="18sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:fontFamily="@font/poppins_regular"
+            android:gravity="center"
+            android:text="@string/home_my_chats_empty_subtitle"
+            android:textColor="@color/grey_medium"
+            android:textSize="14sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_home_my_chats_browse_creators"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:fontFamily="@font/poppins_semibold"
+            android:paddingHorizontal="24dp"
+            android:paddingVertical="11dp"
+            android:text="@string/home_my_chats_browse_creators"
+            android:textAllCaps="false"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            app:backgroundTint="@color/colorAccent"
+            app:cornerRadius="24dp"
+            app:elevation="0dp" />
+    </LinearLayout>
+
     <TextView
         android:id="@+id/tv_audio1"
         android:layout_width="wrap_content"
