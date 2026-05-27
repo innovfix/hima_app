@@ -6,6 +6,8 @@ import com.google.gson.annotations.SerializedName
 // truncation when the backend emits snowflake-style ids beyond Int.MAX_VALUE.
 data class ChatMessageApi(
     val id: Long,
+    @SerializedName("client_msg_id")
+    val clientMsgId: String? = null,
     @SerializedName("chat_id")
     val chatId: String,
     val from: String,
@@ -17,6 +19,8 @@ data class ChatMessageApi(
     val attachmentUrl: String? = null,
     @SerializedName("is_read")
     val isRead: Boolean = false,
+    @SerializedName("delivered")
+    val delivered: Boolean = false, // CHAT-026
     val timestamp: String,
     @SerializedName("created_at")
     val createdAt: String? = null,

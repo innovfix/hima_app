@@ -27,6 +27,10 @@ import java.security.NoSuchAlgorithmException
 import android.view.WindowManager
 import androidx.lifecycle.MutableLiveData
 import androidx.work.Configuration
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import com.android.installreferrer.api.InstallReferrerClient
 import com.android.installreferrer.api.InstallReferrerStateListener
 import com.android.installreferrer.api.ReferrerDetails
@@ -229,6 +233,9 @@ class BaseApplication : Application(), Configuration.Provider {
             androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO
         )
         mPreferences = DPreferences(this)
+        // CHAT-022 / CHAT-017: start the app-wide block/unblock event collector so
+        // the chat list and any open thread refresh in real time on a block.
+        startCollectingBlockStatusChanged()
         // Bind the in-memory chat-history cache to whoever was last signed in. If
         // anything reads the cache before login (or by a different user) it will
         // be empty until setOwner is re-called with the live id.
@@ -1657,6 +1664,57 @@ class BaseApplication : Application(), Configuration.Provider {
         }
         
         Log.d("SocketIOCheck", "═══════════════════════════════════════")
+    }
+
+    // Process-lifetime scope for app-wide socket collectors.
+    private val appScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
+    @Volatile
+    private var blockStatusCollectorStarted = false
+
+    /**
+     * CHAT-022 / CHAT-017: listen app-wide for real-time block/unblock events and
+     * translate them into the existing refresh broadcasts so:
+     *  - the conversation list re-fetches (ACTION_CHAT_LIST_REFRESH), and
+     *  - an open chat thread with that peer reloads (ACTION_CHAT_REFRESH) — which
+     *    re-reads the block flag and history, so a block placed mid-call/chat
+     *    takes effect immediately instead of after the next manual refresh.
+     */
+    private fun startCollectingBlockStatusChanged() {
+        if (blockStatusCollectorStarted) return
+        blockStatusCollectorStarted = true
+        appScope.launch {
+            SocketManager.getInstance().blockStatusChanged.collect { event ->
+                try {
+                    val myId = getPrefs()?.getUserData()?.id ?: 0
+                    // The peer (from this device's perspective) is whichever party isn't me.
+                    val peerId = when (myId) {
+                        event.userId -> event.blockedUserId
+                        event.blockedUserId -> event.userId
+                        else -> 0
+                    }
+
+                    // Full re-fetch of the conversation list / unread badges — a
+                    // (un)blocked conversation can change or drop out, so this needs
+                    // a reload rather than the in-place per-message update.
+                    sendBroadcast(
+                        Intent(com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_RELOAD)
+                            .setPackage(packageName)
+                    )
+
+                    // Reload the open thread with this peer so block state + history update live.
+                    if (peerId > 0) {
+                        sendBroadcast(
+                            Intent(com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_REFRESH)
+                                .setPackage(packageName)
+                                .putExtra("peer_id", peerId)
+                        )
+                    }
+                    Log.d("RealtimeChat", "block_status_changed → refresh broadcasts (peer=$peerId blocked=${event.blocked})")
+                } catch (e: Exception) {
+                    Log.e("RealtimeChat", "Error handling block_status_changed: ${e.message}", e)
+                }
+            }
+        }
     }
 
 }

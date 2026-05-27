@@ -8,6 +8,7 @@ import android.content.BroadcastReceiver
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -102,6 +103,9 @@ class ChatActivityInHouse : AppCompatActivity() {
         private const val STATE_DRAFT_TEXT = "state_draft_text"
         private const val STATE_REPLY_ID = "state_reply_id"
         private const val MAX_MESSAGE_LENGTH = 2000
+
+        /** CHAT-045: max photos selectable in one multi-pick batch. */
+        private const val MAX_PHOTOS_PER_PICK = 10
 
         /**
          * Skip the resume-time history reload if a populated list is already on
@@ -220,7 +224,10 @@ class ChatActivityInHouse : AppCompatActivity() {
     )
 
     private val pendingOutgoingByTempId = LinkedHashMap<String, PendingOutgoingPayload>()
-    
+
+    /** CHAT-023: debounce window so a rapid double-tap can't create two sends. */
+    private var lastTextSendAtMs: Long = 0L
+
     // Store last online status from API
     private var lastOnlineStatus: String? = null
     
@@ -305,7 +312,20 @@ class ChatActivityInHouse : AppCompatActivity() {
      * Later resumes (returning from another screen / app background) refresh history so messages reappear.
      */
     private var suppressNextResumeHistoryReload = true
-    private val audioRecorderController by lazy { AudioRecorderController(cacheDir) }
+    private val audioRecorderController by lazy {
+        AudioRecorderController(
+            cacheDir,
+            getSystemService(AUDIO_SERVICE) as AudioManager
+        ).apply {
+            // CHAT-008: if a call grabs the mic mid-recording (audio focus lost),
+            // drop the in-progress note instead of capturing call/other audio.
+            onFocusLost = {
+                mainHandler.post {
+                    if (isRecording()) cancelAudioRecording(showToast = true)
+                }
+            }
+        }
+    }
     private var recordingPulseAnimator: ObjectAnimator? = null
     private var recordingStartY: Float = 0f
     private var recordingStartX: Float = 0f
@@ -336,11 +356,13 @@ class ChatActivityInHouse : AppCompatActivity() {
         }
     }
 
+    // CHAT-045: allow picking multiple photos and send every one (not just the
+    // first). Capped to keep a single batch reasonable.
     private val imagePickerLauncher = registerForActivityResult(
-        ActivityResultContracts.PickVisualMedia()
-    ) { uri: Uri? ->
-        uri?.let { selectedUri ->
-            handlePickedImage(selectedUri)
+        ActivityResultContracts.PickMultipleVisualMedia(MAX_PHOTOS_PER_PICK)
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
+            handlePickedImages(uris)
         }
     }
 
@@ -623,8 +645,18 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun attachSwipeToReply() {
+        val density = resources.displayMetrics.density
+        val triggerDistancePx = 64f * density
+        val maxDragPx = 96f * density
         ItemTouchHelper(
             object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.END) {
+                // CHAT-085/086: tracks whether the active drag passed the reply
+                // trigger distance. Reply is fired on gesture end (clearView), and
+                // we NEVER let the row reach the "dismiss" threshold — a completed
+                // swipe leaves the bubble translated off-screen / dismissed, which
+                // is exactly why the message appeared to vanish.
+                private var swipeTriggered = false
+
                 override fun onMove(
                     recyclerView: RecyclerView,
                     viewHolder: RecyclerView.ViewHolder,
@@ -642,14 +674,47 @@ class ChatActivityInHouse : AppCompatActivity() {
                     return super.getSwipeDirs(recyclerView, viewHolder)
                 }
 
-                override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-                    val pos = viewHolder.bindingAdapterPosition
-                    if (pos != RecyclerView.NO_POSITION) {
-                        val msg = messages.getOrNull(pos)
-                        if (msg != null && !msg.isDateHeader && !msg.isDeleted && !isPendingMessage(msg)) {
-                            beginReplyTo(msg)
+                // Threshold > 1 and a very high escape velocity mean the swipe can
+                // never "complete", so onSwiped never fires and the row always
+                // springs back instead of being dismissed.
+                override fun getSwipeThreshold(viewHolder: RecyclerView.ViewHolder): Float = 2f
+
+                override fun getSwipeEscapeVelocity(defaultValue: Float): Float = defaultValue * 10f
+
+                override fun onChildDraw(
+                    c: android.graphics.Canvas,
+                    recyclerView: RecyclerView,
+                    viewHolder: RecyclerView.ViewHolder,
+                    dX: Float,
+                    dY: Float,
+                    actionState: Int,
+                    isCurrentlyActive: Boolean
+                ) {
+                    if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE) {
+                        // Clamp the drag so the bubble only nudges right (peek),
+                        // never enough to be dismissed.
+                        val clamped = dX.coerceIn(0f, maxDragPx)
+                        if (isCurrentlyActive && clamped >= triggerDistancePx) {
+                            swipeTriggered = true
                         }
-                        chatAdapter.notifyItemChanged(pos)
+                        super.onChildDraw(c, recyclerView, viewHolder, clamped, dY, actionState, isCurrentlyActive)
+                    } else {
+                        super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+                    }
+                }
+
+                // Never fires given the high threshold, but keep it a pure no-op so
+                // we can't accidentally mutate/dismiss the row.
+                override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {}
+
+                override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                    super.clearView(recyclerView, viewHolder)
+                    if (!swipeTriggered) return
+                    swipeTriggered = false
+                    val pos = viewHolder.bindingAdapterPosition
+                    val msg = if (pos != RecyclerView.NO_POSITION) messages.getOrNull(pos) else null
+                    if (msg != null && !msg.isDateHeader && !msg.isDeleted && !isPendingMessage(msg)) {
+                        beginReplyTo(msg)
                     }
                 }
             }
@@ -1061,7 +1126,12 @@ class ChatActivityInHouse : AppCompatActivity() {
         // then narrow to Int for the existing socket/api signatures.
         val messageIdLong = message.id.toLongOrNull() ?: return
         val messageId = messageIdLong.toInt()
-        
+
+        // CHAT-052: reflect the reaction immediately instead of waiting for the
+        // server round-trip — otherwise tapping an emoji appears to do nothing.
+        // The reaction_updated broadcast / API response reconciles afterwards.
+        applyLocalReaction(message.id, myUserId, reactionEmoji)
+
         // Send reaction to server via Socket.IO (with API fallback)
         if (socketManager.isConnected()) {
             socketManager.sendReaction(myUserId, messageId, reactionEmoji)
@@ -1102,6 +1172,24 @@ class ChatActivityInHouse : AppCompatActivity() {
         }
     }
     
+    /**
+     * CHAT-052: optimistically add/remove this user's reaction on the local bubble
+     * so it shows the instant the user taps, before the server confirms. A null /
+     * blank emoji removes the user's reaction.
+     */
+    private fun applyLocalReaction(messageId: String, userId: Int, reactionEmoji: String?) {
+        val messageIndex = messages.indexOfFirst { it.id == messageId && !it.isDateHeader }
+        if (messageIndex == -1) return
+        val current = messages[messageIndex].reactions.toMutableMap()
+        if (reactionEmoji.isNullOrBlank()) {
+            current.remove(userId)
+        } else {
+            current[userId] = reactionEmoji
+        }
+        messages[messageIndex] = messages[messageIndex].copy(reactions = current)
+        chatAdapter.notifyItemChanged(messageIndex)
+    }
+
     private fun updateMessageReactions(messageId: String, reactions: List<com.gmwapp.hima.models.MessageReaction>?) {
         val messageIndex = messages.indexOfFirst { it.id == messageId }
         if (messageIndex != -1) {
@@ -1228,24 +1316,35 @@ class ChatActivityInHouse : AppCompatActivity() {
     /** T44: guard so a rapid second pick doesn't spawn two optimistic rows / uploads. */
     private var isPreparingImage = false
 
-    private fun handlePickedImage(uri: Uri) {
+    /**
+     * CHAT-045: process EVERY selected photo, not just the first. Each image is
+     * compressed serially (one coroutine, sequential to avoid memory spikes) and
+     * gets its own optimistic row + upload, so a multi-select of N photos sends
+     * all N instead of silently dropping the rest behind a single in-flight guard.
+     */
+    private fun handlePickedImages(uris: List<Uri>) {
         if (!canSendMediaPayload()) return
+        if (uris.isEmpty()) return
         if (isPreparingImage) return
         isPreparingImage = true
 
         lifecycleScope.launch {
             try {
-                val compressedFile = withContext(Dispatchers.IO) {
-                    ImageCompressor.compress(this@ChatActivityInHouse, uri)
+                for (uri in uris) {
+                    try {
+                        val compressedFile = withContext(Dispatchers.IO) {
+                            ImageCompressor.compress(this@ChatActivityInHouse, uri)
+                        }
+                        val tempId = addOptimisticMediaMessage(
+                            messageType = "image",
+                            localAttachmentUrl = compressedFile.toURI().toString()
+                        )
+                        uploadAndSendAttachment(tempId, compressedFile, "image")
+                    } catch (e: Exception) {
+                        Log.e("ChatMedia", "Image prepare failed: ${e.message}", e)
+                        showAppToast(e.message ?: "Couldn't prepare an image", Toast.LENGTH_SHORT)
+                    }
                 }
-                val tempId = addOptimisticMediaMessage(
-                    messageType = "image",
-                    localAttachmentUrl = compressedFile.toURI().toString()
-                )
-                uploadAndSendAttachment(tempId, compressedFile, "image")
-            } catch (e: Exception) {
-                Log.e("ChatMedia", "Image prepare failed: ${e.message}", e)
-                showAppToast(e.message ?: "Couldn't prepare image", Toast.LENGTH_SHORT)
             } finally {
                 isPreparingImage = false
             }
@@ -1333,6 +1432,13 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun startAudioRecording(touchStartX: Float, touchStartY: Float) {
+        // CHAT-006: re-check the mic permission on every record attempt. With the
+        // "Ask every time" setting a prior grant can be revoked between
+        // recordings, so a cached/earlier grant must not be trusted here.
+        if (!hasRecordAudioPermission()) {
+            audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            return
+        }
         try {
             audioRecorderController.start()
             isRecording = true
@@ -1345,6 +1451,12 @@ class ChatActivityInHouse : AppCompatActivity() {
             setRecordingUiVisible(true)
             mainHandler.removeCallbacks(recordingTicker)
             mainHandler.post(recordingTicker)
+        } catch (e: AudioRecorderController.RecordingBlockedException) {
+            // CHAT-008 / CHAT-009 / CHAT-010: mic is owned by a call or another app.
+            Log.w("ChatMedia", "Audio recording blocked: ${e.message}")
+            isRecording = false
+            setRecordingUiVisible(false)
+            showAppToast(e.message ?: "Can't record right now", Toast.LENGTH_SHORT)
         } catch (e: Exception) {
             Log.e("ChatMedia", "Audio recording start failed: ${e.message}", e)
             isRecording = false
@@ -1486,6 +1598,8 @@ class ChatActivityInHouse : AppCompatActivity() {
         // M18: ChatMessage.reactions is val — copy() instead of mutating in place.
         messages[tempIndex] = realMessage.copy(reactions = existingReactions)
         pendingOutgoingByTempId.remove(tempId)
+        // CHAT-028/029: confirmed sent — drop it from the persistent outbox.
+        com.gmwapp.hima.utils.ChatOutbox.remove(this, tempId)
         messageSendMethod.remove(tempId)
         messageSendMethod[realMessage.id] = method
         rebuildMessagesWithHeaders(messages.filterNot { it.isDateHeader })
@@ -1753,6 +1867,8 @@ class ChatActivityInHouse : AppCompatActivity() {
                         Log.d("SocketIOCheck", "🔄 Socket reconnected — refreshing chat history")
                         loadMessages()
                     }
+                    // CHAT-028: network is back — flush any queued/unsent messages.
+                    retryOutbox()
                 } else {
                     Log.d("SocketIOCheck", "❌ Socket.IO DISCONNECTED")
                 }
@@ -1782,16 +1898,20 @@ class ChatActivityInHouse : AppCompatActivity() {
                 val messageId = sock.id.toString()
                 Log.d("SocketIOCheck", "✅ Message sent via SOCKET.IO - ID: $messageId")
                 if (!isUiSafe()) return@collect
+                // CHAT-028/029: confirmed by the server — clear it from the outbox.
+                com.gmwapp.hima.utils.ChatOutbox.remove(this@ChatActivityInHouse, sock.clientMsgId)
                 messageSendMethod[messageId] = "socket"
                 if (messages.none { it.id == messageId }) {
                     handleNewMessage(sock)
                 }
                 val idx = messages.indexOfFirst { m -> m.isSentByMe && m.id == messageId }
                 if (idx != -1) {
-                    val nextStatus = if (sock.isRead) {
-                        MessageDeliveryStatus.READ
-                    } else {
-                        MessageDeliveryStatus.DELIVERED
+                    // CHAT-026: only double-tick (DELIVERED) when the server says the
+                    // recipient actually got it; otherwise single-tick (SENT).
+                    val nextStatus = when {
+                        sock.isRead -> MessageDeliveryStatus.READ
+                        sock.delivered -> MessageDeliveryStatus.DELIVERED
+                        else -> MessageDeliveryStatus.SENT
                     }
                     messages[idx] = messages[idx].copy(deliveryStatus = nextStatus)
                     chatAdapter.notifyItemChanged(idx)
@@ -1840,6 +1960,20 @@ class ChatActivityInHouse : AppCompatActivity() {
             socketManager.reactionUpdated.collect { reactionUpdate ->
                 if (reactionUpdate.chatId == chatId) {
                     handleIncomingReaction(reactionUpdate)
+                }
+            }
+        }
+
+        // CHAT-026: peer device acked receipt of one of my messages → upgrade its
+        // tick from SENT (single) to DELIVERED (double), unless already READ.
+        lifecycleScope.launch {
+            socketManager.messageDelivered.collect { deliveredId ->
+                if (!isUiSafe()) return@collect
+                val id = deliveredId.toString()
+                val idx = messages.indexOfFirst { it.isSentByMe && it.id == id && !it.isDateHeader }
+                if (idx != -1 && messages[idx].deliveryStatus == MessageDeliveryStatus.SENT) {
+                    messages[idx] = messages[idx].copy(deliveryStatus = MessageDeliveryStatus.DELIVERED)
+                    chatAdapter.notifyItemChanged(idx)
                 }
             }
         }
@@ -2252,6 +2386,9 @@ class ChatActivityInHouse : AppCompatActivity() {
                             )
                             isInitialHistoryLoading = false
                             runPendingPostInitialReloadIfNeeded()
+                            // CHAT-028/029: now that history is loaded, re-send (or
+                            // clear) anything still queued in the persistent outbox.
+                            retryOutbox()
                         } else {
                             isInitialHistoryLoading = false
                             if (messages.isEmpty()) {
@@ -2628,13 +2765,25 @@ class ChatActivityInHouse : AppCompatActivity() {
 
     private fun sendMessage() {
         if (!canSendMediaPayload()) return
-        
+
+        // CHAT-023: ignore a second tap that lands within the debounce window. The
+        // input is also cleared below (hiding the button), but this guards the rare
+        // race where two taps are dispatched before the clear takes effect — each
+        // tap would otherwise create a distinct optimistic row / client_msg_id that
+        // the server can't de-dupe against the first.
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastTextSendAtMs < 400L) {
+            Log.d("SocketIOCheck", "Ignoring rapid duplicate send tap")
+            return
+        }
+
         val typed = etMessage.text.toString().trim()
         if (typed.isEmpty()) {
             // T24: still clear whitespace-only input so it doesn't linger after tap.
             etMessage.setText("")
             return
         }
+        lastTextSendAtMs = now
         val replyRef = pendingReplyTo
         val bodyToSend = if (replyRef != null) {
             "${buildReplyHeaderLine(replyRef)}\n$typed"
@@ -2657,13 +2806,15 @@ class ChatActivityInHouse : AppCompatActivity() {
 
         // Show message optimistically (WhatsApp style - add to bottom)
         val currentTime = Date()
+        val tempId = newTempMessageId()
         val tempMessage = ChatMessage(
-            id = newTempMessageId(),
+            id = tempId,
             message = bodyToSend,
             timestamp = timeFormat.format(currentTime),
             isSentByMe = true,
             date = currentTime,
-            deliveryStatus = MessageDeliveryStatus.SENDING
+            deliveryStatus = MessageDeliveryStatus.SENDING,
+            clientMsgId = tempId // CHAT-028/029: equals the id for optimistic rows
         )
         
         appendMessageWithOptionalDateHeader(tempMessage)
@@ -2676,10 +2827,14 @@ class ChatActivityInHouse : AppCompatActivity() {
         // Try Socket.IO first, fallback to API
         val tempMessageId = tempMessage.id
         rememberPendingOutgoing(tempMessageId, bodyToSend, "text")
+        // CHAT-028/029: persist the outbound text before sending so it survives a
+        // process death / back+reopen and can be retried if the network drops.
+        com.gmwapp.hima.utils.ChatOutbox.enqueueText(this, chatId, tempMessageId, peerUserId, bodyToSend)
         if (socketManager.isConnected()) {
             messageSendMethod[tempMessageId] = "socket"
-            // ⭐ Updated to use new signature: sendMessage(fromUserId, toUserId, message, messageType, attachmentUrl)
-            socketManager.sendMessage(myUserId, peerUserId, bodyToSend, "text")
+            // CHAT-023/024: tempMessageId doubles as client_msg_id so a rapid tap or
+            // retry de-dupes server-side. sendMessage(from, to, msg, type, attachment, clientMsgId)
+            socketManager.sendMessage(myUserId, peerUserId, bodyToSend, "text", null, tempMessageId)
             if (BuildConfig.DEBUG) {
                 Log.d("SocketIOCheck", "🚀 Sending via SOCKET.IO - From: $myUserId, To: $peerUserId, Message: '$bodyToSend'")
             } else {
@@ -2698,6 +2853,7 @@ class ChatActivityInHouse : AppCompatActivity() {
             fromUserId = myUserId,
             toUserId = peerUserId,
             message = messageText,
+            clientMsgId = tempId, // CHAT-023/024: reuse the same id on retry so the server de-dupes
             callback = object : NetworkCallback<FallbackSendMessageResponse> {
                 override fun onResponse(call: Call<FallbackSendMessageResponse>, response: Response<FallbackSendMessageResponse>) {
                     activeTextSendCalls.remove(call)
@@ -2733,12 +2889,65 @@ class ChatActivityInHouse : AppCompatActivity() {
                 }
 
                 override fun onNoNetwork() {
-                    failPendingOutgoing(tempId, DConstants.NO_NETWORK)
-                    Log.e("SocketIOCheck", "No internet connection")
+                    // CHAT-028/029: don't drop the message. Keep the optimistic
+                    // bubble (it stays in the "sending" state) and leave it in the
+                    // persistent outbox; it is retried automatically on reconnect /
+                    // reopen instead of being lost.
+                    Log.w("SocketIOCheck", "No internet — message kept in outbox for retry (tempId=$tempId)")
                 }
             }
         )
         apiCall?.let { activeTextSendCalls.add(it) }
+    }
+
+    /**
+     * CHAT-028 / CHAT-029: re-send any text messages still sitting in the
+     * persistent outbox for this chat. Called after history loads (reopen) and on
+     * socket (re)connect (network restored). Reconciles against loaded history by
+     * client_msg_id so an already-delivered message is just dropped from the queue
+     * rather than re-shown; the server also de-dupes, so a retry is always safe.
+     */
+    private fun retryOutbox() {
+        if (myUserId <= 0 || peerUserId <= 0 || chatId.isEmpty()) return
+        val pending = com.gmwapp.hima.utils.ChatOutbox.pendingForChat(this, chatId)
+        if (pending.isEmpty()) return
+        pending.forEach { item ->
+            // Already delivered? (present in history with a real server id under this
+            // client_msg_id) — clear it from the queue and move on.
+            val deliveredInHistory = messages.any { m ->
+                !m.isDateHeader && m.clientMsgId == item.clientMsgId && m.id != item.clientMsgId
+            }
+            if (deliveredInHistory) {
+                com.gmwapp.hima.utils.ChatOutbox.remove(this, item.clientMsgId)
+                return@forEach
+            }
+            // Make sure a "sending" bubble is on screen (it's gone after a reopen).
+            val hasBubble = messages.any { !it.isDateHeader && it.id == item.clientMsgId }
+            if (!hasBubble) {
+                val now = Date()
+                appendMessageWithOptionalDateHeader(
+                    ChatMessage(
+                        id = item.clientMsgId,
+                        message = item.body,
+                        timestamp = timeFormat.format(now),
+                        isSentByMe = true,
+                        date = now,
+                        deliveryStatus = MessageDeliveryStatus.SENDING,
+                        clientMsgId = item.clientMsgId
+                    )
+                )
+            }
+            rememberPendingOutgoing(item.clientMsgId, item.body, "text")
+            com.gmwapp.hima.utils.ChatOutbox.markAttempt(this, item.clientMsgId)
+            if (socketManager.isConnected()) {
+                messageSendMethod[item.clientMsgId] = "socket"
+                socketManager.sendMessage(myUserId, peerUserId, item.body, "text", null, item.clientMsgId)
+            } else {
+                messageSendMethod[item.clientMsgId] = "api"
+                sendMessageViaAPI(item.clientMsgId, item.body)
+            }
+            Log.d("SocketIOCheck", "Outbox retry sent client_msg_id=${item.clientMsgId} via ${if (socketManager.isConnected()) "socket" else "api"}")
+        }
     }
 
     /**
@@ -2762,9 +2971,19 @@ class ChatActivityInHouse : AppCompatActivity() {
 
         val realMessageId = socketMessage.id.toString()
         val isSentByMe = socketMessage.fromUserId == myUserId
+        // CHAT-020: defensive guard only — don't surface a NEW live message from a
+        // peer this user has blocked. The server already drops blocked senders'
+        // messages at send time, so this rarely fires; it must NOT affect loaded
+        // history (that filter was removed — see rebuildMessagesWithHeaders).
         if (iHaveBlockedThisUser && !isSentByMe) {
-            Log.d("RealtimeChat", "dropping inbound message because peer is blocked")
+            Log.d("RealtimeChat", "dropping inbound LIVE message because peer is blocked (history is kept)")
             return
+        }
+
+        // CHAT-026: this device just received a message from the peer — ack it so
+        // the sender's tick flips from SENT to DELIVERED.
+        if (!isSentByMe && socketMessage.id > 0L) {
+            socketManager.sendDeliveryAck(socketMessage.id, peerUserId, chatId)
         }
 
         // Check if we already have this message (by ID)
@@ -2788,10 +3007,23 @@ class ChatActivityInHouse : AppCompatActivity() {
             return
         }
         
+        // CHAT-028/029: our own message is confirmed — drop it from the outbox.
+        if (isSentByMe && !socketMessage.clientMsgId.isNullOrEmpty()) {
+            com.gmwapp.hima.utils.ChatOutbox.remove(this, socketMessage.clientMsgId)
+        }
+
         // Check if there's a temp message that should be replaced
-        // This happens when we send a message and it comes back via Socket.IO
+        // This happens when we send a message and it comes back via Socket.IO.
+        // CHAT-023/024: prefer an exact client_msg_id match (the optimistic row's id
+        // equals its clientMsgId) over the timing/content heuristic.
         val tempMessageIndex = if (isSentByMe) {
-            findPendingTempIndexForSocket(socketMessage)
+            val cid = socketMessage.clientMsgId
+            val byClientId = if (!cid.isNullOrEmpty()) {
+                messages.indexOfFirst { !it.isDateHeader && (it.id == cid || it.clientMsgId == cid) }
+            } else {
+                -1
+            }
+            if (byClientId != -1) byClientId else findPendingTempIndexForSocket(socketMessage)
         } else {
             -1
         }
@@ -2853,7 +3085,8 @@ class ChatActivityInHouse : AppCompatActivity() {
         val deliveryStatus = when {
             !isSentByMe -> MessageDeliveryStatus.DELIVERED
             apiMsg.isRead -> MessageDeliveryStatus.READ
-            else -> MessageDeliveryStatus.DELIVERED
+            apiMsg.delivered -> MessageDeliveryStatus.DELIVERED // CHAT-026
+            else -> MessageDeliveryStatus.SENT // not yet delivered → single tick
         }
         return ChatMessage(
             id = apiMsg.id.toString(),
@@ -2865,7 +3098,8 @@ class ChatActivityInHouse : AppCompatActivity() {
             messageType = apiMsg.messageType,
             attachmentUrl = if (isDeleted) null else apiMsg.attachmentUrl,
             deliveryStatus = deliveryStatus,
-            isDeleted = isDeleted
+            isDeleted = isDeleted,
+            clientMsgId = apiMsg.clientMsgId
         )
     }
 
@@ -2884,7 +3118,8 @@ class ChatActivityInHouse : AppCompatActivity() {
         val deliveryStatus = when {
             !isSentByMe -> MessageDeliveryStatus.DELIVERED
             socketMsg.isRead -> MessageDeliveryStatus.READ
-            else -> MessageDeliveryStatus.DELIVERED
+            socketMsg.delivered -> MessageDeliveryStatus.DELIVERED // CHAT-026
+            else -> MessageDeliveryStatus.SENT // not yet delivered → single tick
         }
         return ChatMessage(
             id = socketMsg.id.toString(),
@@ -2898,7 +3133,8 @@ class ChatActivityInHouse : AppCompatActivity() {
             deliveryStatus = deliveryStatus,
             // T6: carry through the server's tombstone flag so a socket-only delivery
             // (no API refresh in flight) renders the deleted-bubble state immediately.
-            isDeleted = socketMsg.isDeleted
+            isDeleted = socketMsg.isDeleted,
+            clientMsgId = socketMsg.clientMsgId
         )
     }
 
@@ -2916,7 +3152,8 @@ class ChatActivityInHouse : AppCompatActivity() {
         val deliveryStatus = when {
             !isSentByMe -> MessageDeliveryStatus.DELIVERED
             fallbackMsg.isRead -> MessageDeliveryStatus.READ
-            else -> MessageDeliveryStatus.DELIVERED
+            // CHAT-026: fallback (socket down) can't confirm delivery → single tick.
+            else -> MessageDeliveryStatus.SENT
         }
         return ChatMessage(
             id = fallbackMsg.id.toString(),
@@ -2927,7 +3164,8 @@ class ChatActivityInHouse : AppCompatActivity() {
             reactions = reactionsMap,
             messageType = fallbackMsg.messageType,
             attachmentUrl = fallbackMsg.attachmentUrl,
-            deliveryStatus = deliveryStatus
+            deliveryStatus = deliveryStatus,
+            clientMsgId = fallbackMsg.clientMsgId
         )
     }
 
@@ -3079,11 +3317,13 @@ class ChatActivityInHouse : AppCompatActivity() {
                 .thenBy { it.id.toLongOrNull() ?: Long.MAX_VALUE }
         )
 
-        // T7: when this user has blocked the peer, the API still returns the
-        // peer's incoming messages. Drop them so a blocked thread shows only
-        // the user's own outgoing history (parity with the socket-side filter).
-        val finalList = if (iHaveBlockedThisUser) sorted.filter { it.isSentByMe } else sorted
-        rebuildMessagesWithHeaders(finalList)
+        // CHAT-020: keep the FULL conversation history visible even after this
+        // user blocks the peer. Previously we filtered to only the user's own
+        // messages, which made the peer's earlier (pre-block) messages vanish so
+        // the thread looked half-empty. New messages from a blocked sender are now
+        // dropped server-side at send time, so the history only ever contains
+        // legitimate messages — show them all, never hide/delete.
+        rebuildMessagesWithHeaders(sorted)
     }
 
     private fun findPendingTempIndexForSocket(socketMessage: ChatMessageSocket): Int {

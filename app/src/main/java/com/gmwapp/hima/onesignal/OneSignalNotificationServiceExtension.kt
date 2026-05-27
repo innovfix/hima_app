@@ -41,6 +41,12 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
          * - `message_type` (String, optional): `text`|`image`|`audio`|`video`|`file`
          */
         const val ACTION_CHAT_LIST_REFRESH = "com.gmwapp.hima.ACTION_CHAT_LIST_REFRESH"
+        /**
+         * CHAT-022: fired on a real-time block/unblock so chat-list screens do a
+         * FULL re-fetch (a blocked/unblocked conversation can change or drop out,
+         * which the in-place [ACTION_CHAT_LIST_REFRESH] path can't express).
+         */
+        const val ACTION_CHAT_LIST_RELOAD = "com.gmwapp.hima.ACTION_CHAT_LIST_RELOAD"
         const val EXTRA_PEER_ID = "peer_id"
         const val EXTRA_LAST_MESSAGE = "last_message"
         const val EXTRA_MESSAGE_TYPE = "message_type"

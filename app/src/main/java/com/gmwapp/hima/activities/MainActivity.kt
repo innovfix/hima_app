@@ -1353,6 +1353,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         if (chatListBadgeReceiverRegistered) return
         val receiver = object : android.content.BroadcastReceiver() {
             override fun onReceive(c: android.content.Context?, intent: android.content.Intent?) {
+                // CHAT-022: a block/unblock just needs an authoritative recompute,
+                // not the optimistic +1 used for an incoming message.
+                if (intent?.action == com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_RELOAD) {
+                    loadChatUnreadCountBadge()
+                    return
+                }
                 if (intent?.action != com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_REFRESH) return
                 val peerId = intent.getIntExtra(
                     com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.EXTRA_PEER_ID,
@@ -1374,7 +1380,9 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         }
         val filter = android.content.IntentFilter(
             com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_REFRESH
-        )
+        ).apply {
+            addAction(com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_RELOAD)
+        }
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(receiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
         } else {

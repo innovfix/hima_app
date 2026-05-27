@@ -111,15 +111,26 @@ object ChatNotifications {
 
         val contentIntent = Intent(context, ChatActivityInHouse::class.java).apply {
             action = Intent.ACTION_VIEW
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra("USER_ID", peerId)
             putExtra("USER_NAME", peerName)
             putExtra("USER_IMAGE", peerImage)
         }
-        val contentPi = PendingIntent.getActivity(
+        // CHAT-072: open the chat with a synthesized back stack (Home → Chat) so
+        // pressing Back returns to the home screen instead of exiting the app.
+        // Previously the chat launched in its own NEW_TASK with nothing beneath it,
+        // so Back dropped the user straight out of the app.
+        val homeIntent = Intent(context, com.gmwapp.hima.activities.MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val contentPi = androidx.core.app.TaskStackBuilder.create(context).run {
+            addNextIntent(homeIntent)
+            addNextIntent(contentIntent)
+            // requestCode per peer so extras don't collide across senders.
+            getPendingIntent(peerId, pendingIntentFlags(mutable = false))
+        } ?: PendingIntent.getActivity(
             context,
-            peerId, // requestCode per peer so the extras don't collide across senders
-            contentIntent,
+            peerId,
+            contentIntent.apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP },
             pendingIntentFlags(mutable = false)
         )
 
@@ -150,14 +161,22 @@ object ChatNotifications {
         // T26: skip the shortcut push when we've already published it this process
         // OR it already exists on disk. Pushing on every notification was wasteful
         // and triggered Android's per-app shortcut throttle on some OEMs.
-        val alreadyOnDisk = ShortcutManagerCompat.getDynamicShortcuts(context)
-            .any { it.id == shortcutId }
-        val shortcutPushed = if (shortcutId in pushedShortcutIds || alreadyOnDisk) {
+        // CHAT-068: but DO re-push when the peer's display name changed, otherwise
+        // the conversation keeps showing the stale shortcut label next to the fresh
+        // Person name ("old AND new name" in the notification).
+        val existingShortcut = ShortcutManagerCompat.getDynamicShortcuts(context)
+            .firstOrNull { it.id == shortcutId }
+        val alreadyOnDisk = existingShortcut != null
+        val desiredLabel = peerName.ifBlank { "Chat" }
+        val nameChanged = existingShortcut != null &&
+            existingShortcut.shortLabel?.toString() != desiredLabel
+        val shortcutPushed = if ((shortcutId in pushedShortcutIds || alreadyOnDisk) && !nameChanged) {
             true
         } else {
             runCatching {
                 ShortcutManagerCompat.pushDynamicShortcut(context, shortcut)
                 pushedShortcutIds.add(shortcutId)
+                if (nameChanged) Log.d(TAG, "Re-pushed conversation shortcut peer=$peerId (name changed to '$desiredLabel')")
                 true
             }.getOrElse {
                 Log.w(TAG, "pushDynamicShortcut(peerId=$peerId) failed: ${it.message}"); false

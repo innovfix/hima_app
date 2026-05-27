@@ -118,13 +118,19 @@ class CreatorChatFragment : Fragment() {
         val receiver = object : android.content.BroadcastReceiver() {
             override fun onReceive(c: android.content.Context?, intent: android.content.Intent?) {
                 if (!isAdded || intent == null) return
-                if (intent.action != com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_REFRESH) return
+                val action = intent.action
+                // CHAT-022: refresh sub-tab unread totals on a block/unblock too.
+                if (action != com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_REFRESH &&
+                    action != com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_RELOAD
+                ) return
                 loadTabUnreadCounts()
             }
         }
         val filter = android.content.IntentFilter(
             com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_REFRESH
-        )
+        ).apply {
+            addAction(com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_RELOAD)
+        }
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             ctx.registerReceiver(
                 receiver,

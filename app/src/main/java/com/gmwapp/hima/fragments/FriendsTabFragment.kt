@@ -218,6 +218,12 @@ class FriendsTabFragment : Fragment() {
         val receiver = object : android.content.BroadcastReceiver() {
             override fun onReceive(c: android.content.Context?, intent: android.content.Intent?) {
                 if (!isAdded || intent == null) return
+                // CHAT-022: a real-time block/unblock requires a full re-fetch so a
+                // (un)blocked conversation appears/updates/drops out correctly.
+                if (intent.action == com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_RELOAD) {
+                    loadChatConversations()
+                    return
+                }
                 if (intent.action != com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_REFRESH) return
                 val peerId = intent.getIntExtra(
                     com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.EXTRA_PEER_ID,
@@ -235,7 +241,9 @@ class FriendsTabFragment : Fragment() {
         }
         val filter = android.content.IntentFilter(
             com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_REFRESH
-        )
+        ).apply {
+            addAction(com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_RELOAD)
+        }
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             ctx.registerReceiver(
                 receiver,

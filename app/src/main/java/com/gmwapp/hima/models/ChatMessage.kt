@@ -36,6 +36,12 @@ data class ChatMessage(
      * bubble instead of the original content, and long-press/reactions are disabled.
      */
     val isDeleted: Boolean = false,
+    /**
+     * CHAT-023/024/028/029: the client-generated send id. For optimistic rows this
+     * equals [id] (the temp id); for server rows it is echoed back by the backend.
+     * Lets the persistent outbox tell whether a queued message is already in history.
+     */
+    val clientMsgId: String? = null,
 )
 
 

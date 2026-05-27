@@ -95,6 +95,18 @@ class SocketManager private constructor() {
      */
     private val _chatMessageDeleted = eventFlow<String>()
     val chatMessageDeleted: SharedFlow<String> = _chatMessageDeleted.asSharedFlow()
+
+    /**
+     * CHAT-022: emitted when the server reports that the block status between two
+     * users changed (block or unblock). The chat list / open thread listen for
+     * this to refresh in real time instead of waiting for the next poll.
+     */
+    private val _blockStatusChanged = eventFlow<BlockStatusChangedEvent>()
+    val blockStatusChanged: SharedFlow<BlockStatusChangedEvent> = _blockStatusChanged.asSharedFlow()
+
+    /** CHAT-026: emits the server message id whose delivery the peer just acked. */
+    private val _messageDelivered = eventFlow<Long>()
+    val messageDelivered: SharedFlow<Long> = _messageDelivered.asSharedFlow()
     
     /**
      * Connect to Socket.IO server using userId
@@ -348,7 +360,9 @@ class SocketManager private constructor() {
                             timestamp = messageData.optString("timestamp", ""),
                             fromUserId = messageData.optInt("from_user_id", 0).takeIf { it > 0 },
                             toUserId = messageData.optInt("to_user_id", 0).takeIf { it > 0 },
-                            isDeleted = messageData.optInt("is_deleted", 0) == 1
+                            isDeleted = messageData.optInt("is_deleted", 0) == 1,
+                            clientMsgId = messageData.optString("client_msg_id", null),
+                            delivered = messageData.optBoolean("delivered", false)
                         )
                         Log.d(
                             "RealtimeChat",
@@ -380,7 +394,9 @@ class SocketManager private constructor() {
                             timestamp = messageData.optString("timestamp", ""),
                             fromUserId = messageData.optInt("from_user_id", 0).takeIf { it > 0 },
                             toUserId = messageData.optInt("to_user_id", 0).takeIf { it > 0 },
-                            isDeleted = messageData.optInt("is_deleted", 0) == 1
+                            isDeleted = messageData.optInt("is_deleted", 0) == 1,
+                            clientMsgId = messageData.optString("client_msg_id", null),
+                            delivered = messageData.optBoolean("delivered", false)
                         )
                         _messageSent.tryEmit(message)
                         Log.d("SocketIOCheck", "✅ Message sent confirmation received - ID: ${message.id}")
@@ -432,7 +448,9 @@ class SocketManager private constructor() {
                             fromUserId = messageObj.optInt("from_user_id", 0).takeIf { it > 0 },
                             toUserId = messageObj.optInt("to_user_id", 0).takeIf { it > 0 },
                             reactions = if (reactionsList.isNotEmpty()) reactionsList else null,
-                            isDeleted = messageObj.optInt("is_deleted", 0) == 1
+                            isDeleted = messageObj.optInt("is_deleted", 0) == 1,
+                            clientMsgId = messageObj.optString("client_msg_id", null),
+                            delivered = messageObj.optBoolean("delivered", false)
                         )
                         Log.d(
                             "RealtimeChat",
@@ -531,6 +549,37 @@ class SocketManager private constructor() {
                 }
             }
 
+            on("block_status_changed") { args ->
+                try {
+                    val data = args.firstOrNull() as? JSONObject ?: return@on
+                    val event = BlockStatusChangedEvent(
+                        userId = data.optInt("user_id", 0),
+                        blockedUserId = data.optInt("blocked_user_id", 0),
+                        blocked = data.optBoolean("blocked", false),
+                        chatId = data.optString("chat_id", "")
+                    )
+                    if (event.userId > 0 && event.blockedUserId > 0) {
+                        _blockStatusChanged.tryEmit(event)
+                        Log.d("RealtimeChat", "block_status_changed RX user=${event.userId} blockedUser=${event.blockedUserId} blocked=${event.blocked}")
+                    }
+                } catch (e: Exception) {
+                    Log.e("SocketIOCheck", "Error parsing block_status_changed: ${e.message}", e)
+                }
+            }
+
+            on("message_delivered") { args ->
+                try {
+                    val data = args.firstOrNull() as? JSONObject ?: return@on
+                    val id = data.optLong("message_id", 0L)
+                    if (id > 0L) {
+                        _messageDelivered.tryEmit(id)
+                        Log.d("RealtimeChat", "message_delivered RX id=$id")
+                    }
+                } catch (e: Exception) {
+                    Log.e("SocketIOCheck", "Error parsing message_delivered: ${e.message}", e)
+                }
+            }
+
             on("message_deleted") { args ->
                 try {
                     val payload = args.firstOrNull() as? JSONObject ?: return@on
@@ -575,6 +624,24 @@ class SocketManager private constructor() {
         }
     }
     
+    /**
+     * CHAT-026: ack that this device received [messageId] sent by [senderUserId],
+     * so the server can flip the sender's tick to DELIVERED. Best-effort.
+     */
+    fun sendDeliveryAck(messageId: Long, senderUserId: Int, chatId: String) {
+        if (!isConnected() || messageId <= 0L || senderUserId <= 0) return
+        try {
+            val data = JSONObject().apply {
+                put("message_id", messageId)
+                put("sender_id", senderUserId)
+                put("chat_id", chatId)
+            }
+            socket?.emit("message_delivered", data)
+        } catch (e: Exception) {
+            Log.e("SocketIOCheck", "Error sending delivery ack: ${e.message}", e)
+        }
+    }
+
     fun disconnect() {
         synchronized(connectionLock) {
             mainHandler.removeCallbacks(connectWatchdogRunnable)
@@ -604,7 +671,7 @@ class SocketManager private constructor() {
      * @param messageType Message type: "text", "image", "file", "audio", "video"
      * @param attachmentUrl Optional attachment URL for media messages
      */
-    fun sendMessage(fromUserId: Int, toUserId: Int, message: String, messageType: String = "text", attachmentUrl: String? = null) {
+    fun sendMessage(fromUserId: Int, toUserId: Int, message: String, messageType: String = "text", attachmentUrl: String? = null, clientMsgId: String? = null) {
         if (!isConnected()) {
             Log.e("SocketIOCheck", "❌ Cannot send message: Socket.IO not connected")
             _messageError.tryEmit("Socket.IO not connected")
@@ -619,6 +686,10 @@ class SocketManager private constructor() {
                 put("message_type", messageType)
                 if (attachmentUrl != null) {
                     put("attachment_url", attachmentUrl)
+                }
+                // CHAT-023/024: stable id so rapid taps / retries de-dupe server-side.
+                if (clientMsgId != null) {
+                    put("client_msg_id", clientMsgId)
                 }
             }
 
@@ -787,7 +858,13 @@ data class ChatMessageSocket(
     val reactions: List<Map<String, Any>>? = null,  // Array of {user_id, reaction_emoji}
     // T6: server may signal a tombstone in the socket payload; carry it through so
     // a user with no API refresh in flight still sees the deleted-bubble state.
-    val isDeleted: Boolean = false
+    val isDeleted: Boolean = false,
+    // CHAT-023/024: echoed back by the server so the client can map a confirmation
+    // back to the exact optimistic/outbox message it sent.
+    val clientMsgId: String? = null,
+    // CHAT-026: true when the recipient's device actually has the message (peer was
+    // connected at send time). Drives single-tick (SENT) vs double-tick (DELIVERED).
+    val delivered: Boolean = false
 )
 
 data class ReactionUpdateEvent(
@@ -808,5 +885,13 @@ data class TypingEvent(
     val chatId: String,
     val userId: Int,
     val isTyping: Boolean
+)
+
+// CHAT-022: real-time block/unblock notification between two users.
+data class BlockStatusChangedEvent(
+    val userId: Int,        // the user who (un)blocked
+    val blockedUserId: Int, // the user who was (un)blocked
+    val blocked: Boolean,   // true = blocked, false = unblocked
+    val chatId: String
 )
 

@@ -727,9 +727,15 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         val receiver = object : android.content.BroadcastReceiver() {
             override fun onReceive(c: android.content.Context?, intent: android.content.Intent?) {
                 if (!isAdded || intent == null) return
-                if (intent.action != com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_REFRESH) return
                 // Only act while the my_chats filter is the visible list.
                 if (filterType != "my_chats") return
+                // CHAT-022: a block/unblock requires a full re-fetch of my_chats.
+                if (intent.action == com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_RELOAD) {
+                    val uid = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
+                    loadMyChats(uid)
+                    return
+                }
+                if (intent.action != com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_REFRESH) return
                 val peerId = intent.getIntExtra(
                     com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.EXTRA_PEER_ID,
                     -1
@@ -746,7 +752,9 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         }
         val filter = android.content.IntentFilter(
             com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_REFRESH
-        )
+        ).apply {
+            addAction(com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_RELOAD)
+        }
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             ctx.registerReceiver(
                 receiver,

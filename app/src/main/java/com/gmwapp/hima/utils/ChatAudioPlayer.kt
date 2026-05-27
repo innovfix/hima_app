@@ -23,6 +23,11 @@ class ChatAudioPlayer(
     private var currentMessageId: String? = null
     private var audioFocusRequest: AudioFocusRequest? = null
     private var resumeOnFocusGain = false
+    // CHAT-035: source of the in-flight player + a one-shot retry flag, so a
+    // transient first-tap prepare failure (common when streaming a remote URL)
+    // is retried once silently instead of surfacing "Couldn't play".
+    private var currentSource: String? = null
+    private var didRetryCurrent = false
     // M19: cap to 64 entries with simple LRU so a long-lived chat doesn't grow
     // this map unbounded as the user scrolls through audio messages.
     private val knownDurationsMs = object : LinkedHashMap<String, Int>(64, 0.75f, true) {
@@ -100,6 +105,20 @@ class ChatAudioPlayer(
             return
         }
 
+        // New track: reset the one-shot retry flag.
+        didRetryCurrent = false
+        startPlayback(messageId, source, onError)
+    }
+
+    /**
+     * Builds and prepares a player for [source]. Extracted so a transient prepare
+     * failure can retry once (CHAT-035) without duplicating the setup. Listeners
+     * are bound to [messageId] and are cleared on release so a player we abandoned
+     * (e.g. the user tapped another note while this was still preparing — CHAT-036)
+     * can never fire a stale error against the wrong bubble.
+     */
+    private fun startPlayback(messageId: String, source: String, onError: (String) -> Unit) {
+        currentSource = source
         val player = MediaPlayer().apply {
             setAudioAttributes(
                 AudioAttributes.Builder()
@@ -109,6 +128,7 @@ class ChatAudioPlayer(
             )
             setOnPreparedListener { prepared ->
                 currentMessageId = messageId
+                didRetryCurrent = false
                 knownDurationsMs[messageId] = prepared.duration.coerceAtLeast(0)
                 prepared.start()
                 onPlaybackStateChanged(messageId)
@@ -124,8 +144,22 @@ class ChatAudioPlayer(
             setOnErrorListener { _, _, _ ->
                 releaseCurrentPlayer()
                 currentMessageId = null
-                onPlaybackStateChanged(messageId)
-                onError("Couldn't play this audio message")
+                // CHAT-035: one silent retry for a transient first-tap failure
+                // before showing an error to the user.
+                if (!didRetryCurrent) {
+                    didRetryCurrent = true
+                    mainHandler.postDelayed({
+                        if (requestAudioFocus()) {
+                            startPlayback(messageId, source, onError)
+                        } else {
+                            onPlaybackStateChanged(messageId)
+                            onError("Couldn't play this audio message")
+                        }
+                    }, 200L)
+                } else {
+                    onPlaybackStateChanged(messageId)
+                    onError("Couldn't play this audio message")
+                }
                 true
             }
         }
@@ -185,6 +219,17 @@ class ChatAudioPlayer(
     private fun releaseCurrentPlayer() {
         stopProgressUpdates()
         abandonAudioFocus()
+        // CHAT-036: detach listeners BEFORE releasing so a player we're abandoning
+        // (e.g. still preparing when the user taps another note) can't fire a stale
+        // onPrepared/onError/onCompletion against the new track.
+        mediaPlayer?.let { p ->
+            try {
+                p.setOnPreparedListener(null)
+                p.setOnCompletionListener(null)
+                p.setOnErrorListener(null)
+            } catch (_: Exception) {
+            }
+        }
         try {
             mediaPlayer?.stop()
         } catch (_: Exception) {
@@ -195,6 +240,7 @@ class ChatAudioPlayer(
         } catch (_: Exception) {
         }
         mediaPlayer = null
+        currentSource = null
     }
 
     private fun requestAudioFocus(): Boolean {
