@@ -145,6 +145,18 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     BottomSheetWelcomeBonus.OnAddCoinsListener,
     BottomSheetInsufficientCoinsPaywall.OnPaywallAddCoinsListener,
     CFCheckoutResponseCallback {
+
+    companion object {
+        /**
+         * When set on the launch Intent, MainActivity programmatically selects
+         * the matching bottom-nav item after the menu has been wired. Used by
+         * notification taps (e.g. female-side chat push) that want to land the
+         * user directly on a specific tab — Chat for female users, etc. —
+         * instead of the home default.
+         */
+        const val EXTRA_TARGET_TAB = "target_tab"
+    }
+
     lateinit var binding: ActivityMainBinding
     var isBackPressedAlready = false
     var userName: String? = null
@@ -568,12 +580,27 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         binding.bottomNavigationView.menu.findItem(R.id.chat)?.isVisible = (userGender == DConstants.FEMALE)
         
         binding.bottomNavigationView.setOnNavigationItemSelectedListener(this)
-        
+
         // Ensure bottom navigation is visible on top
         binding.bottomNavigationView.bringToFront()
         binding.bottomNavigationView.invalidate()
-        
+
         removeShiftMode()
+        // After the menu has been wired (visibility + listener), honour any
+        // EXTRA_TARGET_TAB the launching Intent carried — used by female-side
+        // chat-notification taps that want to land the user on Chat tab, not
+        // the home default.
+        applyTargetTabFromIntent(intent)
+    }
+
+    private fun applyTargetTabFromIntent(launchIntent: Intent?) {
+        val targetTab = launchIntent?.getIntExtra(EXTRA_TARGET_TAB, 0) ?: 0
+        if (targetTab == 0) return
+        val menuItem = binding.bottomNavigationView.menu.findItem(targetTab) ?: return
+        if (!menuItem.isVisible) return
+        binding.bottomNavigationView.selectedItemId = targetTab
+        // Consume the extra so a config-change rotation doesn't re-trigger it.
+        launchIntent?.removeExtra(EXTRA_TARGET_TAB)
     }
 
 
@@ -1396,6 +1423,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        // Re-honour EXTRA_TARGET_TAB when MainActivity is already running
+        // (singleTop / brought-to-front). Without this, notification taps that
+        // re-launch into an existing MainActivity would silently stay on
+        // whichever tab was last selected.
+        applyTargetTabFromIntent(intent)
     }
 
     fun refreshRecentMissedCountBadge() {

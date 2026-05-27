@@ -810,14 +810,38 @@ class BaseApplication : Application(), Configuration.Provider {
                             }
                             startActivity(intent)
                         } else {
-                            Log.w(
-                                "OneSignalClick",
-                                "message notification missing peer user id in additionalData — opening ChatListActivity. Payload: $data"
-                            )
-                            val intent = Intent(applicationContext, ChatListActivity::class.java).apply {
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            // Female users have a dedicated Chat tab in MainActivity's
+                            // bottom-nav (CreatorChatFragment) — land them there so the
+                            // notification tap drops them into the same surface as
+                            // tapping the Chat icon manually. Male users keep the
+                            // standalone ChatListActivity fallback (no chat bottom-nav).
+                            val gender = getPrefs()?.getUserData()?.gender
+                            if (gender == DConstants.FEMALE) {
+                                Log.w(
+                                    "OneSignalClick",
+                                    "message notification missing peer user id — female user, routing to MainActivity Chat tab. Payload: $data"
+                                )
+                                val intent = Intent(
+                                    applicationContext,
+                                    com.gmwapp.hima.activities.MainActivity::class.java
+                                ).apply {
+                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                                    putExtra(
+                                        com.gmwapp.hima.activities.MainActivity.EXTRA_TARGET_TAB,
+                                        com.gmwapp.hima.R.id.chat
+                                    )
+                                }
+                                startActivity(intent)
+                            } else {
+                                Log.w(
+                                    "OneSignalClick",
+                                    "message notification missing peer user id — opening ChatListActivity. Payload: $data"
+                                )
+                                val intent = Intent(applicationContext, ChatListActivity::class.java).apply {
+                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                                }
+                                startActivity(intent)
                             }
-                            startActivity(intent)
                         }
                     }
                    else if (type == "friend_request") {
