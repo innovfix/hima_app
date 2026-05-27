@@ -419,6 +419,20 @@ class ChatAdapter(
         }
 
         val ctx = itemView.context
+        // CHAT-125: on image bubbles the timestamp + ticks sit inside the
+        // dark scrim chip overlaid on the photo. The translucent-grey tick
+        // tuned for the pink/white text bubble is unreadable there — use
+        // white for SENT / DELIVERED / pending so the chip's foreground stays
+        // legible. READ stays sky-blue for global parity.
+        val isImageBubble = itemView.findViewById<ImageView>(R.id.iv_image) != null
+        val sentTintColor = if (isImageBubble) {
+            android.graphics.Color.WHITE
+        } else {
+            ContextCompat.getColor(ctx, R.color.chat_tick_on_bubble)
+        }
+        if (isImageBubble) {
+            pb.indeterminateTintList = ColorStateList.valueOf(android.graphics.Color.WHITE)
+        }
         when (message.deliveryStatus) {
             MessageDeliveryStatus.SENDING -> {
                 pb.visibility = View.VISIBLE
@@ -431,9 +445,7 @@ class ChatAdapter(
                 iv.setImageDrawable(
                     ContextCompat.getDrawable(ctx, R.drawable.ic_chat_single_check)?.mutate()
                 )
-                iv.imageTintList = ColorStateList.valueOf(
-                    ContextCompat.getColor(ctx, R.color.chat_tick_on_bubble)
-                )
+                iv.imageTintList = ColorStateList.valueOf(sentTintColor)
             }
             MessageDeliveryStatus.DELIVERED -> {
                 pb.visibility = View.GONE
@@ -441,9 +453,7 @@ class ChatAdapter(
                 iv.setImageDrawable(
                     ContextCompat.getDrawable(ctx, R.drawable.ic_chat_double_check)?.mutate()
                 )
-                iv.imageTintList = ColorStateList.valueOf(
-                    ContextCompat.getColor(ctx, R.color.chat_tick_on_bubble)
-                )
+                iv.imageTintList = ColorStateList.valueOf(sentTintColor)
             }
             MessageDeliveryStatus.READ -> {
                 pb.visibility = View.GONE

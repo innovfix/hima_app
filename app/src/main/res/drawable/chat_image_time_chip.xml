@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#66000000" />
+    <!-- CHAT-125: 40% → 50% black so white timestamp + ticks stay legible
+         even on light / busy photos behind the chip. -->
+    <solid android:color="#80000000" />
     <corners android:radius="10dp" />
 </shape>

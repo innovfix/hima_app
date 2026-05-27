@@ -38,6 +38,9 @@
                     android:scaleType="centerCrop"
                     android:src="@drawable/small_profile" />
 
+                <!-- CHAT-125: white text on the dark scrim chip — grey was
+                     designed for light bubbles and disappeared against the
+                     chip's translucent black on real photos. -->
                 <TextView
                     android:id="@+id/tv_time"
                     android:layout_width="wrap_content"
@@ -49,7 +52,7 @@
                     android:paddingHorizontal="8dp"
                     android:paddingVertical="4dp"
                     android:text="10:31 AM"
-                    android:textColor="@color/chat_time_received"
+                    android:textColor="@android:color/white"
                     android:textSize="11sp" />
 
                 <TextView

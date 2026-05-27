@@ -49,13 +49,16 @@
                     android:paddingHorizontal="8dp"
                     android:paddingVertical="4dp">
 
+                    <!-- CHAT-125: white text on the dark scrim chip — grey
+                         was tuned for light pink bubbles and disappeared
+                         against the chip's translucent black. -->
                     <TextView
                         android:id="@+id/tv_time"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/poppins_regular"
                         android:text="10:31 AM"
-                        android:textColor="@color/chat_time_sent"
+                        android:textColor="@android:color/white"
                         android:textSize="11sp" />
 
                     <ProgressBar
@@ -64,7 +67,7 @@
                         android:layout_width="14dp"
                         android:layout_height="14dp"
                         android:layout_marginStart="6dp"
-                        android:indeterminateTint="@color/chat_time_sent"
+                        android:indeterminateTint="@android:color/white"
                         android:visibility="gone" />
 
                     <ImageView
