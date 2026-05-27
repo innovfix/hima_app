@@ -23,6 +23,15 @@ class ChatAudioPlayer(
     private var currentMessageId: String? = null
     private var audioFocusRequest: AudioFocusRequest? = null
     private var resumeOnFocusGain = false
+    // CHAT-004: voice notes are played on the voice-call audio stream so
+    // Android treats them as a phone call and blocks every screen recorder
+    // (including privileged OEM ones) from capturing the audio. Saving the
+    // user's previous audio mode + speaker state lets us restore the device
+    // to its original behaviour when playback ends, so the user doesn't get
+    // stuck in IN_COMMUNICATION mode (which would change media volume
+    // routing for the rest of the app).
+    private var savedAudioMode: Int = AudioManager.MODE_NORMAL
+    private var savedSpeakerphoneOn: Boolean? = null
     // M19: cap to 64 entries with simple LRU so a long-lived chat doesn't grow
     // this map unbounded as the user scrolls through audio messages.
     private val knownDurationsMs = object : LinkedHashMap<String, Int>(64, 0.75f, true) {
@@ -103,12 +112,19 @@ class ChatAudioPlayer(
         val player = MediaPlayer().apply {
             setAudioAttributes(
                 AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    // CHAT-004: USAGE_VOICE_COMMUNICATION puts the playback on
+                    // the phone-call audio stream — every screen recorder
+                    // (including privileged OEM ones on MIUI / ColorOS /
+                    // OneUI) is forbidden by Android from capturing this
+                    // stream, the same way it can't capture a real phone
+                    // call. setAllowedCapturePolicy is kept as a
+                    // belt-and-suspenders measure for the AudioPlaybackCapture
+                    // path on stock Android. Speaker output is forced on
+                    // separately in [enableSpeakerForCallPlayback] so users
+                    // still hear the audio out loud, matching the previous UX.
+                    .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                     .apply {
-                        // Block system screen recorders (MediaProjection +
-                        // AudioPlaybackCapture) from tapping the voice-note
-                        // audio stream. API 29+ only.
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                             setAllowedCapturePolicy(AudioAttributes.ALLOW_CAPTURE_BY_NONE)
                         }
@@ -210,7 +226,9 @@ class ChatAudioPlayer(
             val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
                 .setAudioAttributes(
                     AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        // CHAT-004: match the MediaPlayer's usage so the focus
+                        // request targets the voice-call stream too.
+                        .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                         .build()
                 )
@@ -222,14 +240,17 @@ class ChatAudioPlayer(
             @Suppress("DEPRECATION")
             audioManager.requestAudioFocus(
                 focusChangeListener,
-                AudioManager.STREAM_MUSIC,
+                AudioManager.STREAM_VOICE_CALL,
                 AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
             )
         }
-        return result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        val granted = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        if (granted) enableSpeakerForCallPlayback()
+        return granted
     }
 
     private fun abandonAudioFocus() {
+        restoreSpeakerAfterCallPlayback()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
             audioFocusRequest = null
@@ -238,5 +259,46 @@ class ChatAudioPlayer(
             audioManager.abandonAudioFocus(focusChangeListener)
         }
         resumeOnFocusGain = false
+    }
+
+    /**
+     * CHAT-004: switch the device into voice-communication mode and force
+     * speaker output so the user hears the voice note on the loudspeaker
+     * even though the playback uses the phone-call audio path. The phone-call
+     * stream is what makes screen recorders unable to capture the audio.
+     * Idempotent — only saves the previous state on the first call so repeated
+     * play/pause cycles don't overwrite the user's original speaker setting.
+     */
+    private fun enableSpeakerForCallPlayback() {
+        if (savedSpeakerphoneOn != null) return
+        try {
+            savedAudioMode = audioManager.mode
+            @Suppress("DEPRECATION")
+            savedSpeakerphoneOn = audioManager.isSpeakerphoneOn
+            audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+            @Suppress("DEPRECATION")
+            audioManager.isSpeakerphoneOn = true
+        } catch (_: SecurityException) {
+            // Some OEMs require MODIFY_AUDIO_SETTINGS; if missing, the player
+            // will route through earpiece. The capture-blocking is what matters.
+            savedSpeakerphoneOn = null
+        }
+    }
+
+    /**
+     * CHAT-004: restore the device to whatever audio mode + speaker state it
+     * was in before we started playback. No-op if we never entered call mode.
+     */
+    private fun restoreSpeakerAfterCallPlayback() {
+        val previous = savedSpeakerphoneOn ?: return
+        try {
+            @Suppress("DEPRECATION")
+            audioManager.isSpeakerphoneOn = previous
+            audioManager.mode = savedAudioMode
+        } catch (_: SecurityException) {
+            // Best effort.
+        } finally {
+            savedSpeakerphoneOn = null
+        }
     }
 }
