@@ -2435,7 +2435,24 @@ class ChatActivityInHouse : AppCompatActivity() {
                     messageSendMethod[tempId] = "api"
                     sendMessageViaAPI(tempId, payload.message)
                 } else {
-                    failPendingOutgoing(tempId, "Couldn't send attachment")
+                    // Attachments: same REST-fallback pattern as text. The
+                    // upload step already succeeded (attachmentUrl is in the
+                    // pending payload), so we just need to ship the message
+                    // via fallback_send_message — exactly what the initial
+                    // socket-disconnected path does at uploadAndSendAttachment
+                    // line ~2077. Previously this branch just toasted
+                    // "Couldn't send attachment" and dropped the message even
+                    // though the upload had succeeded and a perfectly good
+                    // REST fallback was sitting right there. Only give up if
+                    // the URL is somehow missing (shouldn't happen, but
+                    // belt-and-suspenders).
+                    val remoteUrl = payload.attachmentUrl
+                    if (!remoteUrl.isNullOrBlank()) {
+                        messageSendMethod[tempId] = "api"
+                        sendMediaViaFallbackAPI(tempId, payload.messageType, remoteUrl)
+                    } else {
+                        failPendingOutgoing(tempId, "Couldn't send attachment")
+                    }
                 }
             }
         }
