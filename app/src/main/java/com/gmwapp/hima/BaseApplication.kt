@@ -690,7 +690,11 @@ class BaseApplication : Application(), Configuration.Provider {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channelId = "f49d2168-bc20-4a4b-a984-a7abffe0d6aa" // 👈 same as dashboard
             val channelName = "Default notification"
-            val importance = NotificationManager.IMPORTANCE_HIGH
+            // CHAT-070: chat messages must respect system DND. IMPORTANCE_HIGH
+            // bypasses DND (treated as "urgent"); IMPORTANCE_DEFAULT still pops a
+            // heads-up when DND is off, but stays silent under DND — matches
+            // WhatsApp / Telegram behavior. Call channels remain HIGH separately.
+            val importance = NotificationManager.IMPORTANCE_DEFAULT
             val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
 
             val audioAttributes = AudioAttributes.Builder()
@@ -708,6 +712,23 @@ class BaseApplication : Application(), Configuration.Provider {
             }
 
             val manager = getSystemService(NotificationManager::class.java)
+
+            // CHAT-070 one-time migration: on builds prior to this fix the chat
+            // channel was created at IMPORTANCE_HIGH. Android won't let us
+            // downgrade an existing channel via createNotificationChannel(...),
+            // so for upgraders we delete the old channel once and let the
+            // create call below recreate it at DEFAULT. Guarded by a SharedPrefs
+            // flag so we never re-run this migration — if the user later sets
+            // importance back to HIGH manually, their choice wins.
+            val migrationPrefs = getSharedPreferences("hima_notif_migration", MODE_PRIVATE)
+            val migrationKey = "chat_channel_dnd_migration_v1"
+            if (!migrationPrefs.getBoolean(migrationKey, false)) {
+                if (manager?.getNotificationChannel(channelId) != null) {
+                    manager.deleteNotificationChannel(channelId)
+                }
+                migrationPrefs.edit().putBoolean(migrationKey, true).apply()
+            }
+
             manager?.createNotificationChannel(channel)
         }
 
