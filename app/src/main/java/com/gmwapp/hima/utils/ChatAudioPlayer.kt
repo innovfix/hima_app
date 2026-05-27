@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 
 class ChatAudioPlayer(
     private val context: Context,
@@ -109,6 +110,9 @@ class ChatAudioPlayer(
             return
         }
 
+        // Track whether we've already retried this prepare attempt so the
+        // OnErrorListener doesn't loop on a genuinely-broken source.
+        var retried = false
         val player = MediaPlayer().apply {
             setAudioAttributes(
                 AudioAttributes.Builder()
@@ -145,7 +149,32 @@ class ChatAudioPlayer(
                 onProgressChanged(messageId, 0, duration)
                 onPlaybackStateChanged(messageId)
             }
-            setOnErrorListener { _, _, _ ->
+            setOnErrorListener { _, what, extra ->
+                // Always log the raw codes — the previous handler swallowed
+                // them, which made every "Couldn't play" report a black box.
+                Log.w(
+                    "ChatAudioPlayer",
+                    "MediaPlayer error msg=$messageId what=$what extra=$extra " +
+                        "retried=$retried source=$source"
+                )
+                // Transient network/server hiccups (MEDIA_ERROR_IO = -1004,
+                // MEDIA_ERROR_TIMED_OUT = -110, MEDIA_ERROR_UNKNOWN with extra
+                // = -38 on some OEMs during fast play-pause cycles) usually
+                // recover on a clean retry. Give it ONE more attempt after a
+                // short backoff before toasting.
+                val transient = extra == MediaPlayer.MEDIA_ERROR_IO ||
+                    extra == MediaPlayer.MEDIA_ERROR_TIMED_OUT ||
+                    (what == MediaPlayer.MEDIA_ERROR_UNKNOWN && extra == -38)
+                if (!retried && transient) {
+                    retried = true
+                    releaseCurrentPlayer()
+                    currentMessageId = null
+                    mainHandler.postDelayed({
+                        Log.d("ChatAudioPlayer", "Retrying playback msg=$messageId")
+                        toggle(messageId, source, onError)
+                    }, 300L)
+                    return@setOnErrorListener true
+                }
                 releaseCurrentPlayer()
                 currentMessageId = null
                 onPlaybackStateChanged(messageId)
@@ -233,6 +262,10 @@ class ChatAudioPlayer(
                         .build()
                 )
                 .setOnAudioFocusChangeListener(focusChangeListener)
+                // Accept queued grants so back-to-back voice-note taps don't
+                // race the previous abandon. Android queues the request and
+                // GAINs it when the current holder fully releases.
+                .setAcceptsDelayedFocusGain(true)
                 .build()
             audioFocusRequest = request
             audioManager.requestAudioFocus(request)
@@ -244,7 +277,18 @@ class ChatAudioPlayer(
                 AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
             )
         }
-        val granted = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        // CHAT: treat DELAYED as a soft success — Android queued the request and
+        // the focus listener's AUDIOFOCUS_GAIN branch will start playback when
+        // the actual grant arrives. Without this, tapping a second voice note
+        // immediately after the first one finishes used to fall into the error
+        // toast path even though Android would have granted focus a few ms
+        // later. Set resumeOnFocusGain so the listener knows to act on the
+        // pending grant instead of ignoring it.
+        val granted = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED ||
+            result == AudioManager.AUDIOFOCUS_REQUEST_DELAYED
+        if (result == AudioManager.AUDIOFOCUS_REQUEST_DELAYED) {
+            resumeOnFocusGain = true
+        }
         if (granted) enableSpeakerForCallPlayback()
         return granted
     }
