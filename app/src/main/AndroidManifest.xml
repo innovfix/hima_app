@@ -415,6 +415,28 @@
         <receiver
             android:name=".utils.ChatNotifDeleteReceiver"
             android:exported="false" />
+
+        <!-- CHAT-065: handles inline Accept / Decline taps on the friend-request
+             notification. Not exported — only the system PendingIntent we
+             create reaches it. -->
+        <receiver
+            android:name=".utils.FriendRequestActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.gmwapp.hima.action.FRIEND_REQUEST_ACCEPT" />
+                <action android:name="com.gmwapp.hima.action.FRIEND_REQUEST_DECLINE" />
+            </intent-filter>
+        </receiver>
+
+        <!-- CHAT-065 sibling: handles the inline Reply RemoteInput on the
+             chat notification. Not exported. -->
+        <receiver
+            android:name=".utils.ChatReplyReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.gmwapp.hima.action.CHAT_INLINE_REPLY" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

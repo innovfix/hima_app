@@ -103,9 +103,14 @@ object ChatNotifications {
         // promotion on API 30+ on several OEM skins.
         val style = NotificationCompat.MessagingStyle(mePerson)
             .setGroupConversation(false)
-        entries.forEach { latest ->
+        entries.forEach { entry ->
+            // CHAT-065 sibling: inline replies posted via [ChatReplyReceiver] are
+            // appended to the same store with isMe=true so they render as
+            // "You: …" in the MessagingStyle thread instead of being attributed
+            // to the peer.
+            val from = if (entry.isMe) mePerson else peerPerson
             style.addMessage(
-                NotificationCompat.MessagingStyle.Message(latest.text, latest.ts, peerPerson)
+                NotificationCompat.MessagingStyle.Message(entry.text, entry.ts, from)
             )
         }
 
@@ -205,6 +210,39 @@ object ChatNotifications {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R || !shortcutPushed) {
             builder.setLargeIcon(peerBitmap)
         }
+
+        // CHAT-065 sibling: inline Reply via RemoteInput. The receiver
+        // (ChatReplyReceiver) sends the typed text through the normal
+        // sendMessage API and re-fires this notification with the reply
+        // appended as a "You: …" line, then auto-dismisses.
+        val replyLabel = context.getString(R.string.chat_notification_reply_label)
+        val replyHint = context.getString(R.string.chat_notification_reply_hint)
+        val remoteInput = androidx.core.app.RemoteInput.Builder(ChatReplyReceiver.KEY_TEXT_REPLY)
+            .setLabel(replyHint)
+            .build()
+        val replyIntent = Intent(context, ChatReplyReceiver::class.java).apply {
+            action = ChatReplyReceiver.ACTION_REPLY
+            putExtra(ChatReplyReceiver.EXTRA_PEER_ID, peerId)
+            putExtra(ChatReplyReceiver.EXTRA_PEER_NAME, peerName)
+            putExtra(ChatReplyReceiver.EXTRA_PEER_IMAGE, peerImage)
+        }
+        val replyPi = PendingIntent.getBroadcast(
+            context,
+            // Distinct from contentPi (peerId) and deletePi (peerId) so
+            // FLAG_UPDATE_CURRENT doesn't have us trample one with the other.
+            peerId + 0x01000000,
+            replyIntent,
+            pendingIntentFlags(mutable = true) // RemoteInput needs mutable PI
+        )
+        val replyAction = NotificationCompat.Action.Builder(
+            R.drawable.ic_reply, replyLabel, replyPi
+        )
+            .addRemoteInput(remoteInput)
+            .setAllowGeneratedReplies(true)
+            .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY)
+            .setShowsUserInterface(false)
+            .build()
+        builder.addAction(replyAction)
 
         val notification = builder.build()
 

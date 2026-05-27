@@ -2124,7 +2124,7 @@ class BaseApplication : Application(), Configuration.Provider {
         }
     }
     
-    private fun getApiManager(): com.gmwapp.hima.retrofit.ApiManager? {
+    fun getApiManager(): com.gmwapp.hima.retrofit.ApiManager? {
         return try {
             val okHttpClientBuilder = okhttp3.OkHttpClient.Builder()
             if (com.gmwapp.hima.BuildConfig.DEBUG) {

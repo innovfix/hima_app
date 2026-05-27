@@ -99,6 +99,12 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
             if (maybeHandleMissedCall(context, event)) return
             if (maybeHandleIncomingCall(context, event)) return
 
+            // CHAT-065: friend-request pushes get our own builder with inline
+            // Accept / Decline action buttons so the recipient can act without
+            // opening the app. Falls through to OneSignal default if the push
+            // is missing sender_id (the action API target).
+            if (maybeHandleFriendRequest(context, event)) return
+
             // Fold per-sender chat pushes into a single MessagingStyle notification.
             maybeHandleChatMessage(context, event)
         } catch (e: Exception) {
@@ -256,6 +262,50 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
      * display. Anything else (calls, friend requests, warnings, Ludo, etc.) falls
      * through untouched.
      */
+    /**
+     * CHAT-065: intercept `type=friend_request` pushes and render them with the
+     * custom builder that ships Accept / Decline action buttons. Returns true
+     * if we handled the push (and called preventDefault), false to let the next
+     * branch try. Without `sender_id` in the payload the action buttons would
+     * have no target — fall through so OneSignal at least shows the default
+     * heads-up.
+     */
+    private fun maybeHandleFriendRequest(
+        context: Context,
+        event: INotificationReceivedEvent,
+    ): Boolean {
+        val data = event.notification.additionalData ?: return false
+        val type = data.optString("type", "")
+        if (type != "friend_request") return false
+
+        val senderId = firstNonEmpty(data, "sender_id", "user_id", "from_user_id")
+            ?.toIntOrNull() ?: -1
+        if (senderId <= 0) {
+            Log.w(TAG, "friend_request push missing sender_id — falling back to default")
+            return false
+        }
+
+        val senderName = firstNonEmpty(
+            data, "sender_name", "user_name", "name",
+        ) ?: event.notification.title?.trim()?.takeIf { it.isNotEmpty() } ?: ""
+        val senderImage = firstNonEmpty(
+            data, "sender_image", "user_image", "image", "avatar",
+        ).orEmpty()
+
+        // preventDefault BEFORE show to avoid the OneSignal default firing too if
+        // our builder throws (see CHAT-057 fallback pattern).
+        event.preventDefault()
+        try {
+            com.gmwapp.hima.utils.FriendRequestNotifications.show(
+                context, senderId, senderName, senderImage,
+            )
+            Log.d(TAG, "Friend-request notif posted for senderId=$senderId")
+        } catch (e: Exception) {
+            Log.e(TAG, "FriendRequestNotifications.show failed: ${e.message}")
+        }
+        return true
+    }
+
     private fun maybeHandleChatMessage(context: Context, event: INotificationReceivedEvent) {
         val data = event.notification.additionalData ?: return
         val type = data.optString("type", "")

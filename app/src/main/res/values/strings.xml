@@ -156,6 +156,24 @@
         <item quantity="one">%1$d new message</item>
         <item quantity="other">%1$d new messages</item>
     </plurals>
+
+    <!-- CHAT-065: friend-request notification -->
+    <string name="fr_notification_title">New Friend Request</string>
+    <string name="fr_notification_body">%1$s sent you a friend request</string>
+    <string name="fr_notification_accept">Accept</string>
+    <string name="fr_notification_decline">Decline</string>
+    <string name="fr_notification_accepted_title">You\'re now friends with %1$s</string>
+    <string name="fr_notification_accepted_body">Tap to start chatting</string>
+    <string name="fr_notification_declined_title">Request declined</string>
+    <string name="fr_notification_declined_body">Removed from your requests</string>
+    <string name="fr_notification_action_failed">Couldn\'t update — try again from the app</string>
+    <string name="fr_notification_action_no_network">No internet — try again from the app</string>
+
+    <!-- CHAT-065 sibling: inline reply RemoteInput on chat notification -->
+    <string name="chat_notification_reply_label">Reply</string>
+    <string name="chat_notification_reply_hint">Reply…</string>
+    <string name="chat_notification_reply_failed">Couldn\'t send — open chat to retry</string>
+    <string name="chat_notification_reply_no_network">No internet — open chat to retry</string>
     <string name="call_unavailable">Unavailable</string>
     <string name="notify_bell_default_desc">Notify when online</string>
     <string name="notify_bell_on_desc">Notifications on for %s</string>

@@ -17,7 +17,13 @@ import org.json.JSONObject
  */
 object ChatNotificationStore {
 
-    data class Entry(val text: String, val ts: Long)
+    /**
+     * [isMe] is true when the line came from the user replying inline from the
+     * notification itself (RemoteInput Reply action). Used so the MessagingStyle
+     * renders it as "You: …" with the user's own Person, instead of attributing
+     * the reply to the peer.
+     */
+    data class Entry(val text: String, val ts: Long, val isMe: Boolean = false)
 
     private const val TAG = "ChatNotifStore"
     private const val PREFS = "chat_notif_store"
@@ -30,10 +36,10 @@ object ChatNotificationStore {
     private fun metaNameKey(peerId: Int) = "meta_name_$peerId"
     private fun metaImageKey(peerId: Int) = "meta_image_$peerId"
 
-    fun append(ctx: Context, peerId: Int, text: String, ts: Long): List<Entry> {
+    fun append(ctx: Context, peerId: Int, text: String, ts: Long, isMe: Boolean = false): List<Entry> {
         val p = prefs(ctx)
         val current = readEntries(p, peerId).toMutableList()
-        current.add(Entry(text, ts))
+        current.add(Entry(text, ts, isMe))
         while (current.size > MAX_ENTRIES) current.removeAt(0)
 
         val arr = JSONArray()
@@ -41,6 +47,7 @@ object ChatNotificationStore {
             arr.put(JSONObject().apply {
                 put("t", entry.text)
                 put("ts", entry.ts)
+                put("me", entry.isMe)
             })
         }
         p.edit().putString(historyKey(peerId), arr.toString()).apply()
@@ -86,7 +93,8 @@ object ChatNotificationStore {
                     val o = arr.optJSONObject(i) ?: continue
                     val text = o.optString("t", "")
                     val ts = o.optLong("ts", 0L)
-                    if (text.isNotEmpty() && ts > 0L) add(Entry(text, ts))
+                    val isMe = o.optBoolean("me", false)
+                    if (text.isNotEmpty() && ts > 0L) add(Entry(text, ts, isMe))
                 }
             }
         } catch (e: Exception) {
