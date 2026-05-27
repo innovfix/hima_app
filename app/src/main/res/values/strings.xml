@@ -134,6 +134,9 @@
     <string name="chat_reply_you">You</string>
     <string name="chat_reply_clear">Clear reply</string>
     <string name="chat_reply_header_line">↩ %1$s: %2$s</string>
+    <!-- CHAT-090: voice-note variant for the reply preview / in-bubble quote. -->
+    <string name="chat_reply_voice_with_duration">Voice note · %1$s</string>
+    <string name="chat_reply_voice_no_duration">Voice note</string>
     <string name="chat_action_reply">Reply</string>
     <string name="chat_action_add_reaction">Add reaction</string>
     <string name="chat_action_delete">Delete for everyone</string>

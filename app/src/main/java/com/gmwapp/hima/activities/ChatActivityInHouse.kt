@@ -849,6 +849,7 @@ class ChatActivityInHouse : AppCompatActivity() {
             layout.visibility = View.GONE
             tvReplyAuthor?.text = ""
             tvReplySnippet?.text = ""
+            tvReplySnippet?.setCompoundDrawablesRelativeWithIntrinsicBounds(null, null, null, null)
             return
         }
         layout.visibility = View.VISIBLE
@@ -857,12 +858,42 @@ class ChatActivityInHouse : AppCompatActivity() {
         } else {
             peerName
         }
-        tvReplySnippet?.text = buildReplySnippetText(ref)
+        // CHAT-090: voice notes get a small mic compound drawable + duration
+        // ("Voice note · 0:14") instead of the generic "🎤 Voice message"
+        // placeholder, so the user can tell which voice note they're replying to.
+        val isAudio = ref.messageType.equals("audio", ignoreCase = true)
+        val snippet = tvReplySnippet
+        if (snippet != null && isAudio) {
+            val durTxt = com.gmwapp.hima.utils.formatAudioReplyDuration(ref.audioDurationMs)
+            snippet.text = if (durTxt.isNotEmpty()) {
+                getString(R.string.chat_reply_voice_with_duration, durTxt)
+            } else {
+                getString(R.string.chat_reply_voice_no_duration)
+            }
+            val mic = androidx.core.content.ContextCompat.getDrawable(this, R.drawable.ic_mic)?.mutate()
+            mic?.setTint(androidx.core.content.ContextCompat.getColor(this, R.color.colorAccent))
+            snippet.setCompoundDrawablesRelativeWithIntrinsicBounds(mic, null, null, null)
+            snippet.compoundDrawablePadding = (4f * resources.displayMetrics.density).toInt()
+        } else {
+            snippet?.setCompoundDrawablesRelativeWithIntrinsicBounds(null, null, null, null)
+            snippet?.text = buildReplySnippetText(ref)
+        }
     }
 
     private fun buildReplySnippetText(msg: ChatMessage): String = when (msg.messageType.lowercase()) {
         "image" -> getString(R.string.chat_preview_photo)
-        "audio" -> getString(R.string.chat_preview_voice)
+        // CHAT-090: persist the prefix + duration so the peer's in-bubble reply
+        // quote can detect "this snippet refers to a voice note" without having
+        // the original message's audioDurationMs in scope. Falls back to the
+        // bare emoji when duration is unknown.
+        "audio" -> {
+            val durTxt = com.gmwapp.hima.utils.formatAudioReplyDuration(msg.audioDurationMs)
+            if (durTxt.isNotEmpty()) {
+                "${com.gmwapp.hima.utils.AUDIO_REPLY_SNIPPET_PREFIX}$durTxt"
+            } else {
+                getString(R.string.chat_preview_voice)
+            }
+        }
         else -> msg.message.trim().replace("\n", " ").take(160)
     }
 

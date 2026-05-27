@@ -508,7 +508,34 @@ class ChatAdapter(
             if (reply != null) {
                 layoutReplyQuote.visibility = View.VISIBLE
                 tvReplyQuoteAuthor.text = reply.author
-                tvReplyQuoteSnippet.text = reply.snippet
+                // CHAT-090: voice-note snippets are persisted with the "🎤 "
+                // prefix + duration (see ChatActivityInHouse.buildReplySnippetText).
+                // Swap the leading emoji for a real ic_mic compound drawable so
+                // the quote looks like a proper audio reference instead of a
+                // generic text line.
+                val ctx = itemView.context
+                if (reply.snippet.startsWith(com.gmwapp.hima.utils.AUDIO_REPLY_SNIPPET_PREFIX)) {
+                    val durTxt = reply.snippet.removePrefix(com.gmwapp.hima.utils.AUDIO_REPLY_SNIPPET_PREFIX).trim()
+                    tvReplyQuoteSnippet.text = if (durTxt.isNotEmpty()) {
+                        ctx.getString(R.string.chat_reply_voice_with_duration, durTxt)
+                    } else {
+                        ctx.getString(R.string.chat_reply_voice_no_duration)
+                    }
+                    val tintRes = if (isSent) R.color.chat_reply_quote_author
+                    else R.color.chat_reply_quote_author_received
+                    val mic = ContextCompat.getDrawable(ctx, R.drawable.ic_mic)?.mutate()
+                    mic?.setTint(ContextCompat.getColor(ctx, tintRes))
+                    tvReplyQuoteSnippet.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                        mic, null, null, null
+                    )
+                    tvReplyQuoteSnippet.compoundDrawablePadding =
+                        (4f * ctx.resources.displayMetrics.density).toInt()
+                } else {
+                    tvReplyQuoteSnippet.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                        null, null, null, null
+                    )
+                    tvReplyQuoteSnippet.text = reply.snippet
+                }
                 tvMessage.text = reply.body
                 applyQuoteTint(isSent)
                 layoutReplyQuote.setOnClickListener { onReplyQuoteTap?.invoke(message) }
@@ -516,6 +543,11 @@ class ChatAdapter(
                 layoutReplyQuote.visibility = View.GONE
                 layoutReplyQuote.setOnClickListener(null)
                 tvMessage.text = message.message
+                // Make sure recycled holders that previously rendered an audio
+                // reply quote don't keep the mic drawable on a plain text bubble.
+                tvReplyQuoteSnippet.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                    null, null, null, null
+                )
             }
             // CHAT-048: auto-detect URLs / phone numbers / emails after setText.
             // LinkMovementMethod lets taps open browser/dialer/mail; long-press
