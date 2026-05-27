@@ -1171,16 +1171,25 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         homeChatListRefreshReceiverRegistered = false
     }
 
-    private fun applyHomeIncoming(peerId: Int, text: String, type: String) {
+    private fun applyHomeIncoming(
+        peerId: Int,
+        text: String,
+        type: String,
+        sentByMe: Boolean = false,
+        lastMessageId: Long = 0L
+    ) {
         val adapter = homeMyChatsAdapter ?: return
         val ts = com.google.firebase.Timestamp.now()
-        val suppressUnread = com.gmwapp.hima.utils.ActiveChatTracker.isActiveFor(context, peerId)
+        val suppressUnread = sentByMe ||
+            com.gmwapp.hima.utils.ActiveChatTracker.isActiveFor(context, peerId)
         val handled = adapter.applyIncomingMessage(
             peerUserId = peerId.toString(),
             lastMessageText = text,
             lastMessageType = type,
             lastMessageTime = ts,
-            suppressUnreadIncrement = suppressUnread
+            suppressUnreadIncrement = suppressUnread,
+            sentByMe = sentByMe,
+            lastMessageId = lastMessageId
         )
         if (!handled) {
             BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let { loadMyChats(it) }
@@ -1194,8 +1203,14 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 com.gmwapp.hima.socket.SocketManager.getInstance().newMessage.collect { msg ->
                     if (!isAdded || filterType != "my_chats") return@collect
                     val mySelfId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
-                    val peerId = msg.fromUserId ?: return@collect
-                    if (peerId == mySelfId) return@collect
+                    val fromId = msg.fromUserId ?: return@collect
+                    // CHAT-073: for own outgoing (server echoes our send back to us
+                    // for cross-device sync) the row to refresh is the recipient,
+                    // not ourselves. Friends tab handles this; Home used to drop
+                    // the event entirely, so the user's just-sent message never
+                    // appeared in the Home chat list preview until reload.
+                    val sentByMe = fromId == mySelfId
+                    val rowPeerId = if (sentByMe) (msg.toUserId ?: return@collect) else fromId
                     val previewType = msg.messageType.lowercase().ifBlank { "text" }
                     val previewText = msg.message.ifBlank {
                         when (previewType) {
@@ -1206,7 +1221,13 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                             else -> ""
                         }
                     }
-                    applyHomeIncoming(peerId, previewText, previewType)
+                    applyHomeIncoming(
+                        peerId = rowPeerId,
+                        text = previewText,
+                        type = previewType,
+                        sentByMe = sentByMe,
+                        lastMessageId = msg.id
+                    )
                 }
             }
         }
