@@ -269,8 +269,25 @@ class ChatAdapter(
 
     private fun applyReaction(position: Int, reaction: String?) {
         if (position !in messages.indices) return
-        val updated = messages[position]
-        onReactionChanged?.invoke(updated, reaction)
+        val current = messages[position]
+        if (current.isDateHeader || current.isDeleted) return
+
+        // CHAT-120 sibling: optimistic local update — apply the reaction to
+        // messages[position] immediately and notify, so the chip appears on the
+        // bubble the moment the user taps the emoji. The server send (via
+        // onReactionChanged → socket / REST fallback) runs after; if the server
+        // later rejects via reaction_error the existing _messageError toast
+        // fires and the user sees a brief flash + revert. Without this, the
+        // chip rendering waited for the server's reaction_updated echo, which
+        // failed silently when the socket dropped mid-send, the message id
+        // didn't round-trip (Long↔Int truncation on snowflake ids), or the
+        // server simply didn't echo — making the feature look broken.
+        val newReactions = current.reactions.toMutableMap().apply {
+            if (reaction.isNullOrEmpty()) remove(myUserId) else put(myUserId, reaction)
+        }
+        messages[position] = current.copy(reactions = newReactions)
+        notifyItemChanged(position)
+        onReactionChanged?.invoke(messages[position], reaction)
     }
 
     private fun ensureAudioPlayer(parent: ViewGroup) {
