@@ -951,11 +951,24 @@ class ChatActivityInHouse : AppCompatActivity() {
             ).show()
             return
         }
+
+        // CHAT-084 follow-up: media-type replies carry placeholder snippets
+        // ("🎤 0:14", "📷 Photo", "Voice message" etc.) — the original media
+        // bubble has an empty `message` field, so text-contains never matches
+        // and the user always saw "Original message not loaded". Detect the
+        // media-type snippets up front and match by messageType instead.
+        val targetMessageType: String? = detectReplyTargetMessageType(snippet)
+
         var targetIndex = -1
         for (i in (replyIndex - 1) downTo 0) {
             val c = messages[i]
             if (c.isDateHeader || c.isDeleted) continue
-            if (c.message.contains(snippet, ignoreCase = true)) {
+            val matched = if (targetMessageType != null) {
+                c.messageType.equals(targetMessageType, ignoreCase = true)
+            } else {
+                c.message.contains(snippet, ignoreCase = true)
+            }
+            if (matched) {
                 targetIndex = i
                 break
             }
@@ -970,6 +983,32 @@ class ChatActivityInHouse : AppCompatActivity() {
         }
         rvMessages.smoothScrollToPosition(targetIndex)
         scheduleReplyFlash(targetIndex)
+    }
+
+    /**
+     * CHAT-084 follow-up: classify a reply-quote snippet as a media-type
+     * placeholder so [scrollToInlineReplyOriginal] can match against
+     * messageType instead of message body (which is empty for media bubbles).
+     * Returns the messageType to match, or null if the snippet is plain text
+     * and should fall back to text-contains matching.
+     */
+    private fun detectReplyTargetMessageType(snippet: String): String? {
+        val s = snippet.trim()
+        if (s.startsWith(com.gmwapp.hima.utils.AUDIO_REPLY_SNIPPET_PREFIX) ||
+            s.equals("Voice note", ignoreCase = true) ||
+            s.startsWith("Voice note ", ignoreCase = true) ||
+            s == getString(R.string.chat_preview_voice) ||
+            s == getString(R.string.chat_reply_voice_no_duration)
+        ) {
+            return "audio"
+        }
+        if (s == getString(R.string.chat_preview_photo) ||
+            s.startsWith("📷", ignoreCase = true) ||
+            s.equals("Photo", ignoreCase = true)
+        ) {
+            return "image"
+        }
+        return null
     }
 
     /**
