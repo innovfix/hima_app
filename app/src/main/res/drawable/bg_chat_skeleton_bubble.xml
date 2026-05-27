@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  CHAT-082: rounded grey block used as the inner shape inside the shimmer
+  placeholder bubbles shown before the first chat_history response renders.
+  Shape matches chat_bubble_sender / chat_bubble_receiver corner radii so
+  the skeleton sits in the same visual rhythm as the real bubbles.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#E1E3E8" />
+    <corners android:radius="12dp" />
+</shape>

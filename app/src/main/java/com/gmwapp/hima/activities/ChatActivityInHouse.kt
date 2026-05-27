@@ -137,6 +137,8 @@ class ChatActivityInHouse : AppCompatActivity() {
     private lateinit var rvMessages: RecyclerView
     private var layoutHistoryError: View? = null
     private var tvHistoryError: TextView? = null
+    /** CHAT-082: shimmer skeleton shown during first chat_history call when nothing is cached. */
+    private var shimmerLoading: com.facebook.shimmer.ShimmerFrameLayout? = null
     private var btnHistoryRetry: View? = null
     private lateinit var etMessage: EditText
     private lateinit var btnSend: ImageButton
@@ -302,7 +304,20 @@ class ChatActivityInHouse : AppCompatActivity() {
     /** In-flight Retrofit calls for chat history — cancelled on destroy or when superseded. */
     private var currentHistoryCall: Call<ChatHistoryResponse>? = null
     private var currentMoreCall: Call<ChatHistoryResponse>? = null
-    private var isInitialHistoryLoading = false
+    /**
+     * CHAT-082 / CHAT-030: every reset of this flag to `false` is treated as a
+     * terminal outcome of the first chat_history load — the shimmer skeleton
+     * always vanishes regardless of which exit path (success / error / rate
+     * limit / no-network / lifecycle teardown) we took. Avoids the
+     * spinner-stuck class of bugs by binding visibility to the source of
+     * truth instead of every call site remembering to also call
+     * `hideChatLoadingSkeleton()`.
+     */
+    private var isInitialHistoryLoading: Boolean = false
+        set(value) {
+            field = value
+            if (!value) hideChatLoadingSkeleton()
+        }
     private var pendingPostInitialReload = false
     private val paginationLoadRequestId = AtomicInteger(0)
     /** Prevents duplicate mark-read on both [onBackPressed] and [onPause] in one exit. */
@@ -635,6 +650,7 @@ class ChatActivityInHouse : AppCompatActivity() {
             hideHistoryErrorUi("USER_RETRY")
             loadMessages(userRetry = true)
         }
+        shimmerLoading = findViewById(R.id.shimmer_chat_loading)
     }
 
     private fun hideHistoryErrorUi(reason: String) {
@@ -649,6 +665,33 @@ class ChatActivityInHouse : AppCompatActivity() {
         layoutHistoryError?.visibility = View.VISIBLE
         tvHistoryError?.text = userMessage ?: getString(R.string.chat_history_error_generic)
         Log.w(CHAT_REOPEN_LOG, "UI EMPTY_STATE shown peer=$peerUserId reason=$reason code=$code")
+    }
+
+    /**
+     * CHAT-082: show the shimmer skeleton when the first chat_history call is
+     * in flight and there's nothing already on screen. Caller is responsible
+     * for guarding on `messages.isEmpty()` since the cache-hydrate path can
+     * fill the list before this fires.
+     */
+    private fun showChatLoadingSkeleton() {
+        val v = shimmerLoading ?: return
+        if (v.visibility != View.VISIBLE) {
+            v.visibility = View.VISIBLE
+            v.startShimmer()
+        }
+    }
+
+    /**
+     * CHAT-082 / CHAT-030: hide the shimmer skeleton on every terminal
+     * outcome of the initial history load (success, error, no-network, cache
+     * hydrate). Idempotent.
+     */
+    private fun hideChatLoadingSkeleton() {
+        val v = shimmerLoading ?: return
+        if (v.visibility != View.GONE) {
+            v.stopShimmer()
+            v.visibility = View.GONE
+        }
     }
 
     private fun setupRecyclerView() {
@@ -2309,6 +2352,11 @@ class ChatActivityInHouse : AppCompatActivity() {
         Log.d("ChatPagination", "User ID: $myUserId, Receiver ID: $peerUserId")
         Log.d("ChatPagination", "Limit: $MESSAGES_PER_PAGE, Offset: $currentOffset")
         Log.d("ChatPagination", "═══════════════════════════════════════")
+
+        // CHAT-082: cache miss path → show shimmer until the network response
+        // lands. With a cache hit, messages is already non-empty so the
+        // skeleton doesn't flash.
+        if (messages.isEmpty()) showChatLoadingSkeleton()
 
         val delayMs = if (messages.isNotEmpty()) historyCache.suggestedDelayMs() else 0L
         if (delayMs > 0L) {

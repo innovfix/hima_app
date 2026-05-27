@@ -173,6 +173,11 @@ dependencies {
     // image bubble. Resolved via the jitpack maven entry in settings.gradle.
     implementation("com.github.chrisbanes:PhotoView:2.3.0")
 
+    // CHAT-082 first-load chat skeleton — shimmer over fake message bubbles
+    // while the initial chat_history call is in flight, so the chat doesn't
+    // open to a blank rect.
+    implementation("com.facebook.shimmer:shimmer:0.5.0")
+
     implementation(libs.androidx.hilt.common)
     implementation(libs.androidx.hilt.work)
     implementation(libs.androidx.work.runtime)
