@@ -198,9 +198,12 @@ class ChatListAdapter(
 
         fun bind(conversation: ChatConversation) {
             val pinned = PinnedChatsPrefsHelper.isPinned(activity, conversation.userId)
-            // T-CHAT-021: surface blocked-state in the list so users don't waste
-            // time composing messages that will only fail at send time.
-            val isBlocked = conversation.isBlocked
+            // T-CHAT-021 / peer-block fix: surface blocked-state in the list
+            // for EITHER direction so users don't waste time composing
+            // messages that will only fail at send time. Original implementation
+            // only checked isBlocked (I-blocked-them); peer-blocked-me cases
+            // looked normal in the list and silently failed on send.
+            val isBlocked = conversation.isBlocked || conversation.isBlockedByPeer
 
             // Set user name (extract name only, remove trailing numbers).
             // Pin state is shown only by iv_pin (filled/outline + tint), not a compound drawable on the name.
@@ -292,8 +295,12 @@ class ChatListAdapter(
                 )
                 binding.tvLastMessage.text = span
             } else {
-                binding.tvLastMessage.text = if (isBlocked) {
+                binding.tvLastMessage.text = if (conversation.isBlocked) {
                     activity.getString(R.string.chat_blocked_preview)
+                } else if (conversation.isBlockedByPeer) {
+                    // Different copy when the OTHER side is the blocker so
+                    // the user knows it's not their own block they need to undo.
+                    activity.getString(R.string.chat_blocked_by_peer_preview)
                 } else when (conversation.lastMessageType.lowercase()) {
                     "image" -> activity.getString(R.string.chat_preview_photo)
                     "audio" -> activity.getString(R.string.chat_preview_voice)

@@ -93,6 +93,11 @@
     <string name="chat_blocked_preview">You blocked this user</string>
     <string name="chat_blocked_banner">You blocked this user. Unblock to send messages.</string>
     <string name="chat_blocked_input_hint">You can\'t message a blocked user</string>
+    <!-- Peer-blocked-me variants (the other side blocked you) -->
+    <string name="chat_blocked_by_peer_preview">This user has blocked you</string>
+    <string name="chat_blocked_by_peer_banner">This user has blocked you. You can\'t send messages or call.</string>
+    <string name="chat_blocked_by_peer_input_hint">This user has blocked you</string>
+    <string name="chat_blocked_by_peer_toast">This user has blocked you</string>
     <string name="chat_read_more">Read more</string>
     <string name="chat_show_less">Show less</string>
     <string name="chat_image_viewer_reply">Reply</string>

@@ -800,7 +800,10 @@ class FriendsTabFragment : Fragment() {
                     .isBlocked(requireContext(), u.id.toString())
             } else {
                 false
-            },
+            } || chatItem.iHaveBlockedThisUser,
+            // From the server — drives the BLOCKED badge + chat-detail
+            // peer-blocked UI when the OTHER side is the one that blocked.
+            isBlockedByPeer = chatItem.thisUserHasBlockedMe,
             lastMessageSentByMe = sentByMe,
             lastMessageIsRead = lastMessage?.isRead == true,
             lastMessageId = (lastMessage?.id ?: 0).toLong()

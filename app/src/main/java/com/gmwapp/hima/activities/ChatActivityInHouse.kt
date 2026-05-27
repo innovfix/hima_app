@@ -245,6 +245,12 @@ class ChatActivityInHouse : AppCompatActivity() {
     
     // Track if user is blocked
     private var iHaveBlockedThisUser: Boolean = false
+    /** True when the OTHER side blocked the current user — server-sourced from
+     *  chat_history.this_user_has_blocked_me. Triggers the dimmed-call /
+     *  banner / send-intercept UI on this side. Symmetric with
+     *  [iHaveBlockedThisUser]. */
+    private var peerHasBlockedMe: Boolean = false
+    private var tvBlockedBanner: android.widget.TextView? = null
 
     // T-CHAT-021: persistent blocked-state banner shown above the composer
     // when the current user has blocked this peer. Mirrors [iHaveBlockedThisUser].
@@ -574,6 +580,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         btnMic = findViewById(R.id.btn_mic)
         ivAttach = findViewById(R.id.iv_attach)
         llBlockedBanner = findViewById(R.id.ll_blocked_banner)
+        tvBlockedBanner = findViewById(R.id.tv_blocked_banner)
         messageInputContainer = findViewById(R.id.message_input_container)
         subscribeLockContainer = findViewById(R.id.subscribe_lock_container)
         autopayFailedLockContainer = findViewById(R.id.autopay_failed_lock_container)
@@ -1503,18 +1510,28 @@ class ChatActivityInHouse : AppCompatActivity() {
      * Blocked badge updates without an app restart.
      */
     private fun applyBlockedUiState() {
-        val blocked = iHaveBlockedThisUser
+        // EITHER direction blocked → disable composer + show banner. Banner
+        // copy + input hint differ so the user knows which way the block goes
+        // (their own to undo, or the peer's, which they can't undo).
+        val blocked = iHaveBlockedThisUser || peerHasBlockedMe
         llBlockedBanner?.visibility = if (blocked) View.VISIBLE else View.GONE
+        tvBlockedBanner?.setText(
+            when {
+                iHaveBlockedThisUser -> R.string.chat_blocked_banner
+                peerHasBlockedMe -> R.string.chat_blocked_by_peer_banner
+                else -> R.string.chat_blocked_banner
+            }
+        )
 
         // Composer affordances — keep them visible but inert so the layout
         // doesn't reflow on every block/unblock. The banner above explains why.
         etMessage.isEnabled = !blocked
         etMessage.isFocusable = !blocked
         etMessage.isFocusableInTouchMode = !blocked
-        etMessage.hint = if (blocked) {
-            getString(R.string.chat_blocked_input_hint)
-        } else {
-            getString(R.string.chat_input_hint)
+        etMessage.hint = when {
+            iHaveBlockedThisUser -> getString(R.string.chat_blocked_input_hint)
+            peerHasBlockedMe -> getString(R.string.chat_blocked_by_peer_input_hint)
+            else -> getString(R.string.chat_input_hint)
         }
         if (blocked) {
             etMessage.setText("")
@@ -1532,10 +1549,21 @@ class ChatActivityInHouse : AppCompatActivity() {
         btnMic.alpha = composerAlpha
         ivAttach.alpha = composerAlpha
 
+        // Dim the call buttons in the header so the blocked side gets a
+        // visual signal (matches WhatsApp). The click listeners themselves
+        // already toast — the alpha just makes the disabled state legible.
+        // Only dim if call cards are inflated (they may not be on the
+        // female-side layout variant).
+        if (::cvAudioCall.isInitialized) cvAudioCall.alpha = if (blocked) 0.4f else 1.0f
+        if (::cvVideoCall.isInitialized) cvVideoCall.alpha = if (blocked) 0.4f else 1.0f
+
         // Mirror into local cache + tell every chat-list listener to re-bind.
+        // Only mirror the I-blocked-them direction into BlockedPeersPrefsHelper
+        // — the peer-blocked-me state isn't ours to persist (it'd lie about
+        // who initiated the block if the user later checks the prefs cache).
         if (peerUserId > 0) {
             com.gmwapp.hima.utils.BlockedPeersPrefsHelper
-                .setBlocked(this, peerUserId.toString(), blocked)
+                .setBlocked(this, peerUserId.toString(), iHaveBlockedThisUser)
             val refresh = android.content.Intent(
                 com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_REFRESH
             ).setPackage(packageName)
@@ -2693,6 +2721,10 @@ class ChatActivityInHouse : AppCompatActivity() {
                             
                             // Update blocked status (for UI display purposes)
                             iHaveBlockedThisUser = data.iHaveBlockedThisUser
+                            // Peer-blocked-me direction (server-sourced).
+                            // Triggers the dimmed-call + banner +
+                            // send-intercept UI symmetric with I-blocked-them.
+                            peerHasBlockedMe = data.thisUserHasBlockedMe
                             // T-CHAT-021: persist + refresh banner / composer
                             // / chat-list badge from the authoritative server flag.
                             applyBlockedUiState()
@@ -3177,7 +3209,20 @@ class ChatActivityInHouse : AppCompatActivity() {
 
     private fun sendMessage() {
         if (!canSendMediaPayload()) return
-        
+
+        // Peer-blocked-me guard. The composer is already disabled when this
+        // flag is true (applyBlockedUiState), so btnSend won't fire — but
+        // sendMessage is also reachable via the IME send action and any
+        // future callsite. Toast explicitly so the user understands why
+        // nothing happens even if some path bypasses the disabled button.
+        if (peerHasBlockedMe) {
+            showAppToast(
+                getString(R.string.chat_blocked_by_peer_toast),
+                Toast.LENGTH_SHORT,
+            )
+            return
+        }
+
         val typed = etMessage.text.toString().trim()
         if (typed.isEmpty()) {
             // T24: still clear whitespace-only input so it doesn't linger after tap.
@@ -4785,6 +4830,24 @@ class ChatActivityInHouse : AppCompatActivity() {
     private fun setupCallButtonListeners() {
         cvAudioCall.setOnClickListener {
             when {
+                // Peer-blocked-me (chat-side block, server-sourced) → toast
+                // explicit. Beats the isCallBlocked branch because that
+                // covers the calls-side blocked_users table separately and
+                // its message ("You are blocked by this user") is the
+                // same — but the chat-side block is checked first so the
+                // toast text source-of-truth stays consistent.
+                peerHasBlockedMe -> {
+                    showAppToast(
+                        getString(R.string.chat_blocked_by_peer_toast),
+                        Toast.LENGTH_SHORT,
+                    )
+                }
+                iHaveBlockedThisUser -> {
+                    showAppToast(
+                        getString(R.string.chat_blocked_input_hint),
+                        Toast.LENGTH_SHORT,
+                    )
+                }
                 isCallBlocked -> {
                     showAppToast("You are blocked by this user", Toast.LENGTH_SHORT)
                 }
@@ -4806,6 +4869,18 @@ class ChatActivityInHouse : AppCompatActivity() {
 
         cvVideoCall.setOnClickListener {
             when {
+                peerHasBlockedMe -> {
+                    showAppToast(
+                        getString(R.string.chat_blocked_by_peer_toast),
+                        Toast.LENGTH_SHORT,
+                    )
+                }
+                iHaveBlockedThisUser -> {
+                    showAppToast(
+                        getString(R.string.chat_blocked_input_hint),
+                        Toast.LENGTH_SHORT,
+                    )
+                }
                 isCallBlocked -> {
                     showAppToast("You are blocked by this user", Toast.LENGTH_SHORT)
                 }

@@ -23,7 +23,14 @@ data class ChatItem(
     @SerializedName("last_message")
     val lastMessage: LastMessage?,
     @SerializedName("unread_count")
-    val unreadCount: Int
+    val unreadCount: Int,
+    @SerializedName("i_have_blocked_this_user")
+    val iHaveBlockedThisUser: Boolean = false,
+    /** True when the chat partner has blocked the current user. Drives
+     *  the BLOCKED badge on the chat list row and the dimmed-call /
+     *  banner / send-intercept UI on the chat detail. */
+    @SerializedName("this_user_has_blocked_me")
+    val thisUserHasBlockedMe: Boolean = false,
 )
 
 data class ChatUser(

@@ -30,6 +30,14 @@ data class ChatHistoryData(
     val hasMore: Boolean,
     @SerializedName("i_have_blocked_this_user")
     val iHaveBlockedThisUser: Boolean,
+    /**
+     * True when the chat partner has blocked the current user. Drives the
+     * dimmed-call-buttons + banner + send-intercept UI on chat detail.
+     * Defaults to false for backward compat with older servers that
+     * don't return this field.
+     */
+    @SerializedName("this_user_has_blocked_me")
+    val thisUserHasBlockedMe: Boolean = false,
     val messages: List<ChatMessageApi>
 )
 

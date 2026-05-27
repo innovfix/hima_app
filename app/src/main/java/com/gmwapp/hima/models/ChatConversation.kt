@@ -27,6 +27,11 @@ data class ChatConversation(
     val isPinned: Boolean = false,
     /** True when the current user has blocked this peer (from [com.gmwapp.hima.utils.BlockedPeersPrefsHelper]). */
     val isBlocked: Boolean = false,
+    /** True when the peer has blocked the current user — server-sourced from
+     *  my_chat.this_user_has_blocked_me. Drives the chat-list BLOCKED badge
+     *  for the peer-blocked-me direction (the existing isBlocked field only
+     *  covers the I-blocked-them direction). */
+    val isBlockedByPeer: Boolean = false,
     /** WhatsApp-style chat-list tick: shown only when the current user sent the latest message. */
     val lastMessageSentByMe: Boolean = false,
     /** When lastMessageSentByMe, upgrades the tick from grey ✓ to blue ✓✓. */

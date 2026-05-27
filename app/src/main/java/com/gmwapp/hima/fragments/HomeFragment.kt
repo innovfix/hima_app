@@ -941,7 +941,10 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                             language = item.user.language,
                             isPinned = PinnedChatsPrefsHelper.isPinned(activityCtx, item.user.id.toString()),
                             isBlocked = com.gmwapp.hima.utils.BlockedPeersPrefsHelper
-                                .isBlocked(activityCtx, item.user.id.toString()),
+                                .isBlocked(activityCtx, item.user.id.toString()) || item.iHaveBlockedThisUser,
+                            // Server-sourced — drives BLOCKED badge + chat-detail
+                            // peer-blocked UI when the OTHER side did the blocking.
+                            isBlockedByPeer = item.thisUserHasBlockedMe,
                             lastMessageSentByMe = item.lastMessage != null &&
                                 (BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0) > 0 &&
                                 item.lastMessage.fromUserId == (BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0),
