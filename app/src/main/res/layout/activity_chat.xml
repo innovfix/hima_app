@@ -323,6 +323,7 @@
         android:id="@+id/rv_messages"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:clipChildren="false"
         android:clipToPadding="false"
         android:paddingHorizontal="16dp"
         android:paddingTop="12dp"
