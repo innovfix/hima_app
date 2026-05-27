@@ -88,6 +88,12 @@ class CreatorChatFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        // CHAT-002: female creators see chats from male users in this fragment;
+        // screenshots / screen recording of those chats must be blocked at the
+        // OS level too. Scope the FLAG_SECURE to the fragment lifecycle so
+        // other surfaces in MainActivity (wallet, profile, etc.) still allow
+        // screenshots when the user navigates away from the chat tab.
+        activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
         loadTabUnreadCounts()
         registerCreatorChatListRefreshReceiver()
         startCollectingSocketNewMessage()
@@ -95,6 +101,7 @@ class CreatorChatFragment : Fragment() {
 
     override fun onPause() {
         super.onPause()
+        activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
         unregisterCreatorChatListRefreshReceiver()
     }
 

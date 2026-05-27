@@ -42,6 +42,15 @@ class FullscreenImageActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // CHAT-002 / CHAT-047: block screenshots and screen recording of chat
+        // images at the OS level. ChatActivityInHouse already sets this on its
+        // own window, but tapping an image bubble opens THIS activity, so the
+        // flag needs to be repeated here or screenshots leak from the viewer.
+        // Must be set before setContentView for FLAG_SECURE to take effect.
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
         setContentView(R.layout.activity_fullscreen_image)
 
         // Edge-to-edge: photo lives behind the system bars, chrome handles
