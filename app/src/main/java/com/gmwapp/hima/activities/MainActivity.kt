@@ -1493,7 +1493,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
     private fun makeBadgeDot(tag: String): TextView {
         val dp = resources.displayMetrics.density
-        val dotSize = (18 * dp).toInt()
+        val dotHeight = (18 * dp).toInt()
+        val padH = (5 * dp).toInt()
         val rootView = window.decorView.findViewById<ViewGroup>(android.R.id.content)
         return TextView(this).apply {
             this.tag = tag
@@ -1502,15 +1503,33 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             setTypeface(typeface, android.graphics.Typeface.BOLD)
             gravity = Gravity.CENTER
             includeFontPadding = false
+            // CHAT-126: minWidth = dotHeight keeps the badge circular for single
+            // digits; wrap_content + horizontal padding lets it grow into a pill
+            // for "99" / "99+" / scaled-up text without clipping at the circle's
+            // edge. Previous fixed 18×18 container clipped 2-digit numerals once
+            // OEM font scale climbed past ~1.3x.
+            minWidth = dotHeight
+            minHeight = dotHeight
+            setPadding(padH, 0, padH, 0)
             // Start hidden — visibility flips on only after the post-runnable
             // positions the dot. Otherwise it briefly flashes at (0,0) of the
             // content root, which sits over the Home tab area.
             visibility = View.INVISIBLE
             background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
+                // CHAT-126: rounded rect (corner = half height) instead of OVAL —
+                // circular when minWidth wins, pill when text forces width past
+                // the minimum, so the shape never distorts into an ellipse.
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = dotHeight / 2f
                 setColor(ContextCompat.getColor(this@MainActivity, R.color.colorAccent))
             }
-            rootView.addView(this, FrameLayout.LayoutParams(dotSize, dotSize))
+            rootView.addView(
+                this,
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    dotHeight,
+                ),
+            )
         }
     }
 
@@ -1518,11 +1537,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     private fun placeRecentBadge(count: Int, @androidx.annotation.ColorRes badgeColorRes: Int = R.color.colorAccent) {
         val rootView = window.decorView.findViewById<ViewGroup>(android.R.id.content)
         val dp = resources.displayMetrics.density
-        val dotSize = (18 * dp).toInt()
+        val dotHeight = (18 * dp).toInt()
 
         val dot = rootView.findViewWithTag<TextView>(recentMissedDotTag)
             ?: makeBadgeDot(recentMissedDotTag)
-        dot.text = count.coerceAtMost(99).toString()
+        // CHAT-126: render "99+" instead of capping at 99 — pill grows.
+        dot.text = if (count > 99) "99+" else count.toString()
         (dot.background as? GradientDrawable)?.setColor(
             ContextCompat.getColor(this, badgeColorRes)
         )
@@ -1546,11 +1566,20 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             val iconLeft = iconPos[0] - rootPos[0]
             val iconRight = iconLeft + iconView.width
             val iconTop = iconPos[1] - rootPos[1]
-            val topMargin = iconTop - dotSize / 2
+
+            // CHAT-126: measure with current text so we center the actual badge
+            // width (single digits ~18dp, "99+" ~28dp) on iconRight instead of
+            // using a fixed-half-of-18dp offset that was wrong for any non-
+            // single-digit count.
+            dot.measure(
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+            )
+            val badgeWidth = dot.measuredWidth.coerceAtLeast(dotHeight)
 
             (dot.layoutParams as? FrameLayout.LayoutParams)?.let {
-                it.leftMargin = iconRight - dotSize / 2
-                it.topMargin = topMargin
+                it.leftMargin = iconRight - badgeWidth / 2
+                it.topMargin = iconTop - dotHeight / 2
                 dot.layoutParams = it
             }
             // Now that the dot is correctly positioned, reveal it.
@@ -1654,11 +1683,13 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     private fun placeChatBadge(count: Int) {
         val rootView = window.decorView.findViewById<ViewGroup>(android.R.id.content)
         val dp = resources.displayMetrics.density
-        val dotSize = (18 * dp).toInt()
+        val dotHeight = (18 * dp).toInt()
 
         val dot = rootView.findViewWithTag<TextView>(chatUnreadDotTag)
             ?: makeBadgeDot(chatUnreadDotTag)
-        dot.text = count.coerceAtMost(99).toString()
+        // CHAT-126: render "99+" instead of capping at 99 — now that the badge
+        // is a width-flexing pill, it can hold the extra glyph without clipping.
+        dot.text = if (count > 99) "99+" else count.toString()
 
         binding.bottomNavigationView.post {
             val itemView = getChatBottomNavItemView()
@@ -1679,11 +1710,20 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             val iconLeft = iconPos[0] - rootPos[0]
             val iconRight = iconLeft + iconView.width
             val iconTop = iconPos[1] - rootPos[1]
-            val topMargin = iconTop - dotSize / 2
+
+            // CHAT-126: measure the badge with its current text so we know how
+            // wide it'll actually be (single digits → ~18dp circle; "99+" →
+            // ~28dp pill). Center the badge horizontally on iconRight so half
+            // sits inside the icon, half outside, regardless of width.
+            dot.measure(
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+            )
+            val badgeWidth = dot.measuredWidth.coerceAtLeast(dotHeight)
 
             (dot.layoutParams as? FrameLayout.LayoutParams)?.let {
-                it.leftMargin = iconRight - dotSize / 2
-                it.topMargin = topMargin
+                it.leftMargin = iconRight - badgeWidth / 2
+                it.topMargin = iconTop - dotHeight / 2
                 dot.layoutParams = it
             }
             dot.visibility = View.VISIBLE
