@@ -21,7 +21,7 @@
             android:layout_marginBottom="14dp"
             android:minWidth="56dp"
             android:orientation="vertical"
-            android:maxWidth="280dp"
+            android:maxWidth="250dp"
             android:background="@drawable/chat_bubble_receiver"
             android:paddingHorizontal="12dp"
             android:paddingTop="8dp"
