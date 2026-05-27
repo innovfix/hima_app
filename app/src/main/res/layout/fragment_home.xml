@@ -415,11 +415,16 @@
         android:visibility="gone" />
 
     <!-- Background Dim Effect -->
+    <!-- CHAT-101: clickable + focusable so the dim consumes touches while the
+         Random FAB speed-dial is expanded; HomeFragment attaches a click
+         listener that collapses the menu (Material FAB-speed-dial pattern). -->
     <View
         android:id="@+id/dimBackground"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="#80000000"
+        android:clickable="true"
+        android:focusable="true"
         android:visibility="gone" />
 
     <!-- No Internet Message -->

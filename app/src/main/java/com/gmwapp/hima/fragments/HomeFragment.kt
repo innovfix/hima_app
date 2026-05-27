@@ -1015,7 +1015,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
                 // Change the icon tint to black
                 binding.fabRandom.setIconTintResource(R.color.black)
-                
+
                 // Change text color to black
                 binding.fabRandom.setTextColor(resources.getColor(R.color.black, null))
 
@@ -1025,33 +1025,45 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 binding.fabRandom.shrink()
                 isAllFabVisible = true
             } else {
-                binding.fabAudio.hide()
-                binding.fabVideo.hide()
-                binding.tvAudio1.visibility = View.GONE
-                binding.tvAudio2.visibility = View.GONE
-                binding.tvVideo1.visibility = View.GONE
-                binding.tvVideo2.visibility = View.GONE
-                binding.ivCoinAudio.visibility = View.GONE
-                binding.ivCoinVideo.visibility = View.GONE
-
-                hideDimBackground()
-
-                // Reset the bg color to blue when collapsed
-                binding.fabRandom.backgroundTintList = resources.getColorStateList(R.color.blue)
-
-                // Reset the icon tint to white
-                binding.fabRandom.setIconTintResource(R.color.white)
-                
-                // Reset text color to white
-                binding.fabRandom.setTextColor(resources.getColor(R.color.white, null))
-
-                // Change the icon to random when collapsed
-                binding.fabRandom.setIconResource(R.drawable.random)
-                binding.fabRandom.extend()
-                
-                isAllFabVisible = false
+                collapseFabMenu()
             }
         }
+
+        // CHAT-101: tapping the dim collapses the FAB speed-dial. Combined with
+        // the layout-side clickable=true, this also stops touches from leaking
+        // through to the chat list / bottom nav while the menu is open.
+        binding.dimBackground.setOnClickListener {
+            if (isAllFabVisible) collapseFabMenu()
+        }
+    }
+
+    private fun collapseFabMenu() {
+        if (!isAllFabVisible) return
+        binding.fabAudio.hide()
+        binding.fabVideo.hide()
+        binding.tvAudio1.visibility = View.GONE
+        binding.tvAudio2.visibility = View.GONE
+        binding.tvVideo1.visibility = View.GONE
+        binding.tvVideo2.visibility = View.GONE
+        binding.ivCoinAudio.visibility = View.GONE
+        binding.ivCoinVideo.visibility = View.GONE
+
+        hideDimBackground()
+
+        // Reset the bg color to blue when collapsed
+        binding.fabRandom.backgroundTintList = resources.getColorStateList(R.color.blue)
+
+        // Reset the icon tint to white
+        binding.fabRandom.setIconTintResource(R.color.white)
+
+        // Reset text color to white
+        binding.fabRandom.setTextColor(resources.getColor(R.color.white, null))
+
+        // Change the icon to random when collapsed
+        binding.fabRandom.setIconResource(R.drawable.random)
+        binding.fabRandom.extend()
+
+        isAllFabVisible = false
     }
 
     private fun showDimBackground() {
