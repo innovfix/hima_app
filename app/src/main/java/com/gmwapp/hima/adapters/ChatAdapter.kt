@@ -6,6 +6,8 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
+import android.text.method.LinkMovementMethod
+import android.text.util.Linkify
 import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -515,6 +517,15 @@ class ChatAdapter(
                 layoutReplyQuote.setOnClickListener(null)
                 tvMessage.text = message.message
             }
+            // CHAT-048: auto-detect URLs / phone numbers / emails after setText.
+            // LinkMovementMethod lets taps open browser/dialer/mail; long-press
+            // still bubbles up to the bubble's long-click handler.
+            Linkify.addLinks(
+                tvMessage,
+                Linkify.WEB_URLS or Linkify.PHONE_NUMBERS or Linkify.EMAIL_ADDRESSES
+            )
+            tvMessage.movementMethod = LinkMovementMethod.getInstance()
+            tvMessage.setLinkTextColor(Color.parseColor("#880E4F"))
             tvTime.text = message.timestamp
             bindReaction(tvReaction, message)
             bindLongClick(tvMessage, itemView) { bindingAdapterPosition }
