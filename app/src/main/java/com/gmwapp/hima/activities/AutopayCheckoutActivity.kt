@@ -28,9 +28,6 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.utils.SubscriptionStateCache
 import com.gmwapp.hima.viewmodels.AutopayViewModel
 import com.google.android.material.button.MaterialButton
-import com.appsflyer.AppsFlyerLib
-import com.facebook.appevents.AppEventsConstants
-import com.facebook.appevents.AppEventsLogger
 import dagger.hilt.android.AndroidEntryPoint
 
 /**
@@ -174,14 +171,26 @@ class AutopayCheckoutActivity : AppCompatActivity(), CFSubscriptionResponseCallb
             SubscriptionStateCache.update(data)
             if (data.is_active && !checkoutComplete) {
                 checkoutComplete = true
-                // 2026-05-26 — marketing's StartTrial event. Fires here
-                // (and ONLY here) so it represents an actual completed
-                // payment, not just intent. Mirrors initial_checkout
-                // pattern in MainActivity: same event on FB + AppsFlyer
-                // + Firebase + our backend so every marketing dashboard
-                // sees it. Guarded by !checkoutComplete so the observer
-                // re-firing on rotation can't double-count.
-                fireStartTrialEventsAllPlatforms()
+                // 3 marketing platforms (Meta StartTrial, AppsFlyer
+                // af_start_trial, Firebase start_trial) fire centrally from
+                // SubscriptionStateCache.update() above on the inactive->active
+                // transition — robust to this activity getting killed during
+                // the Cashfree flow. Backend funnel event ("trial_activated"
+                // → /autopay-events admin) fires here best-effort: only if
+                // the activity survives, since SubscriptionStateCache is a
+                // singleton object and can't reach the @Inject'd ApiManager.
+                try {
+                    com.gmwapp.hima.utils.AutopayEventTracker.track(
+                        apiManager,
+                        "trial_activated",
+                        mapOf(
+                            "plan_type" to planType,
+                            "language" to (BaseApplication.getInstance()?.getPrefs()?.getUserData()?.language ?: ""),
+                        )
+                    )
+                } catch (t: Throwable) {
+                    Log.w("BackendEvent", "Backend trial_activated failed: ${t.message}")
+                }
                 Toast.makeText(this, "Autopay active. Enjoy!", Toast.LENGTH_SHORT).show()
                 finish()
             } else if (checkoutLaunched && !data.is_active) {
@@ -324,76 +333,6 @@ class AutopayCheckoutActivity : AppCompatActivity(), CFSubscriptionResponseCallb
         // have flipped state if the user actually completed and then
         // dismissed the SDK. onResume polls status and closes us if so.
         showFailure("Payment didn't go through", msg)
-    }
-
-    /**
-     * Fire-and-forget marketing event: paid trial activated. Sent on
-     * Facebook, AppsFlyer, Firebase, and our own backend in parallel.
-     * Each platform wrapped in try/catch so one SDK's failure doesn't
-     * block the others, and none can crash the checkout flow.
-     */
-    private fun fireStartTrialEventsAllPlatforms() {
-        val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
-        val language = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.language
-        val priceForPlan = if (planType == PLAN_DIRECT_OLD) 299.0 else 1.0
-
-        // 1. Facebook (Meta) — what marketing was checking in Events Manager
-        try {
-            val fbParams = Bundle().apply {
-                putString(AppEventsConstants.EVENT_PARAM_CURRENCY, "INR")
-                putDouble(AppEventsConstants.EVENT_PARAM_VALUE_TO_SUM, priceForPlan)
-                putString("plan_type", planType)
-                putString("language", language ?: "")
-                putString("user_id", "${userId ?: ""}")
-            }
-            AppEventsLogger.newLogger(this).logEvent(
-                AppEventsConstants.EVENT_NAME_START_TRIAL,
-                priceForPlan,
-                fbParams
-            )
-        } catch (t: Throwable) {
-            Log.w("FB_Event", "Meta StartTrial failed: ${t.message}")
-        }
-
-        // 2. AppsFlyer
-        try {
-            val afParams = HashMap<String, Any>()
-            afParams["af_price"] = "$priceForPlan"
-            afParams["af_currency"] = "INR"
-            afParams["plan_type"] = planType
-            afParams["language"] = language ?: ""
-            AppsFlyerLib.getInstance().logEvent(this, "af_start_trial", afParams)
-        } catch (t: Throwable) {
-            Log.w("AF_Event", "AppsFlyer start_trial failed: ${t.message}")
-        }
-
-        // 3. Firebase Analytics / Google Analytics 4
-        try {
-            val firebaseBundle = Bundle().apply {
-                putString("plan_type", planType)
-                putString("language", language ?: "")
-                putString("user_id", "${userId ?: ""}")
-                putDouble("price", priceForPlan)
-            }
-            BaseApplication.firebaseAnalytics.logEvent("start_trial", firebaseBundle)
-        } catch (t: Throwable) {
-            Log.w("FB_Analytics", "Firebase start_trial failed: ${t.message}")
-        }
-
-        // 4. Our own backend — funnel view at /autopay-events admin
-        try {
-            com.gmwapp.hima.utils.AutopayEventTracker.track(
-                apiManager,
-                "trial_activated",
-                mapOf(
-                    "plan_type" to planType,
-                    "language" to (language ?: ""),
-                    "price" to priceForPlan,
-                )
-            )
-        } catch (t: Throwable) {
-            Log.w("BackendEvent", "Backend trial_activated failed: ${t.message}")
-        }
     }
 
     companion object {

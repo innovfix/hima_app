@@ -1020,8 +1020,21 @@ class BaseApplication : Application(), Configuration.Provider {
         // Listen for auth failures surfaced by the OkHttp interceptor (401 or a 302 to
         // /login). Without this, a stale bearer token leaves the user stuck — every API
         // silently fails and they'd have to clear app data to recover.
-        if (!EventBus.getDefault().isRegistered(this)) {
-            EventBus.getDefault().register(this)
+        //
+        // Try-catch around register: Google Play's Pairip anti-tamper hardening
+        // (com.pairip.application.Application) wraps the Application class on AAB
+        // distribution and breaks EventBus reflection — the @Subscribe method on
+        // BaseApplication becomes invisible, register() throws EventBusException, and
+        // the app fatal-crashes on every launch. Local APK installs don't hit Pairip,
+        // so the crash never reproduces in dev. Swallow the registration failure
+        // (graceful degradation: auto-logout-on-401 stops working on Pairip-wrapped
+        // builds, but the app still opens) instead of taking the whole app down.
+        try {
+            if (!EventBus.getDefault().isRegistered(this)) {
+                EventBus.getDefault().register(this)
+            }
+        } catch (t: Throwable) {
+            Log.w("BaseApp", "EventBus register skipped: ${t.message}")
         }
 
         refreshLanguageFeatureFlag()
