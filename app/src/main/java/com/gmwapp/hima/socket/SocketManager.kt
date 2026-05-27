@@ -105,6 +105,15 @@ class SocketManager private constructor() {
     val messagesRead: SharedFlow<MessagesReadEvent> = _messagesRead.asSharedFlow()
 
     /**
+     * Real-time peer-presence updates: fires every time a user joins or
+     * leaves a chat room they share with us, so the chat header can flip
+     * between "Online" and "Last seen just now" without waiting for the
+     * next chat_history refresh.
+     */
+    private val _presenceUpdates = eventFlow<PresenceEvent>()
+    val presenceUpdates: SharedFlow<PresenceEvent> = _presenceUpdates.asSharedFlow()
+
+    /**
      * Connect to Socket.IO server using userId
      * After connection, automatically joins user room
      * Thread-safe: prevents multiple simultaneous connection attempts
@@ -562,6 +571,34 @@ class SocketManager private constructor() {
                 }
             }
 
+            on("user_joined_chat") { args ->
+                try {
+                    val payload = args.firstOrNull() as? JSONObject ?: return@on
+                    val userId = payload.optInt("user_id", -1).takeIf { it > 0 } ?: return@on
+                    val chatIdVal = payload.optString("chat_id", "")
+                    _presenceUpdates.tryEmit(
+                        PresenceEvent(userId = userId, chatId = chatIdVal, online = true, lastActiveAt = null)
+                    )
+                    Log.d("Presence", "user_joined_chat user=$userId chat=$chatIdVal")
+                } catch (e: Exception) {
+                    Log.e("Presence", "user_joined_chat parse failed: ${e.message}")
+                }
+            }
+
+            on("user_left_chat") { args ->
+                try {
+                    val payload = args.firstOrNull() as? JSONObject ?: return@on
+                    val userId = payload.optInt("user_id", -1).takeIf { it > 0 } ?: return@on
+                    val chatIdVal = payload.optString("chat_id", "")
+                    _presenceUpdates.tryEmit(
+                        PresenceEvent(userId = userId, chatId = chatIdVal, online = false, lastActiveAt = null)
+                    )
+                    Log.d("Presence", "user_left_chat user=$userId chat=$chatIdVal")
+                } catch (e: Exception) {
+                    Log.e("Presence", "user_left_chat parse failed: ${e.message}")
+                }
+            }
+
             on("messages_read") { args ->
                 try {
                     val payload = args.firstOrNull() as? JSONObject ?: return@on
@@ -859,6 +896,20 @@ data class ReactionUpdateEvent(
     val userId: Int,
     val reactionEmoji: String?,
     val allReactions: List<Map<String, Any>>?  // Array of {user_id, reaction_emoji}
+)
+
+/**
+ * Real-time peer presence change. `online=true` fires when the peer joins
+ * the chat room (they opened our chat); `online=false` fires when they
+ * leave or disconnect. `lastActiveAt` is currently always null from server
+ * — the chat header treats offline as "Last seen just now" since the
+ * timestamp is effectively now() at the moment of disconnect.
+ */
+data class PresenceEvent(
+    val userId: Int,
+    val chatId: String,
+    val online: Boolean,
+    val lastActiveAt: String?
 )
 
 data class MessagesReadEvent(

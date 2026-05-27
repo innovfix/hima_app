@@ -2270,6 +2270,30 @@ class ChatActivityInHouse : AppCompatActivity() {
         }
     }
 
+    /**
+     * Real-time presence push from socket. When peer joins this chat
+     * (`user_joined_chat`) → "Online" + green dot. When peer leaves or
+     * disconnects (`user_left_chat`) → "Last seen just now" + grey. The
+     * snapshot path [updateOnlineStatusFromAPI] still owns the initial
+     * render from chat_history; this just keeps it fresh after that.
+     */
+    private fun applyLivePresence(online: Boolean) {
+        mainHandler.post {
+            if (!isUiSafe()) return@post
+            if (online) {
+                tvUserStatus.text = "Online"
+                tvUserStatus.visibility = View.VISIBLE
+                tvUserStatus.setTextColor(ContextCompat.getColor(this, R.color.online_green))
+                vOnlineIndicator.visibility = View.VISIBLE
+            } else {
+                tvUserStatus.text = "Last seen just now"
+                tvUserStatus.visibility = View.VISIBLE
+                tvUserStatus.setTextColor(ContextCompat.getColor(this, R.color.grey_medium))
+                vOnlineIndicator.visibility = View.GONE
+            }
+        }
+    }
+
     private fun observeSocketEvents() {
         lifecycleScope.launch {
             socketManager.isConnected.collectLatest { connected ->
@@ -2382,6 +2406,20 @@ class ChatActivityInHouse : AppCompatActivity() {
                 if (reactionUpdate.chatId == chatId) {
                     handleIncomingReaction(reactionUpdate)
                 }
+            }
+        }
+
+        // CHAT-095 follow-up: real-time peer presence. When the peer joins
+        // this chat their socket fires `user_joined_chat` → flip header to
+        // "Online". When they leave / disconnect → "Last seen just now".
+        // Falls back to the snapshot value from chat_history if the event
+        // never arrives.
+        lifecycleScope.launch {
+            socketManager.presenceUpdates.collect { event ->
+                if (!isUiSafe()) return@collect
+                if (event.userId != peerUserId) return@collect
+                if (event.chatId.isNotEmpty() && event.chatId != chatId) return@collect
+                applyLivePresence(event.online)
             }
         }
 
