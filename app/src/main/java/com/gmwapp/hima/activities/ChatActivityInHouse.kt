@@ -749,8 +749,22 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun attachSwipeToReply() {
+        // CHAT-091: allow BOTH directions in the constructor so we can route
+        // sent rows to START (left-swipe — bubble has room to slide away from
+        // the right edge) and received rows to END (right-swipe — bubble
+        // slides toward the center, away from the left edge). The previous
+        // END-only handler silently fired for sent bubbles too, but the row
+        // could not visually translate so the user never saw any motion.
+        val replyIcon = androidx.core.content.ContextCompat.getDrawable(this, R.drawable.ic_reply)
+        val replyIconSizePx = (24f * resources.displayMetrics.density).toInt()
+        val replyIconPaddingPx = (16f * resources.displayMetrics.density).toInt()
+        val replyIconTint = androidx.core.content.ContextCompat.getColor(this, R.color.colorAccent)
+
         ItemTouchHelper(
-            object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.END) {
+            object : ItemTouchHelper.SimpleCallback(
+                0,
+                ItemTouchHelper.START or ItemTouchHelper.END
+            ) {
                 override fun onMove(
                     recyclerView: RecyclerView,
                     viewHolder: RecyclerView.ViewHolder,
@@ -765,7 +779,8 @@ class ChatActivityInHouse : AppCompatActivity() {
                     if (pos == RecyclerView.NO_POSITION) return 0
                     val msg = messages.getOrNull(pos)
                     if (msg == null || msg.isDateHeader || msg.isDeleted || isPendingMessage(msg)) return 0
-                    return super.getSwipeDirs(recyclerView, viewHolder)
+                    // CHAT-091: sent bubbles swipe LEFT (START), received swipe RIGHT (END).
+                    return if (msg.isSentByMe) ItemTouchHelper.START else ItemTouchHelper.END
                 }
 
                 override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
@@ -777,6 +792,50 @@ class ChatActivityInHouse : AppCompatActivity() {
                         }
                         chatAdapter.notifyItemChanged(pos)
                     }
+                }
+
+                /**
+                 * CHAT-091: WhatsApp-style fade-in reply-icon hint anchored to
+                 * the row edge **opposite** the swipe direction — so as the
+                 * bubble slides away, the icon is revealed underneath. Icon
+                 * alpha ramps 0→255 over the first quarter of the row's width.
+                 */
+                override fun onChildDraw(
+                    c: android.graphics.Canvas,
+                    recyclerView: RecyclerView,
+                    viewHolder: RecyclerView.ViewHolder,
+                    dX: Float,
+                    dY: Float,
+                    actionState: Int,
+                    isCurrentlyActive: Boolean
+                ) {
+                    if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE && replyIcon != null) {
+                        val pos = viewHolder.bindingAdapterPosition
+                        val msg = if (pos != RecyclerView.NO_POSITION) messages.getOrNull(pos) else null
+                        if (msg != null && !msg.isDateHeader && !msg.isDeleted && !isPendingMessage(msg)) {
+                            val itemView = viewHolder.itemView
+                            val threshold = itemView.width / 4f
+                            val progress = (kotlin.math.abs(dX) / threshold).coerceIn(0f, 1f)
+                            val alpha = (progress * 255f).toInt()
+                            val centerY = itemView.top + itemView.height / 2
+                            val iconTop = centerY - replyIconSizePx / 2
+                            val iconLeft = if (msg.isSentByMe) {
+                                // Bubble slides LEFT — reveal icon at right edge.
+                                itemView.right - replyIconPaddingPx - replyIconSizePx
+                            } else {
+                                // Bubble slides RIGHT — reveal icon at left edge.
+                                itemView.left + replyIconPaddingPx
+                            }
+                            replyIcon.setBounds(
+                                iconLeft, iconTop,
+                                iconLeft + replyIconSizePx, iconTop + replyIconSizePx
+                            )
+                            replyIcon.alpha = alpha
+                            androidx.core.graphics.drawable.DrawableCompat.setTint(replyIcon, replyIconTint)
+                            replyIcon.draw(c)
+                        }
+                    }
+                    super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
                 }
             }
         ).attachToRecyclerView(rvMessages)
