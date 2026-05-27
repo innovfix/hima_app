@@ -266,24 +266,54 @@ class ChatListAdapter(
             // don't appear as "No messages yet" when the text body is empty.
             // When the peer is blocked, override the preview entirely so the
             // row reads as a blocked thread at a glance.
-            binding.tvLastMessage.text = if (isBlocked) {
-                activity.getString(R.string.chat_blocked_preview)
-            } else when (conversation.lastMessageType.lowercase()) {
-                "image" -> activity.getString(R.string.chat_preview_photo)
-                "audio" -> activity.getString(R.string.chat_preview_voice)
-                "video" -> activity.getString(R.string.chat_preview_video)
-                "file" -> activity.getString(R.string.chat_preview_file)
-                else -> if (conversation.lastMessage.isNotEmpty())
-                    conversation.lastMessage
-                else
-                    if (conversation.lastMessageType.equals("text", ignoreCase = true)) {
-                        activity.getString(R.string.chat_preview_no_messages)
-                    } else {
-                        activity.getString(R.string.chat_preview_unsupported)
-                    }
+            //
+            // CHAT-108: drafts win over the last-message preview (except on
+            // blocked threads where we keep the "you blocked this user" copy).
+            // Rendered as a brand-pink italic "Draft:" prefix followed by the
+            // draft text — same pattern WhatsApp uses.
+            val peerIdInt = conversation.userId.toIntOrNull() ?: 0
+            val draft = if (!isBlocked && peerIdInt > 0)
+                com.gmwapp.hima.utils.ChatDraftStore.get(activity, peerIdInt)
+            else ""
+            if (draft.isNotBlank()) {
+                val prefix = activity.getString(R.string.chat_list_draft_prefix)
+                val full = "$prefix $draft"
+                val span = android.text.SpannableStringBuilder(full)
+                val pink = ContextCompat.getColor(activity, R.color.colorAccent)
+                span.setSpan(
+                    android.text.style.ForegroundColorSpan(pink),
+                    0, prefix.length,
+                    android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+                )
+                span.setSpan(
+                    android.text.style.StyleSpan(android.graphics.Typeface.ITALIC),
+                    0, full.length,
+                    android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+                )
+                binding.tvLastMessage.text = span
+            } else {
+                binding.tvLastMessage.text = if (isBlocked) {
+                    activity.getString(R.string.chat_blocked_preview)
+                } else when (conversation.lastMessageType.lowercase()) {
+                    "image" -> activity.getString(R.string.chat_preview_photo)
+                    "audio" -> activity.getString(R.string.chat_preview_voice)
+                    "video" -> activity.getString(R.string.chat_preview_video)
+                    "file" -> activity.getString(R.string.chat_preview_file)
+                    else -> if (conversation.lastMessage.isNotEmpty())
+                        conversation.lastMessage
+                    else
+                        if (conversation.lastMessageType.equals("text", ignoreCase = true)) {
+                            activity.getString(R.string.chat_preview_no_messages)
+                        } else {
+                            activity.getString(R.string.chat_preview_unsupported)
+                        }
+                }
             }
 
-            if (conversation.lastMessageSentByMe && !isBlocked) {
+            // CHAT-108: hide the delivery tick when a draft is showing — the tick
+            // would refer to the last sent message, which the draft preview is
+            // hiding anyway, so the icon makes no sense next to "Draft: …".
+            if (conversation.lastMessageSentByMe && !isBlocked && draft.isBlank()) {
                 binding.ivLastMessageTick.visibility = View.VISIBLE
                 if (conversation.lastMessageIsRead) {
                     binding.ivLastMessageTick.setImageResource(R.drawable.ic_chat_double_check)

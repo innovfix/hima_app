@@ -1138,6 +1138,11 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             }
         }
 
+        // CHAT-108: immediately re-bind so a draft just saved in
+        // ChatActivityInHouse.onPause surfaces its "Draft: …" tag here right
+        // away, not after the async loadMyChats round-trip.
+        if (filterType == "my_chats") homeMyChatsAdapter?.notifyDataSetChanged()
+
         refreshCoinsDisplayFromCache()
         refreshPremiumCrown()
         maybeShowDailyCoinsDialog()

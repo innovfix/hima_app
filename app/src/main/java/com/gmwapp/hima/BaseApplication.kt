@@ -1050,6 +1050,9 @@ class BaseApplication : Application(), Configuration.Provider {
             com.gmwapp.hima.utils.PinnedChatsPrefsHelper.clearAll(this)
             com.gmwapp.hima.utils.BlockedPeersPrefsHelper.clearAll(this)
             com.gmwapp.hima.utils.ChatNotificationStore.clearAll(this)
+            // CHAT-108: drop any persisted composer drafts on clear_data /
+            // logout so a fresh login never sees the previous user's drafts.
+            com.gmwapp.hima.utils.ChatDraftStore.clearAll(this)
         }
         // Drop the throttle so the next login fires the heartbeat immediately.
         runCatching { activeStatusReporter.reset() }

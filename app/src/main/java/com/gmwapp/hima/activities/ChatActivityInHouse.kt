@@ -497,11 +497,18 @@ class ChatActivityInHouse : AppCompatActivity() {
 
         // T25: restore composer state — draft text immediately; reply target after
         // [loadMessages] succeeds (the original message is needed for `beginReplyTo`).
-        savedInstanceState?.getString(STATE_DRAFT_TEXT)?.let { draft ->
-            if (draft.isNotEmpty()) {
-                etMessage.setText(draft)
-                etMessage.setSelection(draft.length.coerceAtMost(etMessage.text?.length ?: 0))
-            }
+        // CHAT-108: prefer the savedInstanceState bundle (fresher; covers active
+        // unsaved typing through a config change); fall back to the persistent
+        // SharedPrefs draft so cold restarts / chat switches also restore.
+        val bundleDraft = savedInstanceState?.getString(STATE_DRAFT_TEXT)
+        val draftToApply = if (!bundleDraft.isNullOrEmpty()) {
+            bundleDraft
+        } else if (peerUserId > 0) {
+            com.gmwapp.hima.utils.ChatDraftStore.get(this, peerUserId)
+        } else ""
+        if (draftToApply.isNotEmpty()) {
+            etMessage.setText(draftToApply)
+            etMessage.setSelection(draftToApply.length.coerceAtMost(etMessage.text?.length ?: 0))
         }
         pendingRestoreReplyId = savedInstanceState?.getString(STATE_REPLY_ID)
 
@@ -3196,6 +3203,9 @@ class ChatActivityInHouse : AppCompatActivity() {
         // Clear input immediately
         etMessage.setText("")
         etMessage.requestFocus()
+        // CHAT-108: the typed text was just shipped — drop the persisted draft
+        // so the next chat open / list-row preview doesn't resurrect it.
+        if (peerUserId > 0) com.gmwapp.hima.utils.ChatDraftStore.clear(this, peerUserId)
 
         // Show message optimistically (WhatsApp style - add to bottom)
         val currentTime = Date()
@@ -4184,6 +4194,16 @@ class ChatActivityInHouse : AppCompatActivity() {
         isChatVisible = false
         // T11: prefs-backed clear so cross-process readers also see "no chat open".
         com.gmwapp.hima.utils.ActiveChatTracker.clear(this)
+
+        // CHAT-108: persist composer draft so it survives switching chats,
+        // backgrounding, and cold restarts (savedInstanceState only covers
+        // rotations / short process-recovery). Blank text auto-removes the
+        // entry via ChatDraftStore.save's eviction path.
+        if (peerUserId > 0) {
+            com.gmwapp.hima.utils.ChatDraftStore.save(
+                this, peerUserId, etMessage.text?.toString()
+            )
+        }
 
         if (chatRefreshReceiverRegistered) {
             runCatching { unregisterReceiver(chatRefreshReceiver) }

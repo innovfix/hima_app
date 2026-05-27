@@ -184,6 +184,13 @@ class FriendsTabFragment : Fragment() {
             // Refresh chat conversations from API
             Log.d("FriendsTab", "💬 Chat tab resumed - refreshing chat conversations")
             loadChatConversations()
+            // CHAT-108: immediately re-bind the in-memory rows so any draft
+            // that was just persisted in ChatActivityInHouse.onPause shows its
+            // "Draft: …" tag now, not after the async loadChatConversations
+            // round-trip returns.
+            if (::chatAdapter.isInitialized) {
+                chatAdapter.notifyDataSetChanged()
+            }
             // Realtime: subscribe to push-driven list refresh + socket new_message
             // so a new push or live socket event reorders / increments the row
             // without waiting for the 30s poll.

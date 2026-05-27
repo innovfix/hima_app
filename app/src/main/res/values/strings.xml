@@ -75,6 +75,9 @@
     <string name="chat_unpinned_toast">Chat unpinned</string>
     <string name="chat_pin_limit_reached">You can pin up to 3 chats</string>
     <string name="chat_preview_no_messages">No messages yet</string>
+    <!-- CHAT-108: "Draft:" prefix on the chat list preview when the user has
+         an unsent message in that thread. Rendered in brand pink italic. -->
+    <string name="chat_list_draft_prefix">Draft:</string>
     <string name="chat_preview_photo">📷 Photo</string>
     <string name="chat_preview_voice">🎤 Voice message</string>
     <string name="chat_preview_video">Video</string>

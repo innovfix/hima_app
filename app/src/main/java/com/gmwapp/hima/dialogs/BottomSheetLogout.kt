@@ -108,6 +108,8 @@ class BottomSheetLogout : BottomSheetDialogFragment() {
             com.gmwapp.hima.utils.PinnedChatsPrefsHelper.clearAll(ctx)
             com.gmwapp.hima.utils.BlockedPeersPrefsHelper.clearAll(ctx)
             com.gmwapp.hima.utils.ChatNotificationStore.clearAll(ctx)
+            // CHAT-108: clear persisted composer drafts on logout too.
+            com.gmwapp.hima.utils.ChatDraftStore.clearAll(ctx)
         }
         val hostActivity = activity ?: return
         val intent = Intent(hostActivity, NewLoginActivity::class.java).apply {
