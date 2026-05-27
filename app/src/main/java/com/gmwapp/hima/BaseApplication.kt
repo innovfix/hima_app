@@ -833,12 +833,27 @@ class BaseApplication : Application(), Configuration.Provider {
                                 }
                                 startActivity(intent)
                             } else {
+                                // Male users see their chats in Home → My Chats
+                                // filter (HomeFragment defaults filterType="my_chats").
+                                // The bottom-nav has no chat tab for males, so
+                                // landing on Home matches what they'd reach by
+                                // tapping the Home icon manually. Previous
+                                // standalone ChatListActivity fallback dropped
+                                // them onto an isolated "Messages" screen with
+                                // no bottom nav.
                                 Log.w(
                                     "OneSignalClick",
-                                    "message notification missing peer user id — opening ChatListActivity. Payload: $data"
+                                    "message notification missing peer user id — male user, routing to MainActivity Home tab. Payload: $data"
                                 )
-                                val intent = Intent(applicationContext, ChatListActivity::class.java).apply {
+                                val intent = Intent(
+                                    applicationContext,
+                                    com.gmwapp.hima.activities.MainActivity::class.java
+                                ).apply {
                                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                                    putExtra(
+                                        com.gmwapp.hima.activities.MainActivity.EXTRA_TARGET_TAB,
+                                        com.gmwapp.hima.R.id.home
+                                    )
                                 }
                                 startActivity(intent)
                             }
