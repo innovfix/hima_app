@@ -28,23 +28,29 @@
         android:layout_marginStart="8dp"
         android:orientation="vertical">
 
+        <!-- CHAT-088: width=match_parent + singleLine prevents the
+             vertical-letters failure mode some OEM skins (MIUI / ColorOS /
+             OneUI) hit when wrap_content snippet sits inside a
+             0dp+weight=1 column whose grandparent is itself wrap_content. -->
         <TextView
             android:id="@+id/tv_reply_quote_author"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="12sp"
             android:textStyle="bold"
             android:textColor="@color/chat_reply_quote_author"
-            android:maxLines="2"
+            android:singleLine="true"
+            android:maxLines="1"
             android:ellipsize="end"
             android:fontFamily="@font/poppins_semibold" />
 
         <TextView
             android:id="@+id/tv_reply_quote_snippet"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="12sp"
             android:textColor="@color/chat_reply_quote_snippet"
+            android:singleLine="true"
             android:maxLines="1"
             android:ellipsize="end"
             android:fontFamily="@font/poppins_regular" />
