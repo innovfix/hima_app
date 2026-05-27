@@ -803,6 +803,15 @@ class ChatActivityInHouse : AppCompatActivity() {
                         val msg = messages.getOrNull(pos)
                         if (msg != null && !msg.isDateHeader && !msg.isDeleted && !isPendingMessage(msg)) {
                             beginReplyTo(msg)
+                            // CHAT-091 follow-up: opening the reply preview +
+                            // keyboard shrinks the RecyclerView; with
+                            // stackFromEnd=true that scrolls older messages
+                            // off the top, including the one the user just
+                            // swiped. WhatsApp keeps the swiped message
+                            // visible just above the reply preview — match
+                            // that by scrolling back to the swiped position
+                            // once the keyboard has settled.
+                            keepSwipedMessageVisible(pos)
                         }
                         chatAdapter.notifyItemChanged(pos)
                     }
@@ -1093,6 +1102,36 @@ class ChatActivityInHouse : AppCompatActivity() {
         val imm = getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
             as? android.view.inputmethod.InputMethodManager
         imm?.showSoftInput(etMessage, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    /**
+     * CHAT-091 follow-up: keep the swiped message visible above the reply
+     * preview after a swipe-to-reply. The RecyclerView is stackFromEnd=true
+     * so the bottom is anchored; when the reply preview + keyboard appear
+     * the list shrinks and older messages scroll off the top, including the
+     * one the user just swiped (testers reported this as "messages
+     * disappeared"). Scrolling back to the swiped position with an offset
+     * places it just above the preview, matching WhatsApp's behavior.
+     *
+     * Two-stage post handles the timing race with the IME: the first post
+     * fires after the reply-preview layout pass, the second 300ms later
+     * after the soft keyboard has finished animating in.
+     */
+    private fun keepSwipedMessageVisible(pos: Int) {
+        if (pos < 0) return
+        val scroll = Runnable {
+            if (!isUiSafe()) return@Runnable
+            val lm = rvMessages.layoutManager as? androidx.recyclerview.widget.LinearLayoutManager
+                ?: return@Runnable
+            if (pos !in messages.indices) return@Runnable
+            // Place the swiped message ~30% from the top of the visible area
+            // so it sits clearly above the reply preview without slamming
+            // into the chat header.
+            val offset = (rvMessages.height * 0.3f).toInt().coerceAtLeast(0)
+            lm.scrollToPositionWithOffset(pos, offset)
+        }
+        rvMessages.post(scroll)
+        rvMessages.postDelayed(scroll, 300L)
     }
 
     private fun showChatMessageContextMenu(anchor: View, message: ChatMessage, position: Int) {
