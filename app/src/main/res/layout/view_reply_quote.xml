@@ -5,11 +5,14 @@
      ellipsized snippet below. Included in item_message_sent.xml and
      item_message_received.xml; ChatAdapter toggles visibility and retints per side. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:background="@drawable/bg_reply_quote"
-    android:padding="6dp">
+    android:padding="6dp"
+    android:forceDarkAllowed="false"
+    tools:targetApi="q">
 
     <View
         android:id="@+id/v_reply_quote_strip"

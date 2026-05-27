@@ -521,12 +521,17 @@
                 android:textSize="13sp" />
         </LinearLayout>
 
+        <!-- CHAT-092: forceDarkAllowed=false + bumped text contrast so the
+             reply-being-composed preview stays readable on OEM skins that
+             ignore the app-theme force-dark opt-out and tint everything dark. -->
         <LinearLayout
             android:id="@+id/layout_reply_preview"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
             android:background="#F3F4F6"
+            android:forceDarkAllowed="false"
+            tools:targetApi="q"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingHorizontal="10dp"
@@ -550,7 +555,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/poppins_medium"
-                    android:textColor="#6B7280"
+                    android:textColor="#374151"
                     android:textSize="12sp" />
 
                 <TextView
@@ -560,7 +565,7 @@
                     android:ellipsize="end"
                     android:fontFamily="@font/poppins_regular"
                     android:maxLines="2"
-                    android:textColor="#374151"
+                    android:textColor="#111827"
                     android:textSize="14sp" />
             </LinearLayout>
 
@@ -572,7 +577,7 @@
                 android:contentDescription="@string/chat_reply_clear"
                 android:padding="8dp"
                 android:src="@drawable/baseline_close_24"
-                app:tint="#6B7280" />
+                app:tint="#374151" />
         </LinearLayout>
 
         <LinearLayout
