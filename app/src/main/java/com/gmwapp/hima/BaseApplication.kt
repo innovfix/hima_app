@@ -878,6 +878,38 @@ class BaseApplication : Application(), Configuration.Provider {
                         startActivity(intent)
                     }
 
+                    // CHAT-064: creator-is-online push. Backend currently sends
+                    // { screen: "DetailActivity", user_id: <creatorId>, audio_status, video_status }
+                    // with no `type` field, which is why this push used to fall
+                    // through to the MainActivity fallback below. Open the chat
+                    // thread with that creator instead so the tap lands on a
+                    // usable surface (toolbar self-fetches name + avatar).
+                    // `type == "creator_online"` is accepted for forward
+                    // compatibility if the backend later normalises the payload.
+                    else if (type == "creator_online" || data.optString("screen", "") == "DetailActivity") {
+                        val creatorId = data.optInt("user_id", 0)
+                        if (creatorId > 0) {
+                            Log.d("OneSignalClick", "✅ Opening ChatActivityInHouse for creator-online creatorId=$creatorId")
+                            val intent = Intent(applicationContext, ChatActivityInHouse::class.java).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                                putExtra("USER_ID", creatorId)
+                                putExtra("USER_NAME", "User")
+                                putExtra("USER_IMAGE", "")
+                            }
+                            startActivity(intent)
+                        } else {
+                            Log.w(
+                                "OneSignalClick",
+                                "creator-online push missing user_id — opening MainActivity. Payload: $data"
+                            )
+                            val intent = Intent(applicationContext, MainActivity::class.java).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                                putExtra("fromApplication", true)
+                            }
+                            startActivity(intent)
+                        }
+                    }
+
 
                     else{
 
