@@ -18,7 +18,7 @@
             android:id="@+id/bubble_container"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="14dp"
+            android:layout_marginBottom="6dp"
             android:minWidth="56dp"
             android:orientation="vertical"
             android:maxWidth="250dp"
