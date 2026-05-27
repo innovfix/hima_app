@@ -45,30 +45,41 @@ object SubscriptionStateCache {
         cachedIsNewUser = data.is_new_user
         lastFetchedMs = System.currentTimeMillis()
 
-        // Marketing's StartTrial event needs to fire whenever the user goes
-        // from inactive -> active, NOT only from AutopayCheckoutActivity. That
-        // activity can be killed by Android during the Cashfree Custom Tab
-        // redirect (especially Android 16); when the user returns they land
-        // on ChatActivity or HomeFragment, and the activity-side hook never
-        // fires. SubscriptionStateCache is a singleton object, survives
-        // activity destruction, and is called from EVERY subscription_status
-        // observer in the app, so firing here makes attribution robust.
-        if (firstObservation && (data.is_active || data.ever_active == true)) {
-            // Returning subscriber observed for the first time this app session.
-            // They didn't convert just now — they've been paying. Silence the
-            // per-user flag so a future inactive->active flap (e.g. billing
-            // retry succeeding) doesn't fire either; only NEW users
-            // transitioning for the first time should get attributed.
+        // Marketing's StartTrial event fires whenever we OBSERVE the user as
+        // active without having seen them as active before (this session). The
+        // SubscriptionStateCache is a singleton object that survives activity
+        // destruction and is called from EVERY subscription_status observer
+        // in the app (Home, Chat, AutopayCheckout, etc.), so firing here is
+        // robust to which activity ends up resuming after the Cashfree mandate
+        // completes.
+        //
+        // Per-user SharedPreferences flag ensures once-per-user-per-install
+        // idempotency — even if the user closes and reopens the app, the
+        // event won't double-fire for the same user/install.
+        //
+        // Re-subscriber handling: when subscription transitions active->inactive
+        // (cancellation or expiry), the per-user flag is CLEARED. Next time
+        // they re-subscribe, the flag is fresh and StartTrial fires again so
+        // marketing attributes the re-subscription revenue.
+        //
+        // Note: existing subscribers on their first v1103+ install will fire
+        // ONE false-attribution StartTrial each (they didn't convert just now,
+        // they've been paying). Trade-off accepted because earlier first-
+        // observation-skip prevented our testers (who were already subscribed
+        // from v1099 testing) from being able to verify the flow at all.
+        if (!wasActive && data.is_active) {
+            maybeFireStartTrialOnActivation()
+        } else if (wasActive && !data.is_active) {
+            // Subscription just lapsed/cancelled. Clear the per-user fired
+            // flag so a future re-subscription fires StartTrial again.
             val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
             if (userId != null) {
                 BaseApplication.getInstance()
                     ?.getSharedPreferences("autopay_marketing_events", Context.MODE_PRIVATE)
                     ?.edit()
-                    ?.putBoolean("start_trial_fired_$userId", true)
+                    ?.remove("start_trial_fired_$userId")
                     ?.apply()
             }
-        } else if (!wasActive && data.is_active) {
-            maybeFireStartTrialOnActivation()
         }
     }
 
