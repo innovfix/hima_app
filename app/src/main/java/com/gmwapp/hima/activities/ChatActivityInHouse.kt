@@ -304,6 +304,13 @@ class ChatActivityInHouse : AppCompatActivity() {
     private var hasMoreMessages = true
     private val MESSAGES_PER_PAGE = 10
 
+    // CHAT-084 follow-up: when a tapped reply's original isn't in the loaded
+    // window (only 10 load at a time), page older messages in and retry the
+    // scroll. These track the in-flight retry across pagination callbacks.
+    private var pendingReplyScrollMessageId: String? = null
+    private var pendingReplyScrollAttempts = 0
+    private val MAX_REPLY_SCROLL_PAGES = 25
+
     /** Latest wins for overlapping [getChatHistory] calls so an older response cannot replace a newer list. */
     private val historyLoadRequestId = AtomicInteger(0)
 
@@ -972,8 +979,13 @@ class ChatActivityInHouse : AppCompatActivity() {
      */
     private fun scrollToInlineReplyOriginal(message: ChatMessage) {
         val snippet = parseInlineReplySnippet(message.message) ?: return
+        // A fresh tap on a different reply resets the paging-retry counter.
+        if (pendingReplyScrollMessageId != message.id) {
+            pendingReplyScrollAttempts = 0
+        }
         val replyIndex = messages.indexOfFirst { it.id == message.id }
-        if (replyIndex <= 0) {
+        if (replyIndex < 0) {
+            clearPendingReplyScroll()
             android.widget.Toast.makeText(
                 this,
                 R.string.chat_reply_original_not_loaded,
@@ -1004,6 +1016,19 @@ class ChatActivityInHouse : AppCompatActivity() {
             }
         }
         if (targetIndex == -1) {
+            // Original isn't in the loaded window yet. Only 10 messages load at
+            // a time, so older originals are commonly just not paged in. Load
+            // older pages and retry (bounded) before giving up — WhatsApp does
+            // the same "jump to quoted message" load.
+            if (hasMoreMessages && !isLoadingMore &&
+                pendingReplyScrollAttempts < MAX_REPLY_SCROLL_PAGES
+            ) {
+                pendingReplyScrollMessageId = message.id
+                pendingReplyScrollAttempts++
+                loadMoreMessages()
+                return
+            }
+            clearPendingReplyScroll()
             android.widget.Toast.makeText(
                 this,
                 R.string.chat_reply_original_not_loaded,
@@ -1011,8 +1036,29 @@ class ChatActivityInHouse : AppCompatActivity() {
             ).show()
             return
         }
+        clearPendingReplyScroll()
         rvMessages.smoothScrollToPosition(targetIndex)
         scheduleReplyFlash(targetIndex)
+    }
+
+    private fun clearPendingReplyScroll() {
+        pendingReplyScrollMessageId = null
+        pendingReplyScrollAttempts = 0
+    }
+
+    /**
+     * Called after each pagination page lands. If a reply-tap is waiting for its
+     * original to be paged in, re-run the search now that more messages exist.
+     */
+    private fun maybeRetryPendingReplyScroll() {
+        val id = pendingReplyScrollMessageId ?: return
+        val msg = messages.firstOrNull { !it.isDateHeader && it.id == id }
+        if (msg == null) {
+            // The reply row itself fell out of the window — give up cleanly.
+            clearPendingReplyScroll()
+            return
+        }
+        scrollToInlineReplyOriginal(msg)
     }
 
     /**
@@ -3340,6 +3386,11 @@ class ChatActivityInHouse : AppCompatActivity() {
                         }
                     }
                     isLoadingMore = false
+                    // CHAT-084 follow-up: a reply-tap may be waiting for its
+                    // original to be paged in — retry the scroll now that this
+                    // page has landed. Posted so the adapter's notifyDataSetChanged
+                    // + scroll-restore settle first.
+                    rvMessages.post { maybeRetryPendingReplyScroll() }
                 }
 
                 override fun onFailure(call: Call<ChatHistoryResponse>, t: Throwable) {
