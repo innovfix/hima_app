@@ -88,6 +88,18 @@ class SocketManager private constructor() {
     private val _reactionUpdated = eventFlow<ReactionUpdateEvent>()
     val reactionUpdated: SharedFlow<ReactionUpdateEvent> = _reactionUpdated.asSharedFlow()
 
+    /** BUG 2: server tells the sender their messages up to N have been read live. */
+    private val _messagesRead = eventFlow<MessagesReadEvent>()
+    val messagesRead: SharedFlow<MessagesReadEvent> = _messagesRead.asSharedFlow()
+
+    /**
+     * BUG 3: presence change inside a specific chat — a peer joined / left this
+     * chat room, or the initial snapshot when WE joined. Drives the chat header
+     * "online" vs "last seen X" decision.
+     */
+    private val _chatPresence = eventFlow<ChatPresenceEvent>()
+    val chatPresence: SharedFlow<ChatPresenceEvent> = _chatPresence.asSharedFlow()
+
     /**
      * Emits the server-confirmed message id whenever a delete-for-everyone event
      * lands (either triggered by this user or by the peer). The UI flips the
@@ -454,10 +466,87 @@ class SocketManager private constructor() {
             on("joined_chat") { args ->
                 try {
                     val data = args[0] as? JSONObject
-                    val chatId = data?.optString("chat_id", "")
+                    val chatId = data?.optString("chat_id", "") ?: ""
                     Log.d("SocketIOCheck", "✅ Joined chat room: $chatId")
+                    // BUG 3: emit the snapshot of users already in the chat so the
+                    // header can decide "online" vs "last seen" right away.
+                    val usersArr = data?.optJSONArray("users_in_chat")
+                    val users = mutableListOf<Int>()
+                    if (usersArr != null) {
+                        for (i in 0 until usersArr.length()) {
+                            val u = usersArr.optJSONObject(i) ?: continue
+                            val uid = u.opt("user_id")
+                            val uidInt = when (uid) {
+                                is Number -> uid.toInt()
+                                is String -> uid.toIntOrNull() ?: 0
+                                else -> 0
+                            }
+                            if (uidInt > 0) users.add(uidInt)
+                        }
+                    }
+                    _chatPresence.tryEmit(
+                        ChatPresenceEvent(
+                            chatId = chatId,
+                            userId = 0,           // 0 = snapshot, not a specific change
+                            inChat = false,
+                            usersInChat = users,
+                            isSnapshot = true
+                        )
+                    )
                 } catch (e: Exception) {
                     Log.e("SocketIOCheck", "Error parsing joined_chat: ${e.message}", e)
+                }
+            }
+
+            on("user_joined_chat") { args ->
+                try {
+                    val data = args[0] as? JSONObject ?: return@on
+                    val chatId = data.optString("chat_id", "")
+                    val userId = data.optInt("user_id", 0)
+                    if (chatId.isNotEmpty() && userId > 0) {
+                        _chatPresence.tryEmit(
+                            ChatPresenceEvent(chatId = chatId, userId = userId, inChat = true)
+                        )
+                    }
+                } catch (e: Exception) {
+                    Log.e("SocketIOCheck", "Error parsing user_joined_chat: ${e.message}", e)
+                }
+            }
+
+            on("user_left_chat") { args ->
+                try {
+                    val data = args[0] as? JSONObject ?: return@on
+                    val chatId = data.optString("chat_id", "")
+                    val userId = data.optInt("user_id", 0)
+                    if (chatId.isNotEmpty() && userId > 0) {
+                        _chatPresence.tryEmit(
+                            ChatPresenceEvent(
+                                chatId = chatId,
+                                userId = userId,
+                                inChat = false,
+                                lastSeenAtMs = System.currentTimeMillis()
+                            )
+                        )
+                    }
+                } catch (e: Exception) {
+                    Log.e("SocketIOCheck", "Error parsing user_left_chat: ${e.message}", e)
+                }
+            }
+
+            on("messages_read") { args ->
+                try {
+                    val data = args[0] as? JSONObject ?: return@on
+                    val event = MessagesReadEvent(
+                        chatId = data.optString("chat_id", ""),
+                        lastMessageId = data.optLong("last_message_id", 0L),
+                        readerId = data.optInt("reader_id", 0)
+                    )
+                    if (event.chatId.isNotEmpty() && event.lastMessageId > 0L) {
+                        _messagesRead.tryEmit(event)
+                        Log.d("RealtimeChat", "messages_read RX chat=${event.chatId} upTo=${event.lastMessageId} reader=${event.readerId}")
+                    }
+                } catch (e: Exception) {
+                    Log.e("SocketIOCheck", "Error parsing messages_read: ${e.message}", e)
                 }
             }
             
@@ -707,18 +796,41 @@ class SocketManager private constructor() {
             Log.w("SocketIOCheck", "⚠️ Cannot send typing: Socket.IO not connected")
             return
         }
-        
+
         try {
             val data = JSONObject().apply {
                 put("chat_id", chatId)
                 put("is_typing", isTyping)
+                // BUG 6: include the typer's id so the server can broadcast it on
+                // and the receiver knows which user is typing.
+                currentUserId?.let { put("user_id", it) }
             }
             socket?.emit("typing", data)
         } catch (e: Exception) {
             Log.e("SocketIOCheck", "Error sending typing: ${e.message}", e)
         }
     }
-    
+
+    /**
+     * BUG 2: tell the server we (the receiver) have read all messages from
+     * [senderUserId] up to and including [messageId] in [chatId]. The server flips
+     * is_read in the DB and emits messages_read to the sender so their tick turns
+     * blue (READ) live.
+     */
+    fun sendReadAck(messageId: Long, senderUserId: Int, chatId: String) {
+        if (!isConnected() || messageId <= 0L || senderUserId <= 0) return
+        try {
+            val data = JSONObject().apply {
+                put("last_message_id", messageId)
+                put("sender_id", senderUserId)
+                put("chat_id", chatId)
+            }
+            socket?.emit("read_messages", data)
+        } catch (e: Exception) {
+            Log.e("SocketIOCheck", "Error sending read ack: ${e.message}", e)
+        }
+    }
+
     fun updateStatus(status: String) {
         if (!isConnected()) {
             Log.w("SocketIOCheck", "⚠️ Cannot update status: Socket.IO not connected")
@@ -808,5 +920,22 @@ data class TypingEvent(
     val chatId: String,
     val userId: Int,
     val isTyping: Boolean
+)
+
+// BUG 2: receiver has read messages up to [lastMessageId] in [chatId].
+data class MessagesReadEvent(
+    val chatId: String,
+    val lastMessageId: Long,
+    val readerId: Int
+)
+
+// BUG 3: a peer joined/left this chat room, or initial snapshot when WE joined.
+data class ChatPresenceEvent(
+    val chatId: String,
+    val userId: Int,                 // who changed (0 if snapshot)
+    val inChat: Boolean,             // is the peer currently inside this chat
+    val lastSeenAtMs: Long = 0L,     // when peer left (only when inChat=false)
+    val usersInChat: List<Int> = emptyList(), // for snapshot only
+    val isSnapshot: Boolean = false  // true = full snapshot from joined_chat
 )
 

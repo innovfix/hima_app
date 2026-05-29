@@ -30,6 +30,9 @@ data class ChatHistoryData(
     val hasMore: Boolean,
     @SerializedName("i_have_blocked_this_user")
     val iHaveBlockedThisUser: Boolean,
+    // BUG 5: peer has blocked me → on my side hide their online/last-seen.
+    @SerializedName("peer_blocked_me")
+    val peerBlockedMe: Boolean = false,
     val messages: List<ChatMessageApi>
 )
 

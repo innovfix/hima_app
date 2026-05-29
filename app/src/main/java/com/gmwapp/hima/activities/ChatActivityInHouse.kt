@@ -103,6 +103,9 @@ class ChatActivityInHouse : AppCompatActivity() {
         private const val STATE_REPLY_ID = "state_reply_id"
         private const val MAX_MESSAGE_LENGTH = 2000
 
+        /** Max photos a user can pick + send in one go. */
+        private const val MAX_PHOTOS_PER_PICK = 3
+
         /**
          * Skip the resume-time history reload if a populated list is already on
          * screen and the snapshot is younger than this. Live socket events / FCM
@@ -227,6 +230,25 @@ class ChatActivityInHouse : AppCompatActivity() {
     // Track if user is blocked
     private var iHaveBlockedThisUser: Boolean = false
 
+    // BUG 5: peer has blocked me → hide presence (online / last seen / typing).
+    private var peerBlockedMe: Boolean = false
+
+    // BUG 3: per-chat presence — true only while the peer is INSIDE this chat
+    // room. Goes false on user_left_chat / disconnect / never-joined.
+    private var peerInChat: Boolean = false
+
+    // BUG 6: peer is currently typing in this chat → header shows "typing…".
+    private var peerIsTyping: Boolean = false
+
+    // BUG 6: self-typing emit bookkeeping.
+    private var isTypingNotified: Boolean = false
+    private val typingStopRunnable = Runnable {
+        if (isTypingNotified) {
+            isTypingNotified = false
+            socketManager.sendTyping(chatId, false)
+        }
+    }
+
     /** Peer display name (for add-friend banner / toasts). */
     private var peerName: String = ""
 
@@ -336,11 +358,15 @@ class ChatActivityInHouse : AppCompatActivity() {
         }
     }
 
+    // Allow picking up to MAX_PHOTOS_PER_PICK photos in one go and send every one.
     private val imagePickerLauncher = registerForActivityResult(
-        ActivityResultContracts.PickVisualMedia()
-    ) { uri: Uri? ->
-        uri?.let { selectedUri ->
-            handlePickedImage(selectedUri)
+        ActivityResultContracts.PickMultipleVisualMedia(MAX_PHOTOS_PER_PICK)
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
+            if (uris.size > MAX_PHOTOS_PER_PICK) {
+                showAppToast("You can send up to $MAX_PHOTOS_PER_PICK photos at a time", Toast.LENGTH_SHORT)
+            }
+            handlePickedImages(uris.take(MAX_PHOTOS_PER_PICK))
         }
     }
 
@@ -1152,6 +1178,24 @@ class ChatActivityInHouse : AppCompatActivity() {
                     return
                 }
                 updateComposerActionState()
+                // BUG 6: emit "typing" while there's text in the box and the socket
+                // is connected; schedule an automatic "stop typing" after a short
+                // idle window so a stuck typing event always self-clears.
+                val hasText = !s.isNullOrEmpty()
+                if (hasText && socketManager.isConnected() && chatId.isNotEmpty()) {
+                    if (!isTypingNotified) {
+                        isTypingNotified = true
+                        socketManager.sendTyping(chatId, true)
+                    }
+                    mainHandler.removeCallbacks(typingStopRunnable)
+                    mainHandler.postDelayed(typingStopRunnable, 3500L)
+                } else if (isTypingNotified) {
+                    mainHandler.removeCallbacks(typingStopRunnable)
+                    isTypingNotified = false
+                    if (socketManager.isConnected() && chatId.isNotEmpty()) {
+                        socketManager.sendTyping(chatId, false)
+                    }
+                }
             }
         })
 
@@ -1228,24 +1272,40 @@ class ChatActivityInHouse : AppCompatActivity() {
     /** T44: guard so a rapid second pick doesn't spawn two optimistic rows / uploads. */
     private var isPreparingImage = false
 
-    private fun handlePickedImage(uri: Uri) {
+    /**
+     * Process EVERY selected photo (capped at [MAX_PHOTOS_PER_PICK]) in one
+     * coroutine — each image is compressed serially (avoids memory spikes) and
+     * gets its own optimistic row + upload, so a 3-photo pick sends all 3
+     * instead of just the first one.
+     */
+    private fun handlePickedImages(uris: List<Uri>) {
         if (!canSendMediaPayload()) return
+        if (uris.isEmpty()) return
+        // BUG 1: no internet → don't upload/optimistic anything.
+        if (!com.gmwapp.hima.utils.Helper.checkNetworkConnection()) {
+            showAppToast("No internet connection", Toast.LENGTH_SHORT)
+            return
+        }
         if (isPreparingImage) return
         isPreparingImage = true
 
         lifecycleScope.launch {
             try {
-                val compressedFile = withContext(Dispatchers.IO) {
-                    ImageCompressor.compress(this@ChatActivityInHouse, uri)
+                for (uri in uris) {
+                    try {
+                        val compressedFile = withContext(Dispatchers.IO) {
+                            ImageCompressor.compress(this@ChatActivityInHouse, uri)
+                        }
+                        val tempId = addOptimisticMediaMessage(
+                            messageType = "image",
+                            localAttachmentUrl = compressedFile.toURI().toString()
+                        )
+                        uploadAndSendAttachment(tempId, compressedFile, "image")
+                    } catch (e: Exception) {
+                        Log.e("ChatMedia", "Image prepare failed: ${e.message}", e)
+                        showAppToast(e.message ?: "Couldn't prepare an image", Toast.LENGTH_SHORT)
+                    }
                 }
-                val tempId = addOptimisticMediaMessage(
-                    messageType = "image",
-                    localAttachmentUrl = compressedFile.toURI().toString()
-                )
-                uploadAndSendAttachment(tempId, compressedFile, "image")
-            } catch (e: Exception) {
-                Log.e("ChatMedia", "Image prepare failed: ${e.message}", e)
-                showAppToast(e.message ?: "Couldn't prepare image", Toast.LENGTH_SHORT)
             } finally {
                 isPreparingImage = false
             }
@@ -1358,6 +1418,12 @@ class ChatActivityInHouse : AppCompatActivity() {
             val recordingResult = audioRecorderController.stop()
             isRecording = false
             setRecordingUiVisible(false)
+            // BUG 1: no internet → drop the recording, tell the user, don't upload.
+            if (!com.gmwapp.hima.utils.Helper.checkNetworkConnection()) {
+                recordingResult.file.delete()
+                showAppToast("No internet connection", Toast.LENGTH_SHORT)
+                return
+            }
             if (recordingResult.durationMs < 1000L) {
                 recordingResult.file.delete()
                 // T45: hint the gesture instead of just saying "too short" — short
@@ -1701,21 +1767,55 @@ class ChatActivityInHouse : AppCompatActivity() {
     
     private fun updateOnlineStatusFromAPI(lastOnlineStatus: String?) {
         this.lastOnlineStatus = lastOnlineStatus
+        renderPresenceHeader()
+    }
+
+    /**
+     * BUG 3 / 5 / 6: single source of truth for the chat header presence text and
+     * green dot. Picks the right state from the live signals:
+     *
+     *   - peer blocked me      → hide everything (no online, no last seen, no typing)
+     *   - peer is typing       → "typing…"
+     *   - peer is in this chat → "Online" + green dot
+     *   - else                 → formatted last_online_status from the API (may be empty)
+     *
+     * The PER-CHAT presence model means "Online" only appears while the peer is
+     * actually inside this chat room (joined_chat). The instant they leave (even
+     * for another chat) it flips back to "last seen X".
+     */
+    private fun renderPresenceHeader() {
         mainHandler.post {
             if (!isUiSafe()) return@post
-            // Show status only if it's not null or empty
-            if (!lastOnlineStatus.isNullOrEmpty()) {
-                tvUserStatus.text = formatLastOnlineStatus(lastOnlineStatus)
-                vOnlineIndicator.visibility = View.VISIBLE
-            } else {
-                // Hide status if null or empty
+
+            if (peerBlockedMe) {
                 tvUserStatus.text = ""
                 tvUserStatus.visibility = View.GONE
                 vOnlineIndicator.visibility = View.GONE
+                return@post
             }
 
-            // Removed: Update call buttons state based on online status
-            // Buttons are now controlled only by check_call_availability API response
+            when {
+                peerIsTyping -> {
+                    tvUserStatus.text = "typing…"
+                    tvUserStatus.visibility = View.VISIBLE
+                    vOnlineIndicator.visibility = View.VISIBLE
+                }
+                peerInChat -> {
+                    tvUserStatus.text = "Online"
+                    tvUserStatus.visibility = View.VISIBLE
+                    vOnlineIndicator.visibility = View.VISIBLE
+                }
+                !lastOnlineStatus.isNullOrEmpty() -> {
+                    tvUserStatus.text = formatLastOnlineStatus(lastOnlineStatus!!)
+                    tvUserStatus.visibility = View.VISIBLE
+                    vOnlineIndicator.visibility = View.GONE
+                }
+                else -> {
+                    tvUserStatus.text = ""
+                    tvUserStatus.visibility = View.GONE
+                    vOnlineIndicator.visibility = View.GONE
+                }
+            }
         }
     }
 
@@ -1865,6 +1965,63 @@ class ChatActivityInHouse : AppCompatActivity() {
                 }
                 chatAdapter.notifyItemChanged(idx)
                 Log.d("ChatDelete", "✅ Applied remote tombstone for id=$deletedId idx=$idx")
+            }
+        }
+
+        // BUG 2: live blue ticks — server tells me the peer has read up to N.
+        lifecycleScope.launch {
+            socketManager.messagesRead.collect { event ->
+                if (!isUiSafe()) return@collect
+                if (event.chatId != chatId) return@collect
+                // The reader is the peer; flip my own (sent-by-me) messages with
+                // id <= last_message_id to READ.
+                var changed = false
+                for (i in messages.indices) {
+                    val m = messages[i]
+                    if (m.isDateHeader || !m.isSentByMe) continue
+                    val idLong = m.id.toLongOrNull() ?: continue
+                    if (idLong > event.lastMessageId) continue
+                    if (m.deliveryStatus == MessageDeliveryStatus.READ) continue
+                    messages[i] = m.copy(deliveryStatus = MessageDeliveryStatus.READ)
+                    changed = true
+                }
+                if (changed) chatAdapter.notifyDataSetChanged()
+            }
+        }
+
+        // BUG 3: per-chat presence. Track whether the peer is currently inside
+        // this chat room — that drives "Online" vs "last seen X".
+        lifecycleScope.launch {
+            socketManager.chatPresence.collect { event ->
+                if (!isUiSafe()) return@collect
+                if (event.chatId != chatId) return@collect
+                val newInChat = when {
+                    event.isSnapshot -> event.usersInChat.contains(peerUserId)
+                    event.userId == peerUserId -> event.inChat
+                    else -> peerInChat // unrelated user (e.g. self) — keep state
+                }
+                if (newInChat != peerInChat) {
+                    peerInChat = newInChat
+                    // When the peer just left, update the local "last seen" hint
+                    // so the next time we render we say "Just now".
+                    if (!peerInChat && event.lastSeenAtMs > 0L) {
+                        lastOnlineStatus = "Just now"
+                    }
+                    renderPresenceHeader()
+                }
+            }
+        }
+
+        // BUG 6: peer typing → header shows "typing…" while true.
+        lifecycleScope.launch {
+            socketManager.userTyping.collect { event ->
+                if (!isUiSafe()) return@collect
+                if (event.chatId != chatId) return@collect
+                if (event.userId != peerUserId) return@collect
+                if (event.isTyping != peerIsTyping) {
+                    peerIsTyping = event.isTyping
+                    renderPresenceHeader()
+                }
             }
         }
     }
@@ -2150,6 +2307,9 @@ class ChatActivityInHouse : AppCompatActivity() {
                             
                             // Update blocked status (for UI display purposes)
                             iHaveBlockedThisUser = data.iHaveBlockedThisUser
+                            // BUG 5: if the peer has blocked me, hide their presence.
+                            peerBlockedMe = data.peerBlockedMe
+                            renderPresenceHeader()
                             
                             Log.d("ChatPagination", "═══════════════════════════════════════")
                             Log.d("ChatPagination", "✅ INITIAL LOAD RESPONSE:")
@@ -2231,6 +2391,11 @@ class ChatActivityInHouse : AppCompatActivity() {
                                     ?.id
                                 if (lastMessageId != null) {
                                     markMessagesAsReadWithLastMessageId(lastMessageId)
+                                    // BUG 2: also tell the sender LIVE via socket so
+                                    // their tick flips to READ without a reload.
+                                    if (isChatVisible) {
+                                        socketManager.sendReadAck(lastMessageId, peerUserId, chatId)
+                                    }
                                 }
                             }
                             
@@ -2628,13 +2793,31 @@ class ChatActivityInHouse : AppCompatActivity() {
 
     private fun sendMessage() {
         if (!canSendMediaPayload()) return
-        
+
         val typed = etMessage.text.toString().trim()
         if (typed.isEmpty()) {
             // T24: still clear whitespace-only input so it doesn't linger after tap.
             etMessage.setText("")
             return
         }
+
+        // BUG 1: no internet → don't send anything (no optimistic bubble, no queue
+        // for later, no retry). Just tell the user and leave the input intact so
+        // they can resend when back online.
+        if (!com.gmwapp.hima.utils.Helper.checkNetworkConnection()) {
+            showAppToast("No internet connection", Toast.LENGTH_SHORT)
+            return
+        }
+
+        // BUG 6: clear "typing…" on the peer the moment we send.
+        mainHandler.removeCallbacks(typingStopRunnable)
+        if (isTypingNotified) {
+            isTypingNotified = false
+            if (socketManager.isConnected() && chatId.isNotEmpty()) {
+                socketManager.sendTyping(chatId, false)
+            }
+        }
+
         val replyRef = pendingReplyTo
         val bodyToSend = if (replyRef != null) {
             "${buildReplyHeaderLine(replyRef)}\n$typed"
@@ -2765,6 +2948,12 @@ class ChatActivityInHouse : AppCompatActivity() {
         if (iHaveBlockedThisUser && !isSentByMe) {
             Log.d("RealtimeChat", "dropping inbound message because peer is blocked")
             return
+        }
+
+        // BUG 2: I'm sitting in the chat and just received a peer message → ack
+        // it back to the server so the sender's tick flips to READ (blue) live.
+        if (!isSentByMe && isChatVisible && socketMessage.id > 0L) {
+            socketManager.sendReadAck(socketMessage.id, peerUserId, chatId)
         }
 
         // Check if we already have this message (by ID)
@@ -3498,6 +3687,22 @@ class ChatActivityInHouse : AppCompatActivity() {
         isChatVisible = false
         // T11: prefs-backed clear so cross-process readers also see "no chat open".
         com.gmwapp.hima.utils.ActiveChatTracker.clear(this)
+
+        // BUG 6: I'm leaving the chat — stop any pending "stop typing" timer and
+        // make sure the peer sees my typing indicator clear instantly.
+        mainHandler.removeCallbacks(typingStopRunnable)
+        if (isTypingNotified) {
+            isTypingNotified = false
+            if (socketManager.isConnected() && chatId.isNotEmpty()) {
+                socketManager.sendTyping(chatId, false)
+            }
+        }
+        // BUG 3: leave the chat room so the server emits user_left_chat and the
+        // peer's header flips from "Online" to "last seen". Re-joined in onResume
+        // via the socket isConnected collector.
+        if (socketManager.isConnected() && chatId.isNotEmpty()) {
+            socketManager.leaveChat(chatId)
+        }
 
         if (chatRefreshReceiverRegistered) {
             runCatching { unregisterReceiver(chatRefreshReceiver) }
