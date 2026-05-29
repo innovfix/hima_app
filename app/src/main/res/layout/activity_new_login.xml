@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Modern Login — entire screen scrolls as one unit (hero + form card together).
+     All view IDs match NewLoginActivity binding. -->
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -6,52 +8,39 @@
     android:id="@+id/rootLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fitsSystemWindows="true"
-    android:background="@drawable/splash_gradient_background">
+    android:background="@color/grey_extra_light"
+    android:fitsSystemWindows="true">
 
-    <!-- Animated background circles (same as splash) -->
+    <!-- ── Hidden compat views kept for binding & onboarding code ── -->
     <View
         android:id="@+id/circle1"
-        android:layout_width="200dp"
-        android:layout_height="200dp"
-        android:alpha="0.1"
-        android:background="@drawable/splash_circle"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.1"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.2" />
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <View
         android:id="@+id/circle2"
-        android:layout_width="150dp"
-        android:layout_height="150dp"
-        android:alpha="0.15"
-        android:background="@drawable/splash_circle"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.9"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.15" />
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Hidden ViewPager2 for Onboarding (for compatibility) -->
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/viewPagerOnboarding"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/tabLayout"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/guideline"
@@ -59,16 +48,17 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal" />
 
-    <!-- Back button shown only on OTP step, top-left over the gradient -->
+    <!-- Back button overlay — shown only on OTP step -->
     <androidx.cardview.widget.CardView
         android:id="@+id/cv_otp_back"
         android:layout_width="42dp"
         android:layout_height="42dp"
         android:layout_margin="16dp"
+        android:elevation="4dp"
         android:visibility="gone"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="1dp"
         app:cardBackgroundColor="#F8F9FA"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="2dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
@@ -78,509 +68,894 @@
             android:layout_height="20dp"
             android:layout_gravity="center"
             android:contentDescription="Back"
-            android:src="@drawable/right_arrow"
             android:rotation="180"
+            android:src="@drawable/right_arrow"
             app:tint="#374151" />
-
     </androidx.cardview.widget.CardView>
 
-    <!-- Logo and Welcome Section with animated design -->
-    <LinearLayout
-        android:id="@+id/ll_logo_section"
+    <!-- ══ Full-screen scroll — hero + form card scroll together ══ -->
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:paddingHorizontal="24dp"
-        android:paddingTop="40dp"
-        android:paddingBottom="24dp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/ll_login_section"
+        android:background="@color/grey_extra_light"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        android:overScrollMode="never"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        app:layout_constraintTop_toTopOf="parent">
 
-        <!-- Logo in circular container (same as splash) -->
-        <androidx.cardview.widget.CardView
-            android:id="@+id/logoContainer"
-            android:layout_width="120dp"
-            android:layout_height="120dp"
-            android:layout_gravity="center"
-            android:elevation="12dp"
-            app:cardBackgroundColor="@color/colorPrimary"
-            app:cardCornerRadius="60dp"
-            app:cardElevation="12dp"
-            android:layout_marginBottom="24dp">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="vertical">
 
+            <!-- ══ HERO — logo + floating coloured icon badges ══ -->
             <FrameLayout
+                android:id="@+id/ll_logo_section"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:padding="28dp">
+                android:layout_height="wrap_content"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:paddingTop="120dp"
+                android:paddingBottom="16dp">
 
-                <ImageView
-                    android:id="@+id/imageViewLogo"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:layout_gravity="center"
-                    android:scaleType="fitCenter"
-                    android:adjustViewBounds="true"
-                    android:src="@drawable/logo"
-                    android:contentDescription="@string/app_name" />
+                <!-- ── Logo + brand name centred ── -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <androidx.cardview.widget.CardView
+                        android:id="@+id/logoContainer"
+                        android:layout_width="96dp"
+                        android:layout_height="96dp"
+                        app:cardBackgroundColor="@color/colorPrimary"
+                        app:cardCornerRadius="28dp"
+                        app:cardElevation="10dp">
+
+                        <ImageView
+                            android:id="@+id/imageViewLogo"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:adjustViewBounds="true"
+                            android:contentDescription="@string/app_name"
+                            android:padding="20dp"
+                            android:scaleType="fitCenter"
+                            android:src="@drawable/logo" />
+                    </androidx.cardview.widget.CardView>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:fontFamily="@font/cabinet_grotesk_extrabold"
+                        android:letterSpacing="-0.01"
+                        android:text="@string/app_name"
+                        android:textColor="@color/black_light"
+                        android:textSize="30sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="-2dp"
+                        android:fontFamily="@font/plus_jakarta_sans_medium"
+                        android:text="Where Feelings Connect"
+                        android:textColor="@color/grey_medium"
+                        android:textSize="12sp" />
+
+                    <!-- ── Feature highlight row ── -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="18dp"
+                        android:gravity="center"
+                        android:orientation="horizontal">
+
+                        <!-- Chat -->
+                        <LinearLayout
+                            android:layout_width="60dp"
+                            android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:orientation="vertical">
+                            <FrameLayout
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:background="@drawable/bg_profile_icon_pink">
+                                <ImageView
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_chat_bubble"
+                                    app:tint="#FF1383"
+                                    tools:ignore="ContentDescription" />
+                            </FrameLayout>
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="5dp"
+                                android:fontFamily="@font/poppins_medium"
+                                android:text="Chat"
+                                android:textColor="@color/black_light"
+                                android:textSize="10sp" />
+                        </LinearLayout>
+
+                        <!-- Video -->
+                        <LinearLayout
+                            android:layout_width="60dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:gravity="center"
+                            android:orientation="vertical">
+                            <FrameLayout
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:background="@drawable/bg_profile_icon_blue">
+                                <ImageView
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/video"
+                                    app:tint="#4B7BE5"
+                                    tools:ignore="ContentDescription" />
+                            </FrameLayout>
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="5dp"
+                                android:fontFamily="@font/poppins_medium"
+                                android:text="Video"
+                                android:textColor="@color/black_light"
+                                android:textSize="10sp" />
+                        </LinearLayout>
+
+                        <!-- Voice -->
+                        <LinearLayout
+                            android:layout_width="60dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:gravity="center"
+                            android:orientation="vertical">
+                            <FrameLayout
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:background="@drawable/bg_profile_icon_green">
+                                <ImageView
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/audio"
+                                    app:tint="#22C55E"
+                                    tools:ignore="ContentDescription" />
+                            </FrameLayout>
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="5dp"
+                                android:fontFamily="@font/poppins_medium"
+                                android:text="Voice"
+                                android:textColor="@color/black_light"
+                                android:textSize="10sp" />
+                        </LinearLayout>
+
+                        <!-- Connect -->
+                        <LinearLayout
+                            android:layout_width="60dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:gravity="center"
+                            android:orientation="vertical">
+                            <FrameLayout
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:background="@drawable/bg_profile_icon_purple">
+                                <ImageView
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_heart_filled"
+                                    app:tint="#8B5CF6"
+                                    tools:ignore="ContentDescription" />
+                            </FrameLayout>
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="5dp"
+                                android:fontFamily="@font/poppins_medium"
+                                android:text="Connect"
+                                android:textColor="@color/black_light"
+                                android:textSize="10sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- ── Group icon badges (like recent-page header shades) ── -->
+
 
             </FrameLayout>
 
-        </androidx.cardview.widget.CardView>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Welcome to HI ma"
-            android:textSize="28sp"
-            android:textColor="@color/white"
-            android:fontFamily="@font/poppins_bold"
-            android:letterSpacing="0.05"
-            android:layout_marginBottom="4dp" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Login to continue"
-            android:textSize="15sp"
-            android:textColor="#E0FFFFFF"
-            android:fontFamily="@font/poppins_regular"
-            android:letterSpacing="0.02" />
-
-    </LinearLayout>
-
-    <!-- Login Form Section with rounded top corners -->
-    <LinearLayout
-        android:id="@+id/ll_login_section"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:background="@drawable/login_form_background"
-        android:paddingTop="28dp"
-        android:paddingBottom="32dp"
-        android:paddingHorizontal="20dp"
-        android:visibility="visible"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <!-- Login Section -->
-        <LinearLayout
-            android:id="@+id/login_section"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:visibility="visible">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="15sp"
-            android:layout_marginBottom="6dp"
-            android:textColor="@color/colorAccent"
-            android:fontFamily="@font/poppins_semibold"
-            android:text="@string/mobile_number"/>
-
-        <androidx.cardview.widget.CardView
-            android:id="@+id/cv_login"
-            android:layout_width="match_parent"
-            android:layout_height="52dp"
-            android:layout_marginBottom="8dp"
-            app:cardElevation="0dp"
-            app:cardCornerRadius="8dp"
-            app:cardBackgroundColor="@color/grey_extra_light"
-            app:strokeColor="@color/divider"
-            app:strokeWidth="1dp">
-
+            <!-- ══ LOGIN FORM CARD ══ -->
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:paddingHorizontal="14dp">
-
-                <androidx.constraintlayout.widget.ConstraintLayout
-                    android:id="@+id/cl_country"
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:clickable="false"
-                    android:focusable="false">
-
-                    <ImageView
-                        android:id="@+id/iv_flag"
-                        android:layout_width="24dp"
-                        android:layout_height="16dp"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toTopOf="parent"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        android:src="@drawable/india"
-                        tools:ignore="ContentDescription" />
-
-                    <ImageView
-                        android:id="@+id/iv_down_arrow"
-                        android:layout_width="16dp"
-                        android:layout_height="16dp"
-                        app:layout_constraintStart_toEndOf="@+id/iv_flag"
-                        android:layout_marginStart="4dp"
-                        app:layout_constraintTop_toTopOf="parent"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        android:src="@drawable/ic_down_arrow"
-                        app:tint="@color/colorPrimaryDark"
-                        android:visibility="gone"
-                        tools:ignore="ContentDescription" />
-                </androidx.constraintlayout.widget.ConstraintLayout>
-
-                <TextView
-                    android:id="@+id/tv_country_code"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:textColor="@color/colorAccent"
-                    android:textSize="15sp"
-                    android:text="+91"
-                    android:fontFamily="@font/poppins_semibold" />
-
-                <EditText
-                    android:id="@+id/et_mobile_number"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:layout_height="match_parent"
-                    android:layout_marginStart="8dp"
-                    android:autofillHints="phone"
-                    android:background="@android:color/transparent"
-                    android:textCursorDrawable="@drawable/color_cursor"
-                    android:textColor="@color/black_light"
-                    android:hint="Enter number"
-                    android:textColorHint="@color/grey_medium"
-                    android:textSize="15sp"
-                    android:imeOptions="actionDone"
-                    android:inputType="phone"
-                    android:maxLength="10"
-                    android:fontFamily="@font/poppins_medium" />
-            </LinearLayout>
-        </androidx.cardview.widget.CardView>
-        <!-- Referral code checkbox -->
-        <CheckBox
-            android:id="@+id/referCode_checkbox"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            android:text="Have a referral code?"
-            android:textColor="@color/grey_medium"
-            android:textSize="13sp"
-            android:buttonTint="@color/colorAccent"
-            android:fontFamily="@font/poppins_regular"
-            android:visibility="visible" />
-
-        <androidx.cardview.widget.CardView
-            android:id="@+id/cv_referCode"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            android:visibility="gone"
-            app:cardElevation="0dp"
-            app:cardCornerRadius="8dp"
-            app:cardBackgroundColor="@color/grey_extra_light"
-            app:strokeColor="@color/divider"
-            app:strokeWidth="1dp">
-            <LinearLayout
+                android:id="@+id/ll_login_section"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:paddingHorizontal="14dp"
-                android:paddingVertical="12dp">
-                <EditText
-                    android:id="@+id/et_referCode"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:layout_height="wrap_content"
-                    android:hint="Enter referral code"
-                    android:textSize="15sp"
-                    android:textColor="@color/black_light"
-                    android:fontFamily="@font/poppins_medium"
-                    android:background="@android:color/transparent"
-                    android:imeOptions="actionDone" />
-                <RelativeLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content">
+                android:orientation="vertical"
+                android:paddingHorizontal="16dp"
+                android:paddingTop="4dp"
+                android:paddingBottom="24dp">
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/applyReferral"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Apply"
-                        android:textSize="13sp"
-                        android:textColor="@color/white"
-                        android:fontFamily="@font/poppins_semibold"
-                        app:cornerRadius="6dp"
-                        app:backgroundTint="@color/colorAccent" />
-
-                    <ProgressBar
-                        android:id="@+id/pb_apply_referral_loader"
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
-                        android:elevation="8dp"
-                        android:indeterminate="true"
-                        android:visibility="gone"
-                        android:indeterminateTint="@color/white"
-                        android:layout_centerInParent="true" />
-
-                </RelativeLayout>
-            </LinearLayout>
-        </androidx.cardview.widget.CardView>
-
-        <TextView
-            android:id="@+id/tv_otp_text"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="12sp"
-            android:layout_marginBottom="16dp"
-            android:textColor="@color/grey_medium"
-            android:fontFamily="@font/poppins_regular"
-            android:text="@string/you_will_receive_an_otp_on_this_number"/>
-
-        <!-- Send OTP Button -->
-        <RelativeLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_send_otp"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:textAllCaps="false"
-                android:enabled="false"
-                android:fontFamily="@font/poppins_semibold"
-                android:text="@string/send_otp"
-                android:textSize="15sp"
-                app:cornerRadius="8dp"
-                android:textColor="@color/white"
-                app:backgroundTint="@color/colorAccent"/>
-
-            <ProgressBar
-                android:id="@+id/pb_send_otp_loader"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:elevation="8dp"
-                android:indeterminate="true"
-                android:visibility="gone"
-                android:indeterminateTint="@color/white"
-                android:layout_centerInParent="true"/>
-        </RelativeLayout>
-
-        <!-- Terms and Conditions -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="start"
-            android:layout_marginTop="4dp">
-
-            <CheckBox
-                android:id="@+id/cb_terms_and_conditions"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:buttonTint="@color/colorAccent"
-                android:checked="true"
-                android:focusable="false"
-                android:minWidth="0dp"
-                android:minHeight="0dp"
-                android:padding="0dp"
-                android:visibility="gone" />
-
-            <TextView
-                android:id="@+id/tv_terms_and_conditions"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_vertical"
-                android:fontFamily="@font/poppins_regular"
-                android:text="@string/terms_and_conditions_text"
-                android:textColor="@color/grey_medium"
-                android:textSize="11sp" />
-        </LinearLayout>
-
-        </LinearLayout>
-
-        <!-- OTP Section -->
-        <LinearLayout
-            android:id="@+id/otp_section"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:visibility="gone">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="13sp"
-                android:layout_marginBottom="4dp"
-                android:textColor="@color/grey_medium"
-                android:fontFamily="@font/poppins_regular"
-                android:text="OTP sent to"/>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                android:gravity="center_vertical">
-
-                <TextView
-                    android:id="@+id/tv_otp_mobile_number"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:layout_height="wrap_content"
-                    android:textSize="16sp"
-                    android:textColor="@color/black_light"
-                    android:fontFamily="@font/poppins_semibold"
-                    tools:text="+91 7010565083"/>
-
-                <TextView
-                    android:id="@+id/iv_edit"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="14sp"
-                    android:textColor="@color/colorAccent"
-                    android:fontFamily="@font/poppins_semibold"
-                    android:text="Change"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:paddingVertical="4dp"
-                    android:paddingHorizontal="8dp"/>
-            </LinearLayout>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:textSize="13sp"
-                android:layout_marginBottom="10dp"
-                android:textColor="@color/grey_medium"
-                android:fontFamily="@font/poppins_medium"
-                android:text="Enter 6-digit OTP"/>
-
-            <com.chaos.view.PinView
-                android:id="@+id/pv_otp"
-                style="@style/PinWidget.PinView"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_marginBottom="18dp"
-                android:cursorVisible="true"
-                android:inputType="number"
-                android:itemBackground="@color/grey_extra_light"
-                android:textColor="@color/colorAccent"
-                android:textSize="18sp"
-                app:hideLineWhenFilled="true"
-                app:itemCount="6"
-                app:itemHeight="46dp"
-                app:itemRadius="8dp"
-                app:itemSpacing="4dp"
-                app:itemWidth="42dp"
-                app:lineColor="@color/colorAccent"
-                app:lineWidth="2dp" />
-
-            <!-- Verify OTP Button -->
-            <RelativeLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp">
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_verify_otp"
+                <!-- White card — sizes to content -->
+                <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
-                    android:layout_height="52dp"
-                    android:textAllCaps="false"
-                    android:enabled="false"
-                    android:fontFamily="@font/poppins_semibold"
-                    android:text="Verify OTP"
-                    android:textSize="15sp"
-                    app:cornerRadius="8dp"
-                    android:textColor="@color/white"
-                    app:backgroundTint="@color/colorAccent"/>
-
-                <ProgressBar
-                    android:id="@+id/pb_verify_otp_loader"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:elevation="8dp"
-                    android:indeterminate="true"
-                    android:visibility="gone"
-                    android:indeterminateTint="@color/white"
-                    android:layout_centerInParent="true"/>
-            </RelativeLayout>
-
-            <!-- Resend OTP Section -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center"
-                android:layout_marginBottom="8dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Didn't receive the OTP? "
-                    android:textSize="13sp"
-                    android:textColor="@color/grey_medium"
-                    android:fontFamily="@font/poppins_regular"/>
+                    app:cardBackgroundColor="@color/white"
+                    app:cardCornerRadius="24dp"
+                    app:cardElevation="0dp"
+                    app:strokeWidth="0dp">
 
-                <RelativeLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btn_resend_otp"
-                        android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:textAllCaps="false"
-                        android:text="Resend"
-                        android:textSize="13sp"
-                        android:textColor="@color/colorAccent"
-                        android:fontFamily="@font/poppins_semibold"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        android:minWidth="0dp"
-                        android:minHeight="0dp"
-                        android:insetTop="0dp"
-                        android:insetBottom="0dp"
-                        android:paddingVertical="4dp"
-                        android:paddingHorizontal="8dp"
-                        app:backgroundTint="@android:color/transparent"
-                        android:elevation="0dp"
-                        android:stateListAnimator="@null"
-                        android:enabled="false" />
+                        android:orientation="vertical"
+                        android:paddingHorizontal="20dp"
+                        android:paddingTop="20dp"
+                        android:paddingBottom="16dp">
 
-                    <ProgressBar
-                        android:id="@+id/pb_loader"
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:layout_centerInParent="true"
-                        android:indeterminate="true"
-                        android:visibility="gone"
-                        android:indeterminateTint="@color/colorAccent"/>
-                </RelativeLayout>
-            </LinearLayout>
+                        <!-- ══ MOBILE NUMBER STEP ══ -->
+                        <LinearLayout
+                            android:id="@+id/login_section"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:visibility="visible">
 
-            <!-- Hidden duplicate terms for compatibility -->
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:visibility="gone">
-                <CheckBox
-                    android:id="@+id/cb_otp_terms_and_conditions"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" />
-                <TextView
-                    android:id="@+id/tv_otp_terms_and_conditions"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/poppins_bold"
+                                android:letterSpacing="-0.02"
+                                android:text="Get Started"
+                                android:textColor="@color/black_light"
+                                android:textSize="22sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:fontFamily="@font/poppins_regular"
+                                android:text="Enter your mobile number to continue"
+                                android:textColor="@color/grey_medium"
+                                android:textSize="13sp" />
+
+                            <!-- Mobile Number label -->
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="16dp"
+                                android:layout_marginBottom="8dp"
+                                android:fontFamily="@font/poppins_semibold"
+                                android:text="@string/mobile_number"
+                                android:textColor="@color/black_light"
+                                android:textSize="13sp" />
+
+                            <!-- Phone input -->
+                            <androidx.cardview.widget.CardView
+                                android:id="@+id/cv_login"
+                                android:layout_width="match_parent"
+                                android:layout_height="58dp"
+                                app:cardBackgroundColor="@android:color/transparent"
+                                app:cardCornerRadius="14dp"
+                                app:cardElevation="0dp">
+
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="match_parent"
+                                    android:background="@drawable/bg_login_input_field"
+                                    android:gravity="center_vertical"
+                                    android:orientation="horizontal"
+                                    android:paddingHorizontal="14dp">
+
+                                    <androidx.constraintlayout.widget.ConstraintLayout
+                                        android:id="@+id/cl_country"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:clickable="false"
+                                        android:focusable="false">
+
+                                        <ImageView
+                                            android:id="@+id/iv_flag"
+                                            android:layout_width="28dp"
+                                            android:layout_height="20dp"
+                                            android:scaleType="centerCrop"
+                                            android:src="@drawable/india"
+                                            app:layout_constraintBottom_toBottomOf="parent"
+                                            app:layout_constraintStart_toStartOf="parent"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            tools:ignore="ContentDescription" />
+
+                                        <ImageView
+                                            android:id="@+id/iv_down_arrow"
+                                            android:layout_width="16dp"
+                                            android:layout_height="16dp"
+                                            android:layout_marginStart="4dp"
+                                            android:src="@drawable/ic_down_arrow"
+                                            android:visibility="gone"
+                                            app:layout_constraintBottom_toBottomOf="parent"
+                                            app:layout_constraintStart_toEndOf="@+id/iv_flag"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:tint="@color/grey_medium"
+                                            tools:ignore="ContentDescription" />
+                                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                                    <TextView
+                                        android:id="@+id/tv_country_code"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginStart="10dp"
+                                        android:fontFamily="@font/poppins_semibold"
+                                        android:text="+91"
+                                        android:textColor="@color/black_light"
+                                        android:textSize="15sp" />
+
+                                    <View
+                                        android:layout_width="1dp"
+                                        android:layout_height="28dp"
+                                        android:layout_marginStart="12dp"
+                                        android:layout_marginEnd="4dp"
+                                        android:background="#E5E7EB" />
+
+                                    <EditText
+                                        android:id="@+id/et_mobile_number"
+                                        android:layout_width="0dp"
+                                        android:layout_height="match_parent"
+                                        android:layout_weight="1"
+                                        android:autofillHints="phone"
+                                        android:background="@android:color/transparent"
+                                        android:fontFamily="@font/poppins_medium"
+                                        android:hint="98765 43210"
+                                        android:imeOptions="actionDone"
+                                        android:inputType="phone"
+                                        android:maxLength="10"
+                                        android:paddingStart="10dp"
+                                        android:paddingEnd="4dp"
+                                        android:textColor="@color/black_light"
+                                        android:textColorHint="#C5CAD5"
+                                        android:textCursorDrawable="@drawable/color_cursor"
+                                        android:textSize="15sp" />
+                                </LinearLayout>
+                            </androidx.cardview.widget.CardView>
+
+                            <!-- Referral toggle -->
+                            <CheckBox
+                                android:id="@+id/referCode_checkbox"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="14dp"
+                                android:buttonTint="#FF1383"
+                                android:fontFamily="@font/poppins_regular"
+                                android:text="Have a referral code?"
+                                android:textColor="@color/grey_medium"
+                                android:textSize="13sp"
+                                android:visibility="visible" />
+
+                            <!-- Referral input -->
+                            <androidx.cardview.widget.CardView
+                                android:id="@+id/cv_referCode"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="10dp"
+                                android:visibility="gone"
+                                app:cardBackgroundColor="@android:color/transparent"
+                                app:cardCornerRadius="14dp"
+                                app:cardElevation="0dp">
+
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:background="@drawable/bg_login_input_field"
+                                    android:gravity="center_vertical"
+                                    android:orientation="horizontal"
+                                    android:paddingHorizontal="14dp"
+                                    android:paddingVertical="8dp">
+
+                                    <EditText
+                                        android:id="@+id/et_referCode"
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_weight="1"
+                                        android:background="@android:color/transparent"
+                                        android:fontFamily="@font/poppins_medium"
+                                        android:hint="Enter referral code"
+                                        android:imeOptions="actionDone"
+                                        android:textColor="@color/black_light"
+                                        android:textColorHint="#C5CAD5"
+                                        android:textSize="14sp" />
+
+                                    <RelativeLayout
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content">
+
+                                        <com.google.android.material.button.MaterialButton
+                                            android:id="@+id/applyReferral"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:fontFamily="@font/poppins_semibold"
+                                            android:text="Apply"
+                                            android:textColor="@color/white"
+                                            android:textSize="12sp"
+                                            app:backgroundTint="#FF1383"
+                                            app:cornerRadius="8dp" />
+
+                                        <ProgressBar
+                                            android:id="@+id/pb_apply_referral_loader"
+                                            android:layout_width="16dp"
+                                            android:layout_height="16dp"
+                                            android:layout_centerInParent="true"
+                                            android:elevation="8dp"
+                                            android:indeterminate="true"
+                                            android:indeterminateTint="@color/white"
+                                            android:visibility="gone" />
+                                    </RelativeLayout>
+                                </LinearLayout>
+                            </androidx.cardview.widget.CardView>
+
+                            <!-- Helper / error text -->
+                            <TextView
+                                android:id="@+id/tv_otp_text"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="4dp"
+                                android:layout_marginTop="6dp"
+                                android:layout_marginBottom="14dp"
+                                android:fontFamily="@font/poppins_regular"
+                                android:text="@string/you_will_receive_an_otp_on_this_number"
+                                android:textColor="@color/grey_medium"
+                                android:textSize="11sp" />
+
+                            <!-- Send OTP CTA -->
+                            <RelativeLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="10dp">
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/btn_send_otp"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="56dp"
+                                    android:enabled="false"
+                                    android:fontFamily="@font/poppins_semibold"
+                                    android:letterSpacing="0.02"
+                                    android:text="@string/send_otp"
+                                    android:textAllCaps="false"
+                                    android:textColor="@color/white"
+                                    android:textSize="16sp"
+                                    app:backgroundTint="@color/kyc_button_disabled"
+                                    app:cornerRadius="16dp"
+                                    app:elevation="0dp" />
+
+                                <ProgressBar
+                                    android:id="@+id/pb_send_otp_loader"
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
+                                    android:layout_centerInParent="true"
+                                    android:elevation="8dp"
+                                    android:indeterminate="true"
+                                    android:indeterminateTint="@color/white"
+                                    android:visibility="gone" />
+                            </RelativeLayout>
+
+                            <!-- Terms -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:gravity="start"
+                                android:orientation="horizontal">
+
+                                <CheckBox
+                                    android:id="@+id/cb_terms_and_conditions"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:buttonTint="#FF1383"
+                                    android:checked="true"
+                                    android:focusable="false"
+                                    android:minWidth="0dp"
+                                    android:minHeight="0dp"
+                                    android:padding="0dp"
+                                    android:visibility="gone" />
+
+                                <TextView
+                                    android:id="@+id/tv_terms_and_conditions"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:layout_weight="1"
+                                    android:fontFamily="@font/poppins_regular"
+                                    android:text="@string/terms_and_conditions_text"
+                                    android:textColor="@color/grey_medium"
+                                    android:textSize="11sp" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <!-- ══ OTP STEP ══ -->
+                        <LinearLayout
+                            android:id="@+id/otp_section"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/poppins_bold"
+                                android:letterSpacing="-0.02"
+                                android:text="Verify OTP"
+                                android:textColor="@color/black_light"
+                                android:textSize="22sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:layout_marginBottom="18dp"
+                                android:fontFamily="@font/poppins_regular"
+                                android:text="OTP sent to"
+                                android:textColor="@color/grey_medium"
+                                android:textSize="13sp" />
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="20dp"
+                                android:gravity="center_vertical">
+
+                                <TextView
+                                    android:id="@+id/tv_otp_mobile_number"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:fontFamily="@font/poppins_semibold"
+                                    android:textColor="@color/black_light"
+                                    android:textSize="16sp"
+                                    tools:text="+91 98765 43210" />
+
+                                <TextView
+                                    android:id="@+id/iv_edit"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:background="?attr/selectableItemBackgroundBorderless"
+                                    android:clickable="true"
+                                    android:focusable="true"
+                                    android:fontFamily="@font/poppins_semibold"
+                                    android:paddingHorizontal="8dp"
+                                    android:paddingVertical="4dp"
+                                    android:text="Change"
+                                    android:textColor="#FF1383"
+                                    android:textSize="14sp" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:layout_marginBottom="12dp"
+                                android:fontFamily="@font/poppins_medium"
+                                android:text="Enter 6-digit OTP"
+                                android:textColor="@color/grey_medium"
+                                android:textSize="13sp" />
+
+                            <com.chaos.view.PinView
+                                android:id="@+id/pv_otp"
+                                style="@style/PinWidget.PinView"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:layout_marginBottom="24dp"
+                                android:cursorVisible="true"
+                                android:inputType="number"
+                                android:itemBackground="@color/white"
+                                android:textColor="#FF1383"
+                                android:textSize="18sp"
+                                app:hideLineWhenFilled="false"
+                                app:itemCount="6"
+                                app:itemHeight="50dp"
+                                app:itemRadius="14dp"
+                                app:itemSpacing="8dp"
+                                app:itemWidth="44dp"
+                                app:lineColor="#FF1383"
+                                app:lineWidth="2dp" />
+
+                            <!-- Verify OTP CTA -->
+                            <RelativeLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="14dp">
+
+                                <com.google.android.material.button.MaterialButton
+                                    android:id="@+id/btn_verify_otp"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="56dp"
+                                    android:enabled="false"
+                                    android:fontFamily="@font/poppins_semibold"
+                                    android:letterSpacing="0.02"
+                                    android:text="Verify OTP"
+                                    android:textAllCaps="false"
+                                    android:textColor="@color/white"
+                                    android:textSize="16sp"
+                                    app:backgroundTint="@color/kyc_button_disabled"
+                                    app:cornerRadius="16dp"
+                                    app:elevation="0dp" />
+
+                                <ProgressBar
+                                    android:id="@+id/pb_verify_otp_loader"
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
+                                    android:layout_centerInParent="true"
+                                    android:elevation="8dp"
+                                    android:indeterminate="true"
+                                    android:indeterminateTint="@color/white"
+                                    android:visibility="gone" />
+                            </RelativeLayout>
+
+                            <!-- Resend row -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="8dp"
+                                android:gravity="center"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/poppins_regular"
+                                    android:text="Didn't receive the OTP? "
+                                    android:textColor="@color/grey_medium"
+                                    android:textSize="13sp" />
+
+                                <RelativeLayout
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content">
+
+                                    <com.google.android.material.button.MaterialButton
+                                        android:id="@+id/btn_resend_otp"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:background="?attr/selectableItemBackgroundBorderless"
+                                        android:elevation="0dp"
+                                        android:enabled="false"
+                                        android:fontFamily="@font/poppins_semibold"
+                                        android:insetTop="0dp"
+                                        android:insetBottom="0dp"
+                                        android:minWidth="0dp"
+                                        android:minHeight="0dp"
+                                        android:paddingHorizontal="8dp"
+                                        android:paddingVertical="4dp"
+                                        android:stateListAnimator="@null"
+                                        android:text="Resend"
+                                        android:textAllCaps="false"
+                                        android:textColor="#FF1383"
+                                        android:textSize="13sp"
+                                        app:backgroundTint="@android:color/transparent" />
+
+                                    <ProgressBar
+                                        android:id="@+id/pb_loader"
+                                        android:layout_width="20dp"
+                                        android:layout_height="20dp"
+                                        android:layout_centerInParent="true"
+                                        android:indeterminate="true"
+                                        android:indeterminateTint="#FF1383"
+                                        android:visibility="gone" />
+                                </RelativeLayout>
+                            </LinearLayout>
+
+                            <!-- Hidden compat: binding needs these IDs -->
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="0dp"
+                                android:visibility="gone">
+
+                                <CheckBox
+                                    android:id="@+id/cb_otp_terms_and_conditions"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content" />
+
+                                <TextView
+                                    android:id="@+id/tv_otp_terms_and_conditions"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content" />
+                            </LinearLayout>
+                        </LinearLayout>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
         </LinearLayout>
-    </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- ══ Left icon group — drawn after scroll so visible on top ══ -->
+    <!-- Chat · pink -->
+    <FrameLayout
+        android:layout_width="46dp"
+        android:layout_height="46dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_profile_icon_pink"
+        android:rotation="-8"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_chat_bubble"
+            app:tint="#FF1383"
+            tools:ignore="ContentDescription" />
+    </FrameLayout>
+
+    <!-- Star · amber -->
+    <FrameLayout
+        android:layout_width="34dp"
+        android:layout_height="34dp"
+        android:layout_marginStart="66dp"
+        android:layout_marginTop="22dp"
+        android:background="@drawable/bg_profile_icon_amber"
+        android:rotation="-4"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+        <ImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_star_filled"
+            app:tint="#F59E0B"
+            tools:ignore="ContentDescription" />
+    </FrameLayout>
+
+    <!-- Voice · green -->
+    <FrameLayout
+        android:layout_width="38dp"
+        android:layout_height="38dp"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="84dp"
+        android:background="@drawable/bg_profile_icon_green"
+        android:rotation="-6"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center"
+            android:src="@drawable/audio"
+            app:tint="#22C55E"
+            tools:ignore="ContentDescription" />
+    </FrameLayout>
+
+    <!-- Amber sparkle · near star -->
+    <ImageView
+        android:layout_width="9dp"
+        android:layout_height="9dp"
+        android:layout_marginStart="112dp"
+        android:layout_marginTop="16dp"
+        android:alpha="0.45"
+        android:src="@drawable/ic_sparkle"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:tint="#F59E0B"
+        tools:ignore="ContentDescription" />
+
+    <!-- Green sparkle · near voice -->
+    <ImageView
+        android:layout_width="8dp"
+        android:layout_height="8dp"
+        android:layout_marginStart="52dp"
+        android:layout_marginTop="98dp"
+        android:alpha="0.4"
+        android:src="@drawable/ic_sparkle"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:tint="#22C55E"
+        tools:ignore="ContentDescription" />
+
+    <!-- ══ Right icon group — drawn after scroll so visible on top ══ -->
+    <!-- Video · blue -->
+    <FrameLayout
+        android:layout_width="46dp"
+        android:layout_height="46dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_profile_icon_blue"
+        android:rotation="7"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:src="@drawable/video"
+            app:tint="#4B7BE5"
+            tools:ignore="ContentDescription" />
+    </FrameLayout>
+
+    <!-- Kiss · orange -->
+    <FrameLayout
+        android:layout_width="34dp"
+        android:layout_height="34dp"
+        android:layout_marginEnd="66dp"
+        android:layout_marginTop="22dp"
+        android:background="@drawable/bg_profile_icon_orange"
+        android:rotation="5"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+        <ImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_kiss_lips"
+            app:tint="#F97316"
+            tools:ignore="ContentDescription" />
+    </FrameLayout>
+
+    <!-- Heart · purple -->
+    <FrameLayout
+        android:layout_width="38dp"
+        android:layout_height="38dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginTop="84dp"
+        android:background="@drawable/bg_profile_icon_purple"
+        android:rotation="9"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_heart_filled"
+            app:tint="#8B5CF6"
+            tools:ignore="ContentDescription" />
+    </FrameLayout>
+
+    <!-- Pink sparkle · near video -->
+    <ImageView
+        android:layout_width="13dp"
+        android:layout_height="13dp"
+        android:layout_marginEnd="58dp"
+        android:layout_marginTop="12dp"
+        android:alpha="0.55"
+        android:src="@drawable/ic_sparkle"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:tint="#FF1383"
+        tools:ignore="ContentDescription" />
+
+    <!-- Purple sparkle · near heart -->
+    <ImageView
+        android:layout_width="9dp"
+        android:layout_height="9dp"
+        android:layout_marginEnd="52dp"
+        android:layout_marginTop="98dp"
+        android:alpha="0.4"
+        android:src="@drawable/ic_sparkle"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:tint="#8B5CF6"
+        tools:ignore="ContentDescription" />
+
+    <!-- Orange sparkle · near kiss -->
+    <ImageView
+        android:layout_width="7dp"
+        android:layout_height="7dp"
+        android:layout_marginEnd="108dp"
+        android:layout_marginTop="36dp"
+        android:alpha="0.35"
+        android:src="@drawable/ic_sparkle"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:tint="#F97316"
+        tools:ignore="ContentDescription" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

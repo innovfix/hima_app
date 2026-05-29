@@ -1,173 +1,247 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/grey_extra_light"
+    android:background="@drawable/bg_onboarding"
     android:fitsSystemWindows="true"
     tools:context=".activities.GetNameActivity">
 
-    <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/app_bar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@drawable/bg_gradiend"
-        android:elevation="0dp"
-        android:fitsSystemWindows="true"
-        app:elevation="0dp">
+    <!-- Back button — rounded square, consistent across all onboarding screens -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/card_back"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="16dp"
+        app:cardBackgroundColor="#F3F4F6"
+        app:cardCornerRadius="14dp"
+        app:cardElevation="0dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+        <ImageView
+            android:id="@+id/iv_back"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center"
+            android:contentDescription="Back"
+            android:rotation="180"
+            android:src="@drawable/right_arrow"
+            app:tint="#374151" />
+    </androidx.cardview.widget.CardView>
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingStart="24dp"
-            android:paddingTop="56dp"
-            android:paddingEnd="24dp"
-            android:paddingBottom="32dp">
-
-            <TextView
-                android:id="@+id/tv_title"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="6dp"
-                android:fontFamily="@font/poppins_bold"
-                android:text="@string/getname_title"
-                android:textColor="@color/white"
-                android:textSize="26sp" />
-
-            <TextView
-                android:id="@+id/tv_subtitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/poppins_regular"
-                android:text="@string/getname_subtitle"
-                android:textColor="@color/pink_extra_light"
-                android:textSize="14sp" />
-        </LinearLayout>
-    </com.google.android.material.appbar.AppBarLayout>
-
+    <!-- Step bar: inline with back button, same row -->
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:paddingStart="24dp"
-        android:paddingTop="32dp"
-        android:paddingEnd="24dp"
-        android:paddingBottom="80dp"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+        android:id="@+id/ll_steps"
+        android:layout_width="0dp"
+        android:layout_height="6dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="20dp"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toBottomOf="@id/card_back"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/card_back"
+        app:layout_constraintTop_toTopOf="@id/card_back">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="6dp"
-            android:fontFamily="@font/poppins_semibold"
-            android:text="@string/getname_input_label"
-            android:textColor="@color/colorAccent"
-            android:textSize="15sp" />
+        <View
+            android:layout_width="0dp"
+            android:layout_height="6dp"
+            android:layout_marginEnd="5dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_step_active" />
 
-        <androidx.cardview.widget.CardView
-            android:id="@+id/cv_user_name"
-            android:layout_width="match_parent"
-            android:layout_height="52dp"
-            app:cardBackgroundColor="@color/grey_extra_light"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="0dp"
-            app:strokeColor="@color/divider"
-            app:strokeWidth="1dp">
+        <View
+            android:layout_width="0dp"
+            android:layout_height="6dp"
+            android:layout_marginEnd="5dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_step_active" />
 
-            <RelativeLayout
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:paddingStart="14dp"
-                android:paddingEnd="14dp">
+        <View
+            android:layout_width="0dp"
+            android:layout_height="6dp"
+            android:layout_marginEnd="5dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_step_active" />
 
-                <EditText
-                    android:id="@+id/et_user_name"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:layout_centerVertical="true"
-                    android:layout_toStartOf="@+id/status_container"
-                    android:autofillHints="name"
-                    android:background="@android:color/transparent"
-                    android:fontFamily="@font/poppins_medium"
-                    android:hint="@string/getname_input_hint"
-                    android:imeOptions="actionDone"
-                    android:inputType="textPersonName|textCapWords"
-                    android:maxLength="30"
-                    android:singleLine="true"
-                    android:textColor="@color/black_light"
-                    android:textColorHint="@color/grey_medium"
-                    android:textCursorDrawable="@drawable/color_cursor"
-                    android:textSize="15sp" />
-
-                <FrameLayout
-                    android:id="@+id/status_container"
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
-                    android:layout_alignParentEnd="true"
-                    android:layout_centerVertical="true">
-
-                    <ProgressBar
-                        android:id="@+id/pb_user_name_loader"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:indeterminate="true"
-                        android:indeterminateTint="@color/colorAccent"
-                        android:visibility="gone" />
-
-                    <ImageView
-                        android:id="@+id/iv_warning"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:contentDescription="@string/edit"
-                        android:src="@drawable/warning"
-                        android:visibility="gone"
-                        app:tint="#EF4444" />
-
-                    <ImageView
-                        android:id="@+id/iv_success"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:contentDescription="@string/edit"
-                        android:src="@drawable/ic_tick"
-                        android:visibility="gone" />
-                </FrameLayout>
-            </RelativeLayout>
-        </androidx.cardview.widget.CardView>
-
-        <TextView
-            android:id="@+id/tv_user_name_hint"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
-            android:layout_marginTop="8dp"
-            android:fontFamily="@font/poppins_regular"
-            android:text="@string/getname_min_chars"
-            android:textColor="@color/user_name_hint_text"
-            android:textSize="11sp" />
+        <View
+            android:layout_width="0dp"
+            android:layout_height="6dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_step_inactive" />
     </LinearLayout>
 
+    <!-- Header -->
+    <LinearLayout
+        android:id="@+id/ll_header"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginTop="24dp"
+        android:orientation="vertical"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/card_back">
+
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/poppins_bold"
+            android:letterSpacing="-0.02"
+            android:text="@string/getname_title"
+            android:textColor="@color/black_light"
+            android:textSize="30sp" />
+
+        <TextView
+            android:id="@+id/tv_subtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:fontFamily="@font/poppins_regular"
+            android:text="@string/getname_subtitle"
+            android:textColor="@color/grey_medium"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+    <!-- Input label -->
+    <TextView
+        android:id="@+id/tv_input_label"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginTop="28dp"
+        android:fontFamily="@font/poppins_semibold"
+        android:text="@string/getname_input_label"
+        android:textColor="@color/colorAccent"
+        android:textSize="13sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/ll_header" />
+
+    <!-- Name input card -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cv_user_name"
+        android:layout_width="0dp"
+        android:layout_height="60dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginTop="8dp"
+        app:cardBackgroundColor="@color/white"
+        app:cardCornerRadius="20dp"
+        app:cardElevation="4dp"
+        app:strokeColor="@color/divider"
+        app:strokeWidth="1dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tv_input_label">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingStart="18dp"
+            android:paddingEnd="18dp">
+
+            <EditText
+                android:id="@+id/et_user_name"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_centerVertical="true"
+                android:layout_toStartOf="@+id/status_container"
+                android:autofillHints="name"
+                android:background="@android:color/transparent"
+                android:fontFamily="@font/poppins_medium"
+                android:hint="@string/getname_input_hint"
+                android:imeOptions="actionDone"
+                android:inputType="textPersonName|textCapWords"
+                android:maxLength="30"
+                android:singleLine="true"
+                android:textColor="@color/black_light"
+                android:textColorHint="@color/grey_medium"
+                android:textCursorDrawable="@drawable/color_cursor"
+                android:textSize="15sp" />
+
+            <FrameLayout
+                android:id="@+id/status_container"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true">
+
+                <ProgressBar
+                    android:id="@+id/pb_user_name_loader"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:indeterminate="true"
+                    android:indeterminateTint="@color/colorAccent"
+                    android:visibility="gone" />
+
+                <ImageView
+                    android:id="@+id/iv_warning"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@string/edit"
+                    android:src="@drawable/warning"
+                    android:visibility="gone"
+                    app:tint="#EF4444" />
+
+                <ImageView
+                    android:id="@+id/iv_success"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@string/edit"
+                    android:src="@drawable/ic_tick"
+                    android:visibility="gone" />
+            </FrameLayout>
+        </RelativeLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Hint text below input -->
+    <TextView
+        android:id="@+id/tv_user_name_hint"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginTop="8dp"
+        android:fontFamily="@font/poppins_regular"
+        android:text="@string/getname_min_chars"
+        android:textColor="@color/user_name_hint_text"
+        android:textSize="11sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/cv_user_name" />
+
+    <!-- Continue Button -->
     <RelativeLayout
-        android:layout_width="match_parent"
-        android:layout_height="54dp"
-        android:layout_gravity="bottom"
-        android:layout_margin="20dp">
+        android:id="@+id/rl_continue"
+        android:layout_width="0dp"
+        android:layout_height="56dp"
+        android:layout_marginStart="22dp"
+        android:layout_marginEnd="22dp"
+        android:layout_marginBottom="24dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_continue"
             android:layout_width="match_parent"
-            android:layout_height="54dp"
-            android:backgroundTint="@color/kyc_button_disabled"
-            android:enabled="false"
+            android:layout_height="56dp"
+            android:elevation="0dp"
             android:fontFamily="@font/poppins_semibold"
             android:text="@string/continue_text"
             android:textAllCaps="false"
             android:textColor="@color/white"
-            android:textSize="15sp"
-            app:cornerRadius="12dp"
-            app:elevation="6dp" />
+            android:textSize="16sp"
+            app:backgroundTint="@color/kyc_button_disabled"
+            app:cornerRadius="16dp"
+            app:elevation="0dp" />
 
         <ProgressBar
             android:id="@+id/pb_continue_loader"
@@ -179,4 +253,4 @@
             android:visibility="gone" />
     </RelativeLayout>
 
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

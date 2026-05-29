@@ -338,12 +338,13 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         super.onCreate(savedInstanceState)
         binding = ActivityNewLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        // Keep system bars opaque on login for better readability of SDK consent footer.
-        window.statusBarColor = getColor(R.color.pink)
-        window.navigationBarColor = getColor(R.color.pink)
+        // Edge-to-edge — single light-grey background spanning status bar to
+        // nav bar with dark icons on both for proper contrast.
+        window.statusBarColor = getColor(R.color.grey_extra_light)
+        window.navigationBarColor = getColor(R.color.grey_extra_light)
         WindowCompat.getInsetsController(window, window.decorView).apply {
-            isAppearanceLightStatusBars = false
-            isAppearanceLightNavigationBars = false
+            isAppearanceLightStatusBars = true
+            isAppearanceLightNavigationBars = true
         }
 
         // Add animated background (same as splash screen)
@@ -528,7 +529,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         val savedReferCode = DPreferences(this).getReferralCode()
         Log.d("savedReferCode","$savedReferCode")
         checkReferal()
-        sendOtpEnabledTint = binding.btnSendOtp.backgroundTintList
+        sendOtpEnabledTint = ColorStateList.valueOf(android.graphics.Color.parseColor("#FF1383"))
 
         binding.btnSendOtp.setOnClickListener {
             closeKeyboard()
@@ -577,7 +578,6 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             }
 
             override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
-                window.statusBarColor = resources.getColor(R.color.dark_blue)
                 updateSendOtpButtonState()
             }
 
@@ -633,7 +633,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         binding.btnSendOtp.backgroundTintList = if (hasTenDigitInput) {
             sendOtpEnabledTint
         } else {
-            ColorStateList.valueOf(getColor(R.color.grey_medium))
+            ColorStateList.valueOf(getColor(R.color.kyc_button_disabled))
         }
     }
 
@@ -734,7 +734,8 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
 
     private fun initOtpUI(mobile: String, otp: Int, countryCode: Int) {
-        window.statusBarColor = resources.getColor(R.color.dark_blue)
+        // Keep status bar matching the screen's single grey background.
+        window.statusBarColor = getColor(R.color.grey_extra_light)
         if (verifyOtpEnabledTint == null) {
             verifyOtpEnabledTint = binding.btnVerifyOtp.backgroundTintList
         }
@@ -925,7 +926,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         binding.btnVerifyOtp.backgroundTintList = if (isEnabled) {
             verifyOtpEnabledTint
         } else {
-            ColorStateList.valueOf(getColor(R.color.grey_medium))
+            ColorStateList.valueOf(getColor(R.color.kyc_button_disabled))
         }
     }
 
