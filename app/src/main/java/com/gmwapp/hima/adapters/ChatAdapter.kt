@@ -531,6 +531,17 @@ class ChatAdapter(
             itemView.isLongClickable = true
             tvMessage.isLongClickable = true
 
+            // WhatsApp-style width cap: bubble stops at 80% of screen width.
+            // Done in code (not XML) because android:maxWidth only works in
+            // fixed dp — there's no percentage form — and putting maxWidth on
+            // the bubble LinearLayout is a no-op (LinearLayout ignores it).
+            // tv_message is a TextView, which DOES honour maxWidth, so capping
+            // the text here caps the whole bubble. Subtract the bubble's 24dp
+            // horizontal padding so the pink box (text + padding) lands at 80%.
+            val dm = tvMessage.context.resources.displayMetrics
+            val bubblePaddingPx = (24f * dm.density).toInt()
+            tvMessage.maxWidth = (dm.widthPixels * 0.80f).toInt() - bubblePaddingPx
+
             val reply = parseInlineReply(message.message)
             if (reply != null) {
                 layoutReplyQuote.visibility = View.VISIBLE

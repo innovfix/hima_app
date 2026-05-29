@@ -42,6 +42,7 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="10"
+                android:maxWidth="240dp"
                 android:text="I'm doing great! Thanks for asking."
                 android:textSize="14.5sp"
                 android:textColor="@color/chat_text_sent"
