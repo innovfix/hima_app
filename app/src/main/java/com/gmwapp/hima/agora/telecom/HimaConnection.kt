@@ -31,28 +31,52 @@ class HimaConnection(
 ) : Connection() {
 
     init {
-        connectionProperties = PROPERTY_SELF_MANAGED
-        setAudioModeIsVoip(true)
+        // v1106 (2026-05-29) — wrap each Connection API call individually
+        // in try-catch. Some OEM Android implementations (observed in
+        // Crashlytics for v1105 on certain devices) strip or relocate methods
+        // like setVideoState/getVideoState which causes a fatal
+        // NoSuchMethodError during init, force-closing the app the moment
+        // a Telecom call is created. Each call is independent so we keep
+        // whatever parts the OEM does support and skip the missing ones —
+        // worst case the Telecom hold/switch UX degrades for that one call
+        // but the app stays alive.
+        try { connectionProperties = PROPERTY_SELF_MANAGED } catch (t: Throwable) { Log.w(TAG, "init: setting PROPERTY_SELF_MANAGED failed", t) }
+        try { setAudioModeIsVoip(true) } catch (t: Throwable) { Log.w(TAG, "init: setAudioModeIsVoip failed", t) }
         val name = extras.getString(EXTRA_CALLER_NAME) ?: "Hima call"
-        setCallerDisplayName(name, TelecomManager.PRESENTATION_ALLOWED)
+        try { setCallerDisplayName(name, TelecomManager.PRESENTATION_ALLOWED) } catch (t: Throwable) { Log.w(TAG, "init: setCallerDisplayName failed", t) }
         val callType = extras.getString(EXTRA_CALL_TYPE) ?: "audio"
-        if (callType == "video") {
-            setVideoState(VideoProfile.STATE_BIDIRECTIONAL)
-        } else {
-            setVideoState(VideoProfile.STATE_AUDIO_ONLY)
+        try {
+            if (callType == "video") {
+                setVideoState(VideoProfile.STATE_BIDIRECTIONAL)
+            } else {
+                setVideoState(VideoProfile.STATE_AUDIO_ONLY)
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "init: setVideoState failed (OEM Connection class missing method?)", t)
         }
         // CAPABILITY_HOLD + CAPABILITY_SUPPORT_HOLD let Telecom offer the system
         // second-call UI ("Hold & Answer", "End & Answer") when another call
         // arrives while this Hima call is active — and route the user's choice
         // back to us via onHold() / onUnhold(). Without these, Telecom would
         // only offer "End & Answer" and audio mixing would persist.
-        connectionCapabilities = CAPABILITY_MUTE or CAPABILITY_HOLD or CAPABILITY_SUPPORT_HOLD
-        if (isIncoming) {
-            setRinging()
-        } else {
-            setDialing()
+        try {
+            connectionCapabilities = CAPABILITY_MUTE or CAPABILITY_HOLD or CAPABILITY_SUPPORT_HOLD
+        } catch (t: Throwable) {
+            Log.w(TAG, "init: setting connectionCapabilities failed", t)
         }
-        val vs = videoState
+        try {
+            if (isIncoming) {
+                setRinging()
+            } else {
+                setDialing()
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "init: setRinging/setDialing failed", t)
+        }
+        val vs = try { videoState } catch (t: Throwable) {
+            Log.w(TAG, "init: reading videoState failed (OEM Connection class missing getter?)", t)
+            -1
+        }
         Log.d(
             INCOMING_CALL_LOG_TAG,
             "HimaConnection init isIncoming=$isIncoming callType=$callType videoState=$vs extrasKeys=${extras.keySet()}"

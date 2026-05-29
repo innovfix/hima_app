@@ -346,6 +346,16 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
             return
         }
 
+        // v1106 (2026-05-29) — guard against destroyed activity. 3 users on
+        // v20-v1105 crashed with "Attempting to launch an unregistered
+        // ActivityResultLauncher" because this method can fire from an
+        // async network callback after the user has navigated away. Catch
+        // IllegalStateException too in case Android internals throw it.
+        if (isFinishing || isDestroyed) {
+            Log.w("PhonePe", "startPhonePeCheckout skipped — activity finishing/destroyed")
+            return
+        }
+
         try {
             PhonePeKt.startCheckoutPage(
                 context = this,
@@ -356,6 +366,12 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         } catch (e: PhonePeInitException) {
             Log.e("PhonePe", "Checkout Failed: ${e.message}")
             showAppToast("Could not start payment", Toast.LENGTH_SHORT)
+        } catch (e: IllegalStateException) {
+            Log.e("PhonePe", "ActivityResultLauncher not ready: ${e.message}", e)
+            showAppToast("Could not start payment. Please try again.", Toast.LENGTH_SHORT)
+        } catch (e: Throwable) {
+            Log.e("PhonePe", "Unexpected error launching checkout: ${e.message}", e)
+            showAppToast("Could not start payment. Please try again.", Toast.LENGTH_SHORT)
         }
     }
 

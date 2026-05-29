@@ -1556,14 +1556,24 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         // creating the new view so the subscriber thread re-acquires a
         // clean target. See MaleVideoCallingActivity setupRemoteVideo for
         // full rationale.
+        //
+        // v1106 (2026-05-29) — guard against null agoraEngine. setupRemoteVideo
+        // can fire from a delayed onUserJoined callback after the user has
+        // already hung up and agoraEngine has been released to null. 1 user
+        // hit NPE on `agoraEngine!!` on v1105.
+        val engine = agoraEngine ?: run {
+            Log.w("FemaleVideo", "setupRemoteVideo: agoraEngine is null (already released?) — skipping")
+            return
+        }
+        if (isFinishing || isDestroyed) return
         binding.remoteVideoViewContainer.removeAllViews()
-        agoraEngine?.setupRemoteVideo(
+        engine.setupRemoteVideo(
             VideoCanvas(null, VideoCanvas.RENDER_MODE_HIDDEN, uid)
         )
         remoteSurfaceView = SurfaceView(baseContext)
         remoteSurfaceView!!.setZOrderMediaOverlay(false)
         binding.remoteVideoViewContainer.addView(remoteSurfaceView)
-        agoraEngine!!.setupRemoteVideo(
+        engine.setupRemoteVideo(
             VideoCanvas(
                 remoteSurfaceView,
                 VideoCanvas.RENDER_MODE_HIDDEN,

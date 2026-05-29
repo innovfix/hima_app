@@ -479,7 +479,16 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == TcSdk.SHARE_PROFILE_REQUEST_CODE) {
-            TcSdk.getInstance().onActivityResultObtained(this, requestCode, resultCode, data)
+            // v1106 (2026-05-29) — TcSdk.init() lives in a network-callback path
+            // (line ~391, inside the captcha-init listener). On some devices that
+            // callback hasn't run yet when the user returns from Truecaller's
+            // consent screen, so TcSdk.getInstance() throws "Please call init()
+            // on TcSdk first". Defensive guard.
+            try {
+                TcSdk.getInstance().onActivityResultObtained(this, requestCode, resultCode, data)
+            } catch (e: RuntimeException) {
+                Log.w("NewLogin", "TcSdk.onActivityResultObtained failed (SDK not initialized): ${e.message}")
+            }
         }
     }
 

@@ -26,21 +26,34 @@ class RecentViewModel @Inject constructor(private val profileRepositories: Profi
     val missedCallCountErrorLiveData = MutableLiveData<String>()
     fun getCallsList(
         userId: Int,
-        gender: String,
+        gender: String?,
         limit: Int,
         currentOffset: Int,
-        type: String,
+        type: String?,
         search: String? = null,
         fav: Int? = null,
         days: Int = 0
     ) {
+        // v1106 (2026-05-29) — gender/type were declared non-null but 1 user crashed
+        // with "Parameter specified as non-null is null" (likely a stale fragment
+        // calling before user-data loaded). Make them nullable + fall back to safe
+        // defaults so a missing gender/type degrades to an empty list instead of
+        // crashing the app.
+        val safeGender = gender ?: run {
+            Log.w("RecentViewModel", "getCallsList called with null gender — defaulting to 'male'")
+            "male"
+        }
+        val safeType = type ?: run {
+            Log.w("RecentViewModel", "getCallsList called with null type — defaulting to 'recent'")
+            "recent"
+        }
         viewModelScope.launch {
             profileRepositories.getCallsList(
                 userId,
-                gender,
+                safeGender,
                 limit,
                 currentOffset,
-                type,
+                safeType,
                 search,
                 fav,
                 days,

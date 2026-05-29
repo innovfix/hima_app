@@ -2447,7 +2447,14 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
         btnYes.setOnClickListener {
             val remainingTime = binding.tvRemainingTime?.text.toString()
-            val timeParts = remainingTime.split(":").map { it.toInt() }
+            // v1106 — same defensive parse as switchToVideo() — countdown text
+            // can be "Connecting..." before timer initializes.
+            val timeParts = try {
+                remainingTime.split(":").map { it.toInt() }
+            } catch (e: NumberFormatException) {
+                Log.w("MaleAudio", "btnYes: remainingTime='$remainingTime' not parseable — aborting")
+                return@setOnClickListener
+            }
 
             if (timeParts.size == 3) {
                 val hours = timeParts[0]
@@ -2529,7 +2536,16 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
                 val remainingTime =
                     binding.tvRemainingTime?.text.toString() // Get the current countdown time
-                val timeParts = remainingTime.split(":").map { it.toInt() }
+                // v1106 (2026-05-29) — guard against UI text like "Connecting..." being
+                // parsed as Int. 4 users on v1105 hit NumberFormatException when they
+                // tapped switch-to-video before the call countdown finished initializing
+                // (tv_remaining_time was still showing "Connecting..."). Defensive parse.
+                val timeParts = try {
+                    remainingTime.split(":").map { it.toInt() }
+                } catch (e: NumberFormatException) {
+                    Log.w("MaleAudio", "switchToVideo: remainingTime='$remainingTime' not yet HH:MM:SS — skipping switch")
+                    return
+                }
 
                 if (timeParts.size == 3) {  // Ensure we have HH:MM:SS format
                     val hours = timeParts[0]
@@ -2604,7 +2620,13 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
                     val remainingTime =
                         binding.tvRemainingTime?.text.toString() // Get the current countdown time
-                    val timeParts = remainingTime.split(":").map { it.toInt() }
+                    // v1106 — same defensive parse pattern.
+                    val timeParts = try {
+                        remainingTime.split(":").map { it.toInt() }
+                    } catch (e: NumberFormatException) {
+                        Log.w("MaleAudio", "VideoAccepted observer: remainingTime='$remainingTime' not parseable — skipping")
+                        return@Observer
+                    }
 
 
                     if (timeParts.size == 3) {  // Ensure we have HH:MM:SS format

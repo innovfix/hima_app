@@ -379,6 +379,14 @@ class UserProfileDetailActivity : AppCompatActivity() {
     private fun populateUserData() {
         displayedUserName = extractNameOnly(userName).ifBlank { userName }
 
+        // v1106 (2026-05-29) — Glide rejects load attempts on a destroyed
+        // activity with IllegalArgumentException ("cannot start a load for a
+        // destroyed activity"). populateUserData() can be re-invoked from
+        // async callbacks (line 607: runOnUiThread { populateUserData() })
+        // after the user has already navigated away. 5 users on v1064-v1105
+        // hit this in Crashlytics. Guard the load.
+        if (isFinishing || isDestroyed) return
+
         // Set user image
         Glide.with(this)
             .load(userImage)
