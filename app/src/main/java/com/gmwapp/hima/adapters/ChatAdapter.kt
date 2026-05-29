@@ -540,7 +540,8 @@ class ChatAdapter(
             // horizontal padding so the pink box (text + padding) lands at 80%.
             val dm = tvMessage.context.resources.displayMetrics
             val bubblePaddingPx = (24f * dm.density).toInt()
-            tvMessage.maxWidth = (dm.widthPixels * 0.80f).toInt() - bubblePaddingPx
+            val widthCapPx = (dm.widthPixels * 0.80f).toInt() - bubblePaddingPx
+            tvMessage.maxWidth = widthCapPx
 
             val reply = parseInlineReply(message.message)
             if (reply != null) {
@@ -577,9 +578,31 @@ class ChatAdapter(
                 tvMessage.text = reply.body
                 applyQuoteTint(isSent)
                 layoutReplyQuote.setOnClickListener { onReplyQuoteTap?.invoke(message) }
+
+                // WhatsApp-style: the reply bubble grows to fit the quoted
+                // message, instead of shrinking to a short reply body (which
+                // crammed the quote into a tiny column and over-truncated it,
+                // e.g. "Bznska…"). Measure the quote's natural text width and
+                // use it as the body's minWidth (capped at the same 80%), so
+                // the bubble expands to show the quote. If the quote is longer
+                // than 80% it still single-line-ellipsizes at the cap.
+                val snippetW = tvReplyQuoteSnippet.paint.measureText(
+                    tvReplyQuoteSnippet.text?.toString().orEmpty()
+                )
+                val authorW = tvReplyQuoteAuthor.paint.measureText(
+                    tvReplyQuoteAuthor.text?.toString().orEmpty()
+                )
+                // 3dp strip + 8dp inner margin + 12dp quote padding + a little
+                // slack for the optional mic compound drawable.
+                val quoteChromePx = (31f * dm.density)
+                val quoteDesiredPx = (maxOf(snippetW, authorW) + quoteChromePx).toInt()
+                tvMessage.minWidth = minOf(widthCapPx, quoteDesiredPx)
             } else {
                 layoutReplyQuote.visibility = View.GONE
                 layoutReplyQuote.setOnClickListener(null)
+                // Reset the reply-driven minWidth so a recycled holder showing
+                // a plain message doesn't stay stretched to a previous quote.
+                tvMessage.minWidth = 0
                 tvMessage.text = message.message
                 // Make sure recycled holders that previously rendered an audio
                 // reply quote don't keep the mic drawable on a plain text bubble.
