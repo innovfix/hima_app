@@ -1124,56 +1124,43 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     /**
-     * CHAT-091 follow-up: keep the swiped message visible above the reply
-     * preview after a swipe-to-reply. The RecyclerView is stackFromEnd=true
-     * so the bottom is anchored; when the reply preview + keyboard appear
-     * the list shrinks and older messages scroll off the top, including the
-     * one the user just swiped (testers reported this as "messages
-     * disappeared"). Re-scroll on every layout pass for ~800ms so we ride
-     * through both the reply-preview animation and the soft-keyboard IME
-     * animation regardless of the device's animation timing.
+     * CHAT-091 follow-up v4: scroll the swiped message into the visible
+     * area after a swipe-to-reply. Simpler approach than v2/v3 — just call
+     * smoothScrollToPosition with the bottom of the visible area as the
+     * target, which forces the LayoutManager to bring the row into view
+     * regardless of stackFromEnd anchoring.
      *
-     * Captures the message ID (not the index) so a concurrent insert from
-     * a socket event doesn't make us scroll to the wrong row.
+     * Earlier versions used scrollToPositionWithOffset with a 30%-height
+     * offset, but on some devices the LayoutManager kept re-anchoring to
+     * the bottom after our scroll ran, leaving the swiped row off the top.
+     * smoothScrollToPosition gives the LayoutManager an explicit "make
+     * this row visible" command that survives the anchor pass.
+     *
+     * Captures the message ID (not the index) so a concurrent socket
+     * insert / delete doesn't make us scroll to the wrong row.
      */
     private fun keepSwipedMessageVisible(swipedPos: Int) {
         if (swipedPos < 0 || swipedPos !in messages.indices) return
         val swipedId = messages[swipedPos].id
+        Log.d("ChatSwipeReply", "keepSwipedMessageVisible swipedPos=$swipedPos swipedId=$swipedId messages=${messages.size}")
 
         fun doScroll() {
             if (!isUiSafe()) return
-            val lm = rvMessages.layoutManager as? androidx.recyclerview.widget.LinearLayoutManager
-                ?: return
             val idx = messages.indexOfFirst { it.id == swipedId }
-            if (idx < 0) return
-            // Use the CURRENT recycler height — re-reading on every
-            // layout pass means we get the post-keyboard dimensions
-            // once the IME animation lands.
-            val h = rvMessages.height
-            if (h <= 0) return
-            val offset = (h * 0.3f).toInt().coerceAtLeast(0)
-            lm.scrollToPositionWithOffset(idx, offset)
+            if (idx < 0) {
+                Log.d("ChatSwipeReply", "doScroll: swipedId=$swipedId not found in messages")
+                return
+            }
+            // smoothScrollToPosition forces the LayoutManager to bring the
+            // row into view — survives stackFromEnd's bottom-anchor logic.
+            rvMessages.smoothScrollToPosition(idx)
+            Log.d("ChatSwipeReply", "doScroll: smoothScroll to idx=$idx")
         }
 
-        // Stage 1: immediate post after the reply-preview layout pass.
+        // Two-stage: first immediate post (catches the reply-preview layout pass),
+        // then a 400ms postDelayed (catches any later re-anchoring).
         rvMessages.post { doScroll() }
-
-        // Stage 2: re-scroll on every layout change for ~800ms — captures
-        // both the IME open animation (varies 150-400ms by device) and any
-        // post-layout repositioning the layout manager does. Self-removes
-        // after the window expires so we don't fight user-driven scrolls
-        // forever.
-        val listener = object : android.view.ViewTreeObserver.OnGlobalLayoutListener {
-            override fun onGlobalLayout() {
-                doScroll()
-            }
-        }
-        rvMessages.viewTreeObserver.addOnGlobalLayoutListener(listener)
-        rvMessages.postDelayed({
-            runCatching {
-                rvMessages.viewTreeObserver.removeOnGlobalLayoutListener(listener)
-            }
-        }, 800L)
+        rvMessages.postDelayed({ doScroll() }, 400L)
     }
 
     private fun showChatMessageContextMenu(anchor: View, message: ChatMessage, position: Int) {
