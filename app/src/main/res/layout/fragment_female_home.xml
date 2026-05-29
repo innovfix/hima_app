@@ -5,7 +5,7 @@
     android:id="@+id/swipe_refresh_female_home"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/bg_radar_screen">
+    android:background="@color/grey_extra_light">
 
 <ScrollView
     android:layout_width="match_parent"
@@ -17,7 +17,7 @@
 <androidx.constraintlayout.widget.ConstraintLayout
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@color/white">
+    android:background="@color/grey_extra_light">
 
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/gl_left_margin"
@@ -69,13 +69,15 @@
         app:tint="@color/green"
      />
 
-    <!-- Header Section with gradient or solid color background -->
+    <!-- Header Section — white, matches male AppBar style -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/cl_header"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@color/grey_extra_light"
-        android:paddingVertical="20dp"
+        android:background="@color/white"
+        android:elevation="2dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="14dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
@@ -102,56 +104,96 @@
                 app:tint="@color/white" />
         </com.google.android.material.card.MaterialCardView>
 
-        <TextView
-            android:id="@+id/tv_logo"
+        <LinearLayout
+            android:id="@+id/ll_logo_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="12dp"
-            android:fontFamily="@font/poppins_bold"
-            android:text="@string/app_name"
-            android:textColor="@color/black_light"
-            android:textSize="19sp"
+            android:orientation="vertical"
             app:layout_constraintBottom_toBottomOf="@+id/cv_logo_icon"
             app:layout_constraintStart_toEndOf="@+id/cv_logo_icon"
-            app:layout_constraintTop_toTopOf="@+id/cv_logo_icon" />
-
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/cl_coins"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="20dp"
-            android:background="@drawable/d_button_bg"
-            android:backgroundTint="@color/colorPrimary"
-            android:paddingVertical="8dp"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
-
-            <ImageView
-                android:id="@+id/iv_coin"
-                android:layout_width="22dp"
-                android:layout_height="22dp"
-                android:scaleType="fitXY"
-                android:src="@drawable/coin_d"
-                android:visibility="gone"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="@+id/cv_logo_icon">
 
             <TextView
-                android:id="@+id/tv_coins"
+                android:id="@+id/tv_logo"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/poppins_semibold"
-                android:text="0"
-                android:textColor="@color/white"
-                android:textSize="16sp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toEndOf="@+id/iv_coin"
-                app:layout_constraintTop_toTopOf="parent" />
-        </androidx.constraintlayout.widget.ConstraintLayout>
+                android:fontFamily="@font/cabinet_grotesk_extrabold"
+                android:letterSpacing="-0.01"
+                android:text="@string/app_name"
+                android:textColor="@color/black_light"
+                android:textSize="19sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="-2dp"
+                android:fontFamily="@font/plus_jakarta_sans_medium"
+                android:text="Where Feelings Connect"
+                android:textColor="@color/grey_medium"
+                android:textSize="10sp" />
+        </LinearLayout>
+
+        <!-- Wallet pill — gold→pink gradient + white coin circle, matches male style -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cl_coins"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:layout_marginEnd="20dp"
+            android:clickable="true"
+            android:focusable="true"
+            app:cardBackgroundColor="@android:color/transparent"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="0dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:rippleColor="#33FFD700"
+            app:strokeWidth="0dp">
+
+            <FrameLayout
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_coin_balance_pill">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="2dp"
+                    android:paddingTop="2dp"
+                    android:paddingEnd="20dp"
+                    android:paddingBottom="2dp">
+
+                    <FrameLayout
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_gravity="center_vertical"
+                        android:layout_marginVertical="2dp"
+                        android:layout_marginLeft="2dp"
+                        android:background="@drawable/bg_coin_circle_white">
+
+                        <ImageView
+                            android:id="@+id/iv_coin"
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:layout_gravity="center"
+                            android:src="@drawable/coin_d" />
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/tv_coins"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:fontFamily="@font/plus_jakarta_sans_bold"
+                        android:text="₹0"
+                        android:textColor="@color/white"
+                        android:textSize="15sp" />
+                </LinearLayout>
+            </FrameLayout>
+        </com.google.android.material.card.MaterialCardView>
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- ── Star Creator Banner (visible when star == 1) ── -->
@@ -306,10 +348,24 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
+                <FrameLayout
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:background="@drawable/circle_bg_accent">
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:layout_gravity="center"
+                        android:contentDescription=""
+                        android:src="@drawable/ic_sparkle"
+                        app:tint="@color/white" />
+                </FrameLayout>
+
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
+                    android:layout_marginStart="10dp"
                     android:fontFamily="@font/poppins_semibold"
                     android:text="Creators Joining Now"
                     android:textColor="@color/black"
@@ -368,128 +424,189 @@
             android:paddingHorizontal="20dp"
             android:paddingVertical="14dp">
 
-            <!-- Title -->
-            <TextView
-                android:id="@+id/tv_availability_title"
+            <!-- Header row: pink badge + title + subtitle -->
+            <LinearLayout
+                android:id="@+id/ll_avail_header"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Availability Status"
-                android:fontFamily="@font/poppins_semibold"
-                android:textColor="@color/black"
-                android:textSize="18sp"
-                android:textStyle="bold"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                app:layout_constraintTop_toTopOf="parent">
+
+                <FrameLayout
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="@drawable/circle_bg_accent">
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_gravity="center"
+                        android:contentDescription=""
+                        android:src="@drawable/ic_phone_modern"
+                        app:tint="@color/white" />
+                </FrameLayout>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:orientation="vertical">
+                    <TextView
+                        android:id="@+id/tv_availability_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Availability Status"
+                        android:fontFamily="@font/poppins_semibold"
+                        android:textColor="@color/black"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Set your call availability"
+                        android:fontFamily="@font/poppins_regular"
+                        android:textColor="@color/grey_medium"
+                        android:textSize="11sp" />
+                </LinearLayout>
+            </LinearLayout>
 
             <!-- Divider -->
             <View
                 android:id="@+id/v_divider_top"
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="12dp"
                 android:background="@color/grey_extra_light"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/tv_availability_title" />
+                app:layout_constraintTop_toBottomOf="@+id/ll_avail_header" />
 
-            <androidx.constraintlayout.widget.Guideline
-                android:id="@+id/gl_center_margin"
-                android:layout_width="wrap_content"
+            <!-- Modern full-width toggle rows -->
+            <LinearLayout
+                android:id="@+id/ll_toggles"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                app:layout_constraintGuide_percent="0.5" />
-
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toStartOf="@+id/gl_center_margin"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/v_divider_top">
-
-                <ImageView
-                    android:id="@+id/iv_audio_icon"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@drawable/ic_phone_modern"
-                    app:tint="@color/colorAccent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:layout_constraintBottom_toBottomOf="parent" />
-
-                <TextView
-                    android:id="@+id/tv_audio"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:fontFamily="@font/poppins_medium"
-                    android:text="@string/audio"
-                    android:textColor="@color/black"
-                    android:textSize="16sp"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toEndOf="@id/iv_audio_icon"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <androidx.appcompat.widget.SwitchCompat
-                    android:id="@+id/s_audio"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_centerInParent="true"
-                    android:layout_marginStart="8dp"
-                    android:thumb="@drawable/thumb_selector"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toEndOf="@id/tv_audio"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:track="@drawable/track_selector" />
-            </androidx.constraintlayout.widget.ConstraintLayout>
-
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toEndOf="@+id/gl_center_margin"
-                app:layout_constraintTop_toBottomOf="@id/v_divider_top">
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/v_divider_top"
+                app:layout_constraintBottom_toBottomOf="parent">
 
-                <ImageView
-                    android:id="@+id/iv_video_icon"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@drawable/ic_video_modern"
-                    app:tint="@color/green"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:layout_constraintBottom_toBottomOf="parent" />
-
-                <TextView
-                    android:id="@+id/tv_video"
-                    android:layout_width="wrap_content"
+                <!-- ── Audio row ── -->
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:fontFamily="@font/poppins_medium"
-                    android:text="@string/video"
-                    android:textColor="@color/black"
-                    android:textSize="16sp"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toEndOf="@id/iv_video_icon"
-                    app:layout_constraintTop_toTopOf="parent" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingTop="14dp"
+                    android:paddingBottom="14dp">
 
-                <androidx.appcompat.widget.SwitchCompat
-                    android:id="@+id/s_video"
-                    android:layout_width="wrap_content"
+                    <FrameLayout
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:background="@drawable/d_button_bg"
+                        android:backgroundTint="#FCE4F0">
+                        <ImageView
+                            android:id="@+id/iv_audio_icon"
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:layout_gravity="center"
+                            android:contentDescription=""
+                            android:src="@drawable/ic_phone_modern"
+                            app:tint="@color/colorAccent" />
+                    </FrameLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="14dp"
+                        android:orientation="vertical">
+                        <TextView
+                            android:id="@+id/tv_audio"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/poppins_semibold"
+                            android:text="@string/audio"
+                            android:textColor="@color/black"
+                            android:textSize="14sp" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="-1dp"
+                            android:fontFamily="@font/poppins_regular"
+                            android:text="Toggle audio call availability"
+                            android:textColor="@color/grey_medium"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/s_audio"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+
+                <!-- Row divider -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@color/grey_extra_light" />
+
+                <!-- ── Video row ── -->
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_centerInParent="true"
-                    android:layout_marginStart="8dp"
-                    android:thumb="@drawable/thumb_selector"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toEndOf="@id/tv_video"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:track="@drawable/track_selector" />
-            </androidx.constraintlayout.widget.ConstraintLayout>
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingTop="14dp"
+                    android:paddingBottom="14dp">
+
+                    <FrameLayout
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:background="@drawable/d_button_bg"
+                        android:backgroundTint="#E8F5E9">
+                        <ImageView
+                            android:id="@+id/iv_video_icon"
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:layout_gravity="center"
+                            android:contentDescription=""
+                            android:src="@drawable/ic_video_modern"
+                            app:tint="@color/green" />
+                    </FrameLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="14dp"
+                        android:orientation="vertical">
+                        <TextView
+                            android:id="@+id/tv_video"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/poppins_semibold"
+                            android:text="@string/video"
+                            android:textColor="@color/black"
+                            android:textSize="14sp" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="-1dp"
+                            android:fontFamily="@font/poppins_regular"
+                            android:text="Toggle video call availability"
+                            android:textColor="@color/grey_medium"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/s_video"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+            </LinearLayout>
         </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.cardview.widget.CardView>
 
@@ -754,42 +871,65 @@
             android:paddingHorizontal="20dp"
             android:paddingVertical="10dp">
 
-            <!-- Title -->
-            <TextView
-                android:id="@+id/tv_today_activity"
+            <!-- Header row: green badge + title + subtitle -->
+            <LinearLayout
+                android:id="@+id/ll_activity_header"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/todays_activity"
-                android:fontFamily="@font/poppins_semibold"
-                android:textColor="@color/black"
-                android:textSize="18sp"
-                android:textStyle="bold"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                app:layout_constraintTop_toTopOf="parent">
 
-            <!-- Description text -->
-            <TextView
-                android:id="@+id/tv_activity_desc"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="Your performance summary for today"
-                android:fontFamily="@font/poppins_regular"
-                android:textColor="@color/grey_medium"
-                android:textSize="12sp"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/tv_today_activity" />
+                <FrameLayout
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="@drawable/d_button_bg"
+                    android:backgroundTint="#E8F5E9">
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_gravity="center"
+                        android:contentDescription=""
+                        android:src="@drawable/coin_d"
+                        app:tint="@color/green" />
+                </FrameLayout>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:orientation="vertical">
+                    <TextView
+                        android:id="@+id/tv_today_activity"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/todays_activity"
+                        android:fontFamily="@font/poppins_semibold"
+                        android:textColor="@color/black"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+                    <TextView
+                        android:id="@+id/tv_activity_desc"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Your performance summary for today"
+                        android:fontFamily="@font/poppins_regular"
+                        android:textColor="@color/grey_medium"
+                        android:textSize="11sp" />
+                </LinearLayout>
+            </LinearLayout>
 
             <!-- Divider -->
             <View
                 android:id="@+id/v_divider_activity"
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="12dp"
                 android:background="@color/grey_extra_light"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/tv_activity_desc" />
+                app:layout_constraintTop_toBottomOf="@+id/ll_activity_header" />
 
             <!-- Earnings Row with Icon -->
             <androidx.constraintlayout.widget.ConstraintLayout

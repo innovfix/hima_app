@@ -3,8 +3,73 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/bg_radar_screen">
+    android:background="@color/grey_extra_light">
 
+    <!-- Header bar — white, matches home/profile toolbar style -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/cl_chat_header"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@color/white"
+        android:elevation="2dp"
+        android:paddingHorizontal="20dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="14dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <!-- Pink badge icon -->
+        <FrameLayout
+            android:id="@+id/fl_chat_icon"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:background="@drawable/circle_bg_accent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:contentDescription=""
+                android:src="@drawable/ic_chat_dots"
+                app:tint="@color/white" />
+        </FrameLayout>
+
+        <!-- Title + subtitle -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:orientation="vertical"
+            app:layout_constraintBottom_toBottomOf="@+id/fl_chat_icon"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@+id/fl_chat_icon"
+            app:layout_constraintTop_toTopOf="@+id/fl_chat_icon">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/cabinet_grotesk_extrabold"
+                android:letterSpacing="-0.01"
+                android:text="Messages"
+                android:textColor="@color/black_light"
+                android:textSize="19sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="-2dp"
+                android:fontFamily="@font/plus_jakarta_sans_medium"
+                android:text="Friends &amp; community"
+                android:textColor="@color/grey_medium"
+                android:textSize="10sp" />
+        </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Tab bar -->
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/tabs_creator_chat"
         android:layout_width="0dp"
@@ -12,17 +77,19 @@
         android:background="@color/white"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/cl_chat_header"
         app:tabGravity="fill"
-        app:tabMode="fixed"
         app:tabIndicatorColor="@color/colorAccent"
+        app:tabMode="fixed"
         app:tabSelectedTextColor="@color/colorAccent"
         app:tabTextColor="@color/grey_medium" />
 
+    <!-- Content pager -->
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/vp_creator_chat"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:background="@color/grey_extra_light"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
