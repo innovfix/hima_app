@@ -802,15 +802,18 @@ class ChatActivityInHouse : AppCompatActivity() {
                     if (pos != RecyclerView.NO_POSITION) {
                         val msg = messages.getOrNull(pos)
                         if (msg != null && !msg.isDateHeader && !msg.isDeleted && !isPendingMessage(msg)) {
-                            beginReplyTo(msg)
-                            // CHAT-091 follow-up: opening the reply preview +
-                            // keyboard shrinks the RecyclerView; with
-                            // stackFromEnd=true that scrolls older messages
-                            // off the top, including the one the user just
-                            // swiped. WhatsApp keeps the swiped message
-                            // visible just above the reply preview — match
-                            // that by scrolling back to the swiped position
-                            // once the keyboard has settled.
+                            // CHAT-091 follow-up v3: don't auto-open the
+                            // keyboard from a swipe — that's what was making
+                            // the chat shrink and the swiped message scroll
+                            // off the top. With keyboard suppressed the only
+                            // size change is the small reply-preview bar at
+                            // the bottom (~50dp), which the stackFromEnd
+                            // anchor handles gracefully without losing the
+                            // swiped row. User taps the input bar when they
+                            // want to start typing — matches the iOS pattern
+                            // and is the simplest way to make the bug go
+                            // away across every device timing.
+                            beginReplyToWithoutKeyboard(msg)
                             keepSwipedMessageVisible(pos)
                         }
                         chatAdapter.notifyItemChanged(pos)
@@ -1102,6 +1105,22 @@ class ChatActivityInHouse : AppCompatActivity() {
         val imm = getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
             as? android.view.inputmethod.InputMethodManager
         imm?.showSoftInput(etMessage, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    /**
+     * CHAT-091 follow-up v3: swipe-triggered reply that does NOT auto-open
+     * the IME. The reply preview opens (small bar at the bottom) but the
+     * keyboard stays closed, so the RecyclerView doesn't lose ~300dp of
+     * height to the IME and the swiped message remains visible. User taps
+     * the message input when they want to start typing — same UX as iOS
+     * WhatsApp and the simplest way to make the "messages disappeared
+     * after swipe" complaint go away across every device timing.
+     */
+    private fun beginReplyToWithoutKeyboard(message: ChatMessage) {
+        if (message.isDateHeader || message.isDeleted) return
+        if (isPendingMessage(message)) return
+        pendingReplyTo = message
+        updateReplyPreviewUi()
     }
 
     /**
