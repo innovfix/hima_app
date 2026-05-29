@@ -779,6 +779,11 @@ class ChatActivityInHouse : AppCompatActivity() {
                 0,
                 ItemTouchHelper.START or ItemTouchHelper.END
             ) {
+                // CHAT-091 follow-up v4: fire the reply once per gesture when the
+                // drag passes the trigger distance, NOT on swipe-complete. Reset
+                // when the row springs back to rest.
+                private var replyFiredThisGesture = false
+
                 override fun onMove(
                     recyclerView: RecyclerView,
                     viewHolder: RecyclerView.ViewHolder,
@@ -797,34 +802,28 @@ class ChatActivityInHouse : AppCompatActivity() {
                     return if (msg.isSentByMe) ItemTouchHelper.START else ItemTouchHelper.END
                 }
 
-                override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-                    val pos = viewHolder.bindingAdapterPosition
-                    if (pos != RecyclerView.NO_POSITION) {
-                        val msg = messages.getOrNull(pos)
-                        if (msg != null && !msg.isDateHeader && !msg.isDeleted && !isPendingMessage(msg)) {
-                            // CHAT-091 follow-up v3: don't auto-open the
-                            // keyboard from a swipe — that's what was making
-                            // the chat shrink and the swiped message scroll
-                            // off the top. With keyboard suppressed the only
-                            // size change is the small reply-preview bar at
-                            // the bottom (~50dp), which the stackFromEnd
-                            // anchor handles gracefully without losing the
-                            // swiped row. User taps the input bar when they
-                            // want to start typing — matches the iOS pattern
-                            // and is the simplest way to make the bug go
-                            // away across every device timing.
-                            beginReplyToWithoutKeyboard(msg)
-                            keepSwipedMessageVisible(pos)
-                        }
-                        chatAdapter.notifyItemChanged(pos)
-                    }
-                }
+                // CHAT-091 follow-up v4: the row must NEVER complete the swipe —
+                // a completed swipe is a "dismiss", which left the bubble
+                // animated off-screen (only the reply icon remained, the
+                // message appeared to vanish). Returning a threshold > 1 and a
+                // huge escape velocity guarantees ItemTouchHelper always springs
+                // the row back to rest, so the bubble can't disappear. The reply
+                // is triggered mid-drag in onChildDraw instead.
+                override fun getSwipeThreshold(viewHolder: RecyclerView.ViewHolder): Float = 10f
+
+                override fun getSwipeEscapeVelocity(defaultValue: Float): Float =
+                    defaultValue * 100f
+
+                // Never fires now (threshold is unreachable) — kept because
+                // SimpleCallback declares it abstract.
+                override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) = Unit
 
                 /**
                  * CHAT-091: WhatsApp-style fade-in reply-icon hint anchored to
-                 * the row edge **opposite** the swipe direction — so as the
-                 * bubble slides away, the icon is revealed underneath. Icon
-                 * alpha ramps 0→255 over the first quarter of the row's width.
+                 * the row edge **opposite** the swipe direction. Also the place
+                 * we trigger the reply: once |dX| passes ~30% of the row width
+                 * the reply preview opens (once per gesture); the row then
+                 * springs back on release without ever dismissing.
                  */
                 override fun onChildDraw(
                     c: android.graphics.Canvas,
@@ -835,30 +834,49 @@ class ChatActivityInHouse : AppCompatActivity() {
                     actionState: Int,
                     isCurrentlyActive: Boolean
                 ) {
-                    if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE && replyIcon != null) {
+                    if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE) {
                         val pos = viewHolder.bindingAdapterPosition
                         val msg = if (pos != RecyclerView.NO_POSITION) messages.getOrNull(pos) else null
                         if (msg != null && !msg.isDateHeader && !msg.isDeleted && !isPendingMessage(msg)) {
                             val itemView = viewHolder.itemView
-                            val threshold = itemView.width / 4f
-                            val progress = (kotlin.math.abs(dX) / threshold).coerceIn(0f, 1f)
-                            val alpha = (progress * 255f).toInt()
-                            val centerY = itemView.top + itemView.height / 2
-                            val iconTop = centerY - replyIconSizePx / 2
-                            val iconLeft = if (msg.isSentByMe) {
-                                // Bubble slides LEFT — reveal icon at right edge.
-                                itemView.right - replyIconPaddingPx - replyIconSizePx
-                            } else {
-                                // Bubble slides RIGHT — reveal icon at left edge.
-                                itemView.left + replyIconPaddingPx
+
+                            // Draw the fade-in reply icon.
+                            if (replyIcon != null) {
+                                val iconThreshold = itemView.width / 4f
+                                val progress = (kotlin.math.abs(dX) / iconThreshold).coerceIn(0f, 1f)
+                                val centerY = itemView.top + itemView.height / 2
+                                val iconTop = centerY - replyIconSizePx / 2
+                                val iconLeft = if (msg.isSentByMe) {
+                                    itemView.right - replyIconPaddingPx - replyIconSizePx
+                                } else {
+                                    itemView.left + replyIconPaddingPx
+                                }
+                                replyIcon.setBounds(
+                                    iconLeft, iconTop,
+                                    iconLeft + replyIconSizePx, iconTop + replyIconSizePx
+                                )
+                                replyIcon.alpha = (progress * 255f).toInt()
+                                androidx.core.graphics.drawable.DrawableCompat.setTint(replyIcon, replyIconTint)
+                                replyIcon.draw(c)
                             }
-                            replyIcon.setBounds(
-                                iconLeft, iconTop,
-                                iconLeft + replyIconSizePx, iconTop + replyIconSizePx
-                            )
-                            replyIcon.alpha = alpha
-                            androidx.core.graphics.drawable.DrawableCompat.setTint(replyIcon, replyIconTint)
-                            replyIcon.draw(c)
+
+                            // Trigger the reply once when the drag passes 30% of
+                            // the row width, while the finger is still down.
+                            val triggerDist = itemView.width * 0.30f
+                            if (!replyFiredThisGesture &&
+                                isCurrentlyActive &&
+                                kotlin.math.abs(dX) >= triggerDist
+                            ) {
+                                replyFiredThisGesture = true
+                                beginReplyToWithoutKeyboard(msg)
+                                viewHolder.itemView.performHapticFeedback(
+                                    android.view.HapticFeedbackConstants.LONG_PRESS
+                                )
+                            }
+                            // Reset for the next gesture once the row is back at rest.
+                            if (kotlin.math.abs(dX) < 1f) {
+                                replyFiredThisGesture = false
+                            }
                         }
                     }
                     super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
