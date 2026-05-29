@@ -302,7 +302,11 @@ class ChatActivityInHouse : AppCompatActivity() {
     private var currentOffset = 0
     private var isLoadingMore = false
     private var hasMoreMessages = true
-    private val MESSAGES_PER_PAGE = 10
+    // CHAT smoothness: 40/page (was 10) → ~4× fewer pagination round-trips, so
+    // scrolling up stalls far less often. WhatsApp loads ~50 from a local DB;
+    // we still fetch from the server but a bigger page closes most of the gap.
+    // 40 < the backend's 100 limit cap; payload is ~20KB (negligible vs RTT).
+    private val MESSAGES_PER_PAGE = 40
 
     // CHAT-084 follow-up: when a tapped reply's original isn't in the loaded
     // window (only 10 load at a time), page older messages in and retry the
@@ -753,9 +757,11 @@ class ChatActivityInHouse : AppCompatActivity() {
                     if (layoutManager != null) {
                         val firstVisiblePosition = layoutManager.findFirstVisibleItemPosition()
                         
-                        // Load more when user scrolls to top (older messages)
-                        // Trigger when user is near the top (within first 5 items) and scrolling up
-                        if (firstVisiblePosition <= 5 && dy < 0 && !isLoadingMore && hasMoreMessages) {
+                        // Load more when user scrolls toward the top (older messages).
+                        // Prefetch earlier (within 12 items, was 5) so the next page is
+                        // usually already in by the time the user reaches the top — kills
+                        // the "scroll up, stop, wait for load" stutter.
+                        if (firstVisiblePosition <= 12 && dy < 0 && !isLoadingMore && hasMoreMessages) {
                             Log.d("ChatPagination", "🔄 Scroll detected - Loading more messages. First visible: $firstVisiblePosition")
                             loadMoreMessages()
                         }
@@ -3325,22 +3331,39 @@ class ChatActivityInHouse : AppCompatActivity() {
                                 }
                                 
                                 if (filteredOlderMessages.isNotEmpty()) {
-                                    val oldSize = messages.size
+                                    val oldList = ArrayList(messages)
+                                    val oldSize = oldList.size
                                     rebuildMessagesWithHeaders(existingNonHeaders + filteredOlderMessages)
-                                    chatAdapter.notifyDataSetChanged()
-                                    
-                                    // Restore scroll position to prevent jumping (WhatsApp style)
-                                    // The position shifts by the number of items we added
                                     val newSize = messages.size
                                     val addedCount = newSize - oldSize
-                                    rvMessages.post {
-                                        layoutManager?.scrollToPositionWithOffset(
-                                            currentFirstVisiblePosition + addedCount,
-                                            offset
-                                        )
-                                        Log.d("ChatPagination", "Restored scroll position - New position: ${currentFirstVisiblePosition + addedCount}")
+
+                                    // Smooth WhatsApp-style prepend: if the rebuild
+                                    // only added rows at the FRONT (the existing tail
+                                    // is byte-for-byte unchanged), use
+                                    // notifyItemRangeInserted so RecyclerView keeps the
+                                    // visible content anchored — no full rebind, no
+                                    // scroll jump. If a date header reshuffled mid-list
+                                    // (tail changed), fall back to the old
+                                    // notifyDataSetChanged + manual scroll restore so
+                                    // correctness is never at risk.
+                                    val pureFrontPrepend = addedCount > 0 &&
+                                        newSize >= addedCount &&
+                                        messages.subList(addedCount, newSize) == oldList
+                                    if (pureFrontPrepend) {
+                                        chatAdapter.notifyItemRangeInserted(0, addedCount)
+                                        // LinearLayoutManager auto-anchors the existing
+                                        // first-visible row, so no manual scroll restore.
+                                    } else {
+                                        chatAdapter.notifyDataSetChanged()
+                                        rvMessages.post {
+                                            layoutManager?.scrollToPositionWithOffset(
+                                                currentFirstVisiblePosition + addedCount,
+                                                offset
+                                            )
+                                            Log.d("ChatPagination", "Restored scroll position - New position: ${currentFirstVisiblePosition + addedCount}")
+                                        }
                                     }
-                                    
+
                                     // Update pagination state
                                     currentOffset = data.offset + data.returnedMessages
                                     hasMoreMessages = data.hasMore
