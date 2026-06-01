@@ -6,6 +6,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.gmwapp.hima.R
+import com.gmwapp.hima.utils.toIndianFormat
 import java.text.SimpleDateFormat
 import java.util.Locale
 import com.gmwapp.hima.databinding.AdapterTransactionBinding
@@ -33,10 +34,10 @@ class TransactionAdapter(
 
         // Set coins amount and color based on transaction type
         if(transaction.payment_type == "Credit"){
-            holder.binding.tvCoins.text = "+${transaction.coins}"
+            holder.binding.tvCoins.text = "+${transaction.coins.toIndianFormat()}"
             holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#10B981"))
         } else{
-            holder.binding.tvCoins.text = "-${transaction.coins}"
+            holder.binding.tvCoins.text = "-${transaction.coins.toIndianFormat()}"
             holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#EF4444"))
         }
 
@@ -85,7 +86,7 @@ class TransactionAdapter(
                 }
             }
             transaction.type == "refer_bonus" -> {
-                holder.binding.tvCoins.text = "+${transaction.coins}"
+                holder.binding.tvCoins.text = "+${transaction.coins.toIndianFormat()}"
                 holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#10B981"))
                 holder.binding.tvTransactionTitle.text = "Referral Earning"
                 holder.binding.tvTransactionDate.text = transaction.date
@@ -93,9 +94,14 @@ class TransactionAdapter(
                 holder.binding.cvIconBackground.setCardBackgroundColor(android.graphics.Color.parseColor("#E8F5E9"))
             }
             transaction.type == "send_gift" -> {
-                holder.binding.tvCoins.text = "-${transaction.coins}"
+                // W051: backend stores send_gift coins already negative (-gift_coins),
+                // so "-${coins}" produced a double minus (--40). Normalise to abs first.
+                holder.binding.tvCoins.text = "-${kotlin.math.abs(transaction.coins).toIndianFormat()}"
                 holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#EF4444"))
-                holder.binding.tvTransactionTitle.text = "Gift Sent"
+                // W052: reason carries the recipient name; older gifts have none.
+                val giftTo = transaction.reason?.takeIf { it.isNotBlank() }
+                holder.binding.tvTransactionTitle.text =
+                    if (giftTo != null) "Gift Sent to $giftTo" else "Gift Sent"
                 holder.binding.tvTransactionDate.text = transaction.date
                 holder.binding.ivTransactionIcon.setImageResource(R.drawable.ic_gift_sent)
                 holder.binding.cvIconBackground.setCardBackgroundColor(android.graphics.Color.parseColor("#FFF3E0"))

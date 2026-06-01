@@ -14,6 +14,10 @@ object DConstants {
     const val FEMALE: String = "female"
     const val LOGIN_ERROR = "login_error"
     const val NO_NETWORK = "no_network"
+    // W055: broadcast fired once the server-side call debit settles, so the
+    // coin header can re-fetch instead of lagging the new balance.
+    const val ACTION_COINS_REFRESH = "com.gmwapp.hima.ACTION_COINS_REFRESH"
+    const val OTP_RATE_LIMIT = "otp_rate_limit"
     const val TEXT = "text"
     const val AVATAR_ID = "avatar_id"
     const val LANGUAGE = "language"

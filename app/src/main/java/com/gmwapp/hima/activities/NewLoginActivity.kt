@@ -618,7 +618,10 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             binding.pbSendOtpLoader.visibility = View.GONE
             binding.btnSendOtp.setText(getString(R.string.send_otp))
             updateSendOtpButtonState()
-            binding.tvOtpText.text = getString(R.string.please_try_again_later)
+            binding.tvOtpText.text = if (it == DConstants.OTP_RATE_LIMIT)
+                getString(R.string.otp_rate_limit_message)
+            else
+                getString(R.string.please_try_again_later)
             binding.tvOtpText.setTextColor(getColor(R.color.error))
             // binding.cvLogin.setBackgroundResource(R.drawable.card_view_border_error)
         })

@@ -253,6 +253,8 @@
     <string name="delete_reason_text">Please select at least one reason for deleting your account</string>
     <string name="logout_text">Are you sure you want to Log out?</string>
     <string name="please_try_again_later">Please try again later</string>
+    <string name="otp_rate_limit_message">You\'ve reached the OTP limit. Please try again after 1 hour.</string>
+    <string name="payment_error_try_again">Something went wrong with your payment. Please try again.</string>
     <string name="invalid_phone_number_text">This phone number is invalid. Please try again.</string>
     <string name="your_avatar">Your Avatar</string>
     <string name="swipe_to_choose_avatar">Swipe to choose</string>

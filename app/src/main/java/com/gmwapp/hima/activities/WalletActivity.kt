@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.toUserMessage
+
 import com.gmwapp.hima.utils.showAppToast
 
 import android.content.Intent
@@ -46,6 +48,7 @@ import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.utils.AppEventLogger
 import com.gmwapp.hima.utils.applySystemBarInsets
+import com.gmwapp.hima.utils.toIndianFormat
 import androidx.appcompat.app.AlertDialog
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.CashfreeOrderViewModel
@@ -298,7 +301,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
                 runOnUiThread {
-                    showAppToast("API Failure: ${e.message}", Toast.LENGTH_SHORT)
+                    showAppToast(e.toUserMessage(), Toast.LENGTH_SHORT)
                 }
             }
 
@@ -319,7 +322,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 
                 } catch (e: Exception) {
                     runOnUiThread {
-                        showAppToast("Invalid server response", Toast.LENGTH_SHORT)
+                        showAppToast(getString(R.string.payment_error_try_again), Toast.LENGTH_SHORT)
                         Log.d("PhonpeException","$e")
                     }
                 }
@@ -420,7 +423,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                 }
                 val coins = response?.data?.coins
                 Log.d("coinsUpdated_", "${coins ?: 0}")
-                binding.tvCoins.text = (coins ?: 0).toString()
+                binding.tvCoins.text = (coins ?: 0).toIndianFormat()
             } catch (e: Exception) {
                 Log.e("WalletActivity", "getUserLiveData observer", e)
                 FirebaseCrashlytics.getInstance().recordException(e)
@@ -496,7 +499,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         }
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-        binding.tvCoins.text = userData?.coins.toString()
+        binding.tvCoins.text = (userData?.coins ?: 0).toIndianFormat()
 
 
         refreshSubscribeBannerVisibility()
@@ -1072,7 +1075,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 
         } catch (e: CFException) {
             Log.e("CashfreeUPI", "Error starting UPI intent: ${e.message}")
-            showAppToast("Cashfree error: ${e.message}", Toast.LENGTH_SHORT)
+            showAppToast(e.toUserMessage(), Toast.LENGTH_SHORT)
         }
     }
 
@@ -1134,7 +1137,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
                 runOnUiThread {
-                    showAppToast("Order creation failed: ${e.message}", Toast.LENGTH_SHORT)
+                    showAppToast(e.toUserMessage(), Toast.LENGTH_SHORT)
                 }
             }
 
@@ -1164,7 +1167,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                     }
                 } catch (e: Exception) {
                     runOnUiThread {
-                        showAppToast("Invalid server response", Toast.LENGTH_SHORT)
+                        showAppToast(getString(R.string.payment_error_try_again), Toast.LENGTH_SHORT)
                     }
                 }
             }
@@ -1185,7 +1188,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
                 runOnUiThread {
-                    showAppToast("Status check failed: ${e.message}", Toast.LENGTH_SHORT)
+                    showAppToast(e.toUserMessage(), Toast.LENGTH_SHORT)
                 }
             }
 
@@ -1216,7 +1219,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                     }
                 } catch (e: Exception) {
                     runOnUiThread {
-                        showAppToast("Invalid response", Toast.LENGTH_SHORT)
+                        showAppToast(getString(R.string.payment_error_try_again), Toast.LENGTH_SHORT)
                     }
                 }
             }
@@ -1431,7 +1434,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                                 }
 
                                 override fun onFailure(call: retrofit2.Call<NewRazorpayLinkResponse>, t: Throwable) {
-                                    showAppToast("Failed: ${t.message}", Toast.LENGTH_SHORT)
+                                    showAppToast(t.toUserMessage(), Toast.LENGTH_SHORT)
                                 }
                             })
                         }

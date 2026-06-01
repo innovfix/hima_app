@@ -91,6 +91,13 @@ class LoginViewModel @Inject constructor(private val loginRepositories: LoginRep
                     call: Call<SendOTPResponse>,
                     response: Response<SendOTPResponse>
                 ) {
+                    // LAI-010: server throttles send_otp (5/hr) -> HTTP 429 with a
+                    // null body. Surface a clear rate-limit message instead of the
+                    // generic "try again later" the null body would otherwise show.
+                    if (!response.isSuccessful && response.code() == 429) {
+                        sendOTPErrorLiveData.postValue(DConstants.OTP_RATE_LIMIT)
+                        return
+                    }
                     sendOTPResponseLiveData.postValue(response.body());
                     Log.d("RetrofitURL", "Request URL: ${call.request().url}")
                     Log.d("RetrofitURL", "Request URL: ${response.body()}")

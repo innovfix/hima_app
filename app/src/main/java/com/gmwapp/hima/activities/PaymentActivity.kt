@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.toUserMessage
+
 import com.gmwapp.hima.utils.showAppToast
 
 import android.content.Intent
@@ -556,7 +558,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
                                     }
 
                                     override fun onFailure(call: retrofit2.Call<NewRazorpayLinkResponse>, t: Throwable) {
-                                        showAppToast("Failed: ${t.message}", Toast.LENGTH_SHORT)
+                                        showAppToast(t.toUserMessage(), Toast.LENGTH_SHORT)
                                     }
                                 })
                             }
@@ -664,7 +666,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
                     if (!json.has("phonepe_status")) {
                         Log.e("PhonePeError", "phonepe_status not found in response. Response: $resultStr")
                         runOnUiThread {
-                            showAppToast("Invalid response: missing phonepe_status", Toast.LENGTH_SHORT)
+                            showAppToast(getString(R.string.payment_error_try_again), Toast.LENGTH_SHORT)
                         }
                         return
                     }
@@ -676,7 +678,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
                     if (!json.has("local_record") || json.isNull("local_record")) {
                         Log.e("PhonePeError", "local_record not found or null in response. Response: $resultStr")
                         runOnUiThread {
-                            showAppToast("Invalid response: missing local_record", Toast.LENGTH_SHORT)
+                            showAppToast(getString(R.string.payment_error_try_again), Toast.LENGTH_SHORT)
                         }
                         return
                     }
@@ -707,7 +709,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
                 } catch (e: Exception) {
                     Log.e("PhonePeException", "Error parsing response: ${e.message}\nResponse: $resultStr")
                     runOnUiThread {
-                        showAppToast("Error: ${e.message}", Toast.LENGTH_SHORT)
+                        showAppToast(e.toUserMessage(), Toast.LENGTH_SHORT)
                     }
                 }
             }
@@ -763,7 +765,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
                 runOnUiThread {
-                    showAppToast("API Failure: ${e.message}", Toast.LENGTH_SHORT)
+                    showAppToast(e.toUserMessage(), Toast.LENGTH_SHORT)
                 }
             }
 
@@ -784,7 +786,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
 
                 } catch (e: Exception) {
                     runOnUiThread {
-                        showAppToast("Invalid server response", Toast.LENGTH_SHORT)
+                        showAppToast(getString(R.string.payment_error_try_again), Toast.LENGTH_SHORT)
                         Log.d("PhonpeException","$e")
                     }
                 }
@@ -897,7 +899,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
 
         } catch (e: CFException) {
             Log.e("CashfreeUPI", "Error starting UPI intent: ${e.message}")
-            showAppToast("Cashfree error: ${e.message}", Toast.LENGTH_SHORT)
+            showAppToast(e.toUserMessage(), Toast.LENGTH_SHORT)
         }
     }
 
@@ -919,7 +921,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
 
         } catch (e: CFException) {
             e.printStackTrace()
-            showAppToast("Cashfree checkout failed: ${e.message}", Toast.LENGTH_SHORT)
+            showAppToast(e.toUserMessage(), Toast.LENGTH_SHORT)
         }
     }
 
@@ -953,7 +955,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
                 runOnUiThread {
-                    showAppToast("Order creation failed: ${e.message}", Toast.LENGTH_SHORT)
+                    showAppToast(e.toUserMessage(), Toast.LENGTH_SHORT)
                 }
             }
 
@@ -983,7 +985,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
                     }
                 } catch (e: Exception) {
                     runOnUiThread {
-                        showAppToast("Invalid server response", Toast.LENGTH_SHORT)
+                        showAppToast(getString(R.string.payment_error_try_again), Toast.LENGTH_SHORT)
                     }
                 }
             }
@@ -1004,7 +1006,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) {
                 runOnUiThread {
-                    showAppToast("Status check failed: ${e.message}", Toast.LENGTH_SHORT)
+                    showAppToast(e.toUserMessage(), Toast.LENGTH_SHORT)
                 }
             }
 
@@ -1034,7 +1036,7 @@ class PaymentActivity : AppCompatActivity(), CFCheckoutResponseCallback {
                     }
                 } catch (e: Exception) {
                     runOnUiThread {
-                        showAppToast("Invalid response", Toast.LENGTH_SHORT)
+                        showAppToast(getString(R.string.payment_error_try_again), Toast.LENGTH_SHORT)
                     }
                 }
             }

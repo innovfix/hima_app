@@ -29,6 +29,7 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.IplRoomsActivity
 import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.utils.SubscriptionStateCache
+import com.gmwapp.hima.utils.toIndianFormat
 import com.gmwapp.hima.utils.UserSegment
 import com.gmwapp.hima.viewmodels.AutopayViewModel
 import com.gmwapp.hima.viewmodels.DailyClaimViewModel
@@ -283,7 +284,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 val displayCoins =
                     if (UserSegment.isNewUser(requireContext()) && !SubscriptionStateCache.isActive(requireContext())) 0
                     else userData.coins
-                binding.tvCoins.text = displayCoins.toString()
+                binding.tvCoins.text = (displayCoins ?: 0).toIndianFormat()
                 Log.d("coinsvalue", "${userData.coins}")
                 Log.d("coinsvalue", "${userData.name}")
                 // Refresh IPL banner visibility once user data arrives from server
@@ -490,7 +491,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         // users.coins reflects the new total directly, no local bonus.
         val displayCoins = if (UserSegment.isNewUser(requireContext()) && !SubscriptionStateCache.isActive(requireContext())) 0
                            else (cached.coins ?: 0)
-        binding.tvCoins.text = displayCoins.toString()
+        binding.tvCoins.text = displayCoins.toIndianFormat()
     }
 
     private fun refreshPremiumCrown() {
@@ -676,7 +677,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         dailyClaimViewModel.claimLiveData.observe(viewLifecycleOwner) { resp ->
             val total = resp?.data?.total_coins
             if (total != null && ::binding.isInitialized) {
-                binding.tvCoins.text = total.toString()
+                binding.tvCoins.text = total.toIndianFormat()
                 // Keep the cached UserData fresh so other screens see the new total.
                 BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
                     profileViewModel.getUsers(it)
@@ -1132,6 +1133,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         userData?.id?.let { profileViewModel.getUsers(it) }
         observeCoins()
+        registerCoinsRefreshReceiver()
 
         if (FcmUtils.isUserAvailable==0){
             // Respect the active filter on resume — don't silently swap the
@@ -1166,7 +1168,49 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     override fun onPause() {
         super.onPause()
         unregisterHomeChatListRefreshReceiver()
+        unregisterCoinsRefreshReceiver()
         midnightHandler.removeCallbacks(midnightRunnable)
+    }
+
+    /**
+     * W055: the call debit settles asynchronously in CallUpdateWorker, which can
+     * finish after this fragment's onResume getUsers has already read the stale
+     * balance. The worker broadcasts [DConstants.ACTION_COINS_REFRESH] on success;
+     * re-fetch here so the coin header reflects the debit promptly instead of
+     * lagging it by several seconds. Registered regardless of filter — the coin
+     * header is always visible.
+     */
+    private var coinsRefreshReceiver: android.content.BroadcastReceiver? = null
+    private var coinsRefreshReceiverRegistered: Boolean = false
+
+    private fun registerCoinsRefreshReceiver() {
+        if (coinsRefreshReceiverRegistered) return
+        val ctx = context ?: return
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: android.content.Context?, intent: android.content.Intent?) {
+                if (!isAdded || intent == null) return
+                if (intent.action != DConstants.ACTION_COINS_REFRESH) return
+                observeCoins()
+            }
+        }
+        val filter = android.content.IntentFilter(DConstants.ACTION_COINS_REFRESH)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            ctx.registerReceiver(receiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            ctx.registerReceiver(receiver, filter)
+        }
+        coinsRefreshReceiver = receiver
+        coinsRefreshReceiverRegistered = true
+    }
+
+    private fun unregisterCoinsRefreshReceiver() {
+        if (!coinsRefreshReceiverRegistered) return
+        val ctx = context ?: return
+        val receiver = coinsRefreshReceiver ?: return
+        runCatching { ctx.unregisterReceiver(receiver) }
+        coinsRefreshReceiver = null
+        coinsRefreshReceiverRegistered = false
     }
 
     /** Receiver for [ACTION_CHAT_LIST_REFRESH] while the my_chats filter is active. */

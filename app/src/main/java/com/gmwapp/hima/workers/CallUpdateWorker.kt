@@ -64,6 +64,13 @@ class CallUpdateWorker(
 
                 if (response.isSuccessful) {
                     Log.d("CallUpdateWorkerCheck", "Call update successful")
+                    // W055: the server has now debited coins for this call.
+                    // Signal the coin header to re-fetch; otherwise it keeps
+                    // showing the pre-debit balance until some later getUsers.
+                    applicationContext.sendBroadcast(
+                        android.content.Intent(DConstants.ACTION_COINS_REFRESH)
+                            .setPackage(applicationContext.packageName)
+                    )
                     Result.success()
                 } else {
                     Log.e("CallUpdateWorkerCheck", "Call update failed with code: ${response.code}")
