@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Bug 10: shown ONLY on FAILED outgoing bubbles. Re-sends via the
+         same socket-first / REST-fallback path. -->
+    <item
+        android:id="@+id/action_retry_send"
+        android:title="@string/chat_action_retry_send" />
     <item
         android:id="@+id/action_reply"
         android:title="@string/chat_action_reply" />

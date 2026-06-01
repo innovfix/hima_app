@@ -9,6 +9,11 @@ import java.util.Date
 enum class MessageDeliveryStatus {
     /** Optimistic row before server/socket ack */
     SENDING,
+    /** Bug 10: send timed out or backend rejected. Bubble stays visible
+     *  with a red error icon and a "Tap to retry" affordance so the user
+     *  can resend without re-typing — and so the network-reconnect listener
+     *  has something to enumerate when the connection comes back. */
+    FAILED,
     /** Single tick — accepted, not yet shown as delivered to peer */
     SENT,
     /** Double grey ticks — in thread / delivered, peer has not read */

@@ -149,6 +149,9 @@
     <string name="chat_reply_voice_with_duration">Voice note · %1$s</string>
     <string name="chat_reply_voice_no_duration">Voice note</string>
     <string name="chat_action_reply">Reply</string>
+    <!-- Bug 10: retry context-menu entry shown only on FAILED messages. -->
+    <string name="chat_action_retry_send">Retry send</string>
+    <string name="chat_send_failed_toast">Message didn\'t send. Tap to retry.</string>
     <string name="chat_action_add_reaction">Add reaction</string>
     <string name="chat_action_delete">Delete for everyone</string>
     <string name="chat_action_delete_for_me">Delete for me</string>

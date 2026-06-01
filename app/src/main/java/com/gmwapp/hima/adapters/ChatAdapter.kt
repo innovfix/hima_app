@@ -439,6 +439,21 @@ class ChatAdapter(
                 iv.visibility = View.GONE
                 iv.imageTintList = null
             }
+            MessageDeliveryStatus.FAILED -> {
+                // Bug 10: red error icon in place of the spinner/tick so the
+                // user can see at a glance which message didn't go through.
+                // Long-press still opens the context menu (Retry / Delete);
+                // the icon itself is just a visual signal.
+                pb.visibility = View.GONE
+                iv.visibility = View.VISIBLE
+                iv.setImageDrawable(
+                    ContextCompat.getDrawable(ctx, R.drawable.ic_chat_send_failed)?.mutate()
+                        ?: ContextCompat.getDrawable(ctx, R.drawable.ic_chat_single_check)?.mutate()
+                )
+                iv.imageTintList = ColorStateList.valueOf(
+                    android.graphics.Color.parseColor("#E53935")
+                )
+            }
             MessageDeliveryStatus.SENT -> {
                 pb.visibility = View.GONE
                 iv.visibility = View.VISIBLE

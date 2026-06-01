@@ -1239,16 +1239,33 @@ class ChatActivityInHouse : AppCompatActivity() {
         if (message.isDateHeader) return
         // Once deleted there's nothing to reply to, react to, or re-delete.
         if (message.isDeleted) return
-        if (isPendingMessage(message)) return
+        // Bug 10: FAILED outgoing bubbles get a context menu (Retry / Delete);
+        // still skip SENDING optimistic rows that haven't either succeeded
+        // or failed yet.
+        val isFailed = message.isSentByMe &&
+            message.deliveryStatus == MessageDeliveryStatus.FAILED
+        if (isPendingMessage(message) && !isFailed) return
         val popup = PopupMenu(this, anchor, Gravity.END)
         menuInflater.inflate(R.menu.menu_chat_message, popup.menu)
-        // Delete-for-everyone is only offered to the sender of the message.
-        popup.menu.findItem(R.id.action_delete)?.isVisible = message.isSentByMe
+        // Retry — only for FAILED outgoing bubbles.
+        popup.menu.findItem(R.id.action_retry_send)?.isVisible = isFailed
+        // Reply / React don't make sense for a message that didn't reach
+        // the server.
+        popup.menu.findItem(R.id.action_reply)?.isVisible = !isFailed
+        popup.menu.findItem(R.id.action_reaction)?.isVisible = !isFailed
+        // Delete-for-everyone is only offered to the sender of the message
+        // and only AFTER the server has acked it (delete needs a real id).
+        popup.menu.findItem(R.id.action_delete)?.isVisible = message.isSentByMe && !isFailed
         // Delete-for-me works for any non-pending message (sent or received).
-        // Don't offer it on optimistic rows — the messageId isn't stable yet.
-        popup.menu.findItem(R.id.action_delete_for_me)?.isVisible = !isPendingMessage(message)
+        // For FAILED rows, "delete" means "abandon this attempt" — just
+        // drop the temp from the list, no server call.
+        popup.menu.findItem(R.id.action_delete_for_me)?.isVisible = !isPendingMessage(message) || isFailed
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
+                R.id.action_retry_send -> {
+                    retryFailedMessage(message.id)
+                    true
+                }
                 R.id.action_reply -> {
                     beginReplyTo(message)
                     true
@@ -1262,7 +1279,13 @@ class ChatActivityInHouse : AppCompatActivity() {
                     true
                 }
                 R.id.action_delete_for_me -> {
-                    confirmDeleteForMe(message)
+                    if (isFailed) {
+                        // Drop the failed temp row entirely; nothing to
+                        // tell the server about.
+                        removeTempMessage(message.id)
+                    } else {
+                        confirmDeleteForMe(message)
+                    }
                     true
                 }
                 else -> false
@@ -2183,6 +2206,10 @@ class ChatActivityInHouse : AppCompatActivity() {
             attachmentUrl = localAttachmentUrl,
             audioDurationMs = audioDurationMs.takeIf { it > 0 }
         )
+        // Bug 10: schedule timeout — applies to attachment sends too. Upload
+        // + server ack must arrive within SENDING_TIMEOUT_MS or the bubble
+        // flips to FAILED and the user can retry.
+        scheduleSendingTimeout(tempId)
         rvMessages.post {
             rvMessages.smoothScrollToPosition(messages.size - 1)
         }
@@ -2231,14 +2258,131 @@ class ChatActivityInHouse : AppCompatActivity() {
         pendingOutgoingByTempId.remove(tempId)
         messageSendMethod.remove(tempId)
         messageSendMethod[realMessage.id] = method
+        // Bug 10: ack arrived — cancel the stuck-SENDING timeout.
+        cancelSendingTimeout(tempId)
         rebuildMessagesWithHeaders(messages.filterNot { it.isDateHeader })
         chatAdapter.notifyDataSetChanged()
         return true
     }
 
+    /**
+     * Bug 10: send failed (offline, server reject, or socket no-ack timeout).
+     * Keep the temp bubble visible with FAILED state so the user knows
+     * exactly which message didn't go through and can retry. Only remove
+     * the temp row on success — never on failure.
+     */
     private fun failPendingOutgoing(tempId: String, userMessage: String) {
-        removeTempMessage(tempId)
-        showAppToast(userMessage, Toast.LENGTH_SHORT)
+        val idx = messages.indexOfFirst { it.id == tempId }
+        if (idx >= 0) {
+            val cur = messages[idx]
+            if (cur.deliveryStatus != MessageDeliveryStatus.FAILED) {
+                messages[idx] = cur.copy(deliveryStatus = MessageDeliveryStatus.FAILED)
+                chatAdapter.notifyItemChanged(idx)
+            }
+        }
+        cancelSendingTimeout(tempId)
+        if (userMessage.isNotBlank()) {
+            showAppToast(userMessage, Toast.LENGTH_SHORT)
+        }
+    }
+
+    /**
+     * Bug 10: per-temp SENDING timeout. Socket emit is fire-and-forget so
+     * if the socket dies between emit and server processing we never hear
+     * back — the bubble would otherwise stay on SENDING forever. After
+     * [SENDING_TIMEOUT_MS] without an ack (message_sent socket event or
+     * REST onResponse), we flip the bubble to FAILED so the user knows
+     * and can retry.
+     */
+    private val sendingTimeoutRunnables = mutableMapOf<String, Runnable>()
+    private val SENDING_TIMEOUT_MS = 15_000L
+
+    private fun scheduleSendingTimeout(tempId: String) {
+        cancelSendingTimeout(tempId)
+        val r = Runnable {
+            sendingTimeoutRunnables.remove(tempId)
+            val idx = messages.indexOfFirst { it.id == tempId }
+            if (idx >= 0 && messages[idx].deliveryStatus == MessageDeliveryStatus.SENDING) {
+                Log.w("ChatSendRetry", "tempId=$tempId stuck on SENDING — marking FAILED")
+                failPendingOutgoing(tempId, "")
+            }
+        }
+        sendingTimeoutRunnables[tempId] = r
+        mainHandler.postDelayed(r, SENDING_TIMEOUT_MS)
+    }
+
+    private fun cancelSendingTimeout(tempId: String) {
+        sendingTimeoutRunnables.remove(tempId)?.let { mainHandler.removeCallbacks(it) }
+    }
+
+    /**
+     * Bug 10: resend a FAILED message. Swaps it back to SENDING, schedules
+     * the timeout, and re-runs the same send path (socket-first, REST
+     * fallback). Invoked from the long-press "Retry" menu and from the
+     * network-reconnect auto-retry.
+     */
+    private fun retryFailedMessage(tempId: String) {
+        val idx = messages.indexOfFirst { it.id == tempId }
+        if (idx < 0) return
+        val msg = messages[idx]
+        if (msg.deliveryStatus != MessageDeliveryStatus.FAILED) return
+        val payload = pendingOutgoingByTempId[tempId]
+        if (payload == null) {
+            Log.w("ChatSendRetry", "tempId=$tempId has no pending payload — dropping")
+            return
+        }
+
+        messages[idx] = msg.copy(deliveryStatus = MessageDeliveryStatus.SENDING)
+        chatAdapter.notifyItemChanged(idx)
+        scheduleSendingTimeout(tempId)
+
+        when (payload.messageType) {
+            "text" -> {
+                if (socketManager.isConnected()) {
+                    messageSendMethod[tempId] = "socket"
+                    socketManager.sendMessage(myUserId, peerUserId, payload.message, "text")
+                } else {
+                    messageSendMethod[tempId] = "api"
+                    sendMessageViaAPI(tempId, payload.message)
+                }
+            }
+            "image", "audio" -> {
+                val url = payload.attachmentUrl
+                if (url.isNullOrBlank()) {
+                    failPendingOutgoing(tempId, "Couldn't retry attachment")
+                    return
+                }
+                if (socketManager.isConnected()) {
+                    messageSendMethod[tempId] = "socket"
+                    socketManager.sendMessage(
+                        fromUserId = myUserId,
+                        toUserId = peerUserId,
+                        message = "",
+                        messageType = payload.messageType,
+                        attachmentUrl = url,
+                        audioDurationMs = payload.audioDurationMs
+                    )
+                } else {
+                    messageSendMethod[tempId] = "api"
+                    sendMediaViaFallbackAPI(tempId, payload.messageType, url)
+                }
+            }
+        }
+    }
+
+    /**
+     * Bug 10: re-send every FAILED message in the current chat. Called
+     * from the network-reconnect listener when the device comes back
+     * online so pending messages auto-sync without the user having to
+     * manually retry each one.
+     */
+    private fun retryAllFailedMessages() {
+        val failed = messages.filter {
+            it.isSentByMe && !it.isDateHeader && it.deliveryStatus == MessageDeliveryStatus.FAILED
+        }.map { it.id }
+        if (failed.isEmpty()) return
+        Log.d("ChatSendRetry", "auto-retry on reconnect — ${failed.size} failed messages")
+        failed.forEach { retryFailedMessage(it) }
     }
 
     private fun failPendingOutgoingByMessage(messageText: String, userMessage: String) {
@@ -2747,6 +2891,21 @@ class ChatActivityInHouse : AppCompatActivity() {
                 if (event.userId != peerUserId) return@collect
                 if (event.chatId.isNotEmpty() && event.chatId != chatId) return@collect
                 applyPeerTypingIndicator(event.isTyping)
+            }
+        }
+
+        // Bug 10: auto-retry FAILED messages the moment the network comes
+        // back. Observes BaseApplication's networkConnectedLiveData so we
+        // pick up reconnects from any source (Wi-Fi handoff, mobile data
+        // toggle, airplane-mode off). The retry routes through the same
+        // socket-first / REST-fallback path the original send used.
+        var lastNetState: Boolean? = null
+        BaseApplication.getInstance()?.networkConnectedLiveData?.observe(this) { online ->
+            val wasOffline = lastNetState == false
+            lastNetState = online
+            if (online == true && wasOffline) {
+                Log.d("ChatSendRetry", "network reconnected — auto-retrying any FAILED messages")
+                retryAllFailedMessages()
             }
         }
 
@@ -3671,6 +3830,8 @@ class ChatActivityInHouse : AppCompatActivity() {
         // Try Socket.IO first, fallback to API
         val tempMessageId = tempMessage.id
         rememberPendingOutgoing(tempMessageId, bodyToSend, "text")
+        // Bug 10: if no ack arrives within SENDING_TIMEOUT_MS, flip to FAILED.
+        scheduleSendingTimeout(tempMessageId)
         if (socketManager.isConnected()) {
             messageSendMethod[tempMessageId] = "socket"
             // ⭐ Updated to use new signature: sendMessage(fromUserId, toUserId, message, messageType, attachmentUrl)
