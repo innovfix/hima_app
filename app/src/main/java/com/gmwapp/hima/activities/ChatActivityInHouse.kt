@@ -1734,6 +1734,17 @@ class ChatActivityInHouse : AppCompatActivity() {
         if (::cvAudioCall.isInitialized) cvAudioCall.alpha = if (blocked) 0.4f else 1.0f
         if (::cvVideoCall.isInitialized) cvVideoCall.alpha = if (blocked) 0.4f else 1.0f
 
+        // Block-aware presence: hide the online/last-seen indicator the
+        // instant the block toggle lands (rather than waiting on the
+        // chat_history reload below to come back with last_online=null).
+        // Symmetric on unblock — restoring presence then waits on the
+        // chat_history response so we don't surface a stale local value.
+        if (blocked) {
+            tvUserStatus.text = ""
+            tvUserStatus.visibility = View.GONE
+            vOnlineIndicator.visibility = View.GONE
+        }
+
         // Mirror into local cache + tell every chat-list listener to re-bind.
         // Only mirror the I-blocked-them direction into BlockedPeersPrefsHelper
         // — the peer-blocked-me state isn't ours to persist (it'd lie about
@@ -2419,8 +2430,31 @@ class ChatActivityInHouse : AppCompatActivity() {
         this.lastOnlineStatus = lastOnlineTimestamp ?: legacyStatus
         mainHandler.post {
             if (!isUiSafe()) return@post
+            // Block-aware presence: completely hide the indicator when either
+            // party has blocked the other. The server also nulls these fields
+            // when blocked, but the local cache may still carry a stale
+            // timestamp on a fresh block toggle — this client-side guard
+            // makes the hide happen instantly regardless of server timing.
+            if (iHaveBlockedThisUser || peerHasBlockedMe) {
+                tvUserStatus.text = ""
+                tvUserStatus.visibility = View.GONE
+                vOnlineIndicator.visibility = View.GONE
+                return@post
+            }
             val display = if (!lastOnlineTimestamp.isNullOrBlank()) {
-                LastSeenFormatter.format(lastOnlineTimestamp)
+                // Bug-1: presence is "chat-open only". The REST last_online is
+                // sourced from users.last_active_at, which is bumped by ANY
+                // authenticated request / a still-connected background socket —
+                // i.e. it means "used the app recently", NOT "in this chat now".
+                // So it may never render the green "Online": the green state is
+                // owned exclusively by live socket room-presence (applyLivePresence).
+                // A <60s snapshot is downgraded to a grey "Last seen recently".
+                val snapshot = LastSeenFormatter.format(lastOnlineTimestamp)
+                if (snapshot.isOnline) {
+                    LastSeenFormatter.Display(text = "Last seen recently", isOnline = false)
+                } else {
+                    snapshot
+                }
             } else if (!legacyStatus.isNullOrBlank()) {
                 // Pre-migration users / older server response. Strip the
                 // redundant "active " prefix and render as a single-line
@@ -2457,6 +2491,15 @@ class ChatActivityInHouse : AppCompatActivity() {
     private fun applyLivePresence(online: Boolean) {
         mainHandler.post {
             if (!isUiSafe()) return@post
+            // Block-aware presence: ignore the live socket presence event
+            // entirely when blocked in either direction. The peer's join /
+            // leave must not surface as "Online" or "Last seen just now".
+            if (iHaveBlockedThisUser || peerHasBlockedMe) {
+                tvUserStatus.text = ""
+                tvUserStatus.visibility = View.GONE
+                vOnlineIndicator.visibility = View.GONE
+                return@post
+            }
             if (online) {
                 tvUserStatus.text = "Online"
                 tvUserStatus.visibility = View.VISIBLE
@@ -4493,6 +4536,17 @@ class ChatActivityInHouse : AppCompatActivity() {
         isChatVisible = false
         // T11: prefs-backed clear so cross-process readers also see "no chat open".
         com.gmwapp.hima.utils.ActiveChatTracker.clear(this)
+
+        // Bug-1: presence is "chat-open only". Leaving this screen or
+        // backgrounding the app must tell the peer we're no longer in the chat
+        // so their header flips from green "Online" to grey "Last seen just now"
+        // in real time. Previously this only happened in onDestroy, so a paused/
+        // backgrounded (but not destroyed) chat kept the peer showing us Online.
+        // onResume re-joins + re-announces "online" when we come back.
+        runCatching {
+            socketManager.updateStatus("offline")
+            socketManager.leaveChat(chatId)
+        }.onFailure { Log.w("Presence", "onPause offline emit failed: ${it.message}") }
 
         // CHAT-108: persist composer draft so it survives switching chats,
         // backgrounding, and cold restarts (savedInstanceState only covers
