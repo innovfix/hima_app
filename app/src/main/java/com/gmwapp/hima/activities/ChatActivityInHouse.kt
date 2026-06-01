@@ -61,6 +61,7 @@ import com.gmwapp.hima.retrofit.responses.ChatAttachmentUploadResponse
 import com.gmwapp.hima.retrofit.responses.MarkReadResponse
 import com.gmwapp.hima.retrofit.responses.MarkMessagesReadResponse
 import com.gmwapp.hima.retrofit.responses.MessageListResponse
+import com.gmwapp.hima.retrofit.responses.MessageNotificationResponse
 import com.gmwapp.hima.retrofit.responses.SendMessageResponse
 import com.gmwapp.hima.retrofit.responses.ChatHistoryResponse
 import com.gmwapp.hima.retrofit.responses.BlockUserResponse
@@ -1784,10 +1785,47 @@ class ChatActivityInHouse : AppCompatActivity() {
                     return
                 }
                 updateComposerActionState()
+                // Bug 8: emit typing=true while user is actively typing, then
+                // auto-emit typing=false after 2.5s of inactivity. Empty
+                // composer clears immediately. Server fans out `user_typing`
+                // to the peer in this chat room so their header shows
+                // "Typing..." in real time.
+                emitComposerTyping(!s.isNullOrEmpty())
             }
         })
 
         updateComposerActionState()
+    }
+
+    private var isCurrentlyEmittingTyping = false
+    private var typingStopRunnable: Runnable? = null
+
+    private fun emitComposerTyping(hasText: Boolean) {
+        if (myUserId <= 0 || peerUserId <= 0 || chatId.isBlank()) return
+        if (iHaveBlockedThisUser || peerHasBlockedMe) return
+        typingStopRunnable?.let { mainHandler.removeCallbacks(it) }
+        typingStopRunnable = null
+        if (hasText) {
+            if (!isCurrentlyEmittingTyping) {
+                socketManager.sendTyping(chatId, true)
+                isCurrentlyEmittingTyping = true
+            }
+            // Auto-stop 2.5s after the last keystroke — covers the case
+            // where the user stops typing without sending.
+            val stop = Runnable {
+                if (isCurrentlyEmittingTyping) {
+                    socketManager.sendTyping(chatId, false)
+                    isCurrentlyEmittingTyping = false
+                }
+            }
+            typingStopRunnable = stop
+            mainHandler.postDelayed(stop, 2500L)
+        } else {
+            if (isCurrentlyEmittingTyping) {
+                socketManager.sendTyping(chatId, false)
+                isCurrentlyEmittingTyping = false
+            }
+        }
     }
 
     private fun openUserProfile() {
@@ -2276,6 +2314,9 @@ class ChatActivityInHouse : AppCompatActivity() {
                         attachmentUrl = remoteUrl,
                         audioDurationMs = durationToShip
                     )
+                    // Bug-4: same as the text socket path — guarantee a push for
+                    // attachments since the socket server's push is presence-gated.
+                    firePeerMessageNotification(notificationBodyForType(messageType))
                     file.delete()
                 }
 
@@ -2343,6 +2384,8 @@ class ChatActivityInHouse : AppCompatActivity() {
                                 "SocketIOCheck",
                                 "✅ Media sent via fallback API - ID: ${fallbackMessage.id}"
                             )
+                            // Bug-4: fallback path sends no push of its own.
+                            firePeerMessageNotification(notificationBodyForType(messageType))
                         } else {
                             removeTempMessage(tempId)
                             showAppToast(
@@ -2488,6 +2531,40 @@ class ChatActivityInHouse : AppCompatActivity() {
      * snapshot path [updateOnlineStatusFromAPI] still owns the initial
      * render from chat_history; this just keeps it fresh after that.
      */
+    private var peerTypingClearRunnable: Runnable? = null
+
+    /**
+     * Bug 8: render the peer-typing state in the chat header. When typing
+     * is active, "Typing..." replaces the Online/Last-seen text and the
+     * green dot is shown. On stop, restore the snapshot from the latest
+     * chat_history fetch. Auto-clear after 5s so we don't get stuck if the
+     * peer's stop-typing emit is dropped on the wire.
+     */
+    private fun applyPeerTypingIndicator(isTyping: Boolean) {
+        mainHandler.post {
+            if (!isUiSafe()) return@post
+            // Suppress when blocked — Bug 3 already hides the header status
+            // entirely; do not surface "Typing..." for blocked peers.
+            if (iHaveBlockedThisUser || peerHasBlockedMe) return@post
+
+            peerTypingClearRunnable?.let { mainHandler.removeCallbacks(it) }
+            peerTypingClearRunnable = null
+
+            if (isTyping) {
+                tvUserStatus.text = "Typing..."
+                tvUserStatus.visibility = View.VISIBLE
+                tvUserStatus.setTextColor(ContextCompat.getColor(this, R.color.online_green))
+                vOnlineIndicator.visibility = View.VISIBLE
+                val clearer = Runnable { applyPeerTypingIndicator(false) }
+                peerTypingClearRunnable = clearer
+                mainHandler.postDelayed(clearer, 5000L)
+            } else {
+                // Re-render whatever the last-known presence snapshot was.
+                updateOnlineStatusFromAPI(lastOnlineStatus, null)
+            }
+        }
+    }
+
     private fun applyLivePresence(online: Boolean) {
         mainHandler.post {
             if (!isUiSafe()) return@post
@@ -2657,6 +2734,19 @@ class ChatActivityInHouse : AppCompatActivity() {
                 if (event.userId != peerUserId) return@collect
                 if (event.chatId.isNotEmpty() && event.chatId != chatId) return@collect
                 applyLivePresence(event.online)
+            }
+        }
+
+        // Bug 8: peer typing indicator. Server fans out `user_typing` to
+        // everyone in the chat room when the other side's composer fires.
+        // Show "Typing..." in the header in place of Online/Last seen; auto
+        // clear after 5s in case the stop event is dropped on the wire.
+        lifecycleScope.launch {
+            socketManager.userTyping.collect { event ->
+                if (!isUiSafe()) return@collect
+                if (event.userId != peerUserId) return@collect
+                if (event.chatId.isNotEmpty() && event.chatId != chatId) return@collect
+                applyPeerTypingIndicator(event.isTyping)
             }
         }
 
@@ -3520,6 +3610,17 @@ class ChatActivityInHouse : AppCompatActivity() {
             return
         }
 
+        // Bug 8: stop emitting typing the moment we hand off a send. The
+        // composer will clear in a moment anyway, but emitting an explicit
+        // stop keeps the peer's "Typing..." indicator from lingering past
+        // the message arrival.
+        if (isCurrentlyEmittingTyping && chatId.isNotBlank()) {
+            socketManager.sendTyping(chatId, false)
+            isCurrentlyEmittingTyping = false
+            typingStopRunnable?.let { mainHandler.removeCallbacks(it) }
+            typingStopRunnable = null
+        }
+
         val typed = etMessage.text.toString().trim()
         if (typed.isEmpty()) {
             // T24: still clear whitespace-only input so it doesn't linger after tap.
@@ -3574,6 +3675,14 @@ class ChatActivityInHouse : AppCompatActivity() {
             messageSendMethod[tempMessageId] = "socket"
             // ⭐ Updated to use new signature: sendMessage(fromUserId, toUserId, message, messageType, attachmentUrl)
             socketManager.sendMessage(myUserId, peerUserId, bodyToSend, "text")
+            // Bug-4: the socket path is fire-and-forget and the socket server's
+            // own push is presence-gated (it skips the recipient when their
+            // socket is still connected in the background) — so a backgrounded
+            // peer often gets NO notification. Fire the push from the sender as
+            // well; OneSignal's collapse_id dedupes any server-sent duplicate,
+            // and the foreground listener suppresses the heads-up when the peer
+            // already has this chat open.
+            firePeerMessageNotification(bodyToSend)
             if (BuildConfig.DEBUG) {
                 Log.d("SocketIOCheck", "🚀 Sending via SOCKET.IO - From: $myUserId, To: $peerUserId, Message: '$bodyToSend'")
             } else {
@@ -3585,6 +3694,56 @@ class ChatActivityInHouse : AppCompatActivity() {
             // Fallback to API
             sendMessageViaAPI(tempMessageId, bodyToSend)
         }
+    }
+
+    /**
+     * Bug-4: trigger the OneSignal chat push for the peer. The app previously
+     * relied entirely on the Node socket server to push, but that push is
+     * presence-gated (skipped when the recipient's socket is still connected in
+     * the background), so a backgrounded creator routinely got nothing. Firing
+     * from the sender guarantees a push for every successfully-sent message.
+     *
+     * Safe to call on every send: OneSignal collapses any server-sent duplicate
+     * via collapse_id (chat_<sender>_<receiver>), the server hides the body (it
+     * shows an unread count), and the foreground listener suppresses the
+     * heads-up when the peer already has this chat open. Fire-and-forget — a
+     * failed push must never affect the send itself.
+     */
+    private fun firePeerMessageNotification(body: String) {
+        if (myUserId <= 0 || peerUserId <= 0) return
+        // Endpoint caps message at 1000 chars; our composer cap is higher.
+        val safeBody = body.take(1000)
+        runCatching {
+            apiManager.sendMessageNotification(
+                myUserId,
+                peerUserId,
+                safeBody,
+                object : NetworkCallback<MessageNotificationResponse> {
+                    override fun onResponse(
+                        call: Call<MessageNotificationResponse>,
+                        response: Response<MessageNotificationResponse>
+                    ) {
+                        Log.d("Bug4Push", "peer notify sent to=$peerUserId ok=${response.isSuccessful}")
+                    }
+
+                    override fun onFailure(call: Call<MessageNotificationResponse>, t: Throwable) {
+                        Log.w("Bug4Push", "peer notify failed to=$peerUserId: ${t.message}")
+                    }
+
+                    override fun onNoNetwork() {
+                        Log.w("Bug4Push", "peer notify no-network to=$peerUserId")
+                    }
+                }
+            )
+        }.onFailure { Log.w("Bug4Push", "peer notify threw: ${it.message}") }
+    }
+
+    /** Privacy-safe placeholder body for attachment pushes (server hides it anyway). */
+    private fun notificationBodyForType(messageType: String): String = when (messageType) {
+        "image" -> "📷 Photo"
+        "audio" -> "🎤 Voice message"
+        "video" -> "🎥 Video"
+        else -> "📎 Attachment"
     }
 
     private fun sendMessageViaAPI(tempId: String, messageText: String) {
@@ -3607,6 +3766,10 @@ class ChatActivityInHouse : AppCompatActivity() {
                                 return
                             }
                             Log.d("SocketIOCheck", "Message sent via fallback API - ID: ${fallbackMessage.id}")
+                            // Bug-4: fallback_send_message persists the message
+                            // but sends no push of its own, so fire the peer
+                            // notification here too (socket-down path).
+                            firePeerMessageNotification(messageText)
                         } else {
                             failPendingOutgoing(
                                 tempId,
@@ -4536,6 +4699,16 @@ class ChatActivityInHouse : AppCompatActivity() {
         isChatVisible = false
         // T11: prefs-backed clear so cross-process readers also see "no chat open".
         com.gmwapp.hima.utils.ActiveChatTracker.clear(this)
+
+        // Bug 8: leaving the screen must clear our typing state on the peer's
+        // side, otherwise their "Typing..." sticks for 5s until the auto-clear
+        // fires. Cheap & idempotent.
+        if (isCurrentlyEmittingTyping && chatId.isNotBlank()) {
+            runCatching { socketManager.sendTyping(chatId, false) }
+            isCurrentlyEmittingTyping = false
+        }
+        typingStopRunnable?.let { mainHandler.removeCallbacks(it) }
+        typingStopRunnable = null
 
         // Bug-1: presence is "chat-open only". Leaving this screen or
         // backgrounding the app must tell the peer we're no longer in the chat
