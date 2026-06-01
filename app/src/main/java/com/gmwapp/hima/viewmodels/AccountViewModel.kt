@@ -1,5 +1,7 @@
 package com.gmwapp.hima.viewmodels
 
+import com.gmwapp.hima.utils.toUserMessage
+
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -76,7 +78,7 @@ class AccountViewModel @Inject constructor(private val accountRepositories: Acco
                     }
 
                     override fun onFailure(call: Call<CategoriesResponse>, t: Throwable) {
-                        categoriesErrorLiveData.postValue(t.message ?: "Unknown error")
+                        categoriesErrorLiveData.postValue(t.toUserMessage("Unknown error"))
                         Log.e("CategoriesResponse", "Error: ${t.message}", t)
                     }
 
@@ -105,7 +107,7 @@ class AccountViewModel @Inject constructor(private val accountRepositories: Acco
                     }
 
                     override fun onFailure(call: Call<SubqueriesResponse>, t: Throwable) {
-                        subqueriesErrorLiveData.postValue(t.message ?: "Unknown error")
+                        subqueriesErrorLiveData.postValue(t.toUserMessage("Unknown error"))
                         Log.e("SubqueriesResponse", "Error: ${t.message}", t)
                     }
 
@@ -130,7 +132,7 @@ class AccountViewModel @Inject constructor(private val accountRepositories: Acco
                 }
 
                 override fun onFailure(call: Call<SubmitTicketResponse>, t: Throwable) {
-                    submitTicketErrorLiveData.postValue(t.message ?: "Unknown error")
+                    submitTicketErrorLiveData.postValue(t.toUserMessage("Unknown error"))
                     Log.e("SubmitTicketResponse", "Error: ${t.message}", t)
                 }
 
@@ -199,7 +201,7 @@ class AccountViewModel @Inject constructor(private val accountRepositories: Acco
                     Log.e("TicketsListAPI", "Error Type: ${t.javaClass.simpleName}")
                     Log.e("TicketsListAPI", "Stack Trace:", t)
                     
-                    ticketsListErrorLiveData.postValue(t.message ?: "Unknown error")
+                    ticketsListErrorLiveData.postValue(t.toUserMessage("Unknown error"))
                 }
 
                 override fun onNoNetwork() {
@@ -225,7 +227,7 @@ class AccountViewModel @Inject constructor(private val accountRepositories: Acco
                 }
 
                 override fun onFailure(call: Call<CallRejectCountResponse>, t: Throwable) {
-                    callRejectCountErrorLiveData.postValue(t.message ?: "Unknown error")
+                    callRejectCountErrorLiveData.postValue(t.toUserMessage("Unknown error"))
                     Log.e("CallRejectCount", "Error: ${t.message}", t)
                 }
 

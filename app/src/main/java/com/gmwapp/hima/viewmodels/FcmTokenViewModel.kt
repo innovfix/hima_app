@@ -1,5 +1,7 @@
 package com.gmwapp.hima.viewmodels
 
+import com.gmwapp.hima.utils.toUserMessage
+
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -34,7 +36,7 @@ class FcmTokenViewModel @Inject constructor(
                 }
 
                 override fun onFailure(call: Call<FcmTokenResponse>, t: Throwable) {
-                    tokenErrorLiveData.postValue("API Failure: ${t.message}")
+                    tokenErrorLiveData.postValue(t.toUserMessage())
                     Log.d("tokenResponseLiveData","${t.message}")
 
                 }

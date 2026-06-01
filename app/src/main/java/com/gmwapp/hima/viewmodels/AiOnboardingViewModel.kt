@@ -1,5 +1,7 @@
 package com.gmwapp.hima.viewmodels
 
+import com.gmwapp.hima.utils.toUserMessage
+
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.gmwapp.hima.repositories.AiOnboardingRepository
@@ -41,7 +43,7 @@ class AiOnboardingViewModel @Inject constructor(
 
             override fun onFailure(call: Call<AiOnboardingStartResponse>, t: Throwable) {
                 loadingLiveData.value = false
-                errorLiveData.value = t.message ?: "Network error"
+                errorLiveData.value = t.toUserMessage("Network error")
             }
         })
     }
@@ -64,7 +66,7 @@ class AiOnboardingViewModel @Inject constructor(
 
             override fun onFailure(call: Call<AiOnboardingReplyResponse>, t: Throwable) {
                 loadingLiveData.value = false
-                errorLiveData.value = t.message ?: "Network error"
+                errorLiveData.value = t.toUserMessage("Network error")
             }
         })
     }
@@ -87,7 +89,7 @@ class AiOnboardingViewModel @Inject constructor(
 
             override fun onFailure(call: Call<AiOnboardingCompleteResponse>, t: Throwable) {
                 loadingLiveData.value = false
-                errorLiveData.value = t.message ?: "Network error"
+                errorLiveData.value = t.toUserMessage("Network error")
             }
         })
     }

@@ -1,5 +1,7 @@
 package com.gmwapp.hima.viewmodels
 
+import com.gmwapp.hima.utils.toUserMessage
+
 
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
@@ -35,7 +37,7 @@ class IndividualAppUpdateViewModel @Inject constructor(
                 }
 
                 override fun onFailure(call: Call<IndividualAppUpdateResponse>, t: Throwable) {
-                    individualUpdateErrorLiveData.postValue("Something went wrong: ${t.message}")
+                    individualUpdateErrorLiveData.postValue(t.toUserMessage())
                 }
 
                 override fun onNoNetwork() {

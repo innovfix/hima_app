@@ -1,5 +1,7 @@
 package com.gmwapp.hima.viewmodels
 
+import com.gmwapp.hima.utils.toUserMessage
+
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -34,7 +36,7 @@ class WhatsappLinkViewModel @Inject constructor(
                 }
 
                 override fun onFailure(call: Call<WhatsappLinkResponse>, t: Throwable) {
-                    whatsappErrorLiveData.postValue("API Failure: ${t.message}")
+                    whatsappErrorLiveData.postValue(t.toUserMessage())
                 }
 
                 override fun onNoNetwork() {

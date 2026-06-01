@@ -1,5 +1,7 @@
 package com.gmwapp.hima.viewmodels
 
+import com.gmwapp.hima.utils.toUserMessage
+
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -35,7 +37,7 @@ class MessageNotificationViewModel @Inject constructor(
                 }
 
                 override fun onFailure(call: Call<MessageNotificationResponse>, t: Throwable) {
-                    notificationErrorLiveData.postValue("API Failure: ${t.message}")
+                    notificationErrorLiveData.postValue(t.toUserMessage())
                     Log.e("MessageNotification", "Error: ${t.message}")
                 }
 

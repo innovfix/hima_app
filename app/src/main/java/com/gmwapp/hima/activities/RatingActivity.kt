@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.toUserMessage
+
 import com.gmwapp.hima.utils.showAppToast
 
 import android.content.Context
@@ -495,7 +497,7 @@ class RatingActivity : BaseActivity() {
 
             override fun onFailure(call: Call<AddFavoriteResponse>, t: Throwable) {
                 isFavoriteApiCompleted = true
-                showAppToast("Error: ${t.message}", Toast.LENGTH_SHORT)
+                showAppToast(t.toUserMessage(), Toast.LENGTH_SHORT)
                 
                 // Check if we can close the activity now
                 checkAndCloseActivity()

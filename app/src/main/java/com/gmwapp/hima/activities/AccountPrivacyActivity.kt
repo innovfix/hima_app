@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.toUserMessage
+
 import com.gmwapp.hima.utils.showAppToast
 
 import android.content.Intent
@@ -59,7 +61,7 @@ class AccountPrivacyActivity : BaseActivity() {
                 val intent = Intent(this, WebviewActivity::class.java)
                 startActivity(intent)
             } catch (e: Exception) {
-                showAppToast(e.message, Toast.LENGTH_LONG)
+                showAppToast(e.toUserMessage(), Toast.LENGTH_LONG)
                 e.message?.let { it1 -> Log.e("AccountPrivacyActivity", it1) }
             }
         }

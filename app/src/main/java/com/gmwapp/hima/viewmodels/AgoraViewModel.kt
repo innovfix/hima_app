@@ -1,5 +1,7 @@
 package com.gmwapp.hima.viewmodels
 
+import com.gmwapp.hima.utils.toUserMessage
+
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -50,7 +52,7 @@ class AgoraViewModel @Inject constructor(
                     }
 
                     override fun onFailure(call: Call<AgoraTokenResponse>, t: Throwable) {
-                        agoraTokenErrorLiveData.postValue("Network error: ${t.message}")
+                        agoraTokenErrorLiveData.postValue(t.toUserMessage())
                         Log.e("AgoraToken", "Error getting token: ${t.message}")
                     }
 

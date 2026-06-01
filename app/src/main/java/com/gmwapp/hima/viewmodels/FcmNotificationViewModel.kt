@@ -1,5 +1,7 @@
 package com.gmwapp.hima.viewmodels
 
+import com.gmwapp.hima.utils.toUserMessage
+
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -71,7 +73,7 @@ class FcmNotificationViewModel @Inject constructor(
                     Log.e("FCMNotification", "🚨 JSON PARSING ERROR - API returned non-JSON response")
                     notificationErrorLiveData.postValue("Server returned invalid response format")
                 } else {
-                    notificationErrorLiveData.postValue("API Failure: ${t.message}")
+                    notificationErrorLiveData.postValue(t.toUserMessage())
                 }
             }
 

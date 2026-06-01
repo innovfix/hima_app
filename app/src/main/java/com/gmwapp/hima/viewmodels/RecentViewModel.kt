@@ -1,5 +1,7 @@
 package com.gmwapp.hima.viewmodels
 
+import com.gmwapp.hima.utils.toUserMessage
+
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -53,7 +55,7 @@ class RecentViewModel @Inject constructor(private val profileRepositories: Profi
                     }
 
                     override fun onFailure(call: Call<CallsListResponse>, t: Throwable) {
-                        callsListErrorLiveData.postValue(t.message)
+                        callsListErrorLiveData.postValue(t.toUserMessage())
                         Log.d("callsListFailed","${t.message}")
 
                     }
@@ -88,7 +90,7 @@ class RecentViewModel @Inject constructor(private val profileRepositories: Profi
 
                 override fun onFailure(call: Call<MissedCallCountResponse>, t: Throwable) {
                     Log.e("missed_call_data", "api_failed=${t.message}", t)
-                    missedCallCountErrorLiveData.postValue(t.message ?: "Unknown error")
+                    missedCallCountErrorLiveData.postValue(t.toUserMessage("Unknown error"))
                     missedCallCountLiveData.postValue(0)
                 }
 

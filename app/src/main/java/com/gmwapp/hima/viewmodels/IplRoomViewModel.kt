@@ -1,5 +1,7 @@
 package com.gmwapp.hima.viewmodels
 
+import com.gmwapp.hima.utils.toUserMessage
+
 import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -88,7 +90,7 @@ class IplRoomViewModel @Inject constructor(
                 override fun onFailure(call: Call<IplRoomsListResponse>, t: Throwable) {
                     isLoading.postValue(false)
                     Log.e(TAG, "getRooms failed: ${t.message}")
-                    errorLiveData.postValue(t.message ?: "Network error")
+                    errorLiveData.postValue(t.toUserMessage("Network error"))
                 }
 
                 override fun onNoNetwork() {
@@ -121,7 +123,7 @@ class IplRoomViewModel @Inject constructor(
 
                 override fun onFailure(call: Call<IplRoomCreateResponse>, t: Throwable) {
                     isLoading.postValue(false)
-                    errorLiveData.postValue(t.message ?: "Network error")
+                    errorLiveData.postValue(t.toUserMessage("Network error"))
                 }
 
                 override fun onNoNetwork() {
@@ -140,7 +142,7 @@ class IplRoomViewModel @Inject constructor(
                 }
 
                 override fun onFailure(call: Call<IplRoomJoinResponse>, t: Throwable) {
-                    errorLiveData.postValue(t.message ?: "Failed to join room")
+                    errorLiveData.postValue(t.toUserMessage("Failed to join room"))
                 }
 
                 override fun onNoNetwork() {
@@ -257,7 +259,7 @@ class IplRoomViewModel @Inject constructor(
                 override fun onFailure(call: Call<IplRoomJoinResponse>, t: Throwable) {
                     isLoading.postValue(false)
                     Log.e(TAG, "joinRoomByCode failed", t)
-                    errorLiveData.postValue(t.message ?: "Failed to join room")
+                    errorLiveData.postValue(t.toUserMessage("Failed to join room"))
                 }
 
                 override fun onNoNetwork() {
@@ -286,7 +288,7 @@ class IplRoomViewModel @Inject constructor(
                 override fun onFailure(call: Call<IplRoomJoinResponse>, t: Throwable) {
                     isLoading.postValue(false)
                     Log.e(TAG, "joinRoomRandom failed", t)
-                    errorLiveData.postValue(t.message ?: "Failed to join room")
+                    errorLiveData.postValue(t.toUserMessage("Failed to join room"))
                 }
 
                 override fun onNoNetwork() {

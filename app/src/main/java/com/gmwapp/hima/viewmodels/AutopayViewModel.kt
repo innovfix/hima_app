@@ -1,5 +1,7 @@
 package com.gmwapp.hima.viewmodels
 
+import com.gmwapp.hima.utils.toUserMessage
+
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -33,7 +35,7 @@ class AutopayViewModel @Inject constructor(
                     languageConfigLiveData.postValue(response.body())
                 }
                 override fun onFailure(call: Call<LanguageConfigResponse>, t: Throwable) {
-                    errorLiveData.postValue("language_config: ${t.message}")
+                    errorLiveData.postValue(t.toUserMessage())
                 }
                 override fun onNoNetwork() { errorLiveData.postValue("No internet connection") }
             })
@@ -47,7 +49,7 @@ class AutopayViewModel @Inject constructor(
                     initiateLiveData.postValue(response.body())
                 }
                 override fun onFailure(call: Call<AutopayInitiateResponse>, t: Throwable) {
-                    errorLiveData.postValue("autopay_initiate: ${t.message}")
+                    errorLiveData.postValue(t.toUserMessage())
                 }
                 override fun onNoNetwork() { errorLiveData.postValue("No internet connection") }
             })
@@ -61,7 +63,7 @@ class AutopayViewModel @Inject constructor(
                     statusLiveData.postValue(response.body())
                 }
                 override fun onFailure(call: Call<SubscriptionStatusResponse>, t: Throwable) {
-                    errorLiveData.postValue("subscription_status: ${t.message}")
+                    errorLiveData.postValue(t.toUserMessage())
                 }
                 override fun onNoNetwork() { errorLiveData.postValue("No internet connection") }
             })
@@ -75,7 +77,7 @@ class AutopayViewModel @Inject constructor(
                     cancelLiveData.postValue(response.body())
                 }
                 override fun onFailure(call: Call<SubscriptionCancelResponse>, t: Throwable) {
-                    errorLiveData.postValue("subscription_cancel: ${t.message}")
+                    errorLiveData.postValue(t.toUserMessage())
                 }
                 override fun onNoNetwork() { errorLiveData.postValue("No internet connection") }
             })

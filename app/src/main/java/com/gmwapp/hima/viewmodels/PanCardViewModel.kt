@@ -1,5 +1,7 @@
 package com.gmwapp.hima.viewmodels
 
+import com.gmwapp.hima.utils.toUserMessage
+
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -27,7 +29,7 @@ class PanCardViewModel @Inject constructor(private val repository: PanCardReposi
                 }
 
                 override fun onFailure(call: Call<PanCardResponse>, t: Throwable) {
-                    panUpdateErrorLiveData.postValue(t.message)
+                    panUpdateErrorLiveData.postValue(t.toUserMessage())
                 }
 
                 override fun onNoNetwork() {

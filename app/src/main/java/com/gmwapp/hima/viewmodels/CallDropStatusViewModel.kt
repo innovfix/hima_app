@@ -1,5 +1,7 @@
 package com.gmwapp.hima.viewmodels
 
+import com.gmwapp.hima.utils.toUserMessage
+
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -53,7 +55,7 @@ class CallDropStatusViewModel @Inject constructor(
                 }
 
                 override fun onFailure(call: Call<CallDropStatusResponse>, t: Throwable) {
-                    callDropStatusErrorLiveData.postValue(t.message ?: DConstants.LOGIN_ERROR)
+                    callDropStatusErrorLiveData.postValue(t.toUserMessage(DConstants.LOGIN_ERROR))
                     Log.e("CallDropStatusAPI", "Failure url=${call.request().url}", t)
                 }
 

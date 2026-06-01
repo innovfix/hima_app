@@ -1,5 +1,7 @@
 package com.gmwapp.hima.viewmodels
 
+import com.gmwapp.hima.utils.toUserMessage
+
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -63,7 +65,7 @@ class FriendRequestViewModel @Inject constructor(
 
                 override fun onFailure(call: Call<FriendRequestResponse>, t: Throwable) {
                     loadingLiveData.postValue(false)
-                    friendRequestErrorLiveData.postValue("Network error: ${t.message}")
+                    friendRequestErrorLiveData.postValue(t.toUserMessage())
                     Log.e("FriendRequestVM", "❌ API Failure: ${t.message}")
                 }
 
@@ -103,7 +105,7 @@ class FriendRequestViewModel @Inject constructor(
 
                 override fun onFailure(call: Call<MyFriendRequestsResponse>, t: Throwable) {
                     loadingLiveData.postValue(false)
-                    friendRequestErrorLiveData.postValue("Network error: ${t.message}")
+                    friendRequestErrorLiveData.postValue(t.toUserMessage())
                     Log.e("FriendRequestVM", "❌ API Failure: ${t.message}")
                 }
 
@@ -143,7 +145,7 @@ class FriendRequestViewModel @Inject constructor(
 
                 override fun onFailure(call: Call<ReceivedFriendRequestsResponse>, t: Throwable) {
                     loadingLiveData.postValue(false)
-                    friendRequestErrorLiveData.postValue("Network error: ${t.message}")
+                    friendRequestErrorLiveData.postValue(t.toUserMessage())
                     Log.e("FriendRequestVM", "❌ API Failure: ${t.message}")
                 }
 
@@ -183,7 +185,7 @@ class FriendRequestViewModel @Inject constructor(
 
                 override fun onFailure(call: Call<FriendListResponse>, t: Throwable) {
                     loadingLiveData.postValue(false)
-                    friendRequestErrorLiveData.postValue("Network error: ${t.message}")
+                    friendRequestErrorLiveData.postValue(t.toUserMessage())
                     Log.e("FriendRequestVM", "❌ API Failure: ${t.message}")
                 }
 
@@ -227,7 +229,7 @@ class FriendRequestViewModel @Inject constructor(
 
                 override fun onFailure(call: Call<FriendRequestResponse>, t: Throwable) {
                     loadingLiveData.postValue(false)
-                    friendRequestErrorLiveData.postValue("Network error: ${t.message}")
+                    friendRequestErrorLiveData.postValue(t.toUserMessage())
                     Log.e("FriendRequestVM", "❌ API Failure: ${t.message}")
                 }
 

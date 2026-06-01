@@ -1,5 +1,7 @@
 package com.gmwapp.hima.viewmodels
 
+import com.gmwapp.hima.utils.toUserMessage
+
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -29,7 +31,7 @@ class DailyClaimViewModel @Inject constructor(
                     statusLiveData.postValue(response.body())
                 }
                 override fun onFailure(call: Call<DailyClaimStatusResponse>, t: Throwable) {
-                    errorLiveData.postValue("daily_claim_status: ${t.message}")
+                    errorLiveData.postValue(t.toUserMessage())
                 }
                 override fun onNoNetwork() { errorLiveData.postValue("No internet connection") }
             })
@@ -43,7 +45,7 @@ class DailyClaimViewModel @Inject constructor(
                     claimLiveData.postValue(response.body())
                 }
                 override fun onFailure(call: Call<DailyClaimResponse>, t: Throwable) {
-                    errorLiveData.postValue("daily_claim: ${t.message}")
+                    errorLiveData.postValue(t.toUserMessage())
                 }
                 override fun onNoNetwork() { errorLiveData.postValue("No internet connection") }
             })

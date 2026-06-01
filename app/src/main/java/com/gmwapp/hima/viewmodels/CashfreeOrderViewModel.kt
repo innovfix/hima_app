@@ -1,5 +1,7 @@
 package com.gmwapp.hima.viewmodels
 
+import com.gmwapp.hima.utils.toUserMessage
+
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -32,7 +34,7 @@ class CashfreeOrderViewModel @Inject constructor(
                 }
 
                 override fun onFailure(call: Call<CreateCashfreeOrderResponse>, t: Throwable) {
-                    orderErrorLiveData.postValue("Something went wrong: ${t.message}")
+                    orderErrorLiveData.postValue(t.toUserMessage())
                 }
 
                 override fun onNoNetwork() {

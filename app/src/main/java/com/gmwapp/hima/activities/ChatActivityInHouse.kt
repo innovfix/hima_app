@@ -1,5 +1,7 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.toUserMessage
+
 import com.gmwapp.hima.utils.showAppToast
 
 import android.Manifest
@@ -1971,7 +1973,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                 uploadAndSendAttachment(tempId, compressedFile, "image")
             } catch (e: Exception) {
                 Log.e("ChatMedia", "Image prepare failed: ${e.message}", e)
-                showAppToast(e.message ?: "Couldn't prepare image", Toast.LENGTH_SHORT)
+                showAppToast(e.toUserMessage("Couldn't prepare image"), Toast.LENGTH_SHORT)
             } finally {
                 isPreparingImage = false
             }
@@ -5261,7 +5263,7 @@ class ChatActivityInHouse : AppCompatActivity() {
 
                 override fun onFailure(call: Call<BlockUserResponse>, t: Throwable) {
                     Log.e("ChatActivityInHouse", "❌ Error blocking user: ${t.message}", t)
-                    showAppToast("Failed to block user: ${t.message}", Toast.LENGTH_SHORT)
+                    showAppToast(t.toUserMessage(), Toast.LENGTH_SHORT)
                 }
 
                 override fun onNoNetwork() {
@@ -5298,7 +5300,7 @@ class ChatActivityInHouse : AppCompatActivity() {
 
                 override fun onFailure(call: Call<BlockUserResponse>, t: Throwable) {
                     Log.e("ChatActivityInHouse", "❌ Error unblocking user: ${t.message}", t)
-                    showAppToast("Failed to unblock user: ${t.message}", Toast.LENGTH_SHORT)
+                    showAppToast(t.toUserMessage(), Toast.LENGTH_SHORT)
                 }
 
                 override fun onNoNetwork() {

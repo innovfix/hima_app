@@ -1,5 +1,7 @@
 package com.gmwapp.hima.viewmodels
 
+import com.gmwapp.hima.utils.toUserMessage
+
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -32,7 +34,7 @@ class ExplanationVideoViewModel @Inject constructor(
                 }
 
                 override fun onFailure(call: Call<ExplanationVideoResponse>, t: Throwable) {
-                    videoErrorLiveData.postValue("API Failure: ${t.message}")
+                    videoErrorLiveData.postValue(t.toUserMessage())
                 }
 
                 override fun onNoNetwork() {

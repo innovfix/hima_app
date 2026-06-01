@@ -1,5 +1,7 @@
 package com.gmwapp.hima.viewmodels
 
+import com.gmwapp.hima.utils.toUserMessage
+
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -93,7 +95,7 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
                     }
 
                     override fun onFailure(call: Call<RegisterResponse>, t: Throwable) {
-                        registerErrorLiveData.postValue(t.message)
+                        registerErrorLiveData.postValue(t.toUserMessage())
                     }
 
                     override fun onNoNetwork() {
@@ -195,7 +197,7 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
                     }
 
                     override fun onFailure(call: Call<RegisterResponse>, t: Throwable) {
-                        registerErrorLiveData.postValue(t.message)
+                        registerErrorLiveData.postValue(t.toUserMessage())
                         Log.d("registerFemale","${t.message}")
 
                     }
@@ -225,7 +227,7 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
                     }
 
                     override fun onFailure(call: Call<UpdateProfileResponse>, t: Throwable) {
-                        updateProfileErrorLiveData.postValue(t.message)
+                        updateProfileErrorLiveData.postValue(t.toUserMessage())
                     }
 
                     override fun onNoNetwork() {
@@ -251,7 +253,7 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
                     }
 
                     override fun onFailure(call: Call<DeleteUserResponse>, t: Throwable) {
-                        deleteUserErrorLiveData.postValue(t.message)
+                        deleteUserErrorLiveData.postValue(t.toUserMessage())
                     }
 
                     override fun onNoNetwork() {
@@ -333,7 +335,7 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
                     }
 
                     override fun onFailure(call: Call<SpeechTextResponse>, t: Throwable) {
-                        speechTextErrorLiveData.postValue(t.message)
+                        speechTextErrorLiveData.postValue(t.toUserMessage())
                         Log.d("speechtest","${t.message}")
                     }
 
@@ -362,7 +364,7 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
                     }
 
                     override fun onFailure(call: Call<StarCreatorSpeechResponse>, t: Throwable) {
-                        starCreatorSpeechErrorLiveData.postValue(t.message)
+                        starCreatorSpeechErrorLiveData.postValue(t.toUserMessage())
                     }
 
                     override fun onNoNetwork() {
@@ -396,7 +398,7 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
                     }
 
                     override fun onFailure(call: Call<StarCreatorSubmitResponse>, t: Throwable) {
-                        starCreatorSubmitErrorLiveData.postValue(t.message ?: "Network error")
+                        starCreatorSubmitErrorLiveData.postValue(t.toUserMessage("Network error"))
                     }
 
                     override fun onNoNetwork() {
@@ -423,7 +425,7 @@ class ProfileViewModel @Inject constructor(private val profileRepositories: Prof
                     }
 
                     override fun onFailure(call: Call<VoiceUpdateResponse>, t: Throwable) {
-                        voiceUpdateErrorLiveData.postValue(t.message)
+                        voiceUpdateErrorLiveData.postValue(t.toUserMessage())
                         Log.d("voiceUpdateLiveData","${t.message}")
 
                     }

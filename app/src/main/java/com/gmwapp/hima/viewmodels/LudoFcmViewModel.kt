@@ -1,5 +1,7 @@
 package com.gmwapp.hima.viewmodels
 
+import com.gmwapp.hima.utils.toUserMessage
+
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -55,7 +57,7 @@ class LudoFcmViewModel @Inject constructor(
                     }
 
                     override fun onFailure(call: Call<LudoFcmResponse>, t: Throwable) {
-                        ludoFcmErrorLiveData.postValue(t.message ?: DConstants.LOGIN_ERROR)
+                        ludoFcmErrorLiveData.postValue(t.toUserMessage(DConstants.LOGIN_ERROR))
                     }
 
                     override fun onNoNetwork() {

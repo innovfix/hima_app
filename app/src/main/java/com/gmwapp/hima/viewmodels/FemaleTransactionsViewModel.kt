@@ -1,5 +1,7 @@
 package com.gmwapp.hima.viewmodels
 
+import com.gmwapp.hima.utils.toUserMessage
+
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -84,7 +86,7 @@ class FemaleTransactionsViewModel @Inject constructor(
                 Log.e(TAG, "getFemaleTransactions: Exception occurred", e)
                 Log.e(TAG, "getFemaleTransactions: Exception message = ${e.message}")
                 e.printStackTrace()
-                transactionsErrorLiveData.postValue("Exception: ${e.message}")
+                transactionsErrorLiveData.postValue(e.toUserMessage())
             }
         }
     }

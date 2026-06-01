@@ -1,5 +1,7 @@
 package com.gmwapp.hima.viewmodels
 
+import com.gmwapp.hima.utils.toUserMessage
+
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -34,7 +36,7 @@ class GiftImageViewModel @Inject constructor(
                 }
 
                 override fun onFailure(call: Call<GiftImageResponse>, t: Throwable) {
-                    giftErrorLiveData.postValue("API Failure: ${t.message}")
+                    giftErrorLiveData.postValue(t.toUserMessage())
                 }
 
                 override fun onNoNetwork() {
