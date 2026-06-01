@@ -240,7 +240,7 @@
     <string name="getname_subtitle">Tell us what to call you</string>
     <string name="getname_input_label">Your name</string>
     <string name="getname_input_hint">Enter your name</string>
-    <string name="getname_min_chars">Enter at least 2 characters</string>
+    <string name="getname_min_chars">Enter at least 4 characters</string>
     <string name="getname_name_ok">Looks good!</string>
     <string name="personalise_yourself_hint">Pick your gender and avatar to make your profile unique</string>
     <string name="gender_change_warning">Gender can\'t be changed later</string>

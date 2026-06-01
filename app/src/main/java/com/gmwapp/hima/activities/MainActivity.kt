@@ -251,6 +251,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // LAI-022: block OS screenshots of the home screen so the previous user's
+        // wallet balance does not leak into the recent-apps thumbnail.
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         

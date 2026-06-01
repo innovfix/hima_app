@@ -11,6 +11,17 @@
         </item>
     </style>
 
+    <!-- LAI-023: Opaque variant of AppTheme used by onboarding activities. The
+         base AppTheme uses windowIsTranslucent=true, which lets the wallpaper /
+         previous task screens bleed through during entry transitions and leaks
+         what the user had open before. This theme overrides that with an opaque
+         white windowBackground so onboarding screens render solid from the
+         first frame. -->
+    <style name="AppTheme.Onboarding" parent="AppTheme">
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:windowBackground">@color/white</item>
+    </style>
+
     <style name="AlertDialogTransparent" parent="Theme.MaterialComponents.Dialog.Alert">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowIsFloating">true</item>

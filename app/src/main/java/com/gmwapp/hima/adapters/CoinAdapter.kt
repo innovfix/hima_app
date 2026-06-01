@@ -53,15 +53,23 @@ class CoinAdapter(
             holder.binding.tvPopular.visibility = View.GONE
         }
 
-        // Update the UI based on selection
+        // W065: bump the contrast between selected and unselected packs so
+        // the user can tell at a glance which one is picked. The previous
+        // 3dp stroke + 2dp elevation delta was too subtle on small screens —
+        // a thicker pink border plus a pronounced lift makes the selection
+        // unambiguous without requiring a separate check-mark icon.
         if (coin.isSelected == true) {
-            holder.binding.cvCoin.strokeWidth = 3
+            holder.binding.cvCoin.strokeWidth = 5
             holder.binding.cvCoin.strokeColor = activity.resources.getColor(R.color.pink)
-            holder.binding.cvCoin.cardElevation = 6f
+            holder.binding.cvCoin.cardElevation = 10f
+            holder.binding.cvCoin.scaleX = 1.04f
+            holder.binding.cvCoin.scaleY = 1.04f
         } else {
             holder.binding.cvCoin.strokeWidth = 0
             holder.binding.cvCoin.strokeColor = activity.resources.getColor(android.R.color.transparent)
             holder.binding.cvCoin.cardElevation = 2f
+            holder.binding.cvCoin.scaleX = 1f
+            holder.binding.cvCoin.scaleY = 1f
         }
 
         // Handle item click

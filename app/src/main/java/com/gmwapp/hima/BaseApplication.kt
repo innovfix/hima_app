@@ -33,7 +33,6 @@ import com.android.installreferrer.api.InstallReferrerStateListener
 import com.android.installreferrer.api.ReferrerDetails
 import com.facebook.FacebookSdk
 import com.facebook.appevents.AppEventsLogger
-import com.gmwapp.hima.BuildConfig
 import com.gmwapp.hima.agora.telecom.HimaTelecomManager
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.repositories.CallStatusRepository

@@ -6,17 +6,21 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
 import android.widget.Toast
-import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Observer
+import androidx.lifecycle.lifecycleScope
 import com.gmwapp.hima.BaseApplication
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.gmwapp.hima.R
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityGetNameBinding
+import com.gmwapp.hima.utils.registerOnboardingBackConfirm
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.utils.showAppToast
 import com.gmwapp.hima.viewmodels.ProfileViewModel
@@ -44,11 +48,10 @@ class GetNameActivity : BaseActivity() {
         WindowInsetsControllerCompat(window, binding.root)
             .isAppearanceLightStatusBars = false
 
-        // User has already registered on the server — there's nothing to go back to.
-        // Swallow back presses so a stray swipe doesn't drop them to a blank stack.
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() { /* no-op: block back */ }
-        })
+        // LAI-133: route back through the shared onboarding confirm so the
+        // exit prompt matches SelectGender / SelectLanguage / FemaleAbout
+        // instead of silently swallowing the press.
+        registerOnboardingBackConfirm()
 
         userId = intent.getIntExtra("USER_ID", 0)
         avatarId = intent.getIntExtra(DConstants.AVATAR_ID, 0)
@@ -109,7 +112,11 @@ class GetNameActivity : BaseActivity() {
             showAppToast(getString(R.string.please_try_again_later), Toast.LENGTH_LONG)
             return
         }
+        // LAI-074: flip the disabled state on the same frame as the tap so a
+        // fast double-tap can't enqueue a second updateProfile call before the
+        // first one is observed.
         isSubmitInProgress = true
+        binding.btnContinue.isEnabled = false
         setContinueLoading(true)
         // Production backend still requires a non-empty `interests` on update_profile.
         // Send a harmless default so male onboarding (which has no interests step) can pass.
@@ -154,23 +161,34 @@ class GetNameActivity : BaseActivity() {
 
         profileViewModel.updateProfileLiveData.observe(this, Observer { response ->
             if (!isSubmitInProgress) return@Observer
-            isSubmitInProgress = false
-            setContinueLoading(false)
             if (response != null && response.success && response.data != null) {
-                BaseApplication.getInstance()?.getPrefs()?.setUserData(response.data)
-                val next = Intent(this, AiOnboardingActivity::class.java).apply {
-                    putExtra("USER_ID", userId)
-                    putExtra(DConstants.AVATAR_ID, avatarId)
-                    putExtra(DConstants.LANGUAGE, language)
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                // LAI-074: setUserData() commits the response to SharedPreferences
+                // synchronously and was a measurable chunk of the 2-4s freeze users
+                // saw between "Continue" and the AI screen. Push it to Dispatchers.IO
+                // and only then navigate, keeping the spinner on screen until the
+                // hand-off is genuinely ready.
+                lifecycleScope.launch {
+                    withContext(Dispatchers.IO) {
+                        BaseApplication.getInstance()?.getPrefs()?.setUserData(response.data)
+                    }
+                    isSubmitInProgress = false
+                    setContinueLoading(false)
+                    val next = Intent(this@GetNameActivity, AiOnboardingActivity::class.java).apply {
+                        putExtra("USER_ID", userId)
+                        putExtra(DConstants.AVATAR_ID, avatarId)
+                        putExtra(DConstants.LANGUAGE, language)
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    }
+                    startActivity(next)
+                    overridePendingTransition(
+                        R.anim.onboarding_transition_in,
+                        R.anim.onboarding_transition_out
+                    )
+                    finish()
                 }
-                startActivity(next)
-                overridePendingTransition(
-                    R.anim.onboarding_transition_in,
-                    R.anim.onboarding_transition_out
-                )
-                finish()
             } else {
+                isSubmitInProgress = false
+                setContinueLoading(false)
                 showAppToast(
                     response?.message?.takeIf { it.isNotBlank() }
                         ?: getString(R.string.please_try_again_later),
@@ -203,6 +221,10 @@ class GetNameActivity : BaseActivity() {
     }
 
     companion object {
-        private const val MIN_NAME_LENGTH = 2
+        // LAI-064: backend (AuthController.php:2742) rejects names with
+        // strlen < 4 or > 10. Keep this constant in sync with both the visible
+        // hint string and the maxLength attribute on et_user_name so the user
+        // can never type a name that the server will then refuse.
+        private const val MIN_NAME_LENGTH = 4
     }
 }

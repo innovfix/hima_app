@@ -1,7 +1,9 @@
 package com.gmwapp.hima.activities
 
+import com.gmwapp.hima.utils.MicPermissionHelper
 import com.gmwapp.hima.utils.showAppToast
 
+import android.Manifest
 import android.content.Intent
 import android.os.Bundle
 import android.speech.RecognitionListener
@@ -14,6 +16,7 @@ import android.os.Looper
 
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
@@ -29,6 +32,25 @@ class DemoActivity : AppCompatActivity() {
     private lateinit var speechRecognizer: SpeechRecognizer
     private lateinit var speechIntent: Intent
     private val abusiveWords = listOf("idiot", "damn")
+    private val recognitionHandler = Handler(Looper.getMainLooper())
+    // LAI-095: gates the delayed restartRecognition() callback so it cannot
+    // touch a destroyed SpeechRecognizer after the activity is finishing.
+    private var isShuttingDown = false
+
+    // LAI-107: route a denied result through the helper so the second-deny
+    // permanently-denied state opens App Settings instead of looping.
+    private val micPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            startSpeechRecognition()
+        } else if (MicPermissionHelper.isPermanentlyDenied(this)) {
+            MicPermissionHelper.showSettingsDeepLinkDialog(this, onCancel = { finish() })
+        } else {
+            showAppToast("Microphone permission is required for the demo.", Toast.LENGTH_LONG)
+            finish()
+        }
+    }
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,7 +65,13 @@ class DemoActivity : AppCompatActivity() {
             insets
         }
 
-        startSpeechRecognition()
+        // LAI-107: gate the recognizer behind a proper permission flow instead
+        // of unconditionally starting and looping on ERROR_INSUFFICIENT_PERMISSIONS.
+        if (MicPermissionHelper.hasMicPermission(this)) {
+            startSpeechRecognition()
+        } else {
+            micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
     }
 
     private fun startSpeechRecognition() {
@@ -71,6 +99,19 @@ class DemoActivity : AppCompatActivity() {
             }
 
             override fun onError(error: Int) {
+                // LAI-107: stop the infinite restart loop when the mic is unavailable.
+                // ERROR_INSUFFICIENT_PERMISSIONS means the user revoked mic permission
+                // mid-session; ERROR_RECOGNIZER_BUSY / CLIENT happen during teardown.
+                if (error == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS) {
+                    if (MicPermissionHelper.isPermanentlyDenied(this@DemoActivity)) {
+                        MicPermissionHelper.showSettingsDeepLinkDialog(
+                            this@DemoActivity, onCancel = { finish() }
+                        )
+                    } else {
+                        micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    }
+                    return
+                }
                 restartRecognition()
             }
 
@@ -87,7 +128,9 @@ class DemoActivity : AppCompatActivity() {
     }
 
     private fun restartRecognition() {
-        Handler(Looper.getMainLooper()).postDelayed({
+        if (isShuttingDown) return
+        recognitionHandler.postDelayed({
+            if (isShuttingDown) return@postDelayed
             speechRecognizer.startListening(speechIntent)
         }, 200)
     }
@@ -97,5 +140,38 @@ class DemoActivity : AppCompatActivity() {
         showAppToast("Call disconnected due to abusive language", Toast.LENGTH_LONG)
     }
 
+    // LAI-095: release the SpeechRecognizer (and the underlying mic) when the
+    // user backs out of the demo. Without this the recognizer keeps the mic
+    // locked, and the pending postDelayed() callback in restartRecognition()
+    // can fire after the activity is gone and crash on a destroyed instance.
+    private fun releaseSpeechRecognizer() {
+        if (isShuttingDown) return
+        isShuttingDown = true
+        recognitionHandler.removeCallbacksAndMessages(null)
+        if (::speechRecognizer.isInitialized) {
+            try {
+                speechRecognizer.stopListening()
+            } catch (_: Exception) {
+            }
+            try {
+                speechRecognizer.cancel()
+            } catch (_: Exception) {
+            }
+            try {
+                speechRecognizer.destroy()
+            } catch (_: Exception) {
+            }
+        }
+    }
 
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        releaseSpeechRecognizer()
+        super.onBackPressed()
+    }
+
+    override fun onDestroy() {
+        releaseSpeechRecognizer()
+        super.onDestroy()
+    }
 }

@@ -116,5 +116,8 @@ class BottomSheetLogout : BottomSheetDialogFragment() {
         dismissAllowingStateLoss()
         startActivity(intent)
         hostActivity.overridePendingTransition(0, 0)
+        // LAI-022: finish every activity in the task so nothing from the previous
+        // session can be resurfaced via the recents stack or back-button revival.
+        hostActivity.finishAffinity()
     }
 }

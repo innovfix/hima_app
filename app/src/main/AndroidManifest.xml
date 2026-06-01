@@ -226,7 +226,9 @@
                 <data android:scheme="opensplash" />
             </intent-filter>
         </activity>
-        <activity android:name=".activities.VerifyOTPActivity" />
+        <activity
+            android:name=".activities.VerifyOTPActivity"
+            android:theme="@style/AppTheme.Onboarding" />
         <activity
             android:name=".activities.MainActivity"
             android:exported="true">
@@ -289,22 +291,35 @@
         <activity android:name=".activities.CouponActivity"
             android:windowSoftInputMode="adjustResize" />
         <activity android:name=".activities.ShareActivity" />
-        <activity android:name=".activities.SelectGenderActivity" />
-        <activity android:name=".activities.SelectLanguageActivity" />
+        <activity
+            android:name=".activities.SelectGenderActivity"
+            android:theme="@style/AppTheme.Onboarding" />
+        <activity
+            android:name=".activities.SelectLanguageActivity"
+            android:theme="@style/AppTheme.Onboarding" />
         <activity android:name=".activities.AiOnboardingActivity"
+            android:configChanges="uiMode"
             android:screenOrientation="portrait"
+            android:theme="@style/AppTheme.Onboarding"
             android:windowSoftInputMode="adjustResize" />
         <activity android:name=".activities.GetNameActivity"
             android:screenOrientation="portrait"
+            android:theme="@style/AppTheme.Onboarding"
             android:windowSoftInputMode="adjustResize" />
-        <activity android:name=".activities.LoginActivity" />
+        <activity
+            android:name=".activities.LoginActivity"
+            android:theme="@style/AppTheme.Onboarding" />
         <activity
             android:name=".activities.NewLoginActivity"
+            android:theme="@style/AppTheme.Onboarding"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".activities.FemaleAboutActivity"
-            android:resizeableActivity="true" />
-        <activity android:name=".activities.AlmostDoneActivity" />
+            android:resizeableActivity="true"
+            android:theme="@style/AppTheme.Onboarding" />
+        <activity
+            android:name=".activities.AlmostDoneActivity"
+            android:theme="@style/AppTheme.Onboarding" />
         <activity android:name=".activities.VoiceIdentificationActivity" />
         <activity android:name=".activities.EarningsActivity" />
         <activity android:name=".activities.WebviewActivity" />

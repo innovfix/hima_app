@@ -7,10 +7,8 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.Toast
-import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -29,7 +27,9 @@ import com.gmwapp.hima.databinding.ActivitySelectLanguageBinding
 import com.gmwapp.hima.retrofit.responses.Language
 import com.gmwapp.hima.utils.DPreferences
 import com.gmwapp.hima.utils.applySystemBarInsets
+import com.gmwapp.hima.utils.registerOnboardingBackConfirm
 import com.gmwapp.hima.utils.setOnSingleClickListener
+import com.gmwapp.hima.utils.showOnboardingBackConfirm
 import com.gmwapp.hima.utils.AppEventLogger
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.widgets.SpacesItemDecoration
@@ -58,14 +58,12 @@ class SelectLanguageActivity : BaseActivity() {
     private fun initUI() {
         val layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
         binding.rvLanguages.layoutManager = layoutManager
+        // LAI-133: shared back policy — only prompt the discard dialog when
+        // the user has actually picked a language to lose, otherwise just exit.
         binding.ivBack.setOnSingleClickListener {
-            handleBackPress()
+            if (hasUnsavedInput()) showOnboardingBackConfirm() else finish()
         }
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                this@SelectLanguageActivity.handleBackPress()
-            }
-        })
+        registerOnboardingBackConfirm(shouldConfirm = { hasUnsavedInput() })
         profileViewModel.registerErrorLiveData.observe(this, Observer {
             setContinueLoading(false)
             showAppToast(it, Toast.LENGTH_LONG)
@@ -235,30 +233,6 @@ class SelectLanguageActivity : BaseActivity() {
 
     private fun hasUnsavedInput(): Boolean {
         return !selectedLanguage.isNullOrEmpty()
-    }
-
-    private fun handleBackPress() {
-        if (!hasUnsavedInput()) {
-            finish()
-            return
-        }
-
-        val dialogView = layoutInflater.inflate(R.layout.dialog_discard_changes, null)
-        val dialog = AlertDialog.Builder(this)
-            .setView(dialogView)
-            .setCancelable(true)
-            .create()
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-
-        dialogView.findViewById<View>(R.id.btn_keep_editing).setOnClickListener {
-            dialog.dismiss()
-        }
-        dialogView.findViewById<View>(R.id.btn_go_back).setOnClickListener {
-            dialog.dismiss()
-            finish()
-        }
-
-        dialog.show()
     }
 
 }

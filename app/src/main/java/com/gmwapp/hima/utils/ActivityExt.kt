@@ -1,7 +1,9 @@
 package com.gmwapp.hima.utils
 
 import android.view.View
+import androidx.activity.OnBackPressedCallback
 import androidx.annotation.ColorRes
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
@@ -43,4 +45,56 @@ fun AppCompatActivity.applySystemBarInsets(
         v.setPadding(bars.left, bars.top, bars.right, if (applyBottom) bars.bottom else 0)
         WindowInsetsCompat.CONSUMED
     }
+}
+
+/**
+ * LAI-133: shared back-press policy for post-OTP onboarding screens.
+ *
+ * Each onboarding activity used to roll its own back behavior — GetName
+ * silently swallowed back, SelectGender / SelectLanguage / FemaleAbout each
+ * inflated their own copy of dialog_discard_changes, and AiOnboarding had its
+ * own ViewFlipper-aware policy. The duplication produced visibly different UX
+ * across screens. This helper centralizes the dialog so every onboarding step
+ * (except AiOnboarding's in-chat block, which stays bespoke) shows the same
+ * confirm prompt and only finishes the activity on the confirm tap.
+ *
+ * Wire it up once in onCreate, after setContentView:
+ *
+ *     registerOnboardingBackConfirm()
+ *
+ * Or, if a screen wants to skip the dialog when there's nothing to lose:
+ *
+ *     registerOnboardingBackConfirm(shouldConfirm = { hasUnsavedInput() })
+ */
+fun AppCompatActivity.registerOnboardingBackConfirm(
+    shouldConfirm: () -> Boolean = { true },
+    onExit: () -> Unit = { finish() },
+) {
+    onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+        override fun handleOnBackPressed() {
+            if (!shouldConfirm()) {
+                onExit()
+                return
+            }
+            showOnboardingBackConfirm(onExit)
+        }
+    })
+}
+
+fun AppCompatActivity.showOnboardingBackConfirm(onExit: () -> Unit = { finish() }) {
+    val dialogView = layoutInflater.inflate(R.layout.dialog_discard_changes, null)
+    val dialog = AlertDialog.Builder(this)
+        .setView(dialogView)
+        .setCancelable(true)
+        .create()
+    dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+    dialogView.findViewById<View>(R.id.btn_keep_editing).setOnClickListener {
+        dialog.dismiss()
+    }
+    dialogView.findViewById<View>(R.id.btn_go_back).setOnClickListener {
+        dialog.dismiss()
+        onExit()
+    }
+    dialog.show()
 }

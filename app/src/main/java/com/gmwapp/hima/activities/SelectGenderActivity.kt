@@ -4,10 +4,8 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.View
-import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -22,7 +20,9 @@ import com.gmwapp.hima.databinding.ActivitySelectGenderBinding
 import com.gmwapp.hima.retrofit.ApiManager
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.utils.applySystemBarInsets
+import com.gmwapp.hima.utils.registerOnboardingBackConfirm
 import com.gmwapp.hima.utils.setOnSingleClickListener
+import com.gmwapp.hima.utils.showOnboardingBackConfirm
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.onesignal.OneSignal
 import dagger.hilt.android.AndroidEntryPoint
@@ -66,13 +66,11 @@ class SelectGenderActivity : BaseActivity() {
         setCenterLayoutManager(binding.rvAvatars)
         
         binding.ivBack.setOnSingleClickListener {
-            handleBackPress()
+            // LAI-133: same confirm UX for the toolbar back arrow as for the
+            // system back button (routed via registerOnboardingBackConfirm).
+            showOnboardingBackConfirm()
         }
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                this@SelectGenderActivity.handleBackPress()
-            }
-        })
+        registerOnboardingBackConfirm()
         
         binding.btnContinue.setOnSingleClickListener {
             setContinueLoading(true)
@@ -191,27 +189,6 @@ class SelectGenderActivity : BaseActivity() {
             binding.iconMale.setBackgroundResource(R.drawable.circle_bg_grey)
             binding.iconMale.setTextColor(greyColor)
         }
-    }
-
-    private fun handleBackPress() {
-        // User just passed OTP verification to get here — a slip of the back button
-        // shouldn't silently drop them back to login. Confirm the intent.
-        val dialogView = layoutInflater.inflate(R.layout.dialog_discard_changes, null)
-        val dialog = AlertDialog.Builder(this)
-            .setView(dialogView)
-            .setCancelable(true)
-            .create()
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-
-        dialogView.findViewById<View>(R.id.btn_keep_editing).setOnClickListener {
-            dialog.dismiss()
-        }
-        dialogView.findViewById<View>(R.id.btn_go_back).setOnClickListener {
-            dialog.dismiss()
-            finish()
-        }
-
-        dialog.show()
     }
 
     private fun callTrackingInfoFromSavedAddress() {

@@ -38,7 +38,9 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.text.HtmlCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
@@ -344,6 +346,17 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         WindowCompat.getInsetsController(window, window.decorView).apply {
             isAppearanceLightStatusBars = false
             isAppearanceLightNavigationBars = false
+        }
+
+        // LAI-028: when the soft keyboard is shown the ConstraintLayout shrinks
+        // and the logo section (height=0dp, pinned between top of parent and
+        // top of the login form) gets compressed enough to clip the logo on
+        // small / mid-size phones. Toggle the logo block off while the IME is
+        // up so the form has room and nothing is visually cut.
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
+            val imeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
+            binding.llLogoSection.visibility = if (imeVisible) View.GONE else View.VISIBLE
+            insets
         }
 
         // Add animated background (same as splash screen)

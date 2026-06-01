@@ -9,9 +9,7 @@ import android.text.TextUtils
 import android.text.TextWatcher
 import android.view.View
 import android.widget.Toast
-import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
-import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.Observer
@@ -28,7 +26,9 @@ import com.gmwapp.hima.databinding.ActivitySelectLanguageBinding
 import com.gmwapp.hima.retrofit.responses.Interests
 import com.gmwapp.hima.retrofit.responses.Language
 import com.gmwapp.hima.utils.applySystemBarInsets
+import com.gmwapp.hima.utils.registerOnboardingBackConfirm
 import com.gmwapp.hima.utils.setOnSingleClickListener
+import com.gmwapp.hima.utils.showOnboardingBackConfirm
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.widgets.SpacesItemDecoration
 import com.google.android.flexbox.AlignItems
@@ -63,15 +63,12 @@ class FemaleAboutActivity : BaseActivity() {
     }
 
     private fun initUI() {
+        // LAI-133: same back policy as the other onboarding screens — only
+        // confirm when the user has typed something they'd lose.
         binding.ivBack.setOnClickListener {
-            handleBackPress()
+            if (hasUnsavedInput()) showOnboardingBackConfirm() else finish()
         }
-
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                this@FemaleAboutActivity.handleBackPress()
-            }
-        })
+        registerOnboardingBackConfirm(shouldConfirm = { hasUnsavedInput() })
 
       //  binding.cvEnterYourAge.setBackgroundResource(R.drawable.card_view_border)
   //      binding.cvSummary.setBackgroundResource(R.drawable.card_view_border)
@@ -234,31 +231,6 @@ class FemaleAboutActivity : BaseActivity() {
         val hasSummary = binding.etSummary.text?.toString()?.trim()?.isNotEmpty() == true
         val hasInterests = selectedInterests.isNotEmpty()
         return hasAge || hasSummary || hasInterests
-    }
-
-    private fun handleBackPress() {
-        if (!hasUnsavedInput()) {
-            finish()
-            return
-        }
-
-        val dialogView = layoutInflater.inflate(R.layout.dialog_discard_changes, null)
-        val dialog = AlertDialog.Builder(this)
-            .setView(dialogView)
-            .setCancelable(true)
-            .create()
-
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-
-        dialogView.findViewById<View>(R.id.btn_keep_editing).setOnClickListener {
-            dialog.dismiss()
-        }
-        dialogView.findViewById<View>(R.id.btn_go_back).setOnClickListener {
-            dialog.dismiss()
-            finish()
-        }
-
-        dialog.show()
     }
 
     private fun updateButton() {
