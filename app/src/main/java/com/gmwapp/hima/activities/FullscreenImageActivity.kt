@@ -102,10 +102,12 @@ class FullscreenImageActivity : AppCompatActivity() {
             if (!zoomed && !chromeVisible) setChromeVisible(true)
         }
 
-        findViewById<TextView>(R.id.btn_reply).setOnClickListener {
+        // CHAT-047 redesign: Reply / React are now icon+label containers (View),
+        // not full-width TextView pills.
+        findViewById<View>(R.id.btn_reply).setOnClickListener {
             finishWithAction(ACTION_REPLY)
         }
-        findViewById<TextView>(R.id.btn_react).setOnClickListener {
+        findViewById<View>(R.id.btn_react).setOnClickListener {
             finishWithAction(ACTION_REACT)
         }
     }
