@@ -2848,6 +2848,40 @@ class ChatActivityInHouse : AppCompatActivity() {
         }
     }
 
+    /**
+     * WhatsApp-style global presence (peer foreground anywhere in the app).
+     * Authoritative for the header — online → green "Online"; offline → real
+     * "Last seen <time>" from the pushed timestamp. Block-aware like
+     * [applyLivePresence].
+     */
+    private fun applyGlobalPresence(online: Boolean, lastSeen: String?) {
+        mainHandler.post {
+            if (!isUiSafe()) return@post
+            if (iHaveBlockedThisUser || peerHasBlockedMe) {
+                tvUserStatus.text = ""
+                tvUserStatus.visibility = View.GONE
+                vOnlineIndicator.visibility = View.GONE
+                return@post
+            }
+            if (online) {
+                tvUserStatus.text = "Online"
+                tvUserStatus.setTextColor(ContextCompat.getColor(this, R.color.online_green))
+                vOnlineIndicator.visibility = View.VISIBLE
+            } else {
+                val display = lastSeen?.takeIf { it.isNotBlank() }?.let { LastSeenFormatter.format(it) }
+                tvUserStatus.text = when {
+                    display == null -> "Last seen recently"
+                    // <60s but presence says offline → "just now", not "Online".
+                    display.isOnline -> "Last seen just now"
+                    else -> display.text
+                }
+                tvUserStatus.setTextColor(ContextCompat.getColor(this, R.color.grey_medium))
+                vOnlineIndicator.visibility = View.GONE
+            }
+            tvUserStatus.visibility = View.VISIBLE
+        }
+    }
+
     private fun applyLivePresence(online: Boolean) {
         mainHandler.post {
             if (!isUiSafe()) return@post
@@ -2889,6 +2923,9 @@ class ChatActivityInHouse : AppCompatActivity() {
                         // Fallback to chatId if user IDs not set
                         socketManager.joinChat(chatId)
                     }
+                    // WhatsApp-style presence: subscribe to the peer's live
+                    // foreground status (re-subscribes on every reconnect).
+                    if (peerUserId > 0) socketManager.watchPresence(peerUserId)
                     // Catch up history after a disconnect (missed socket events while offline)
                     if (prev == false && chatId.isNotEmpty() && myUserId > 0 && peerUserId > 0) {
                         Log.d("SocketIOCheck", "🔄 Socket reconnected — refreshing chat history")
@@ -3015,8 +3052,15 @@ class ChatActivityInHouse : AppCompatActivity() {
             socketManager.presenceUpdates.collect { event ->
                 if (!isUiSafe()) return@collect
                 if (event.userId != peerUserId) return@collect
-                if (event.chatId.isNotEmpty() && event.chatId != chatId) return@collect
-                applyLivePresence(event.online)
+                if (event.chatId.isEmpty()) {
+                    // Global foreground presence (WhatsApp-style "Online" anywhere
+                    // in the app) — authoritative for the header; carries last_seen.
+                    applyGlobalPresence(event.online, event.lastActiveAt)
+                } else {
+                    // Room-scoped (peer entered/left THIS chat) — immediate signal.
+                    if (event.chatId != chatId) return@collect
+                    applyLivePresence(event.online)
+                }
             }
         }
 
@@ -4963,6 +5007,8 @@ class ChatActivityInHouse : AppCompatActivity() {
                 Log.d("SocketIOCheck", "✅ Socket.IO connected in onResume - Joining chat room immediately: $chatId")
                 socketManager.joinChatRoom(myUserId, peerUserId)
             }
+            // Re-subscribe to the peer's live presence on resume (already-connected path).
+            if (peerUserId > 0) socketManager.watchPresence(peerUserId)
             Log.d("SocketIOCheck", "✅ Socket.IO is WORKING - Messages will be sent via Socket.IO")
         }
         
@@ -5018,6 +5064,8 @@ class ChatActivityInHouse : AppCompatActivity() {
         runCatching {
             socketManager.updateStatus("offline")
             socketManager.leaveChat(chatId)
+            // Stop watching the peer's presence while this chat isn't on screen.
+            if (peerUserId > 0) socketManager.unwatchPresence(peerUserId)
         }.onFailure { Log.w("Presence", "onPause offline emit failed: ${it.message}") }
 
         // CHAT-108: persist composer draft so it survives switching chats,
@@ -5113,6 +5161,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         // Leave this chat room only — do not disconnect the global socket here.
         // Disconnecting on every close caused reconnect races when opening chat repeatedly (blank UI / failed loads).
         socketManager.leaveChat(chatId)
+        if (peerUserId > 0) socketManager.unwatchPresence(peerUserId)
     }
 
     override fun onBackPressed() {

@@ -126,6 +126,15 @@ class SocketManager private constructor() {
     val presenceUpdates: SharedFlow<PresenceEvent> = _presenceUpdates.asSharedFlow()
 
     /**
+     * Real-time foreground presence (WhatsApp-style "Online"). We remember the
+     * current foreground state + the peer we're watching so both can be
+     * re-asserted after a socket reconnect — the server tracks presence per live
+     * connection, so a reconnect needs us to re-announce foreground and re-watch.
+     */
+    @Volatile private var foregroundPresence: Boolean = false
+    @Volatile private var watchedPeerId: Int = 0
+
+    /**
      * Connect to Socket.IO server using userId
      * After connection, automatically joins user room
      * Thread-safe: prevents multiple simultaneous connection attempts
@@ -265,6 +274,77 @@ class SocketManager private constructor() {
             Log.e("SocketIOCheck", "Error joining user room: ${e.message}", e)
         }
     }
+
+    /**
+     * WhatsApp-style presence: tell the server whether our app is in the
+     * foreground. The socket stays connected in the background, so "online" must
+     * follow foreground, not the connection. Remembered so we re-announce after
+     * a reconnect.
+     */
+    fun setForegroundPresence(online: Boolean) {
+        foregroundPresence = online
+        val uid = currentUserId ?: return
+        if (!isConnected()) return
+        try {
+            socket?.emit("set_presence", JSONObject().apply {
+                put("user_id", uid)
+                put("online", online)
+            })
+        } catch (e: Exception) {
+            Log.e("Presence", "setForegroundPresence emit failed: ${e.message}")
+        }
+    }
+
+    /** Subscribe to a peer's live presence (call when opening their chat). */
+    fun watchPresence(targetUserId: Int) {
+        if (targetUserId <= 0) return
+        watchedPeerId = targetUserId
+        if (!isConnected()) return
+        try {
+            socket?.emit("watch_presence", JSONObject().apply {
+                put("watcher_id", currentUserId ?: 0)
+                put("target_id", targetUserId)
+            })
+        } catch (e: Exception) {
+            Log.e("Presence", "watchPresence emit failed: ${e.message}")
+        }
+    }
+
+    /** Stop watching a peer's presence (call when leaving their chat). */
+    fun unwatchPresence(targetUserId: Int) {
+        if (watchedPeerId == targetUserId) watchedPeerId = 0
+        if (!isConnected()) return
+        try {
+            socket?.emit("unwatch_presence", JSONObject().apply {
+                put("target_id", targetUserId)
+            })
+        } catch (e: Exception) {
+            Log.e("Presence", "unwatchPresence emit failed: ${e.message}")
+        }
+    }
+
+    /**
+     * Re-announce foreground state + re-subscribe to the watched peer after a
+     * (re)connect — the server tracks presence per live connection, so a fresh
+     * connection needs both re-asserted.
+     */
+    private fun reassertPresenceOnConnect() {
+        val uid = currentUserId ?: return
+        try {
+            socket?.emit("set_presence", JSONObject().apply {
+                put("user_id", uid)
+                put("online", foregroundPresence)
+            })
+            if (watchedPeerId > 0) {
+                socket?.emit("watch_presence", JSONObject().apply {
+                    put("watcher_id", uid)
+                    put("target_id", watchedPeerId)
+                })
+            }
+        } catch (e: Exception) {
+            Log.e("Presence", "reassertPresenceOnConnect failed: ${e.message}")
+        }
+    }
     
     private fun setupListeners() {
         Log.d("SocketIOCheck", "🔧 setupListeners() called - Socket instance: ${if (socket != null) "✅ Found" else "❌ Null"}")
@@ -293,6 +373,7 @@ class SocketManager private constructor() {
                     Log.d("SocketIOCheck", "✅ Socket.IO CONNECTED - Joining user room...")
                     mainHandler.postDelayed({
                         joinUserRoom(userId)
+                        reassertPresenceOnConnect()
                     }, 100)
                 }
             }
@@ -633,6 +714,25 @@ class SocketManager private constructor() {
                     Log.d("Presence", "user_left_chat user=$userId chat=$chatIdVal")
                 } catch (e: Exception) {
                     Log.e("Presence", "user_left_chat parse failed: ${e.message}")
+                }
+            }
+
+            // Real-time foreground presence push. chat_id is empty to mark this
+            // as a GLOBAL presence event (peer online anywhere in the app), vs
+            // the room-scoped user_joined_chat/left events which carry a chat_id.
+            on("presence_update") { args ->
+                try {
+                    val payload = args.firstOrNull() as? JSONObject ?: return@on
+                    val uid = payload.optInt("user_id", -1).takeIf { it > 0 } ?: return@on
+                    val online = payload.optBoolean("online", false)
+                    val lastSeen = if (payload.has("last_seen") && !payload.isNull("last_seen"))
+                        payload.optString("last_seen").takeIf { it.isNotBlank() } else null
+                    _presenceUpdates.tryEmit(
+                        PresenceEvent(userId = uid, chatId = "", online = online, lastActiveAt = lastSeen)
+                    )
+                    Log.d("Presence", "presence_update user=$uid online=$online lastSeen=$lastSeen")
+                } catch (e: Exception) {
+                    Log.e("Presence", "presence_update parse failed: ${e.message}")
                 }
             }
 

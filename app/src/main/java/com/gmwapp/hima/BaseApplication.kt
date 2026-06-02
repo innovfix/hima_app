@@ -29,6 +29,9 @@ import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
 import android.view.WindowManager
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ProcessLifecycleOwner
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.work.Configuration
 import com.android.installreferrer.api.InstallReferrerClient
 import com.android.installreferrer.api.InstallReferrerStateListener
@@ -240,6 +243,21 @@ class BaseApplication : Application(), Configuration.Provider {
         Log.d("SocketIOCheck", "🎯 BaseApplication.onCreate() STARTED - SocketIOCheck tag is working!")
         
         mInstance = this
+
+        // WhatsApp-style presence: report app foreground/background to the socket
+        // so peers see live "Online" / "Last seen". Process-wide (ProcessLifecycle),
+        // so it's accurate regardless of which screen is on top, and independent of
+        // the socket staying connected in the background. If the socket isn't up
+        // yet, SocketManager remembers the state and re-announces it on connect.
+        ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
+            override fun onStart(owner: LifecycleOwner) {
+                SocketManager.getInstance().setForegroundPresence(true)
+            }
+            override fun onStop(owner: LifecycleOwner) {
+                SocketManager.getInstance().setForegroundPresence(false)
+            }
+        })
+
         // First launch after a version bump: wipe stale system-tray notifications. Old chat
         // notifications were posted with PendingIntents pointing at the now-deleted ChatActivity,
         // so without this they'd either crash on tap or open the wrong screen.
