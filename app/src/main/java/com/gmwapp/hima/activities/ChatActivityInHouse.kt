@@ -64,7 +64,6 @@ import com.gmwapp.hima.retrofit.responses.ChatAttachmentUploadResponse
 import com.gmwapp.hima.retrofit.responses.MarkReadResponse
 import com.gmwapp.hima.retrofit.responses.MarkMessagesReadResponse
 import com.gmwapp.hima.retrofit.responses.MessageListResponse
-import com.gmwapp.hima.retrofit.responses.MessageNotificationResponse
 import com.gmwapp.hima.retrofit.responses.SendMessageResponse
 import com.gmwapp.hima.retrofit.responses.ChatHistoryResponse
 import com.gmwapp.hima.retrofit.responses.BlockUserResponse
@@ -1373,37 +1372,50 @@ class ChatActivityInHouse : AppCompatActivity() {
         }
 
         val idForLog = message.id
+        // Keep the ORIGINAL so the ack/error/timeout paths can roll the tombstone
+        // back if the server never actually deleted it.
+        pendingDeleteOriginals[message.id] = message
         markMessageDeletedLocally(message)
         if (pendingReplyTo?.id == message.id) {
             pendingReplyTo = null
             updateReplyPreviewUi()
         }
 
-        val delivered = socketManager.deleteMessage(myUserId, peerUserId, message.id)
-        Log.d("ChatDelete", "performDeleteForEveryone id=$idForLog via=socket delivered=$delivered")
-        if (delivered) {
-            showAppToast(getString(R.string.chat_message_deleted_toast), Toast.LENGTH_SHORT)
-            return
+        // BUG (delete-for-everyone consistency): a successful socket *emit* is NOT proof
+        // the server persisted the delete or notified the peer — the old code trusted it
+        // and returned, so a dropped/rejected delete left the peer still showing the
+        // message while the sender showed a tombstone. Now we emit and WAIT for the
+        // server's `message_delete_ack`; if it doesn't arrive in time (or `delete_error`
+        // fires), we fall back to REST (which persists via Laravel). The tombstone is only
+        // permanent once the server confirms.
+        val emitted = socketManager.deleteMessage(myUserId, peerUserId, message.id)
+        Log.d("ChatDelete", "performDeleteForEveryone id=$idForLog via=socket emitted=$emitted")
+        if (emitted) {
+            scheduleDeleteAckTimeout(message)
+        } else {
+            deleteForEveryoneViaRest(message)
         }
+    }
 
+    /** Fires the REST delete (persists via Laravel) and reconciles the tombstone on the result. */
+    private fun deleteForEveryoneViaRest(original: ChatMessage) {
+        val id = original.id
         apiManager.deleteChatMessage(
             myUserId,
             peerUserId,
-            message.id,
+            id,
             object : NetworkCallback<com.gmwapp.hima.retrofit.responses.SimpleAckResponse> {
                 override fun onResponse(
                     call: Call<com.gmwapp.hima.retrofit.responses.SimpleAckResponse>,
                     response: Response<com.gmwapp.hima.retrofit.responses.SimpleAckResponse>
                 ) {
-                    val ok = response.isSuccessful &&
-                        (response.body()?.success != false)
-                    Log.d("ChatDelete", "performDeleteForEveryone id=$idForLog via=rest ok=$ok http=${response.code()}")
+                    val ok = response.isSuccessful && (response.body()?.success != false)
+                    Log.d("ChatDelete", "deleteForEveryone id=$id via=rest ok=$ok http=${response.code()}")
+                    pendingDeleteOriginals.remove(id)
                     if (ok) {
-                        if (isUiSafe()) {
-                            showAppToast(getString(R.string.chat_message_deleted_toast), Toast.LENGTH_SHORT)
-                        }
+                        if (isUiSafe()) showAppToast(getString(R.string.chat_message_deleted_toast), Toast.LENGTH_SHORT)
                     } else {
-                        rollbackDeleteOnFailure(message)
+                        rollbackDeleteOnFailure(original)
                     }
                 }
 
@@ -1411,18 +1423,36 @@ class ChatActivityInHouse : AppCompatActivity() {
                     call: Call<com.gmwapp.hima.retrofit.responses.SimpleAckResponse>,
                     t: Throwable
                 ) {
-                    Log.w("ChatDelete", "performDeleteForEveryone id=$idForLog via=rest FAILED: ${t.message}")
-                    rollbackDeleteOnFailure(message)
+                    Log.w("ChatDelete", "deleteForEveryone id=$id via=rest FAILED: ${t.message}")
+                    pendingDeleteOriginals.remove(id)
+                    rollbackDeleteOnFailure(original)
                 }
 
                 override fun onNoNetwork() {
-                    // Leave the tombstone in place so the user sees their intent was
-                    // accepted locally; the backend will not learn about it until the
-                    // socket reconnects — acceptable for MVP.
-                    Log.w("ChatDelete", "performDeleteForEveryone id=$idForLog via=rest NO_NETWORK — tombstone stays")
+                    // Offline: keep the tombstone and the pending original so a later
+                    // reconnect/reload can reconcile. Don't roll back — the user's intent
+                    // is recorded locally.
+                    Log.w("ChatDelete", "deleteForEveryone id=$id via=rest NO_NETWORK — tombstone stays")
                 }
             }
         )
+    }
+
+    private fun scheduleDeleteAckTimeout(original: ChatMessage) {
+        cancelDeleteAckTimeout(original.id)
+        val r = Runnable {
+            pendingDeleteTimeouts.remove(original.id)
+            Log.w("ChatDelete", "no delete ack for id=${original.id} within ${DELETE_ACK_TIMEOUT_MS}ms — REST fallback")
+            // REST delete is idempotent server-side, so a slow-but-eventual socket ack
+            // racing this is harmless (the row is already is_deleted=1).
+            deleteForEveryoneViaRest(original)
+        }
+        pendingDeleteTimeouts[original.id] = r
+        mainHandler.postDelayed(r, DELETE_ACK_TIMEOUT_MS)
+    }
+
+    private fun cancelDeleteAckTimeout(messageId: String) {
+        pendingDeleteTimeouts.remove(messageId)?.let { mainHandler.removeCallbacks(it) }
     }
 
     private fun markMessageDeletedLocally(message: ChatMessage) {
@@ -2393,6 +2423,12 @@ class ChatActivityInHouse : AppCompatActivity() {
     private val sendingTimeoutRunnables = mutableMapOf<String, Runnable>()
     private val SENDING_TIMEOUT_MS = 15_000L
 
+    // Delete-for-everyone ack tracking: original message (for rollback) + ack-timeout
+    // runnable, keyed by message id. See performDeleteForEveryone().
+    private val pendingDeleteOriginals = mutableMapOf<String, ChatMessage>()
+    private val pendingDeleteTimeouts = mutableMapOf<String, Runnable>()
+    private val DELETE_ACK_TIMEOUT_MS = 4_000L
+
     private fun scheduleSendingTimeout(tempId: String) {
         cancelSendingTimeout(tempId)
         val r = Runnable {
@@ -2554,9 +2590,8 @@ class ChatActivityInHouse : AppCompatActivity() {
                         attachmentUrl = remoteUrl,
                         audioDurationMs = durationToShip
                     )
-                    // Bug-4: same as the text socket path — guarantee a push for
-                    // attachments since the socket server's push is presence-gated.
-                    firePeerMessageNotification(notificationBodyForType(messageType))
+                    // Push is sent server-side (socket saveMessage always pushes);
+                    // the old client-side push here double-notified the peer.
                     file.delete()
                 }
 
@@ -2624,8 +2659,8 @@ class ChatActivityInHouse : AppCompatActivity() {
                                 "SocketIOCheck",
                                 "✅ Media sent via fallback API - ID: ${fallbackMessage.id}"
                             )
-                            // Bug-4: fallback path sends no push of its own.
-                            firePeerMessageNotification(notificationBodyForType(messageType))
+                            // fallback_send_message pushes server-side; the old
+                            // client-side push here double-notified the peer.
                         } else {
                             removeTempMessage(tempId)
                             showAppToast(
@@ -3026,6 +3061,30 @@ class ChatActivityInHouse : AppCompatActivity() {
                 }
                 chatAdapter.notifyItemChanged(idx)
                 Log.d("ChatDelete", "✅ Applied remote tombstone for id=$deletedId idx=$idx")
+            }
+        }
+
+        // Delete-for-everyone consistency: server confirmed it persisted + broadcast our
+        // delete. Cancel the ack-timeout and stop tracking — the tombstone is now final.
+        lifecycleScope.launch {
+            socketManager.messageDeleteAck.collect { ackId ->
+                if (ackId.isEmpty()) return@collect
+                cancelDeleteAckTimeout(ackId)
+                pendingDeleteOriginals.remove(ackId)
+                Log.d("ChatDelete", "server ack delete id=$ackId — tombstone confirmed")
+            }
+        }
+
+        // Server rejected/failed our socket delete → fall back to REST so the delete
+        // actually persists (and the peer eventually gets it) instead of sticking only
+        // on the sender. If REST also fails, deleteForEveryoneViaRest rolls the tombstone back.
+        lifecycleScope.launch {
+            socketManager.messageDeleteError.collect { (errId, err) ->
+                if (errId.isEmpty()) return@collect
+                cancelDeleteAckTimeout(errId)
+                Log.w("ChatDelete", "server delete_error id=$errId err=$err — REST fallback")
+                val original = pendingDeleteOriginals[errId]
+                if (original != null) deleteForEveryoneViaRest(original)
             }
         }
 
@@ -3932,14 +3991,9 @@ class ChatActivityInHouse : AppCompatActivity() {
             messageSendMethod[tempMessageId] = "socket"
             // ⭐ Updated to use new signature: sendMessage(fromUserId, toUserId, message, messageType, attachmentUrl)
             socketManager.sendMessage(myUserId, peerUserId, bodyToSend, "text")
-            // Bug-4: the socket path is fire-and-forget and the socket server's
-            // own push is presence-gated (it skips the recipient when their
-            // socket is still connected in the background) — so a backgrounded
-            // peer often gets NO notification. Fire the push from the sender as
-            // well; OneSignal's collapse_id dedupes any server-sent duplicate,
-            // and the foreground listener suppresses the heads-up when the peer
-            // already has this chat open.
-            firePeerMessageNotification(bodyToSend)
+            // Push is sent server-side for every message (socket saveMessage
+            // always pushes; the NSE suppresses the heads-up when this chat is
+            // open). The old client-side push here double-notified the peer.
             if (BuildConfig.DEBUG) {
                 Log.d("SocketIOCheck", "🚀 Sending via SOCKET.IO - From: $myUserId, To: $peerUserId, Message: '$bodyToSend'")
             } else {
@@ -3953,55 +4007,10 @@ class ChatActivityInHouse : AppCompatActivity() {
         }
     }
 
-    /**
-     * Bug-4: trigger the OneSignal chat push for the peer. The app previously
-     * relied entirely on the Node socket server to push, but that push is
-     * presence-gated (skipped when the recipient's socket is still connected in
-     * the background), so a backgrounded creator routinely got nothing. Firing
-     * from the sender guarantees a push for every successfully-sent message.
-     *
-     * Safe to call on every send: OneSignal collapses any server-sent duplicate
-     * via collapse_id (chat_<sender>_<receiver>), the server hides the body (it
-     * shows an unread count), and the foreground listener suppresses the
-     * heads-up when the peer already has this chat open. Fire-and-forget — a
-     * failed push must never affect the send itself.
-     */
-    private fun firePeerMessageNotification(body: String) {
-        if (myUserId <= 0 || peerUserId <= 0) return
-        // Endpoint caps message at 1000 chars; our composer cap is higher.
-        val safeBody = body.take(1000)
-        runCatching {
-            apiManager.sendMessageNotification(
-                myUserId,
-                peerUserId,
-                safeBody,
-                object : NetworkCallback<MessageNotificationResponse> {
-                    override fun onResponse(
-                        call: Call<MessageNotificationResponse>,
-                        response: Response<MessageNotificationResponse>
-                    ) {
-                        Log.d("Bug4Push", "peer notify sent to=$peerUserId ok=${response.isSuccessful}")
-                    }
-
-                    override fun onFailure(call: Call<MessageNotificationResponse>, t: Throwable) {
-                        Log.w("Bug4Push", "peer notify failed to=$peerUserId: ${t.message}")
-                    }
-
-                    override fun onNoNetwork() {
-                        Log.w("Bug4Push", "peer notify no-network to=$peerUserId")
-                    }
-                }
-            )
-        }.onFailure { Log.w("Bug4Push", "peer notify threw: ${it.message}") }
-    }
-
-    /** Privacy-safe placeholder body for attachment pushes (server hides it anyway). */
-    private fun notificationBodyForType(messageType: String): String = when (messageType) {
-        "image" -> "📷 Photo"
-        "audio" -> "🎤 Voice message"
-        "video" -> "🎥 Video"
-        else -> "📎 Attachment"
-    }
+    // firePeerMessageNotification / notificationBodyForType removed: the server
+    // pushes once for every message on BOTH paths — the socket server's
+    // saveMessage always pushes, and the REST fallback_send_message pushes too —
+    // so the client-side push was a pure duplicate that double-notified the peer.
 
     private fun sendMessageViaAPI(tempId: String, messageText: String) {
         val apiCall = apiManager.fallbackSendMessage(
@@ -4023,10 +4032,8 @@ class ChatActivityInHouse : AppCompatActivity() {
                                 return
                             }
                             Log.d("SocketIOCheck", "Message sent via fallback API - ID: ${fallbackMessage.id}")
-                            // Bug-4: fallback_send_message persists the message
-                            // but sends no push of its own, so fire the peer
-                            // notification here too (socket-down path).
-                            firePeerMessageNotification(messageText)
+                            // fallback_send_message pushes server-side; the old
+                            // client-side push here double-notified the peer.
                         } else {
                             failPendingOutgoing(
                                 tempId,
@@ -5063,6 +5070,11 @@ class ChatActivityInHouse : AppCompatActivity() {
         activeAttachmentCalls.clear()
         activeTextSendCalls.forEach { runCatching { it.cancel() } }
         activeTextSendCalls.clear()
+        // Delete-for-everyone ack timeouts: drop pending callbacks so they don't fire
+        // a REST fallback against a destroyed view tree.
+        pendingDeleteTimeouts.values.forEach { mainHandler.removeCallbacks(it) }
+        pendingDeleteTimeouts.clear()
+        pendingDeleteOriginals.clear()
         isInitialHistoryLoading = false
 
         mainHandler.removeCallbacks(logSocketStatusAfterDelay)

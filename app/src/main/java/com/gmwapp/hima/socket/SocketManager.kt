@@ -97,6 +97,18 @@ class SocketManager private constructor() {
     val chatMessageDeleted: SharedFlow<String> = _chatMessageDeleted.asSharedFlow()
 
     /**
+     * Delete-for-everyone consistency: the server emits `message_delete_ack` once it has
+     * actually persisted `is_deleted` AND broadcast `message_deleted` to the peer, or
+     * `delete_error` if the delete was rejected/failed. The sender listens for both so it
+     * never commits a tombstone the server didn't act on (the old code trusted the socket
+     * emit alone, leaving the peer still showing the message).
+     */
+    private val _messageDeleteAck = eventFlow<String>()                 // message_id
+    val messageDeleteAck: SharedFlow<String> = _messageDeleteAck.asSharedFlow()
+    private val _messageDeleteError = eventFlow<Pair<String, String>>() // message_id, error
+    val messageDeleteError: SharedFlow<Pair<String, String>> = _messageDeleteError.asSharedFlow()
+
+    /**
      * Fired when the peer marks our messages as read. Carries the message
      * IDs that just flipped to is_read=1 so the chat thread can bump those
      * bubbles to READ and the chat list can flip the row tick to blue.
@@ -568,6 +580,31 @@ class SocketManager private constructor() {
                     }
                 } catch (e: Exception) {
                     Log.e("ChatDelete", "Error parsing message_deleted: ${e.message}", e)
+                }
+            }
+
+            on("message_delete_ack") { args ->
+                try {
+                    val payload = args.firstOrNull() as? JSONObject ?: return@on
+                    val id = payload.opt("message_id")?.toString().orEmpty()
+                    if (id.isNotEmpty()) {
+                        _messageDeleteAck.tryEmit(id)
+                        Log.d("ChatDelete", "Socket message_delete_ack received id=$id")
+                    }
+                } catch (e: Exception) {
+                    Log.e("ChatDelete", "Error parsing message_delete_ack: ${e.message}", e)
+                }
+            }
+
+            on("delete_error") { args ->
+                try {
+                    val payload = args.firstOrNull() as? JSONObject ?: return@on
+                    val id = payload.opt("message_id")?.toString().orEmpty()
+                    val err = payload.optString("error", "delete failed")
+                    _messageDeleteError.tryEmit(id to err)
+                    Log.w("ChatDelete", "Socket delete_error received id=$id err=$err")
+                } catch (e: Exception) {
+                    Log.e("ChatDelete", "Error parsing delete_error: ${e.message}", e)
                 }
             }
 
