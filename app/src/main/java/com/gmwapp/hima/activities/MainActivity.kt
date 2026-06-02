@@ -722,36 +722,44 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
                     val existing = supportFragmentManager.findFragmentByTag("BottomSheetWelcomeBonus")
                     if (existing == null) {
-                        val bottomSheet = BottomSheetWelcomeBonus.newInstance(
-                            coin,
-                            originalPrice,
-                            discountedPrice,
-                            coinId,
-                            total_count
-                        )
-                        
-                        // Set dismiss listener to call free_coins_status API and rating eligibility
-                        bottomSheet.setOnDismissListener(object : BottomSheetWelcomeBonus.OnDismissListener {
-                            override fun onBottomSheetDismissed() {
-                                Log.d("BottomSheetWelcomeBonus", "✅ Bottom sheet dismissed - calling free_coins_status API")
-                                
-                                val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-                                userData?.id?.let { userId ->
-                                    Log.d("BottomSheetWelcomeBonus", "📡 Calling free_coins_status API with userId: $userId")
-                                    if (!hasTriggeredFreeCoinsStatus) {
-                                        hasTriggeredFreeCoinsStatus = true
-                                        callFreeCoinsStatusApi(userId)
+                        // Wait for Home's entrance animations to finish (~1850ms:
+                        // Random FAB 1200ms startDelay + 650ms duration) plus a
+                        // 1-second buffer before opening the welcome bonus sheet.
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            if (isFinishing || isDestroyed) return@postDelayed
+                            if (supportFragmentManager.findFragmentByTag("BottomSheetWelcomeBonus") != null) return@postDelayed
+
+                            val bottomSheet = BottomSheetWelcomeBonus.newInstance(
+                                coin,
+                                originalPrice,
+                                discountedPrice,
+                                coinId,
+                                total_count
+                            )
+
+                            // Set dismiss listener to call free_coins_status API and rating eligibility
+                            bottomSheet.setOnDismissListener(object : BottomSheetWelcomeBonus.OnDismissListener {
+                                override fun onBottomSheetDismissed() {
+                                    Log.d("BottomSheetWelcomeBonus", "✅ Bottom sheet dismissed - calling free_coins_status API")
+
+                                    val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                                    userData?.id?.let { userId ->
+                                        Log.d("BottomSheetWelcomeBonus", "📡 Calling free_coins_status API with userId: $userId")
+                                        if (!hasTriggeredFreeCoinsStatus) {
+                                            hasTriggeredFreeCoinsStatus = true
+                                            callFreeCoinsStatusApi(userId)
+                                        }
+
+                                        // Check rating eligibility after bottom sheet is dismissed (for male users)
+                                        Log.d("BottomSheetWelcomeBonus", "📡 Calling check_rating_eligibility API with userId: $userId")
+                                        checkRatingEligibility(userId)
                                     }
-                                    
-                                    // Check rating eligibility after bottom sheet is dismissed (for male users)
-                                    Log.d("BottomSheetWelcomeBonus", "📡 Calling check_rating_eligibility API with userId: $userId")
-                                    checkRatingEligibility(userId)
                                 }
-                            }
-                        })
-                        
-                        bottomSheet.show(supportFragmentManager, "BottomSheetWelcomeBonus")
-                        Log.d("BottomSheetWelcomeBonus", "Bottom sheet shown with dismiss listener set")
+                            })
+
+                            bottomSheet.show(supportFragmentManager, "BottomSheetWelcomeBonus")
+                            Log.d("BottomSheetWelcomeBonus", "Bottom sheet shown with dismiss listener set")
+                        }, 2850L)
                     }
                 }
             }
@@ -803,16 +811,14 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         val transaction = supportFragmentManager.beginTransaction()
         transaction.setReorderingAllowed(true)
         transaction.setCustomAnimations(
-            android.R.anim.fade_in,
-            android.R.anim.fade_out
+            R.anim.fragment_fade_in,
+            R.anim.fragment_fade_out
         )
 
         val statusBarController = WindowInsetsControllerCompat(window, window.decorView)
 
         when (item.itemId) {
             R.id.home -> {
-                // Home now uses the radar dark-gradient background — match the
-                // status bar tint so the icons read as white.
                 window.statusBarColor = ContextCompat.getColor(this, R.color.white)
                 statusBarController.isAppearanceLightStatusBars = true
 
@@ -824,7 +830,6 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             }
 
             R.id.chat -> {
-                // Dark radar gradient now backs every tab — match status bar.
                 window.statusBarColor = ContextCompat.getColor(this, R.color.white)
                 statusBarController.isAppearanceLightStatusBars = true
                 transaction.replace(R.id.flFragment, CreatorChatFragment()).commit()
@@ -848,8 +853,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             }
 
             R.id.profile -> {
-                // Soft pink hero behind status bar — use DARK status-bar content.
-                window.statusBarColor = android.graphics.Color.parseColor("#FFEAF2")
+                window.statusBarColor = ContextCompat.getColor(this, R.color.white)
                 statusBarController.isAppearanceLightStatusBars = true
 
                 if (BaseApplication.getInstance()?.getPrefs()

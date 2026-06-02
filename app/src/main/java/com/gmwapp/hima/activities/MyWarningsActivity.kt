@@ -34,9 +34,9 @@ class MyWarningsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMyWarningsBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        // Pink header (bg_warning_header_pink) extends under status bar via
-        // fitsSystemWindows=true on the header LinearLayout. LIGHT icons.
-        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = false
+        // White header → status bar gets WHITE bg + DARK icons so they're visible.
+        window.statusBarColor = getColor(R.color.white)
+        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
 
         binding.cvBack.setOnClickListener {
             val messageCameWhenIsAlive = BaseApplication.getInstance()?.messageCameWhenIsAlive ?: 0

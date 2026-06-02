@@ -87,6 +87,23 @@ class VoiceIdentificationActivity : BaseActivity(), OnItemSelectionListener<Stri
     }
 
     private fun initUI() {
+        // Wire up btn_continue: for real users opens voice popup; for design-dummy (no prefs user) goes to YoutubeActivity
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        binding.btnContinue.setOnClickListener {
+            if (userData == null) {
+                // Design-dummy: no registered user — skip directly to YoutubeActivity
+                val intent = Intent(this, YoutubeActivity::class.java)
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                startActivity(intent)
+                finish()
+            } else {
+                if (checkPermissions()) {
+                    openVoiceIdentificationPopup()
+                } else {
+                    requestPermissions()
+                }
+            }
+        }
         if (checkPermissions()) {
             openVoiceIdentificationPopup()
         } else {

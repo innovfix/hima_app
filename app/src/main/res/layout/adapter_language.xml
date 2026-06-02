@@ -5,43 +5,46 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginVertical="6dp"
+    android:layout_marginVertical="5dp"
     android:clickable="true"
     android:focusable="true"
     app:cardBackgroundColor="@color/white"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="1dp"
+    app:cardCornerRadius="18dp"
+    app:cardElevation="0dp"
     app:rippleColor="@color/colorAccent"
     app:strokeColor="@color/divider"
-    app:strokeWidth="1dp">
+    app:strokeWidth="1.5dp">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp">
+        android:paddingStart="16dp"
+        android:paddingTop="12dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="12dp">
 
-        <!-- Native Script Icon -->
+        <!-- Native Script Icon (circle) -->
         <TextView
             android:id="@+id/iv_language"
-            android:layout_width="52dp"
-            android:layout_height="52dp"
-            android:background="@drawable/circle_bg_grey"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/d_button_bg_female_interest"
             android:gravity="center"
-            android:text="ह"
-            android:textColor="@color/colorAccent"
-            android:textSize="28sp"
+            android:text="&#2361;"
+            android:textColor="#FF1383"
+            android:textSize="22sp"
             android:textStyle="bold"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             tools:ignore="HardcodedText" />
 
-        <!-- Language Name and English Name -->
+        <!-- Language Name and Subtitle -->
         <LinearLayout
             android:id="@+id/ll_text"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
+            android:layout_marginStart="14dp"
             android:layout_marginEnd="12dp"
             android:orientation="vertical"
             app:layout_constraintBottom_toBottomOf="parent"
@@ -55,17 +58,17 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/poppins_semibold"
                 android:text="Hindi"
-                android:textColor="@color/black_light"
-                android:textSize="16sp" />
+                android:textColor="#0F172A"
+                android:textSize="15sp" />
 
             <TextView
                 android:id="@+id/tv_language_subtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/poppins_regular"
-                android:text="हिंदी"
-                android:textColor="@color/grey_medium"
-                android:textSize="13sp" />
+                android:text="&#2361;&#2367;&#2306;&#2342;&#2368;"
+                android:textColor="#94A3B8"
+                android:textSize="12sp" />
         </LinearLayout>
 
         <!-- Check Icon -->

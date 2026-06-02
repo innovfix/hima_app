@@ -57,7 +57,7 @@ import kotlinx.coroutines.launch
 @AndroidEntryPoint
 class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     private var isAllFabVisible: Boolean = false
-    private var filterType: String = "my_chats" // Default filter is "my_chats" — open on Chats tab
+    private var filterType: String = "all" // Default filter is "All" — open on All tab
     lateinit var binding: FragmentHomeBinding
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
 
@@ -82,7 +82,78 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         initUI()
         observeLiveUserStatus()
         setupSwipeToRefresh()
+        animateEntrance()
         return binding.root
+    }
+
+    /** Professional staggered entrance animation when Home opens (slower / dramatic). */
+    private fun animateEntrance() {
+        // Run only once per app launch — skip on subsequent tab switches.
+        if (hasPlayedEntrance) return
+        hasPlayedEntrance = true
+
+        val d = resources.displayMetrics.density
+
+        // 1) AppBar: slide down from -40dp + fade in.
+        binding.appBarLayout.apply {
+            alpha = 0f
+            translationY = -40f * d
+            animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setStartDelay(100L)
+                .setDuration(700L)
+                .setInterpolator(android.view.animation.DecelerateInterpolator(1.6f))
+                .start()
+        }
+
+        // 2) Logo card + wallet pill: scale-in (after AppBar settles).
+        listOf(binding.ivLogo, binding.tvLogo, binding.clCoins).forEach { v ->
+            v.alpha = 0f
+            v.scaleX = 0.8f
+            v.scaleY = 0.8f
+            v.animate()
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .setStartDelay(380L)
+                .setDuration(600L)
+                .setInterpolator(android.view.animation.OvershootInterpolator(1.1f))
+                .start()
+        }
+
+        // 3) Filter pills: staggered slide-in from left with wider spacing.
+        listOf(
+            binding.btnFilterMyChats,
+            binding.btnFilterAll,
+            binding.btnFilterNew,
+            binding.btnFilterStar
+        ).forEachIndexed { idx, pill ->
+            pill.alpha = 0f
+            pill.translationX = -80f * d
+            pill.animate()
+                .alpha(1f)
+                .translationX(0f)
+                .setStartDelay(550L + idx * 130L)
+                .setDuration(550L)
+                .setInterpolator(android.view.animation.DecelerateInterpolator(1.4f))
+                .start()
+        }
+
+        // 4) Random FAB: bouncy scale-in (last, big finish).
+        binding.fabRandom.apply {
+            alpha = 0f
+            scaleX = 0f
+            scaleY = 0f
+            animate()
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .setStartDelay(1200L)
+                .setDuration(650L)
+                .setInterpolator(android.view.animation.OvershootInterpolator(1.6f))
+                .start()
+        }
     }
 
     /** Paint the "Hi ma" brand title with a normal brand pink. */
@@ -484,7 +555,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         val solid = android.graphics.drawable.GradientDrawable().apply {
             shape = android.graphics.drawable.GradientDrawable.RECTANGLE
             cornerRadius = 14f * density
-            setColor(0xFFF5F5F7.toInt())   // light grey fill
+            setColor(0xFFF5F5F7.toInt())
             setStroke((1 * density).toInt(), 0xFFE0E0E0.toInt())
         }
         return android.graphics.drawable.RippleDrawable(
@@ -493,7 +564,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         )
     }
 
-    /** Gradient active pill with the same shorter 14dp radius. */
+    /** Active pill — pink → purple gradient. */
     private fun makeActivePillBg(
         startColor: Int, endColor: Int
     ): android.graphics.drawable.RippleDrawable {
@@ -510,14 +581,13 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
     private fun updateFilterButtonStyles() {
         val whiteText    = resources.getColor(R.color.white, null)
-        val inactiveText = 0xFF555566.toInt()   // dark grey — visible on light pill in white theme
-        val darkText     = 0xFF1A1A2E.toInt()   // dark navy — for bright gold pill
+        val inactiveText = 0xFF555566.toInt()
+        val darkText     = 0xFF1A1A2E.toInt()
 
         val inactiveTint = android.content.res.ColorStateList.valueOf(inactiveText)
         val whiteTint    = android.content.res.ColorStateList.valueOf(whiteText)
         val darkTint     = android.content.res.ColorStateList.valueOf(darkText)
 
-        // Reset all to glass inactive (text + icon use inactive grey)
         listOf(
             binding.btnFilterMyChats,
             binding.btnFilterAll,
@@ -530,7 +600,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             it.iconTint           = inactiveTint
         }
 
-        // Active tab: hot-pink → deep-purple (matches reference "All" active pill)
+        // Active tab: pink → purple gradient.
         when (filterType) {
             "my_chats" -> binding.btnFilterMyChats.apply {
                 background         = makeActivePillBg(0xFFE91E63.toInt(), 0xFF9C27B0.toInt())
@@ -553,7 +623,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             "star" -> binding.btnFilterStar.apply {
                 background         = makeActivePillBg(0xFFF9D423.toInt(), 0xFFFFB800.toInt())
                 backgroundTintList = null
-                setTextColor(darkText)   // dark text on gold
+                setTextColor(darkText)
                 iconTint           = darkTint
             }
         }
@@ -1285,5 +1355,9 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         } ?: Log.e("HomeFragment", "RegisterResponse is null")
     }})}
 
-
+    companion object {
+        // Survives fragment recreation within the same process, so the entrance
+        // animation plays only on the first open per app launch.
+        private var hasPlayedEntrance = false
+    }
 }

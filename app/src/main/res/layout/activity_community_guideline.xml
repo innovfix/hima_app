@@ -11,11 +11,15 @@
 
     <include
         android:id="@+id/include_profile_toolbar"
-        layout="@layout/layout_profile_flow_toolbar" />
+        layout="@layout/layout_profile_flow_toolbar_themed" />
 
     <WebView
         android:id="@+id/wv_privacy_policy"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1" />
+        android:layout_weight="1"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="16dp"
+        android:background="@color/white" />
 </LinearLayout>

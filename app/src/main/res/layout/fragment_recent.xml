@@ -7,12 +7,12 @@
     android:clipToPadding="false"
     android:background="@color/grey_extra_light">
 
-    <!-- Professional Header — soft pink gradient. -->
+    <!-- Professional Header — white. -->
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/app_bar_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/bg_recent_header_gradient"
+        android:background="@color/white"
         android:elevation="2dp"
         android:paddingTop="10dp"
         app:elevation="2dp">
@@ -24,7 +24,7 @@
             android:clipToPadding="false">
 
             <!-- Decorative dating-themed icon collage on top-right of header.
-                 Modern sparkles + chat / video / call / heart / kiss. -->
+                 White tints on pink header — translucent, modern, matches the pink theme. -->
 
             <ImageView
                 android:layout_width="14dp"
@@ -32,7 +32,7 @@
                 android:layout_gravity="top|end"
                 android:layout_marginTop="8dp"
                 android:layout_marginEnd="10dp"
-                android:alpha="0.5"
+                android:alpha="0.55"
                 android:src="@drawable/ic_sparkle"
                 app:tint="#E91E63" />
 
@@ -42,9 +42,9 @@
                 android:layout_gravity="top|end"
                 android:layout_marginTop="22dp"
                 android:layout_marginEnd="30dp"
-                android:alpha="0.35"
+                android:alpha="0.4"
                 android:src="@drawable/ic_chat_bubble"
-                app:tint="#9C27B0" />
+                app:tint="#E91E63" />
 
             <ImageView
                 android:layout_width="22dp"
@@ -52,9 +52,9 @@
                 android:layout_gravity="top|end"
                 android:layout_marginTop="6dp"
                 android:layout_marginEnd="56dp"
-                android:alpha="0.32"
+                android:alpha="0.35"
                 android:src="@drawable/video"
-                app:tint="#9C27B0" />
+                app:tint="#E91E63" />
 
             <ImageView
                 android:layout_width="18dp"
@@ -62,7 +62,7 @@
                 android:layout_gravity="top|end"
                 android:layout_marginTop="50dp"
                 android:layout_marginEnd="14dp"
-                android:alpha="0.35"
+                android:alpha="0.4"
                 android:src="@drawable/audio"
                 app:tint="#E91E63" />
 
@@ -72,7 +72,7 @@
                 android:layout_gravity="top|end"
                 android:layout_marginTop="44dp"
                 android:layout_marginEnd="48dp"
-                android:alpha="0.4"
+                android:alpha="0.45"
                 android:src="@drawable/ic_heart_filled"
                 app:tint="#E91E63" />
 
@@ -82,7 +82,7 @@
                 android:layout_gravity="top|end"
                 android:layout_marginTop="32dp"
                 android:layout_marginEnd="78dp"
-                android:alpha="0.3"
+                android:alpha="0.32"
                 android:src="@drawable/ic_kiss_lips"
                 app:tint="#E91E63" />
 
@@ -92,9 +92,9 @@
                 android:layout_gravity="top|end"
                 android:layout_marginTop="68dp"
                 android:layout_marginEnd="34dp"
-                android:alpha="0.45"
+                android:alpha="0.5"
                 android:src="@drawable/ic_sparkle"
-                app:tint="#9C27B0" />
+                app:tint="#E91E63" />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -154,7 +154,7 @@
                         android:textSize="13sp"
                         app:cornerRadius="14dp"
                         app:elevation="2dp"
-                        app:icon="@drawable/ic_filter_all"
+                        app:icon="@drawable/ic_people_pair_img"
                         app:iconGravity="textStart"
                         app:iconPadding="6dp"
                         app:iconSize="16dp" />
@@ -175,7 +175,7 @@
                         android:textSize="13sp"
                         app:cornerRadius="14dp"
                         app:elevation="2dp"
-                        app:icon="@drawable/ic_missed_call"
+                        app:icon="@drawable/ic_missed_call_img"
                         app:iconGravity="textStart"
                         app:iconPadding="6dp"
                         app:iconSize="16dp" />
@@ -196,7 +196,7 @@
                         android:textSize="13sp"
                         app:cornerRadius="14dp"
                         app:elevation="2dp"
-                        app:icon="@drawable/ic_clock"
+                        app:icon="@drawable/ic_call_clock_img"
                         app:iconGravity="textStart"
                         app:iconPadding="6dp"
                         app:iconSize="16dp" />
@@ -217,7 +217,7 @@
                         android:textSize="13sp"
                         app:cornerRadius="14dp"
                         app:elevation="2dp"
-                        app:icon="@drawable/ic_sort"
+                        app:icon="@drawable/ic_sort_up_img"
                         app:iconGravity="textStart"
                         app:iconPadding="6dp"
                         app:iconSize="16dp" />

@@ -37,36 +37,22 @@ class BottomSheetSelectPayment : BottomSheetDialogFragment() {
         binding = BottomSheetSelectPaymentBinding.inflate(inflater, container, false)
 
         setupListeners()
-        viewModel.appUpdate()
-        setDefaultSelection() // Set default selection here
+        setupContinueButton()
+        setDefaultSelection()
 
+        // Options are pre-loaded by EarningsActivity and passed in as arguments,
+        // so the sheet opens ready. Fall back to fetching only if not provided.
+        val argBank = arguments?.getString("bank")
+        val argUpi = arguments?.getString("upi")
+        if (argBank != null || argUpi != null) {
+            applyPaymentOptions(argBank ?: "1", argUpi ?: "1")
+        } else {
+            viewModel.appUpdate()
+        }
 
         viewModel.appUpdateResponseLiveData.observe(this, Observer {
-            if (it != null && it.success) {
-
-                 bank = it.data[0].bank.toString()
-                 upi = it.data[0].upi.toString()
-
-
-                if(bank == "1"){
-                    binding.bankOption.visibility = View.VISIBLE
-                }
-                else {
-                    binding.bankOption.visibility = View.GONE
-
-                }
-
-                if(upi == "1"){
-                    binding.upiOption.visibility = View.VISIBLE
-                    binding.tvUpiInfo.visibility = View.GONE
-
-                }
-                else {
-                    binding.upiOption.visibility = View.GONE
-                    binding.tvUpiInfo.visibility = View.GONE
-
-                }
-
+            if (it != null && it.success && it.data.isNotEmpty()) {
+                applyPaymentOptions(it.data[0].bank.toString(), it.data[0].upi.toString())
             }
         })
 
@@ -84,54 +70,69 @@ class BottomSheetSelectPayment : BottomSheetDialogFragment() {
     }
 
     private fun setupListeners() {
-        // Set up listeners for the radio buttons
-        binding.rbUpi.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
-                binding.btnSelectPayment.isEnabled = true
-                binding.rbBank.isChecked = false
-            }
-        }
+        // Whole card tappable — selects that option and highlights it
+        binding.upiOption.setOnClickListener { selectOption("upi") }
+        binding.bankOption.setOnClickListener { selectOption("bank") }
 
-        binding.rbBank.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
-                binding.btnSelectPayment.isEnabled = true
-                binding.rbUpi.isChecked = false
-            }
-        }
+        // Radio buttons still work as secondary touch targets
+        binding.rbUpi.setOnCheckedChangeListener { _, isChecked -> if (isChecked) selectOption("upi") }
+        binding.rbBank.setOnCheckedChangeListener { _, isChecked -> if (isChecked) selectOption("bank") }
+    }
 
-        // Set up the select button click listener
+    private fun selectOption(option: String) {
+        if (option == "upi") {
+            binding.rbUpi.isChecked = true
+            binding.rbBank.isChecked = false
+            binding.upiOption.strokeColor = requireContext().getColor(R.color.colorAccent)
+            binding.upiOption.strokeWidth = 6
+            binding.bankOption.strokeColor = requireContext().getColor(android.R.color.transparent)
+            binding.bankOption.strokeWidth = 0
+        } else {
+            binding.rbBank.isChecked = true
+            binding.rbUpi.isChecked = false
+            binding.bankOption.strokeColor = requireContext().getColor(R.color.colorAccent)
+            binding.bankOption.strokeWidth = 6
+            binding.upiOption.strokeColor = requireContext().getColor(android.R.color.transparent)
+            binding.upiOption.strokeWidth = 0
+        }
+    }
+
+    // Continue button
+    private fun setupContinueButton() {
         binding.btnSelectPayment.setOnClickListener {
             val selectedOption = when {
-                binding.rbUpi.isChecked -> "upi_transfer"
+                binding.rbUpi.isChecked  -> "upi_transfer"
                 binding.rbBank.isChecked -> "bank_transfer"
                 else -> null
             }
-
             if (selectedOption == null) {
                 requireContext().showAppToast("Please select any one", Toast.LENGTH_SHORT)
-                // Do not dismiss if nothing is selected
             } else {
                 val intent = Intent(requireContext(), WithdrawActivity::class.java)
                 intent.putExtra("payment_method", selectedOption)
                 startActivity(intent)
                 dismiss()
             }
+        }
+    }
 
-//            val intent = Intent(requireContext(), WithdrawActivity::class.java)
-//
-//            // Add optional extras if needed
-//            intent.putExtra("payment_method", selectedOption)
-//
-//            startActivity(intent)
-//
-//            // Close the bottom sheet
-//            dismiss()
+    /** Show/hide bank & UPI options based on the loaded flags ("1" = enabled). */
+    private fun applyPaymentOptions(bankFlag: String, upiFlag: String) {
+        bank = bankFlag
+        upi = upiFlag
+        binding.bankOption.visibility = if (bank == "1") View.VISIBLE else View.GONE
+        if (upi == "1") {
+            binding.upiOption.visibility = View.VISIBLE
+            binding.tvUpiInfo.visibility = View.GONE
+        } else {
+            binding.upiOption.visibility = View.GONE
+            binding.tvUpiInfo.visibility = View.GONE
         }
     }
 
     private fun setDefaultSelection() {
-        // Set UPI as the default selected option
         binding.rbUpi.isChecked = false
-        binding.btnSelectPayment.isEnabled = true // Enable the button since a default is selected
+        binding.rbBank.isChecked = false
+        binding.btnSelectPayment.isEnabled = true
     }
 }

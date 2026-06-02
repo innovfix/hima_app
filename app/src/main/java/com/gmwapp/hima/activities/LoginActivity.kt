@@ -57,7 +57,6 @@ class LoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
     }
 
     private fun initUI() {
-        binding.cvLogin.setBackgroundResource(R.drawable.card_view_border)
         sendOtpEnabledTint = binding.btnSendOtp.backgroundTintList
 
         binding.btnSendOtp.setOnSingleClickListener {
@@ -72,10 +71,9 @@ class LoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
             // Validation logic
             if (TextUtils.isEmpty(mobile) || !mobile.matches(mobileRegex)) {
-                // Invalid mobile number case
+                // Invalid mobile number case — show inline helper in error color.
                 binding.tvOtpText.text = getString(R.string.invalid_phone_number_text)
-                binding.tvOtpText.setTextColor(getColor(R.color.white))
-             //   binding.cvLogin.setBackgroundResource(R.drawable.card_view_border_error)
+                binding.tvOtpText.setTextColor(getColor(R.color.error))
                 showSnackbar("Enter a valid 10-digit mobile number")
                 updateSendOtpButtonState()
             } else {
@@ -88,10 +86,16 @@ class LoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             }
         }
 
-        // Country selection removed - India flag is now fixed
-        binding.etMobileNumber.setOnTouchListener { v, _ ->
-            binding.cvLogin.setBackgroundResource(R.drawable.card_view_border_active)
+        // Toggle pink-border focused state on the inner input container when the
+        // EditText is touched/focused. Resets when focus is lost.
+        binding.etMobileNumber.setOnTouchListener { _, _ ->
+            (binding.cvLogin.getChildAt(0))?.setBackgroundResource(R.drawable.bg_login_input_field_active)
             false
+        }
+        binding.etMobileNumber.setOnFocusChangeListener { _, hasFocus ->
+            val bg = if (hasFocus) R.drawable.bg_login_input_field_active
+                     else R.drawable.bg_login_input_field
+            (binding.cvLogin.getChildAt(0))?.setBackgroundResource(bg)
         }
         binding.cbTermsAndConditions.setOnCheckedChangeListener { buttonView, isChecked ->
             // Keep button state strictly tied to terms + mobile input validity.
@@ -102,7 +106,11 @@ class LoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             }
 
             override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
-                window.statusBarColor = resources.getColor(R.color.dark_blue)
+                // Clear any prior error helper text once the user starts typing again.
+                if (binding.tvOtpText.text != getString(R.string.you_will_receive_an_otp_on_this_number)) {
+                    binding.tvOtpText.text = getString(R.string.you_will_receive_an_otp_on_this_number)
+                    binding.tvOtpText.setTextColor(getColor(R.color.grey_medium))
+                }
                 updateSendOtpButtonState()
             }
 
@@ -141,13 +149,8 @@ class LoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
     private fun updateSendOtpButtonState() {
         val hasMobileInput = !TextUtils.isEmpty(binding.etMobileNumber.text)
         val isTermsChecked = binding.cbTermsAndConditions.isChecked
-        val isEnabled = hasMobileInput && isTermsChecked
-        binding.btnSendOtp.isEnabled = isEnabled
-        binding.btnSendOtp.backgroundTintList = if (!isTermsChecked) {
-            ColorStateList.valueOf(getColor(R.color.grey_medium))
-        } else {
-            sendOtpEnabledTint
-        }
+        // login_send_btn_bg color selector handles the enabled/disabled tint automatically.
+        binding.btnSendOtp.isEnabled = hasMobileInput && isTermsChecked
     }
 
     private fun sendOTP(mobile: String, countryCode:Int) {

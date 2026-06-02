@@ -1,273 +1,332 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- KYC — themed to match home/earnings: white sticky header, grey bg,
+     white card with badge header, pink branding throughout.
+     All IDs preserved for KycActivity view-binding. -->
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/grey_extra_light"
     android:fitsSystemWindows="true"
-    android:background="@color/kyc_background"
-    android:fillViewport="true"
     tools:context=".activities.KycActivity">
 
+    <!-- ══ White sticky header ══ -->
     <androidx.constraintlayout.widget.ConstraintLayout
-        android:layout_width="match_parent"
+        android:id="@+id/cl_header"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:paddingBottom="32dp">
+        android:background="@color/white"
+        android:elevation="4dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="14dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
-        <!-- Guidelines -->
-        <androidx.constraintlayout.widget.Guideline
-            android:id="@+id/gl_left_margin"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            app:layout_constraintGuide_begin="24dp" />
-
-        <androidx.constraintlayout.widget.Guideline
-            android:id="@+id/gl_right_margin"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            app:layout_constraintGuide_end="24dp" />
-
-        <!-- Top App Bar -->
         <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cv_top_bar"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            app:cardBackgroundColor="@color/kyc_card_bg"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="2dp"
-            app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
-            app:layout_constraintStart_toStartOf="@id/gl_left_margin"
+            android:id="@+id/cv_back"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="6dp"
+            app:cardBackgroundColor="@color/grey_extra_light"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="0dp"
+            app:strokeWidth="0dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
 
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:padding="20dp">
-
-                <ImageView
-                    android:id="@+id/iv_back"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/edit"
-                    android:padding="6dp"
-                    android:rotation="180"
-                    android:src="@drawable/right_arrow"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:tint="@color/kyc_icon_color" />
-
-                <TextView
-                    android:id="@+id/tv_withdraw"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:fontFamily="@font/poppins_semibold"
-                    android:text="@string/complete_Kyc"
-                    android:textColor="@color/kyc_text_primary"
-                    android:textSize="20sp"
-                    app:layout_constraintBottom_toBottomOf="@id/iv_back"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toEndOf="@id/iv_back"
-                    app:layout_constraintTop_toTopOf="@id/iv_back" />
-
-            </androidx.constraintlayout.widget.ConstraintLayout>
-
+            <ImageView
+                android:id="@+id/iv_back"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:contentDescription="@string/edit"
+                android:rotation="180"
+                android:src="@drawable/right_arrow"
+                app:tint="@color/black_light" />
         </com.google.android.material.card.MaterialCardView>
-
-        <!-- KYC Information Card -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cv_kyc_info"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            app:cardBackgroundColor="@color/kyc_card_bg"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="2dp"
-            app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
-            app:layout_constraintStart_toStartOf="@id/gl_left_margin"
-            app:layout_constraintTop_toBottomOf="@id/cv_top_bar">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="24dp">
-
-                <!-- Form Title -->
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="@font/poppins_semibold"
-                    android:text="PAN Card Details"
-                    android:textColor="@color/kyc_text_primary"
-                    android:textSize="18sp" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:fontFamily="@font/poppins_regular"
-                    android:text="Please provide your PAN card information for verification"
-                    android:textColor="@color/kyc_text_secondary"
-                    android:textSize="13sp" />
-
-                <!-- Divider -->
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:layout_marginTop="20dp"
-                    android:layout_marginBottom="24dp"
-                    android:background="@color/kyc_border" />
-
-                <!-- Full Name Section -->
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="@font/poppins_medium"
-                    android:text="@string/pan_card_name"
-                    android:textColor="@color/kyc_text_primary"
-                    android:textSize="14sp" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:fontFamily="@font/poppins_regular"
-                    android:text="Enter name exactly as it appears on your PAN card"
-                    android:textColor="@color/kyc_text_hint"
-                    android:textSize="12sp" />
-
-                <EditText
-                    android:id="@+id/etPanName"
-                    android:layout_width="match_parent"
-                    android:layout_height="56dp"
-                    android:layout_marginTop="12dp"
-                    android:background="@drawable/bg_kyc_input_selector"
-                    android:fontFamily="@font/poppins_medium"
-                    android:hint="Enter your full name"
-                    android:inputType="textPersonName"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp"
-                    android:textColor="@color/kyc_text_primary"
-                    android:textColorHint="@color/kyc_text_hint"
-                    android:textSize="15sp" />
-
-                <!-- PAN Number Section -->
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="24dp"
-                    android:fontFamily="@font/poppins_medium"
-                    android:text="@string/pan_card_number"
-                    android:textColor="@color/kyc_text_primary"
-                    android:textSize="14sp" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:fontFamily="@font/poppins_regular"
-                    android:text="10 digit alphanumeric PAN number"
-                    android:textColor="@color/kyc_text_hint"
-                    android:textSize="12sp" />
-
-                <EditText
-                    android:id="@+id/etPanNumber"
-                    android:layout_width="match_parent"
-                    android:layout_height="56dp"
-                    android:layout_marginTop="12dp"
-                    android:background="@drawable/bg_kyc_input_selector"
-                    android:fontFamily="@font/poppins_medium"
-                    android:hint="ABCDE1234F"
-                    android:inputType="textCapCharacters"
-                    android:maxLength="10"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp"
-                    android:textColor="@color/kyc_text_primary"
-                    android:textColorHint="@color/kyc_text_hint"
-                    android:textSize="15sp" />
-
-                <!-- Info Note -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="20dp"
-                    android:background="@drawable/bg_kyc_info_note"
-                    android:orientation="horizontal"
-                    android:padding="12dp">
-
-                    <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:layout_gravity="center_vertical"
-                        android:src="@drawable/ic_info"
-                        app:tint="@color/kyc_primary" />
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center_vertical"
-                        android:layout_marginStart="10dp"
-                        android:layout_weight="1"
-                        android:fontFamily="@font/poppins_regular"
-                        android:text="Your information is secure and will be used for verification purposes only"
-                        android:textColor="@color/kyc_text_secondary"
-                        android:textSize="12sp" />
-
-                </LinearLayout>
-
-            </LinearLayout>
-
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- Submit Button -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_submit"
-            android:layout_width="0dp"
-            android:layout_height="56dp"
-            android:layout_marginTop="24dp"
-            android:backgroundTint="@color/kyc_button_bg_color"
-            android:enabled="false"
-            android:fontFamily="@font/poppins_semibold"
-            android:text="@string/submit"
-            android:textAllCaps="false"
-            android:textColor="@color/kyc_button_text_color"
-            android:textSize="16sp"
-            app:cornerRadius="12dp"
-            app:elevation="2dp"
-            app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
-            app:layout_constraintStart_toStartOf="@id/gl_left_margin"
-            app:layout_constraintTop_toBottomOf="@id/cv_kyc_info" />
-
-        <!-- Hidden Balance TextView -->
-        <TextView
-            android:id="@+id/tv_current_balance"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/poppins_semibold"
-            android:text="@string/_0_00"
-            android:textColor="@color/pink"
-            android:textSize="16sp"
-            android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
 
         <LinearLayout
-            android:id="@+id/llbankdetails"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
+            android:orientation="vertical"
+            app:layout_constraintBottom_toBottomOf="@+id/cv_back"
+            app:layout_constraintStart_toEndOf="@+id/cv_back"
+            app:layout_constraintTop_toTopOf="@+id/cv_back">
+
+            <TextView
+                android:id="@+id/tv_withdraw"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_semibold"
+                android:letterSpacing="-0.01"
+                android:text="@string/complete_Kyc"
+                android:textColor="@color/black_light"
+                android:textSize="19sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="-2dp"
+                android:fontFamily="@font/poppins_regular"
+                android:text="Verify your PAN to enable payouts"
+                android:textColor="@color/grey_medium"
+                android:textSize="11sp" />
+        </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- ══ Scrollable content ══ -->
+    <ScrollView
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        android:paddingBottom="24dp"
+        android:scrollbars="none"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/cl_header">
+
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:visibility="gone"
-            app:layout_constraintTop_toTopOf="parent" />
+            android:paddingStart="16dp"
+            android:paddingTop="16dp"
+            android:paddingEnd="16dp">
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
+            <!-- Form card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cv_kyc_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardBackgroundColor="@color/white"
+                app:cardCornerRadius="18dp"
+                app:cardElevation="1dp"
+                app:strokeColor="#E9EDF2"
+                app:strokeWidth="1dp">
 
-</ScrollView>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="18dp"
+                    android:paddingTop="16dp"
+                    android:paddingEnd="18dp"
+                    android:paddingBottom="20dp">
+
+                    <!-- Badge header -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <FrameLayout
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
+                            android:background="@drawable/d_button_bg"
+                            android:backgroundTint="#FFF0F7">
+
+                            <ImageView
+                                android:layout_width="22dp"
+                                android:layout_height="22dp"
+                                android:layout_gravity="center"
+                                android:contentDescription="@string/edit"
+                                android:src="@drawable/pan"
+                                app:tint="@color/colorAccent" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="12dp"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/poppins_semibold"
+                                android:text="PAN Card Details"
+                                android:textColor="@color/black"
+                                android:textSize="16sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/poppins_regular"
+                                android:text="Used for verification only"
+                                android:textColor="@color/grey_medium"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- Divider -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="14dp"
+                        android:background="@color/grey_extra_light" />
+
+                    <!-- Name label -->
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:fontFamily="@font/poppins_semibold"
+                        android:text="@string/pan_card_name"
+                        android:textColor="@color/black_light"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:fontFamily="@font/poppins_regular"
+                        android:text="As it appears on your PAN card"
+                        android:textColor="@color/grey_medium"
+                        android:textSize="11sp" />
+
+                    <!-- Name input (pink stroke) -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        app:cardBackgroundColor="@color/white"
+                        app:cardCornerRadius="14dp"
+                        app:cardElevation="0dp"
+                        app:strokeColor="#E9EDF2"
+                        app:strokeWidth="1dp">
+
+                        <EditText
+                            android:id="@+id/etPanName"
+                            android:layout_width="match_parent"
+                            android:layout_height="52dp"
+                            android:background="@android:color/transparent"
+                            android:fontFamily="@font/poppins_medium"
+                            android:hint="Enter your full name"
+                            android:inputType="textPersonName"
+                            android:paddingStart="16dp"
+                            android:paddingEnd="16dp"
+                            android:textColor="@color/black_light"
+                            android:textColorHint="#9CA3AF"
+                            android:textCursorDrawable="@color/colorAccent"
+                            android:textSize="15sp" />
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- PAN label -->
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="18dp"
+                        android:fontFamily="@font/poppins_semibold"
+                        android:text="@string/pan_card_number"
+                        android:textColor="@color/black_light"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:fontFamily="@font/poppins_regular"
+                        android:text="10 digit alphanumeric"
+                        android:textColor="@color/grey_medium"
+                        android:textSize="11sp" />
+
+                    <!-- PAN input (pink stroke) -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        app:cardBackgroundColor="@color/white"
+                        app:cardCornerRadius="14dp"
+                        app:cardElevation="0dp"
+                        app:strokeColor="#E9EDF2"
+                        app:strokeWidth="1dp">
+
+                        <EditText
+                            android:id="@+id/etPanNumber"
+                            android:layout_width="match_parent"
+                            android:layout_height="52dp"
+                            android:background="@android:color/transparent"
+                            android:fontFamily="@font/poppins_medium"
+                            android:hint="ABCDE1234F"
+                            android:inputType="textCapCharacters"
+                            android:letterSpacing="0.08"
+                            android:maxLength="10"
+                            android:paddingStart="16dp"
+                            android:paddingEnd="16dp"
+                            android:textColor="@color/black_light"
+                            android:textColorHint="#9CA3AF"
+                            android:textCursorDrawable="@color/colorAccent"
+                            android:textSize="15sp" />
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Info note (pink themed) -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="18dp"
+                        android:background="@drawable/d_button_bg"
+                        android:backgroundTint="#FFF0F7"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:padding="12dp">
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_info"
+                            app:tint="@color/colorAccent" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="10dp"
+                            android:layout_weight="1"
+                            android:fontFamily="@font/poppins_regular"
+                            android:lineSpacingExtra="2dp"
+                            android:text="Your information is secure and reviewed by our admin team within 24 hours."
+                            android:textColor="#9D215C"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Hidden — kept for KycActivity view-binding compatibility -->
+            <TextView
+                android:id="@+id/tv_current_balance"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:visibility="gone" />
+
+            <!-- Submit button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_submit"
+                android:layout_width="match_parent"
+                android:layout_height="54dp"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="24dp"
+                android:backgroundTint="@color/button_background_tint"
+                android:enabled="false"
+                android:fontFamily="@font/poppins_semibold"
+                android:text="@string/submit"
+                android:textAllCaps="false"
+                android:textColor="@color/button_text_color"
+                android:textSize="16sp"
+                app:cornerRadius="14dp"
+                app:elevation="0dp" />
+
+        </LinearLayout>
+    </ScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

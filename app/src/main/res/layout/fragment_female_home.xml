@@ -1,11 +1,147 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.swiperefreshlayout.widget.SwipeRefreshLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- Root is ConstraintLayout so cl_header is pinned while content scrolls -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/swipe_refresh_female_home"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/grey_extra_light">
+
+    <!-- ══ FIXED sticky header ══ -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/cl_header"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@color/white"
+        android:elevation="4dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="14dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cv_logo_icon"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:layout_marginStart="24dp"
+            app:cardBackgroundColor="@color/colorAccent"
+            app:cardCornerRadius="10dp"
+            app:cardElevation="0dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <ImageView
+                android:id="@+id/iv_logo"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:contentDescription="@string/edit"
+                android:src="@drawable/logo"
+                app:tint="@color/white" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <LinearLayout
+            android:id="@+id/ll_logo_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:orientation="vertical"
+            app:layout_constraintBottom_toBottomOf="@+id/cv_logo_icon"
+            app:layout_constraintStart_toEndOf="@+id/cv_logo_icon"
+            app:layout_constraintTop_toTopOf="@+id/cv_logo_icon">
+
+            <TextView
+                android:id="@+id/tv_logo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/cabinet_grotesk_extrabold"
+                android:letterSpacing="-0.01"
+                android:text="@string/app_name"
+                android:textColor="@color/black_light"
+                android:textSize="19sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="-2dp"
+                android:fontFamily="@font/plus_jakarta_sans_medium"
+                android:text="Where Feelings Connect"
+                android:textColor="@color/grey_medium"
+                android:textSize="10sp" />
+        </LinearLayout>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cl_coins"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:layout_marginEnd="20dp"
+            android:clickable="true"
+            android:focusable="true"
+            app:cardBackgroundColor="@android:color/transparent"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="0dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:rippleColor="#33FFD700"
+            app:strokeWidth="0dp">
+
+            <FrameLayout
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_coin_balance_pill">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="2dp"
+                    android:paddingTop="2dp"
+                    android:paddingEnd="20dp"
+                    android:paddingBottom="2dp">
+
+                    <FrameLayout
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_gravity="center_vertical"
+                        android:layout_marginVertical="2dp"
+                        android:layout_marginLeft="2dp"
+                        android:background="@drawable/bg_coin_circle_white">
+
+                        <ImageView
+                            android:id="@+id/iv_coin"
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:layout_gravity="center"
+                            android:src="@drawable/coin_d" />
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/tv_coins"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:fontFamily="@font/plus_jakarta_sans_bold"
+                        android:text="₹0"
+                        android:textColor="@color/white"
+                        android:textSize="15sp" />
+                </LinearLayout>
+            </FrameLayout>
+        </com.google.android.material.card.MaterialCardView>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- ══ SwipeRefresh + Scroll below the fixed header ══ -->
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipe_refresh_female_home"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toBottomOf="@+id/cl_header"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
 <ScrollView
     android:layout_width="match_parent"
@@ -69,133 +205,6 @@
         app:tint="@color/green"
      />
 
-    <!-- Header Section — white, matches male AppBar style -->
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/cl_header"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:background="@color/white"
-        android:elevation="2dp"
-        android:paddingTop="8dp"
-        android:paddingBottom="14dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cv_logo_icon"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:layout_marginStart="24dp"
-            app:cardBackgroundColor="@color/colorAccent"
-            app:cardCornerRadius="10dp"
-            app:cardElevation="0dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
-
-            <ImageView
-                android:id="@+id/iv_logo"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_gravity="center"
-                android:contentDescription="@string/edit"
-                android:src="@drawable/logo"
-                app:tint="@color/white" />
-        </com.google.android.material.card.MaterialCardView>
-
-        <LinearLayout
-            android:id="@+id/ll_logo_text"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:orientation="vertical"
-            app:layout_constraintBottom_toBottomOf="@+id/cv_logo_icon"
-            app:layout_constraintStart_toEndOf="@+id/cv_logo_icon"
-            app:layout_constraintTop_toTopOf="@+id/cv_logo_icon">
-
-            <TextView
-                android:id="@+id/tv_logo"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/cabinet_grotesk_extrabold"
-                android:letterSpacing="-0.01"
-                android:text="@string/app_name"
-                android:textColor="@color/black_light"
-                android:textSize="19sp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="-2dp"
-                android:fontFamily="@font/plus_jakarta_sans_medium"
-                android:text="Where Feelings Connect"
-                android:textColor="@color/grey_medium"
-                android:textSize="10sp" />
-        </LinearLayout>
-
-        <!-- Wallet pill — gold→pink gradient + white coin circle, matches male style -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cl_coins"
-            android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:layout_marginEnd="20dp"
-            android:clickable="true"
-            android:focusable="true"
-            app:cardBackgroundColor="@android:color/transparent"
-            app:cardCornerRadius="20dp"
-            app:cardElevation="0dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:rippleColor="#33FFD700"
-            app:strokeWidth="0dp">
-
-            <FrameLayout
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:background="@drawable/bg_coin_balance_pill">
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingStart="2dp"
-                    android:paddingTop="2dp"
-                    android:paddingEnd="20dp"
-                    android:paddingBottom="2dp">
-
-                    <FrameLayout
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:layout_gravity="center_vertical"
-                        android:layout_marginVertical="2dp"
-                        android:layout_marginLeft="2dp"
-                        android:background="@drawable/bg_coin_circle_white">
-
-                        <ImageView
-                            android:id="@+id/iv_coin"
-                            android:layout_width="22dp"
-                            android:layout_height="22dp"
-                            android:layout_gravity="center"
-                            android:src="@drawable/coin_d" />
-                    </FrameLayout>
-
-                    <TextView
-                        android:id="@+id/tv_coins"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:fontFamily="@font/plus_jakarta_sans_bold"
-                        android:text="₹0"
-                        android:textColor="@color/white"
-                        android:textSize="15sp" />
-                </LinearLayout>
-            </FrameLayout>
-        </com.google.android.material.card.MaterialCardView>
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
     <!-- ── Star Creator Banner (visible when star == 1) ── -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/cl_star_creator_banner"
@@ -207,7 +216,7 @@
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="@+id/gl_right_margin"
         app:layout_constraintStart_toStartOf="@+id/gl_left_margin"
-        app:layout_constraintTop_toBottomOf="@+id/cl_header">
+        app:layout_constraintTop_toTopOf="parent">
 
         <!-- Decorative circle top-right -->
         <View
@@ -832,24 +841,48 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.cardview.widget.CardView>
 
-    <TextView
-        android:id="@+id/tv_disclaimer"
+    <!-- Availability tip card — Voice-ID yellow style -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cv_disclaimer_card"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
-        android:layout_marginHorizontal="20dp"
-        android:padding="10dp"
-        android:gravity="center"
-        android:background="@drawable/d_button_bg"
-        android:backgroundTint="#FFF3E0"
-        android:text=""
-        android:textColor="@color/grey_medium"
-        android:fontFamily="@font/poppins_regular"
-        android:textSize="13sp"
-        android:lineSpacingExtra="2dp"
+        android:visibility="gone"
+        app:cardBackgroundColor="#FFFBEB"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="0dp"
+        app:strokeColor="#FDE68A"
+        app:strokeWidth="1dp"
         app:layout_constraintStart_toStartOf="@id/gl_left_margin"
         app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
-        app:layout_constraintTop_toBottomOf="@id/cv_price_slab" />
+        app:layout_constraintTop_toBottomOf="@id/cv_price_slab">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="💡"
+                android:textSize="20sp" />
+
+            <TextView
+                android:id="@+id/tv_disclaimer"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:fontFamily="@font/poppins_regular"
+                android:lineSpacingExtra="4dp"
+                android:text=""
+                android:textColor="#92400E"
+                android:textSize="13sp" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
     <androidx.cardview.widget.CardView
         android:id="@+id/cv_today_activity"
@@ -863,7 +896,7 @@
         app:cardElevation="2dp"
         app:layout_constraintEnd_toEndOf="@+id/gl_right_margin"
         app:layout_constraintStart_toStartOf="@+id/gl_left_margin"
-        app:layout_constraintTop_toBottomOf="@+id/tv_disclaimer">
+        app:layout_constraintTop_toBottomOf="@+id/cv_disclaimer_card">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
@@ -1292,6 +1325,13 @@
         app:layout_constraintTop_toBottomOf="@id/cv_your_average"
          />
 
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+</ScrollView>
+
+</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+    <!-- No-internet overlay: covers full screen below fixed header -->
     <LinearLayout
         android:id="@+id/layout_no_internet"
         android:layout_width="0dp"
@@ -1305,7 +1345,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/cl_header">
+        app:layout_constraintTop_toBottomOf="@+id/cl_header">
 
         <TextView
             android:layout_width="60dp"
@@ -1346,11 +1386,7 @@
             app:strokeColor="@color/colorAccent" />
     </LinearLayout>
 
-
 </androidx.constraintlayout.widget.ConstraintLayout>
-</ScrollView>
-
-</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
 
 

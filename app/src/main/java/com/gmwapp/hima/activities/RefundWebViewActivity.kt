@@ -2,6 +2,8 @@ package com.gmwapp.hima.activities
 
 import android.os.Bundle
 import android.util.Log
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -28,6 +30,17 @@ class RefundWebViewActivity : AppCompatActivity() {
         binding.includeProfileToolbar.tvFlowTitle.text = getString(R.string.refund_and_cancellation)
         binding.includeProfileToolbar.cvBack.setOnClickListener { finish() }
         binding.wvPrivacyPolicy.getSettings().setJavaScriptEnabled(true);
+        // Inject CSS once each page finishes so section headers (h1–h6) render in brand pink.
+        binding.wvPrivacyPolicy.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, url: String?) {
+                view?.evaluateJavascript(
+                    "(function(){var s=document.createElement('style');" +
+                    "s.innerHTML='h1,h2,h3,h4,h5,h6{color:#FF2E9A !important;}';" +
+                    "document.head.appendChild(s);})();",
+                    null
+                )
+            }
+        }
 
         val prefs = BaseApplication.getInstance()?.getPrefs()
         prefs?.getSettingsData()?.refund_cancellation?.let {

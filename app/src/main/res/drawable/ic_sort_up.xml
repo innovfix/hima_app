@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sort up: up-arrow on the left + descending-width lines on the right (matches sort-up.png). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Up arrow shaft + head -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M5,21 V6.5 L3.3,8.2 C2.9,8.6 2.3,8.6 1.9,8.2 C1.5,7.8 1.5,7.2 1.9,6.8 L4.6,4.1 C5,3.7 5.6,3.7 6,4.1 L8.7,6.8 C9.1,7.2 9.1,7.8 8.7,8.2 C8.3,8.6 7.7,8.6 7.3,8.2 L5.6,6.5 V21 C5.6,21.55 5.15,22 4.6,22 H4.6 C4.05,22 3.6,21.55 3.6,21 Z M5.3,3.7 L7.8,6.2 L2.8,6.2 Z" />
+
+    <!-- Top line (longest) -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M11,5 H22 C22.55,5 23,5.45 23,6 V6 C23,6.55 22.55,7 22,7 H11 C10.45,7 10,6.55 10,6 V6 C10,5.45 10.45,5 11,5 Z" />
+
+    <!-- Second line -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M11,10 H19.5 C20.05,10 20.5,10.45 20.5,11 V11 C20.5,11.55 20.05,12 19.5,12 H11 C10.45,12 10,11.55 10,11 V11 C10,10.45 10.45,10 11,10 Z" />
+
+    <!-- Third line -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M11,15 H17 C17.55,15 18,15.45 18,16 V16 C18,16.55 17.55,17 17,17 H11 C10.45,17 10,16.55 10,16 V16 C10,15.45 10.45,15 11,15 Z" />
+
+    <!-- Fourth (shortest) line -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M11,20 H14.5 C15.05,20 15.5,20.45 15.5,21 V21 C15.5,21.55 15.05,22 14.5,22 H11 C10.45,22 10,21.55 10,21 V21 C10,20.45 10.45,20 11,20 Z" />
+</vector>

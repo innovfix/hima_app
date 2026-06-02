@@ -1,23 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Bottom nav background — white/near-white on left, light pink on right.
-         Lighter than the top header so the two don't compete. -->
+    <!-- Bottom nav background — solid white with subtle grey stroke. -->
     <item>
         <shape android:shape="rectangle">
-            <gradient
-                android:type="linear"
-                android:angle="0"
-                android:startColor="#FFF5F8"
-                android:endColor="#FFDCE8" />
+            <solid android:color="#FFFFFF" />
 
             <corners
                 android:topLeftRadius="32dp"
                 android:topRightRadius="32dp" />
 
             <stroke
-                android:width="0.5dp"
-                android:color="#E91E63" />
+                android:width="1dp"
+                android:color="#F5F5F5" />
         </shape>
     </item>
 

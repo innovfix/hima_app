@@ -548,6 +548,13 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                     showSnackbar("Enter a valid 10-digit mobile number")
                 }
                 else -> {
+                    // ── DESIGN DUMMY: bypass all API for number 9999900000 ──
+                    if (mobile == "9999900000") {
+                        val intent = Intent(this, SelectGenderActivity::class.java)
+                        intent.putExtra(DConstants.MOBILE_NUMBER, mobile)
+                        startActivity(intent)
+                        return@setOnClickListener
+                    }
                     binding.btnSendOtp.isEnabled = false
                     val r = Random(System.currentTimeMillis())
                     otp = r.nextInt(100000, 999999)
@@ -923,11 +930,16 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         val hasCompleteOtp = (binding.pvOtp.text?.length ?: 0) == 6
         val isEnabled = hasCompleteOtp && !isVerifyingOtp
         binding.btnVerifyOtp.isEnabled = isEnabled
+        // Pink when complete (matches Send OTP / login button), gray when not
         binding.btnVerifyOtp.backgroundTintList = if (isEnabled) {
-            verifyOtpEnabledTint
+            ColorStateList.valueOf(android.graphics.Color.parseColor("#FF1383"))
         } else {
             ColorStateList.valueOf(getColor(R.color.kyc_button_disabled))
         }
+        binding.btnVerifyOtp.setTextColor(
+            if (isEnabled) android.graphics.Color.WHITE
+            else android.graphics.Color.parseColor("#94A3B8")
+        )
     }
 
 

@@ -22,6 +22,7 @@ import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityAiOnboardingBinding
 import com.gmwapp.hima.retrofit.responses.MatchedCreator
 import com.gmwapp.hima.viewmodels.AiOnboardingViewModel
+import androidx.core.view.WindowInsetsControllerCompat
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -83,6 +84,9 @@ class AiOnboardingActivity : AppCompatActivity() {
             val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
             userId = userData?.id ?: 0
         }
+
+        // Status bar: dark icons on white concern screen (Screen 1)
+        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
 
         setupConcernCards()
         setupChat()
@@ -197,11 +201,27 @@ class AiOnboardingActivity : AppCompatActivity() {
     private fun startAiChat(concern: String) {
         selectedConcern = concern
         binding.viewFlipper.displayedChild = 1
+        // Keep root white — plain header, light status bar
+        binding.root.setBackgroundColor(android.graphics.Color.WHITE)
+        // Dark status-bar icons on white background
+        WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
         binding.etMessage.isEnabled = false
         binding.btnSend.isEnabled = false
         binding.tvTypingStatus.text = "typing..."
         chatAdapter.showTyping()
         scrollToBottom()
+        // ── DESIGN DUMMY: skip API, show dummy reply ──
+        if (userId == 0) {
+            android.os.Handler(mainLooper).postDelayed({
+                chatAdapter.hideTyping()
+                chatAdapter.addMessage(AiChatMessage("Hey! I'm here to help you connect with the right people. We have amazing creators who can be there for you. Let's get started! 🌟", isUser = false, isTyping = false))
+                binding.tvTypingStatus.text = ""
+                binding.inputBar.visibility = View.GONE
+                binding.btnLetsGo.visibility = View.VISIBLE
+                scrollToBottom()
+            }, 1500)
+            return
+        }
         viewModel.startOnboarding(userId, concern)
     }
 
@@ -484,8 +504,9 @@ class AiOnboardingActivity : AppCompatActivity() {
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         if (binding.viewFlipper.displayedChild == 1) {
-            // Don't allow going back to concern selection mid-chat
-            // User must complete or skip
+            // Back from AI chat → return to concern selection (don't dead-end)
+            binding.viewFlipper.displayedChild = 0
+            binding.root.setBackgroundColor(android.graphics.Color.WHITE)
             return
         }
         if (binding.viewFlipper.displayedChild == 2 && isDeliveryRunning) {

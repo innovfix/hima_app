@@ -1,24 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Profile page — fixed hero+profile card on top, scrollable settings list below. -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- Profile page — fixed hero+profile card on top, scrollable settings list below.
+     ConstraintLayout root so the scroll is explicitly positioned UNDER the profile card. -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/grey_extra_light"
     android:clipChildren="false"
-    android:clipToPadding="false"
-    android:orientation="vertical">
+    android:clipToPadding="false">
 
     <!-- ====== FIXED TOP — hero + title + profile card (no scrolling) ====== -->
     <FrameLayout
         android:id="@+id/profile_top_fixed"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-
         android:clipChildren="false"
         android:clipToPadding="false"
-        android:elevation="6dp">
+        android:elevation="6dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
         <View
             android:id="@+id/header_background"
@@ -26,14 +28,14 @@
             android:layout_height="270dp"
             android:background="@drawable/bg_profile_hero_v2" />
 
-        <!-- Decorative balloons + stars cluster on top-right of the hero. -->
+        <!-- Decorative balloons + sparkles — translucent white on pink hero. -->
         <ImageView
             android:layout_width="28dp"
             android:layout_height="28dp"
             android:layout_gravity="top|end"
             android:layout_marginTop="56dp"
             android:layout_marginEnd="14dp"
-            android:alpha="0.55"
+            android:alpha="0.5"
             android:src="@drawable/ic_balloon"
             app:tint="#E91E63" />
 
@@ -43,9 +45,9 @@
             android:layout_gravity="top|end"
             android:layout_marginTop="72dp"
             android:layout_marginEnd="44dp"
-            android:alpha="0.5"
+            android:alpha="0.4"
             android:src="@drawable/ic_balloon"
-            app:tint="#9C27B0" />
+            app:tint="#E91E63" />
 
         <ImageView
             android:layout_width="18dp"
@@ -53,9 +55,9 @@
             android:layout_gravity="top|end"
             android:layout_marginTop="92dp"
             android:layout_marginEnd="20dp"
-            android:alpha="0.55"
+            android:alpha="0.45"
             android:src="@drawable/ic_balloon"
-            app:tint="#FF6FA1" />
+            app:tint="#E91E63" />
 
         <ImageView
             android:layout_width="16dp"
@@ -63,9 +65,9 @@
             android:layout_gravity="top|end"
             android:layout_marginTop="60dp"
             android:layout_marginEnd="72dp"
-            android:alpha="0.6"
+            android:alpha="0.55"
             android:src="@drawable/ic_sparkle"
-            app:tint="#FFFFFF" />
+            app:tint="#E91E63" />
 
         <ImageView
             android:layout_width="12dp"
@@ -73,7 +75,7 @@
             android:layout_gravity="top|end"
             android:layout_marginTop="98dp"
             android:layout_marginEnd="62dp"
-            android:alpha="0.55"
+            android:alpha="0.5"
             android:src="@drawable/ic_sparkle"
             app:tint="#E91E63" />
 
@@ -83,9 +85,9 @@
             android:layout_gravity="top|end"
             android:layout_marginTop="50dp"
             android:layout_marginEnd="44dp"
-            android:alpha="0.5"
+            android:alpha="0.45"
             android:src="@drawable/ic_sparkle"
-            app:tint="#9C27B0" />
+            app:tint="#E91E63" />
 
         <LinearLayout
             android:id="@+id/profile_root"
@@ -96,7 +98,7 @@
             android:orientation="vertical"
             android:paddingHorizontal="20dp"
             android:paddingTop="70dp"
-            android:paddingBottom="14dp">
+            android:paddingBottom="0dp">
 
             <!-- "My Profile" title -->
             <RelativeLayout
@@ -140,7 +142,9 @@
                 android:layout_marginBottom="4dp"
                 app:cardBackgroundColor="@color/white"
                 app:cardCornerRadius="20dp"
-                app:cardElevation="2dp">
+                app:cardElevation="2dp"
+                app:strokeColor="#FF2E9A"
+                app:strokeWidth="1.5dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -455,47 +459,47 @@
         </LinearLayout>
     </FrameLayout>
 
-    <!-- ====== SCROLLABLE — Settings & Support only ====== -->
-    <androidx.core.widget.NestedScrollView
+    <!-- ====== FIXED — "Settings & Support" section header ====== -->
+    <TextView
+        android:id="@+id/tv_settings_header"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="12dp"
+        android:fontFamily="@font/poppins_medium"
+        android:letterSpacing="-0.01"
+        android:text="Settings &amp; Support"
+        android:textColor="@color/black_light"
+        android:textSize="18sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/profile_top_fixed" />
+
+    <!-- ====== FIXED settings card — fills remaining height.
+         Internal NestedScrollView lets the menu items scroll INSIDE the card. ====== -->
+    <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:clipChildren="false"
-        android:clipToPadding="false"
-        android:overScrollMode="never"
-        android:paddingHorizontal="16dp"
-        android:paddingTop="16dp"
-        android:paddingBottom="84dp">
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="12dp"
+        app:cardBackgroundColor="@color/white"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="1dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tv_settings_header">
 
-        <LinearLayout
-            android:id="@+id/menu_container"
+        <androidx.core.widget.NestedScrollView
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:clipChildren="false"
-            android:clipToPadding="false"
-            android:orientation="vertical">
+            android:layout_height="match_parent"
+            android:overScrollMode="never">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                android:fontFamily="@font/poppins_medium"
-                android:letterSpacing="-0.01"
-                android:text="Settings &amp; Support"
-                android:textColor="@color/black_light"
-                android:textSize="18sp" />
-
-            <com.google.android.material.card.MaterialCardView
+            <LinearLayout
+                android:id="@+id/menu_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardBackgroundColor="@color/white"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="1dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical">
+                android:orientation="vertical">
 
                     <!-- Terms & Condition -->
                     <LinearLayout
@@ -1011,8 +1015,6 @@
                             android:src="@drawable/ic_chevron_right"
                             app:tint="#C5CAD5" />
                     </LinearLayout>
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
 
             <!-- Hidden compat IDs -->
             <View
@@ -1045,6 +1047,8 @@
                 android:layout_width="0dp"
                 android:layout_height="0dp"
                 android:visibility="gone" />
-        </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
-</LinearLayout>
+            </LinearLayout>
+        </androidx.core.widget.NestedScrollView>
+    </com.google.android.material.card.MaterialCardView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -30,11 +30,9 @@ import com.gmwapp.hima.retrofit.responses.Language
 import com.gmwapp.hima.utils.applySystemBarInsets
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import com.gmwapp.hima.viewmodels.ProfileViewModel
-import com.gmwapp.hima.widgets.SpacesItemDecoration
 import com.google.android.flexbox.AlignItems
 import com.google.android.flexbox.FlexDirection
 import com.google.android.flexbox.FlexWrap
-import com.google.android.flexbox.FlexboxItemDecoration
 import com.google.android.flexbox.FlexboxLayoutManager
 import com.google.android.flexbox.JustifyContent
 import dagger.hilt.android.AndroidEntryPoint
@@ -51,9 +49,7 @@ class FemaleAboutActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityFemaleAboutBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        // Pink gradient AppBarLayout extends under the status bar via
-        // fitsSystemWindows=true in the layout. Use LIGHT (white) icons.
-        WindowCompat.getInsetsController(window, window.decorView)?.isAppearanceLightStatusBars = false
+        applySystemBarInsets(binding.root, R.color.white, darkStatusBarIcons = true)
         initUI()
     }
 
@@ -63,15 +59,6 @@ class FemaleAboutActivity : BaseActivity() {
     }
 
     private fun initUI() {
-        binding.ivBack.setOnClickListener {
-            handleBackPress()
-        }
-
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                this@FemaleAboutActivity.handleBackPress()
-            }
-        })
 
       //  binding.cvEnterYourAge.setBackgroundResource(R.drawable.card_view_border)
   //      binding.cvSummary.setBackgroundResource(R.drawable.card_view_border)
@@ -173,15 +160,10 @@ class FemaleAboutActivity : BaseActivity() {
 
         val staggeredGridLayoutManager = FlexboxLayoutManager(this).apply {
             flexWrap = FlexWrap.WRAP
-            alignItems = AlignItems.FLEX_START
+            alignItems = AlignItems.CENTER
             flexDirection = FlexDirection.ROW
             justifyContent = JustifyContent.FLEX_START
         }
-        val itemDecoration = FlexboxItemDecoration(this).apply {
-            setDrawable(ContextCompat.getDrawable(this@FemaleAboutActivity, R.drawable.bg_divider))
-            setOrientation(FlexboxItemDecoration.VERTICAL)
-        }
-        binding.rvInterests.addItemDecoration(itemDecoration)
         binding.rvInterests.setLayoutManager(staggeredGridLayoutManager)
         interestsListAdapter = FemaleInterestsListAdapter(this, arrayListOf(
             Interests(

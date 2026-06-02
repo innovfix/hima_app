@@ -8,12 +8,12 @@
     android:fitsSystemWindows="false"
     android:background="@color/grey_extra_light">
 
-    <!-- Professional Header with AppBar — soft pink gradient. -->
+    <!-- Professional Header with AppBar — white. -->
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/app_bar_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/bg_recent_header_gradient"
+        android:background="@color/white"
         android:elevation="2dp"
         android:fitsSystemWindows="false"
         app:elevation="2dp">
@@ -105,27 +105,6 @@
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
                     android:background="@drawable/bg_coin_balance_pill">
-
-                    <!-- Decorative faded stars — top-right "shadow" sparkle. -->
-                    <ImageView
-                        android:layout_width="8dp"
-                        android:layout_height="8dp"
-                        android:layout_gravity="top|end"
-                        android:layout_marginTop="4dp"
-                        android:layout_marginEnd="6dp"
-                        android:alpha="0.55"
-                        android:src="@drawable/ic_star"
-                        app:tint="#FFFFFF" />
-
-                    <ImageView
-                        android:layout_width="5dp"
-                        android:layout_height="5dp"
-                        android:layout_gravity="bottom|end"
-                        android:layout_marginBottom="6dp"
-                        android:layout_marginEnd="10dp"
-                        android:alpha="0.4"
-                        android:src="@drawable/ic_star"
-                        app:tint="#FFFFFF" />
 
                     <LinearLayout
                         android:layout_width="wrap_content"
@@ -220,7 +199,7 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Filter Pills — moved INSIDE the AppBar so they share the top gradient. -->
+        <!-- Filter Pills — INSIDE the AppBar so they sit on the pink header. -->
         <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -251,7 +230,7 @@
                 android:textSize="13sp"
                 app:cornerRadius="14dp"
                 app:elevation="2dp"
-                app:icon="@drawable/ic_chat_bubble"
+                app:icon="@drawable/ic_chat_dots_img"
                 app:iconGravity="textStart"
                 app:iconPadding="6dp"
                 app:iconSize="16dp" />
@@ -274,7 +253,7 @@
                 android:textSize="13sp"
                 app:cornerRadius="14dp"
                 app:elevation="2dp"
-                app:icon="@drawable/ic_filter_all"
+                app:icon="@drawable/ic_people_pair_img"
                 app:iconGravity="textStart"
                 app:iconPadding="6dp"
                 app:iconSize="16dp" />
@@ -297,7 +276,7 @@
                 android:textSize="13sp"
                 app:cornerRadius="14dp"
                 app:elevation="2dp"
-                app:icon="@drawable/ic_filter_new"
+                app:icon="@drawable/ic_glitter_img"
                 app:iconGravity="textStart"
                 app:iconPadding="6dp"
                 app:iconSize="16dp" />

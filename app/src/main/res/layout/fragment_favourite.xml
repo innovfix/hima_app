@@ -7,12 +7,12 @@
     android:clipToPadding="false"
     android:background="@color/grey_extra_light">
 
-    <!-- Professional Header — soft pink gradient with dating-themed icon collage. -->
+    <!-- Professional Header — white. -->
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/app_bar_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/bg_recent_header_gradient"
+        android:background="@color/white"
         android:elevation="2dp"
         android:paddingTop="10dp"
         app:elevation="2dp">
@@ -38,7 +38,7 @@
                 android:layout_gravity="top|end"
                 android:layout_marginTop="18dp" android:layout_marginEnd="44dp"
                 android:alpha="0.5" android:src="@drawable/ic_heart_filled"
-                app:tint="#FF6FA1" />
+                app:tint="#E91E63" />
 
             <ImageView
                 android:layout_width="10dp" android:layout_height="10dp"
@@ -53,14 +53,14 @@
                 android:layout_gravity="top|end"
                 android:layout_marginTop="30dp" android:layout_marginEnd="80dp"
                 android:alpha="0.4" android:src="@drawable/ic_heart_outline"
-                app:tint="#9C27B0" />
+                app:tint="#E91E63" />
 
             <ImageView
                 android:layout_width="20dp" android:layout_height="20dp"
                 android:layout_gravity="top|end"
                 android:layout_marginTop="38dp" android:layout_marginEnd="20dp"
                 android:alpha="0.4" android:src="@drawable/ic_heart_filled"
-                app:tint="#FF6FA1" />
+                app:tint="#E91E63" />
 
             <ImageView
                 android:layout_width="12dp" android:layout_height="12dp"
@@ -75,7 +75,7 @@
                 android:layout_gravity="top|end"
                 android:layout_marginTop="60dp" android:layout_marginEnd="36dp"
                 android:alpha="0.4" android:src="@drawable/ic_heart_filled"
-                app:tint="#FF85B5" />
+                app:tint="#E91E63" />
 
             <!-- Small sparkle accents -->
             <ImageView
@@ -83,7 +83,7 @@
                 android:layout_gravity="top|end"
                 android:layout_marginTop="48dp" android:layout_marginEnd="104dp"
                 android:alpha="0.5" android:src="@drawable/ic_sparkle"
-                app:tint="#FF9DBA" />
+                app:tint="#E91E63" />
 
             <ImageView
                 android:layout_width="8dp" android:layout_height="8dp"

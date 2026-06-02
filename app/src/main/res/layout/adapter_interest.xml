@@ -1,46 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Compact pill chip for review tags. The activity swaps the LinearLayout's
-     background between d_button_bg_interest (slate, default) and
-     d_button_bg_interest_selected (pink). Text colour swaps with it. -->
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- Pill chip: root IS the clickable LinearLayout so no extra wrapper.
+     Margins provide spacing; FlexboxLayoutManager wraps rows automatically. -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:layout_marginEnd="8dp"
-    android:layout_marginBottom="8dp">
+    android:layout_marginBottom="10dp"
+    android:background="@drawable/d_button_bg_interest"
+    android:gravity="center_vertical"
+    android:minHeight="38dp"
+    android:orientation="horizontal"
+    android:paddingStart="16dp"
+    android:paddingTop="8dp"
+    android:paddingEnd="16dp"
+    android:paddingBottom="8dp">
 
-    <LinearLayout
-        android:id="@+id/main"
+    <ImageView
+        android:id="@+id/iv_interest"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:layout_marginEnd="6dp"
+        android:scaleType="centerCrop"
+        android:visibility="gone"
+        tools:ignore="ContentDescription" />
+
+    <TextView
+        android:id="@+id/tv_interest"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:background="@drawable/d_button_bg_interest"
-        android:gravity="center_vertical"
-        android:minHeight="34dp"
-        android:orientation="horizontal"
-        android:paddingStart="14dp"
-        android:paddingTop="7dp"
-        android:paddingEnd="14dp"
-        android:paddingBottom="7dp">
+        android:fontFamily="@font/poppins_semibold"
+        android:letterSpacing="0.02"
+        android:singleLine="true"
+        android:text="Politics"
+        android:textColor="#1E293B"
+        android:textSize="13sp" />
 
-        <ImageView
-            android:id="@+id/iv_interest"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:layout_marginEnd="6dp"
-            android:scaleType="centerCrop"
-            android:visibility="gone"
-            tools:ignore="ContentDescription" />
-
-        <TextView
-            android:id="@+id/tv_interest"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/poppins_semibold"
-            android:letterSpacing="0.01"
-            android:text="Politics"
-            android:textColor="#475569"
-            android:textSize="12sp" />
-
-    </LinearLayout>
-
-</FrameLayout>
+</LinearLayout>

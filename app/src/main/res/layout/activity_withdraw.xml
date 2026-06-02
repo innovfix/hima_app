@@ -9,83 +9,113 @@
     android:background="@color/grey_extra_light"
     tools:context=".activities.WithdrawActivity">
 
-    <!-- Top App Bar with Gradient Background -->
-    <androidx.cardview.widget.CardView
+    <!-- ══ White sticky header (matches home/earnings theme) ══ -->
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/cv_header"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        app:cardElevation="8dp"
-        app:cardCornerRadius="0dp"
-        android:backgroundTint="@color/white"
-        app:layout_constraintTop_toTopOf="parent"
+        android:background="@color/white"
+        android:elevation="4dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="14dp"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        app:layout_constraintTop_toTopOf="parent">
 
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingTop="48dp"
-            android:paddingBottom="20dp"
-            android:paddingHorizontal="20dp"
-            android:background="@drawable/gradient_pink">
+        <!-- Back button card -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cv_back"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="6dp"
+            app:cardBackgroundColor="@color/grey_extra_light"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="0dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
 
-            <!-- Back Button -->
             <ImageView
                 android:id="@+id/iv_back"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:padding="6dp"
-                android:background="@drawable/circle_white_bg"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
                 android:contentDescription="@string/edit"
                 android:rotation="180"
                 android:src="@drawable/right_arrow"
-                app:tint="@color/pink"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent" />
+                app:tint="@color/black_light" />
+        </androidx.cardview.widget.CardView>
 
-            <!-- Title -->
+        <!-- Title + subtitle -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
+            android:orientation="vertical"
+            app:layout_constraintBottom_toBottomOf="@+id/cv_back"
+            app:layout_constraintStart_toEndOf="@+id/cv_back"
+            app:layout_constraintTop_toTopOf="@+id/cv_back">
+
             <TextView
                 android:id="@+id/tv_withdraw"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/withdraw"
-                android:textColor="@color/white"
-                android:textSize="22sp"
-                android:textStyle="bold"
                 android:fontFamily="@font/poppins_semibold"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent" />
+                android:letterSpacing="-0.01"
+                android:text="@string/withdraw"
+                android:textColor="@color/black_light"
+                android:textSize="19sp" />
 
-            <!-- Balance Badge -->
-            <androidx.cardview.widget.CardView
+            <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                app:cardCornerRadius="20dp"
-                app:cardElevation="4dp"
-                android:backgroundTint="@color/white"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toBottomOf="parent">
+                android:layout_marginTop="-2dp"
+                android:fontFamily="@font/poppins_regular"
+                android:text="Cash out your earnings"
+                android:textColor="@color/grey_medium"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <!-- Balance pill -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_marginEnd="20dp"
+            app:cardBackgroundColor="@color/colorAccent"
+            app:cardCornerRadius="18dp"
+            app:cardElevation="0dp"
+            app:layout_constraintBottom_toBottomOf="@+id/cv_back"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/cv_back">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="14dp">
+
+                <ImageView
+                    android:layout_width="15dp"
+                    android:layout_height="15dp"
+                    android:layout_marginEnd="6dp"
+                    android:contentDescription="@string/earnings"
+                    android:src="@drawable/wallet"
+                    app:tint="@color/white" />
 
                 <TextView
                     android:id="@+id/tv_current_balance"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:paddingHorizontal="16dp"
-                    android:paddingVertical="8dp"
                     android:fontFamily="@font/poppins_semibold"
                     android:text="@string/_0_00"
-                    android:textColor="@color/pink"
-                    android:textSize="16sp" />
+                    android:textColor="@color/white"
+                    android:textSize="14sp" />
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
 
-            </androidx.cardview.widget.CardView>
-
-        </androidx.constraintlayout.widget.ConstraintLayout>
-
-    </androidx.cardview.widget.CardView>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- ScrollView for content -->
     <ScrollView
@@ -106,13 +136,15 @@
             android:paddingBottom="20dp">
 
             <!-- Amount Input Card -->
-            <androidx.cardview.widget.CardView
+            <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cv_amount_card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="4dp"
-                android:backgroundTint="@color/white"
+                app:cardCornerRadius="18dp"
+                app:cardElevation="1dp"
+                app:cardBackgroundColor="@color/white"
+                app:strokeColor="#E9EDF2"
+                app:strokeWidth="1dp"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent">
@@ -121,13 +153,68 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="20dp">
+                    android:padding="18dp">
+
+                    <!-- Badge header -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/circle_bg_accent">
+
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:layout_gravity="center"
+                                android:contentDescription="@string/earnings"
+                                android:src="@drawable/wallet"
+                                app:tint="@color/white" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="12dp"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/poppins_semibold"
+                                android:text="Withdrawal Amount"
+                                android:textColor="@color/black"
+                                android:textSize="16sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/poppins_regular"
+                                android:text="Enter how much to withdraw"
+                                android:textColor="@color/grey_medium"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- Divider -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="14dp"
+                        android:background="@color/grey_extra_light" />
 
                     <!-- Label -->
                     <TextView
                         android:id="@+id/tv_otp_mobile_number"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
                         android:text="@string/enter_amount_to_withdraw"
                         android:textColor="@color/grey_medium"
                         android:textSize="13sp"
@@ -135,14 +222,16 @@
                         android:letterSpacing="0.02" />
 
                     <!-- Amount Input -->
-                    <androidx.cardview.widget.CardView
+                    <com.google.android.material.card.MaterialCardView
                         android:id="@+id/cv_amount"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        app:cardCornerRadius="12dp"
+                        android:layout_marginTop="10dp"
+                        app:cardCornerRadius="14dp"
                         app:cardElevation="0dp"
-                        app:cardBackgroundColor="@color/grey_extra_light">
+                        app:cardBackgroundColor="@color/white"
+                        app:strokeColor="@color/colorAccent"
+                        app:strokeWidth="1.5dp">
 
                         <LinearLayout
                             android:layout_width="match_parent"
@@ -188,7 +277,7 @@
 
                         </LinearLayout>
 
-                    </androidx.cardview.widget.CardView>
+                    </com.google.android.material.card.MaterialCardView>
 
                     <!-- Minimum Amount Info -->
                     <TextView
@@ -204,17 +293,19 @@
 
                 </LinearLayout>
 
-            </androidx.cardview.widget.CardView>
+            </com.google.android.material.card.MaterialCardView>
 
             <!-- Payment Methods Section -->
-            <androidx.cardview.widget.CardView
+            <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cv_payment_methods"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="4dp"
-                android:backgroundTint="@color/white"
+                android:layout_marginTop="16dp"
+                app:cardCornerRadius="18dp"
+                app:cardElevation="1dp"
+                app:cardBackgroundColor="@color/white"
+                app:strokeColor="#E9EDF2"
+                app:strokeWidth="1dp"
                 app:layout_constraintTop_toBottomOf="@+id/cv_amount_card"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent">
@@ -223,29 +314,75 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="20dp">
+                    android:padding="18dp">
 
-                    <!-- Section Title -->
-                    <TextView
-                        android:id="@+id/tv_payment_type_text"
+                    <!-- Badge header -->
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/add_payment_method"
-                        android:textColor="@color/black_light"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:fontFamily="@font/poppins_semibold"
-                        android:letterSpacing="0.01" />
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/d_button_bg"
+                            android:backgroundTint="#E8F5E9">
+
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:layout_gravity="center"
+                                android:contentDescription="@string/edit"
+                                android:src="@drawable/bank_svg"
+                                app:tint="@color/green" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="12dp"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tv_payment_type_text"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/poppins_semibold"
+                                android:text="@string/add_payment_method"
+                                android:textColor="@color/black"
+                                android:textSize="16sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/poppins_regular"
+                                android:text="Where should we send your money?"
+                                android:textColor="@color/grey_medium"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- Divider -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="14dp"
+                        android:background="@color/grey_extra_light" />
 
                     <!-- KYC Card -->
-                    <androidx.cardview.widget.CardView
+                    <com.google.android.material.card.MaterialCardView
                         android:id="@+id/cv_panDetails"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        app:cardCornerRadius="12dp"
+                        android:layout_marginTop="14dp"
+                        app:cardCornerRadius="14dp"
                         app:cardElevation="0dp"
-                        app:cardBackgroundColor="@color/grey_extra_light">
+                        app:cardBackgroundColor="@color/white"
+                        app:strokeColor="#E9EDF2"
+                        app:strokeWidth="1dp">
 
                         <LinearLayout
                             android:id="@+id/kycLL"
@@ -297,18 +434,20 @@
 
                         </LinearLayout>
 
-                    </androidx.cardview.widget.CardView>
+                    </com.google.android.material.card.MaterialCardView>
 
                     <!-- UPI Card -->
-                    <androidx.cardview.widget.CardView
+                    <com.google.android.material.card.MaterialCardView
                         android:id="@+id/cv_add_upi"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
                         android:visibility="gone"
-                        app:cardCornerRadius="12dp"
+                        app:cardCornerRadius="14dp"
                         app:cardElevation="0dp"
-                        app:cardBackgroundColor="@color/grey_extra_light">
+                        app:cardBackgroundColor="@color/white"
+                        app:strokeColor="#E9EDF2"
+                        app:strokeWidth="1dp">
 
                         <LinearLayout
                             android:layout_width="match_parent"
@@ -389,9 +528,10 @@
                                 android:gravity="center">
 
                                 <ProgressBar
-                                    android:layout_width="40dp"
-                                    android:layout_height="40dp"
-                                    android:indeterminate="true" />
+                                    android:layout_width="32dp"
+                                    android:layout_height="32dp"
+                                    android:indeterminate="true"
+                                    android:indeterminateTint="@color/colorAccent" />
 
                             </LinearLayout>
 
@@ -415,12 +555,14 @@
                                     android:layout_marginBottom="8dp" />
 
                                 <!-- UPI Input -->
-                                <androidx.cardview.widget.CardView
+                                <com.google.android.material.card.MaterialCardView
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
-                                    app:cardCornerRadius="10dp"
+                                    app:cardCornerRadius="12dp"
                                     app:cardElevation="0dp"
-                                    app:cardBackgroundColor="@color/white">
+                                    app:cardBackgroundColor="@color/white"
+                                    app:strokeColor="@color/colorAccent"
+                                    app:strokeWidth="1.5dp">
 
                                     <LinearLayout
                                         android:id="@+id/ll_upi_id"
@@ -459,7 +601,7 @@
 
                                     </LinearLayout>
 
-                                </androidx.cardview.widget.CardView>
+                                </com.google.android.material.card.MaterialCardView>
 
                                 <!-- UPI Types RecyclerView -->
                                 <androidx.recyclerview.widget.RecyclerView
@@ -473,18 +615,20 @@
 
                         </LinearLayout>
 
-                    </androidx.cardview.widget.CardView>
+                    </com.google.android.material.card.MaterialCardView>
 
                     <!-- Bank Transfer Card -->
-                    <androidx.cardview.widget.CardView
+                    <com.google.android.material.card.MaterialCardView
                         android:id="@+id/cv_add_bank"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
                         android:visibility="gone"
-                        app:cardCornerRadius="12dp"
+                        app:cardCornerRadius="14dp"
                         app:cardElevation="0dp"
-                        app:cardBackgroundColor="@color/grey_extra_light">
+                        app:cardBackgroundColor="@color/white"
+                        app:strokeColor="#E9EDF2"
+                        app:strokeWidth="1dp">
 
                         <LinearLayout
                             android:layout_width="match_parent"
@@ -534,7 +678,7 @@
 
                         </LinearLayout>
 
-                    </androidx.cardview.widget.CardView>
+                    </com.google.android.material.card.MaterialCardView>
 
                     <!-- Preferred Payment Method (Hidden by default) -->
                     <androidx.constraintlayout.widget.ConstraintLayout
@@ -605,17 +749,19 @@
 
                 </LinearLayout>
 
-            </androidx.cardview.widget.CardView>
+            </com.google.android.material.card.MaterialCardView>
 
             <!-- Withdrawal Summary Card -->
-            <androidx.cardview.widget.CardView
+            <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cv_withdraw_summary"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="4dp"
+                android:layout_marginTop="16dp"
+                app:cardCornerRadius="18dp"
+                app:cardElevation="1dp"
                 app:cardBackgroundColor="@color/white"
+                app:strokeColor="#E9EDF2"
+                app:strokeWidth="1dp"
                 app:layout_constraintTop_toBottomOf="@+id/cv_payment_methods"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent">
@@ -624,19 +770,56 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="20dp">
+                    android:padding="18dp">
 
-                    <!-- Title -->
-                    <TextView
+                    <!-- Badge header -->
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Withdrawal Summary"
-                        android:textColor="@color/black_light"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:fontFamily="@font/poppins_semibold"
-                        android:letterSpacing="0.01"
-                        android:layout_marginBottom="16dp" />
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="16dp">
+
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/d_button_bg"
+                            android:backgroundTint="#FFF3E0">
+
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:layout_gravity="center"
+                                android:contentDescription=""
+                                android:src="@drawable/coin_d"
+                                app:tint="#F59E0B" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="12dp"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/poppins_semibold"
+                                android:text="Withdrawal Summary"
+                                android:textColor="@color/black"
+                                android:textSize="16sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/poppins_regular"
+                                android:text="Fees &amp; TDS breakdown"
+                                android:textColor="@color/grey_medium"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+                    </LinearLayout>
 
                     <!-- Total Withdrawal Amount -->
                     <LinearLayout
@@ -752,9 +935,9 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:background="@drawable/gradient_light_pink"
-                        android:padding="16dp"
-                        android:elevation="2dp">
+                        android:background="@drawable/d_button_bg"
+                        android:backgroundTint="#FCE4F0"
+                        android:padding="14dp">
 
                         <TextView
                             android:id="@+id/tv_amount_receive_label"
@@ -780,7 +963,7 @@
 
                 </LinearLayout>
 
-            </androidx.cardview.widget.CardView>
+            </com.google.android.material.card.MaterialCardView>
 
             <!-- Withdraw Button -->
             <com.google.android.material.button.MaterialButton

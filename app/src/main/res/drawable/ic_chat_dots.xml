@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Filled chat bubble with three cut-out dots (uses evenOdd so tinting works). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <path
+        android:fillColor="#000000"
+        android:fillType="evenOdd"
+        android:pathData="M18,3 H6 C4,3 3,4 3,6 V14 C3,16 4,17 6,17 H6.8 C7.5,17 8,17.5 8,18.3 C8,18.9 7.9,19.4 7.7,19.8 C7.4,20.4 8,21 8.6,20.7 L13.2,17.8 C13.5,17.6 13.9,17.5 14.2,17.5 H18 C20,17.5 21,16.5 21,14.5 V6 C21,4 20,3 18,3 Z M6.9,10 a1.1,1.1 0 1,0 2.2,0 a1.1,1.1 0 1,0 -2.2,0 Z M10.9,10 a1.1,1.1 0 1,0 2.2,0 a1.1,1.1 0 1,0 -2.2,0 Z M14.9,10 a1.1,1.1 0 1,0 2.2,0 a1.1,1.1 0 1,0 -2.2,0 Z" />
+</vector>

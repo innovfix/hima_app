@@ -252,7 +252,6 @@ class RecentCallsAdapter(
                     holder.binding.ivVideoCircle.outlineAmbientShadowColor = purpleIcon2
                 }
             }
-            holder.binding.ivVideoCircle.visibility= View.GONE
 
             // Chat button (design only)
             holder.binding.ivChatCircle.setOnSingleClickListener {

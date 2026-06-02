@@ -182,5 +182,12 @@ class VerifyOTPActivity : BaseActivity() {
         val shouldEnable = isOtpComplete && !isVerifyingOtp
         binding.btnVerifyOtp.isEnabled = shouldEnable
         binding.btnVerifyOtp.isClickable = shouldEnable
+        // Force pink when enabled, gray when not — MaterialButton ignores XML selector
+        val bgColor = if (shouldEnable) android.graphics.Color.parseColor("#FF1383")
+                      else android.graphics.Color.parseColor("#CBD5E1")
+        val textColor = if (shouldEnable) android.graphics.Color.WHITE
+                        else android.graphics.Color.parseColor("#94A3B8")
+        binding.btnVerifyOtp.backgroundTintList = android.content.res.ColorStateList.valueOf(bgColor)
+        binding.btnVerifyOtp.setTextColor(textColor)
     }
 }

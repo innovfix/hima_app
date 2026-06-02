@@ -65,7 +65,77 @@ class RecentFragment : BaseFragment(), Refreshable {
         initUI()
         observeViewModel()
         setupFilterChips()
+        animateEntrance()
         return binding.root
+    }
+
+    /** Professional staggered entrance animation when Recent opens. */
+    private fun animateEntrance() {
+        // Run only once per app launch — skip on subsequent tab switches.
+        if (hasPlayedEntrance) return
+        hasPlayedEntrance = true
+
+        val d = resources.displayMetrics.density
+
+        // 1) AppBar: slide down from -40dp + fade in.
+        binding.appBarLayout.apply {
+            alpha = 0f
+            translationY = -40f * d
+            animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setStartDelay(100L)
+                .setDuration(700L)
+                .setInterpolator(android.view.animation.DecelerateInterpolator(1.6f))
+                .start()
+        }
+
+        // 2) Title + subtitle: gentle scale-in.
+        listOf<View?>(binding.tvRecentCalls).forEach { v ->
+            v ?: return@forEach
+            v.alpha = 0f
+            v.scaleX = 0.85f
+            v.scaleY = 0.85f
+            v.animate()
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .setStartDelay(380L)
+                .setDuration(600L)
+                .setInterpolator(android.view.animation.OvershootInterpolator(1.1f))
+                .start()
+        }
+
+        // 3) Filter pills: staggered slide-in from left.
+        listOf(
+            binding.chipAll,
+            binding.chipMissed,
+            binding.chipTalkTime,
+            binding.chipAZ
+        ).forEachIndexed { idx, pill ->
+            pill.alpha = 0f
+            pill.translationX = -80f * d
+            pill.animate()
+                .alpha(1f)
+                .translationX(0f)
+                .setStartDelay(550L + idx * 130L)
+                .setDuration(550L)
+                .setInterpolator(android.view.animation.DecelerateInterpolator(1.4f))
+                .start()
+        }
+
+        // 4) Search bar: fade + slight slide-up (last).
+        binding.cardSearch.apply {
+            alpha = 0f
+            translationY = 24f * d
+            animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setStartDelay(1100L)
+                .setDuration(550L)
+                .setInterpolator(android.view.animation.DecelerateInterpolator(1.4f))
+                .start()
+        }
     }
 
     private fun setupStatusBarInsets() {
@@ -117,9 +187,12 @@ class RecentFragment : BaseFragment(), Refreshable {
         )
         binding.rvCalls.adapter = recentCallsAdapter
 
-        // Initial call with default type (after adapter is initialized)
+        // Defer initial data load by one frame so the fragment transition animation
+        // can finish smoothly first — eliminates the brief stutter on tab switch.
         recentCallsAdapter.setFilter(currentSortType)
-        loadCallsList(currentSortType, resetData = true)
+        binding.root.post {
+            loadCallsList(currentSortType, resetData = true)
+        }
 
         // Pagination
         binding.rvCalls.addOnScrollListener(object : RecyclerView.OnScrollListener() {
@@ -345,7 +418,7 @@ class RecentFragment : BaseFragment(), Refreshable {
         )
     }
 
-    /** Active pill — pink-to-purple gradient (matches Home active pill). */
+    /** Active pill — pink → purple gradient (matches Home active pill). */
     private fun makeActivePillBg(
         startColor: Int, endColor: Int
     ): android.graphics.drawable.RippleDrawable {
@@ -372,7 +445,6 @@ class RecentFragment : BaseFragment(), Refreshable {
         val talk = binding.chipTalkTime
         val az   = binding.chipAZ
 
-        // Inactive: glass pill style
         listOf(all, miss, talk, az).forEach {
             it.background         = makeGlassPillBg()
             it.backgroundTintList = null
@@ -380,7 +452,6 @@ class RecentFragment : BaseFragment(), Refreshable {
             it.iconTint           = darkTint
         }
 
-        // Active: pink→purple gradient (same as Home's active pill)
         val selected = when (currentSortType) {
             "missed"    -> miss
             "talk_time" -> talk
@@ -512,5 +583,11 @@ class RecentFragment : BaseFragment(), Refreshable {
         searchRunnable?.let { searchHandler.removeCallbacks(it) }
         // Clean up listeners when fragment is destroyed
 //        unreadCountsMap.clear()
+    }
+
+    companion object {
+        // Survives fragment recreation within the same process, so the entrance
+        // animation plays only on the first open per app launch.
+        private var hasPlayedEntrance = false
     }
 }
