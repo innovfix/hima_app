@@ -6,9 +6,11 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
+import android.text.SpannableString
 import android.text.method.LinkMovementMethod
 import android.text.util.Linkify
 import android.util.Log
+import android.util.LruCache
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -80,6 +82,17 @@ class ChatAdapter(
      */
     private val expandedMessageIds = mutableSetOf<String>()
 
+    /**
+     * BUG-13: per-message caches so immutable display work runs ONCE per message
+     * instead of on every onBindViewHolder. [linkifiedBodyCache] holds the
+     * URL/email-linkified body; [readMoreNeededCache] holds whether the Read-more
+     * toggle is needed. Rebinds during fast scrolling reuse these instead of
+     * re-running Linkify / re-measuring — the fix for long-message scroll jank.
+     * Keyed by the stable message id.
+     */
+    private val linkifiedBodyCache = LruCache<String, CharSequence>(256)
+    private val readMoreNeededCache = HashMap<String, Boolean>()
+
     /** Parsed breakdown of an inline reply-prefixed message; display-time only. */
     private data class InlineReply(val author: String, val snippet: String, val body: String)
 
@@ -104,6 +117,27 @@ class ChatAdapter(
         val body = raw.substring(nl + 1)
         if (author.isEmpty() || body.isEmpty()) return null
         return InlineReply(author, snippet, body)
+    }
+
+    /**
+     * BUG-13: returns [body] with web/email links applied, computed once per message
+     * and cached by id. PHONE_NUMBERS was dropped from the Linkify mask — it was the
+     * slowest matcher and produced false-positive dialer links on coin amounts /
+     * numeric ids. The cheap '.'/'@'/':' pre-check skips the matcher entirely for
+     * plain prose that can't contain a URL or email.
+     */
+    private fun linkifyBodyOnce(messageId: String, body: String): CharSequence {
+        linkifiedBodyCache.get(messageId)?.let { return it }
+        val result: CharSequence =
+            if (body.indexOf('.') >= 0 || body.indexOf('@') >= 0 || body.indexOf(':') >= 0) {
+                SpannableString(body).also {
+                    Linkify.addLinks(it, Linkify.WEB_URLS or Linkify.EMAIL_ADDRESSES)
+                }
+            } else {
+                body
+            }
+        linkifiedBodyCache.put(messageId, result)
+        return result
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -590,7 +624,7 @@ class ChatAdapter(
                     )
                     tvReplyQuoteSnippet.text = reply.snippet
                 }
-                tvMessage.text = reply.body
+                tvMessage.text = linkifyBodyOnce(message.id, reply.body)
                 applyQuoteTint(isSent)
                 layoutReplyQuote.setOnClickListener { onReplyQuoteTap?.invoke(message) }
 
@@ -618,20 +652,17 @@ class ChatAdapter(
                 // Reset the reply-driven minWidth so a recycled holder showing
                 // a plain message doesn't stay stretched to a previous quote.
                 tvMessage.minWidth = 0
-                tvMessage.text = message.message
+                tvMessage.text = linkifyBodyOnce(message.id, message.message)
                 // Make sure recycled holders that previously rendered an audio
                 // reply quote don't keep the mic drawable on a plain text bubble.
                 tvReplyQuoteSnippet.setCompoundDrawablesRelativeWithIntrinsicBounds(
                     null, null, null, null
                 )
             }
-            // CHAT-048: auto-detect URLs / phone numbers / emails after setText.
-            // LinkMovementMethod lets taps open browser/dialer/mail; long-press
-            // still bubbles up to the bubble's long-click handler.
-            Linkify.addLinks(
-                tvMessage,
-                Linkify.WEB_URLS or Linkify.PHONE_NUMBERS or Linkify.EMAIL_ADDRESSES
-            )
+            // CHAT-048 / BUG-13: links are applied once per message (cached) in
+            // linkifyBodyOnce() rather than re-running Linkify on every bind.
+            // LinkMovementMethod lets taps open the browser/mail; long-press still
+            // bubbles up to the bubble's long-click handler.
             tvMessage.movementMethod = LinkMovementMethod.getInstance()
             tvMessage.setLinkTextColor(Color.parseColor("#880E4F"))
             tvTime.text = message.timestamp
@@ -661,38 +692,58 @@ class ChatAdapter(
                 tvMessage.ellipsize = android.text.TextUtils.TruncateAt.END
             }
 
-            // Decide visibility AFTER layout so we can read tv_message.layout's
-            // ellipsis count. Hide eagerly to avoid a flash on short messages.
+            // BUG-13: whether this message needs the toggle is fixed per message
+            // (the bubble width is constant), so measure it once and cache it.
+            // On a cache hit we apply the toggle synchronously — no per-bind
+            // post{}/layout read, which is what stuttered during fast scroll.
+            val cachedNeeded = readMoreNeededCache[message.id]
+            if (cachedNeeded != null) {
+                bindReadMoreToggle(message, expanded, cachedNeeded)
+                return
+            }
+
+            // First sighting: hide eagerly, then measure after layout, cache the
+            // result, and bind the toggle. Guard against the holder being recycled
+            // to another message before the post runs (else we'd cache a stale
+            // measurement against the wrong id).
             tvReadMore.visibility = View.GONE
             tvReadMore.setOnClickListener(null)
             tvMessage.post {
+                val pos = bindingAdapterPosition
+                if (pos == RecyclerView.NO_POSITION) return@post
+                if (messages.getOrNull(pos)?.id != message.id) return@post
                 val layout = tvMessage.layout ?: return@post
-                val truncated = if (expanded) {
-                    // Once expanded, we still want Show less visible so the user
-                    // can collapse. Cheap heuristic: line count > limit.
+                val needed = if (expanded) {
                     layout.lineCount > COLLAPSED_LINE_LIMIT
                 } else {
                     val last = (layout.lineCount - 1).coerceAtLeast(0)
                     layout.getEllipsisCount(last) > 0
                 }
-                if (!truncated) {
-                    tvReadMore.visibility = View.GONE
-                    return@post
+                readMoreNeededCache[message.id] = needed
+                bindReadMoreToggle(message, expanded, needed)
+            }
+        }
+
+        /** Shows/hides the Read more / Show less toggle and wires its tap. */
+        private fun bindReadMoreToggle(message: ChatMessage, expanded: Boolean, needed: Boolean) {
+            if (!needed) {
+                tvReadMore.visibility = View.GONE
+                tvReadMore.setOnClickListener(null)
+                return
+            }
+            tvReadMore.visibility = View.VISIBLE
+            tvReadMore.text = itemView.context.getString(
+                if (expanded) R.string.chat_show_less else R.string.chat_read_more
+            )
+            tvReadMore.setOnClickListener {
+                if (expandedMessageIds.contains(message.id)) {
+                    expandedMessageIds.remove(message.id)
+                } else {
+                    expandedMessageIds.add(message.id)
                 }
-                tvReadMore.visibility = View.VISIBLE
-                tvReadMore.text = itemView.context.getString(
-                    if (expanded) R.string.chat_show_less else R.string.chat_read_more
-                )
-                tvReadMore.setOnClickListener {
-                    if (expandedMessageIds.contains(message.id)) {
-                        expandedMessageIds.remove(message.id)
-                    } else {
-                        expandedMessageIds.add(message.id)
-                    }
-                    val pos = bindingAdapterPosition
-                    if (pos != RecyclerView.NO_POSITION) {
-                        notifyItemChanged(pos)
-                    }
+                val pos = bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION) {
+                    notifyItemChanged(pos)
                 }
             }
         }
