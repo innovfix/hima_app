@@ -1009,6 +1009,27 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
      * filter, currently loading, offline (handled by tvNointernet), or list
      * already has rows. Idempotent and cheap; safe to call from anywhere.
      */
+    /**
+     * TC_CH_004: animate-remove any chats the user just "Deleted" (now hidden by
+     * [com.gmwapp.hima.utils.DeletedChatsPrefsHelper]) from the live list, without a
+     * network reload. Keeps [homeMyChatsRawConversations] in sync so they don't
+     * reappear on the next bind. Returns true if at least one row was removed.
+     */
+    private fun removeDeletedChatsAnimated(): Boolean {
+        val ctx = activity ?: return false
+        val adapter = homeMyChatsAdapter ?: return false
+        val deletedIds = homeMyChatsRawConversations
+            .filter { com.gmwapp.hima.utils.DeletedChatsPrefsHelper.isHidden(ctx, it) }
+            .map { it.userId }
+            .toSet()
+        if (deletedIds.isEmpty()) return false
+        homeMyChatsRawConversations = homeMyChatsRawConversations.filterNot { it.userId in deletedIds }
+        var removed = false
+        deletedIds.forEach { if (adapter.removeConversation(it)) removed = true }
+        if (removed) updateMyChatsEmptyState()
+        return removed
+    }
+
     private fun updateMyChatsEmptyState() {
         if (!isAdded) return
         val empty = binding.homeMyChatsEmptyState
@@ -1146,10 +1167,15 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             }
         }
 
-        // CHAT-108: immediately re-bind so a draft just saved in
-        // ChatActivityInHouse.onPause surfaces its "Draft: …" tag here right
-        // away, not after the async loadMyChats round-trip.
-        if (filterType == "my_chats") homeMyChatsAdapter?.notifyDataSetChanged()
+        // TC_CH_004: a chat deleted from the detail screen should slide away
+        // immediately on return — not wait for a manual refresh. Animate-remove
+        // any now-deleted rows. Only when nothing was removed do we fall back to
+        // the CHAT-108 full re-bind (which would otherwise cancel the removal
+        // animation) so a freshly-saved draft still surfaces right away.
+        if (filterType == "my_chats") {
+            val removedAny = removeDeletedChatsAnimated()
+            if (!removedAny) homeMyChatsAdapter?.notifyDataSetChanged()
+        }
 
         refreshCoinsDisplayFromCache()
         refreshPremiumCrown()

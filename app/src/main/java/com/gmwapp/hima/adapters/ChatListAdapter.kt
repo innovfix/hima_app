@@ -107,6 +107,20 @@ class ChatListAdapter(
     }
 
     /**
+     * TC_CH_004: remove the row for [userId] with the default RecyclerView removal
+     * animation (slide/fade-out). Used when a chat is "Deleted" from the detail
+     * screen so it disappears immediately on return — WhatsApp-style — instead of
+     * waiting for a manual pull-to-refresh. Returns true if a row was removed.
+     */
+    fun removeConversation(userId: String): Boolean {
+        val idx = conversations.indexOfFirst { it.userId == userId }
+        if (idx < 0) return false
+        conversations.removeAt(idx)
+        notifyItemRemoved(idx)
+        return true
+    }
+
+    /**
      * Optimistically clears the unread badge for the row matching [userId]. Called
      * when the user taps a chat so the badge disappears instantly; the server-side
      * mark-read + next `my_chat` refresh will confirm the state on resume.

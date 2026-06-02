@@ -184,12 +184,13 @@ class FriendsTabFragment : Fragment() {
             // Refresh chat conversations from API
             Log.d("FriendsTab", "💬 Chat tab resumed - refreshing chat conversations")
             loadChatConversations()
-            // CHAT-108: immediately re-bind the in-memory rows so any draft
-            // that was just persisted in ChatActivityInHouse.onPause shows its
-            // "Draft: …" tag now, not after the async loadChatConversations
-            // round-trip returns.
+            // TC_CH_004: drop any just-deleted chat immediately with animation
+            // instead of waiting for the async reload to return. CHAT-108: when
+            // nothing was removed, re-bind the in-memory rows so a draft that was
+            // just persisted in ChatActivityInHouse.onPause shows its "Draft: …"
+            // tag now (a full re-bind would otherwise cancel the removal animation).
             if (::chatAdapter.isInitialized) {
-                chatAdapter.notifyDataSetChanged()
+                if (!removeDeletedChatsAnimated()) chatAdapter.notifyDataSetChanged()
             }
             // Realtime: subscribe to push-driven list refresh + socket new_message
             // so a new push or live socket event reorders / increments the row
@@ -835,6 +836,27 @@ class FriendsTabFragment : Fragment() {
         return sortedPinned + sortedUnpinned
     }
     
+    /**
+     * TC_CH_004: animate-remove any chats the user just "Deleted" (now hidden by
+     * [com.gmwapp.hima.utils.DeletedChatsPrefsHelper]) from the live list, without
+     * waiting on the async reload. Keeps [lastLoadedChatConversations] in sync so
+     * they don't reappear on the next bind. Returns true if a row was removed.
+     */
+    private fun removeDeletedChatsAnimated(): Boolean {
+        if (!isAdded || !::chatAdapter.isInitialized) return false
+        val ctx = requireContext()
+        val deletedIds = lastLoadedChatConversations
+            .filter { com.gmwapp.hima.utils.DeletedChatsPrefsHelper.isHidden(ctx, it) }
+            .map { it.userId }
+            .toSet()
+        if (deletedIds.isEmpty()) return false
+        lastLoadedChatConversations = lastLoadedChatConversations.filterNot { it.userId in deletedIds }
+        var removed = false
+        deletedIds.forEach { if (chatAdapter.removeConversation(it)) removed = true }
+        if (removed) updateEmptyState()
+        return removed
+    }
+
     private fun updateChatUI(conversationsListRaw: List<ChatConversation>) {
         if (!isAdded) return
         // TC_CH_004: hide "Deleted" threads + blank "Cleared" thread previews
