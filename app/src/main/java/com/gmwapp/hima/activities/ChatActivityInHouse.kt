@@ -99,6 +99,7 @@ import com.gmwapp.hima.utils.DeletedChatsPrefsHelper
 import com.gmwapp.hima.utils.ImageCompressor
 import com.gmwapp.hima.utils.LastSeenFormatter
 import com.gmwapp.hima.utils.LocallyDeletedMessagesStore
+import com.gmwapp.hima.utils.TombstonedMessagesStore
 
 @AndroidEntryPoint
 class ChatActivityInHouse : AppCompatActivity() {
@@ -1376,6 +1377,10 @@ class ChatActivityInHouse : AppCompatActivity() {
         // back if the server never actually deleted it.
         pendingDeleteOriginals[message.id] = message
         markMessageDeletedLocally(message)
+        // Server-independent tombstone: remember the delete locally so it survives
+        // reopen even on a backend whose chat_history drops the is_deleted flag.
+        // Rolled back in rollbackDeleteOnFailure if the delete ultimately fails.
+        TombstonedMessagesStore.add(this, myUserId, peerUserId, message.id)
         if (pendingReplyTo?.id == message.id) {
             pendingReplyTo = null
             updateReplyPreviewUi()
@@ -1470,6 +1475,9 @@ class ChatActivityInHouse : AppCompatActivity() {
 
     private fun rollbackDeleteOnFailure(message: ChatMessage) {
         if (!isUiSafe()) return
+        // Delete didn't take — drop the local tombstone record so the message
+        // isn't falsely tombstoned on the next reload.
+        TombstonedMessagesStore.remove(this, myUserId, peerUserId, message.id)
         val index = messages.indexOfFirst { it.id == message.id && !it.isDateHeader }
         if (index != -1 && messages[index].isDeleted) {
             messages[index] = message
@@ -3043,6 +3051,10 @@ class ChatActivityInHouse : AppCompatActivity() {
         lifecycleScope.launch {
             socketManager.chatMessageDeleted.collect { deletedId ->
                 if (deletedId.isEmpty()) return@collect
+                // Confirmed remote delete (server broadcast it) — persist BEFORE the
+                // in-window check so the tombstone sticks on reload even if the row
+                // isn't loaded right now and even if this server omits is_deleted.
+                TombstonedMessagesStore.add(this@ChatActivityInHouse, myUserId, peerUserId, deletedId)
                 val idx = messages.indexOfFirst { it.id == deletedId && !it.isDateHeader }
                 if (idx == -1) {
                     Log.d("ChatDelete", "Ignoring message_deleted — id=$deletedId not in current window")
@@ -4159,7 +4171,8 @@ class ChatActivityInHouse : AppCompatActivity() {
         val timestampString = apiMsg.createdAt ?: apiMsg.timestamp
         val timestamp = parseTimestamp(timestampString)
         val isSentByMe = apiMsg.fromUserId == myUserId
-        val isDeleted = (apiMsg.isDeleted ?: 0) == 1
+        val isDeleted = (apiMsg.isDeleted ?: 0) == 1 ||
+            TombstonedMessagesStore.isTombstoned(this, myUserId, peerUserId, apiMsg.id.toString())
 
         // Deleted rows carry no reactions / attachments on the client — the tombstone
         // is a blank slate regardless of what the backend echoes back.
@@ -4232,7 +4245,9 @@ class ChatActivityInHouse : AppCompatActivity() {
             deliveryStatus = deliveryStatus,
             // T6: carry through the server's tombstone flag so a socket-only delivery
             // (no API refresh in flight) renders the deleted-bubble state immediately.
-            isDeleted = socketMsg.isDeleted
+            // OR the local store so a previously-confirmed delete stays tombstoned.
+            isDeleted = socketMsg.isDeleted ||
+                TombstonedMessagesStore.isTombstoned(this, myUserId, peerUserId, socketMsg.id.toString())
         )
     }
 
@@ -4263,7 +4278,11 @@ class ChatActivityInHouse : AppCompatActivity() {
             reactions = reactionsMap,
             messageType = fallbackMsg.messageType,
             attachmentUrl = fallbackMsg.attachmentUrl,
-            deliveryStatus = deliveryStatus
+            deliveryStatus = deliveryStatus,
+            // Honor a locally-recorded delete-for-everyone so it stays tombstoned.
+            isDeleted = TombstonedMessagesStore.isTombstoned(
+                this, myUserId, peerUserId, fallbackMsg.id.toString()
+            )
         )
     }
 
