@@ -289,6 +289,15 @@ class ChatListAdapter(
             // Rendered as a brand-pink italic "Draft:" prefix followed by the
             // draft text — same pattern WhatsApp uses.
             val peerIdInt = conversation.userId.toIntOrNull() ?: 0
+            // Bug: delete-for-me hid the message inside the thread but the chat-list
+            // preview still showed its text. The store is local-only and was only
+            // read by the open thread — honor it here too so the list doesn't leak it.
+            val myUserId = com.gmwapp.hima.BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+            val lastMessageDeletedForMe = peerIdInt > 0 && myUserId > 0 &&
+                conversation.lastMessageId > 0L &&
+                com.gmwapp.hima.utils.LocallyDeletedMessagesStore.isLocallyDeleted(
+                    activity, myUserId, peerIdInt, conversation.lastMessageId.toString()
+                )
             val draft = if (!isBlocked && peerIdInt > 0)
                 com.gmwapp.hima.utils.ChatDraftStore.get(activity, peerIdInt)
             else ""
@@ -315,6 +324,11 @@ class ChatListAdapter(
                     // Different copy when the OTHER side is the blocker so
                     // the user knows it's not their own block they need to undo.
                     activity.getString(R.string.chat_blocked_by_peer_preview)
+                } else if (lastMessageDeletedForMe) {
+                    // Last message was deleted-for-me locally — don't leak its text in
+                    // the list. (Can't show the prior message; the row holds only the
+                    // last one, and delete-for-me is never sent to the server.)
+                    activity.getString(R.string.chat_message_deleted_tombstone)
                 } else when (conversation.lastMessageType.lowercase()) {
                     "image" -> activity.getString(R.string.chat_preview_photo)
                     "audio" -> activity.getString(R.string.chat_preview_voice)
@@ -334,7 +348,7 @@ class ChatListAdapter(
             // CHAT-108: hide the delivery tick when a draft is showing — the tick
             // would refer to the last sent message, which the draft preview is
             // hiding anyway, so the icon makes no sense next to "Draft: …".
-            if (conversation.lastMessageSentByMe && !isBlocked && draft.isBlank()) {
+            if (conversation.lastMessageSentByMe && !isBlocked && draft.isBlank() && !lastMessageDeletedForMe) {
                 binding.ivLastMessageTick.visibility = View.VISIBLE
                 if (conversation.lastMessageIsRead) {
                     binding.ivLastMessageTick.setImageResource(R.drawable.ic_chat_double_check)
