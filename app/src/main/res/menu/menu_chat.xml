@@ -16,5 +16,17 @@
         android:title="@string/chat_unblock_user"
         android:icon="@drawable/baseline_check_24"
         android:visible="false" />
+
+    <!-- TC_CH_004: empties the thread locally (thread stays in list) -->
+    <item
+        android:id="@+id/action_clear_chat"
+        android:title="@string/chat_clearchat_action"
+        app:showAsAction="never" />
+
+    <!-- TC_CH_004: removes the whole thread from the chat list (WhatsApp-style) -->
+    <item
+        android:id="@+id/action_delete_chat"
+        android:title="@string/chat_deletechat_action"
+        app:showAsAction="never" />
 </menu>
 

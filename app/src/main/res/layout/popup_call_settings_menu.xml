@@ -54,4 +54,44 @@
         android:background="?attr/selectableItemBackground"
         android:gravity="center_vertical" />
 
+    <!-- Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#E5E7EB"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp" />
+
+    <!-- TC_CH_004: Clear chat — empties the thread locally, thread stays in list -->
+    <TextView
+        android:id="@+id/item_clear_chat"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp"
+        android:text="@string/chat_clearchat_action"
+        android:textSize="14sp"
+        android:textColor="#1F2937"
+        android:fontFamily="@font/poppins_medium"
+        android:background="?attr/selectableItemBackground"
+        android:gravity="center_vertical" />
+
+    <!-- TC_CH_004: Delete chat — removes the whole thread from the list (red, destructive) -->
+    <TextView
+        android:id="@+id/item_delete_chat"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp"
+        android:text="@string/chat_deletechat_action"
+        android:textSize="14sp"
+        android:textColor="#DC2626"
+        android:fontFamily="@font/poppins_medium"
+        android:background="?attr/selectableItemBackground"
+        android:gravity="center_vertical" />
+
 </LinearLayout>

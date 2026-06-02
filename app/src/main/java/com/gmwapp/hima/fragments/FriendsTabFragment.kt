@@ -835,8 +835,12 @@ class FriendsTabFragment : Fragment() {
         return sortedPinned + sortedUnpinned
     }
     
-    private fun updateChatUI(conversationsList: List<ChatConversation>) {
+    private fun updateChatUI(conversationsListRaw: List<ChatConversation>) {
         if (!isAdded) return
+        // TC_CH_004: hide "Deleted" threads + blank "Cleared" thread previews
+        // before they reach the adapter.
+        val conversationsList =
+            com.gmwapp.hima.utils.LocalChatListState.apply(requireContext(), conversationsListRaw)
         if (conversationsList.isEmpty()) {
             lastLoadedChatConversations = emptyList()
         }

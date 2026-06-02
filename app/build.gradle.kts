@@ -103,6 +103,8 @@ dependencies {
 
     implementation(libs.androidx.core.ktx)
     implementation("androidx.core:core-splashscreen:1.0.1")
+    // TC_CH_003: in-app emoji picker for the chat composer smiley.
+    implementation("androidx.emoji2:emoji2-emojipicker:1.4.0")
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))

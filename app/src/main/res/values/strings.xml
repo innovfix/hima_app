@@ -93,6 +93,17 @@
     <string name="chat_blocked_preview">You blocked this user</string>
     <string name="chat_blocked_banner">You blocked this user. Unblock to send messages.</string>
     <string name="chat_blocked_input_hint">You can\'t message a blocked user</string>
+    <!-- TC_CH_004: Clear chat / Delete chat overflow actions -->
+    <string name="chat_clearchat_action">Clear chat</string>
+    <string name="chat_deletechat_action">Delete chat</string>
+    <string name="chat_clearchat_title">Clear this chat?</string>
+    <string name="chat_clearchat_message">All messages will be removed from this device. The chat will stay in your list.</string>
+    <string name="chat_clearchat_confirm">Clear chat</string>
+    <string name="chat_clearchat_toast">Chat cleared</string>
+    <string name="chat_deletechat_title">Delete this chat?</string>
+    <string name="chat_deletechat_message">This chat will be removed from your chat list. Messages will be deleted from this device.</string>
+    <string name="chat_deletechat_confirm">Delete</string>
+    <string name="chat_deletechat_toast">Chat deleted</string>
     <!-- Peer-blocked-me variants (the other side blocked you) -->
     <string name="chat_blocked_by_peer_preview">This user has blocked you</string>
     <string name="chat_blocked_by_peer_banner">This user has blocked you. You can\'t send messages or call.</string>
@@ -116,6 +127,7 @@
     <string name="chat_send_message_desc">Send message</string>
     <string name="chat_peer_avatar_desc">Chat avatar</string>
     <string name="chat_input_hint">Type a message...</string>
+    <string name="chat_emoji_desc">Open emoji picker</string>
     <string name="chat_recording_slide_cancel">Slide up to cancel</string>
     <string name="chat_recording_release_cancel">Release to cancel</string>
     <string name="chat_recording_timer_zero">00:00</string>

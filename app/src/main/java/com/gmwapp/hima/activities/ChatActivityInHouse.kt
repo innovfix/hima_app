@@ -39,6 +39,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.emoji2.emojipicker.EmojiPickerView
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.Observer
 import androidx.activity.viewModels
@@ -94,6 +95,8 @@ import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.utils.CallUnavailableFeedback
 import com.gmwapp.hima.utils.AudioRecorderController
 import com.gmwapp.hima.utils.ChatHistoryMemoryCache
+import com.gmwapp.hima.utils.ClearedChatsPrefsHelper
+import com.gmwapp.hima.utils.DeletedChatsPrefsHelper
 import com.gmwapp.hima.utils.ImageCompressor
 import com.gmwapp.hima.utils.LastSeenFormatter
 import com.gmwapp.hima.utils.LocallyDeletedMessagesStore
@@ -147,6 +150,8 @@ class ChatActivityInHouse : AppCompatActivity() {
     private lateinit var btnSend: ImageButton
     private lateinit var btnMic: ImageButton
     private lateinit var ivAttach: ImageView
+    private lateinit var ivEmoji: ImageView
+    private var emojiPicker: EmojiPickerView? = null
     private var messageInputContainer: View? = null
     private var subscribeLockContainer: View? = null
     private var autopayFailedLockContainer: View? = null
@@ -593,6 +598,8 @@ class ChatActivityInHouse : AppCompatActivity() {
         btnSend = findViewById(R.id.btn_send)
         btnMic = findViewById(R.id.btn_mic)
         ivAttach = findViewById(R.id.iv_attach)
+        ivEmoji = findViewById(R.id.iv_emoji)
+        emojiPicker = findViewById(R.id.emoji_picker)
         llBlockedBanner = findViewById(R.id.ll_blocked_banner)
         tvBlockedBanner = findViewById(R.id.tv_blocked_banner)
         messageInputContainer = findViewById(R.id.message_input_container)
@@ -1742,6 +1749,8 @@ class ChatActivityInHouse : AppCompatActivity() {
             val imm = getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
                 as? android.view.inputmethod.InputMethodManager
             imm?.hideSoftInputFromWindow(etMessage.windowToken, 0)
+            // ...and the emoji panel — you can't compose into a blocked thread.
+            hideEmojiPicker(showKeyboard = false)
         }
         btnSend.isEnabled = !blocked
         btnMic.isEnabled = !blocked
@@ -1751,6 +1760,10 @@ class ChatActivityInHouse : AppCompatActivity() {
         btnSend.alpha = composerAlpha
         btnMic.alpha = composerAlpha
         ivAttach.alpha = composerAlpha
+        if (::ivEmoji.isInitialized) {
+            ivEmoji.isEnabled = !blocked
+            ivEmoji.alpha = composerAlpha
+        }
 
         // Dim the call buttons in the header so the blocked side gets a
         // visual signal (matches WhatsApp). The click listeners themselves
@@ -1794,6 +1807,8 @@ class ChatActivityInHouse : AppCompatActivity() {
             showAttachmentBottomSheet()
         }
 
+        setupEmojiPicker()
+
         btnMic.setOnTouchListener { _, event ->
             handleMicTouch(event)
         }
@@ -1820,6 +1835,63 @@ class ChatActivityInHouse : AppCompatActivity() {
         })
 
         updateComposerActionState()
+    }
+
+    /**
+     * TC_CH_003: in-app emoji picker. The composer smiley toggles the panel and
+     * picking an emoji inserts it at the cursor. The picker and the soft
+     * keyboard are mutually exclusive — opening one dismisses the other — so the
+     * composer never fights itself for the bottom of the screen.
+     */
+    private fun setupEmojiPicker() {
+        val picker = emojiPicker ?: return
+
+        picker.setOnEmojiPickedListener { item ->
+            insertIntoComposer(item.emoji)
+        }
+
+        ivEmoji.setOnClickListener {
+            if (picker.visibility == View.VISIBLE) {
+                hideEmojiPicker(showKeyboard = true)
+            } else {
+                showEmojiPicker()
+            }
+        }
+
+        // Tapping the input to type should always reclaim the bottom area.
+        etMessage.setOnClickListener {
+            if (picker.visibility == View.VISIBLE) hideEmojiPicker(showKeyboard = true)
+        }
+    }
+
+    private fun showEmojiPicker() {
+        val picker = emojiPicker ?: return
+        if (!etMessage.isEnabled) return
+        // Drop the keyboard first so the panel doesn't stack above it.
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE)
+            as? android.view.inputmethod.InputMethodManager
+        imm?.hideSoftInputFromWindow(etMessage.windowToken, 0)
+        etMessage.requestFocus()
+        picker.visibility = View.VISIBLE
+    }
+
+    private fun hideEmojiPicker(showKeyboard: Boolean) {
+        val picker = emojiPicker ?: return
+        if (picker.visibility != View.VISIBLE) return
+        picker.visibility = View.GONE
+        if (showKeyboard) {
+            etMessage.requestFocus()
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE)
+                as? android.view.inputmethod.InputMethodManager
+            imm?.showSoftInput(etMessage, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+        }
+    }
+
+    private fun insertIntoComposer(emoji: String) {
+        val editable = etMessage.text ?: return
+        val start = etMessage.selectionStart.coerceIn(0, editable.length)
+        val end = etMessage.selectionEnd.coerceIn(0, editable.length)
+        editable.replace(minOf(start, end), maxOf(start, end), emoji)
     }
 
     private var isCurrentlyEmittingTyping = false
@@ -2254,16 +2326,38 @@ class ChatActivityInHouse : AppCompatActivity() {
         val tempIndex = messages.indexOfFirst { it.id == tempId }
         if (tempIndex == -1) return false
 
-        val existingReactions = messages[tempIndex].reactions
+        val tempMessage = messages[tempIndex]
+        val existingReactions = tempMessage.reactions
         // M18: ChatMessage.reactions is val — copy() instead of mutating in place.
-        messages[tempIndex] = realMessage.copy(reactions = existingReactions)
+        val replacement = realMessage.copy(reactions = existingReactions)
+        messages[tempIndex] = replacement
         pendingOutgoingByTempId.remove(tempId)
         messageSendMethod.remove(tempId)
         messageSendMethod[realMessage.id] = method
         // Bug 10: ack arrived — cancel the stuck-SENDING timeout.
         cancelSendingTimeout(tempId)
-        rebuildMessagesWithHeaders(messages.filterNot { it.isDateHeader })
-        chatAdapter.notifyDataSetChanged()
+
+        // BUG-03: the temp→confirmed swap sits at the SAME index with identical
+        // visible content — only the id and the tick (SENDING → SENT) change. A
+        // full rebuild + notifyDataSetChanged() rebinds every visible row, which
+        // is the second "blink" the user sees. Repaint just this one bubble so
+        // the send is flicker-free. Fall back to the structural rebuild only when
+        // the swap could actually change list structure:
+        //   • a confirmed twin already sits elsewhere (socket-echo race) — let the
+        //     rebuild's dedup collapse it, else we'd show the message twice; or
+        //   • the server timestamp lands on a different calendar day than the
+        //     optimistic temp (its date header needs recomputing).
+        val duplicateElsewhere = messages.withIndex().any { (i, m) ->
+            i != tempIndex && !m.isDateHeader && m.id == replacement.id
+        }
+        val dayChanged = tempMessage.date != null && replacement.date != null &&
+            !isSameDay(tempMessage.date, replacement.date)
+        if (duplicateElsewhere || dayChanged) {
+            rebuildMessagesWithHeaders(messages.filterNot { it.isDateHeader })
+            chatAdapter.notifyDataSetChanged()
+        } else {
+            chatAdapter.notifyItemChanged(tempIndex)
+        }
         return true
     }
 
@@ -4236,7 +4330,7 @@ class ChatActivityInHouse : AppCompatActivity() {
     private fun rebuildMessagesWithHeaders(source: List<ChatMessage>) {
         messages.clear()
         // CHAT-138: drop anything the user "Deleted for me" on this device.
-        val filtered = filterOutLocallyDeleted(source)
+        val filtered = filterOutClearedBeforeWatermark(filterOutLocallyDeleted(source))
         // CHAT-030: drop orphan SENDING temps whose server-confirmed twin is
         // already in the list. Stops the bubble spinner from sticking while
         // the chat list (which reads server state) already shows delivered.
@@ -4764,6 +4858,22 @@ class ChatActivityInHouse : AppCompatActivity() {
         // T11: prefs-backed setter so the NSE (possibly cross-process) reads it.
         com.gmwapp.hima.utils.ActiveChatTracker.setActive(this, peerUserId)
 
+        // BUG-10: re-sync the I-blocked-them state from the local prefs cache on
+        // every resume. Block / Unblock done from the peer's profile screen
+        // updates BlockedPeersPrefsHelper + broadcasts a list refresh, but the
+        // chat-detail's onResume history reload is skipped by the C1 fresh-cache
+        // optimization — so without this re-seed the locked banner + disabled
+        // composer would stay stale after unblocking (or blocking) from the
+        // profile. peerHasBlockedMe stays server-driven via the history path.
+        if (peerUserId > 0) {
+            val blockedNow = com.gmwapp.hima.utils.BlockedPeersPrefsHelper
+                .isBlocked(this, peerUserId.toString())
+            if (blockedNow != iHaveBlockedThisUser) {
+                iHaveBlockedThisUser = blockedNow
+                applyBlockedUiState()
+            }
+        }
+
         if (!chatRefreshReceiverRegistered) {
             val filter = IntentFilter(
                 com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_REFRESH
@@ -4975,6 +5085,12 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     override fun onBackPressed() {
+        // TC_CH_003: an open emoji panel swallows the first back press, like the
+        // soft keyboard would, instead of leaving the chat.
+        if (emojiPicker?.visibility == View.VISIBLE) {
+            hideEmojiPicker(showKeyboard = false)
+            return
+        }
         Log.d(CHAT_REOPEN_LOG, "onBackPressed peer=$peerUserId")
         markReadOnExit()
         super.onBackPressed()
@@ -5068,6 +5184,16 @@ class ChatActivityInHouse : AppCompatActivity() {
             acceptAsFriend()
         }
 
+        // TC_CH_004: Clear chat / Delete chat (same actions as the male menu path)
+        popupView.findViewById<TextView>(R.id.item_clear_chat)?.setOnClickListener {
+            popupWindow.dismiss()
+            showClearChatConfirmation()
+        }
+        popupView.findViewById<TextView>(R.id.item_delete_chat)?.setOnClickListener {
+            popupWindow.dismiss()
+            showDeleteChatConfirmation()
+        }
+
         // Measure popup to get its width
         popupView.measure(
             android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED),
@@ -5107,6 +5233,17 @@ class ChatActivityInHouse : AppCompatActivity() {
         popup.menu.findItem(R.id.action_block)?.isVisible = !iHaveBlockedThisUser
         popup.menu.findItem(R.id.action_unblock)?.isVisible = iHaveBlockedThisUser
 
+        // TC_CH_004: tint "Delete chat" red so the destructive action reads as such
+        // in the stock PopupMenu (which has no per-item colour attribute).
+        popup.menu.findItem(R.id.action_delete_chat)?.let { item ->
+            val span = android.text.SpannableString(item.title)
+            span.setSpan(
+                android.text.style.ForegroundColorSpan(android.graphics.Color.parseColor("#DC2626")),
+                0, span.length, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            item.title = span
+        }
+
         popup.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.action_accept_as_friend -> {
@@ -5121,10 +5258,152 @@ class ChatActivityInHouse : AppCompatActivity() {
                     showUnblockConfirmationDialog()
                     true
                 }
+                R.id.action_clear_chat -> {
+                    showClearChatConfirmation()
+                    true
+                }
+                R.id.action_delete_chat -> {
+                    showDeleteChatConfirmation()
+                    true
+                }
                 else -> false
             }
         }
         popup.show()
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // TC_CH_004: Clear chat / Delete chat (device-local, WhatsApp-style)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private fun showClearChatConfirmation() {
+        showChatActionConfirmation(
+            iconRes = R.drawable.ic_close_circle,
+            accentColorHex = "#ff1383",
+            titleRes = R.string.chat_clearchat_title,
+            messageRes = R.string.chat_clearchat_message,
+            confirmTextRes = R.string.chat_clearchat_confirm
+        ) { clearChatLocally() }
+    }
+
+    private fun showDeleteChatConfirmation() {
+        showChatActionConfirmation(
+            iconRes = R.drawable.delete,
+            accentColorHex = "#DC2626",
+            titleRes = R.string.chat_deletechat_title,
+            messageRes = R.string.chat_deletechat_message,
+            confirmTextRes = R.string.chat_deletechat_confirm
+        ) { deleteChatLocally() }
+    }
+
+    /** Reusable confirm dialog for the chat overflow's destructive actions. */
+    private fun showChatActionConfirmation(
+        iconRes: Int,
+        accentColorHex: String,
+        titleRes: Int,
+        messageRes: Int,
+        confirmTextRes: Int,
+        onConfirm: () -> Unit
+    ) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_chat_action_confirmation, null)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        val color = android.graphics.Color.parseColor(accentColorHex)
+        val ivIcon = dialogView.findViewById<ImageView>(R.id.iv_icon)
+        ivIcon.setImageResource(iconRes)
+        ContextCompat.getDrawable(this, R.drawable.circle_bg_accent)?.mutate()?.let { bg ->
+            bg.setTint(color)
+            ivIcon.background = bg
+        }
+
+        dialogView.findViewById<TextView>(R.id.tv_title).setText(titleRes)
+        dialogView.findViewById<TextView>(R.id.tv_message).setText(messageRes)
+
+        val btnConfirm = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_confirm)
+        btnConfirm.setText(confirmTextRes)
+        btnConfirm.backgroundTintList = android.content.res.ColorStateList.valueOf(color)
+        btnConfirm.setOnClickListener {
+            dialog.dismiss()
+            onConfirm()
+        }
+        dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_cancel).setOnClickListener {
+            dialog.dismiss()
+        }
+        dialog.show()
+    }
+
+    /**
+     * Empties this thread on-device. Records a clear watermark (newest message id
+     * present), drops the in-memory list + cache snapshot, and refreshes the chat
+     * list so the row preview blanks. The thread stays in the list; history is
+     * filtered on every later load so it stays empty until a NEWER message arrives.
+     * Local-only — the peer keeps their copy.
+     */
+    private fun clearChatLocally() {
+        val watermark = newestNumericMessageId()
+        if (peerUserId > 0 && watermark > 0L) {
+            ClearedChatsPrefsHelper.setCleared(this, peerUserId.toString(), watermark)
+        }
+        messages.clear()
+        chatAdapter.notifyDataSetChanged()
+        updateTopHeader(messages)
+        // Drop the in-memory snapshot so a same-session reopen can't rehydrate
+        // pre-clear history (a process restart already starts from an empty cache).
+        if (peerUserId > 0) historyCache.putSnapshot(peerUserId, emptyList())
+        broadcastChatListRefresh()
+        showAppToast(getString(R.string.chat_clearchat_toast), Toast.LENGTH_SHORT)
+    }
+
+    /**
+     * Removes this thread from the chat list on-device (WhatsApp-style) and closes
+     * back to the list. Records a delete watermark (thread reappears only when a
+     * newer message arrives) plus a clear watermark (a reappeared thread opens
+     * empty). Local-only — the peer + server are untouched.
+     */
+    private fun deleteChatLocally() {
+        val watermark = newestNumericMessageId()
+        if (peerUserId > 0) {
+            DeletedChatsPrefsHelper.setDeleted(this, peerUserId.toString(), watermark)
+            if (watermark > 0L) {
+                ClearedChatsPrefsHelper.setCleared(this, peerUserId.toString(), watermark)
+            }
+            historyCache.putSnapshot(peerUserId, emptyList())
+        }
+        broadcastChatListRefresh()
+        showAppToast(getString(R.string.chat_deletechat_toast), Toast.LENGTH_SHORT)
+        finish()
+    }
+
+    /** Newest server-confirmed (numeric-id) message currently in the list, or 0. */
+    private fun newestNumericMessageId(): Long =
+        messages.asSequence().mapNotNull { it.id.toLongOrNull() }.maxOrNull() ?: 0L
+
+    private fun broadcastChatListRefresh() {
+        val refresh = android.content.Intent(
+            com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension.ACTION_CHAT_LIST_REFRESH
+        ).setPackage(packageName)
+        sendBroadcast(refresh)
+    }
+
+    /**
+     * TC_CH_004: drop history at or below the local "Clear chat" watermark for this
+     * peer. Clear is local-only (the server re-sends everything), so every list
+     * rebuild filters server/cache rows against the persisted watermark. Date headers
+     * and pending/temp rows (non-numeric ids) always pass — they're never stale.
+     */
+    private fun filterOutClearedBeforeWatermark(source: List<ChatMessage>): List<ChatMessage> {
+        if (peerUserId <= 0) return source
+        val watermark = ClearedChatsPrefsHelper.watermark(this, peerUserId.toString())
+        if (watermark <= 0L) return source
+        return source.filter { msg ->
+            if (msg.isDateHeader) return@filter true
+            val idLong = msg.id.toLongOrNull() ?: return@filter true
+            idLong > watermark
+        }
     }
 
     private fun showBlockConfirmationDialog() {

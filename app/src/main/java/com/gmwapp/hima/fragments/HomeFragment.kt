@@ -954,8 +954,11 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                         )
                     } catch (_: Exception) { null }
                 }
-                homeMyChatsRawConversations = mapped
-                val conversations = sortMyChatsPinnedFirst(mapped, activityCtx)
+                // TC_CH_004: hide "Deleted" threads + blank "Cleared" thread previews
+                // before they reach the adapter.
+                homeMyChatsRawConversations =
+                    com.gmwapp.hima.utils.LocalChatListState.apply(activityCtx, mapped)
+                val conversations = sortMyChatsPinnedFirst(homeMyChatsRawConversations, activityCtx)
 
                 lateinit var chatListAdapter: com.gmwapp.hima.adapters.ChatListAdapter
                 chatListAdapter = com.gmwapp.hima.adapters.ChatListAdapter(

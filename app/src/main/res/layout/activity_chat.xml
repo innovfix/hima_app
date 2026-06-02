@@ -654,9 +654,22 @@
                 android:background="@drawable/chat_input_background"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingStart="16dp"
+                android:paddingStart="10dp"
                 android:paddingEnd="6dp"
                 android:paddingVertical="2dp">
+
+                <!-- TC_CH_003: emoji affordance inside the pill, left of the
+                     input. Toggles emoji_picker below; tint matches iv_attach. -->
+                <ImageView
+                    android:id="@+id/iv_emoji"
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:layout_marginEnd="8dp"
+                    android:clickable="true"
+                    android:contentDescription="@string/chat_emoji_desc"
+                    android:focusable="true"
+                    android:src="@drawable/ic_emoji_smile"
+                    app:tint="@color/chat_attach_tint" />
 
                 <EditText
                     android:id="@+id/et_message"
@@ -703,6 +716,16 @@
                     android:visibility="gone" />
             </FrameLayout>
         </LinearLayout>
+
+        <!-- TC_CH_003: in-app emoji picker. Hidden until the smiley is tapped;
+             takes the place of the soft keyboard while open. -->
+        <androidx.emoji2.emojipicker.EmojiPickerView
+            android:id="@+id/emoji_picker"
+            android:layout_width="match_parent"
+            android:layout_height="260dp"
+            android:layout_marginTop="8dp"
+            android:visibility="gone"
+            app:emojiGridColumns="9" />
     </LinearLayout>
 
     <!-- Story 6: Never subscribed — subscribe to unlock chat -->

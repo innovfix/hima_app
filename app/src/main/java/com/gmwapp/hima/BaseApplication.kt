@@ -1088,6 +1088,9 @@ class BaseApplication : Application(), Configuration.Provider {
             chatHistoryMemoryCache.clearAll()
             com.gmwapp.hima.utils.PinnedChatsPrefsHelper.clearAll(this)
             com.gmwapp.hima.utils.BlockedPeersPrefsHelper.clearAll(this)
+            // TC_CH_004: drop local Clear/Delete chat watermarks on logout / clear_data.
+            com.gmwapp.hima.utils.ClearedChatsPrefsHelper.clearAll(this)
+            com.gmwapp.hima.utils.DeletedChatsPrefsHelper.clearAll(this)
             com.gmwapp.hima.utils.ChatNotificationStore.clearAll(this)
             // CHAT-108: drop any persisted composer drafts on clear_data /
             // logout so a fresh login never sees the previous user's drafts.

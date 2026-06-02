@@ -107,6 +107,9 @@ class BottomSheetLogout : BottomSheetDialogFragment() {
             val ctx = requireContext().applicationContext
             com.gmwapp.hima.utils.PinnedChatsPrefsHelper.clearAll(ctx)
             com.gmwapp.hima.utils.BlockedPeersPrefsHelper.clearAll(ctx)
+            // TC_CH_004: drop local Clear/Delete chat watermarks on logout.
+            com.gmwapp.hima.utils.ClearedChatsPrefsHelper.clearAll(ctx)
+            com.gmwapp.hima.utils.DeletedChatsPrefsHelper.clearAll(ctx)
             com.gmwapp.hima.utils.ChatNotificationStore.clearAll(ctx)
             // CHAT-108: clear persisted composer drafts on logout too.
             com.gmwapp.hima.utils.ChatDraftStore.clearAll(ctx)
