@@ -11,6 +11,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.util.Log
+import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -375,6 +376,31 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Log.e("PulseAnimation", "Error clearing animations: ${e.message}")
         }
+    }
+
+    /**
+     * One-press silence for the incoming ringtone — matches native phone-call
+     * behaviour. Consumes volume up/down while ringing so we stop the channel
+     * sound + MediaPlayer instead of just nudging STREAM_RING by one notch.
+     * The call screen stays up; user can still Accept/Decline.
+     */
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+            val ringing = BaseApplication.getInstance()?.isRingtonePlaying() == true
+            if (ringing) {
+                BaseApplication.getInstance()?.stopRingtone()
+                BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+                return true
+            }
+        }
+        // Wired headset hook / BT AVRCP play-pause = single-press accept on the
+        // incoming-call screen, matching native phone / WhatsApp parity.
+        if (keyCode == KeyEvent.KEYCODE_HEADSETHOOK ||
+            keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
+            binding.accpet.performClick()
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
     }
 
 }

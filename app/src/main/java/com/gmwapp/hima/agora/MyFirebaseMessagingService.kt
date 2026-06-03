@@ -331,10 +331,24 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
                         Log.d("callType", "$callType")
                         if (!isAppInBackground(applicationContext)) {
-                            Log.d(
-                                INCOMING_CALL_LOG_TAG,
-                                "female branch: foreground — relying on CallStyle heads-up only"
-                            )
+                            // Foreground: bring the full-screen accept screen up while
+                            // ringing so volume-key mute (onKeyDown in the accept
+                            // Activity) works and the user gets the native call UI.
+                            // When backgrounded/locked the CallStyle full-screen intent
+                            // auto-launches it, so we only launch here for foreground.
+                            Log.d(INCOMING_CALL_LOG_TAG, "female branch: foreground — launching FemaleCallAcceptActivity")
+                            val acceptIntent = Intent(this, com.gmwapp.hima.agora.female.FemaleCallAcceptActivity::class.java).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                                putExtra("CALL_TYPE", callType)
+                                putExtra("SENDER_ID", senderId)
+                                putExtra("CHANNEL_NAME", channelName)
+                                putExtra("Caller_NAME", receiverName)
+                                putExtra("Caller_Image", receiverImg)
+                                putExtra("CALL_ID", callId.toIntOrNull() ?: 0)
+                            }
+                            try { startActivity(acceptIntent) } catch (e: Exception) {
+                                Log.e(INCOMING_CALL_LOG_TAG, "startActivity FemaleAccept threw: ${e.message}")
+                            }
                         }
 
 //                        if (BaseApplication.getInstance()?.isAppInForeground() == true) {
@@ -429,10 +443,24 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
                         Log.d("MaleCallAccept_CallType", "$callType")
                         if (!isAppInBackground(applicationContext)) {
-                            Log.d(
-                                INCOMING_CALL_LOG_TAG,
-                                "male branch: foreground — relying on CallStyle heads-up only"
-                            )
+                            // Foreground: bring the full-screen accept screen up while
+                            // ringing so volume-key mute (onKeyDown in the accept
+                            // Activity) works and the user gets the native call UI.
+                            // When backgrounded/locked the CallStyle full-screen intent
+                            // auto-launches it, so we only launch here for foreground.
+                            Log.d(INCOMING_CALL_LOG_TAG, "male branch: foreground — launching MaleCallAcceptActivity")
+                            val acceptIntent = Intent(this, com.gmwapp.hima.agora.male.MaleCallAcceptActivity::class.java).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                                putExtra("CALL_TYPE", callType)
+                                putExtra("SENDER_ID", senderId)
+                                putExtra("CHANNEL_NAME", channelName)
+                                putExtra("Caller_NAME", receiverName)
+                                putExtra("Caller_Image", receiverImg)
+                                putExtra("CALL_ID", callId.toIntOrNull() ?: 0)
+                            }
+                            try { startActivity(acceptIntent) } catch (e: Exception) {
+                                Log.e(INCOMING_CALL_LOG_TAG, "startActivity MaleAccept threw: ${e.message}")
+                            }
                         }
 
                         if (currentActivity !is MainActivity &&

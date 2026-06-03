@@ -1240,10 +1240,75 @@ class BaseApplication : Application(), Configuration.Provider {
         }
     }
 
+    // ---- Volume-button silence for the incoming ringtone (Activity-independent) ----
+    // We play the ringtone via our own MediaPlayer, so the OS "press volume to
+    // silence ringer" never reaches it, and Activity.onKeyDown only fires when the
+    // full-screen accept screen actually has focus — which doesn't happen when the
+    // call shows only as a heads-up notification. A ContentObserver on the system
+    // volume catches the hardware press in EVERY case: any ring/notification/music/
+    // voice volume change while ringing → stop the ringtone.
+    private var ringtoneVolumeObserver: android.database.ContentObserver? = null
+    private var ringtoneVolumeBaseline: IntArray? = null
+    private val ringtoneWatchedStreams = intArrayOf(
+        AudioManager.STREAM_RING,
+        AudioManager.STREAM_NOTIFICATION,
+        AudioManager.STREAM_MUSIC,
+        AudioManager.STREAM_VOICE_CALL
+    )
+
+    private fun snapshotRingtoneVolumes(am: AudioManager): IntArray =
+        IntArray(ringtoneWatchedStreams.size) { i ->
+            runCatching { am.getStreamVolume(ringtoneWatchedStreams[i]) }.getOrDefault(-1)
+        }
+
+    private fun registerRingtoneVolumeObserver() {
+        if (ringtoneVolumeObserver != null) return
+        val am = applicationContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        ringtoneVolumeBaseline = snapshotRingtoneVolumes(am)
+        val observer = object : android.database.ContentObserver(
+            android.os.Handler(android.os.Looper.getMainLooper())
+        ) {
+            override fun onChange(selfChange: Boolean) {
+                super.onChange(selfChange)
+                val audio = applicationContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+                val now = snapshotRingtoneVolumes(audio)
+                val base = ringtoneVolumeBaseline
+                // Compare against baseline so unrelated Settings.System changes don't
+                // false-trigger; only an actual volume index change silences.
+                val changed = base == null || now.indices.any { now[it] != base[it] }
+                ringtoneVolumeBaseline = now
+                if (changed && isRingtonePlaying()) {
+                    Log.d("HimaIncomingCall", "volume changed while ringing → silencing ringtone")
+                    stopRingtone()
+                    cancelIncomingCallStyleNotification()
+                }
+            }
+        }
+        runCatching {
+            applicationContext.contentResolver.registerContentObserver(
+                android.provider.Settings.System.CONTENT_URI, true, observer
+            )
+            ringtoneVolumeObserver = observer
+            Log.d("HimaIncomingCall", "ringtone volume observer registered")
+        }
+    }
+
+    private fun unregisterRingtoneVolumeObserver() {
+        ringtoneVolumeObserver?.let { obs ->
+            runCatching { applicationContext.contentResolver.unregisterContentObserver(obs) }
+        }
+        ringtoneVolumeObserver = null
+        ringtoneVolumeBaseline = null
+    }
+
     fun playIncomingCallSound() {
         Log.d("HimaIncomingCall", "playIncomingCallSound: begin")
         // Stop any previous ringtone first
         stopRingtone()
+
+        // Catch hardware volume-button presses even when only a heads-up
+        // notification is showing (no focused Activity for onKeyDown).
+        registerRingtoneVolumeObserver()
 
         try {
             // Without a headset, use USAGE_NOTIFICATION_RINGTONE + MODE_RINGTONE (ring stream).
@@ -1723,6 +1788,7 @@ class BaseApplication : Application(), Configuration.Provider {
             Log.e("MediaPlayer", "Error stopping ringtone: ${e.message}")
         } finally {
             mediaPlayer = null
+            unregisterRingtoneVolumeObserver()
             revertRingtoneRouting()
             restoreRingtoneAudioState()
             Log.d("HimaIncomingCall", "stopRingtone: end released")
