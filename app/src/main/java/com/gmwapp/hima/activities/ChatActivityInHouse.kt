@@ -260,6 +260,11 @@ class ChatActivityInHouse : AppCompatActivity() {
     private var peerHasBlockedMe: Boolean = false
     private var tvBlockedBanner: android.widget.TextView? = null
 
+    // TC_026: creator (female) audio-call button on the chat page. Audio only —
+    // video stays hidden. Enabled while the peer is online.
+    private var isCreatorCallMode: Boolean = false
+    private var peerIsOnline: Boolean = false
+
     // T-CHAT-021: persistent blocked-state banner shown above the composer
     // when the current user has blocked this peer. Mirrors [iHaveBlockedThisUser].
     private var llBlockedBanner: LinearLayout? = null
@@ -1810,6 +1815,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         // female-side layout variant).
         if (::cvAudioCall.isInitialized) cvAudioCall.alpha = if (blocked) 0.4f else 1.0f
         if (::cvVideoCall.isInitialized) cvVideoCall.alpha = if (blocked) 0.4f else 1.0f
+        updateCreatorAudioCallButtonState() // TC_026: keep creator button in sync with block state
 
         // Block-aware presence: hide the online/last-seen indicator the
         // instant the block toggle lands (rather than waiting on the
@@ -2857,6 +2863,8 @@ class ChatActivityInHouse : AppCompatActivity() {
     private fun applyGlobalPresence(online: Boolean, lastSeen: String?) {
         mainHandler.post {
             if (!isUiSafe()) return@post
+            peerIsOnline = online
+            updateCreatorAudioCallButtonState() // TC_026: live enable/disable
             if (iHaveBlockedThisUser || peerHasBlockedMe) {
                 tvUserStatus.text = ""
                 tvUserStatus.visibility = View.GONE
@@ -2885,6 +2893,8 @@ class ChatActivityInHouse : AppCompatActivity() {
     private fun applyLivePresence(online: Boolean) {
         mainHandler.post {
             if (!isUiSafe()) return@post
+            peerIsOnline = online
+            updateCreatorAudioCallButtonState() // TC_026: live enable/disable
             // Block-aware presence: ignore the live socket presence event
             // entirely when blocked in either direction. The peer's join /
             // leave must not surface as "Online" or "Last seen just now".
@@ -5733,12 +5743,69 @@ class ChatActivityInHouse : AppCompatActivity() {
     private fun setupCallButtons() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val isMaleUser = userData?.gender?.equals(DConstants.MALE, ignoreCase = true) == true
-        
+        val isFemaleUser = userData?.gender?.equals(DConstants.FEMALE, ignoreCase = true) == true
+
         if (isMaleUser && peerUserId > 0 && myUserId > 0) {
             checkCallAvailability()
+        } else if (isFemaleUser && peerUserId > 0 && myUserId > 0) {
+            // TC_026: creators get an AUDIO-only call button to call the male peer.
+            setupCreatorAudioCallButton()
         } else {
             callButtonsContainer.visibility = View.GONE
         }
+    }
+
+    /**
+     * TC_026: single audio-only call button on the creator (female) chat page.
+     * Video stays hidden. Enabled when the peer is online; tapping places a
+     * female→male audio call via FemaleCallConnectingActivity (call_male_user).
+     */
+    private fun setupCreatorAudioCallButton() {
+        isCreatorCallMode = true
+        callButtonsContainer.visibility = View.VISIBLE
+        cvVideoCall.visibility = View.GONE
+        cvAudioCall.visibility = View.VISIBLE
+        updateCreatorAudioCallButtonState()
+        cvAudioCall.setOnClickListener {
+            when {
+                peerHasBlockedMe ->
+                    showAppToast(getString(R.string.chat_blocked_by_peer_toast), Toast.LENGTH_SHORT)
+                iHaveBlockedThisUser ->
+                    showAppToast(getString(R.string.chat_blocked_input_hint), Toast.LENGTH_SHORT)
+                !peerIsOnline ->
+                    CallUnavailableFeedback.show(this, findViewById(android.R.id.content), forAudio = true)
+                else -> initiateCreatorAudioCall()
+            }
+        }
+    }
+
+    /** TC_026: enabled (accent) when peer online & not blocked, else greyed. */
+    private fun updateCreatorAudioCallButtonState() {
+        if (!isCreatorCallMode || !::cvAudioCall.isInitialized) return
+        val enabled = peerIsOnline && !peerHasBlockedMe && !iHaveBlockedThisUser
+        cvAudioCall.isEnabled = enabled
+        cvAudioCall.setCardBackgroundColor(
+            ContextCompat.getColor(this, if (enabled) R.color.colorAccent else R.color.light_grey)
+        )
+        ivAudioCall.setColorFilter(
+            ContextCompat.getColor(this, if (enabled) R.color.white else R.color.grey_medium)
+        )
+    }
+
+    private fun initiateCreatorAudioCall() {
+        val userName = extractNameOnly(intent.getStringExtra("USER_NAME") ?: "User")
+        val userImage = intent.getStringExtra("USER_IMAGE") ?: ""
+        val callIntent = Intent(this, com.gmwapp.hima.agora.female.FemaleCallConnectingActivity::class.java).apply {
+            putExtra(DConstants.CALL_TYPE, "audio")
+            putExtra(DConstants.RECEIVER_ID, peerUserId)
+            putExtra(DConstants.RECEIVER_NAME, userName)
+            putExtra(DConstants.CALL_ID, 0)
+            putExtra(DConstants.IMAGE, userImage)
+            putExtra(DConstants.IS_RECEIVER_DETAILS_AVAILABLE, true)
+            putExtra(DConstants.TEXT, getString(R.string.wait_user_hint, userName))
+        }
+        com.gmwapp.hima.agora.FcmUtils.isUserAvailable = 1
+        startActivity(callIntent)
     }
 
     private fun checkCallAvailability() {
