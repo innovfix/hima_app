@@ -111,15 +111,27 @@ object ChatNotifications {
 
         val contentIntent = Intent(context, ChatActivityInHouse::class.java).apply {
             action = Intent.ACTION_VIEW
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra("USER_ID", peerId)
             putExtra("USER_NAME", peerName)
             putExtra("USER_IMAGE", peerImage)
         }
-        val contentPi = PendingIntent.getActivity(
+        // TC_025 / TC_010: open the chat with a synthesised back stack
+        // (Home → Chat) via TaskStackBuilder. This makes the notification tap
+        // open the chat reliably (including cold-start / killed-process cases —
+        // where the previous PendingIntent.getActivity-with-NEW_TASK pattern
+        // appeared to do nothing on some OEMs) and pressing Back returns to
+        // Home instead of exiting the app.
+        val homeIntent = Intent(context, com.gmwapp.hima.activities.MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val contentPi = androidx.core.app.TaskStackBuilder.create(context).run {
+            addNextIntent(homeIntent)
+            addNextIntent(contentIntent)
+            getPendingIntent(peerId, pendingIntentFlags(mutable = false))
+        } ?: PendingIntent.getActivity(
             context,
-            peerId, // requestCode per peer so the extras don't collide across senders
-            contentIntent,
+            peerId,
+            contentIntent.apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP },
             pendingIntentFlags(mutable = false)
         )
 

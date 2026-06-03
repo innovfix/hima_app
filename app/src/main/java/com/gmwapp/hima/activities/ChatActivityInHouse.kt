@@ -1554,8 +1554,11 @@ class ChatActivityInHouse : AppCompatActivity() {
         pendingOutgoingByTempId.remove(tempId)
         messageSendMethod.remove(tempId)
         messageSendMethod[realMessage.id] = method
-        rebuildMessagesWithHeaders(messages.filterNot { it.isDateHeader })
-        chatAdapter.notifyDataSetChanged()
+        // TC_003: re-render ONLY the swapped row (single tick → sent state) instead
+        // of telling the whole list to rebind. notifyDataSetChanged was redrawing
+        // every visible bubble on every send, which produced the "message blinks /
+        // flashes twice" effect on the just-sent row.
+        chatAdapter.notifyItemChanged(tempIndex)
         return true
     }
 
