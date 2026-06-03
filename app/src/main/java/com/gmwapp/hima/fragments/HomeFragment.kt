@@ -73,6 +73,9 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     /** Last my-chats payload (unsorted); re-sorted on pin toggle. */
     private var homeMyChatsRawConversations: List<com.gmwapp.hima.models.ChatConversation> = emptyList()
     private var homeMyChatsAdapter: com.gmwapp.hima.adapters.ChatListAdapter? = null
+    /** TC_030: peer ids we've asked the socket server to stream presence for. */
+    private val homeWatchedPresenceIds = mutableSetOf<Int>()
+    private var homePresenceCollectorStarted = false
 
     // Last-message timestamp (epoch seconds) at the moment a row was tapped.
     // Used to mask stale unread counts returned by my_chat that race mark_read.
@@ -987,6 +990,11 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 binding.rvProfiles.adapter = chatListAdapter
                 binding.rvProfiles.visibility = View.VISIBLE
                 updateMyChatsEmptyState()
+                // TC_030: subscribe to live presence for every peer in the list so
+                // their online dot updates in real time on the Home page (the chat
+                // detail already does this per-peer; Home previously only reflected
+                // the REST snapshot captured at load).
+                watchHomePresence(conversations)
             }
 
             override fun onFailure(call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.MyChatResponse>, t: Throwable) {
@@ -1191,6 +1199,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         if (filterType == "my_chats") {
             registerHomeChatListRefreshReceiver()
             startHomeCollectingSocketNewMessage()
+            startHomeCollectingPresence()
         }
     }
 
@@ -1352,6 +1361,43 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                         sentByMe = sentByMe,
                         lastMessageId = msg.id
                     )
+                }
+            }
+        }
+    }
+
+    /**
+     * TC_030: ask the socket server to stream presence for every peer currently
+     * in the my-chats list. The server only pushes presence_update to explicit
+     * watchers, so without this the Home rows never see live online/offline.
+     * Unwatches peers that dropped out of the list to avoid leaking subscriptions.
+     */
+    private fun watchHomePresence(conversations: List<com.gmwapp.hima.models.ChatConversation>) {
+        val socketManager = com.gmwapp.hima.socket.SocketManager.getInstance()
+        val wanted = conversations.mapNotNull { it.userId.toIntOrNull() }.filter { it > 0 }.toSet()
+        // Drop subscriptions for peers no longer shown.
+        (homeWatchedPresenceIds - wanted).forEach { socketManager.unwatchPresence(it) }
+        // Add subscriptions for new peers (watch_presence also returns the current state).
+        (wanted - homeWatchedPresenceIds).forEach { socketManager.watchPresence(it) }
+        homeWatchedPresenceIds.clear()
+        homeWatchedPresenceIds.addAll(wanted)
+    }
+
+    private fun startHomeCollectingPresence() {
+        if (homePresenceCollectorStarted) return
+        homePresenceCollectorStarted = true
+        val owner = viewLifecycleOwner
+        owner.lifecycleScope.launch {
+            owner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED) {
+                com.gmwapp.hima.socket.SocketManager.getInstance().presenceUpdates.collect { event ->
+                    if (!isAdded || filterType != "my_chats") return@collect
+                    val peerId = event.userId.toString()
+                    // Keep the backing list in sync so a later sort/refresh doesn't
+                    // revert the dot to its stale load-time value.
+                    homeMyChatsRawConversations = homeMyChatsRawConversations.map {
+                        if (it.userId == peerId) it.copy(isOnline = event.online) else it
+                    }
+                    homeMyChatsAdapter?.updateOnlineStatus(peerId, event.online)
                 }
             }
         }

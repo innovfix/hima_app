@@ -121,6 +121,21 @@ class ChatListAdapter(
     }
 
     /**
+     * TC_030: live presence — flip a single row's online dot when a
+     * presence_update arrives, without reloading the whole list. Returns true
+     * if the row exists (so the caller can keep its backing list in sync).
+     */
+    fun updateOnlineStatus(userId: String, online: Boolean): Boolean {
+        val idx = conversations.indexOfFirst { it.userId == userId }
+        if (idx < 0) return false
+        if (conversations[idx].isOnline != online) {
+            conversations[idx] = conversations[idx].copy(isOnline = online)
+            notifyItemChanged(idx)
+        }
+        return true
+    }
+
+    /**
      * Optimistically clears the unread badge for the row matching [userId]. Called
      * when the user taps a chat so the badge disappears instantly; the server-side
      * mark-read + next `my_chat` refresh will confirm the state on resume.
