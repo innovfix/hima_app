@@ -3064,6 +3064,30 @@ class ChatActivityInHouse : AppCompatActivity() {
             }
         }
 
+        // TC_007/008: real-time block/unblock. When the peer blocks or unblocks
+        // us (or we toggle it from another device), flip the blocked-by-peer UI
+        // live instead of waiting for the next chat_history reload.
+        lifecycleScope.launch {
+            socketManager.blockStatusChanged.collect { event ->
+                if (!isUiSafe()) return@collect
+                var changed = false
+                if (event.blockerId == peerUserId && event.blockedId == myUserId) {
+                    // The peer (un)blocked me.
+                    if (peerHasBlockedMe != event.blocked) {
+                        peerHasBlockedMe = event.blocked
+                        changed = true
+                    }
+                } else if (event.blockerId == myUserId && event.blockedId == peerUserId) {
+                    // I (un)blocked this peer from another device — stay in sync.
+                    if (iHaveBlockedThisUser != event.blocked) {
+                        iHaveBlockedThisUser = event.blocked
+                        changed = true
+                    }
+                }
+                if (changed) applyBlockedUiState()
+            }
+        }
+
         // Bug 8: peer typing indicator. Server fans out `user_typing` to
         // everyone in the chat room when the other side's composer fires.
         // Show "Typing..." in the header in place of Online/Last seen; auto

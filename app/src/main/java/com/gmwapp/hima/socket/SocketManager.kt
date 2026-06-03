@@ -96,6 +96,11 @@ class SocketManager private constructor() {
     private val _chatMessageDeleted = eventFlow<String>()
     val chatMessageDeleted: SharedFlow<String> = _chatMessageDeleted.asSharedFlow()
 
+    // TC_007/008: real-time block/unblock for the open chat so the
+    // blocked-by-peer UI flips live instead of only on chat_history reload.
+    private val _blockStatusChanged = eventFlow<BlockStatusEvent>()
+    val blockStatusChanged: SharedFlow<BlockStatusEvent> = _blockStatusChanged.asSharedFlow()
+
     /**
      * Delete-for-everyone consistency: the server emits `message_delete_ack` once it has
      * actually persisted `is_deleted` AND broadcast `message_deleted` to the peer, or
@@ -664,6 +669,21 @@ class SocketManager private constructor() {
                 }
             }
 
+            on("block_status_changed") { args ->
+                try {
+                    val payload = args.firstOrNull() as? JSONObject ?: return@on
+                    val blockerId = payload.optInt("blocker_id", 0)
+                    val blockedId = payload.optInt("blocked_id", 0)
+                    val blocked = payload.optInt("blocked", 0) == 1
+                    if (blockerId > 0 && blockedId > 0) {
+                        _blockStatusChanged.tryEmit(BlockStatusEvent(blockerId, blockedId, blocked))
+                        Log.d("ChatBlock", "Socket block_status_changed blocker=$blockerId blocked=$blockedId blocked=$blocked")
+                    }
+                } catch (e: Exception) {
+                    Log.e("ChatBlock", "Error parsing block_status_changed: ${e.message}", e)
+                }
+            }
+
             on("message_delete_ack") { args ->
                 try {
                     val payload = args.firstOrNull() as? JSONObject ?: return@on
@@ -1047,6 +1067,12 @@ data class PresenceEvent(
     val chatId: String,
     val online: Boolean,
     val lastActiveAt: String?
+)
+
+data class BlockStatusEvent(
+    val blockerId: Int,
+    val blockedId: Int,
+    val blocked: Boolean
 )
 
 data class MessagesReadEvent(
