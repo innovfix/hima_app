@@ -47,7 +47,11 @@ class FavouriteFragment : BaseFragment(), NetworkRetryable, Refreshable {
     private val limit = 10
     private var currentSortType = "recent"  // Default: recent
     private var hasMoreItems = true  // Track if there are more items to load
-    
+
+    // Refresh the favourites list immediately when a call-end settles server-side.
+    private var callListRefreshReceiver: android.content.BroadcastReceiver? = null
+    private var callListRefreshReceiverRegistered: Boolean = false
+
     // Debouncing for search
     private val searchHandler = Handler(Looper.getMainLooper())
     private var searchRunnable: Runnable? = null
@@ -229,6 +233,7 @@ class FavouriteFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
     override fun onResume() {
         super.onResume()
+        registerCallListRefreshReceiver()
 
         // Always refresh favorites list when returning to this screen
         Log.d("FavouriteFragment", "🔄 onResume - refreshing favourites list")
@@ -239,9 +244,46 @@ class FavouriteFragment : BaseFragment(), NetworkRetryable, Refreshable {
             FcmUtils.shouldRefreshCallList = 0
         }
     }
-    
+
+    override fun onPause() {
+        super.onPause()
+        unregisterCallListRefreshReceiver()
+    }
+
+    private fun registerCallListRefreshReceiver() {
+        if (callListRefreshReceiverRegistered) return
+        val ctx = context ?: return
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: android.content.Context?, intent: android.content.Intent?) {
+                if (!isAdded || intent?.action != DConstants.ACTION_CALL_LIST_REFRESH) return
+                Log.d("FavouriteFragment", "ACTION_CALL_LIST_REFRESH → reloading favourites")
+                FcmUtils.shouldRefreshCallList = 0
+                loadFavouritesList(resetData = true)
+            }
+        }
+        val filter = android.content.IntentFilter(DConstants.ACTION_CALL_LIST_REFRESH)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            ctx.registerReceiver(receiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            ctx.registerReceiver(receiver, filter)
+        }
+        callListRefreshReceiver = receiver
+        callListRefreshReceiverRegistered = true
+    }
+
+    private fun unregisterCallListRefreshReceiver() {
+        if (!callListRefreshReceiverRegistered) return
+        val ctx = context ?: return
+        val receiver = callListRefreshReceiver ?: return
+        runCatching { ctx.unregisterReceiver(receiver) }
+        callListRefreshReceiver = null
+        callListRefreshReceiverRegistered = false
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
+        unregisterCallListRefreshReceiver()
         // Clean up search handler
         searchRunnable?.let { searchHandler.removeCallbacks(it) }
     }

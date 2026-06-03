@@ -17,6 +17,11 @@ object DConstants {
     // W055: broadcast fired once the server-side call debit settles, so the
     // coin header can re-fetch instead of lagging the new balance.
     const val ACTION_COINS_REFRESH = "com.gmwapp.hima.ACTION_COINS_REFRESH"
+    // Broadcast fired once a call-end record settles on the server, so the
+    // Recent / Favourite call lists re-fetch immediately instead of waiting
+    // for the next manual refresh (CallUpdateWorker is a deferred job, so the
+    // list reload on resume otherwise races the server write).
+    const val ACTION_CALL_LIST_REFRESH = "com.gmwapp.hima.ACTION_CALL_LIST_REFRESH"
     const val OTP_RATE_LIMIT = "otp_rate_limit"
     const val TEXT = "text"
     const val AVATAR_ID = "avatar_id"

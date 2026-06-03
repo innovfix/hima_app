@@ -71,6 +71,18 @@ class CallUpdateWorker(
                         android.content.Intent(DConstants.ACTION_COINS_REFRESH)
                             .setPackage(applicationContext.packageName)
                     )
+                    // The call-end record is now committed server-side. Tell the
+                    // Recent/Favourite lists to refresh: the flag covers a later
+                    // onResume (list not foregrounded), the broadcast covers an
+                    // immediate in-place reload if the list is already on screen.
+                    // Without this, this deferred worker finishes AFTER the list
+                    // already reloaded, so the just-ended call never appears
+                    // until a manual pull-to-refresh.
+                    com.gmwapp.hima.agora.FcmUtils.shouldRefreshCallList = 1
+                    applicationContext.sendBroadcast(
+                        android.content.Intent(DConstants.ACTION_CALL_LIST_REFRESH)
+                            .setPackage(applicationContext.packageName)
+                    )
                     Result.success()
                 } else {
                     Log.e("CallUpdateWorkerCheck", "Call update failed with code: ${response.code}")

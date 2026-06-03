@@ -46,6 +46,12 @@ class RecentFragment : BaseFragment(), Refreshable {
     private val limit = 10
     private var currentSortType = "recent"  // Default: recent
     private var currentSearchQuery = ""  // Current search query
+
+    // Refreshes the list the moment a call-end record settles server-side
+    // (CallUpdateWorker / decline), so a just-ended call shows immediately
+    // even while this screen is foregrounded — no manual pull-to-refresh.
+    private var callListRefreshReceiver: android.content.BroadcastReceiver? = null
+    private var callListRefreshReceiverRegistered: Boolean = false
     private var currentDaysFilter = 0
     private var currentMissedCount = 0
     private var isProgrammaticChipSelection = false
@@ -408,6 +414,7 @@ class RecentFragment : BaseFragment(), Refreshable {
 
     override fun onResume() {
         super.onResume()
+        registerCallListRefreshReceiver()
 
         if (FcmUtils.isUserAvailable==0){
             loadCallsList(currentSortType, resetData = true)
@@ -424,8 +431,45 @@ class RecentFragment : BaseFragment(), Refreshable {
         loadMissedCallCount(seen = 1)
     }
 
+    override fun onPause() {
+        super.onPause()
+        unregisterCallListRefreshReceiver()
+    }
+
+    private fun registerCallListRefreshReceiver() {
+        if (callListRefreshReceiverRegistered) return
+        val ctx = context ?: return
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: android.content.Context?, intent: android.content.Intent?) {
+                if (!isAdded || intent?.action != DConstants.ACTION_CALL_LIST_REFRESH) return
+                Log.d("RecentFragment", "ACTION_CALL_LIST_REFRESH → reloading call list")
+                FcmUtils.shouldRefreshCallList = 0
+                loadCallsList(currentSortType, resetData = true, searchQuery = currentSearchQuery)
+            }
+        }
+        val filter = android.content.IntentFilter(DConstants.ACTION_CALL_LIST_REFRESH)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            ctx.registerReceiver(receiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            ctx.registerReceiver(receiver, filter)
+        }
+        callListRefreshReceiver = receiver
+        callListRefreshReceiverRegistered = true
+    }
+
+    private fun unregisterCallListRefreshReceiver() {
+        if (!callListRefreshReceiverRegistered) return
+        val ctx = context ?: return
+        val receiver = callListRefreshReceiver ?: return
+        runCatching { ctx.unregisterReceiver(receiver) }
+        callListRefreshReceiver = null
+        callListRefreshReceiverRegistered = false
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
+        unregisterCallListRefreshReceiver()
         // Clean up search handler
         searchRunnable?.let { searchHandler.removeCallbacks(it) }
         // Clean up listeners when fragment is destroyed
