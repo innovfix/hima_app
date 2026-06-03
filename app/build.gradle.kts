@@ -54,11 +54,12 @@ android {
             // deliver on this flavor — until then expect empty subscription
             // records (token="", enabled=false). In-app behaviour is unaffected.
             // buildConfigField("String", "BASE_URL", "\"http://192.168.29.190/hima-admin-panel/public/api/auth/\"")
-            // Moved off demolivedb 2026-05-26 — chat delete-for-everyone fix
-            // (CHAT-013/014) and the rest of the chat_delete_endpoint branch
-            // live on demohima only. Bringing both flavors to demohima so the
-            // app hits the same backend the admin panel deploys to.
-            buildConfigField("String", "BASE_URL", "\"https://demohima.himaapp.in/api/auth/\"")
+            // Temporarily pointed at demolivedb (LIVE) for call-feature QA.
+            // demohima's Firebase service-account key is rejected by Google
+            // (invalid_grant / "Invalid JWT Signature"), so incoming-call FCM
+            // pushes never reach the receiver there; demolivedb has a valid key.
+            // REVERT to demohima once demohima's storage/firebase.json is regenerated.
+            buildConfigField("String", "BASE_URL", "\"https://demolivedb.himaapp.in/api/auth/\"")
             buildConfigField("String", "ONESIGNAL_APP_ID", "\"5cd4154a-1ece-4c3b-b6af-e88bafee64cd\"")
         }
         create("production") {
