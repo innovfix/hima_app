@@ -8,9 +8,9 @@ import android.content.SharedPreferences
  *
  * Counts consecutive failed outbound-call attempts (cancel, no-pickup,
  * rejected) for each (myUserId, peerUserId) pair. Once the user hits
- * [THRESHOLD] failures against a SPECIFIC peer, a 1-minute cooldown locks
- * out further outbound calls to that peer only — calls to other peers are
- * unaffected. Surfaced to the user as a toast, since the server-side
+ * [THRESHOLD] (3) failures against a SPECIFIC peer, a 1-hour cooldown
+ * locks out the very next (4th) outbound call to that peer only — calls to
+ * other peers are unaffected. Surfaced to the user as a toast, since the server-side
  * throttle the QA team observed gives ZERO feedback.
  *
  * Counter resets to 0 in two cases:
@@ -27,8 +27,8 @@ object CallAttemptTracker {
     private const val KEY_COUNT_PREFIX = "failed_count_"
     private const val KEY_COOLDOWN_UNTIL_PREFIX = "cooldown_until_"
 
-    const val THRESHOLD: Int = 4
-    const val COOLDOWN_MS: Long = 60_000L // 1 minute
+    const val THRESHOLD: Int = 3
+    const val COOLDOWN_MS: Long = 3_600_000L // 1 hour
 
     private fun prefs(context: Context): SharedPreferences =
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -50,7 +50,7 @@ object CallAttemptTracker {
     /**
      * Record one failed outbound-call attempt to [peerUserId]. When the
      * cumulative count for this peer crosses [THRESHOLD] this also opens a
-     * 1-minute cooldown against that peer.
+     * 1-hour cooldown against that peer.
      */
     fun recordFailedAttempt(context: Context, peerUserId: Int) {
         if (peerUserId <= 0) return
@@ -68,7 +68,7 @@ object CallAttemptTracker {
     }
 
     /**
-     * True iff the user is currently inside a 1-minute cooldown for calls to
+     * True iff the user is currently inside a 1-hour cooldown for calls to
      * [peerUserId]. When the deadline has just passed, this call also wipes
      * the per-peer deadline and counter so the next tap starts fresh.
      */
@@ -98,7 +98,7 @@ object CallAttemptTracker {
     /**
      * Wipe the counter + any cooldown for the (myUserId, [peerUserId]) pair —
      * call this when an outbound call to that peer genuinely connects so a
-     * recovered run starts with the full 4-attempt budget again.
+     * recovered run starts with the full 3-attempt budget again.
      */
     fun clearAttempts(context: Context, peerUserId: Int) {
         if (peerUserId <= 0) return

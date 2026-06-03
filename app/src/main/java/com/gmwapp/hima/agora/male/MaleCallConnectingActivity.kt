@@ -106,9 +106,9 @@ class MaleCallConnectingActivity : AppCompatActivity() {
             insets
         }
 
-        // CALL-104: per-peer rapid-call cooldown gate. 4 failed attempts
-        // against the SAME peer → 1-minute block for calls TO that peer
-        // only. Tap during cooldown → toast + activity finishes
+        // CALL-104: per-peer rapid-call cooldown gate. 3 failed attempts
+        // against the SAME peer → the 4th call is blocked for 1 hour, for
+        // calls TO that peer only. Tap during cooldown → toast + activity finishes
         // immediately, before any API/FCM call fires. Counter is cleared
         // on successful connect (see acceptCall branch) and on cooldown
         // expiry. Read receiverId early — the rest of the intent extras
