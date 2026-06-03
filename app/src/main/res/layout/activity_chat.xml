@@ -121,9 +121,13 @@
                             android:textSize="12sp"
                             android:textColor="@color/online_green"
                             android:fontFamily="@font/poppins_medium"
-                            android:maxLines="1"
-                            android:ellipsize="end"
-                            android:includeFontPadding="false" />
+                            android:includeFontPadding="false"
+                            android:singleLine="true"
+                            android:scrollHorizontally="true"
+                            android:ellipsize="marquee"
+                            android:marqueeRepeatLimit="marquee_forever"
+                            android:focusable="true"
+                            android:focusableInTouchMode="true" />
                     </LinearLayout>
                 </LinearLayout>
             </LinearLayout>

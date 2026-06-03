@@ -625,6 +625,11 @@ class ChatActivityInHouse : AppCompatActivity() {
         ivUser = findViewById(R.id.iv_user)
         tvUserName = findViewById(R.id.tv_user_name)
         tvUserStatus = findViewById(R.id.tv_user_status)
+        // TC_033: marquee the last-seen text so long values ("Last seen today at
+        // 12:01 pm") scroll instead of truncating. Android only animates the
+        // marquee while the view is "selected", and only when the text actually
+        // overflows the width (short states like "Online" stay static).
+        tvUserStatus.isSelected = true
         vOnlineIndicator = findViewById(R.id.v_online_indicator)
         recordingBar = findViewById(R.id.recording_bar)
         tvRecordingTimer = findViewById(R.id.tv_recording_timer)
