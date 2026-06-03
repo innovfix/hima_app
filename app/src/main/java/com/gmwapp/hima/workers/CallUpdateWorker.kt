@@ -85,6 +85,13 @@ class CallUpdateWorker(
                     )
                     Result.success()
                 } else {
+                    // KNOWN GAP: on a failed write we do NOT signal a list refresh,
+                    // so a call whose end-record failed won't appear on Recent until
+                    // a manual pull-to-refresh. We deliberately do NOT Result.retry()
+                    // here: this POST is non-idempotent (records/debits the call), so
+                    // a retry after a server-side success-but-lost-response would
+                    // double-record. Reliable retry needs server-side idempotency
+                    // (dedupe by call_id) before it's safe to enable.
                     Log.e("CallUpdateWorkerCheck", "Call update failed with code: ${response.code}")
                     Result.failure()
                 }
