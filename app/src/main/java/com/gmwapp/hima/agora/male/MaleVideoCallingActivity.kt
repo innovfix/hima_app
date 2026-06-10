@@ -4,6 +4,7 @@ import android.content.pm.PackageManager
 import android.graphics.PixelFormat
 import android.media.AudioManager
 import android.os.Bundle
+import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -1608,22 +1609,10 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
                     }else{
                         hideRemoteBlurState()
-                        
-                        // Re-setup remote video to ensure it's properly rendered when switching from audio to video
-                        binding.remoteVideoViewContainer.removeAllViews()
-                        remoteSurfaceView = SurfaceView(this@MaleVideoCallingActivity)
-                        remoteSurfaceView!!.setZOrderMediaOverlay(false)
-                        remoteSurfaceView!!.visibility = View.VISIBLE
-                        binding.remoteVideoViewContainer.addView(remoteSurfaceView)
-                        agoraEngine?.setupRemoteVideo(
-                            VideoCanvas(
-                                remoteSurfaceView,
-                                VideoCanvas.RENDER_MODE_HIDDEN,
-                                uid
-                            )
-                        )
+                        // Route through the surface-safe setup so unmute / audio→video
+                        // can't reintroduce the black-frame race.
+                        setupRemoteVideo(uid)
                         binding.remoteVideoViewContainer.bringToFront()
-
                     }
                 }
 
@@ -1638,6 +1627,28 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                 binding.remoteMicMutedPill.visibility = if (muted) View.VISIBLE else View.GONE
                 // Perumal 2026-05-22: also drive the visible badge for peer mute.
                 updateMuteBadge(peerMuted = muted)
+            }
+        }
+
+        override fun onRemoteVideoStateChanged(uid: Int, state: Int, reason: Int, elapsed: Int) {
+            super.onRemoteVideoStateChanged(uid, state, reason, elapsed)
+            Log.d(
+                "VideoCallFlow",
+                "MaleVideo.onRemoteVideoStateChanged uid=$uid state=$state reason=$reason"
+            )
+            // Recovery path the code previously lacked: if the remote is decoding
+            // but the canvas was never created (missed onUserJoined / recreation),
+            // bind it now. Deliberately acts ONLY when the surface is genuinely
+            // MISSING — it must not override the GONE state owned by the mute-blur
+            // logic (which hides the view without removing it). Agora auto-resumes
+            // rendering into an existing bound canvas after a freeze, so no
+            // force-show is needed here.
+            if ((state == Constants.REMOTE_VIDEO_STATE_STARTING ||
+                    state == Constants.REMOTE_VIDEO_STATE_DECODING) &&
+                (binding.remoteVideoViewContainer.childCount == 0 || remoteSurfaceView == null)
+            ) {
+                videoUid = uid
+                runOnUiThread { setupRemoteVideo(uid) }
             }
         }
     }
@@ -1713,18 +1724,32 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         agoraEngine?.setupRemoteVideo(
             VideoCanvas(null, VideoCanvas.RENDER_MODE_HIDDEN, uid)
         )
-        remoteSurfaceView = SurfaceView(baseContext)
-        remoteSurfaceView!!.setZOrderMediaOverlay(false)
-        binding.remoteVideoViewContainer.addView(remoteSurfaceView)
-        agoraEngine!!.setupRemoteVideo(
-            VideoCanvas(
-                remoteSurfaceView,
-                VideoCanvas.RENDER_MODE_HIDDEN,
-                uid
-            )
-        )
-        remoteSurfaceView!!.visibility = View.VISIBLE
+        // Rebuild on a fresh view so a stale/dead surface never lingers.
+        binding.remoteVideoViewContainer.removeAllViews()
+        val surface = SurfaceView(this)
+        surface.setZOrderMediaOverlay(false)
+        remoteSurfaceView = surface
+        binding.remoteVideoViewContainer.addView(surface)
         binding.remoteVideoViewContainer.visibility = View.VISIBLE
+
+        // Bind the Agora canvas ONLY once the Surface actually exists. The old code
+        // bound synchronously right after addView(), racing Android's async surface
+        // creation: if the surface wasn't ready the renderer attached to nothing and
+        // — with no retry path — the remote view stayed black for the whole call
+        // while the timer kept running. surfaceCreated() guarantees a live surface,
+        // and re-fires on resume so backgrounding recovers too.
+        surface.holder.addCallback(object : SurfaceHolder.Callback {
+            override fun surfaceCreated(holder: SurfaceHolder) {
+                Log.d("VideoCallFlow", "MaleVideo.remoteSurfaceCreated uid=$uid -> bind canvas")
+                agoraEngine?.setupRemoteVideo(
+                    VideoCanvas(surface, VideoCanvas.RENDER_MODE_HIDDEN, uid)
+                )
+                surface.visibility = View.VISIBLE
+            }
+
+            override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
+            override fun surfaceDestroyed(holder: SurfaceHolder) {}
+        })
     }
 
     private fun setupLocalVideo() {
@@ -2031,24 +2056,15 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
             options.channelProfile = Constants.CHANNEL_PROFILE_COMMUNICATION
             options.clientRoleType = Constants.CLIENT_ROLE_BROADCASTER
-
-            // Defensive symmetry with the female-side fix: a caller with a
-            // broken camera would crash the same way. Skip camera setup, join
-            // audio-only, peer sees the avatar skeleton (B058).
-            val cameraOk = com.gmwapp.hima.utils.CameraAvailability.isCameraAvailable(this)
-            if (cameraOk) {
-                setupLocalVideo()
-                localSurfaceView!!.visibility = View.VISIBLE
-                agoraEngine!!.startPreview()
-            } else {
-                Log.w("CameraFallback", "MaleVideo.joinChannel: camera unavailable, joining audio-only")
-                agoraEngine!!.enableLocalVideo(false)
-                agoraEngine!!.muteLocalVideoStream(true)
-                binding.localCardView.visibility = View.GONE
-                showMessage(getString(R.string.call_no_camera_fallback))
-            }
-
-            agoraEngine!!.joinChannel(token, channelName, uid, options)
+            // Make remote subscription explicit — other paths flip these to false
+            // when switching to audio; don't inherit a stale "don't subscribe" state.
+            options.autoSubscribeVideo = true
+            options.autoSubscribeAudio = true
+            setupLocalVideo()
+            localSurfaceView!!.visibility = View.VISIBLE
+            agoraEngine!!.startPreview()
+            val result = agoraEngine!!.joinChannel(token, channelName, uid, options)
+            Log.d("VideoCallFlow", "MaleVideo.joinChannel.result result=$result channel=$channelName callId=$callId")
         } else {
             // Permission revoked between onCreate and here — usually the OS
             // auto-revoked an "Only this time" grant after extended background.
