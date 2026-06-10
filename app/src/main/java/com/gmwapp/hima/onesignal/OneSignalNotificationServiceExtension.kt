@@ -59,14 +59,18 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
                 return
             }
 
-            // If the user is already inside an Agora call, drop any server-side
-            // OneSignal *incoming* call push before it can ring a second time. The
-            // FCM CallStyle path already guards on `currentActivity`, but OneSignal
-            // pushes are separate and would otherwise stack in the tray.
-            //
-            // Missed-call pushes are explicitly excluded — they arrive *after* a
-            // call ends, so a tiny race where `isInActiveCall()` is still true
-            // would otherwise eat the missed-call notification entirely.
+            // 2026-06-05 v1108 FIX #6: RE-ADDED the in-active-call suppression.
+            // Original removal was over-correction — the stuck-state risk that
+            // motivated the removal is now neutralised by:
+            //   * BaseApplication.onCreate resets isCallActive=false on cold start
+            //   * BaseApplication.onCreate resets AudioManager.mode to MODE_NORMAL
+            //   * activeCallActivityCount also reset to 0
+            // Without this suppression the OneSignal extension was firing the
+            // CallStyle ring notification on top of an already-active call
+            // (creator spoke about getting "missed call" notifications mid-call).
+            // FCM service has its own busy-check that handles missed-call posting
+            // for genuinely-busy cases, so this suppression is purely about
+            // not double-ringing on top of an active in-app call.
             if (com.gmwapp.hima.BaseApplication.getInstance()?.isInActiveCall() == true &&
                 isCallPush(event.notification) &&
                 !isMissedCallPush(event.notification)
@@ -134,9 +138,16 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
         if (!isCallPush(event.notification)) return false
         if (isMissedCallPush(event.notification)) return false
 
-        val callType = firstNonEmpty(data, "callType", "call_type")
+        // 2026-06-05 v1108 REAL FIX: backend sends "caller_id" and "type"
+        // ("audio"/"video"); previous extraction only checked senderId/sender_id/
+        // user_id and callType/call_type, so senderId became 0 → return false →
+        // CallStyle ring UI never posted → creators only saw OneSignal default
+        // text ("missed call") with NO RING. Added the two backend field names
+        // so the call ring notification actually fires.
+        val callType = firstNonEmpty(data, "callType", "call_type", "type")
         val senderId = data.optInt("senderId", 0).takeIf { it > 0 }
             ?: data.optInt("sender_id", 0).takeIf { it > 0 }
+            ?: data.optInt("caller_id", 0).takeIf { it > 0 }
             ?: data.optInt("user_id", 0)
         val callId = data.optInt("call_id", 0)
         val channelName = firstNonEmpty(data, "channelName", "channel_name") ?: "default_channel"

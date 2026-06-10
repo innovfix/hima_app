@@ -150,9 +150,23 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         if (remoteMessage.data.isNotEmpty()) {
             val type = remoteMessage.data["type"] ?: ""
             val message = remoteMessage.data["message"] ?: ""
+            // 2026-06-05 v1108 FIX: backend sends "caller_id" + "type" (not
+            // "senderId" + "callType"). Without the fallbacks, senderId=-1 and
+            // callType=null, so the FCM call path silently drops and the
+            // recipient only sees a default missed-call notification with NO
+            // ring UI. Same bug as the OneSignal extension; both paths need
+            // both field-name aliases to survive backend payload changes.
             val callType = remoteMessage.data["callType"]
-            val senderId = remoteMessage.data["senderId"]?.toIntOrNull() ?: -1
-            val channelName = remoteMessage.data["channelName"] ?: "default_channel"
+                ?: remoteMessage.data["call_type"]
+                ?: remoteMessage.data["type"]?.takeIf { it == "audio" || it == "video" }
+            val senderId = remoteMessage.data["senderId"]?.toIntOrNull()
+                ?: remoteMessage.data["sender_id"]?.toIntOrNull()
+                ?: remoteMessage.data["caller_id"]?.toIntOrNull()
+                ?: remoteMessage.data["user_id"]?.toIntOrNull()
+                ?: -1
+            val channelName = remoteMessage.data["channelName"]
+                ?: remoteMessage.data["channel_name"]
+                ?: "default_channel"
             val fcmCurrentActivity = BaseApplication.getInstance()?.getCurrentActivity()
             if (com.gmwapp.hima.BuildConfig.DEBUG) {
                 Log.d(

@@ -1226,7 +1226,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:elevation="4dp"
-        android:visibility="gone"
+        android:visibility="visible"
         app:cardBackgroundColor="@color/white"
         app:cardCornerRadius="16dp"
         app:cardElevation="2dp"

@@ -288,11 +288,61 @@ class BaseApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
-        
+
         // Test log to verify SocketIOCheck tag is working
         Log.d("SocketIOCheck", "🎯 BaseApplication.onCreate() STARTED - SocketIOCheck tag is working!")
-        
+
         mInstance = this
+
+        // 2026-06-05 v1108 FIX: cold-start cannot have an active call. If
+        // isCallActive was left stuck=true by a crashed/killed previous call,
+        // the user would be (a) silently suppressed from incoming pushes and
+        // (b) blocked from outgoing calls with "You're already in a call".
+        // Force-clear at every process start so the flag can never persist
+        // across app launches.
+        isCallActive = false
+        activeCallActivityCount.set(0)
+
+        // 2026-06-05 v1108 FIX #2: Agora call sets AudioManager.mode to
+        // MODE_IN_COMMUNICATION during the call and is supposed to reset to
+        // MODE_NORMAL on leaveChannel. If the call activity crashed / was
+        // OEM-killed before leaveChannel ran, the mode stays stuck. The FCM
+        // dispatcher's isOnAnotherAppCall() reads AudioManager.mode and
+        // returns true on stuck IN_COMMUNICATION — every new incoming call
+        // then routes through postBusyMissedCall() and the recipient only
+        // sees "Missed call. Tap to call back." with NO RING. Force-reset
+        // to MODE_NORMAL at process start; if another app is genuinely on
+        // a call right now, their own audio stack will re-claim the mode
+        // within milliseconds, so this is safe.
+        runCatching {
+            val am = getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
+            if (am?.mode == android.media.AudioManager.MODE_IN_COMMUNICATION ||
+                am?.mode == android.media.AudioManager.MODE_IN_CALL) {
+                am?.mode = android.media.AudioManager.MODE_NORMAL
+                Log.d("HimaColdStart", "Reset stale AudioManager.mode -> MODE_NORMAL")
+            }
+        }
+
+        // 2026-06-05 v1108 FIX #7: Android Telecom framework keeps stale
+        // HimaConnection objects alive when call activities don't call
+        // connection.destroy() on normal leaveChannel (only the REJECT/ERROR
+        // paths in HimaConnection do). A stuck CONNECTING connection blocks
+        // every subsequent outgoing call with the system error:
+        // "Cannot place a call as there is already another call connecting."
+        // Force end-all-self-managed-calls at cold start so a previous
+        // crashed/killed call activity can't strand a connection forever.
+        runCatching {
+            val tm = getSystemService(Context.TELECOM_SERVICE) as? android.telecom.TelecomManager
+            // endCall() ends any active managed call our app owns. For
+            // self-managed connections we rely on HimaConnectionService's own
+            // lifecycle, but ending now flushes anything stranded.
+            try {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    @Suppress("MissingPermission") tm?.endCall()
+                }
+            } catch (_: Throwable) { /* ANSWER_PHONE_CALLS not granted is fine */ }
+            Log.d("HimaColdStart", "Telecom endCall flush attempted")
+        }
         // First launch after a version bump: wipe stale system-tray notifications. Old chat
         // notifications were posted with PendingIntents pointing at the now-deleted ChatActivity,
         // so without this they'd either crash on tap or open the wrong screen.

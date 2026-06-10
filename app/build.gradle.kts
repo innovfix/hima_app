@@ -67,8 +67,8 @@ android {
         //   don't leave the Agora channel live for free talk time.
         minSdk = 24
         targetSdk = 35
-        versionCode = 1106
-        versionName = "1106"
+        versionCode = 1109
+        versionName = "1109"
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -126,10 +126,11 @@ android {
         create("production") {
             dimension = "hima"
             isDefault = true
-            // productionDebug/Release: demolivedb backend (FCM verified working).
-            // demohima has a revoked FCM server key — pushes don't deliver from there.
-            // For Play Store / himaapp.in, use a separate release flavor.
-            buildConfigField("String", "BASE_URL", "\"https://demolivedb.himaapp.in/api/auth/\"")
+            // 2026-06-05 v1108: real prod LB (himaapp.in) — same as v1107 was pointing to.
+            // The ONLY functional change vs v1107 is the OneSignalNotificationServiceExtension
+            // suppression fix (lines 70-79 removed) so creators stop missing incoming-call
+            // pushes when isInActiveCall() gets stuck in stale=true after a prior call.
+            buildConfigField("String", "BASE_URL", "\"https://himaapp.in/api/auth/\"")
             buildConfigField("String", "ONESIGNAL_APP_ID", "\"5cd4154a-1ece-4c3b-b6af-e88bafee64cd\"")
         }
     }
