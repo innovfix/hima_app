@@ -871,10 +871,41 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             // onUserOffline (or our 30s watchdog) to detect they're gone. Now
             // disconnect immediately for both parties.
             if (message == "callEnded") {
-                // 2026-05-23 v1069 — DISABLED. Paired with notifyPeerOfHangup
-                // being no-op'd in FcmUtils. Agora's onUserOffline is the
-                // canonical peer-end signal, same as Play Store v1064 behavior.
-                Log.d(INCOMING_CALL_LOG_TAG, "callEnded handler disabled (v1069)")
+                // 2026-05-23 v1069 — DISABLED for IN-CALL hangups because Agora's
+                // onUserOffline is the canonical peer-end signal AFTER both sides
+                // joined the channel.
+                //
+                // v1110 TC_MC_01 RE-ENABLED for RINGING stage only.
+                //
+                // BUG: when the caller cancels his outgoing call BEFORE the
+                // recipient taps Accept, the recipient is still on
+                // {Female,Male}CallAcceptActivity and has NOT joined the Agora
+                // channel yet. onUserOffline never fires (you can't go offline
+                // from a channel you never joined). The incoming-call screen
+                // stays ringing forever and if the recipient eventually taps
+                // Accept she joins an empty channel and sees a black video
+                // screen (TC_MC_02 was just a downstream consequence).
+                //
+                // FIX: if we receive callEnded WHILE a CallAcceptActivity is
+                // foreground AND we're not in a real Agora call yet, tear the
+                // ring UI down the same way callDeclined would. The
+                // isInRealCall() guard preserves v1069 behavior for genuine
+                // in-call hangups (those still let Agora drive the teardown).
+                val currentActivity = BaseApplication.getInstance()?.getCurrentActivity()
+                val inAcceptStage = currentActivity is FemaleCallAcceptActivity ||
+                                     currentActivity is MaleCallAcceptActivity
+                val notInActiveCall = BaseApplication.getInstance()?.isInRealCall() != true
+                if (inAcceptStage && notInActiveCall) {
+                    Log.d(INCOMING_CALL_LOG_TAG, "callEnded during ring stage — dismissing accept screen (TC_MC_01)")
+                    try { HimaTelecomManager.endActiveCall(DisconnectCause.REMOTE) } catch (_: Throwable) {}
+                    try { com.gmwapp.hima.agora.FcmCallService.stop(this) } catch (_: Throwable) {}
+                    try { BaseApplication.getInstance()?.stopRingtone() } catch (_: Throwable) {}
+                    try { cancelIncomingCallNotification() } catch (_: Throwable) {}
+                    try { BaseApplication.getInstance()?.clearIncomingCall() } catch (_: Throwable) {}
+                    currentActivity?.finish()
+                } else {
+                    Log.d(INCOMING_CALL_LOG_TAG, "callEnded ignored — not in ring stage (Agora onUserOffline owns in-call teardown)")
+                }
             }
 
 
