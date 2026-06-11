@@ -28,6 +28,7 @@ import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
+import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.agora.telecom.HimaTelecomManager
 import android.telecom.DisconnectCause
 import com.gmwapp.hima.databinding.ActivityMaleCallAcceptBinding
@@ -107,11 +108,18 @@ class MaleCallAcceptActivity : AppCompatActivity() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         userData?.id?.let { userId = userData?.id}
 
-        callType = intent.getStringExtra("CALL_TYPE")
+        // TC_HL_05 — default callType to "audio" when the FCM extra is
+        // missing so the icon/label branch below doesn't fall through to
+        // the Video header on an audio call. The downstream Accept handler
+        // also uses this to pick MaleAudioCallingActivity vs Video.
+        callType = intent.getStringExtra("CALL_TYPE")?.takeIf { it.isNotBlank() } ?: "audio"
         receiverId = intent.getIntExtra("SENDER_ID", -1)
         channelName = intent.getStringExtra("CHANNEL_NAME")
 
-        callerName = intent.getStringExtra("Caller_NAME").orEmpty()
+        // TC_HL_05 — fallback caller name so the banner never renders blank
+        // during the userAvatarViewModel lag window. avatarObservers() will
+        // overwrite this once the backend responds.
+        callerName = intent.getStringExtra("Caller_NAME")?.takeIf { it.isNotBlank() } ?: "Hima Caller"
         callerImage = intent.getStringExtra("Caller_Image").orEmpty()
 
         Log.d("MaleCallAccept_CallerDetails","Image: $callerImage, Name: $callerName")
@@ -169,10 +177,17 @@ class MaleCallAcceptActivity : AppCompatActivity() {
         }
 
         binding.callerName.setText(callerName.trimEnd { it.isDigit() })
-        Glide.with(this)
-            .load(callerImage)
-            .apply(RequestOptions.circleCropTransform())
-            .into(binding.ivLogo)
+        // TC_HL_05 — guard against empty image URL so Glide doesn't render
+        // an empty white circle, which made the avatar banner look missing.
+        // Falls back to avatar1 (existing drawable verified in res/drawable/).
+        if (callerImage.isNotBlank()) {
+            Glide.with(this)
+                .load(callerImage)
+                .apply(RequestOptions.circleCropTransform().placeholder(R.drawable.avatar1))
+                .into(binding.ivLogo)
+        } else {
+            binding.ivLogo.setImageResource(R.drawable.avatar1)
+        }
 
         Log.d("MaleCallAccept_CallType","from notification $callType")
 
@@ -189,29 +204,32 @@ class MaleCallAcceptActivity : AppCompatActivity() {
                 val currentCoins = userData?.coins ?: 0
                 
                 if (currentCoins < 10) {
-                    // Insufficient coins - decline the call and show message
-                    Log.d("MaleCallAccept", "Insufficient coins: $currentCoins. Required: 10")
-                    
-                    // Send rejection notification to female
+                    // TC_HL_05 — Insufficient coins: route to the payment page
+                    // (WalletActivity) instead of silently dropping to MainActivity.
+                    // The female peer is informed via the "rejected" FCM so her
+                    // ringing UI tears down, but the male sees the recharge screen
+                    // so he can top up and call back.
+                    Log.d("MaleCallAccept", "Insufficient coins: $currentCoins. Routing to WalletActivity.")
+
                     sendCallNotification(userId!!, receiverId, callType!!, channelName!!, "rejected")
-                    
-                    // Stop ringtone
+
                     HimaTelecomManager.endActiveCall(DisconnectCause.REJECTED)
                     BaseApplication.getInstance()?.stopRingtone()
                     BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
                     BaseApplication.getInstance()?.clearIncomingCall()
 
-                    // Show toast message
                     Toast.makeText(
                         this,
-                        "You don't have enough coins to attend the call. Recharge now!",
+                        "You don't have enough coins to attend the call. Recharge to call back.",
                         Toast.LENGTH_LONG
                     ).show()
-                    
-                    // Redirect to MainActivity
-                    val intent = Intent(this@MaleCallAcceptActivity, MainActivity::class.java)
-                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    startActivity(intent)
+
+                    val walletIntent = Intent(this@MaleCallAcceptActivity, WalletActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        putExtra("REASON", "insufficient_coins_incoming_call")
+                        putExtra("MIN_COINS_REQUIRED", 10)
+                    }
+                    startActivity(walletIntent)
                     finish()
                     return@setOnClickListener
                 }

@@ -1946,30 +1946,21 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                             Log.d("resumedtag","videocalltime - $newTime")
                             Log.d("resumedtag","storedVideoRemainingTime - $storedVideoRemainingTime")
 
-                            if (storedVideoRemainingTime == null) {
-                                storedVideoRemainingTime = newTime // Store first-time value
-                                sendUpdatedTimeNotification(
-                                    maleUserId,
-                                    receiverId,
-                                    "audio",
-                                    "remainingTimeUpdated"
-                                )
-                                stopCountdown()
-                                startCountdown(newTime, data.ends_at_ms, data.server_now_ms)
-
-                            }
-
-                            if (storedVideoRemainingTime != null) {
-                                storedVideoRemainingTime = newTime // Update stored value
-                                sendUpdatedTimeNotification(
-                                    maleUserId,
-                                    receiverId,
-                                    "audio",
-                                    "remainingTimeUpdated"
-                                )
-                                stopCountdown()
-                                startCountdown(newTime, data.ends_at_ms, data.server_now_ms)
-                            }
+                            // v1111 — collapsed two back-to-back blocks that
+                            // both ran on every response (the first set the
+                            // var not-null, causing the second to also run).
+                            // Net effect was one running timer (stopCountdown
+                            // cancelled the first), one wasted notification
+                            // roundtrip, and one extra startCountdown call.
+                            storedVideoRemainingTime = newTime
+                            sendUpdatedTimeNotification(
+                                maleUserId,
+                                receiverId,
+                                "audio",
+                                "remainingTimeUpdated"
+                            )
+                            stopCountdown()
+                            startCountdown(newTime, data.ends_at_ms, data.server_now_ms)
 
 
                         }
