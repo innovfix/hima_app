@@ -2060,9 +2060,24 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             // when switching to audio; don't inherit a stale "don't subscribe" state.
             options.autoSubscribeVideo = true
             options.autoSubscribeAudio = true
-            setupLocalVideo()
-            localSurfaceView!!.visibility = View.VISIBLE
-            agoraEngine!!.startPreview()
+
+            // v1110 RESTORE (lost in ac708fee merge): defensive symmetry with the
+            // female-side fix — a caller with a broken camera would crash the same
+            // way. Skip camera setup, join audio-only, peer sees the avatar
+            // skeleton (B058). Re-added after Perumal's black-video cherry-pick
+            // dropped this guard.
+            val cameraOk = com.gmwapp.hima.utils.CameraAvailability.isCameraAvailable(this)
+            if (cameraOk) {
+                setupLocalVideo()
+                localSurfaceView!!.visibility = View.VISIBLE
+                agoraEngine!!.startPreview()
+            } else {
+                Log.w("CameraFallback", "MaleVideo.joinChannel: camera unavailable, joining audio-only")
+                agoraEngine!!.enableLocalVideo(false)
+                agoraEngine!!.muteLocalVideoStream(true)
+                binding.localCardView.visibility = View.GONE
+                showMessage(getString(R.string.call_no_camera_fallback))
+            }
             val result = agoraEngine!!.joinChannel(token, channelName, uid, options)
             Log.d("VideoCallFlow", "MaleVideo.joinChannel.result result=$result channel=$channelName callId=$callId")
         } else {

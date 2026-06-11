@@ -1232,7 +1232,27 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val audioModeBusy = try {
             val am = applicationContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
             val mode = am?.mode ?: AudioManager.MODE_NORMAL
-            mode == AudioManager.MODE_IN_COMMUNICATION || mode == AudioManager.MODE_IN_CALL
+            val busy = mode == AudioManager.MODE_IN_COMMUNICATION || mode == AudioManager.MODE_IN_CALL
+            // v1110 TC_HL_04 FIX: AudioManager.mode can stay stuck at
+            // MODE_IN_COMMUNICATION when our previous call activity dies without
+            // running leaveChannel() (OEM kill, crash, system pressure). When that
+            // happens the next incoming call goes straight to "missed" without
+            // ringing because audioModeBusy=true even though no real call exists.
+            // We already verified isInActiveCall()==false above, so any busy mode
+            // here is STALE — clear it back to MODE_NORMAL so this push and every
+            // future push rings normally.
+            if (busy && am != null) {
+                try {
+                    am.mode = AudioManager.MODE_NORMAL
+                    Log.w("FCM", "isOnAnotherAppCall: cleared STALE AudioManager.mode ($mode) -> MODE_NORMAL")
+                } catch (t: Throwable) {
+                    Log.w("FCM", "isOnAnotherAppCall: failed to clear stale mode: ${t.message}")
+                }
+                // Now that we cleared it, treat audio mode as NOT busy for this push.
+                false
+            } else {
+                busy
+            }
         } catch (e: Exception) {
             Log.w("FCM", "isOnAnotherAppCall: AudioManager.mode threw: ${e.message}")
             false

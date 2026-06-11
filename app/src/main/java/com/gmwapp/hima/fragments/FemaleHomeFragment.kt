@@ -684,6 +684,13 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                     binding.tvApproxEarnings.text = it.data[0].today_earnings.toString()
                     binding.tvTotalCalls.text = it.data[0].today_calls.toString()
 
+                    // v1110 EARNINGS_CARD_FIX (2026-06-11): the big card in the layout
+                    // (cl_earnings_row / tv_approx_earnings_old) was a dead placeholder
+                    // showing "₹0" forever because no Kotlin code ever updated it. Mirror
+                    // today's earnings into it with the ₹ prefix that the layout's
+                    // initial text used. Same value source as tv_approx_earnings above.
+                    binding.tvApproxEarningsOld.text = "₹${it.data[0].today_earnings}"
+
                     // Restored 2026-05-22: load admin-uploaded call rates poster.
                     // (Autopay merge had hidden this; user confirmed the admin poster
                     // is the source of truth for the female-home Earnings Details card.)
@@ -760,24 +767,18 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                 if (data.star == 1) View.VISIBLE else View.GONE
             refreshIplBanner()
 
-            // B074 — pull-to-refresh used to overwrite the user's locally-ON
-            // toggle with the server's OFF state (a server-side auto-OFF that
-            // we never got notified about; same root cause family as B075).
-            // The observer would snap the visual switch to OFF and the user
-            // had to manually flip it back on. Treat the local ON intent as
-            // authoritative: re-push to the server and keep the UI on.
-            val effectiveAudio = if (pendingAudioStatus == null && binding.sAudio.isChecked && data.audio_status != 1) {
-                femaleUsersViewModel.updateCallStatus(data.id, DConstants.AUDIO, 1)
-                1
-            } else {
-                data.audio_status
-            }
-            val effectiveVideo = if (pendingVideoStatus == null && binding.sVideo.isChecked && data.video_status != 1) {
-                femaleUsersViewModel.updateCallStatus(data.id, DConstants.VIDEO, 1)
-                1
-            } else {
-                data.video_status
-            }
+            // v1110 NO_AUTO_ONLINE fix (2026-06-11):
+            // Removed the B074 re-push that silently called updateCallStatus(AUDIO/VIDEO, 1)
+            // whenever the UI switch was ON and the server reported 0. That auto-call was
+            // the root cause of the v1109 "23 ghost-onlines per creator per day" pattern
+            // (vs ~9 on v54 — see APP_SPEC_NO_AUTO_ONLINE_v1110_2026-06-10.md).
+            //
+            // From v1110 onward, the user-tap handler in setupSwitchListeners() is the
+            // ONLY writer of audio_status / video_status. Server state is authoritative
+            // for display; if the server has auto-OFF'd the creator, the UI will show
+            // OFF and the creator must consciously tap the toggle to come back online.
+            val effectiveAudio = data.audio_status
+            val effectiveVideo = data.video_status
             val shouldSetAudio = pendingAudioStatus == null || pendingAudioStatus == effectiveAudio
             val shouldSetVideo = pendingVideoStatus == null || pendingVideoStatus == effectiveVideo
             if (shouldSetAudio || shouldSetVideo) {

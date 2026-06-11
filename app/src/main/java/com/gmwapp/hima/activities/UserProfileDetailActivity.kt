@@ -489,13 +489,33 @@ class UserProfileDetailActivity : AppCompatActivity() {
             rejectFriendRequest()
         }
 
-        // Audio Call (for friends only)
+        // v1110 TC_HL_08 FIX: previously the user could tap call buttons on a
+        // blocked creator's profile and the call would still be initiated. The
+        // chat screen already guards on isCallBlocked but this screen did not.
+        // Guard both buttons with the same isUserBlocked flag we already compute
+        // from the profile response (line 303-306) and show a clear toast so the
+        // user understands why nothing happened.
         binding.btnAudioCall.setOnSingleClickListener {
+            if (isUserBlocked) {
+                android.widget.Toast.makeText(
+                    this,
+                    "You can't call this user — you have been blocked.",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+                return@setOnSingleClickListener
+            }
             startCall("audio")
         }
 
-        // Video Call (for friends only)
         binding.btnVideoCall.setOnSingleClickListener {
+            if (isUserBlocked) {
+                android.widget.Toast.makeText(
+                    this,
+                    "You can't call this user — you have been blocked.",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+                return@setOnSingleClickListener
+            }
             startCall("video")
         }
         
