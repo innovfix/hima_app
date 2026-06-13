@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Diagonal shimmer overlay for the dark purple user cards.
+     Creates the subtle lighter sweep visible in the upper-right area
+     of each card in the reference design. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:type="linear"
+        android:angle="135"
+        android:startColor="#00FFFFFF"
+        android:centerColor="#0DFFFFFF"
+        android:endColor="#00FFFFFF" />
+    <corners android:radius="16dp" />
+</shape>

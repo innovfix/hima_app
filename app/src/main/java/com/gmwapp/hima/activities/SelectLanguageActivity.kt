@@ -8,15 +8,10 @@ import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Observer
-import androidx.recyclerview.widget.GridLayoutManager
 import com.appsflyer.AppsFlyerLib
 import com.facebook.appevents.AppEventsConstants
 import com.facebook.appevents.AppEventsLogger
@@ -47,25 +42,27 @@ class SelectLanguageActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivitySelectLanguageBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        // API 35+ forces edge-to-edge. The layout uses fitsSystemWindows=true
-        // on the AppBarLayout so the pink gradient extends *under* the status
-        // bar. Force LIGHT status-bar icons so they stay readable on the pink.
-        WindowInsetsControllerCompat(window, binding.root)
-            .isAppearanceLightStatusBars = false
+        applySystemBarInsets(binding.root, R.color.white, darkStatusBarIcons = true)
         initUI()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        setContinueLoading(false)
     }
 
     private fun initUI() {
         val layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
         binding.rvLanguages.layoutManager = layoutManager
-        binding.ivBack.setOnSingleClickListener {
-            handleBackPress()
+
+        // Male arrives at SelectLanguage as step 2 (Gender → Language → Name).
+        // Female arrives as step 3 (Gender → About → Language → Voice).
+        // XML defaults to step 3 (3 active); correct it to step 2 for males.
+        val gender = intent.getStringExtra(DConstants.GENDER).orEmpty()
+        if (gender == DConstants.MALE) {
+            binding.llSteps.getChildAt(2).setBackgroundResource(R.drawable.bg_step_inactive)
         }
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                this@SelectLanguageActivity.handleBackPress()
-            }
-        })
+
         profileViewModel.registerErrorLiveData.observe(this, Observer {
             setContinueLoading(false)
             showAppToast(it, Toast.LENGTH_LONG)
@@ -163,6 +160,25 @@ class SelectLanguageActivity : BaseActivity() {
             Log.d("savedReferCode","$savedReferCode")
             Log.d("MobileNumberUser","${intent.getStringExtra(DConstants.MOBILE_NUMBER).orEmpty()}")
 
+            // ── DESIGN DUMMY: skip API for dummy number ──
+            if (intent.getStringExtra(DConstants.MOBILE_NUMBER) == "9999900000" && gender == DConstants.MALE) {
+                val dummyIntent = Intent(this, GetNameActivity::class.java)
+                dummyIntent.putExtra("USER_ID", 0)
+                dummyIntent.putExtra(DConstants.MOBILE_NUMBER, "9999900000")
+                dummyIntent.putExtra(DConstants.LANGUAGE, selectedLanguage)
+                dummyIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                startActivity(dummyIntent)
+                return@setOnSingleClickListener
+            }
+            // ── DESIGN DUMMY (female): skip API, navigate to VoiceIdentificationActivity ──
+            if (intent.getStringExtra(DConstants.MOBILE_NUMBER) == "9999900000" && gender == DConstants.FEMALE) {
+                val dummyIntent = Intent(this, VoiceIdentificationActivity::class.java)
+                dummyIntent.putExtra(DConstants.LANGUAGE, selectedLanguage)
+                dummyIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                startActivity(dummyIntent)
+                setContinueLoading(false)
+                return@setOnSingleClickListener
+            }
             if (gender == DConstants.MALE) {
                 profileViewModel.register(
                     intent.getStringExtra(DConstants.MOBILE_NUMBER).orEmpty(),
@@ -208,6 +224,7 @@ class SelectLanguageActivity : BaseActivity() {
         )
         binding.rvLanguages.setAdapter(interestsListAdapter)
         updateContinueButtonState()
+        animateEntryViews(listOf(binding.llHeader, binding.rvLanguages, binding.rlContinue))
     }
 
     private fun setContinueLoading(isLoading: Boolean) {
@@ -231,6 +248,26 @@ class SelectLanguageActivity : BaseActivity() {
         } else {
             resources.getColorStateList(R.color.kyc_button_disabled, null)
         }
+    }
+
+    private fun animateEntryViews(views: List<android.view.View>) {
+        views.forEachIndexed { index, view ->
+            view.alpha = 0f
+            view.translationY = 80f
+            view.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setStartDelay(index * 70L)
+                .setDuration(380)
+                .setInterpolator(android.view.animation.DecelerateInterpolator())
+                .start()
+        }
+    }
+
+    private fun animateCardTap(view: android.view.View) {
+        view.animate().scaleX(0.95f).scaleY(0.95f).setDuration(80).withEndAction {
+            view.animate().scaleX(1f).scaleY(1f).setDuration(200).setInterpolator(android.view.animation.OvershootInterpolator(2f)).start()
+        }.start()
     }
 
     private fun hasUnsavedInput(): Boolean {

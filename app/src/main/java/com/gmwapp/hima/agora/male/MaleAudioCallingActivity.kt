@@ -58,12 +58,13 @@ import com.gmwapp.hima.PaymentWebViewActivity
 import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.activities.RatingActivity
 import com.gmwapp.hima.activities.WalletActivity
-import com.gmwapp.hima.adapters.GiftAdapter
+import com.gmwapp.hima.adapters.GiftRailAdapter
 import com.gmwapp.hima.agora.FaceDetectVideoFrameObserver
 import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.agora.telecom.HimaTelecomManager
 import android.telecom.DisconnectCause
-import com.gmwapp.hima.agora.GiftBottomSheetFragment
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.gmwapp.hima.retrofit.responses.GiftData
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.GetRemainingTimeResponse
@@ -78,6 +79,7 @@ import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.FemaleUsersViewModel
 import com.gmwapp.hima.viewmodels.GiftImageViewModel
+import com.gmwapp.hima.viewmodels.GiftViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.gmwapp.hima.viewmodels.UserAvatarViewModel
 import com.gmwapp.hima.retrofit.responses.CallEndReason
@@ -134,8 +136,10 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private val profileViewModel: ProfileViewModel by viewModels()
     private val fcmNotificationViewModel: FcmNotificationViewModel by viewModels()
 
-    private lateinit var giftAdapter: GiftAdapter
+    private lateinit var giftRailAdapter: GiftRailAdapter
+    private var lastSentGiftCount: Int = 0
     private val giftImageViewModel: GiftImageViewModel by viewModels()
+    private val giftViewModel: GiftViewModel by viewModels()
 
     private val userAvatarViewModel: UserAvatarViewModel by viewModels()
     private val agoraViewModel: AgoraViewModel by viewModels()
@@ -380,6 +384,11 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         binding = ActivityMaleAudioCallingBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Status bar: dark gradient background needs white icons.
+        window.statusBarColor = android.graphics.Color.BLACK
+        androidx.core.view.WindowInsetsControllerCompat(window, window.decorView)
+            .isAppearanceLightStatusBars = false
+
         // Keep the call screen visible across lockscreen so users who lock
         // the phone mid-call can resume immediately.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
@@ -387,11 +396,12 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             setTurnScreenOn(true)
         }
         
-        // ✅ Restrict screenshots and screen recording
-        window.setFlags(
-            WindowManager.LayoutParams.FLAG_SECURE,
-            WindowManager.LayoutParams.FLAG_SECURE
-        )
+        // TEMP: FLAG_SECURE disabled so QA can capture screenshots for testing.
+        // Re-enable before release by uncommenting.
+        // window.setFlags(
+        //     WindowManager.LayoutParams.FLAG_SECURE,
+        //     WindowManager.LayoutParams.FLAG_SECURE
+        // )
         
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -982,16 +992,113 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 //    }
 
 
-    private fun giftIconClicked(){
-        // Gift button click listener (works for both the card and the icon)
-        binding.giftButtonCard.setOnClickListener {
-            if(isVideoCallGoing==true){
-                val bottomSheet = GiftBottomSheetFragment("video",receiverId)
-                bottomSheet.show(supportFragmentManager, "BottomSheetGift")
-            }else{
-                val bottomSheet = GiftBottomSheetFragment("audio",receiverId)
-                bottomSheet.show(supportFragmentManager, "BottomSheetGift")
+    private fun giftIconClicked() {
+        // Inline gift rail — tap-to-send, no bottom sheet
+        val rail = binding.rvGiftRail
+        rail.layoutManager =
+            LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+
+        giftRailAdapter = GiftRailAdapter(this) { gift ->
+            sendGiftFromRail(gift)
+        }
+        rail.adapter = giftRailAdapter
+
+        giftImageViewModel.giftResponseLiveData.observe(this, Observer { response ->
+            response?.data?.let { list ->
+                giftRailAdapter.updateGiftList(list)
             }
+        })
+        giftImageViewModel.giftErrorLiveData.observe(this, Observer { msg ->
+            msg?.let { Log.e("GiftRail", it) }
+        })
+        giftImageViewModel.fetchGiftImages()
+
+        observeGiftSendResponse()
+        refreshAvailableCoinsForRail()
+    }
+
+    private fun sendGiftFromRail(gift: GiftData) {
+        val type = if (isVideoCallGoing == true) "video" else "audio"
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val senderId = userData?.id ?: return
+
+        profileViewModel.getRemainingTime(senderId, type, object :
+            NetworkCallback<GetRemainingTimeResponse> {
+            override fun onResponse(
+                call: Call<GetRemainingTimeResponse>,
+                response: Response<GetRemainingTimeResponse>
+            ) {
+                val newTime = response.body()?.data?.remaining_time ?: return
+                val leftCoins = railAvailableCoins(newTime, type)
+                giftRailAdapter.setAvailableCoins(leftCoins)
+                if (leftCoins >= gift.coins) {
+                    lastSentGiftCount = 1
+                    giftViewModel.sendGift(senderId, receiverId, gift.id)
+                } else {
+                    Toast.makeText(
+                        this@MaleAudioCallingActivity,
+                        "Not enough coins (need ${gift.coins})",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+
+            override fun onFailure(call: Call<GetRemainingTimeResponse>, t: Throwable) {}
+            override fun onNoNetwork() {
+                Toast.makeText(
+                    this@MaleAudioCallingActivity,
+                    "No network",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        })
+    }
+
+    private fun refreshAvailableCoinsForRail() {
+        val type = if (isVideoCallGoing == true) "video" else "audio"
+        val senderId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
+        profileViewModel.getRemainingTime(senderId, type, object :
+            NetworkCallback<GetRemainingTimeResponse> {
+            override fun onResponse(
+                call: Call<GetRemainingTimeResponse>,
+                response: Response<GetRemainingTimeResponse>
+            ) {
+                val newTime = response.body()?.data?.remaining_time ?: return
+                if (::giftRailAdapter.isInitialized) {
+                    giftRailAdapter.setAvailableCoins(railAvailableCoins(newTime, type))
+                }
+            }
+
+            override fun onFailure(call: Call<GetRemainingTimeResponse>, t: Throwable) {}
+            override fun onNoNetwork() {}
+        })
+    }
+
+    private fun railAvailableCoins(remainingTime: String, callType: String): Int {
+        val parts = remainingTime.split(":")
+        val minutes = parts.getOrNull(0)?.toIntOrNull() ?: 0
+        val seconds = parts.getOrNull(1)?.toIntOrNull() ?: 0
+        val totalMinutes = minutes + if (seconds >= 30) 1 else 0
+        return when (callType.lowercase()) {
+            "audio" -> totalMinutes * 10
+            "video" -> totalMinutes * 60
+            else -> 0
+        }
+    }
+
+    private fun observeGiftSendResponse() {
+        giftViewModel.giftResponseLiveData.observe(this) { response ->
+            if (response != null && response.success && lastSentGiftCount == 1) {
+                Toast.makeText(this, "Gift Sent Successfully!", Toast.LENGTH_SHORT).show()
+                lastSentGiftCount = 0
+                response.data?.let { sendGiftSentNotification(it.gift_icon) }
+                newRemainingTime()
+                response.data?.let { animateGift(it.gift_icon) }
+                refreshAvailableCoinsForRail()
+            }
+        }
+        giftViewModel.giftErrorLiveData.observe(this) { errorMessage ->
+            Log.e("GiftRail", errorMessage)
         }
     }
 
@@ -1710,7 +1817,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private fun toggleMute() {
         isMuted = !isMuted
         agoraEngine?.muteLocalAudioStream(isMuted)  // Mute or unmute audio
-        val muteIcon = if (isMuted) R.drawable.mute_img else R.drawable.unmute_img
+        val muteIcon = if (isMuted) R.drawable.ic_call_mic_off else R.drawable.ic_call_mic
         binding.btnMuteUnmute.setImageResource(muteIcon)
     }
 
@@ -1779,9 +1886,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     }
 
     private fun iconForRoute(route: com.gmwapp.hima.utils.CallAudioRouter.AudioRoute): Int = when (route) {
-        com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER -> R.drawable.speakeron_img
+        com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.SPEAKER -> R.drawable.ic_call_speaker_on
         com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.BLUETOOTH -> R.drawable.ic_bluetooth_audio
-        com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE -> R.drawable.speakeroff_img
+        com.gmwapp.hima.utils.CallAudioRouter.AudioRoute.EARPIECE -> R.drawable.ic_call_speaker_off
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -1806,7 +1913,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         )
         agoraEngine?.muteLocalAudioStream(isMuted)
         binding.btnMuteUnmute.setImageResource(
-            if (isMuted) R.drawable.mute_img else R.drawable.unmute_img
+            if (isMuted) R.drawable.ic_call_mic_off else R.drawable.ic_call_mic
         )
         // applyAudioRoute re-runs Agora + router + icon in one atomic call so
         // there's no half-applied state after restore.
@@ -1989,22 +2096,17 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private fun handleCallSwitch() {
 
         binding.btnVideoCall.setOnClickListener {
-            val currentDrawable = binding.btnVideoCall.drawable
-            val audioDrawable = ContextCompat.getDrawable(this, R.drawable.audiocall_img)
-            val videoDrawable = ContextCompat.getDrawable(this, R.drawable.videocall_img)
-
             if (isSwitchRequestPending == false) {
-                if (currentDrawable != null && audioDrawable != null && currentDrawable.constantState == audioDrawable.constantState) {
-                    // If button image is AUDIO, switch to VIDEO
+                // Use the call-mode flag instead of comparing drawable.constantState
+                // (vector drawables don't share constantState across getDrawable()
+                // calls, which used to land here as "Unknown state").
+                if (isVideoCallGoing == true) {
                     switchToAudio()
-                } else if (currentDrawable != null && videoDrawable != null && currentDrawable.constantState == videoDrawable.constantState) {
-                    // If button image is VIDEO, switch to AUDIO
-                    switchToVideo()
                 } else {
-                    Toast.makeText(this, "Error: Unknown state", Toast.LENGTH_SHORT).show()
+                    switchToVideo()
                 }
-            }else{
-                Toast.makeText(this,"Already Request Sent", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Already Request Sent", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -2253,7 +2355,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             startTime =
                 dateFormat.format(Date()) // Set call end time only if startTime is not empty
 
-            binding.btnVideoCall.setImageResource(R.drawable.audiocall_img)
+            binding.btnVideoCall.setImageResource(R.drawable.ic_call_audio)
             binding.layoutButtons.visibility = View.GONE
             binding.ivGift.visibility=View.GONE
 
@@ -2538,7 +2640,7 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             remoteSurfaceView = null
 
             // **Update button to reflect audio call**
-            binding.btnVideoCall.setImageResource(R.drawable.videocall_img)
+            binding.btnVideoCall.setImageResource(R.drawable.ic_call_video)
 
             startTime =
                 dateFormat.format(Date()) // Set call end time only if startTime is not empty
@@ -2615,47 +2717,86 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
 
     fun animateGift(image: String) {
-        val giftImage = binding.ivGiftImage
-        val femaleImage = binding.ivFemaleUser
+        animateGiftFromSenderToReceiver(
+            giftImage = binding.ivGiftImage,
+            sender = binding.ivMaleUser,
+            receiver = binding.ivFemaleUser,
+            image = image
+        )
+    }
 
-        // Reset visibility and alpha
-        giftImage.alpha = 1f
+    private fun animateGiftFromSenderToReceiver(
+        giftImage: ImageView,
+        sender: View,
+        receiver: View,
+        image: String
+    ) {
+        giftImage.animate().cancel()
+        Glide.with(this).load(image).into(giftImage)
+
         giftImage.visibility = View.VISIBLE
-
-        BaseApplication.getInstance()?.playSendGiftSound()
-        Glide.with(this)
-            .load(image)
-            .into(giftImage)
+        giftImage.alpha = 0f
+        giftImage.scaleX = 0.4f
+        giftImage.scaleY = 0.4f
+        giftImage.translationX = 0f
+        giftImage.translationY = 0f
 
         giftImage.post {
-            val startX = giftImage.x
-            val startY = giftImage.y
+            val originX = giftImage.x
+            val originY = giftImage.y
 
-            // Get absolute positions on screen
-            val giftLocation = IntArray(2)
-            val femaleLocation = IntArray(2)
-            giftImage.getLocationOnScreen(giftLocation)
-            femaleImage.getLocationOnScreen(femaleLocation)
+            val giftLoc = IntArray(2); giftImage.getLocationOnScreen(giftLoc)
+            val senderLoc = IntArray(2); sender.getLocationOnScreen(senderLoc)
+            val receiverLoc = IntArray(2); receiver.getLocationOnScreen(receiverLoc)
 
-            // Calculate destination position relative to giftImage’s parent
-            val femaleCenterX = giftImage.x + (femaleLocation[0] - giftLocation[0]) + (femaleImage.width / 2f - giftImage.width / 2f)
-            val femaleCenterY = giftImage.y + (femaleLocation[1] - giftLocation[1]) + (femaleImage.height / 2f - giftImage.height / 2f)
+            fun targetX(loc: IntArray, view: View): Float = giftImage.x +
+                (loc[0] - giftLoc[0]) + (view.width / 2f - giftImage.width / 2f)
 
-            // Animate movement
+            fun targetY(loc: IntArray, view: View): Float = giftImage.y +
+                (loc[1] - giftLoc[1]) + (view.height / 2f - giftImage.height / 2f)
+
+            val startX = targetX(senderLoc, sender)
+            val startY = targetY(senderLoc, sender)
+            val endX = targetX(receiverLoc, receiver)
+            val endY = targetY(receiverLoc, receiver) -
+                (24f * resources.displayMetrics.density)
+
+            // Park gift at sender's avatar (invisible, tiny)
+            giftImage.x = startX
+            giftImage.y = startY
+
+            // Phase 1: pop in at sender, then travel across to receiver
             giftImage.animate()
-                .x(femaleCenterX)
-                .y(femaleCenterY)
-                .setDuration(2000)
+                .scaleX(0.9f).scaleY(0.9f)
+                .alpha(1f)
+                .setDuration(180L)
+                .setInterpolator(android.view.animation.OvershootInterpolator(2f))
                 .withEndAction {
-                    // Fade out after reaching target
+                    // Phase 2: glide to receiver, grow on arrival
                     giftImage.animate()
-                        .alpha(0f)
-                        .setDuration(1000)
+                        .x(endX).y(endY)
+                        .scaleX(1.2f).scaleY(1.2f)
+                        .setDuration(640L)
+                        .setInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
                         .withEndAction {
-                            giftImage.visibility = View.INVISIBLE
-                            // Reset to original position
-                            giftImage.x = startX
-                            giftImage.y = startY
+                            // Phase 3: linger + fade
+                            giftImage.animate()
+                                .scaleX(0.8f).scaleY(0.8f)
+                                .alpha(0f)
+                                .setStartDelay(220L)
+                                .setDuration(500L)
+                                .setInterpolator(android.view.animation.AccelerateInterpolator())
+                                .withEndAction {
+                                    giftImage.visibility = View.INVISIBLE
+                                    giftImage.alpha = 1f
+                                    giftImage.scaleX = 1f
+                                    giftImage.scaleY = 1f
+                                    giftImage.translationX = 0f
+                                    giftImage.translationY = 0f
+                                    giftImage.x = originX
+                                    giftImage.y = originY
+                                }
+                                .start()
                         }
                         .start()
                 }

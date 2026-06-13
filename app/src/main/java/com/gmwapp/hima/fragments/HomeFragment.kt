@@ -4,6 +4,9 @@ import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
+import android.view.MotionEvent
+import android.view.ViewConfiguration
 import android.content.Context
 import android.content.Intent
 import android.graphics.Path
@@ -54,7 +57,7 @@ import kotlinx.coroutines.launch
 @AndroidEntryPoint
 class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     private var isAllFabVisible: Boolean = false
-    private var filterType: String = "my_chats" // Default filter is "my_chats" — open on Chats tab
+    private var filterType: String = "all" // Default filter is "All" — open on All tab
     lateinit var binding: FragmentHomeBinding
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
 
@@ -75,27 +78,138 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         binding = FragmentHomeBinding.inflate(layoutInflater)
 
         setupStatusBarInsets()
+        applyBrandTitleGradient()
         initUI()
         observeLiveUserStatus()
         setupSwipeToRefresh()
+        animateEntrance()
         return binding.root
     }
 
+    /** Professional staggered entrance animation when Home opens (slower / dramatic). */
+    private fun animateEntrance() {
+        // Run only once per app launch — skip on subsequent tab switches.
+        if (hasPlayedEntrance) return
+        hasPlayedEntrance = true
+
+        val d = resources.displayMetrics.density
+
+        // 1) AppBar: slide down from -40dp + fade in.
+        binding.appBarLayout.apply {
+            alpha = 0f
+            translationY = -40f * d
+            animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setStartDelay(100L)
+                .setDuration(700L)
+                .setInterpolator(android.view.animation.DecelerateInterpolator(1.6f))
+                .start()
+        }
+
+        // 2) Logo card + wallet pill: scale-in (after AppBar settles).
+        listOf(binding.ivLogo, binding.tvLogo, binding.clCoins).forEach { v ->
+            v.alpha = 0f
+            v.scaleX = 0.8f
+            v.scaleY = 0.8f
+            v.animate()
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .setStartDelay(380L)
+                .setDuration(600L)
+                .setInterpolator(android.view.animation.OvershootInterpolator(1.1f))
+                .start()
+        }
+
+        // 3) Filter pills: staggered slide-in from left with wider spacing.
+        listOf(
+            binding.btnFilterMyChats,
+            binding.btnFilterAll,
+            binding.btnFilterNew,
+            binding.btnFilterStar
+        ).forEachIndexed { idx, pill ->
+            pill.alpha = 0f
+            pill.translationX = -80f * d
+            pill.animate()
+                .alpha(1f)
+                .translationX(0f)
+                .setStartDelay(550L + idx * 130L)
+                .setDuration(550L)
+                .setInterpolator(android.view.animation.DecelerateInterpolator(1.4f))
+                .start()
+        }
+
+        // 4) Random FAB: bouncy scale-in (last, big finish).
+        binding.fabRandom.apply {
+            alpha = 0f
+            scaleX = 0f
+            scaleY = 0f
+            animate()
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .setStartDelay(1200L)
+                .setDuration(650L)
+                .setInterpolator(android.view.animation.OvershootInterpolator(1.6f))
+                .start()
+        }
+    }
+
+    /** Paint the "Hi ma" brand title with a normal brand pink. */
+    private fun applyBrandTitleGradient() {
+        val tv = binding.tvLogo
+        tv.post {
+            val w = tv.paint.measureText(tv.text.toString()).coerceAtLeast(1f)
+            val shader = android.graphics.LinearGradient(
+                0f, 0f, w, 0f,
+                intArrayOf(
+                    0xFFFF2E9A.toInt(),  // normal brand pink
+                    0xFFFF2E9A.toInt()   // same — solid pink, no gradient fade
+                ),
+                null,
+                android.graphics.Shader.TileMode.CLAMP
+            )
+            tv.paint.shader = shader
+            tv.invalidate()
+        }
+    }
+
     private fun setupStatusBarInsets() {
-        binding.appBarLayout.setOnApplyWindowInsetsListener { view, insets ->
-            val statusBarHeight = insets.systemWindowInsetTop
-            // Add status bar height to the existing bottom padding (8dp content + status bar)
-            val contentPaddingTop = (8 * resources.displayMetrics.density).toInt()
+        // Modern WindowInsets API — pads the AppBar by the actual status-bar inset
+        // (works with edge-to-edge enabled at the activity level) and the RecyclerView
+        // by the bottom inset (so content can scroll under the system nav).
+        val contentPaddingTopPx = (8 * resources.displayMetrics.density).toInt()
+        val rvBottomPaddingPx = (72 * resources.displayMetrics.density).toInt()
+
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(binding.appBarLayout) { view, windowInsets ->
+            val sysBars = windowInsets.getInsets(
+                androidx.core.view.WindowInsetsCompat.Type.systemBars()
+            )
             view.setPadding(
                 view.paddingLeft,
-                statusBarHeight + contentPaddingTop,
+                sysBars.top + contentPaddingTopPx,
                 view.paddingRight,
                 view.paddingBottom
             )
-            insets
+            windowInsets
         }
-        // Request insets to trigger the listener
+
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(binding.rvProfiles) { view, windowInsets ->
+            val sysBars = windowInsets.getInsets(
+                androidx.core.view.WindowInsetsCompat.Type.systemBars()
+            )
+            view.setPadding(
+                view.paddingLeft,
+                view.paddingTop,
+                view.paddingRight,
+                sysBars.bottom + rvBottomPaddingPx
+            )
+            windowInsets
+        }
+
         binding.appBarLayout.requestApplyInsets()
+        binding.rvProfiles.requestApplyInsets()
     }
 
     private fun refreshIplBanner() {
@@ -294,6 +408,8 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                     FemaleUserAdapter(context, it.data, noOpListener, noOpListener)
                 }
                 binding.rvProfiles.adapter = transactionAdapter
+                // Replay the staggered fall-down animation on each data load.
+                binding.rvProfiles.scheduleLayoutAnimation()
             }
 
             // Stop the swipe-to-refresh loading animation
@@ -396,8 +512,13 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     /**
      * Called when the user re-taps the Home tab in bottom nav.
      * Re-fetches the female users list with the current filter.
+     *
+     * Bail out if the fragment's view isn't ready — MainActivity programmatically
+     * sets selectedItemId from onCreate, which fires this callback on rotation
+     * before the fragment's onCreateView has re-inflated the binding.
      */
     override fun refresh() {
+        if (!isAdded || view == null) return
         val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
         loadFemaleUsers(userId)
     }
@@ -426,45 +547,84 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         binding.btnFilterStar.visibility = if (showStar) View.VISIBLE else View.GONE
     }
 
-    private fun updateFilterButtonStyles() {
-        val strokeWidthPx = (1 * resources.displayMetrics.density).toInt()
-        val pinkColor   = resources.getColorStateList(R.color.colorAccent, null)
-        val goldColor   = android.content.res.ColorStateList.valueOf(0xFFFFC107.toInt())
-        val chatsFreeGreen = android.content.res.ColorStateList.valueOf(0xFF10B981.toInt())
-        val whiteColor  = resources.getColorStateList(R.color.white, null)
-        val greyColor   = resources.getColor(R.color.grey_medium, null)
-        val whiteText   = resources.getColor(R.color.white, null)
-        val borderColor = resources.getColorStateList(R.color.light_grey, null)
+    // ── Filter pill helpers ──────────────────────────────────────────────────
 
-        // Reset all to unselected state first
-        listOf(binding.btnFilterMyChats, binding.btnFilterAll, binding.btnFilterNew, binding.btnFilterStar).forEach {
-            it.backgroundTintList = whiteColor
-            it.setTextColor(greyColor)
-            it.strokeWidth = strokeWidthPx
-            it.strokeColor = borderColor
+    /** Inactive pill — light surface with subtle grey border (white theme). */
+    private fun makeGlassPillBg(): android.graphics.drawable.RippleDrawable {
+        val density = resources.displayMetrics.density
+        val solid = android.graphics.drawable.GradientDrawable().apply {
+            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+            cornerRadius = 14f * density
+            setColor(0xFFF5F5F7.toInt())
+            setStroke((1 * density).toInt(), 0xFFE0E0E0.toInt())
+        }
+        return android.graphics.drawable.RippleDrawable(
+            android.content.res.ColorStateList.valueOf(0x14000000),
+            solid, null
+        )
+    }
+
+    /** Active pill — pink → purple gradient. */
+    private fun makeActivePillBg(
+        startColor: Int, endColor: Int
+    ): android.graphics.drawable.RippleDrawable {
+        val density = resources.displayMetrics.density
+        val grad = android.graphics.drawable.GradientDrawable(
+            android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT,
+            intArrayOf(startColor, endColor)
+        ).apply { cornerRadius = 14f * density }
+        return android.graphics.drawable.RippleDrawable(
+            android.content.res.ColorStateList.valueOf(0x33FFFFFF),
+            grad, null
+        )
+    }
+
+    private fun updateFilterButtonStyles() {
+        val whiteText    = resources.getColor(R.color.white, null)
+        val inactiveText = 0xFF555566.toInt()
+        val darkText     = 0xFF1A1A2E.toInt()
+
+        val inactiveTint = android.content.res.ColorStateList.valueOf(inactiveText)
+        val whiteTint    = android.content.res.ColorStateList.valueOf(whiteText)
+        val darkTint     = android.content.res.ColorStateList.valueOf(darkText)
+
+        listOf(
+            binding.btnFilterMyChats,
+            binding.btnFilterAll,
+            binding.btnFilterNew,
+            binding.btnFilterStar
+        ).forEach {
+            it.background         = makeGlassPillBg()
+            it.backgroundTintList = null
+            it.setTextColor(inactiveText)
+            it.iconTint           = inactiveTint
         }
 
-        // Highlight selected
+        // Active tab: pink → purple gradient.
         when (filterType) {
             "my_chats" -> binding.btnFilterMyChats.apply {
-                backgroundTintList = chatsFreeGreen
+                background         = makeActivePillBg(0xFFE91E63.toInt(), 0xFF9C27B0.toInt())
+                backgroundTintList = null
                 setTextColor(whiteText)
-                strokeWidth = 0
+                iconTint           = whiteTint
             }
             "all" -> binding.btnFilterAll.apply {
-                backgroundTintList = pinkColor
+                background         = makeActivePillBg(0xFFE91E63.toInt(), 0xFF9C27B0.toInt())
+                backgroundTintList = null
                 setTextColor(whiteText)
-                strokeWidth = 0
+                iconTint           = whiteTint
             }
             "new" -> binding.btnFilterNew.apply {
-                backgroundTintList = pinkColor
+                background         = makeActivePillBg(0xFFE91E63.toInt(), 0xFF9C27B0.toInt())
+                backgroundTintList = null
                 setTextColor(whiteText)
-                strokeWidth = 0
+                iconTint           = whiteTint
             }
             "star" -> binding.btnFilterStar.apply {
-                backgroundTintList = goldColor
-                setTextColor(whiteText)
-                strokeWidth = 0
+                background         = makeActivePillBg(0xFFF9D423.toInt(), 0xFFFFB800.toInt())
+                backgroundTintList = null
+                setTextColor(darkText)
+                iconTint           = darkTint
             }
         }
     }
@@ -581,6 +741,8 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 binding.rvProfiles.layoutManager = LinearLayoutManager(activity, LinearLayoutManager.VERTICAL, false)
                 binding.rvProfiles.adapter = chatListAdapter
                 binding.rvProfiles.visibility = View.VISIBLE
+                // Replay staggered fall-down animation on chats load.
+                binding.rvProfiles.scheduleLayoutAnimation()
             }
 
             override fun onFailure(call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.MyChatResponse>, t: Throwable) {
@@ -596,67 +758,245 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     }
 
     fun initFab() {
-        binding.fabRandom.extend()
-        binding.fabAudio.hide()
-        binding.fabVideo.hide()
-        
-        // Animations removed as per user request
-        
+        // Start collapsed: audio + video hidden, random visible with label.
+        binding.fabAudio.visibility = View.GONE
+        binding.fabVideo.visibility = View.GONE
+        applyRandomCollapsedStyle()
+
+        // Restore last drag position BEFORE starting animations so the bob
+        // baseline uses the persisted offset.
+        restoreFabPosition()
+        installFabDrag()
+        startFabAnimations()
+
         binding.fabRandom.setOnSingleClickListener {
             if (!isAllFabVisible) {
                 showDimBackground()
-                binding.fabAudio.show()
-                binding.fabVideo.show()
-                // Don't show text labels or coin icons
-                // binding.tvAudio1.visibility = View.VISIBLE
-                // binding.tvAudio2.visibility = View.VISIBLE
-                // binding.tvVideo1.visibility = View.VISIBLE
-                // binding.tvVideo2.visibility = View.VISIBLE
-                // binding.ivCoinAudio.visibility = View.VISIBLE
-                // binding.ivCoinVideo.visibility = View.VISIBLE
+                binding.fabAudio.visibility = View.VISIBLE
+                binding.fabVideo.visibility = View.VISIBLE
 
-                // Change the bg color to white when expanded
-                binding.fabRandom.backgroundTintList = resources.getColorStateList(R.color.white)
-
-                // Change the icon tint to black
-                binding.fabRandom.setIconTintResource(R.color.black)
-                
-                // Change text color to black
-                binding.fabRandom.setTextColor(resources.getColor(R.color.black, null))
-
-                // Change the icon to close when expanded
-                binding.fabRandom.setIconResource(R.drawable.ic_close)
-
-                binding.fabRandom.shrink()
+                // Expanded: random becomes a white close pill (icon-only).
+                applyRandomExpandedStyle()
                 isAllFabVisible = true
             } else {
-                binding.fabAudio.hide()
-                binding.fabVideo.hide()
-                binding.tvAudio1.visibility = View.GONE
-                binding.tvAudio2.visibility = View.GONE
-                binding.tvVideo1.visibility = View.GONE
-                binding.tvVideo2.visibility = View.GONE
-                binding.ivCoinAudio.visibility = View.GONE
-                binding.ivCoinVideo.visibility = View.GONE
-
-                hideDimBackground()
-
-                // Reset the bg color to blue when collapsed
-                binding.fabRandom.backgroundTintList = resources.getColorStateList(R.color.blue)
-
-                // Reset the icon tint to white
-                binding.fabRandom.setIconTintResource(R.color.white)
-                
-                // Reset text color to white
-                binding.fabRandom.setTextColor(resources.getColor(R.color.white, null))
-
-                // Change the icon to random when collapsed
-                binding.fabRandom.setIconResource(R.drawable.random)
-                binding.fabRandom.extend()
-                
-                isAllFabVisible = false
+                collapseFabs()
             }
         }
+
+        // Tap the dimmed background to auto-close the expanded FAB stack.
+        binding.dimBackground.setOnClickListener {
+            if (isAllFabVisible) collapseFabs()
+        }
+    }
+
+    /** Collapse the audio/video FABs back into the Random pill. */
+    private fun collapseFabs() {
+        binding.fabAudio.visibility = View.GONE
+        binding.fabVideo.visibility = View.GONE
+        binding.tvAudio1.visibility = View.GONE
+        binding.tvAudio2.visibility = View.GONE
+        binding.tvVideo1.visibility = View.GONE
+        binding.tvVideo2.visibility = View.GONE
+        binding.ivCoinAudio.visibility = View.GONE
+        binding.ivCoinVideo.visibility = View.GONE
+
+        hideDimBackground()
+        applyRandomCollapsedStyle()
+        isAllFabVisible = false
+    }
+
+    /** Subtle bob + pulse loop on the 3 FABs. Staggered so they never move in sync. */
+    private val fabAnimators = mutableListOf<android.animation.Animator>()
+
+    /** User-set drag offset applied on top of the bob translation. Persists across recreations. */
+    private var fabOffsetX = 0f
+    private var fabOffsetY = 0f
+
+    private fun startFabAnimations() {
+        stopFabAnimations()
+        val density = resources.displayMetrics.density
+        val bobOffset = -6f * density   // 6dp lift on the up-stroke
+
+        // (view, startDelayMs, peakScale)
+        val targets = listOf(
+            Triple(binding.fabRandom, 0L, 1.04f),
+            Triple(binding.fabAudio, 250L, 1.06f),
+            Triple(binding.fabVideo, 500L, 1.06f)
+        )
+
+        targets.forEach { (view, delay, peak) ->
+            view.translationX = fabOffsetX
+            view.translationY = fabOffsetY
+
+            // Bob is a ValueAnimator so we can add the bob offset on top of the
+            // drag baseline (fabOffsetY) every frame — keeps drag + bob coherent.
+            val bob = ValueAnimator.ofFloat(0f, bobOffset, 0f).apply {
+                duration = 2400L
+                repeatCount = ValueAnimator.INFINITE
+                interpolator = AccelerateDecelerateInterpolator()
+                startDelay = delay
+                addUpdateListener {
+                    view.translationY = fabOffsetY + (it.animatedValue as Float)
+                }
+            }
+            val pulseX = ObjectAnimator.ofFloat(view, View.SCALE_X, 1f, peak, 1f).apply {
+                duration = 1800L
+                repeatCount = ObjectAnimator.INFINITE
+                interpolator = AccelerateDecelerateInterpolator()
+                startDelay = delay
+            }
+            val pulseY = ObjectAnimator.ofFloat(view, View.SCALE_Y, 1f, peak, 1f).apply {
+                duration = 1800L
+                repeatCount = ObjectAnimator.INFINITE
+                interpolator = AccelerateDecelerateInterpolator()
+                startDelay = delay
+            }
+            bob.start(); pulseX.start(); pulseY.start()
+            fabAnimators += listOf(bob, pulseX, pulseY)
+        }
+    }
+
+    private fun stopFabAnimations() {
+        fabAnimators.forEach { it.cancel() }
+        fabAnimators.clear()
+    }
+
+    /** Restore the user's previous drag position before the FABs are laid out. */
+    private fun restoreFabPosition() {
+        val prefs = requireContext().getSharedPreferences("fab_pos", Context.MODE_PRIVATE)
+        fabOffsetX = prefs.getFloat("dx", 0f)
+        fabOffsetY = prefs.getFloat("dy", 0f)
+        binding.fabRandom.translationX = fabOffsetX
+        binding.fabAudio.translationX = fabOffsetX
+        binding.fabVideo.translationX = fabOffsetX
+        // translationY is owned by the bob updater — it reads fabOffsetY each frame.
+    }
+
+    private fun saveFabPosition() {
+        requireContext().getSharedPreferences("fab_pos", Context.MODE_PRIVATE)
+            .edit()
+            .putFloat("dx", fabOffsetX)
+            .putFloat("dy", fabOffsetY)
+            .apply()
+    }
+
+    /**
+     * Drag-to-move on the Random FAB. The whole stack (Random + Audio + Video)
+     * follows by the same delta so their relative positions stay intact.
+     * A tap (movement < touchSlop) still triggers the OnClickListener via performClick().
+     */
+    private fun installFabDrag() {
+        val touchSlop = ViewConfiguration.get(requireContext()).scaledTouchSlop.toFloat()
+        var startRawX = 0f
+        var startRawY = 0f
+        var startOffsetX = 0f
+        var startOffsetY = 0f
+        var dragging = false
+
+        binding.fabRandom.setOnTouchListener { v, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    startRawX = event.rawX
+                    startRawY = event.rawY
+                    startOffsetX = fabOffsetX
+                    startOffsetY = fabOffsetY
+                    dragging = false
+                    v.parent.requestDisallowInterceptTouchEvent(true)
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = event.rawX - startRawX
+                    val dy = event.rawY - startRawY
+                    if (!dragging && (kotlin.math.abs(dx) > touchSlop || kotlin.math.abs(dy) > touchSlop)) {
+                        dragging = true
+                    }
+                    if (dragging) {
+                        fabOffsetX = startOffsetX + dx
+                        fabOffsetY = startOffsetY + dy
+                        applyFabOffset()
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (!dragging) {
+                        v.performClick()
+                    } else {
+                        clampFabOffset()
+                        applyFabOffset()
+                        saveFabPosition()
+                    }
+                    true
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    if (dragging) {
+                        clampFabOffset()
+                        applyFabOffset()
+                        saveFabPosition()
+                    }
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun applyFabOffset() {
+        binding.fabRandom.translationX = fabOffsetX
+        binding.fabAudio.translationX = fabOffsetX
+        binding.fabVideo.translationX = fabOffsetX
+        // translationY is written each frame by the bob updater (fabOffsetY + bob).
+    }
+
+    /** Keep the dragged stack inside the visible area with a 16dp safety pad. */
+    private fun clampFabOffset() {
+        val root = binding.root
+        val random = binding.fabRandom
+        if (root.width == 0 || root.height == 0 || random.width == 0) return
+        val density = resources.displayMetrics.density
+        val pad = 16f * density
+
+        val rLeft = random.left.toFloat()
+        val rTop = random.top.toFloat()
+        val w = random.width.toFloat()
+        val h = random.height.toFloat()
+
+        // Horizontal: keep random fully on-screen.
+        val minDx = pad - rLeft
+        val maxDx = (root.width - pad) - rLeft - w
+        if (minDx <= maxDx) fabOffsetX = fabOffsetX.coerceIn(minDx, maxDx)
+
+        // Vertical: keep the would-be topmost FAB (audio at 184dp bottom-margin
+        // + 56dp height = 240dp from the bottom edge) below the safe-area top.
+        // We compute the top from XML constants rather than reading audio.top,
+        // because audio is GONE while collapsed and its position is unreliable.
+        val stackTopExpected = root.height - (240f * density)
+        val minDy = pad - stackTopExpected
+        val maxDy = (root.height - pad) - rTop - h
+        if (minDy <= maxDy) fabOffsetY = fabOffsetY.coerceIn(minDy, maxDy)
+    }
+
+    override fun onDestroyView() {
+        stopFabAnimations()
+        super.onDestroyView()
+    }
+
+    /** Random pill — collapsed state: blue gradient bg, white icon + label visible. */
+    private fun applyRandomCollapsedStyle() {
+        binding.fabRandomInner.setBackgroundResource(R.drawable.bg_fab_gradient_random)
+        binding.ivFabRandom.setImageResource(R.drawable.random)
+        binding.ivFabRandom.imageTintList =
+            android.content.res.ColorStateList.valueOf(resources.getColor(R.color.white, null))
+        binding.tvFabRandom.visibility = View.VISIBLE
+        binding.tvFabRandom.setTextColor(resources.getColor(R.color.white, null))
+    }
+
+    /** Random pill — expanded state: white bg, black close icon, label hidden. */
+    private fun applyRandomExpandedStyle() {
+        binding.fabRandomInner.setBackgroundResource(R.drawable.bg_fab_gradient_white)
+        binding.ivFabRandom.setImageResource(R.drawable.ic_close)
+        binding.ivFabRandom.imageTintList =
+            android.content.res.ColorStateList.valueOf(resources.getColor(R.color.black, null))
+        binding.tvFabRandom.visibility = View.GONE
     }
 
     private fun showDimBackground() {
@@ -1015,5 +1355,9 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         } ?: Log.e("HomeFragment", "RegisterResponse is null")
     }})}
 
-
+    companion object {
+        // Survives fragment recreation within the same process, so the entrance
+        // animation plays only on the first open per app launch.
+        private var hasPlayedEntrance = false
+    }
 }

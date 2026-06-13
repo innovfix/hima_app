@@ -1,14 +1,23 @@
 package com.gmwapp.hima.agora.female
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.View
+import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.AlphaAnimation
 import android.view.animation.Animation
+import android.view.animation.DecelerateInterpolator
+import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.Toast
+import androidx.core.view.doOnLayout
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.core.content.ContextCompat
@@ -16,6 +25,7 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
@@ -88,6 +98,7 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
         binding = ActivityFemaleCallConnectingBinding.inflate(layoutInflater)
         setContentView(binding.root)
         window.statusBarColor = ContextCompat.getColor(this, R.color.black)
+        WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars = false
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
@@ -195,19 +206,14 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
         if (receiverName != null) {
             val displayName = receiverName!!.trimEnd { it.isDigit() }
             binding.tlWaitTitle.setText("Connecting with $displayName")
+            binding.tvCallerName.text = displayName
+            binding.tvCallerName.visibility = View.VISIBLE
         }
         startProgressLoop()
-        if (callType=="audio"){
-            binding.tvTitle.setText("Audio Session")
 
-        }else{
-            binding.tvTitle.setText("Video Session")
-
-        }
-
+        binding.tvTitle.setText(if (callType == "audio") "AUDIO CALL" else "VIDEO CALL")
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-
 
         Glide.with(this)
             .load(userData?.image)
@@ -219,29 +225,93 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
             .apply(RequestOptions.circleCropTransform())
             .into(binding.ivLogo)
 
-        Glide.with(this)
-            .load(R.drawable.double_arrow_svg)
-            .into(binding.ivDoubleArrow)
-            
-        startSimpleAnimations()
-        
-        // Cancel button click
+        startRadarAnimations()
+
+        findViewById<ImageView>(R.id.btn_back)?.setOnClickListener {
+            onBackPressedDispatcher.onBackPressed()
+        }
         binding.tvCancel.setOnClickListener {
             onBackPressedDispatcher.onBackPressed()
         }
     }
 
+    private val radarAnimators = mutableListOf<Animator>()
+    private fun dp(value: Float): Float = value * resources.displayMetrics.density
 
+    private fun startRadarAnimations() {
+        val stage = findViewById<View>(R.id.radar_stage) ?: return
+
+        val ringIds = intArrayOf(R.id.ring1, R.id.ring2, R.id.ring3, R.id.ring4)
+        ringIds.forEachIndexed { i, id ->
+            val v = findViewById<View>(id) ?: return@forEachIndexed
+            v.scaleX = 0.6f
+            v.scaleY = 0.6f
+            v.alpha = 0.9f
+            val anim = AnimatorSet().apply {
+                playTogether(
+                    ObjectAnimator.ofFloat(v, View.SCALE_X, 0.6f, 1.4f),
+                    ObjectAnimator.ofFloat(v, View.SCALE_Y, 0.6f, 1.4f),
+                    ObjectAnimator.ofFloat(v, View.ALPHA, 0.9f, 0f)
+                )
+                duration = 2400L
+                interpolator = DecelerateInterpolator()
+                startDelay = (i * 400L)
+            }
+            anim.addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    if (!isRunning) return
+                    v.scaleX = 0.6f
+                    v.scaleY = 0.6f
+                    v.alpha = 0.9f
+                    anim.startDelay = 0L
+                    anim.start()
+                }
+            })
+            anim.start()
+            radarAnimators.add(anim)
+        }
+
+        stage.doOnLayout { s ->
+            val width = s.width.toFloat()
+            val height = s.height.toFloat()
+            if (width <= 0f || height <= 0f) return@doOnLayout
+
+            val v = findViewById<View>(R.id.iv_logo_wrap) ?: return@doOnLayout
+            val targetX = 0.50f * width
+            val targetY = 0.14f * height
+            v.translationX = targetX - (width / 2f)
+            v.translationY = targetY - (height / 2f)
+
+            val bob = ObjectAnimator.ofFloat(
+                v, View.TRANSLATION_Y,
+                v.translationY, v.translationY - dp(6f)
+            ).apply {
+                duration = 2250L
+                repeatCount = ObjectAnimator.INFINITE
+                repeatMode = ObjectAnimator.REVERSE
+                interpolator = AccelerateDecelerateInterpolator()
+            }
+            bob.start()
+            radarAnimators.add(bob)
+        }
+    }
+
+    private fun stopRadarAnimations() {
+        radarAnimators.forEach { it.cancel() }
+        radarAnimators.clear()
+    }
+
+    @Suppress("unused")
     private fun startSimpleAnimations() {
-        // Animate the connecting dots
+        // Legacy dot animations are no longer used; kept as a stub so this
+        // file still compiles if someone references it from external code.
         val fadeIn = AlphaAnimation(0.3f, 1.0f).apply {
             duration = 600
             repeatMode = Animation.REVERSE
             repeatCount = Animation.INFINITE
         }
-
         binding.dot1.startAnimation(fadeIn)
-        
+
         val fadeIn2 = AlphaAnimation(0.3f, 1.0f).apply {
             duration = 600
             startOffset = 200
@@ -249,7 +319,7 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
             repeatCount = Animation.INFINITE
         }
         binding.dot2.startAnimation(fadeIn2)
-        
+
         val fadeIn3 = AlphaAnimation(0.3f, 1.0f).apply {
             duration = 600
             startOffset = 400
@@ -481,10 +551,11 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        super.onDestroy()
         isRunning = false
+        stopRadarAnimations()
         cancelTimeoutTracking()
         handler.removeCallbacksAndMessages(null)
+        super.onDestroy()
     }
 }
 

@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    
-    <!-- Selected state with gradient effect (using pink) -->
-    <item android:state_checked="true" android:color="@color/pink" />
-    <item android:state_pressed="true" android:color="@color/pink" />
-    
-    <!-- Default state -->
+
+    <!-- Selected state — clean Material pink (not magenta-purple) -->
+    <item android:state_checked="true" android:color="#E91E63" />
+    <item android:state_pressed="true" android:color="#E91E63" />
+
+    <!-- Default state — grey -->
     <item android:color="#94A3B8" />
-    
+
 </selector>
 

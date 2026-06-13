@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Couple kissing — custom stylized silhouette of boy + girl with kiss heart. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="64dp"
+    android:height="64dp"
+    android:viewportWidth="64"
+    android:viewportHeight="64">
+
+    <!-- BOY: left silhouette, head profile facing right -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M14,34 C12,29 12,18 16,14 C20,9 26,9 28,14 C29,17 29,20 28,23 L31,27 L28,30 L31,32 L28,34 L27,40 C23,46 14,44 14,34 Z" />
+
+    <!-- BOY: short spiky hair on top -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M15,13 C14,10 16,8 19,9 C21,8 24,9 25,12 C27,13 28,15 27,17 L26,16 L24,17 L22,16 L20,17 L18,16 L16,17 Z" />
+
+    <!-- GIRL: right silhouette, head profile facing left -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M50,34 C52,29 52,18 48,14 C44,9 38,9 36,14 C35,17 35,20 36,23 L33,27 L36,30 L33,32 L36,34 L37,40 C41,46 50,44 50,34 Z" />
+
+    <!-- GIRL: long flowing hair down the right side -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M50,16 C56,18 58,28 56,40 C55,46 53,50 50,52 L46,52 L48,44 L50,36 L50,28 Z" />
+
+    <!-- GIRL: front-bang hair sweep on top of head -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M37,13 C38,9 44,8 47,10 C50,11 52,14 51,17 L49,16 L47,17 L45,16 L43,17 L40,16 Z" />
+
+    <!-- Small KISS HEART floating above where lips meet -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.85"
+        android:pathData="M32,7 C30,5 27,6 27,9 C27,11 29,12 32,15 C35,12 37,11 37,9 C37,6 34,5 32,7 Z" />
+</vector>

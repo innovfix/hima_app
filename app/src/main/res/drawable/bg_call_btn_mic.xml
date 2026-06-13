@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dark-glass mic button — white stroke for identity, dark base for contrast. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:state_pressed="true">
+        <shape android:shape="oval">
+            <solid android:color="#99FFFFFF" />
+            <stroke android:width="1.5dp" android:color="#FFFFFFFF" />
+        </shape>
+    </item>
+
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="#80000000" />
+            <stroke android:width="1.5dp" android:color="#B3FFFFFF" />
+        </shape>
+    </item>
+
+</selector>

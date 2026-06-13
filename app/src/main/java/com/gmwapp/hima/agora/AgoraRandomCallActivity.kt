@@ -1,11 +1,22 @@
 package com.gmwapp.hima.agora
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.View
+import android.view.animation.AccelerateDecelerateInterpolator
+import android.view.animation.DecelerateInterpolator
+import android.view.animation.LinearInterpolator
+import android.widget.ImageView
 import android.widget.ProgressBar
+import android.widget.TextView
 import androidx.lifecycle.Observer
 
 import android.widget.Toast
@@ -16,6 +27,8 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.doOnLayout
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
@@ -69,6 +82,8 @@ class AgoraRandomCallActivity : AppCompatActivity() {
         binding = ActivityAgoraRandomCallBinding.inflate(layoutInflater)
         setContentView(binding.root)
         window.statusBarColor = ContextCompat.getColor(this, R.color.black)
+        // Force white system-icon tint so clock/battery/signal stay visible on the dark gradient.
+        WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars = false
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
@@ -123,88 +138,124 @@ class AgoraRandomCallActivity : AppCompatActivity() {
 
     }
 
-    fun initUI(){
+    private val radarAnimators = mutableListOf<Animator>()
+
+    fun initUI() {
         progressBar = findViewById(R.id.progressBar)
         startProgressLoop()
-        if (callType=="audio"){
-            binding.tvTitle.setText("Audio Session")
 
-        }else{
-            binding.tvTitle.setText("Video Session")
-
-        }
-
+        // Eyebrow label
+        binding.tvTitle.setText(if (callType == "audio") "AUDIO MATCH" else "VIDEO MATCH")
+        // Status line uses the existing tl_wait_title id
+        findViewById<TextView>(R.id.tl_wait_title)?.text = "Searching for the right match"
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-
 
         Glide.with(this)
             .load(userData?.image)
             .apply(RequestOptions.circleCropTransform())
             .into(binding.ivCallerProfile)
 
-
-        Glide.with(this)
-            .load(R.drawable.double_arrow_svg)
-            .into(binding.ivDoubleArrow)
-
         startImageSequence()
-        startSimpleAnimations()
-        
-        // Cancel button click
+        startRadarAnimations()
+
+        findViewById<ImageView>(R.id.btn_back)?.setOnClickListener {
+            onBackPressedDispatcher.onBackPressed()
+        }
         binding.tvCancel.setOnClickListener {
             onBackPressedDispatcher.onBackPressed()
         }
     }
-    
-    private fun startSimpleAnimations() {
-        // Simple fade in for title
-        binding.tvTitle.alpha = 0f
-        binding.tvTitle.animate()
-            .alpha(1f)
-            .setDuration(300)
-            .start()
-        
-        // Subtle connecting dots animation
-        startConnectingDotsAnimation()
-    }
-    
-    private fun startConnectingDotsAnimation() {
-        try {
-            val dot1 = findViewById<android.view.View>(R.id.dot1)
-            val dot2 = findViewById<android.view.View>(R.id.dot2)
-            val dot3 = findViewById<android.view.View>(R.id.dot3)
-            
-            val animateDots = object : Runnable {
-                var step = 0
-                override fun run() {
-                    when (step % 3) {
-                        0 -> {
-                            dot1?.alpha = 1.0f
-                            dot2?.alpha = 0.5f
-                            dot3?.alpha = 0.3f
-                        }
-                        1 -> {
-                            dot1?.alpha = 0.3f
-                            dot2?.alpha = 1.0f
-                            dot3?.alpha = 0.5f
-                        }
-                        2 -> {
-                            dot1?.alpha = 0.5f
-                            dot2?.alpha = 0.3f
-                            dot3?.alpha = 1.0f
-                        }
-                    }
-                    step++
-                    if (isRunning) {
-                        handler.postDelayed(this, 500)
+
+    private fun dp(value: Float): Float = value * resources.displayMetrics.density
+
+    private fun startRadarAnimations() {
+        val stage = findViewById<View>(R.id.radar_stage) ?: return
+
+        // Pulse rings
+        val ringIds = intArrayOf(R.id.ring1, R.id.ring2, R.id.ring3, R.id.ring4)
+        ringIds.forEachIndexed { i, id ->
+            val v = findViewById<View>(id) ?: return@forEachIndexed
+            v.scaleX = 0.6f
+            v.scaleY = 0.6f
+            v.alpha = 0.9f
+            val anim = AnimatorSet().apply {
+                playTogether(
+                    ObjectAnimator.ofFloat(v, View.SCALE_X, 0.6f, 1.4f),
+                    ObjectAnimator.ofFloat(v, View.SCALE_Y, 0.6f, 1.4f),
+                    ObjectAnimator.ofFloat(v, View.ALPHA, 0.9f, 0f)
+                )
+                duration = 2400L
+                interpolator = DecelerateInterpolator()
+                startDelay = (i * 400L)
+            }
+            anim.addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    if (!isRunning) return
+                    v.scaleX = 0.6f
+                    v.scaleY = 0.6f
+                    v.alpha = 0.9f
+                    anim.startDelay = 0L
+                    anim.start()
+                }
+            })
+            anim.start()
+            radarAnimators.add(anim)
+        }
+
+        // Candidates orbit the YOU avatar like planets around the sun:
+        // each one at its own radius, starting angle, period and direction.
+        stage.doOnLayout { s ->
+            val width = s.width.toFloat()
+            val height = s.height.toFloat()
+            if (width <= 0f || height <= 0f) return@doOnLayout
+
+            // Cap orbit radius so candidates don't escape the stage on small screens.
+            val maxRadius = minOf(width, height) / 2f - dp(28f)
+
+            // (viewId, radiusDp, startAngleDeg, periodMs, clockwise)
+            val orbits = listOf(
+                Orbit(R.id.cand1, 96f, 0f, 12000L, true),
+                Orbit(R.id.cand2, 124f, 60f, 14000L, false),
+                Orbit(R.id.cand3, 142f, 120f, 10000L, true),
+                Orbit(R.id.cand4, 108f, 200f, 13000L, false),
+                Orbit(R.id.cand5, 134f, 260f, 11000L, true),
+                Orbit(R.id.iv_logo_wrap, 116f, 320f, 9000L, false)
+            )
+
+            orbits.forEach { o ->
+                val v = findViewById<View>(o.viewId) ?: return@forEach
+                val r = minOf(dp(o.radiusDp), maxRadius)
+                val direction = if (o.clockwise) 1f else -1f
+
+                val anim = ValueAnimator.ofFloat(0f, 360f).apply {
+                    duration = o.periodMs
+                    repeatCount = ValueAnimator.INFINITE
+                    interpolator = LinearInterpolator()
+                    addUpdateListener { a ->
+                        val sweep = a.animatedValue as Float
+                        val rad = Math.toRadians((o.startAngleDeg + direction * sweep).toDouble())
+                        v.translationX = (r * kotlin.math.cos(rad)).toFloat()
+                        v.translationY = (r * kotlin.math.sin(rad)).toFloat()
                     }
                 }
+                anim.start()
+                radarAnimators.add(anim)
             }
-            handler.post(animateDots)
-        } catch (e: Exception) {
-            Log.e("Animation", "Connecting dots not found: ${e.message}")
         }
+    }
+
+    private data class Orbit(
+        val viewId: Int,
+        val radiusDp: Float,
+        val startAngleDeg: Float,
+        val periodMs: Long,
+        val clockwise: Boolean
+    )
+
+    private fun stopRadarAnimations() {
+        radarAnimators.forEach { it.cancel() }
+        radarAnimators.clear()
     }
 
     private fun startProgressLoop() {
@@ -564,5 +615,10 @@ class AgoraRandomCallActivity : AppCompatActivity() {
         return "${senderId}_${System.currentTimeMillis()}_${(1000..9999).random()}"
     }
 
+    override fun onDestroy() {
+        isRunning = false
+        stopRadarAnimations()
+        super.onDestroy()
+    }
 
 }

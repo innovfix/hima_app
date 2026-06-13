@@ -4,8 +4,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fitsSystemWindows="true"
-    android:background="@color/white">
+    android:background="@color/white"
+    android:fitsSystemWindows="true">
 
     <ViewFlipper
         android:id="@+id/view_flipper"
@@ -14,266 +14,578 @@
         android:inAnimation="@android:anim/fade_in"
         android:outAnimation="@android:anim/fade_out">
 
-        <!-- Screen 1: Concern Selection -->
-        <LinearLayout
+        <!-- ════════════════════════════════════ -->
+        <!-- Screen 1: Concern Selection         -->
+        <!-- ════════════════════════════════════ -->
+        <ScrollView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="24dp">
+            android:fillViewport="true"
+            android:scrollbars="none"
+            android:background="@color/white">
 
-            <ImageView
-                android:layout_width="64dp"
-                android:layout_height="64dp"
-                android:src="@mipmap/ic_launcher"
-                android:layout_marginBottom="16dp"
-                tools:ignore="ContentDescription" />
-
-            <TextView
-                android:id="@+id/tv_title"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/poppins_bold"
-                android:text="How are you feeling today?"
-                android:textColor="@color/creator_name_text"
-                android:textSize="22sp"
-                android:gravity="center" />
-
-            <TextView
-                android:id="@+id/tv_subtitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="32dp"
-                android:fontFamily="@font/poppins_regular"
-                android:text="Let us know, and we'll connect you with the right people"
-                android:textColor="@color/grey_medium"
-                android:textSize="14sp"
-                android:gravity="center" />
-
-            <GridLayout
-                android:id="@+id/concern_grid"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:columnCount="2"
-                android:rowCount="2"
-                android:useDefaultMargins="true">
-
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/card_breakup"
-                    android:layout_width="0dp"
-                    android:layout_height="120dp"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="8dp"
-                    app:cardBackgroundColor="#FFF1F2"
-                    app:cardCornerRadius="20dp"
-                    app:cardElevation="2dp"
-                    app:strokeWidth="0dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:gravity="center"
-                        android:orientation="vertical"
-                        android:padding="12dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="💔"
-                            android:textSize="32sp" />
-
-                        <TextView
-                            android:id="@+id/tv_breakup"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:fontFamily="@font/poppins_semibold"
-                            android:text="Breakup"
-                            android:textColor="#BE123C"
-                            android:textSize="14sp" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/card_loneliness"
-                    android:layout_width="0dp"
-                    android:layout_height="120dp"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="8dp"
-                    app:cardBackgroundColor="#EFF6FF"
-                    app:cardCornerRadius="20dp"
-                    app:cardElevation="2dp"
-                    app:strokeWidth="0dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:gravity="center"
-                        android:orientation="vertical"
-                        android:padding="12dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="😔"
-                            android:textSize="32sp" />
-
-                        <TextView
-                            android:id="@+id/tv_loneliness"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:fontFamily="@font/poppins_semibold"
-                            android:text="Loneliness"
-                            android:textColor="#1D4ED8"
-                            android:textSize="14sp" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/card_stress"
-                    android:layout_width="0dp"
-                    android:layout_height="120dp"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="8dp"
-                    app:cardBackgroundColor="#FFF7ED"
-                    app:cardCornerRadius="20dp"
-                    app:cardElevation="2dp"
-                    app:strokeWidth="0dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:gravity="center"
-                        android:orientation="vertical"
-                        android:padding="12dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="😰"
-                            android:textSize="32sp" />
-
-                        <TextView
-                            android:id="@+id/tv_stress"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:fontFamily="@font/poppins_semibold"
-                            android:text="Stress"
-                            android:textColor="#C2410C"
-                            android:textSize="14sp" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/card_boredom"
-                    android:layout_width="0dp"
-                    android:layout_height="120dp"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="8dp"
-                    app:cardBackgroundColor="#F0FDF4"
-                    app:cardCornerRadius="20dp"
-                    app:cardElevation="2dp"
-                    app:strokeWidth="0dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:gravity="center"
-                        android:orientation="vertical"
-                        android:padding="12dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="😴"
-                            android:textSize="32sp" />
-
-                        <TextView
-                            android:id="@+id/tv_boredom"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:fontFamily="@font/poppins_semibold"
-                            android:text="Boredom"
-                            android:textColor="#15803D"
-                            android:textSize="14sp" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-            </GridLayout>
-
-        </LinearLayout>
-
-        <!-- Screen 2: AI Chat -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="#FAFAFC"
-            android:orientation="vertical">
-
-            <!-- Chat header (premium look) -->
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="72dp"
-                android:background="@color/colorAccent"
-                android:elevation="4dp"
-                android:gravity="center_vertical"
-                android:paddingHorizontal="16dp">
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
 
-                <FrameLayout
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
-                    android:background="@drawable/bg_hima_avatar">
-
-                    <ImageView
-                        android:layout_width="28dp"
-                        android:layout_height="28dp"
-                        android:layout_gravity="center"
-                        android:src="@mipmap/ic_launcher"
-                        tools:ignore="ContentDescription" />
-                </FrameLayout>
-
+                <!-- Plain white header — same feel as login screen -->
                 <LinearLayout
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="14dp"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
+                    android:gravity="center_horizontal"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="24dp"
+                    android:paddingTop="48dp"
+                    android:paddingBottom="8dp">
 
+                    <!-- Floating icon group — like login page, different icons (heart / star / chat / gift / phone) -->
+                    <FrameLayout
+                        android:layout_width="288dp"
+                        android:layout_height="148dp"
+                        android:layout_marginBottom="12dp"
+                        android:clipChildren="false"
+                        android:clipToPadding="false">
+
+                        <!-- Central raised card: heart (different from login's logo) -->
+                        <com.google.android.material.card.MaterialCardView
+                            android:layout_width="72dp"
+                            android:layout_height="72dp"
+                            android:layout_gravity="center"
+                            app:cardBackgroundColor="@color/white"
+                            app:cardCornerRadius="20dp"
+                            app:cardElevation="8dp"
+                            app:strokeColor="#F3E8FF"
+                            app:strokeWidth="1dp">
+
+                            <ImageView
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_heart_filled"
+                                app:tint="#FF1383"
+                                tools:ignore="ContentDescription" />
+                        </com.google.android.material.card.MaterialCardView>
+
+                        <!-- Star circle — top-left -->
+                        <FrameLayout
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
+                            android:layout_gravity="top|start"
+                            android:layout_marginStart="18dp"
+                            android:layout_marginTop="10dp"
+                            android:background="@drawable/bg_bubble_orange">
+
+                            <ImageView
+                                android:layout_width="22dp"
+                                android:layout_height="22dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_star_filled"
+                                app:tint="#D97706"
+                                tools:ignore="ContentDescription" />
+                        </FrameLayout>
+
+                        <!-- Chat bubble circle — top-right -->
+                        <FrameLayout
+                            android:layout_width="46dp"
+                            android:layout_height="46dp"
+                            android:layout_gravity="top|end"
+                            android:layout_marginEnd="16dp"
+                            android:layout_marginTop="6dp"
+                            android:background="@drawable/bg_bubble_blue">
+
+                            <ImageView
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_chat_bubble"
+                                app:tint="#3730A3"
+                                tools:ignore="ContentDescription" />
+                        </FrameLayout>
+
+                        <!-- Gift circle — bottom-left -->
+                        <FrameLayout
+                            android:layout_width="38dp"
+                            android:layout_height="38dp"
+                            android:layout_gravity="bottom|start"
+                            android:layout_marginStart="26dp"
+                            android:layout_marginBottom="8dp"
+                            android:background="@drawable/bg_bubble_green">
+
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_gift_box"
+                                app:tint="#16A34A"
+                                tools:ignore="ContentDescription" />
+                        </FrameLayout>
+
+                        <!-- Trophy circle — bottom-right -->
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:layout_gravity="bottom|end"
+                            android:layout_marginEnd="22dp"
+                            android:layout_marginBottom="6dp"
+                            android:background="@drawable/bg_bubble_pink">
+
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_star_filled"
+                                app:tint="#DB2777"
+                                tools:ignore="ContentDescription" />
+                        </FrameLayout>
+
+                        <!-- Sparkle accent — top-right edge -->
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:layout_gravity="top|end"
+                            android:layout_marginEnd="2dp"
+                            android:layout_marginTop="2dp"
+                            android:alpha="0.65"
+                            android:src="@drawable/ic_sparkle"
+                            app:tint="#FF1383"
+                            tools:ignore="ContentDescription" />
+
+                    </FrameLayout>
+
+                    <!-- Localised title -->
                     <TextView
+                        android:id="@+id/tv_title"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/poppins_bold"
-                        android:text="Hima"
-                        android:textColor="@color/white"
-                        android:textSize="17sp" />
+                        android:gravity="center"
+                        android:text="How are you feeling today?"
+                        android:textColor="@color/black_light"
+                        android:textSize="22sp" />
 
+                    <!-- Localised subtitle -->
                     <TextView
-                        android:id="@+id/tv_typing_status"
+                        android:id="@+id/tv_subtitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
+                        android:layout_marginTop="8dp"
                         android:fontFamily="@font/poppins_regular"
-                        android:text="Online"
-                        android:textColor="#FFFFFFD9"
-                        android:textSize="12sp" />
+                        android:gravity="center"
+                        android:text="Let us know, we&#8217;ll connect you with the right people"
+                        android:textColor="@color/grey_medium"
+                        android:textSize="13sp" />
                 </LinearLayout>
+
+                <!-- Divider -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginHorizontal="24dp"
+                    android:layout_marginTop="24dp"
+                    android:layout_marginBottom="20dp"
+                    android:background="@color/divider" />
+
+                <!-- Section label -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="20dp"
+                    android:layout_marginBottom="16dp"
+                    android:fontFamily="@font/poppins_semibold"
+                    android:text="What&#8217;s on your mind?"
+                    android:textColor="@color/black_light"
+                    android:textSize="15sp" />
+
+                <!-- Row 1: Breakup + Loneliness -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="16dp"
+                    android:layout_marginBottom="12dp"
+                    android:orientation="horizontal"
+                    android:weightSum="2">
+
+                    <!-- Breakup card -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/card_breakup"
+                        android:layout_width="0dp"
+                        android:layout_height="160dp"
+                        android:layout_marginEnd="8dp"
+                        android:layout_weight="1"
+                        android:clickable="true"
+                        android:focusable="true"
+                        app:cardBackgroundColor="@color/white"
+                        app:cardCornerRadius="20dp"
+                        app:cardElevation="0dp"
+                        app:strokeColor="#E5E7EB"
+                        app:strokeWidth="1dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:gravity="center"
+                            android:orientation="vertical"
+                            android:padding="16dp">
+
+                            <!-- Coloured emoji bubble -->
+                            <FrameLayout
+                                android:layout_width="56dp"
+                                android:layout_height="56dp"
+                                android:layout_marginBottom="12dp"
+                                android:background="@drawable/bg_bubble_pink">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center"
+                                    android:text="&#128148;"
+                                    android:textSize="28sp" />
+                            </FrameLayout>
+
+                            <TextView
+                                android:id="@+id/tv_breakup"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/poppins_bold"
+                                android:gravity="center"
+                                android:text="Breakup"
+                                android:textColor="#BE123C"
+                                android:textSize="14sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="3dp"
+                                android:fontFamily="@font/poppins_regular"
+                                android:gravity="center"
+                                android:text="Lost in heartbreak"
+                                android:textColor="@color/grey_medium"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Loneliness card -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/card_loneliness"
+                        android:layout_width="0dp"
+                        android:layout_height="160dp"
+                        android:layout_marginStart="8dp"
+                        android:layout_weight="1"
+                        android:clickable="true"
+                        android:focusable="true"
+                        app:cardBackgroundColor="@color/white"
+                        app:cardCornerRadius="20dp"
+                        app:cardElevation="0dp"
+                        app:strokeColor="#E5E7EB"
+                        app:strokeWidth="1dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:gravity="center"
+                            android:orientation="vertical"
+                            android:padding="16dp">
+
+                            <FrameLayout
+                                android:layout_width="56dp"
+                                android:layout_height="56dp"
+                                android:layout_marginBottom="12dp"
+                                android:background="@drawable/bg_bubble_blue">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center"
+                                    android:text="&#128532;"
+                                    android:textSize="28sp" />
+                            </FrameLayout>
+
+                            <TextView
+                                android:id="@+id/tv_loneliness"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/poppins_bold"
+                                android:gravity="center"
+                                android:text="Loneliness"
+                                android:textColor="#3730A3"
+                                android:textSize="14sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="3dp"
+                                android:fontFamily="@font/poppins_regular"
+                                android:gravity="center"
+                                android:text="Need someone to talk"
+                                android:textColor="@color/grey_medium"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+                </LinearLayout>
+
+                <!-- Row 2: Stress + Boredom -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="16dp"
+                    android:layout_marginBottom="36dp"
+                    android:orientation="horizontal"
+                    android:weightSum="2">
+
+                    <!-- Stress card -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/card_stress"
+                        android:layout_width="0dp"
+                        android:layout_height="160dp"
+                        android:layout_marginEnd="8dp"
+                        android:layout_weight="1"
+                        android:clickable="true"
+                        android:focusable="true"
+                        app:cardBackgroundColor="@color/white"
+                        app:cardCornerRadius="20dp"
+                        app:cardElevation="0dp"
+                        app:strokeColor="#E5E7EB"
+                        app:strokeWidth="1dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:gravity="center"
+                            android:orientation="vertical"
+                            android:padding="16dp">
+
+                            <FrameLayout
+                                android:layout_width="56dp"
+                                android:layout_height="56dp"
+                                android:layout_marginBottom="12dp"
+                                android:background="@drawable/bg_bubble_orange">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center"
+                                    android:text="&#128560;"
+                                    android:textSize="28sp" />
+                            </FrameLayout>
+
+                            <TextView
+                                android:id="@+id/tv_stress"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/poppins_bold"
+                                android:gravity="center"
+                                android:text="Stress"
+                                android:textColor="#C2410C"
+                                android:textSize="14sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="3dp"
+                                android:fontFamily="@font/poppins_regular"
+                                android:gravity="center"
+                                android:text="Feeling overwhelmed"
+                                android:textColor="@color/grey_medium"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Boredom card -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/card_boredom"
+                        android:layout_width="0dp"
+                        android:layout_height="160dp"
+                        android:layout_marginStart="8dp"
+                        android:layout_weight="1"
+                        android:clickable="true"
+                        android:focusable="true"
+                        app:cardBackgroundColor="@color/white"
+                        app:cardCornerRadius="20dp"
+                        app:cardElevation="0dp"
+                        app:strokeColor="#E5E7EB"
+                        app:strokeWidth="1dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:gravity="center"
+                            android:orientation="vertical"
+                            android:padding="16dp">
+
+                            <FrameLayout
+                                android:layout_width="56dp"
+                                android:layout_height="56dp"
+                                android:layout_marginBottom="12dp"
+                                android:background="@drawable/bg_bubble_green">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center"
+                                    android:text="&#128564;"
+                                    android:textSize="28sp" />
+                            </FrameLayout>
+
+                            <TextView
+                                android:id="@+id/tv_boredom"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/poppins_bold"
+                                android:gravity="center"
+                                android:text="Boredom"
+                                android:textColor="#15803D"
+                                android:textSize="14sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="3dp"
+                                android:fontFamily="@font/poppins_regular"
+                                android:gravity="center"
+                                android:text="Looking for fun"
+                                android:textColor="@color/grey_medium"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+                </LinearLayout>
+
+            </LinearLayout>
+        </ScrollView>
+
+        <!-- ════════════════════════════════════ -->
+        <!-- Screen 2: AI Chat                   -->
+        <!-- ════════════════════════════════════ -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_chat_wallpaper"
+            android:orientation="vertical">
+
+            <!-- ── Modern professional chat header ── -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="78dp"
+                android:background="@drawable/bg_chat_header"
+                android:elevation="4dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="16dp"
+                android:paddingBottom="2dp">
+
+                <!-- Gradient ring avatar -->
+                <FrameLayout
+                    android:layout_width="54dp"
+                    android:layout_height="54dp">
+
+                    <!-- Sweep pink→purple ring (outer 54dp, white 46dp centre = 4dp rim) -->
+                    <View
+                        android:layout_width="54dp"
+                        android:layout_height="54dp"
+                        android:background="@drawable/bg_avatar_gradient_ring" />
+
+                    <!-- App icon inside -->
+                    <FrameLayout
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:layout_gravity="center"
+                        android:background="@drawable/bg_hima_avatar">
+
+                        <ImageView
+                            android:layout_width="26dp"
+                            android:layout_height="26dp"
+                            android:layout_gravity="center"
+                            android:src="@mipmap/ic_launcher"
+                            tools:ignore="ContentDescription" />
+                    </FrameLayout>
+
+                    <!-- Green online dot -->
+                    <View
+                        android:layout_width="13dp"
+                        android:layout_height="13dp"
+                        android:layout_gravity="bottom|end"
+                        android:layout_marginEnd="1dp"
+                        android:background="@drawable/bg_online_dot"
+                        android:elevation="2dp" />
+                </FrameLayout>
+
+                <!-- Name + subtitle + status -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_marginEnd="8dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <!-- Name row: "Hima" + AI chip inline -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/poppins_bold"
+                            android:text="Hima"
+                            android:textColor="#0F172A"
+                            android:textSize="18sp" />
+
+                        <!-- AI chip next to name -->
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:background="@drawable/bg_ai_badge"
+                            android:fontFamily="@font/poppins_bold"
+                            android:paddingHorizontal="8dp"
+                            android:paddingVertical="2dp"
+                            android:text="AI"
+                            android:textColor="#FF1383"
+                            android:textSize="10sp" />
+                    </LinearLayout>
+
+                    <!-- Status row -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <View
+                            android:layout_width="7dp"
+                            android:layout_height="7dp"
+                            android:layout_marginEnd="5dp"
+                            android:background="@drawable/bg_online_dot" />
+
+                        <TextView
+                            android:id="@+id/tv_typing_status"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/poppins_regular"
+                            android:text="Online · AI Companion"
+                            android:textColor="#22C55E"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+
             </LinearLayout>
 
-            <!-- Chat messages -->
+            <!-- Messages list (transparent so wallpaper shows through) -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rv_chat"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="1"
+                android:background="@android:color/transparent"
                 android:clipToPadding="false"
                 android:paddingTop="16dp"
                 android:paddingBottom="8dp" />
 
-            <!-- Input bar (premium rounded look) -->
+            <!-- Input bar -->
             <LinearLayout
                 android:id="@+id/input_bar"
                 android:layout_width="match_parent"
@@ -281,14 +593,15 @@
                 android:background="@color/white"
                 android:elevation="8dp"
                 android:gravity="center_vertical"
-                android:paddingHorizontal="12dp"
-                android:paddingVertical="10dp">
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="12dp">
 
                 <EditText
                     android:id="@+id/et_message"
                     android:layout_width="0dp"
-                    android:layout_height="48dp"
+                    android:layout_height="50dp"
                     android:layout_weight="1"
+                    android:autofillHints="no"
                     android:background="@drawable/bg_chat_input"
                     android:fontFamily="@font/poppins_regular"
                     android:gravity="center_vertical"
@@ -299,23 +612,21 @@
                     android:paddingHorizontal="18dp"
                     android:textColor="#111827"
                     android:textColorHint="#9CA3AF"
-                    android:textSize="15sp"
-                    android:autofillHints="no"
-                    android:importantForAutofill="no" />
+                    android:textSize="15sp" />
 
                 <ImageView
                     android:id="@+id/btn_send"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
                     android:layout_marginStart="10dp"
                     android:background="@drawable/bg_chat_send_btn"
-                    android:padding="12dp"
+                    android:padding="13dp"
                     android:src="@android:drawable/ic_menu_send"
                     app:tint="@color/white"
                     tools:ignore="ContentDescription" />
             </LinearLayout>
 
-            <!-- "Let's Go" button (shown after AI recommendation) -->
+            <!-- Let's Go CTA -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_lets_go"
                 android:layout_width="match_parent"
@@ -323,7 +634,7 @@
                 android:layout_margin="16dp"
                 android:fontFamily="@font/poppins_bold"
                 android:letterSpacing="0.02"
-                android:text="✨ Let's Go! Meet Your Matches"
+                android:text="&#10024; Let&#8217;s Go! Start Connecting"
                 android:textColor="@color/white"
                 android:textSize="15sp"
                 android:visibility="gone"
@@ -334,12 +645,14 @@
 
         </LinearLayout>
 
-        <!-- Screen 3: Matched Creators List + Delivery Animation -->
+        <!-- ════════════════════════════════════ -->
+        <!-- Screen 3: Matched Creators          -->
+        <!-- ════════════════════════════════════ -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:background="@color/white">
+            android:background="@color/white"
+            android:orientation="vertical">
 
             <TextView
                 android:id="@+id/tv_creators_title"
@@ -349,7 +662,7 @@
                 android:gravity="center"
                 android:paddingTop="32dp"
                 android:paddingBottom="8dp"
-                android:text="Delivering your message…"
+                android:text="Delivering your message&#8230;"
                 android:textColor="@color/creator_name_text"
                 android:textSize="20sp" />
 
@@ -361,11 +674,10 @@
                 android:gravity="center"
                 android:paddingHorizontal="32dp"
                 android:paddingBottom="16dp"
-                android:text="Hima is reaching your matches now ✨"
+                android:text="Hima is reaching your matches now &#10024;"
                 android:textColor="@color/grey_medium"
                 android:textSize="14sp" />
 
-            <!-- Wrapper lets the messenger avatar float over the row list -->
             <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
@@ -380,8 +692,6 @@
                     android:paddingTop="8dp"
                     android:paddingBottom="80dp" />
 
-                <!-- Hima messenger: overlaid bubble that glides to the row currently
-                     being delivered. Replaces the old "typing…" dots. -->
                 <FrameLayout
                     android:id="@+id/iv_messenger_avatar"
                     android:layout_width="44dp"

@@ -2,6 +2,8 @@ package com.gmwapp.hima.activities
 
 import android.os.Bundle
 import android.util.Log
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
@@ -27,6 +29,17 @@ class CommunityGuidelineActivity : AppCompatActivity() {
 
         // Enable JavaScript in WebView
         binding.wvPrivacyPolicy.settings.javaScriptEnabled = true
+        // Inject CSS once each page finishes so section headers (h1–h6) render in brand pink.
+        binding.wvPrivacyPolicy.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, url: String?) {
+                view?.evaluateJavascript(
+                    "(function(){var s=document.createElement('style');" +
+                    "s.innerHTML='h1,h2,h3,h4,h5,h6{color:#FF2E9A !important;}';" +
+                    "document.head.appendChild(s);})();",
+                    null
+                )
+            }
+        }
 
         // Load from prefs if already saved
         val prefs = BaseApplication.getInstance()?.getPrefs()

@@ -55,8 +55,11 @@ class CreatorChatFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         if (requireActivity() is MainActivity) {
-            val basePaddingTop = binding.tabsCreatorChat.paddingTop
-            ViewCompat.setOnApplyWindowInsetsListener(binding.tabsCreatorChat) { v, insets ->
+            // Apply status-bar inset to the HEADER, not the TabLayout.
+            // (Old layout had no header so tabsCreatorChat was the topmost view;
+            //  new layout has cl_chat_header above the tabs.)
+            val basePaddingTop = binding.clChatHeader.paddingTop
+            ViewCompat.setOnApplyWindowInsetsListener(binding.clChatHeader) { v, insets ->
                 val statusBarInset = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
                 v.setPadding(
                     v.paddingLeft,
@@ -66,7 +69,7 @@ class CreatorChatFragment : Fragment() {
                 )
                 insets
             }
-            ViewCompat.requestApplyInsets(binding.tabsCreatorChat)
+            ViewCompat.requestApplyInsets(binding.clChatHeader)
         }
 
         binding.vpCreatorChat.adapter = object : FragmentStateAdapter(this) {

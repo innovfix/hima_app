@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.graphics.LinearGradient
+import android.graphics.Shader
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
@@ -162,6 +164,8 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
     ): View {
         binding = FragmentFemaleHomeBinding.inflate(layoutInflater)
         setupStatusBarInsets()
+        applyBrandTitleGradient()
+        animateEntrance()
 
         sharedPreferences = requireContext().getSharedPreferences("MyAppPrefs", Context.MODE_PRIVATE)
         isPermissionDenied = sharedPreferences.getBoolean("isTagSet", false)
@@ -542,6 +546,7 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                     if (settingsList.isNotEmpty()) {
                         val settingsData = settingsList[0]
                         settingsData.auto_disable_info?.let { auto_disable_info ->
+                            binding.cvDisclaimerCard.visibility = android.view.View.VISIBLE
                             binding.tvDisclaimer.setText(auto_disable_info)
                         }
                         // Update audio call price
@@ -1224,6 +1229,7 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
 //    }
 
     fun fetchBadgeList(id: Int) {
+        if (!isAdded || view == null) return
         badgeViewModel.getBadgesInformation(id)
         badgeViewModel.badgeLiveData.observe(viewLifecycleOwner) { response ->
             if (response != null && response.success) {
@@ -1243,8 +1249,14 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
     /**
      * Called when the user re-taps the Home tab in bottom nav.
      * Re-fetches female reports / users / discovery so the screen shows current data.
+     *
+     * Guarded against view-not-ready: on a config change (e.g. landscape→portrait
+     * rotation) MainActivity re-attaches its nav listener and pings selectedItemId
+     * before the fragment's onCreateView has fired again. Accessing
+     * viewLifecycleOwner / binding at that moment throws IllegalStateException.
      */
     override fun refresh() {
+        if (!isAdded || view == null) return
         val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
         femaleUsersViewModel.getReports(userId)
         femaleUsersViewModel.getFemaleUsers(userId)
@@ -1286,5 +1298,66 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
             textSize = 15f
             setPadding(0, 8, 8, 8)
         }
+    }
+
+    /** Paint the "Hi ma" brand title with solid brand pink — matches HomeFragment. */
+    private fun applyBrandTitleGradient() {
+        val tv = binding.tvLogo
+        tv.post {
+            val w = tv.paint.measureText(tv.text.toString()).coerceAtLeast(1f)
+            val shader = LinearGradient(
+                0f, 0f, w, 0f,
+                intArrayOf(0xFFFF2E9A.toInt(), 0xFFFF2E9A.toInt()),
+                null,
+                Shader.TileMode.CLAMP
+            )
+            tv.paint.shader = shader
+            tv.invalidate()
+        }
+    }
+
+    /**
+     * Staggered entrance animation when the Female Home screen opens.
+     * Plays only once per app launch (same pattern as HomeFragment).
+     */
+    private fun animateEntrance() {
+        if (hasPlayedEntrance) return
+        hasPlayedEntrance = true
+
+        val d = resources.displayMetrics.density
+
+        // 1) Header bar: slide down from -40dp + fade in
+        binding.clHeader.apply {
+            alpha = 0f
+            translationY = -40f * d
+            animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setStartDelay(100L)
+                .setDuration(700L)
+                .setInterpolator(android.view.animation.DecelerateInterpolator(1.6f))
+                .start()
+        }
+
+        // 2) Logo icon, logo+tagline block, earnings pill: scale-in with overshoot
+        listOf(binding.cvLogoIcon, binding.llLogoText, binding.clCoins).forEach { v ->
+            v.alpha = 0f
+            v.scaleX = 0.8f
+            v.scaleY = 0.8f
+            v.animate()
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .setStartDelay(380L)
+                .setDuration(600L)
+                .setInterpolator(android.view.animation.OvershootInterpolator(1.1f))
+                .start()
+        }
+    }
+
+    companion object {
+        // Survives fragment recreation within the same process so the entrance
+        // animation plays only on the first open per app launch.
+        private var hasPlayedEntrance = false
     }
 }

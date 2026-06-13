@@ -83,6 +83,11 @@ class MaleCallAcceptActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding = ActivityMaleCallAcceptBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Full-screen call UI is up — kill the heads-up call notification so the
+        // user doesn't see both at once.
+        BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
+
         window.statusBarColor = ContextCompat.getColor(this, R.color.black)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())

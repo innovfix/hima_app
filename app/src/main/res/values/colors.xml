@@ -8,10 +8,10 @@
     <color name="user_name_hint_text">#a5a6aa</color>
     <color name="black_background">#161a1d</color>
     <color name="blue_background">#1a0042</color>
-    <color name="interest_text_color">#334155</color>
-    <color name="interest_selected_text_color">#7C3AED</color>
+    <color name="interest_text_color">#1E293B</color>
+    <color name="interest_selected_text_color">#FFFFFF</color>
     <color name="transaction_text_color">#f4f5f7</color>
-    <color name="interest_disabled_text_color">#9CA3AF</color>
+    <color name="interest_disabled_text_color">#CBD5E1</color>
     <color name="yellow">#f5e77e</color>
     <color name="yellow_dark">#FFD018</color>
     <color name="light_blue">#321a56</color>
@@ -41,6 +41,9 @@
     <color name="pink_extra_light_100">#4EFFFFFF</color>
     <color name="purple">#9C1DF9</color>
     <color name="blue">#2388F2</color>
+    <color name="fab_gold_stroke">#D4AF37</color>
+    <!-- Vibrant magenta/pink for the home action FABs. -->
+    <color name="call_fab_bg">#BE185D</color>
     <color name="grey_medium">#75767a</color>
     <color name="grey">#545454</color>
     <color name="grey_extra_light">#F5F6F8</color>
@@ -109,9 +112,9 @@
     <color name="chat_list_free_badge_bg">#ECFDF5</color>
     <color name="chat_list_free_badge_stroke">#10B981</color>
     <color name="chat_list_free_badge_text">#059669</color>
-    <color name="chat_list_bell_active">#FF4081</color>
-    <color name="chat_list_bell_inactive">#6B7280</color>
-    <color name="chat_list_call_disabled_text">#6B7280</color>
+    <color name="chat_list_bell_active">#FF2E9A</color>
+    <color name="chat_list_bell_inactive">#9CA3AF</color>
+    <color name="chat_list_call_disabled_text">#A0A8B5</color>
 
     <!-- Chat Interface Colors -->
     <color name="chat_background">#FAFBFC</color>

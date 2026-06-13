@@ -20,6 +20,25 @@
     android:keepScreenOn="true"
     android:background="@drawable/professional_call_background">
 
+    <!-- Ambient color blobs -->
+    <View
+        android:layout_width="280dp"
+        android:layout_height="280dp"
+        android:layout_marginStart="-80dp"
+        android:layout_marginTop="-80dp"
+        android:background="@drawable/bg_radar_blob_pink"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <View
+        android:layout_width="320dp"
+        android:layout_height="320dp"
+        android:layout_marginEnd="-60dp"
+        android:layout_marginBottom="-100dp"
+        android:background="@drawable/bg_radar_blob_purple"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
     <!-- Video Containers -->
     <androidx.cardview.widget.CardView
         android:id="@+id/localCardView"
@@ -109,7 +128,7 @@
                 android:src="@drawable/ic_timer_professional"
                 android:layout_marginEnd="6dp"
                 android:contentDescription="Timer"
-                app:tint="#1A237E"
+                app:tint="#FFFFFF"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent"/>
@@ -120,7 +139,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="00:00:00"
-                android:textColor="#1A237E"
+                android:textColor="#FFFFFF"
                 android:textSize="14sp"
                 android:fontFamily="sans-serif-medium"
                 android:letterSpacing="0.05"
@@ -160,29 +179,65 @@
 
     </LinearLayout>
 
-    <!-- "Reconnecting…" pill — toggled by CallQualityUi from Agora onConnectionStateChanged. -->
-    <TextView
+    <!-- "Reconnecting…" card — toggled by CallQualityUi from Agora onConnectionStateChanged. -->
+    <LinearLayout
         android:id="@+id/reconnect_banner"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="6dp"
         android:background="@drawable/bg_reconnect_pill"
         android:elevation="10dp"
-        android:text="@string/call_reconnecting"
-        android:textColor="@android:color/white"
-        android:textSize="12sp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="14dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="10dp"
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/top_bar" />
+        app:layout_constraintTop_toBottomOf="@id/top_bar">
 
-    <!-- User Avatars Container (Center) -->
+        <ProgressBar
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:indeterminate="true"
+            android:indeterminateTint="#FF1383" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_bold"
+                android:text="Reconnecting…"
+                android:textColor="#0F172A"
+                android:textSize="13sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_medium"
+                android:text="Check your network"
+                android:textColor="#64748B"
+                android:textSize="11sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- User Avatars Container (Center)
+         layoutDirection=rtl flips the visual order so the male caller (this
+         user) sits on the LEFT and the female peer on the RIGHT. -->
     <LinearLayout
         android:id="@+id/users_container"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center"
+        android:layoutDirection="rtl"
         android:visibility="gone"
         android:elevation="10dp"
         app:layout_constraintTop_toBottomOf="@id/top_bar"
@@ -199,7 +254,7 @@
             android:gravity="center"
             android:layout_marginEnd="24dp">
 
-            <!-- Female Avatar with Team Color Border -->
+            <!-- Female Avatar with Team Color Border + Conic Ring -->
             <FrameLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -212,6 +267,11 @@
                     android:layout_gravity="center"
                     android:visibility="gone"
                     android:background="@drawable/bg_team_circle" />
+
+                <com.gmwapp.hima.widgets.ConicRingView
+                    android:layout_width="126dp"
+                    android:layout_height="126dp"
+                    android:layout_gravity="center" />
 
                 <androidx.cardview.widget.CardView
                     android:layout_width="wrap_content"
@@ -392,7 +452,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:background="@drawable/professional_control_button_bg"
-                    android:src="@drawable/unmute_img"
+                    android:src="@drawable/ic_call_mic"
                     android:padding="14dp"
                     android:scaleType="fitCenter"
                     android:contentDescription="Microphone"/>
@@ -427,7 +487,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:background="@drawable/professional_control_button_bg"
-                    android:src="@drawable/speakeron_img"
+                    android:src="@drawable/ic_call_speaker_on"
                     android:padding="14dp"
                     android:scaleType="fitCenter"
                     android:contentDescription="Speaker"/>
@@ -462,7 +522,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:background="@drawable/professional_end_call_bg"
-                    android:src="@drawable/endcall"
+                    android:src="@drawable/ic_call_end"
                     android:padding="16dp"
                     android:scaleType="fitCenter"
                     android:contentDescription="End Call"/>
@@ -501,7 +561,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:background="@drawable/professional_control_button_bg"
-                    android:src="@drawable/audiocall_img"
+                    android:src="@drawable/ic_call_audio"
                     android:padding="14dp"
                     android:scaleType="fitCenter"
                     android:contentDescription="Video"/>
@@ -574,57 +634,84 @@
 
     </androidx.cardview.widget.CardView>
 
-    <!-- Gift Button -->
-    <androidx.cardview.widget.CardView
-        android:id="@+id/gift_button_card"
-        android:layout_width="wrap_content"
+    <!-- Inline Gift Rail (replaces "Send Gift" bottom-sheet trigger) -->
+    <LinearLayout
+        android:id="@+id/gift_rail_container"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="20dp"
-        android:layout_marginBottom="8dp"
-        app:cardCornerRadius="28dp"
-        app:cardElevation="12dp"
-        app:cardBackgroundColor="#E91E63"
+        android:background="@drawable/bg_gift_rail_container"
+        android:elevation="10dp"
+        android:orientation="vertical"
+        android:paddingStart="14dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="14dp"
+        android:paddingBottom="6dp"
         app:layout_constraintBottom_toTopOf="@id/controls_container"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/users_container"
-        app:layout_constraintVertical_bias="0.75">
+        app:layout_constraintStart_toStartOf="parent">
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:gravity="center"
-            android:paddingStart="18dp"
-            android:paddingEnd="18dp"
-            android:paddingTop="12dp"
-            android:paddingBottom="12dp">
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp">
 
             <ImageView
                 android:id="@+id/iv_gift"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
-                android:src="@drawable/gift_png"
-                android:layout_marginEnd="8dp"
-                android:contentDescription="Send Gift"/>
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:src="@drawable/ic_gift_white"
+                android:contentDescription="Gifts"/>
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Send Gift"
+                android:layout_marginStart="6dp"
+                android:fontFamily="@font/poppins_bold"
+                android:letterSpacing="0.04"
+                android:text="Tap to send"
                 android:textColor="#FFFFFF"
-                android:textSize="15sp"
-                android:fontFamily="sans-serif-medium"
-                android:letterSpacing="0.02"/>
+                android:textSize="12sp"/>
 
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:alpha="0.65"
+                android:fontFamily="@font/poppins_medium"
+                android:text="One tap · sends instantly"
+                android:textColor="#FFFFFF"
+                android:textSize="10sp"/>
         </LinearLayout>
 
-    </androidx.cardview.widget.CardView>
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_gift_rail"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="6dp"
+            android:clipToPadding="false"
+            android:overScrollMode="never"
+            android:paddingStart="4dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="4dp"
+            android:paddingBottom="6dp"
+            android:scrollbars="none"/>
+    </LinearLayout>
 
     <ImageView
         android:id="@+id/iv_gift_image"
         android:layout_width="@dimen/_95sdp"
         android:layout_height="95dp"
+        android:elevation="32dp"
         android:src="@drawable/gift_png"
+        android:translationZ="32dp"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"

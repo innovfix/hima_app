@@ -60,24 +60,59 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
         savedInstanceState: Bundle?
     ): View {
         binding = FragmentProfileBinding.inflate(layoutInflater)
-        setupStatusBarInsets()
         initUI()
+        animateEntrance()
         return binding.root
     }
 
-    private fun setupStatusBarInsets() {
-        val basePaddingTop = binding.root.paddingTop
-        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
-            val statusBarInset = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
-            view.setPadding(
-                view.paddingLeft,
-                basePaddingTop + statusBarInset,
-                view.paddingRight,
-                view.paddingBottom
-            )
-            insets
+    /** Professional staggered entrance animation when Profile opens. */
+    private fun animateEntrance() {
+        // Run only once per app launch — skip on subsequent tab switches.
+        if (hasPlayedEntrance) return
+        hasPlayedEntrance = true
+
+        val d = resources.displayMetrics.density
+
+        // 1) Hero background: fade in.
+        binding.headerBackground.apply {
+            alpha = 0f
+            animate()
+                .alpha(1f)
+                .setStartDelay(50L)
+                .setDuration(600L)
+                .setInterpolator(android.view.animation.DecelerateInterpolator(1.4f))
+                .start()
         }
-        ViewCompat.requestApplyInsets(binding.root)
+
+        // 2) Profile card: scale + slide up from below.
+        binding.profileCard.apply {
+            alpha = 0f
+            scaleX = 0.9f
+            scaleY = 0.9f
+            translationY = 30f * d
+            animate()
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .translationY(0f)
+                .setStartDelay(300L)
+                .setDuration(650L)
+                .setInterpolator(android.view.animation.OvershootInterpolator(1.0f))
+                .start()
+        }
+
+        // 3) Settings / menu container: fade + slide up.
+        binding.menuContainer.apply {
+            alpha = 0f
+            translationY = 50f * d
+            animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setStartDelay(700L)
+                .setDuration(700L)
+                .setInterpolator(android.view.animation.DecelerateInterpolator(1.4f))
+                .start()
+        }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -358,5 +393,11 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
         val connectivityManager = context?.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val activeNetwork = connectivityManager.activeNetworkInfo
         return activeNetwork != null && activeNetwork.isConnected
+    }
+
+    companion object {
+        // Survives fragment recreation within the same process, so the entrance
+        // animation plays only on the first open per app launch.
+        private var hasPlayedEntrance = false
     }
 }

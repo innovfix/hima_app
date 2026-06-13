@@ -338,12 +338,13 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         super.onCreate(savedInstanceState)
         binding = ActivityNewLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        // Keep system bars opaque on login for better readability of SDK consent footer.
-        window.statusBarColor = getColor(R.color.pink)
-        window.navigationBarColor = getColor(R.color.pink)
+        // Edge-to-edge — single light-grey background spanning status bar to
+        // nav bar with dark icons on both for proper contrast.
+        window.statusBarColor = getColor(R.color.grey_extra_light)
+        window.navigationBarColor = getColor(R.color.grey_extra_light)
         WindowCompat.getInsetsController(window, window.decorView).apply {
-            isAppearanceLightStatusBars = false
-            isAppearanceLightNavigationBars = false
+            isAppearanceLightStatusBars = true
+            isAppearanceLightNavigationBars = true
         }
 
         // Add animated background (same as splash screen)
@@ -528,7 +529,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         val savedReferCode = DPreferences(this).getReferralCode()
         Log.d("savedReferCode","$savedReferCode")
         checkReferal()
-        sendOtpEnabledTint = binding.btnSendOtp.backgroundTintList
+        sendOtpEnabledTint = ColorStateList.valueOf(android.graphics.Color.parseColor("#FF1383"))
 
         binding.btnSendOtp.setOnClickListener {
             closeKeyboard()
@@ -547,6 +548,13 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                     showSnackbar("Enter a valid 10-digit mobile number")
                 }
                 else -> {
+                    // ── DESIGN DUMMY: bypass all API for number 9999900000 ──
+                    if (mobile == "9999900000") {
+                        val intent = Intent(this, SelectGenderActivity::class.java)
+                        intent.putExtra(DConstants.MOBILE_NUMBER, mobile)
+                        startActivity(intent)
+                        return@setOnClickListener
+                    }
                     binding.btnSendOtp.isEnabled = false
                     val r = Random(System.currentTimeMillis())
                     otp = r.nextInt(100000, 999999)
@@ -577,7 +585,6 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             }
 
             override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
-                window.statusBarColor = resources.getColor(R.color.dark_blue)
                 updateSendOtpButtonState()
             }
 
@@ -633,7 +640,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         binding.btnSendOtp.backgroundTintList = if (hasTenDigitInput) {
             sendOtpEnabledTint
         } else {
-            ColorStateList.valueOf(getColor(R.color.grey_medium))
+            ColorStateList.valueOf(getColor(R.color.kyc_button_disabled))
         }
     }
 
@@ -734,7 +741,8 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
 
     private fun initOtpUI(mobile: String, otp: Int, countryCode: Int) {
-        window.statusBarColor = resources.getColor(R.color.dark_blue)
+        // Keep status bar matching the screen's single grey background.
+        window.statusBarColor = getColor(R.color.grey_extra_light)
         if (verifyOtpEnabledTint == null) {
             verifyOtpEnabledTint = binding.btnVerifyOtp.backgroundTintList
         }
@@ -922,11 +930,16 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         val hasCompleteOtp = (binding.pvOtp.text?.length ?: 0) == 6
         val isEnabled = hasCompleteOtp && !isVerifyingOtp
         binding.btnVerifyOtp.isEnabled = isEnabled
+        // Pink when complete (matches Send OTP / login button), gray when not
         binding.btnVerifyOtp.backgroundTintList = if (isEnabled) {
-            verifyOtpEnabledTint
+            ColorStateList.valueOf(android.graphics.Color.parseColor("#FF1383"))
         } else {
-            ColorStateList.valueOf(getColor(R.color.grey_medium))
+            ColorStateList.valueOf(getColor(R.color.kyc_button_disabled))
         }
+        binding.btnVerifyOtp.setTextColor(
+            if (isEnabled) android.graphics.Color.WHITE
+            else android.graphics.Color.parseColor("#94A3B8")
+        )
     }
 
 

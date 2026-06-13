@@ -202,7 +202,7 @@
         <activity
             android:name=".activities.RatingActivity"
             android:exported="false"
-            android:windowSoftInputMode="adjustPan" />
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".activities.BankUpdateActivity"
             android:exported="false"

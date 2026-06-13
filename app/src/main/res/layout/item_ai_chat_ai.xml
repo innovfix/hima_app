@@ -1,18 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:gravity="bottom"
+    android:orientation="horizontal"
     android:paddingHorizontal="14dp"
     android:paddingVertical="5dp">
 
+    <!-- Small Hima avatar -->
+    <FrameLayout
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_marginEnd="8dp"
+        android:background="@drawable/bg_hima_avatar">
+
+        <ImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="center"
+            android:src="@mipmap/ic_launcher"
+            android:contentDescription="@null" />
+    </FrameLayout>
+
+    <!-- AI message bubble -->
     <com.google.android.material.card.MaterialCardView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="start"
-        android:maxWidth="300dp"
+        android:maxWidth="268dp"
         app:cardBackgroundColor="#FFFFFF"
-        app:cardCornerRadius="20dp"
+        app:cardCornerRadius="18dp"
+        app:shapeAppearanceOverlay="@style/ShapeOverlay.AiChatBubble"
         app:cardElevation="1dp"
         app:strokeColor="#EEEEEE"
         app:strokeWidth="1dp">
@@ -29,4 +48,4 @@
             android:textSize="14sp" />
 
     </com.google.android.material.card.MaterialCardView>
-</FrameLayout>
+</LinearLayout>

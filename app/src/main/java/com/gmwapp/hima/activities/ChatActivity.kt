@@ -131,11 +131,11 @@ class ChatActivity : AppCompatActivity() {
         Log.d("checkPagiantion", "🏁 ChatActivity onCreate() called")
         setContentView(R.layout.activity_chat)
 
-        // ✅ Restrict screenshots and screen recording
-        window.setFlags(
-            WindowManager.LayoutParams.FLAG_SECURE,
-            WindowManager.LayoutParams.FLAG_SECURE
-        )
+        // TEMP: FLAG_SECURE disabled so QA can capture screenshots for testing.
+//        window.setFlags(
+//            WindowManager.LayoutParams.FLAG_SECURE,
+//            WindowManager.LayoutParams.FLAG_SECURE
+//        )
 
         initializeViews()
         setupRecyclerView()

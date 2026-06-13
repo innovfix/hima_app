@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- White bottom-sheet card: top corners rounded, bottom square so it
+     fills all the way to the navigation bar without a gap. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/white" />
+    <corners
+        android:topLeftRadius="32dp"
+        android:topRightRadius="32dp"
+        android:bottomLeftRadius="0dp"
+        android:bottomRightRadius="0dp" />
+</shape>

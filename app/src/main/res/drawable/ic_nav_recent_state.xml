@@ -1,0 +1,4 @@
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_checked="true" android:drawable="@drawable/ic_nav_recent_modern" />
+    <item android:drawable="@drawable/ic_nav_recent_outline" />
+</selector>

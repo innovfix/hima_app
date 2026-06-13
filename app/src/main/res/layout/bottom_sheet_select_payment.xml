@@ -1,157 +1,271 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
+<LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@android:color/white"
-    android:paddingTop="8dp">
+    android:background="@color/grey_extra_light"
+    android:orientation="vertical">
 
-    <!-- Top Handle/Indicator -->
-    <View
-        android:id="@+id/bottom_sheet_handle"
-        android:layout_width="40dp"
-        android:layout_height="4dp"
-        android:layout_marginTop="8dp"
-        android:background="#E0E0E0"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+    <!-- Handle -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="28dp"
+        android:background="@color/white">
+        <View
+            android:layout_width="40dp"
+            android:layout_height="4dp"
+            android:layout_gravity="center"
+            android:background="@drawable/d_button_bg"
+            android:backgroundTint="#D1D5DB" />
+    </FrameLayout>
 
-    <!-- Title -->
-    <TextView
-        android:id="@+id/tv_payment_title"
-        android:layout_width="0dp"
+    <!-- White sticky header -->
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="24dp"
-        android:layout_marginTop="24dp"
-        android:layout_marginEnd="24dp"
-        android:text="Payment Method"
-        android:textColor="#1F1F1F"
-        android:textSize="20sp"
-        android:textStyle="bold"
-        android:fontFamily="@font/poppins_semibold"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/bottom_sheet_handle" />
+        android:background="@color/white"
+        android:elevation="2dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="20dp"
+        android:paddingTop="12dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="16dp">
 
-    <!-- Payment Options Container -->
+        <FrameLayout
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:background="@drawable/circle_bg_accent">
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_gravity="center"
+                android:contentDescription="@string/earnings"
+                android:src="@drawable/wallet"
+                app:tint="@color/white" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="12dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_payment_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_semibold"
+                android:text="Payment Method"
+                android:textColor="@color/black_light"
+                android:textSize="18sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_regular"
+                android:text="Choose how to receive your money"
+                android:textColor="@color/grey_medium"
+                android:textSize="11sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Options container -->
     <LinearLayout
         android:id="@+id/payment_options_container"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="24dp"
-        android:layout_marginTop="20dp"
-        android:layout_marginEnd="24dp"
         android:orientation="vertical"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tv_payment_title">
+        android:paddingStart="16dp"
+        android:paddingTop="14dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="4dp">
 
-        <!-- UPI Payment Option -->
-        <androidx.cardview.widget.CardView
+        <!-- UPI Option Card -->
+        <com.google.android.material.card.MaterialCardView
             android:id="@+id/upi_option"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
             android:visibility="invisible"
-            app:cardCornerRadius="12dp"
+            android:clickable="true"
+            android:focusable="true"
+            app:cardBackgroundColor="@color/white"
+            app:cardCornerRadius="16dp"
             app:cardElevation="0dp"
-            app:strokeColor="#E8E8E8"
-            app:strokeWidth="1dp"
-            app:cardBackgroundColor="@android:color/white">
+            app:strokeColor="#E9EDF2"
+            app:strokeWidth="1dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:padding="16dp"
-                android:gravity="center_vertical">
+                android:padding="16dp">
 
-                <RadioButton
-                    android:id="@+id/rb_upi"
+                <!-- UPI icon badge -->
+                <FrameLayout
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="@drawable/d_button_bg"
+                    android:backgroundTint="#F0F4FF">
+                    <ImageView
+                        android:layout_width="26dp"
+                        android:layout_height="26dp"
+                        android:layout_gravity="center"
+                        android:contentDescription="@string/upi_id"
+                        android:src="@drawable/ic_upi"
+                        app:tint="#3B82F6" />
+                </FrameLayout>
+
+                <!-- Text -->
+                <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:buttonTint="@color/pink"
-                    android:text="UPI Payment"
-                    android:textColor="#2C2C2C"
-                    android:textSize="15sp"
-                    android:fontFamily="@font/poppins_medium" />
+                    android:layout_marginStart="14dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/poppins_semibold"
+                        android:text="UPI Payment"
+                        android:textColor="@color/black_light"
+                        android:textSize="15sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:fontFamily="@font/poppins_regular"
+                        android:text="Instant transfer via UPI ID"
+                        android:textColor="@color/grey_medium"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <!-- Hidden radio (keeps Kotlin logic working) -->
+                <RadioButton
+                    android:id="@+id/rb_upi"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:buttonTint="@color/colorAccent"
+                    android:focusable="false"
+                    android:clickable="false" />
 
             </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-        </androidx.cardview.widget.CardView>
-
-        <!-- Info Text -->
+        <!-- UPI info text -->
         <TextView
-            android:visibility="gone"
             android:id="@+id/tv_upi_info"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:layout_marginStart="4dp"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/d_button_bg"
+            android:backgroundTint="#FFFBEB"
+            android:fontFamily="@font/poppins_regular"
+            android:padding="12dp"
             android:text="A 5% tax will be applied to each payment you receive."
-            android:textColor="#9E9E9E"
+            android:textColor="#92400E"
             android:textSize="12sp"
-            android:fontFamily="@font/poppins_regular" />
+            android:visibility="gone" />
 
-        <!-- Bank Transfer Option -->
-        <androidx.cardview.widget.CardView
+        <!-- Bank Transfer Card -->
+        <com.google.android.material.card.MaterialCardView
             android:id="@+id/bank_option"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginBottom="4dp"
             android:visibility="invisible"
-            app:cardCornerRadius="12dp"
+            android:clickable="true"
+            android:focusable="true"
+            app:cardBackgroundColor="@color/white"
+            app:cardCornerRadius="16dp"
             app:cardElevation="0dp"
-            app:strokeColor="#E8E8E8"
-            app:strokeWidth="1dp"
-            app:cardBackgroundColor="@android:color/white">
+            app:strokeColor="#E9EDF2"
+            app:strokeWidth="1dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:padding="16dp"
-                android:gravity="center_vertical">
+                android:padding="16dp">
 
-                <RadioButton
-                    android:id="@+id/rb_bank"
+                <!-- Bank icon badge -->
+                <FrameLayout
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="@drawable/d_button_bg"
+                    android:backgroundTint="#F0FDF4">
+                    <ImageView
+                        android:layout_width="26dp"
+                        android:layout_height="26dp"
+                        android:layout_gravity="center"
+                        android:contentDescription="@string/bank_transfer"
+                        android:src="@drawable/bank_svg"
+                        app:tint="@color/green" />
+                </FrameLayout>
+
+                <!-- Text -->
+                <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:buttonTint="@color/pink"
-                    android:fontFamily="@font/poppins_medium"
-                    android:text="Bank Transfer"
-                    android:textColor="#2C2C2C"
-                    android:textSize="15sp" />
+                    android:layout_marginStart="14dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/poppins_semibold"
+                        android:text="Bank Transfer"
+                        android:textColor="@color/black_light"
+                        android:textSize="15sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:fontFamily="@font/poppins_regular"
+                        android:text="Direct deposit to bank account"
+                        android:textColor="@color/grey_medium"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <!-- Hidden radio -->
+                <RadioButton
+                    android:id="@+id/rb_bank"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:buttonTint="@color/colorAccent"
+                    android:focusable="false"
+                    android:clickable="false" />
 
             </LinearLayout>
-
-        </androidx.cardview.widget.CardView>
+        </com.google.android.material.card.MaterialCardView>
 
     </LinearLayout>
 
-    <!-- Select Button -->
+    <!-- Continue Button -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_select_payment"
-        android:layout_width="0dp"
-        android:layout_height="56dp"
-        android:layout_marginStart="24dp"
-        android:layout_marginTop="32dp"
-        android:layout_marginEnd="24dp"
-        android:layout_marginBottom="24dp"
+        android:layout_width="match_parent"
+        android:layout_height="54dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="28dp"
+        android:backgroundTint="@color/colorAccent"
         android:fontFamily="@font/poppins_semibold"
         android:text="Continue"
         android:textAllCaps="false"
-        android:textSize="16sp"
         android:textColor="@color/white"
-        android:backgroundTint="@color/pink"
-        app:cornerRadius="12dp"
-        app:elevation="0dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/payment_options_container" />
+        android:textSize="16sp"
+        app:cornerRadius="14dp"
+        app:elevation="0dp" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+</LinearLayout>

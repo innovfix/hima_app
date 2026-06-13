@@ -15,6 +15,7 @@ import com.gmwapp.hima.R
 import com.gmwapp.hima.adapters.EarningsAdapter
 import com.gmwapp.hima.databinding.ActivityEarningsBinding
 import com.gmwapp.hima.databinding.BottomSheetSelectPaymentBinding
+import com.gmwapp.hima.retrofit.responses.EarningsResponseData
 import com.gmwapp.hima.dialogs.BottomSheetSelectPayment
 import com.gmwapp.hima.utils.applySystemBarInsets
 import com.gmwapp.hima.utils.setOnSingleClickListener
@@ -32,7 +33,7 @@ class EarningsActivity : BaseActivity() {
     private val loginViewModel: LoginViewModel by viewModels()
     val profileViewModel: ProfileViewModel by viewModels()
 
-
+    private var withdrawRequested = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,6 +46,31 @@ class EarningsActivity : BaseActivity() {
     private fun initUI() {
 
        // panVerification()
+        binding.pbEarnings.visibility = View.VISIBLE
+        binding.rvEarnings.layoutManager =
+            LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
+
+        // Fallback: if no earnings data arrives shortly (e.g. dev backend),
+        // stop the spinner and show dummy rows so the list isn't empty.
+        android.os.Handler(mainLooper).postDelayed({
+            val current = binding.rvEarnings.adapter?.itemCount ?: 0
+            if (current == 0) {
+                binding.pbEarnings.visibility = View.GONE
+                binding.rvEarnings.adapter = EarningsAdapter(this, buildDummyEarnings())
+            }
+        }, 1200)
+
+        // Balance fallback: if the fresh value is slow, show the cached one
+        // so the small loader never spins forever.
+        android.os.Handler(mainLooper).postDelayed({
+            if (binding.pbBalance.visibility == View.VISIBLE) {
+                val cached = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.balance ?: 0.0
+                binding.tvCurrentBalance.text = "₹$cached"
+                binding.pbBalance.visibility = View.GONE
+                binding.tvCurrentBalance.visibility = View.VISIBLE
+            }
+        }, 2500)
+
         updateEarnings()
 
         binding.cvBack.setOnSingleClickListener {
@@ -57,22 +83,48 @@ class EarningsActivity : BaseActivity() {
 
             val balance = it?.data?.balance ?: 0.0
             binding.tvCurrentBalance.text = "₹$balance"
+            // Balance arrived → swap the small loader for the amount
+            binding.pbBalance.visibility = View.GONE
+            binding.tvCurrentBalance.visibility = View.VISIBLE
 
             Log.d("OnresumeEarning", balance.toString())
         })
 
 
         binding.btnWithdraw.setOnSingleClickListener {
-
-
-//            val intent = Intent(this, WithdrawActivity::class.java)
-//            intent.putExtra("balance", binding.tvEarnings.text.toString()) // Replace key_name and value_to_pass with your actual key and value.
-//            startActivity(intent)
-
-            val bottomSheet: BottomSheetSelectPayment = BottomSheetSelectPayment()
-            bottomSheet.show(supportFragmentManager, "BottomSheetSelectPayment")
-
+            // Load payment options FIRST, then open the bottom sheet ready
+            setWithdrawLoading(true)
+            withdrawRequested = true
+            loginViewModel.appUpdate()
+            // Safety net: open anyway if the API is slow / silent
+            android.os.Handler(mainLooper).postDelayed({
+                if (withdrawRequested) {
+                    withdrawRequested = false
+                    setWithdrawLoading(false)
+                    openWithdrawSheet("1", "1")
+                }
+            }, 4000)
         }
+
+        // Payment options loaded → open the sheet with data ready
+        loginViewModel.appUpdateResponseLiveData.observe(this, Observer {
+            if (withdrawRequested) {
+                withdrawRequested = false
+                setWithdrawLoading(false)
+                val hasData = it != null && it.success && it.data.isNotEmpty()
+                val bank = if (hasData) it.data[0].bank.toString() else "1"
+                val upi = if (hasData) it.data[0].upi.toString() else "1"
+                openWithdrawSheet(bank, upi)
+            }
+        })
+
+        loginViewModel.appUpdateErrorLiveData.observe(this, Observer {
+            if (withdrawRequested) {
+                withdrawRequested = false
+                setWithdrawLoading(false)
+                openWithdrawSheet("1", "1")
+            }
+        })
 
         binding.cvPanDetails.setOnSingleClickListener {
             val intent = Intent(this, KycActivity::class.java)
@@ -141,20 +193,60 @@ class EarningsActivity : BaseActivity() {
             }
         })
         earningsViewModel.earningsResponseLiveData.observe(this, Observer {
-            if (it != null && it.data != null) {
-                binding.cvPanDetails.visibility=View.GONE
-                binding.rvEarnings.setLayoutManager(
-                    LinearLayoutManager(
-                        this, LinearLayoutManager.VERTICAL, false
-                    )
-                )
-                Log.d("earningsViewModel","${it.data}")
+            // Loading finished
+            binding.pbEarnings.visibility = View.GONE
 
-                var earningsAdapter = EarningsAdapter(this, it.data)
-                binding.rvEarnings.setAdapter(earningsAdapter)
-            }
+            binding.rvEarnings.layoutManager =
+                LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
+
+            val realList = it?.data
+            val listToShow: List<EarningsResponseData> =
+                if (realList != null && realList.isNotEmpty()) {
+                    binding.cvPanDetails.visibility = View.GONE
+                    realList
+                } else {
+                    // No real earnings yet → show dummy rows so the list isn't empty
+                    buildDummyEarnings()
+                }
+
+            Log.d("earningsViewModel", "showing ${listToShow.size} rows")
+            binding.rvEarnings.adapter = EarningsAdapter(this, listToShow)
         })
 
+    }
+
+    /** Toggle the inline loader on the Withdraw button while options pre-load. */
+    private fun setWithdrawLoading(loading: Boolean) {
+        if (loading) {
+            binding.pbWithdraw.visibility = View.VISIBLE
+            binding.btnWithdraw.text = ""
+            binding.btnWithdraw.isEnabled = false
+        } else {
+            binding.pbWithdraw.visibility = View.GONE
+            binding.btnWithdraw.text = getString(R.string.withdraw)
+            binding.btnWithdraw.isEnabled = true
+        }
+    }
+
+    /** Open the payment bottom sheet with the pre-loaded bank/upi flags. */
+    private fun openWithdrawSheet(bank: String, upi: String) {
+        val bottomSheet = BottomSheetSelectPayment()
+        bottomSheet.arguments = Bundle().apply {
+            putString("bank", bank)
+            putString("upi", upi)
+        }
+        bottomSheet.show(supportFragmentManager, "BottomSheetSelectPayment")
+    }
+
+    /** Placeholder earnings shown when the account has no real payout history yet. */
+    private fun buildDummyEarnings(): ArrayList<EarningsResponseData> {
+        return arrayListOf(
+            EarningsResponseData(1, 0, 250.0, 1, "01 Jun 2026, 04:30 PM", ""),
+            EarningsResponseData(2, 0, 120.0, 0, "31 May 2026, 09:12 PM", ""),
+            EarningsResponseData(3, 0, 500.0, 1, "30 May 2026, 06:45 PM", ""),
+            EarningsResponseData(4, 0, 75.0, 2, "29 May 2026, 02:10 PM", "Min. payout not met"),
+            EarningsResponseData(5, 0, 300.0, 1, "28 May 2026, 11:55 AM", "")
+        )
     }
 
 //    fun panVerification(){

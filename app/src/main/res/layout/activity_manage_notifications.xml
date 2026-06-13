@@ -9,25 +9,14 @@
     android:fitsSystemWindows="true"
     tools:context=".activities.ManageNotificationsActivity">
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
+    <include
+        android:id="@+id/include_profile_toolbar"
+        layout="@layout/layout_profile_flow_toolbar_themed"
         android:layout_width="0dp"
-        android:layout_height="?attr/actionBarSize"
-        android:background="@android:color/white"
-        android:elevation="2dp"
-        app:contentInsetLeft="0dp"
-        app:contentInsetStart="0dp"
-        app:contentInsetStartWithNavigation="0dp"
+        android:layout_height="wrap_content"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-
-        <include
-            android:id="@+id/include_profile_toolbar"
-            layout="@layout/layout_profile_flow_toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent" />
-    </com.google.android.material.appbar.MaterialToolbar>
+        app:layout_constraintTop_toTopOf="parent" />
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="0dp"
@@ -36,7 +25,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/toolbar">
+        app:layout_constraintTop_toBottomOf="@+id/include_profile_toolbar">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -47,19 +36,19 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/poppins_semibold"
+                android:fontFamily="@font/poppins_medium"
                 android:text="@string/manage_notif_creator_section_title"
                 android:textColor="@color/black_light"
-                android:textSize="13sp" />
+                android:textSize="14sp" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
+                android:layout_marginTop="4dp"
                 android:fontFamily="@font/poppins_regular"
                 android:text="@string/manage_notif_creator_section_desc"
                 android:textColor="@color/grey_medium"
-                android:textSize="12sp" />
+                android:textSize="11sp" />
 
             <TextView
                 android:id="@+id/tv_empty_creators"

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Random FAB — pink → purple gradient matching the active filter tab pill. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Layer 1: outer accent ring (lighter pink/purple) -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="135"
+                android:startColor="#FF6B9D"
+                android:centerColor="#E91E63"
+                android:endColor="#9C27B0" />
+            <corners android:radius="40dp" />
+        </shape>
+    </item>
+
+    <!-- Layer 2: inset 1.5dp; main pink → purple gradient (tab pill colors) -->
+    <item
+        android:left="1.5dp"
+        android:top="1.5dp"
+        android:right="1.5dp"
+        android:bottom="1.5dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="0"
+                android:startColor="#E91E63"
+                android:endColor="#9C27B0" />
+            <corners android:radius="38.5dp" />
+        </shape>
+    </item>
+
+</layer-list>

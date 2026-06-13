@@ -50,9 +50,11 @@ class SelectGenderActivity : BaseActivity() {
         // bar. We only need to force LIGHT status-bar icons (white) so they
         // stay readable against the pink gradient.
         WindowInsetsControllerCompat(window, binding.root)
-            .isAppearanceLightStatusBars = false
+            .isAppearanceLightStatusBars = true
         callTrackingInfoFromSavedAddress()
         initUI()
+        // Entry animations
+        animateEntryViews(listOf(binding.llHeader, binding.llGenderRow, binding.llAvatarHeader, binding.rvAvatars, binding.llHint, binding.rlContinue))
     }
 
     override fun onResume() {
@@ -64,15 +66,6 @@ class SelectGenderActivity : BaseActivity() {
         val snapHelper = PagerSnapHelper()
         snapHelper.attachToRecyclerView(binding.rvAvatars)
         setCenterLayoutManager(binding.rvAvatars)
-        
-        binding.ivBack.setOnSingleClickListener {
-            handleBackPress()
-        }
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                this@SelectGenderActivity.handleBackPress()
-            }
-        })
         
         binding.btnContinue.setOnSingleClickListener {
             setContinueLoading(true)
@@ -98,13 +91,15 @@ class SelectGenderActivity : BaseActivity() {
         
         // Male Card Click
         binding.cvMale.setOnSingleClickListener {
+            animateCardTap(binding.cvMale)
             selectedGender = DConstants.MALE
             profileViewModel.getAvatarsList(selectedGender)
             updateGenderSelection(true)
         }
-        
+
         // Female Card Click
         binding.cvFemale.setOnSingleClickListener {
+            animateCardTap(binding.cvFemale)
             selectedGender = DConstants.FEMALE
             profileViewModel.getAvatarsList(selectedGender)
             updateGenderSelection(false)
@@ -212,6 +207,26 @@ class SelectGenderActivity : BaseActivity() {
         }
 
         dialog.show()
+    }
+
+    private fun animateEntryViews(views: List<android.view.View>) {
+        views.forEachIndexed { index, view ->
+            view.alpha = 0f
+            view.translationY = 80f
+            view.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setStartDelay(index * 70L)
+                .setDuration(380)
+                .setInterpolator(android.view.animation.DecelerateInterpolator())
+                .start()
+        }
+    }
+
+    private fun animateCardTap(view: android.view.View) {
+        view.animate().scaleX(0.95f).scaleY(0.95f).setDuration(80).withEndAction {
+            view.animate().scaleX(1f).scaleY(1f).setDuration(200).setInterpolator(android.view.animation.OvershootInterpolator(2f)).start()
+        }.start()
     }
 
     private fun callTrackingInfoFromSavedAddress() {

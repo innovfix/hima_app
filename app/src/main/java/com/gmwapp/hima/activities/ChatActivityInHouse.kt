@@ -251,6 +251,8 @@ class ChatActivityInHouse : AppCompatActivity() {
     private lateinit var cvVideoCall: com.google.android.material.card.MaterialCardView
     private lateinit var ivAudioCall: ImageView
     private lateinit var ivVideoCall: ImageView
+    private var tvAudioRate: TextView? = null
+    private var tvVideoRate: TextView? = null
 
     // Per-user call rate banner shown above the messages list
     private var cvRateBanner: com.google.android.material.card.MaterialCardView? = null
@@ -506,22 +508,21 @@ class ChatActivityInHouse : AppCompatActivity() {
         ivAudioCall = findViewById(R.id.iv_audio_call)
         cvVideoCall = findViewById(R.id.cv_video_call)
         ivVideoCall = findViewById(R.id.iv_video_call)
+        tvAudioRate = findViewById(R.id.tv_audio_rate)
+        tvVideoRate = findViewById(R.id.tv_video_rate)
 
-        // Per-user call rate banner (shown when home opens chat with rate extras)
-        cvRateBanner = findViewById(R.id.cv_rate_banner)
-        tvRateBanner = findViewById(R.id.tv_rate_banner)
+        // Populate rate labels under each call icon; hide the separate banner
         val audioRate = intent.getIntExtra("COIN_PER_MIN_AUDIO", -1)
         val videoRate = intent.getIntExtra("COIN_PER_MIN_VIDEO", -1)
-        if (audioRate > 0 || videoRate > 0) {
-            tvRateBanner?.text = getString(
-                R.string.rate_per_min_audio_video,
-                if (audioRate > 0) audioRate else 10,
-                if (videoRate > 0) videoRate else 60
-            )
-            cvRateBanner?.visibility = View.VISIBLE
-        } else {
-            cvRateBanner?.visibility = View.GONE
-        }
+        val resolvedAudio = if (audioRate > 0) audioRate else 10
+        val resolvedVideo = if (videoRate > 0) videoRate else 60
+        tvAudioRate?.text = "$resolvedAudio/min"
+        tvVideoRate?.text = "$resolvedVideo/min"
+
+        // Rate info is now under the icons — keep banner hidden
+        cvRateBanner = findViewById(R.id.cv_rate_banner)
+        tvRateBanner = findViewById(R.id.tv_rate_banner)
+        cvRateBanner?.visibility = View.GONE
 
         // Header (name + avatar) populated in [initPeerHeader], called after
         // [setupUserIds] so peerUserId is available for the store / profile-API fallback.
@@ -3982,9 +3983,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                             mainHandler.post {
                                 if (!isUiSafe()) return@post
                                 callButtonsContainer.visibility = View.VISIBLE
-                                // Initialize buttons as disabled (gray) first
-                                cvAudioCall.setCardBackgroundColor(ContextCompat.getColor(this@ChatActivityInHouse, R.color.light_grey))
-                                cvVideoCall.setCardBackgroundColor(ContextCompat.getColor(this@ChatActivityInHouse, R.color.light_grey))
+                                // Initialize icons as disabled (gray) first
                                 ivAudioCall.setColorFilter(ContextCompat.getColor(this@ChatActivityInHouse, R.color.grey_medium))
                                 ivVideoCall.setColorFilter(ContextCompat.getColor(this@ChatActivityInHouse, R.color.grey_medium))
                                 cvAudioCall.isEnabled = false
@@ -4022,13 +4021,12 @@ class ChatActivityInHouse : AppCompatActivity() {
             Log.d("CallButtons", "User is BLOCKED - disabling both audio and video buttons")
             mainHandler.post {
                 if (!isUiSafe()) return@post
-                // DISABLED - Gray for both buttons
-                cvAudioCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.light_grey))
+                // DISABLED - Gray icon + gray label
                 ivAudioCall.setColorFilter(ContextCompat.getColor(this, R.color.grey_medium))
+                tvAudioRate?.setTextColor(ContextCompat.getColor(this, R.color.grey_medium))
                 cvAudioCall.isEnabled = false
-                
-                cvVideoCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.light_grey))
                 ivVideoCall.setColorFilter(ContextCompat.getColor(this, R.color.grey_medium))
+                tvVideoRate?.setTextColor(ContextCompat.getColor(this, R.color.grey_medium))
                 cvVideoCall.isEnabled = false
             }
             return
@@ -4044,31 +4042,31 @@ class ChatActivityInHouse : AppCompatActivity() {
             if (!isUiSafe()) return@post
             // Audio button state - enabled only if audio is enabled (status = 1)
             if (isAudioEnabled) {
-                // ENABLED - Purple
-                Log.d("CallButtons", "Setting audio button to ENABLED (purple)")
-                cvAudioCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.colorAccent))
-                ivAudioCall.setColorFilter(ContextCompat.getColor(this, R.color.white))
+                // ENABLED - pink icon + pink label
+                Log.d("CallButtons", "Setting audio button to ENABLED (pink icon)")
+                ivAudioCall.setColorFilter(android.graphics.Color.parseColor("#E91E63"))
+                tvAudioRate?.setTextColor(android.graphics.Color.parseColor("#E91E63"))
                 cvAudioCall.isEnabled = true
             } else {
-                // DISABLED - Gray
+                // DISABLED - gray icon + gray label
                 Log.d("CallButtons", "Setting audio button to DISABLED (gray) - AudioEnabled: $isAudioEnabled")
-                cvAudioCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.light_grey))
                 ivAudioCall.setColorFilter(ContextCompat.getColor(this, R.color.grey_medium))
+                tvAudioRate?.setTextColor(ContextCompat.getColor(this, R.color.grey_medium))
                 cvAudioCall.isEnabled = false
             }
-            
+
             // Video button state - enabled only if video is enabled (status = 1)
             if (isVideoEnabled) {
-                // ENABLED - Green
-                Log.d("CallButtons", "Setting video button to ENABLED (green)")
-                cvVideoCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.green))
-                ivVideoCall.setColorFilter(ContextCompat.getColor(this, R.color.white))
+                // ENABLED - purple icon + purple label
+                Log.d("CallButtons", "Setting video button to ENABLED (purple icon)")
+                ivVideoCall.setColorFilter(android.graphics.Color.parseColor("#9C27B0"))
+                tvVideoRate?.setTextColor(android.graphics.Color.parseColor("#9C27B0"))
                 cvVideoCall.isEnabled = true
             } else {
-                // DISABLED - Gray
+                // DISABLED - gray icon + gray label
                 Log.d("CallButtons", "Setting video button to DISABLED (gray) - VideoEnabled: $isVideoEnabled")
-                cvVideoCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.light_grey))
                 ivVideoCall.setColorFilter(ContextCompat.getColor(this, R.color.grey_medium))
+                tvVideoRate?.setTextColor(ContextCompat.getColor(this, R.color.grey_medium))
                 cvVideoCall.isEnabled = false
             }
         }

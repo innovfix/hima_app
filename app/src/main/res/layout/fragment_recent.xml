@@ -7,7 +7,7 @@
     android:clipToPadding="false"
     android:background="@color/grey_extra_light">
 
-    <!-- Professional Header -->
+    <!-- Professional Header — white. -->
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/app_bar_layout"
         android:layout_width="match_parent"
@@ -17,6 +17,85 @@
         android:paddingTop="10dp"
         app:elevation="2dp">
 
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clipChildren="false"
+            android:clipToPadding="false">
+
+            <!-- Decorative dating-themed icon collage on top-right of header.
+                 White tints on pink header — translucent, modern, matches the pink theme. -->
+
+            <ImageView
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_gravity="top|end"
+                android:layout_marginTop="8dp"
+                android:layout_marginEnd="10dp"
+                android:alpha="0.55"
+                android:src="@drawable/ic_sparkle"
+                app:tint="#E91E63" />
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="top|end"
+                android:layout_marginTop="22dp"
+                android:layout_marginEnd="30dp"
+                android:alpha="0.4"
+                android:src="@drawable/ic_chat_bubble"
+                app:tint="#E91E63" />
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_gravity="top|end"
+                android:layout_marginTop="6dp"
+                android:layout_marginEnd="56dp"
+                android:alpha="0.35"
+                android:src="@drawable/video"
+                app:tint="#E91E63" />
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_gravity="top|end"
+                android:layout_marginTop="50dp"
+                android:layout_marginEnd="14dp"
+                android:alpha="0.4"
+                android:src="@drawable/audio"
+                app:tint="#E91E63" />
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_gravity="top|end"
+                android:layout_marginTop="44dp"
+                android:layout_marginEnd="48dp"
+                android:alpha="0.45"
+                android:src="@drawable/ic_heart_filled"
+                app:tint="#E91E63" />
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_gravity="top|end"
+                android:layout_marginTop="32dp"
+                android:layout_marginEnd="78dp"
+                android:alpha="0.32"
+                android:src="@drawable/ic_kiss_lips"
+                app:tint="#E91E63" />
+
+            <ImageView
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:layout_gravity="top|end"
+                android:layout_marginTop="68dp"
+                android:layout_marginEnd="34dp"
+                android:alpha="0.5"
+                android:src="@drawable/ic_sparkle"
+                app:tint="#E91E63" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -25,132 +104,147 @@
             android:paddingTop="20dp"
             android:paddingBottom="16dp">
 
-            <!-- Title Row -->
-            <LinearLayout
+            <!-- Title + subtitle (matches Favourite styling). -->
+            <TextView
+                android:id="@+id/tv_recent_calls"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
+                android:fontFamily="@font/poppins_medium"
+                android:includeFontPadding="false"
+                android:letterSpacing="-0.02"
+                android:text="@string/recent_calls"
+                android:textColor="#000000"
+                android:textSize="22sp" />
 
-                <TextView
-                    android:id="@+id/tv_recent_calls"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:fontFamily="@font/poppins_bold"
-                    android:letterSpacing="-0.02"
-                    android:text="@string/recent_calls"
-                    android:textColor="@color/black_light"
-                    android:textSize="22sp" />
-            </LinearLayout>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="12dp"
+                android:fontFamily="@font/poppins_regular"
+                android:includeFontPadding="false"
+                android:text="Your call history"
+                android:textColor="#4A5568"
+                android:textSize="13sp" />
 
-            <!-- Filter Chips Row -->
+            <!-- Filter pills — MaterialButtons styled exactly like Home tab pills. -->
             <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:scrollbars="none"
                 android:clipToPadding="false"
-                android:paddingEnd="8dp">
+                android:paddingEnd="8dp"
+                android:scrollbars="none">
 
-                <com.google.android.material.chip.ChipGroup
+                <LinearLayout
                     android:id="@+id/chip_group_filter"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    app:singleSelection="true"
-                    app:selectionRequired="true">
+                    android:gravity="center"
+                    android:orientation="horizontal">
 
-                    <com.google.android.material.chip.Chip
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/chip_all"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        style="@style/Widget.Material3.Button"
                         android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:checked="true"
-                        android:fontFamily="@font/poppins_medium"
+                        android:layout_height="44dp"
+                        android:fontFamily="@font/plus_jakarta_sans_semibold"
+                        android:paddingHorizontal="16dp"
                         android:text="All"
+                        android:textAllCaps="false"
                         android:textSize="13sp"
-                        app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipStrokeColor="@color/chip_stroke_selector"
-                        app:chipStrokeWidth="1.2dp"
-                        app:chipCornerRadius="18dp"
-                        app:checkedIconVisible="false"
-                        android:textColor="@color/chip_text_selector" />
+                        app:cornerRadius="14dp"
+                        app:elevation="2dp"
+                        app:icon="@drawable/ic_people_pair_img"
+                        app:iconGravity="textStart"
+                        app:iconPadding="6dp"
+                        app:iconSize="16dp" />
 
-                    <com.google.android.material.chip.Chip
+                    <Space
+                        android:layout_width="10dp"
+                        android:layout_height="match_parent" />
+
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/chip_missed"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        style="@style/Widget.Material3.Button"
                         android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:fontFamily="@font/poppins_medium"
+                        android:layout_height="44dp"
+                        android:fontFamily="@font/plus_jakarta_sans_semibold"
+                        android:paddingHorizontal="16dp"
                         android:text="Missed"
+                        android:textAllCaps="false"
                         android:textSize="13sp"
-                        app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipStrokeColor="@color/chip_stroke_selector"
-                        app:chipStrokeWidth="1.2dp"
-                        app:chipCornerRadius="18dp"
-                        app:checkedIconVisible="false"
-                        app:chipIcon="@drawable/ic_missed_call"
-                        app:chipIconVisible="true"
-                        app:chipIconSize="16dp"
-                        app:chipIconTint="@color/chip_missed_icon_selector"
-                        android:textColor="@color/chip_text_selector" />
+                        app:cornerRadius="14dp"
+                        app:elevation="2dp"
+                        app:icon="@drawable/ic_missed_call_img"
+                        app:iconGravity="textStart"
+                        app:iconPadding="6dp"
+                        app:iconSize="16dp" />
 
-                    <com.google.android.material.chip.Chip
+                    <Space
+                        android:layout_width="10dp"
+                        android:layout_height="match_parent" />
+
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/chip_talk_time"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        style="@style/Widget.Material3.Button"
                         android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:fontFamily="@font/poppins_medium"
-                        android:text="⏱ Talk Time"
+                        android:layout_height="44dp"
+                        android:fontFamily="@font/plus_jakarta_sans_semibold"
+                        android:paddingHorizontal="16dp"
+                        android:text="Talk Time"
+                        android:textAllCaps="false"
                         android:textSize="13sp"
-                        app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipStrokeColor="@color/chip_stroke_selector"
-                        app:chipStrokeWidth="1.2dp"
-                        app:chipCornerRadius="18dp"
-                        app:checkedIconVisible="false"
-                        android:textColor="@color/chip_text_selector" />
+                        app:cornerRadius="14dp"
+                        app:elevation="2dp"
+                        app:icon="@drawable/ic_call_clock_img"
+                        app:iconGravity="textStart"
+                        app:iconPadding="6dp"
+                        app:iconSize="16dp" />
 
-                    <com.google.android.material.chip.Chip
+                    <Space
+                        android:layout_width="10dp"
+                        android:layout_height="match_parent" />
+
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/chip_a_z"
-                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        style="@style/Widget.Material3.Button"
                         android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:fontFamily="@font/poppins_medium"
+                        android:layout_height="44dp"
+                        android:fontFamily="@font/plus_jakarta_sans_semibold"
+                        android:paddingHorizontal="16dp"
                         android:text="A → Z"
+                        android:textAllCaps="false"
                         android:textSize="13sp"
-                        app:chipBackgroundColor="@color/chip_bg_selector"
-                        app:chipStrokeColor="@color/chip_stroke_selector"
-                        app:chipStrokeWidth="1.2dp"
-                        app:chipCornerRadius="18dp"
-                        app:checkedIconVisible="false"
-                        android:textColor="@color/chip_text_selector" />
+                        app:cornerRadius="14dp"
+                        app:elevation="2dp"
+                        app:icon="@drawable/ic_sort_up_img"
+                        app:iconGravity="textStart"
+                        app:iconPadding="6dp"
+                        app:iconSize="16dp" />
 
-                </com.google.android.material.chip.ChipGroup>
+                </LinearLayout>
             </HorizontalScrollView>
 
-            <!-- Search Bar -->
+            <!-- Search Bar — white with pink stroke, 6dp corner, search icon on right. -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/card_search"
                 android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginTop="16dp"
-                app:cardCornerRadius="12dp"
+                android:layout_height="50dp"
+                android:layout_marginTop="18dp"
+                app:cardBackgroundColor="@color/white"
+                app:cardCornerRadius="10dp"
                 app:cardElevation="0dp"
-                app:cardBackgroundColor="@color/grey_extra_light">
+                app:rippleColor="#1AE91E63"
+                app:strokeColor="#E91E63"
+                app:strokeWidth="1.5dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:orientation="horizontal"
                     android:gravity="center_vertical"
-                    android:paddingHorizontal="12dp">
-
-                    <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:src="@drawable/ic_search"
-                        android:tint="@color/grey_medium"
-                        android:contentDescription="Search" />
+                    android:orientation="horizontal"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="14dp">
 
                     <EditText
                         android:id="@+id/et_search"
@@ -158,18 +252,27 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:background="@android:color/transparent"
-                        android:hint="Search by name"
-                        android:paddingStart="10dp"
-                        android:textColor="@color/black_light"
-                        android:textColorHint="@color/grey_medium"
-                        android:textSize="14sp"
-                        android:fontFamily="@font/poppins_regular"
+                        android:fontFamily="@font/plus_jakarta_sans_medium"
+                        android:hint="Search"
+                        android:imeOptions="actionSearch"
+                        android:includeFontPadding="false"
+                        android:paddingEnd="12dp"
                         android:singleLine="true"
-                        android:imeOptions="actionSearch" />
+                        android:textColor="@color/black_light"
+                        android:textColorHint="#8E8E93"
+                        android:textSize="15sp" />
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:contentDescription="Search"
+                        android:src="@drawable/ic_search_modern"
+                        app:tint="#1F2937" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
-            
+
         </LinearLayout>
+        </FrameLayout>
     </com.google.android.material.appbar.AppBarLayout>
 
     <!-- Main Content -->
@@ -184,7 +287,8 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
-            android:paddingHorizontal="8dp"
+            android:layoutAnimation="@anim/layout_animation_fall_down"
+            android:paddingHorizontal="4dp"
             android:paddingTop="8dp"
             android:paddingBottom="72dp"
             android:visibility="gone" />

@@ -1,22 +1,17 @@
 package com.gmwapp.hima.activities
 
 import android.content.Intent
-import android.graphics.Paint
-import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.viewModels
 import androidx.lifecycle.Observer
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.BaseApplication.Companion.getInstance
-import com.gmwapp.hima.BuildConfig
 import com.gmwapp.hima.R
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityAlmostDoneBinding
 import com.gmwapp.hima.retrofit.responses.UserData
 import com.gmwapp.hima.utils.applySystemBarInsets
-import com.gmwapp.hima.utils.setOnSingleClickListener
-import com.gmwapp.hima.viewmodels.AccountViewModel
 import com.gmwapp.hima.viewmodels.ProfileViewModel
 import com.onesignal.OneSignal
 import dagger.hilt.android.AndroidEntryPoint
@@ -30,49 +25,9 @@ import kotlinx.coroutines.launch
 class AlmostDoneActivity : BaseActivity() {
     lateinit var binding: ActivityAlmostDoneBinding
     private val profileViewModel: ProfileViewModel by viewModels()
-    private val accountViewModel: AccountViewModel by viewModels()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityAlmostDoneBinding.inflate(layoutInflater)
-        val prefs = BaseApplication.getInstance()?.getPrefs()
-        val supportMail = prefs?.getSettingsData()?.support_mail
-        
-        // Set initial email if available
-        if (!supportMail.isNullOrEmpty()) {
-            binding.tvSupportMail.text = supportMail
-            binding.tvSupportMail.paintFlags = binding.tvSupportMail.paintFlags or Paint.UNDERLINE_TEXT_FLAG
-        }
-        
-        accountViewModel.getSettings()
-        accountViewModel.settingsLiveData.observe(this, Observer {
-            if (it!=null && it.success) {
-                if (it.data != null) {
-                    if (it.data.size > 0) {
-                        prefs?.setSettingsData(it.data.get(0))
-                        val supportMail = prefs?.getSettingsData()?.support_mail
-                        
-                        if (!supportMail.isNullOrEmpty()) {
-                            binding.tvSupportMail.text = supportMail
-                            binding.tvSupportMail.paintFlags =
-                                binding.tvSupportMail.paintFlags or Paint.UNDERLINE_TEXT_FLAG
-                            
-                            val userData = prefs?.getUserData()
-                            val subject = getString(R.string.delete_account_mail_subject, userData?.mobile,  userData?.language)
-
-                            val body = getString(R.string.mail_body, userData?.mobile,android.os.Build.MODEL,userData?.language,
-                                BuildConfig.VERSION_CODE
-                            )
-                            binding.tvSupportMail.setOnSingleClickListener {
-                                val intent = Intent(Intent.ACTION_VIEW)
-                                val data = Uri.parse(("mailto:$supportMail?subject=$subject").toString() + "&body=$body")
-                                intent.setData(data)
-                                startActivity(intent)
-                            }
-                        }
-                    }
-                }
-            }
-        })
         setContentView(binding.root)
         applySystemBarInsets(binding.root, R.color.white, darkStatusBarIcons = true)
     }

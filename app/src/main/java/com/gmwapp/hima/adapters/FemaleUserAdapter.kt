@@ -32,6 +32,14 @@ class FemaleUserAdapter(
     val onVideoListener: OnItemSelectionListener<FemaleUsersResponseData>
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
+    /** Tracks how far the user has scrolled — items animate only the first time
+     *  they enter the viewport, not on every recycle. */
+    private var lastAnimatedPosition = -1
+
+    fun resetAnimation() {
+        lastAnimatedPosition = -1
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         return ItemHolder(
             AdapterFemaleUserBinding.inflate(
@@ -40,7 +48,20 @@ class FemaleUserAdapter(
         )
     }
 
+    override fun onViewDetachedFromWindow(holder: RecyclerView.ViewHolder) {
+        super.onViewDetachedFromWindow(holder)
+        holder.itemView.clearAnimation()
+    }
+
     override fun onBindViewHolder(holderParent: RecyclerView.ViewHolder, position: Int) {
+        // Fall-down enter animation on each item as it's scrolled into view.
+        if (position > lastAnimatedPosition) {
+            val animation = android.view.animation.AnimationUtils.loadAnimation(
+                activity, R.anim.fall_down
+            )
+            holderParent.itemView.startAnimation(animation)
+            lastAnimatedPosition = position
+        }
         val holder = holderParent as ItemHolder
         val femaleUser = femaleUsers[position]
 
@@ -138,40 +159,50 @@ class FemaleUserAdapter(
         // symmetric and users can see what options exist.
         val audioEnabled = femaleUser.audio_status == 1
         val videoEnabled = femaleUser.video_status == 1
-        val disabledTextColor = android.graphics.Color.parseColor("#6B7280")
+        val disabledTextColor = android.graphics.Color.parseColor("#A0A8B5")
         val whiteColor = activity.resources.getColor(R.color.white, null)
+        val enabledRateColor = activity.resources.getColor(R.color.black_light, null)
 
         holder.binding.btnAudioCall.visibility = View.VISIBLE
         holder.binding.btnVideoCall.visibility = View.VISIBLE
 
-        holder.binding.btnAudioCall.background = activity.resources.getDrawable(
-            if (audioEnabled) R.drawable.button_audio_gradient else R.drawable.button_disabled_gradient,
-            null
-        )
-        holder.binding.btnVideoCall.background = activity.resources.getDrawable(
-            if (videoEnabled) R.drawable.button_video_gradient else R.drawable.button_disabled_gradient,
-            null
-        )
+        // White circular button (no stroke). Soft colored shadow under each button
+        // matches its icon color: pink for audio, purple for video, grey when offline.
+        val pinkIcon    = android.graphics.Color.parseColor("#E91E63")
+        val purpleIcon  = android.graphics.Color.parseColor("#9C27B0")
+        val offlineIcon = android.graphics.Color.parseColor("#B0B7C3")
+
+        // CardView already supplies the rounded white background via app:cardBackgroundColor.
 
         holder.binding.btnAudioCall.isEnabled = audioEnabled
         holder.binding.btnVideoCall.isEnabled = videoEnabled
         holder.binding.btnAudioCall.isClickable = audioEnabled
         holder.binding.btnVideoCall.isClickable = videoEnabled
-        holder.binding.btnAudioCall.alpha = if (audioEnabled) 1f else 1f
-        holder.binding.btnVideoCall.alpha = if (videoEnabled) 1f else 1f
+        holder.binding.btnAudioCall.alpha = 1f
+        holder.binding.btnVideoCall.alpha = 1f
 
-        // Icons & text — use white on color gradients, muted grey on disabled bg.
-        holder.binding.ivAudioIcon.setColorFilter(if (audioEnabled) whiteColor else disabledTextColor)
-        holder.binding.ivVideoIcon.setColorFilter(if (videoEnabled) whiteColor else disabledTextColor)
-        holder.binding.tvAudioRate.setTextColor(if (audioEnabled) whiteColor else disabledTextColor)
-        holder.binding.tvVideoRate.setTextColor(if (videoEnabled) whiteColor else disabledTextColor)
+        // Colored elevation shadow — light, not heavy (API 28+).
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            val audioShadow = if (audioEnabled) pinkIcon   else offlineIcon
+            val videoShadow = if (videoEnabled) purpleIcon else offlineIcon
+            holder.binding.btnAudioCall.outlineSpotShadowColor    = audioShadow
+            holder.binding.btnAudioCall.outlineAmbientShadowColor = audioShadow
+            holder.binding.btnVideoCall.outlineSpotShadowColor    = videoShadow
+            holder.binding.btnVideoCall.outlineAmbientShadowColor = videoShadow
+        }
+
+        // Icon colors: pink/purple when online, grey when offline.
+        holder.binding.ivAudioIcon.setColorFilter(if (audioEnabled) pinkIcon else offlineIcon)
+        holder.binding.ivVideoIcon.setColorFilter(if (videoEnabled) purpleIcon else offlineIcon)
+        holder.binding.tvAudioRate.setTextColor(if (audioEnabled) enabledRateColor else disabledTextColor)
+        holder.binding.tvVideoRate.setTextColor(if (videoEnabled) enabledRateColor else disabledTextColor)
         holder.binding.ivAudioCoin.visibility = if (audioEnabled) View.VISIBLE else View.GONE
         holder.binding.ivVideoCoin.visibility = if (videoEnabled) View.VISIBLE else View.GONE
 
         holder.binding.tvAudioRate.text = if (audioEnabled)
-            "${femaleUser.coin_per_min_audio ?: 10}/min" else "Unavailable"
+            "${femaleUser.coin_per_min_audio ?: 10}/min" else "Offline"
         holder.binding.tvVideoRate.text = if (videoEnabled)
-            "${femaleUser.coin_per_min_video ?: 60}/min" else "Unavailable"
+            "${femaleUser.coin_per_min_video ?: 60}/min" else "Offline"
 
         holder.binding.btnAudioCall.setOnSingleClickListener {
             if (audioEnabled) launchCall(femaleUser, "audio")

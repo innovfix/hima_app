@@ -35,6 +35,7 @@ import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.GridLayoutManager
@@ -250,6 +251,9 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Edge-to-edge — call BEFORE super.onCreate so the activity reports the
+        // correct fitsSystemWindows state to fragments during attach.
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -718,36 +722,44 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
                     val existing = supportFragmentManager.findFragmentByTag("BottomSheetWelcomeBonus")
                     if (existing == null) {
-                        val bottomSheet = BottomSheetWelcomeBonus.newInstance(
-                            coin,
-                            originalPrice,
-                            discountedPrice,
-                            coinId,
-                            total_count
-                        )
-                        
-                        // Set dismiss listener to call free_coins_status API and rating eligibility
-                        bottomSheet.setOnDismissListener(object : BottomSheetWelcomeBonus.OnDismissListener {
-                            override fun onBottomSheetDismissed() {
-                                Log.d("BottomSheetWelcomeBonus", "✅ Bottom sheet dismissed - calling free_coins_status API")
-                                
-                                val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-                                userData?.id?.let { userId ->
-                                    Log.d("BottomSheetWelcomeBonus", "📡 Calling free_coins_status API with userId: $userId")
-                                    if (!hasTriggeredFreeCoinsStatus) {
-                                        hasTriggeredFreeCoinsStatus = true
-                                        callFreeCoinsStatusApi(userId)
+                        // Wait for Home's entrance animations to finish (~1850ms:
+                        // Random FAB 1200ms startDelay + 650ms duration) plus a
+                        // 1-second buffer before opening the welcome bonus sheet.
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            if (isFinishing || isDestroyed) return@postDelayed
+                            if (supportFragmentManager.findFragmentByTag("BottomSheetWelcomeBonus") != null) return@postDelayed
+
+                            val bottomSheet = BottomSheetWelcomeBonus.newInstance(
+                                coin,
+                                originalPrice,
+                                discountedPrice,
+                                coinId,
+                                total_count
+                            )
+
+                            // Set dismiss listener to call free_coins_status API and rating eligibility
+                            bottomSheet.setOnDismissListener(object : BottomSheetWelcomeBonus.OnDismissListener {
+                                override fun onBottomSheetDismissed() {
+                                    Log.d("BottomSheetWelcomeBonus", "✅ Bottom sheet dismissed - calling free_coins_status API")
+
+                                    val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+                                    userData?.id?.let { userId ->
+                                        Log.d("BottomSheetWelcomeBonus", "📡 Calling free_coins_status API with userId: $userId")
+                                        if (!hasTriggeredFreeCoinsStatus) {
+                                            hasTriggeredFreeCoinsStatus = true
+                                            callFreeCoinsStatusApi(userId)
+                                        }
+
+                                        // Check rating eligibility after bottom sheet is dismissed (for male users)
+                                        Log.d("BottomSheetWelcomeBonus", "📡 Calling check_rating_eligibility API with userId: $userId")
+                                        checkRatingEligibility(userId)
                                     }
-                                    
-                                    // Check rating eligibility after bottom sheet is dismissed (for male users)
-                                    Log.d("BottomSheetWelcomeBonus", "📡 Calling check_rating_eligibility API with userId: $userId")
-                                    checkRatingEligibility(userId)
                                 }
-                            }
-                        })
-                        
-                        bottomSheet.show(supportFragmentManager, "BottomSheetWelcomeBonus")
-                        Log.d("BottomSheetWelcomeBonus", "Bottom sheet shown with dismiss listener set")
+                            })
+
+                            bottomSheet.show(supportFragmentManager, "BottomSheetWelcomeBonus")
+                            Log.d("BottomSheetWelcomeBonus", "Bottom sheet shown with dismiss listener set")
+                        }, 2850L)
                     }
                 }
             }
@@ -794,18 +806,21 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             vibrator.vibrate(30)
         }
 
-        animateBottomNavItem(item)
+        // animateBottomNavItem(item)  // disabled — no nav animation per design
 
         val transaction = supportFragmentManager.beginTransaction()
         transaction.setReorderingAllowed(true)
         transaction.setCustomAnimations(
-            android.R.anim.fade_in,
-            android.R.anim.fade_out
+            R.anim.fragment_fade_in,
+            R.anim.fragment_fade_out
         )
+
+        val statusBarController = WindowInsetsControllerCompat(window, window.decorView)
 
         when (item.itemId) {
             R.id.home -> {
                 window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+                statusBarController.isAppearanceLightStatusBars = true
 
                 val homeFragment = if (BaseApplication.getInstance()?.getPrefs()
                         ?.getUserData()?.gender == DConstants.FEMALE
@@ -816,12 +831,14 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
             R.id.chat -> {
                 window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+                statusBarController.isAppearanceLightStatusBars = true
                 transaction.replace(R.id.flFragment, CreatorChatFragment()).commit()
                 return true
             }
 
             R.id.recent -> {
                 window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+                statusBarController.isAppearanceLightStatusBars = true
 
                 transaction.replace(R.id.flFragment, RecentFragment()).commit()
                 return true
@@ -829,13 +846,15 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
             R.id.favourite -> {
                 window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+                statusBarController.isAppearanceLightStatusBars = true
 
                 transaction.replace(R.id.flFragment, FavouriteFragment()).commit()
                 return true
             }
 
             R.id.profile -> {
-                window.statusBarColor = ContextCompat.getColor(this, R.color.grey_extra_light)
+                window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+                statusBarController.isAppearanceLightStatusBars = true
 
                 if (BaseApplication.getInstance()?.getPrefs()
                         ?.getUserData()?.gender == DConstants.MALE

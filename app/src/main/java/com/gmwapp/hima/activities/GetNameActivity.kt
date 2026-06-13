@@ -42,10 +42,10 @@ class GetNameActivity : BaseActivity() {
         // fitsSystemWindows=true on the AppBarLayout. Force LIGHT
         // (white) status-bar icons so they're readable on pink.
         WindowInsetsControllerCompat(window, binding.root)
-            .isAppearanceLightStatusBars = false
+            .isAppearanceLightStatusBars = true
 
         // User has already registered on the server — there's nothing to go back to.
-        // Swallow back presses so a stray swipe doesn't drop them to a blank stack.
+        // Swallow gesture back presses so a stray swipe doesn't leave them stranded.
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() { /* no-op: block back */ }
         })
@@ -80,8 +80,16 @@ class GetNameActivity : BaseActivity() {
         })
 
         binding.btnContinue.setOnSingleClickListener {
+            // ── DESIGN DUMMY: skip API for dummy number ──
+            if (intent.getStringExtra(DConstants.MOBILE_NUMBER) == "9999900000") {
+                val dummyIntent = Intent(this, AiOnboardingActivity::class.java)
+                dummyIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                startActivity(dummyIntent)
+                return@setOnSingleClickListener
+            }
             submit(binding.etUserName.text?.toString().orEmpty().trim())
         }
+        animateEntryViews(listOf(binding.llHeader, binding.tvInputLabel, binding.cvUserName, binding.tvUserNameHint, binding.rlContinue))
     }
 
     private fun handleNameInput(text: String) {
@@ -93,6 +101,16 @@ class GetNameActivity : BaseActivity() {
             binding.tvUserNameHint.text = getString(R.string.getname_min_chars)
             binding.tvUserNameHint.setTextColor(getColor(R.color.user_name_hint_text))
         } else {
+            // ── DESIGN DUMMY: auto-approve name for dummy number ──
+            if (intent.getStringExtra(DConstants.MOBILE_NUMBER) == "9999900000") {
+                isValidName = true
+                binding.pbUserNameLoader.visibility = View.GONE
+                binding.ivSuccess.visibility = View.VISIBLE
+                binding.ivWarning.visibility = View.GONE
+                binding.tvUserNameHint.text = ""
+                updateContinueButton()
+                return
+            }
             // Length OK — ask the server whether the name is available.
             isValidName = false
             binding.pbUserNameLoader.visibility = View.VISIBLE
@@ -200,6 +218,20 @@ class GetNameActivity : BaseActivity() {
         binding.btnContinue.backgroundTintList = resources.getColorStateList(
             if (enabled) R.color.colorAccent else R.color.kyc_button_disabled, null
         )
+    }
+
+    private fun animateEntryViews(views: List<android.view.View>) {
+        views.forEachIndexed { index, view ->
+            view.alpha = 0f
+            view.translationY = 80f
+            view.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setStartDelay(index * 70L)
+                .setDuration(380)
+                .setInterpolator(android.view.animation.DecelerateInterpolator())
+                .start()
+        }
     }
 
     companion object {

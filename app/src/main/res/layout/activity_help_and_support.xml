@@ -9,27 +9,15 @@
     android:fitsSystemWindows="true"
     tools:context=".activities.HelpAndSupportActivity">
 
-    <!-- Top App Bar -->
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
+    <!-- Top App Bar — themed to match Home / Profile -->
+    <include
+        android:id="@+id/include_profile_toolbar"
+        layout="@layout/layout_profile_flow_toolbar_themed"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="@android:color/white"
-        android:elevation="2dp"
-        app:contentInsetLeft="0dp"
-        app:contentInsetStart="0dp"
-        app:contentInsetStartWithNavigation="0dp"
+        android:layout_height="wrap_content"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-
-        <include
-            android:id="@+id/include_profile_toolbar"
-            layout="@layout/layout_profile_flow_toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent" />
-
-    </com.google.android.material.appbar.MaterialToolbar>
+        app:layout_constraintTop_toTopOf="parent" />
 
     <!-- Content Container -->
     <androidx.core.widget.NestedScrollView
@@ -38,11 +26,13 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/toolbar">
+        app:layout_constraintTop_toBottomOf="@+id/include_profile_toolbar">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:clipChildren="false"
+            android:clipToPadding="false"
             android:orientation="vertical"
             android:padding="16dp">
 
@@ -66,10 +56,10 @@
                     android:id="@+id/tv_your_tickets_title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:fontFamily="@font/poppins_bold"
+                    android:fontFamily="@font/poppins_medium"
                     android:text="Your tickets"
                     android:textColor="@color/black_light"
-                    android:textSize="13sp" />
+                    android:textSize="14sp" />
             </LinearLayout>
 
             <!-- Tickets Card -->
@@ -79,8 +69,8 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="24dp"
                 app:cardBackgroundColor="@android:color/white"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="2dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="1dp"
                 android:visibility="visible">
 
                 <androidx.constraintlayout.widget.ConstraintLayout
@@ -126,7 +116,7 @@
                             android:layout_height="wrap_content"
                             android:text="Raised Ticket"
                             android:textColor="@color/black_light"
-                            android:textSize="16sp"
+                            android:textSize="14sp"
                             android:fontFamily="@font/poppins_semibold" />
 
                         <TextView
@@ -135,9 +125,9 @@
                             android:layout_height="wrap_content"
                             android:text="No ticket raised"
                             android:textColor="@color/grey_medium"
-                            android:textSize="14sp"
+                            android:textSize="11sp"
                             android:fontFamily="@font/poppins_regular"
-                            android:layout_marginTop="4dp" />
+                            android:layout_marginTop="2dp" />
                     </LinearLayout>
 
                     <ImageView
@@ -173,10 +163,10 @@
                     android:id="@+id/tv_create_ticket_title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:fontFamily="@font/poppins_bold"
+                    android:fontFamily="@font/poppins_medium"
                     android:text="Create a new ticket"
                     android:textColor="@color/black_light"
-                    android:textSize="13sp" />
+                    android:textSize="14sp" />
             </LinearLayout>
 
             <!-- Raise New Ticket Card (for Male users) -->
@@ -186,8 +176,8 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="24dp"
                 app:cardBackgroundColor="@android:color/white"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="2dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="1dp"
                 android:visibility="gone">
 
                 <androidx.constraintlayout.widget.ConstraintLayout
@@ -233,7 +223,7 @@
                             android:layout_height="wrap_content"
                             android:text="Raise new ticket"
                             android:textColor="@color/black_light"
-                            android:textSize="16sp"
+                            android:textSize="14sp"
                             android:fontFamily="@font/poppins_semibold" />
                     </LinearLayout>
 
@@ -268,10 +258,10 @@
                     android:id="@+id/tv_select_category_title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:fontFamily="@font/poppins_bold"
+                    android:fontFamily="@font/poppins_medium"
                     android:text="Please select a category"
                     android:textColor="@color/black_light"
-                    android:textSize="13sp" />
+                    android:textSize="14sp" />
             </LinearLayout>
 
             <!-- RecyclerView for Categories -->

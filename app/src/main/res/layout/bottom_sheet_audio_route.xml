@@ -1,60 +1,143 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@android:color/white"
+    android:background="@drawable/bg_audio_route_sheet"
     android:orientation="vertical"
-    android:paddingTop="16dp"
-    android:paddingBottom="24dp">
+    android:paddingTop="10dp"
+    android:paddingBottom="18dp">
 
+    <!-- Drag handle -->
+    <View
+        android:layout_width="36dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="14dp"
+        android:background="#CBD5E1" />
+
+    <!-- Title -->
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingStart="24dp"
-        android:paddingEnd="24dp"
-        android:paddingBottom="12dp"
+        android:fontFamily="@font/poppins_bold"
+        android:letterSpacing="-0.01"
+        android:paddingStart="22dp"
+        android:paddingEnd="22dp"
+        android:paddingBottom="8dp"
         android:text="@string/call_route_title"
-        android:textColor="#1A237E"
-        android:textSize="16sp"
-        android:textStyle="bold" />
+        android:textColor="#0F172A"
+        android:textSize="15sp" />
 
-    <TextView
+    <!-- Earpiece -->
+    <LinearLayout
         android:id="@+id/tv_route_earpiece"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="52dp"
         android:background="?attr/selectableItemBackground"
-        android:drawablePadding="16dp"
+        android:clickable="true"
+        android:focusable="true"
         android:gravity="center_vertical"
-        android:paddingStart="24dp"
-        android:paddingEnd="24dp"
-        android:text="@string/call_route_earpiece"
-        android:textColor="#212121"
-        android:textSize="15sp" />
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp">
 
-    <TextView
+        <FrameLayout
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:background="@drawable/bg_audio_route_icon">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_phone_modern"
+                app:tint="@color/pink" />
+        </FrameLayout>
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
+            android:layout_weight="1"
+            android:fontFamily="@font/poppins_medium"
+            android:text="@string/call_route_earpiece"
+            android:textColor="#0F172A"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <!-- Speaker -->
+    <LinearLayout
         android:id="@+id/tv_route_speaker"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="52dp"
         android:background="?attr/selectableItemBackground"
-        android:drawablePadding="16dp"
+        android:clickable="true"
+        android:focusable="true"
         android:gravity="center_vertical"
-        android:paddingStart="24dp"
-        android:paddingEnd="24dp"
-        android:text="@string/call_route_speaker"
-        android:textColor="#212121"
-        android:textSize="15sp" />
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp">
 
-    <TextView
+        <FrameLayout
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:background="@drawable/bg_audio_route_icon">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_gravity="center"
+                android:src="@drawable/speaker_on"
+                app:tint="@color/pink" />
+        </FrameLayout>
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
+            android:layout_weight="1"
+            android:fontFamily="@font/poppins_medium"
+            android:text="@string/call_route_speaker"
+            android:textColor="#0F172A"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <!-- Bluetooth -->
+    <LinearLayout
         android:id="@+id/tv_route_bluetooth"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="52dp"
         android:background="?attr/selectableItemBackground"
-        android:drawablePadding="16dp"
+        android:clickable="true"
+        android:focusable="true"
         android:gravity="center_vertical"
-        android:paddingStart="24dp"
-        android:paddingEnd="24dp"
-        android:text="@string/call_route_bluetooth"
-        android:textColor="#212121"
-        android:textSize="15sp"
-        android:visibility="gone" />
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:visibility="gone">
+
+        <FrameLayout
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:background="@drawable/bg_audio_route_icon">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_bluetooth_audio"
+                app:tint="@color/pink" />
+        </FrameLayout>
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
+            android:layout_weight="1"
+            android:fontFamily="@font/poppins_medium"
+            android:text="@string/call_route_bluetooth"
+            android:textColor="#0F172A"
+            android:textSize="14sp" />
+    </LinearLayout>
 </LinearLayout>

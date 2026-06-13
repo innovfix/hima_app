@@ -44,9 +44,18 @@ class RecentCallsAdapter(
 
     private var currentFilter: String = "recent"
 
+    /** Tracks how far the user has scrolled — used so items only animate the first
+     *  time they enter the viewport, not every time they're recycled back. */
+    private var lastAnimatedPosition = -1
+
     fun setFilter(filter: String) {
         currentFilter = filter
+        lastAnimatedPosition = -1
         notifyDataSetChanged()
+    }
+
+    fun resetAnimation() {
+        lastAnimatedPosition = -1
     }
 
 
@@ -59,7 +68,25 @@ class RecentCallsAdapter(
         return itemHolder
     }
 
+    override fun onViewDetachedFromWindow(holder: RecyclerView.ViewHolder) {
+        super.onViewDetachedFromWindow(holder)
+        holder.itemView.clearAnimation()
+    }
+
+    /** Run the same fall-down animation on each card as it enters the viewport. */
+    private fun animateItem(view: android.view.View, position: Int) {
+        if (position > lastAnimatedPosition) {
+            val animation = android.view.animation.AnimationUtils.loadAnimation(
+                activity, R.anim.fall_down
+            )
+            view.startAnimation(animation)
+            lastAnimatedPosition = position
+        }
+    }
+
     override fun onBindViewHolder(holderParent: RecyclerView.ViewHolder, position: Int) {
+        // Fall-down animation per item (matches Home's RecyclerView layoutAnimation).
+        animateItem(holderParent.itemView, position)
         val holder: ItemHolder = holderParent as ItemHolder
         val call: CallsListResponseData = callList[position]
         Glide.with(activity).load(call.image).apply(
@@ -75,12 +102,11 @@ class RecentCallsAdapter(
         holder.binding.ivVideo.visibility = View.GONE
         holder.binding.tvAmount.visibility = View.GONE
 
-        // Reset button colors
-        holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
-        holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
-        
-        holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
-        holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
+        // Reset to neutral state — white CardView (from XML) + grey icons. The
+        // per-state branches below will override the icon tint and shadow color.
+        val resetGrey = android.graphics.Color.parseColor("#B0B7C3")
+        holder.binding.ivAudio.setColorFilter(resetGrey)
+        holder.binding.ivVideo.setColorFilter(resetGrey)
 
         holder.binding.ivAudio.isEnabled = false
         holder.binding.ivVideo.isEnabled = false
@@ -99,37 +125,70 @@ class RecentCallsAdapter(
             holder.binding.ivVideo.visibility = View.VISIBLE
             holder.binding.tvAmount.visibility = View.GONE
 
+            // Audio/video label colors matching Home (dark on white card, muted grey when offline).
+            val enabledLabelColor  = ContextCompat.getColor(activity, R.color.black_light)
+            val disabledLabelColor = android.graphics.Color.parseColor("#A0A8B5")
+
+            // White CardView (set in XML). Icon tint + colored elevation shadow per state.
+            val pinkIcon    = android.graphics.Color.parseColor("#E91E63")
+            val purpleIcon  = android.graphics.Color.parseColor("#9C27B0")
+            val offlineIcon = android.graphics.Color.parseColor("#B0B7C3")
+
             if (call.audio_status == 0) {
-                holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
-                holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
+                holder.binding.ivAudio.setColorFilter(offlineIcon)
                 holder.binding.ivAudio.isEnabled = false
-                holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
+                holder.binding.ivAudio.setImageResource(R.drawable.audio)
+                holder.binding.tvAudioLabel.text = "Offline"
+                holder.binding.tvAudioLabel.setTextColor(disabledLabelColor)
+                holder.binding.ivAudioCoin.visibility = View.GONE
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    holder.binding.ivAudioCircle.outlineSpotShadowColor    = offlineIcon
+                    holder.binding.ivAudioCircle.outlineAmbientShadowColor = offlineIcon
+                }
                 holder.binding.ivAudioCircle.setOnSingleClickListener {
                     CallUnavailableFeedback.show(activity, holder.binding.root, forAudio = true)
                 }
-            }else{
-                holder.binding.ivAudioCircle.setOnSingleClickListener{
+            } else {
+                holder.binding.ivAudioCircle.setOnSingleClickListener {
                     onAudioListener.onItemSelected(call)
                 }
-                holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.colorAccent))
-                holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.white))
+                holder.binding.ivAudio.setColorFilter(pinkIcon)
                 holder.binding.ivAudio.isEnabled = true
-                holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
+                holder.binding.ivAudio.setImageResource(R.drawable.audio)
+                holder.binding.tvAudioLabel.text = "Audio"
+                holder.binding.tvAudioLabel.setTextColor(enabledLabelColor)
+                holder.binding.ivAudioCoin.visibility = View.VISIBLE
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    holder.binding.ivAudioCircle.outlineSpotShadowColor    = pinkIcon
+                    holder.binding.ivAudioCircle.outlineAmbientShadowColor = pinkIcon
+                }
             }
             if (call.video_status == 0) {
-                holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
-                holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
+                holder.binding.ivVideo.setColorFilter(offlineIcon)
                 holder.binding.ivVideo.isEnabled = false
-                holder.binding.ivVideo.setImageResource(R.drawable.ic_video_modern)
+                holder.binding.ivVideo.setImageResource(R.drawable.video)
+                holder.binding.tvVideoLabel.text = "Offline"
+                holder.binding.tvVideoLabel.setTextColor(disabledLabelColor)
+                holder.binding.ivVideoCoin.visibility = View.GONE
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    holder.binding.ivVideoCircle.outlineSpotShadowColor    = offlineIcon
+                    holder.binding.ivVideoCircle.outlineAmbientShadowColor = offlineIcon
+                }
                 holder.binding.ivVideoCircle.setOnSingleClickListener {
                     CallUnavailableFeedback.show(activity, holder.binding.root, forAudio = false)
                 }
-            }else{
-                holder.binding.ivVideoCircle.setOnSingleClickListener{ onVideoListener.onItemSelected(call) }
-                holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.green))
-                holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.white))
+            } else {
+                holder.binding.ivVideoCircle.setOnSingleClickListener { onVideoListener.onItemSelected(call) }
+                holder.binding.ivVideo.setColorFilter(purpleIcon)
                 holder.binding.ivVideo.isEnabled = true
-                holder.binding.ivVideo.setImageResource(R.drawable.ic_video_modern)
+                holder.binding.ivVideo.setImageResource(R.drawable.video)
+                holder.binding.tvVideoLabel.text = "Video"
+                holder.binding.tvVideoLabel.setTextColor(enabledLabelColor)
+                holder.binding.ivVideoCoin.visibility = View.VISIBLE
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    holder.binding.ivVideoCircle.outlineSpotShadowColor    = purpleIcon
+                    holder.binding.ivVideoCircle.outlineAmbientShadowColor = purpleIcon
+                }
             }
             // Chat button always enabled
             holder.binding.ivChatCircle.setOnSingleClickListener {
@@ -148,36 +207,51 @@ class RecentCallsAdapter(
             holder.binding.tvAmount.visibility = View.VISIBLE // Show earnings
             holder.binding.tvAmount.text = activity.getString(R.string.rupee_text, call.income)
 
+            val pinkIcon2    = android.graphics.Color.parseColor("#E91E63")
+            val purpleIcon2  = android.graphics.Color.parseColor("#9C27B0")
+            val offlineIcon2 = android.graphics.Color.parseColor("#B0B7C3")
+
             // ✅ Audio call button - check status for creators
             if (call.audio_status == 0) {
-                holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
-                holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
+                holder.binding.ivAudio.setColorFilter(offlineIcon2)
                 holder.binding.ivAudio.isEnabled = false
-                holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
+                holder.binding.ivAudio.setImageResource(R.drawable.audio)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    holder.binding.ivAudioCircle.outlineSpotShadowColor    = offlineIcon2
+                    holder.binding.ivAudioCircle.outlineAmbientShadowColor = offlineIcon2
+                }
             } else {
                 holder.binding.ivAudioCircle.setOnSingleClickListener{
                     onAudioListener.onItemSelected(call)
                 }
-                holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.colorAccent))
-                holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.white))
+                holder.binding.ivAudio.setColorFilter(pinkIcon2)
                 holder.binding.ivAudio.isEnabled = true
-                holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
+                holder.binding.ivAudio.setImageResource(R.drawable.audio)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    holder.binding.ivAudioCircle.outlineSpotShadowColor    = pinkIcon2
+                    holder.binding.ivAudioCircle.outlineAmbientShadowColor = pinkIcon2
+                }
             }
 
             // ✅ Video call button - check status for creators
             if (call.video_status == 0) {
-                holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
-                holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
+                holder.binding.ivVideo.setColorFilter(offlineIcon2)
                 holder.binding.ivVideo.isEnabled = false
-                holder.binding.ivVideo.setImageResource(R.drawable.ic_video_modern)
+                holder.binding.ivVideo.setImageResource(R.drawable.video)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    holder.binding.ivVideoCircle.outlineSpotShadowColor    = offlineIcon2
+                    holder.binding.ivVideoCircle.outlineAmbientShadowColor = offlineIcon2
+                }
             } else {
                 holder.binding.ivVideoCircle.setOnSingleClickListener{ onVideoListener.onItemSelected(call) }
-                holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.green))
-                holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.white))
+                holder.binding.ivVideo.setColorFilter(purpleIcon2)
                 holder.binding.ivVideo.isEnabled = true
-                holder.binding.ivVideo.setImageResource(R.drawable.ic_video_modern)
+                holder.binding.ivVideo.setImageResource(R.drawable.video)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    holder.binding.ivVideoCircle.outlineSpotShadowColor    = purpleIcon2
+                    holder.binding.ivVideoCircle.outlineAmbientShadowColor = purpleIcon2
+                }
             }
-            holder.binding.ivVideoCircle.visibility= View.GONE
 
             // Chat button (design only)
             holder.binding.ivChatCircle.setOnSingleClickListener {
@@ -252,16 +326,22 @@ class RecentCallsAdapter(
         }
 
         if (call.blocked==2){
-            holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
-            holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
+            val blockedGrey = android.graphics.Color.parseColor("#B0B7C3")
+            holder.binding.ivVideo.setColorFilter(blockedGrey)
             holder.binding.ivVideo.isEnabled = false
-            holder.binding.ivVideo.setImageResource(R.drawable.ic_video_modern)
-            
-            holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
-            holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
+            holder.binding.ivVideo.setImageResource(R.drawable.video)
+
+            holder.binding.ivAudio.setColorFilter(blockedGrey)
             holder.binding.ivAudio.isEnabled = false
-            holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
-            
+            holder.binding.ivAudio.setImageResource(R.drawable.audio)
+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                holder.binding.ivAudioCircle.outlineSpotShadowColor    = blockedGrey
+                holder.binding.ivAudioCircle.outlineAmbientShadowColor = blockedGrey
+                holder.binding.ivVideoCircle.outlineSpotShadowColor    = blockedGrey
+                holder.binding.ivVideoCircle.outlineAmbientShadowColor = blockedGrey
+            }
+
             holder.binding.ivAudioCircle.setOnSingleClickListener {
                 CallUnavailableFeedback.showBlocked(activity, holder.binding.root)
             }
@@ -315,7 +395,7 @@ class RecentCallsAdapter(
 
     fun clearData() {
         callList.clear()
-
+        lastAnimatedPosition = -1
         notifyDataSetChanged()
     }
 

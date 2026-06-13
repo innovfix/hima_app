@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     
-    <!-- Selected state -->
-    <item android:state_checked="true" android:color="@color/pink" />
-    <item android:state_pressed="true" android:color="@color/pink" />
+    <!-- Selected state — match icon pink -->
+    <item android:state_checked="true" android:color="#E91E63" />
+    <item android:state_pressed="true" android:color="#E91E63" />
     
     <!-- Default state -->
     <item android:color="#64748B" />

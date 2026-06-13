@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Glitter / sparkles — 3 four-point stars (large filled, top-right hollow, small filled). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Large filled sparkle (left-center) -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M8,4 Q8,11 15,11 Q8,11 8,18 Q8,11 1,11 Q8,11 8,4 Z" />
+
+    <!-- Top-right hollow sparkle (outer star with diamond cutout) -->
+    <path
+        android:fillColor="#000000"
+        android:fillType="evenOdd"
+        android:pathData="M17,1 Q17,6 22,6 Q17,6 17,11 Q17,6 12,6 Q17,6 17,1 Z M17,4.5 Q17,6 18.5,6 Q17,6 17,7.5 Q17,6 15.5,6 Q17,6 17,4.5 Z" />
+
+    <!-- Bottom-right small filled sparkle -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M17,14 Q17,18 21,18 Q17,18 17,22 Q17,18 13,18 Q17,18 17,14 Z" />
+</vector>

@@ -11,10 +11,12 @@
         android:layout_height="wrap_content"
         android:layout_gravity="end"
         android:maxWidth="300dp"
-        app:cardBackgroundColor="@color/colorAccent"
-        app:cardCornerRadius="20dp"
-        app:cardElevation="2dp"
-        app:strokeWidth="0dp">
+        app:cardBackgroundColor="#FFEEF6"
+        app:cardCornerRadius="18dp"
+        app:shapeAppearanceOverlay="@style/ShapeOverlay.UserChatBubble"
+        app:cardElevation="1dp"
+        app:strokeColor="#FFD6EB"
+        app:strokeWidth="1dp">
 
         <TextView
             android:id="@+id/tv_chat_message"
@@ -24,7 +26,7 @@
             android:lineSpacingExtra="3dp"
             android:paddingHorizontal="16dp"
             android:paddingVertical="12dp"
-            android:textColor="@color/white"
+            android:textColor="#C2185B"
             android:textSize="14sp" />
 
     </com.google.android.material.card.MaterialCardView>

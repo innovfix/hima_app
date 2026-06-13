@@ -54,14 +54,17 @@ class CoinAdapter(
         }
 
         // Update the UI based on selection
+        val density = activity.resources.displayMetrics.density
         if (coin.isSelected == true) {
-            holder.binding.cvCoin.strokeWidth = 3
+            holder.binding.cvCoin.strokeWidth = (2 * density).toInt()
             holder.binding.cvCoin.strokeColor = activity.resources.getColor(R.color.pink)
-            holder.binding.cvCoin.cardElevation = 6f
+            holder.binding.cvCoin.cardElevation = 0f
+            holder.binding.ivRadio.setImageResource(R.drawable.ic_radio_selected)
         } else {
-            holder.binding.cvCoin.strokeWidth = 0
-            holder.binding.cvCoin.strokeColor = activity.resources.getColor(android.R.color.transparent)
-            holder.binding.cvCoin.cardElevation = 2f
+            holder.binding.cvCoin.strokeWidth = (1 * density).toInt()
+            holder.binding.cvCoin.strokeColor = 0x1AAAB0BE.toInt()
+            holder.binding.cvCoin.cardElevation = 0f
+            holder.binding.ivRadio.setImageResource(R.drawable.ic_radio_unselected)
         }
 
         // Handle item click

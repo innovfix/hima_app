@@ -6,7 +6,26 @@
     android:fitsSystemWindows="true"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F8F9FA">
+    android:background="@drawable/bg_radar_screen">
+
+    <!-- Ambient color blobs (matches call + waiting screens) -->
+    <View
+        android:layout_width="280dp"
+        android:layout_height="280dp"
+        android:layout_marginStart="-80dp"
+        android:layout_marginTop="-80dp"
+        android:background="@drawable/bg_radar_blob_pink"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <View
+        android:layout_width="320dp"
+        android:layout_height="320dp"
+        android:layout_marginEnd="-60dp"
+        android:layout_marginBottom="-100dp"
+        android:background="@drawable/bg_radar_blob_purple"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
 
     <androidx.constraintlayout.widget.Guideline
@@ -23,29 +42,31 @@
         android:orientation="vertical"
         app:layout_constraintGuide_percent="0.92" />
 
-    <!-- Close Button -->
+    <!-- Close Button (glass) -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/cv_close"
         android:layout_width="36dp"
         android:layout_height="36dp"
-        android:layout_margin="12dp"
+        android:layout_margin="14dp"
         app:cardCornerRadius="18dp"
-        app:cardElevation="2dp"
-        app:cardBackgroundColor="@color/white"
+        app:cardElevation="0dp"
+        app:cardBackgroundColor="#14FFFFFF"
+        app:strokeColor="#2EFFFFFF"
+        app:strokeWidth="1dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
         <ImageView
             android:id="@+id/iv_close"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
             android:layout_gravity="center"
             android:src="@drawable/baseline_close_24"
-            android:tint="#555555"
-            app:tint="#555555" />
+            app:tint="#FFFFFF" />
     </com.google.android.material.card.MaterialCardView>
     
     <androidx.core.widget.NestedScrollView
+        android:id="@+id/sv_rating"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:fillViewport="true"
@@ -78,11 +99,12 @@
         android:id="@+id/tv_title"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="12dp"
         android:fontFamily="@font/poppins_bold"
+        android:letterSpacing="-0.02"
         android:text="@string/how_was_your_call_with_shyam"
-        android:textColor="#1A1A1A"
-        android:textSize="20sp"
+        android:textColor="#FFFFFF"
+        android:textSize="22sp"
         android:lineSpacingExtra="0dp"
         app:layout_constraintEnd_toEndOf="@+id/gl_right_margin_inner"
         app:layout_constraintStart_toStartOf="@id/gl_left_margin_inner"
@@ -94,10 +116,10 @@
         android:id="@+id/tv_subtitle"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:fontFamily="@font/poppins_regular"
+        android:layout_marginTop="6dp"
+        android:fontFamily="@font/poppins_medium"
         android:text="Your feedback helps us improve"
-        android:textColor="#757575"
+        android:textColor="#BFFFFFFF"
         android:textSize="12sp"
         app:layout_constraintEnd_toEndOf="@+id/gl_right_margin_inner"
         app:layout_constraintStart_toStartOf="@id/gl_left_margin_inner"
@@ -300,8 +322,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Block this user"
-            android:textColor="#333333"
-            android:fontFamily="@font/poppins_regular"
+            android:textColor="#FFFFFF"
+            android:fontFamily="@font/poppins_medium"
             android:textSize="12sp"
             android:layout_gravity="center_vertical"
             android:layout_marginStart="4dp" />
@@ -334,8 +356,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Add to Favourite"
-            android:textColor="#333333"
-            android:fontFamily="@font/poppins_regular"
+            android:textColor="#FFFFFF"
+            android:fontFamily="@font/poppins_medium"
             android:textSize="12sp"
             android:layout_gravity="center_vertical"
             android:layout_marginStart="8dp" />

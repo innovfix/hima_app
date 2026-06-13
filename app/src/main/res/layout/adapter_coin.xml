@@ -1,134 +1,141 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout
-    android:layout_marginVertical="@dimen/_4sdp"
-    android:layout_marginHorizontal="@dimen/_5sdp"
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="wrap_content"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="@dimen/_5sdp"
+    android:layout_marginVertical="@dimen/_4sdp"
+    android:clipChildren="false"
+    android:clipToPadding="false">
 
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/cv_coin"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/_6sdp"
-        android:clipChildren="false"
-        android:clipToPadding="false"
-        app:cardCornerRadius="16dp"
-        android:elevation="2dp"
-        app:cardElevation="2dp"
-        app:strokeWidth="0dp"
-        app:cardUseCompatPadding="false">
+        app:cardBackgroundColor="#FFFFFF"
+        app:cardCornerRadius="18dp"
+        app:cardElevation="0dp"
+        app:cardUseCompatPadding="false"
+        app:strokeColor="#1AAAB0BE"
+        app:strokeWidth="1dp">
+
+        <!-- Radio indicator (top-right) -->
+        <ImageView
+            android:id="@+id/iv_radio"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="6dp"
+            android:layout_marginEnd="6dp"
+            android:contentDescription="Selected"
+            android:src="@drawable/ic_radio_unselected" />
 
         <LinearLayout
             android:id="@+id/main"
             android:layout_width="@dimen/_93sdp"
             android:layout_height="wrap_content"
-            android:background="@drawable/bg_card_clean"
-            android:clipChildren="false"
-            android:clipToPadding="false"
-            android:orientation="vertical">
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingTop="@dimen/_10sdp"
+            android:paddingBottom="@dimen/_8sdp"
+            android:paddingHorizontal="@dimen/_8sdp">
 
-            <LinearLayout
-                android:id="@+id/ll_coin_section"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_horizontal"
-                android:orientation="vertical"
-                android:paddingHorizontal="@dimen/_8sdp"
-                android:paddingTop="@dimen/_6sdp"
-                android:paddingBottom="0dp">
+            <!-- Coin icon with subtle halo -->
+            <FrameLayout
+                android:layout_width="38dp"
+                android:layout_height="38dp">
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_coin_icon_halo" />
 
                 <ImageView
                     android:id="@+id/iv_coins"
-                    android:layout_width="30dp"
-                    android:layout_height="30dp"
-                    android:scaleType="fitXY"
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:layout_gravity="center"
+                    android:scaleType="fitCenter"
                     android:src="@drawable/coin_svg"
                     tools:ignore="ContentDescription" />
+            </FrameLayout>
 
-                <TextView
-                    android:id="@+id/tv_coins"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/_4sdp"
-                    android:text="xxx"
-                    android:textColor="#2D3436"
-                    android:textSize="20sp"
-                    android:fontFamily="@font/poppins_bold" />
+            <!-- Coins amount -->
+            <TextView
+                android:id="@+id/tv_coins"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/_4sdp"
+                android:fontFamily="@font/poppins_bold"
+                android:letterSpacing="-0.01"
+                android:text="500"
+                android:textColor="#0F172A"
+                android:textSize="19sp"
+                tools:text="500" />
 
-                <TextView
-                    android:id="@+id/tv_coinstxt"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/_2sdp"
-                    android:text="@string/coins"
-                    android:textColor="#95A5A6"
-                    android:fontFamily="@font/poppins_medium"
-                    android:textSize="10sp"
-                    android:letterSpacing="0.02" />
+            <!-- Coins label -->
+            <TextView
+                android:id="@+id/tv_coinstxt"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_medium"
+                android:letterSpacing="0.12"
+                android:text="@string/coins"
+                android:textAllCaps="true"
+                android:textColor="#94A3B8"
+                android:textSize="9sp" />
 
-            </LinearLayout>
-
+            <!-- Save X% chip (optional) -->
             <TextView
                 android:id="@+id/tv_discount_price"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="@dimen/_3sdp"
-                android:layout_marginBottom="-8dp"
-                android:background="@drawable/bg_gradient_orange"
-                android:elevation="6dp"
+                android:layout_marginTop="@dimen/_5sdp"
+                android:background="@drawable/bg_coin_save_chip"
                 android:fontFamily="@font/poppins_bold"
-                android:gravity="center"
-                android:paddingHorizontal="@dimen/_8sdp"
-                android:paddingVertical="@dimen/_2sdp"
-                android:textColor="@color/white"
+                android:letterSpacing="0.03"
+                android:paddingHorizontal="@dimen/_7sdp"
+                android:paddingVertical="1dp"
+                android:textColor="#C11063"
                 android:textSize="9sp"
                 android:visibility="gone"
                 tools:text="Save 30 %"
                 tools:visibility="visible" />
 
-            <LinearLayout
-                android:id="@+id/ll_price"
+            <!-- Price pill -->
+            <TextView
+                android:id="@+id/tv_price"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@drawable/bg_gradient_teal"
+                android:layout_marginTop="@dimen/_7sdp"
+                android:background="@drawable/bg_coin_price_pill"
+                android:fontFamily="@font/poppins_bold"
                 android:gravity="center"
-                android:orientation="vertical"
-                android:paddingTop="@dimen/_8sdp"
-                android:paddingBottom="@dimen/_7sdp"
-                android:paddingHorizontal="@dimen/_4sdp">
-
-                <TextView
-                    android:id="@+id/tv_price"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="@font/poppins_bold"
-                    android:gravity="center"
-                    android:text="xxx"
-                    android:textColor="@color/white"
-                    android:textSize="13sp" />
-            </LinearLayout>
-
+                android:paddingVertical="@dimen/_5sdp"
+                android:text="₹49"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                tools:text="₹49" />
         </LinearLayout>
-
     </com.google.android.material.card.MaterialCardView>
 
+    <!-- Popular / label badge — overlaps top edge of the card -->
     <TextView
-        android:layout_centerHorizontal="true"
         android:id="@+id/tv_popular"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:background="@drawable/bg_gradient_blue_light"
-        android:elevation="3dp"
-        android:gravity="center"
-        android:text="★ Popular"
+        android:layout_centerHorizontal="true"
+        android:background="@drawable/bg_coin_popular_pill"
+        android:elevation="6dp"
         android:fontFamily="@font/poppins_bold"
+        android:gravity="center"
+        android:letterSpacing="0.04"
         android:paddingHorizontal="@dimen/_10sdp"
-        android:paddingVertical="@dimen/_3sdp"
-        android:textColor="@color/white"
+        android:paddingVertical="3dp"
+        android:text="★ Popular"
+        android:textColor="#FFFFFF"
         android:textSize="9sp" />
 
 </RelativeLayout>

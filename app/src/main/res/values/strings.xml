@@ -139,7 +139,7 @@
         <item quantity="one">%1$d new message</item>
         <item quantity="other">%1$d new messages</item>
     </plurals>
-    <string name="call_unavailable">Unavailable</string>
+    <string name="call_unavailable">Offline</string>
     <string name="notify_bell_default_desc">Notify when online</string>
     <string name="notify_bell_on_desc">Notifications on for %s</string>
     <string name="notify_bell_off_desc">Notify when %s is online</string>
@@ -194,7 +194,7 @@
     <string name="need_help">Need Help? Please contact </string>
     <string name="version">version 1.0.0</string>
     <string name="welcome_bonus">Welcome Bonus!</string>
-    <string name="recent_calls">Recent Session</string>
+    <string name="recent_calls">Recent Calls</string>
     <string name="privacy_policy">Privacy Policy</string>
     <string name="delete_account">Delete Account</string>
     <string name="delete_reason_text">Please select at least one reason for deleting your account</string>

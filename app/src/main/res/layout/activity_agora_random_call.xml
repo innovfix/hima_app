@@ -1,150 +1,385 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
-    android:background="@drawable/bg_white"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_radar_screen">
 
-    <!-- Status Bar Padding -->
+    <!-- Ambient color blobs (decorative) -->
     <View
-        android:id="@+id/status_bar_padding"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
+        android:layout_width="260dp"
+        android:layout_height="260dp"
+        android:layout_marginStart="-60dp"
+        android:layout_marginTop="-40dp"
+        android:background="@drawable/bg_radar_blob_pink"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Title -->
+    <View
+        android:layout_width="300dp"
+        android:layout_height="300dp"
+        android:layout_marginEnd="-80dp"
+        android:layout_marginBottom="-60dp"
+        android:background="@drawable/bg_radar_blob_purple"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- TOP BAR (back button hidden on waiting screen; kept INVISIBLE so the title's
+         constraint chain keeps the same vertical offset) -->
+    <ImageView
+        android:id="@+id/btn_back"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:visibility="invisible"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- HEADER -->
     <TextView
         android:id="@+id/tv_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:fontFamily="@font/poppins_semibold"
-        android:text="Audio Session"
-        android:textColor="#1a1a1a"
-        android:textSize="20sp"
-        android:layout_marginTop="24dp"
-        app:layout_constraintTop_toTopOf="parent"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="20dp"
+        android:alpha="0.7"
+        android:fontFamily="@font/poppins_bold"
+        android:letterSpacing="0.18"
+        android:text="AUDIO MATCH"
+        android:textAllCaps="true"
+        android:textColor="#FFFFFF"
+        android:textSize="11sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/btn_back" />
+
+    <TextView
+        android:id="@+id/tl_wait_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="2dp"
+        android:layout_marginEnd="24dp"
+        android:fontFamily="@font/poppins_bold"
+        android:letterSpacing="-0.02"
+        android:lineSpacingExtra="2dp"
+        android:text="Searching for the right match"
+        android:textColor="#FFFFFF"
+        android:textSize="22sp"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <!-- Connection Status -->
-    <LinearLayout
-        android:id="@+id/connection_status_card"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:layout_marginTop="16dp"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="8dp"
-        app:layout_constraintTop_toBottomOf="@id/tv_title"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        app:layout_constraintTop_toBottomOf="@id/tv_title" />
 
-        <TextView
-            android:id="@+id/tv_connection_status"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Connecting"
-            android:fontFamily="@font/poppins_medium"
-            android:textColor="#666666"
-            android:textSize="13sp" />
-
-        <!-- Animated Connecting Dots -->
-        <LinearLayout
-            android:id="@+id/ll_connecting_dots"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginStart="6dp"
-            android:gravity="center">
-
-            <View
-                android:id="@+id/dot1"
-                android:layout_width="6dp"
-                android:layout_height="6dp"
-                android:layout_marginEnd="4dp"
-                android:background="@drawable/connecting_dot"
-                android:alpha="1.0" />
-
-            <View
-                android:id="@+id/dot2"
-                android:layout_width="6dp"
-                android:layout_height="6dp"
-                android:layout_marginEnd="4dp"
-                android:background="@drawable/connecting_dot"
-                android:alpha="0.5" />
-
-            <View
-                android:id="@+id/dot3"
-                android:layout_width="6dp"
-                android:layout_height="6dp"
-                android:background="@drawable/connecting_dot"
-                android:alpha="0.3" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <!-- Top User Avatar Container -->
+    <!-- RADAR STAGE -->
     <FrameLayout
-        android:id="@+id/fl_top_avatar_container"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="40dp"
-        app:layout_constraintTop_toBottomOf="@id/connection_status_card"
+        android:id="@+id/radar_stage"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="14dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="14dp"
+        android:clipChildren="true"
+        android:clipToPadding="true"
+        app:layout_constraintBottom_toTopOf="@id/tv_cancel"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        app:layout_constraintTop_toBottomOf="@id/tl_wait_title">
 
-        <!-- Single Subtle Ring -->
+        <!-- Concentric pulse rings (animated from code) -->
         <View
-            android:id="@+id/wave_ring_1"
-            android:layout_width="140dp"
-            android:layout_height="140dp"
+            android:id="@+id/ring1"
+            android:layout_width="150dp"
+            android:layout_height="150dp"
             android:layout_gravity="center"
-            android:background="@drawable/wave_ring_pink"
-            android:alpha="0.4" />
+            android:background="@drawable/bg_radar_pulse_ring" />
 
-        <!-- Avatar with Shadow -->
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="110dp"
-            android:layout_height="110dp"
+        <View
+            android:id="@+id/ring2"
+            android:layout_width="150dp"
+            android:layout_height="150dp"
             android:layout_gravity="center"
-            app:cardCornerRadius="55dp"
-            app:cardElevation="4dp">
+            android:background="@drawable/bg_radar_pulse_ring" />
+
+        <View
+            android:id="@+id/ring3"
+            android:layout_width="150dp"
+            android:layout_height="150dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_radar_pulse_ring" />
+
+        <View
+            android:id="@+id/ring4"
+            android:layout_width="150dp"
+            android:layout_height="150dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_radar_pulse_ring" />
+
+        <!-- Candidate drifting avatars (positioned by code; wrappers carry the IDs for animation) -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cand1"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_gravity="center"
+            app:cardBackgroundColor="#FFFFFF"
+            app:cardCornerRadius="18dp"
+            app:cardElevation="0dp"
+            app:strokeColor="#66FFFFFF"
+            app:strokeWidth="2dp">
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:src="@drawable/avatar1" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cand2"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_gravity="center"
+            app:cardBackgroundColor="#FFFFFF"
+            app:cardCornerRadius="18dp"
+            app:cardElevation="0dp"
+            app:strokeColor="#66FFFFFF"
+            app:strokeWidth="2dp">
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:src="@drawable/avatar2" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cand3"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_gravity="center"
+            app:cardBackgroundColor="#FFFFFF"
+            app:cardCornerRadius="18dp"
+            app:cardElevation="0dp"
+            app:strokeColor="#66FFFFFF"
+            app:strokeWidth="2dp">
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:src="@drawable/avatar3" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cand4"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_gravity="center"
+            app:cardBackgroundColor="#FFFFFF"
+            app:cardCornerRadius="18dp"
+            app:cardElevation="0dp"
+            app:strokeColor="#66FFFFFF"
+            app:strokeWidth="2dp">
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:src="@drawable/avatar4" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cand5"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_gravity="center"
+            app:cardBackgroundColor="#FFFFFF"
+            app:cardCornerRadius="18dp"
+            app:cardElevation="0dp"
+            app:strokeColor="#66FFFFFF"
+            app:strokeWidth="2dp">
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:src="@drawable/avatar5" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- iv_logo_wrap is positioned by code; iv_logo is the inner ImageView Glide cycles into -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/iv_logo_wrap"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_gravity="center"
+            app:cardBackgroundColor="#FFFFFF"
+            app:cardCornerRadius="18dp"
+            app:cardElevation="0dp"
+            app:strokeColor="#66FFFFFF"
+            app:strokeWidth="2dp">
 
             <ImageView
                 android:id="@+id/iv_logo"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:scaleType="centerCrop"
-                android:src="@drawable/logo" />
+                android:src="@drawable/avatar6" />
         </com.google.android.material.card.MaterialCardView>
+
+        <!-- CENTER: YOU avatar with spinning conic ring -->
+        <FrameLayout
+            android:id="@+id/you_center"
+            android:layout_width="124dp"
+            android:layout_height="124dp"
+            android:layout_gravity="center">
+
+            <com.gmwapp.hima.widgets.ConicRingView
+                android:id="@+id/conic_ring"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <View
+                android:layout_width="108dp"
+                android:layout_height="108dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_you_inner_dark" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:layout_gravity="center"
+                app:cardCornerRadius="50dp"
+                app:cardElevation="0dp">
+
+                <ImageView
+                    android:id="@+id/iv_caller_profile"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="#FFFFFF"
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/logo" />
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                android:id="@+id/tv_you"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|center_horizontal"
+                android:layout_marginBottom="-6dp"
+                android:background="@drawable/bg_you_pill"
+                android:fontFamily="@font/poppins_bold"
+                android:letterSpacing="0.06"
+                android:paddingStart="10dp"
+                android:paddingTop="4dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="4dp"
+                android:text="YOU"
+                android:textColor="#1F0833"
+                android:textSize="10sp" />
+        </FrameLayout>
     </FrameLayout>
 
-    <!-- Connection Line -->
-    <View
-        android:id="@+id/connection_line_bg"
-        android:layout_width="1dp"
-        android:layout_height="0dp"
-        android:layout_marginVertical="20dp"
-        android:background="#d0d0d0"
-        app:layout_constraintTop_toBottomOf="@id/fl_top_avatar_container"
-        app:layout_constraintBottom_toTopOf="@id/fl_bottom_avatar_container"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+    <!-- CANCEL -->
+    <TextView
+        android:id="@+id/tv_cancel"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="22dp"
+        android:background="@drawable/bg_cancel_pill"
+        android:fontFamily="@font/poppins_bold"
+        android:gravity="center"
+        android:letterSpacing="0.04"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp"
+        android:text="Cancel"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
-    <!-- Animated Double Arrow Icon -->
+    <!-- ─── Legacy IDs kept hidden so existing activity code still compiles ─── -->
+    <View
+        android:id="@+id/status_bar_padding"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
     <ImageView
         android:id="@+id/iv_double_arrow"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:src="@drawable/double_arrow_svg"
-        android:alpha="0.6"
-        app:layout_constraintTop_toTopOf="@id/connection_line_bg"
-        app:layout_constraintBottom_toBottomOf="@id/connection_line_bg"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
-    <!-- Hidden Circular Progress (kept for compatibility) -->
+    <LinearLayout
+        android:id="@+id/connection_status_card"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <TextView
+            android:id="@+id/tv_connection_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Connecting"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/ll_connecting_dots"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone">
+
+            <View
+                android:id="@+id/dot1"
+                android:layout_width="6dp"
+                android:layout_height="6dp" />
+
+            <View
+                android:id="@+id/dot2"
+                android:layout_width="6dp"
+                android:layout_height="6dp" />
+
+            <View
+                android:id="@+id/dot3"
+                android:layout_width="6dp"
+                android:layout_height="6dp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/fl_top_avatar_container"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <View
+            android:id="@+id/wave_ring_1"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone" />
+    </FrameLayout>
+
+    <View
+        android:id="@+id/connection_line_bg"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
     <ProgressBar
         android:id="@+id/circular_progress"
         android:layout_width="0dp"
@@ -153,7 +388,6 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
-    <!-- Hidden Wave Rings (kept for compatibility) -->
     <View
         android:id="@+id/wave_ring_2"
         android:layout_width="0dp"
@@ -170,162 +404,64 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
-    <!-- Bottom User Avatar Container -->
     <FrameLayout
         android:id="@+id/fl_bottom_avatar_container"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp"
-        app:layout_constraintBottom_toTopOf="@id/ll_info_container"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
 
-        <!-- Subtle Pulse Ring -->
         <View
             android:id="@+id/pulse_ring"
-            android:layout_width="140dp"
-            android:layout_height="140dp"
-            android:layout_gravity="center"
-            android:background="@drawable/pulse_ring_pink"
-            android:alpha="0.3" />
-
-        <!-- Bottom Avatar with Shadow -->
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="110dp"
-            android:layout_height="110dp"
-            android:layout_gravity="center"
-            app:cardCornerRadius="55dp"
-            app:cardElevation="4dp">
-
-            <ImageView
-                android:id="@+id/iv_caller_profile"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:scaleType="centerCrop"
-                android:src="@drawable/logo" />
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- You Badge - Smaller and Cleaner -->
-        <TextView
-            android:id="@+id/tv_you"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom|center_horizontal"
-            android:layout_marginBottom="-8dp"
-            android:fontFamily="@font/poppins_semibold"
-            android:text="You"
-            android:textColor="@color/colorAccent"
-            android:textSize="11sp"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="4dp"
-            android:background="@drawable/edittext_dark_bg"
-            android:backgroundTint="@color/white"
-            android:elevation="2dp" />
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone" />
     </FrameLayout>
 
-    <!-- Info Container -->
     <LinearLayout
         android:id="@+id/ll_info_container"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:layout_marginBottom="20dp"
-        android:layout_marginHorizontal="32dp"
-        app:layout_constraintBottom_toTopOf="@id/progress_container"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
 
-        <!-- Connection Message -->
-        <TextView
-            android:id="@+id/tl_wait_title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/poppins_medium"
-            android:text="Finding your perfect match..."
-            android:textAlignment="center"
-            android:textColor="#444444"
-            android:textSize="14sp" />
-
-        <!-- User Name (Initially Hidden) -->
         <TextView
             android:id="@+id/tv_caller_name"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:fontFamily="@font/poppins_bold"
-            android:textColor="#1a1a1a"
-            android:textSize="18sp"
             android:visibility="gone" />
     </LinearLayout>
 
-    <!-- Progress Container - Simplified -->
     <LinearLayout
         android:id="@+id/progress_container"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:layout_marginHorizontal="48dp"
-        android:layout_marginBottom="20dp"
-        android:paddingVertical="12dp"
-        app:layout_constraintBottom_toTopOf="@id/tv_cancel"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
 
-        <!-- Progress Text -->
         <TextView
             android:id="@+id/tv_progress_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Searching..."
-            android:fontFamily="@font/poppins_medium"
-            android:textColor="#888888"
-            android:textSize="12sp"
-            android:layout_marginBottom="8dp" />
+            android:visibility="gone" />
 
-        <!-- Modern Progress Bar -->
         <ProgressBar
             android:id="@+id/progressBar"
             style="@style/Widget.AppCompat.ProgressBar.Horizontal"
-            android:layout_width="match_parent"
-            android:layout_height="4dp"
-            android:background="@drawable/progress_bar_background"
-            android:indeterminate="false"
-            android:max="100"
-            android:progress="10"
-            android:progressDrawable="@drawable/curved_progress_bar" />
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone" />
 
-        <!-- Timer Text - Hidden by default -->
         <TextView
             android:id="@+id/tv_timer"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:fontFamily="@font/poppins_regular"
-            android:textColor="#999999"
-            android:textSize="10sp"
-            android:text="00:00"
             android:visibility="gone" />
     </LinearLayout>
 
-    <!-- Cancel Button -->
-    <TextView
-        android:id="@+id/tv_cancel"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Cancel"
-        android:fontFamily="@font/poppins_medium"
-        android:textColor="#999999"
-        android:textSize="13sp"
-        android:paddingHorizontal="24dp"
-        android:paddingVertical="8dp"
-        android:layout_marginBottom="24dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <!-- Hidden FrameLayout for compatibility -->
     <FrameLayout
         android:id="@+id/fl_connection_animation"
         android:layout_width="0dp"

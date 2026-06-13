@@ -1,14 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Professional gradient background: Dark elegant gradient -->
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item>
-        <shape android:shape="rectangle">
-            <gradient
-                android:angle="135"
-                android:startColor="#1A1A2E"
-                android:centerColor="#16213E"
-                android:endColor="#0F3460"
-                android:type="linear"/>
-        </shape>
-    </item>
-</layer-list>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:type="radial"
+        android:centerX="0.5"
+        android:centerY="-0.1"
+        android:gradientRadius="900"
+        android:startColor="#2D1B5C"
+        android:centerColor="#1A0E3C"
+        android:endColor="#0A0420" />
+</shape>

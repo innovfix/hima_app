@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dark-glass video button — blue stroke for identity, dark base for contrast. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:state_pressed="true">
+        <shape android:shape="oval">
+            <solid android:color="#B32388F2" />
+            <stroke android:width="1.5dp" android:color="#FF2388F2" />
+        </shape>
+    </item>
+
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="#80000000" />
+            <stroke android:width="1.5dp" android:color="#CC2388F2" />
+        </shape>
+    </item>
+
+</selector>

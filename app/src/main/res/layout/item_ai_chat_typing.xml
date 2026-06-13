@@ -1,10 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingHorizontal="16dp"
+    android:gravity="bottom"
+    android:orientation="horizontal"
+    android:paddingHorizontal="14dp"
     android:paddingVertical="4dp">
 
+    <!-- Small Hima avatar -->
+    <FrameLayout
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_marginEnd="8dp"
+        android:background="@drawable/bg_hima_avatar">
+
+        <ImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="center"
+            android:src="@mipmap/ic_launcher"
+            android:contentDescription="@null" />
+    </FrameLayout>
+
+    <!-- Typing dots bubble -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -12,8 +30,8 @@
         android:background="@drawable/bg_chat_ai_bubble"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="14dp">
+        android:paddingHorizontal="18dp"
+        android:paddingVertical="16dp">
 
         <View
             android:id="@+id/dot1"
@@ -26,15 +44,15 @@
             android:layout_width="8dp"
             android:layout_height="8dp"
             android:layout_marginStart="6dp"
-            android:background="@drawable/bg_typing_dot"
-            android:alpha="0.7" />
+            android:alpha="0.7"
+            android:background="@drawable/bg_typing_dot" />
 
         <View
             android:id="@+id/dot3"
             android:layout_width="8dp"
             android:layout_height="8dp"
             android:layout_marginStart="6dp"
-            android:background="@drawable/bg_typing_dot"
-            android:alpha="0.4" />
+            android:alpha="0.4"
+            android:background="@drawable/bg_typing_dot" />
     </LinearLayout>
-</FrameLayout>
+</LinearLayout>

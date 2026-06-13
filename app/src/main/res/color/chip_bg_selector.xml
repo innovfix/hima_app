@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Matches Home filter pill — light grey when inactive, pink when active. -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:color="#ff1383" android:state_checked="true" />
-    <item android:color="#FFFFFF" />
+    <item android:color="#E91E63" android:state_checked="true" />
+    <item android:color="#F5F5F7" />
 </selector>

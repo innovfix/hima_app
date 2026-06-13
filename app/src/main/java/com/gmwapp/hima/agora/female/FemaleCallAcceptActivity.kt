@@ -21,6 +21,7 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
@@ -82,7 +83,13 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding = ActivityFemaleCallAcceptBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Full-screen call UI is up — kill the heads-up call notification so the
+        // user doesn't see both at once.
+        BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
+
         window.statusBarColor = ContextCompat.getColor(this, R.color.black)
+        WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars = false
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
