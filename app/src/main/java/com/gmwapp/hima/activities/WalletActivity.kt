@@ -387,6 +387,11 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
                         showAppToast("Payment Successful", Toast.LENGTH_LONG)
                         user_id?.let { WalletViewModel.addCoins(it, coin_id, 1, order_id, "Coins purchased") }
                         updatePurchaseOnMeta()
+                        // Notification conversion: attribute this recharge (₹) to the
+                        // most recent notification the user received.
+                        val app = BaseApplication.getInstance()
+                        val rupees = app?.getPrefs()?.getString("last_coin_amount")?.toDoubleOrNull()?.toInt() ?: 0
+                        app?.trackNotificationConversion(app.getLastNotificationId(), "purchase", rupees)
                     }
 
                 }else{

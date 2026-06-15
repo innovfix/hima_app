@@ -84,7 +84,9 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
                     context.getSharedPreferences("notif_track", Context.MODE_PRIVATE).edit()
                         .putInt("last_notif_id", notifId)
                         .putLong("last_notif_time", System.currentTimeMillis())
-                        .putBoolean("last_notif_counted", false)
+                        // Start a fresh funnel for this notification id (per-action dedupe
+                        // lives under notif_counted_actions_<id>).
+                        .remove("notif_counted_actions_$notifId")
                         .apply()
                     Log.d(TAG, "Saved last_notif_id=$notifId for conversion tracking")
                 }

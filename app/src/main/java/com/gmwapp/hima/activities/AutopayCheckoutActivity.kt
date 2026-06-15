@@ -127,6 +127,9 @@ class AutopayCheckoutActivity : AppCompatActivity() {
             if (data.is_active && !checkoutComplete) {
                 checkoutComplete = true
                 Toast.makeText(this, "Autopay active. Enjoy!", Toast.LENGTH_SHORT).show()
+                // Notification conversion: autopay mandate just became active.
+                val app = BaseApplication.getInstance()
+                app?.trackNotificationConversion(app.getLastNotificationId(), "autopay")
                 finish()
             } else if (redirectAttempted && !data.is_active) {
                 // User came back without completing — show manual close.

@@ -218,6 +218,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
 
     private var isRemoteUserJoined = false
+    // Fire the "call_started" notification conversion at most once per call session
+    // (onUserJoined can re-fire on reconnect, possibly under a newer notification id).
+    private var callStartedConversionFired = false
     private var elapsedTime = 0  // Tracks elapsed seconds
     private val timeoutHandler = Handler(Looper.getMainLooper())
     private val timeoutRunnable = object : Runnable {
@@ -1204,6 +1207,14 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 userId = maleUserId,
                 params = AppEventLogger.bundleToMap(bundle)
             )
+
+            // Notification conversion: caller actually connected a call (engagement).
+            if (!callStartedConversionFired) {
+                callStartedConversionFired = true
+                com.gmwapp.hima.BaseApplication.getInstance()?.let { app ->
+                    app.trackNotificationConversion(app.getLastNotificationId(), "call_started")
+                }
+            }
 
 
 
