@@ -330,6 +330,7 @@
     <string name="earnings">Earnings</string>
     <string name="current_balance">Current balance</string>
     <string name="balance_hint_text">Balance should be at least \u20B9%d to withdraw</string>
+    <string name="withdrawal_agency_blocked_text">Withdrawals are managed by your agency.</string>
     <string name="pending">Pending</string>
     <string name="paid">Paid</string>
     <string name="withdrawn">Withdrawn</string>

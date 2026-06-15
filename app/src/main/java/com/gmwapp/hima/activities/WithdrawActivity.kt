@@ -91,6 +91,14 @@ class WithdrawActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityWithdrawBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        // Defense-in-depth: agency creators are paid by their agency and cannot withdraw.
+        // The Withdraw button is hidden in EarningsActivity and the server rejects the
+        // request anyway; this stops any deep-link/back-stack route into the form.
+        if (BaseApplication.getInstance()?.getPrefs()?.getUserData()?.withdrawal_blocked == true) {
+            Toast.makeText(this, getString(R.string.withdrawal_agency_blocked_text), Toast.LENGTH_LONG).show()
+            finish()
+            return
+        }
         window.statusBarColor = ContextCompat.getColor(this, R.color.white)
         WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
 
