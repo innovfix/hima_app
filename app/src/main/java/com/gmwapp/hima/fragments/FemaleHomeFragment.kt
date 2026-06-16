@@ -1031,43 +1031,57 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                 // Prepare event parameters
                 val userId = userData.id
 
+                // TC_028 (B17): the idempotency guard is already committed above, so
+                // emit to each platform INDEPENDENTLY — one SDK throwing (Meta/AppsFlyer
+                // not yet initialised, a detached context, etc.) must not skip the
+                // remaining emits. The guard intentionally stays set either way: a rare
+                // lost event is preferable to a double-counted funnel.
+
                 // 1. Firebase Analytics - voice_verified
                 val firebaseBundle = Bundle().apply {
                     putString("user_id", "$userId")
                     putString("gender", userData.gender ?: "")
                     putString("status", "${userData.status}")
                 }
-                BaseApplication.firebaseAnalytics.logEvent("voice_verified", firebaseBundle)
-                
+                runCatching {
+                    BaseApplication.firebaseAnalytics.logEvent("voice_verified", firebaseBundle)
+                }.onFailure { Log.w("FemaleHomeFragment", "voice_verified Firebase emit failed: ${it.message}") }
+
                 // 2. Meta/Facebook Analytics - voice_verified
                 val metaParams = Bundle().apply {
                     putString("user_id", "$userId")
                     putString("gender", userData.gender ?: "")
                     putString("status", "${userData.status}")
                 }
-                AppEventsLogger.newLogger(requireContext()).logEvent("voice_verified", metaParams)
-                
+                runCatching {
+                    AppEventsLogger.newLogger(requireContext()).logEvent("voice_verified", metaParams)
+                }.onFailure { Log.w("FemaleHomeFragment", "voice_verified Meta emit failed: ${it.message}") }
+
                 // 3. AppsFlyer - voice_verified
                 val appsFlyerEvent = HashMap<String, Any>().apply {
                     put("user_id", "$userId")
                     put("gender", userData.gender ?: "")
                     put("status", "${userData.status}")
                 }
-                AppsFlyerLib.getInstance().logEvent(
-                    requireContext(),
-                    "voice_verified",
-                    appsFlyerEvent
-                )
-                
+                runCatching {
+                    AppsFlyerLib.getInstance().logEvent(
+                        requireContext(),
+                        "voice_verified",
+                        appsFlyerEvent
+                    )
+                }.onFailure { Log.w("FemaleHomeFragment", "voice_verified AppsFlyer emit failed: ${it.message}") }
+
                 // 4. Log to backend (only Firebase events)
-                AppEventLogger.logEvent(
-                    context = requireContext(),
-                    eventName = "voice_verified",
-                    platform = "firebase",
-                    userId = userId,
-                    params = AppEventLogger.bundleToMap(firebaseBundle)
-                )
-                
+                runCatching {
+                    AppEventLogger.logEvent(
+                        context = requireContext(),
+                        eventName = "voice_verified",
+                        platform = "firebase",
+                        userId = userId,
+                        params = AppEventLogger.bundleToMap(firebaseBundle)
+                    )
+                }.onFailure { Log.w("FemaleHomeFragment", "voice_verified backend emit failed: ${it.message}") }
+
                 // Idempotency guard already persisted above (commit) BEFORE emit.
 
                 Log.d("FemaleHomeFragment", "✅ voice_verified event logged to Firebase, Meta, AppsFlyer, and backend for user $userId")
