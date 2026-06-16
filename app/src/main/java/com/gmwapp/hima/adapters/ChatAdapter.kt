@@ -652,6 +652,12 @@ class ChatAdapter(
                 tvDuration.text = "--:--"
                 progressAudio.max = 100
                 progressAudio.progress = 0
+                // TC_015: the server often omits audio duration — resolve it from
+                // the file metadata (no playback) and refresh this row once known.
+                audioPlayer.prefetchDuration(message.id, source) { resolvedId ->
+                    val idx = messages.indexOfFirst { it.id == resolvedId }
+                    if (idx != -1) notifyItemChanged(idx, PAYLOAD_AUDIO_PROGRESS)
+                }
             } else {
                 tvDuration.text = formatDuration(durationMs.toLong())
                 progressAudio.max = durationMs.coerceAtLeast(1)
