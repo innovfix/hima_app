@@ -1573,6 +1573,19 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         override fun onRemoteVideoStateChanged(uid: Int, state: Int, reason: Int, elapsed: Int) {
             super.onRemoteVideoStateChanged(uid, state, reason, elapsed)
             Log.d(TAG_END, "onRemoteVideoStateChanged uid=$uid state=$state reason=$reason")
+            // B13/TC_007 recovery path: if the remote is starting/decoding but the
+            // canvas was never created (missed onUserJoined / recreation), bind it
+            // now. Runs BEFORE the videoUid guard below because this is exactly the
+            // case where videoUid may be stale/unset. Acts ONLY when the surface is
+            // genuinely MISSING — must not override the GONE state owned by the
+            // mute-blur logic (which hides without removing).
+            if ((state == Constants.REMOTE_VIDEO_STATE_STARTING ||
+                    state == Constants.REMOTE_VIDEO_STATE_DECODING) &&
+                (binding.remoteVideoViewContainer.childCount == 0 || remoteSurfaceView == null)
+            ) {
+                videoUid = uid
+                runOnUiThread { setupRemoteVideo(uid) }
+            }
             if (uid != videoUid) return
             // 2026-05-23 v1065 — debounce FROZEN/FAILED so tier-2/3 brief blips
             // don't flash the avatar overlay. STARTING (pre-first-frame) and
@@ -1641,27 +1654,6 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             }
         }
 
-        override fun onRemoteVideoStateChanged(uid: Int, state: Int, reason: Int, elapsed: Int) {
-            super.onRemoteVideoStateChanged(uid, state, reason, elapsed)
-            Log.d(
-                "VideoCallFlow",
-                "MaleVideo.onRemoteVideoStateChanged uid=$uid state=$state reason=$reason"
-            )
-            // Recovery path the code previously lacked: if the remote is decoding
-            // but the canvas was never created (missed onUserJoined / recreation),
-            // bind it now. Deliberately acts ONLY when the surface is genuinely
-            // MISSING — it must not override the GONE state owned by the mute-blur
-            // logic (which hides the view without removing it). Agora auto-resumes
-            // rendering into an existing bound canvas after a freeze, so no
-            // force-show is needed here.
-            if ((state == Constants.REMOTE_VIDEO_STATE_STARTING ||
-                    state == Constants.REMOTE_VIDEO_STATE_DECODING) &&
-                (binding.remoteVideoViewContainer.childCount == 0 || remoteSurfaceView == null)
-            ) {
-                videoUid = uid
-                runOnUiThread { setupRemoteVideo(uid) }
-            }
-        }
     }
 
     // Perumal 2026-05-22: tracks peer mute state so self-mute toggle can OR with it.

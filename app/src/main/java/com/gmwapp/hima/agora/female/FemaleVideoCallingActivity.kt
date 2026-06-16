@@ -1478,6 +1478,23 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         // B188 — last-resort recovery for a wedged remote subscriber.
         override fun onRemoteVideoStateChanged(uid: Int, state: Int, reason: Int, elapsed: Int) {
             super.onRemoteVideoStateChanged(uid, state, reason, elapsed)
+            Log.d(
+                "VideoCallFlow",
+                "FemaleVideo.onRemoteVideoStateChanged uid=$uid state=$state reason=$reason"
+            )
+            // B13/TC_007 recovery path: if the remote is starting/decoding but the
+            // canvas was never created (missed onUserJoined / recreation), bind it
+            // now. Runs BEFORE the videoUid guard below because this is exactly the
+            // case where videoUid may be stale/unset. Acts ONLY when the surface is
+            // genuinely MISSING — must not override the GONE state owned by the
+            // mute-blur / no-face-overlay logic (which hides without removing).
+            if ((state == Constants.REMOTE_VIDEO_STATE_STARTING ||
+                    state == Constants.REMOTE_VIDEO_STATE_DECODING) &&
+                (binding.remoteVideoViewContainer.childCount == 0 || remoteSurfaceView == null)
+            ) {
+                videoUid = uid
+                runOnUiThread { setupRemoteVideo(uid) }
+            }
             if (uid != videoUid) return
             // 2026-05-23 v1065 — debounce FROZEN/FAILED so tier-2/3 brief blips
             // don't flash the avatar overlay. See MaleVideoCallingActivity for rationale.
@@ -1536,28 +1553,6 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                 binding.remoteMicMutedPill.visibility = if (muted) View.VISIBLE else View.GONE
                 // Perumal 2026-05-22: also drive the visible badge for peer mute.
                 updateMuteBadge(peerMuted = muted)
-            }
-        }
-
-        override fun onRemoteVideoStateChanged(uid: Int, state: Int, reason: Int, elapsed: Int) {
-            super.onRemoteVideoStateChanged(uid, state, reason, elapsed)
-            Log.d(
-                "VideoCallFlow",
-                "FemaleVideo.onRemoteVideoStateChanged uid=$uid state=$state reason=$reason"
-            )
-            // Recovery path the code previously lacked: if the remote is decoding
-            // but the canvas was never created (missed onUserJoined / recreation),
-            // bind it now. Deliberately acts ONLY when the surface is genuinely
-            // MISSING — it must not override the GONE state owned by the mute-blur /
-            // no-face-overlay logic (which hides the view without removing it).
-            // Agora auto-resumes rendering into an existing bound canvas after a
-            // freeze, so no force-show is needed here.
-            if ((state == Constants.REMOTE_VIDEO_STATE_STARTING ||
-                    state == Constants.REMOTE_VIDEO_STATE_DECODING) &&
-                (binding.remoteVideoViewContainer.childCount == 0 || remoteSurfaceView == null)
-            ) {
-                videoUid = uid
-                runOnUiThread { setupRemoteVideo(uid) }
             }
         }
 
@@ -1935,6 +1930,9 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         )
         if (checkSelfPermission()) {
             val options = ChannelMediaOptions()
+            // B13/TC_007 — front-camera availability gates the local-preview restart
+            // after join() succeeds. Restored after a refactor dropped this decl.
+            val cameraOk = com.gmwapp.hima.utils.CameraAvailability.isCameraAvailable(this)
 
             Log.d("AgoraDebug", "Joining channel: $channelName, Token: $token")
 
