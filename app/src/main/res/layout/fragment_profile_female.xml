@@ -216,7 +216,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="6dp"
                                 android:fontFamily="@font/poppins_semibold"
-                                android:text="@string/earnings"
+                                android:text="@string/transactions"
                                 android:textColor="@color/black_light"
                                 android:textSize="12sp"
                                 android:letterSpacing="-0.01" />
@@ -327,7 +327,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="6dp"
                                 android:fontFamily="@font/poppins_semibold"
-                                android:text="@string/transactions"
+                                android:text="@string/earnings"
                                 android:textColor="@color/black_light"
                                 android:textSize="12sp"
                                 android:letterSpacing="-0.01" />

@@ -42,6 +42,11 @@ class FemaleTransactionsActivity : BaseActivity() {
         window.statusBarColor = resources.getColor(R.color.pink)
         WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
 
+        // FI_02 (creator-side only): activity_transactions.xml is shared with the male
+        // TransactionsActivity, so the female header is relabelled here at runtime to
+        // "Earnings" while the male screen keeps the XML default "Transactions".
+        binding.tvTransactions.text = getString(R.string.earnings)
+
         initUI()
     }
 
