@@ -164,10 +164,16 @@ class ChatAudioPlayer(
     private val durationExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
     private val durationPrefetchInFlight =
         java.util.Collections.synchronizedSet(HashSet<String>())
+    // TC_015: ids whose metadata read already finished (success or failure) this
+    // session — stops a permanently-unreadable file from re-fetching its metadata
+    // on every re-bind/scroll. Cleared in [release] so a fresh session retries.
+    private val durationPrefetchAttempted =
+        java.util.Collections.synchronizedSet(HashSet<String>())
 
     fun prefetchDuration(messageId: String, source: String?, onResolved: (String) -> Unit) {
         if (source.isNullOrBlank()) return
         knownDurationsMs[messageId]?.let { if (it > 0) return }
+        if (messageId in durationPrefetchAttempted) return
         if (!durationPrefetchInFlight.add(messageId)) return
         try {
             durationExecutor.execute {
@@ -189,10 +195,17 @@ class ChatAudioPlayer(
                 } finally {
                     try { retriever.release() } catch (_: Exception) {}
                     durationPrefetchInFlight.remove(messageId)
+                    durationPrefetchAttempted.add(messageId)
                 }
                 if (resolved > 0) {
-                    knownDurationsMs[messageId] = resolved
-                    mainHandler.post { onResolved(messageId) }
+                    // Touch knownDurationsMs ONLY on the main thread: it is an
+                    // access-ordered LinkedHashMap shared with playback, and access
+                    // order mutates the list even on reads, so a background write
+                    // here would race every main-thread access. Hand off to main.
+                    mainHandler.post {
+                        knownDurationsMs[messageId] = resolved
+                        onResolved(messageId)
+                    }
                 }
             }
         } catch (e: java.util.concurrent.RejectedExecutionException) {
@@ -206,6 +219,8 @@ class ChatAudioPlayer(
         currentMessageId = null
         previousId?.let(onPlaybackStateChanged)
         runCatching { durationExecutor.shutdownNow() }
+        durationPrefetchInFlight.clear()
+        durationPrefetchAttempted.clear()
     }
 
     private fun setDataSource(player: MediaPlayer, source: String) {
