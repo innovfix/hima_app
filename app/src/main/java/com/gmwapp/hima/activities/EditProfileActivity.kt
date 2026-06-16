@@ -73,10 +73,15 @@ class EditProfileActivity : BaseActivity() {
 
         if (gender == "male" || gender == "Male") {
             binding.tvGender.text = "Male"
+            // FI_03: a male user's interests are never displayed anywhere (only a
+            // creator's interests are shown — on her profile/about cards), so the
+            // picker is dead UI on the user side. Hide it. Kept for creators below.
+            binding.cvInterests.visibility = View.GONE
         }
         else
         {
             binding.tvGender.text = "Female"
+            binding.cvInterests.visibility = View.VISIBLE
         }
         
         // Always allow users to edit their name - backend will validate and return error if second time
