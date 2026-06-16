@@ -166,6 +166,14 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
     private fun updateValues() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         binding.tvName.text = userData?.name
+        // FI_04: show the account owner's registered phone as "98765 43210".
+        val phone10 = (userData?.mobile ?: "").filter { it.isDigit() }.takeLast(10)
+        if (phone10.length == 10) {
+            binding.tvPhone.text = "${phone10.substring(0, 5)} ${phone10.substring(5)}"
+            binding.tvPhone.visibility = android.view.View.VISIBLE
+        } else {
+            binding.tvPhone.visibility = android.view.View.GONE
+        }
         val prefs = BaseApplication.getInstance()?.getPrefs()
         val supportMail = prefs?.getSettingsData()?.support_mail
         val subject = getString(R.string.delete_account_mail_subject, userData?.mobile, userData?.language)

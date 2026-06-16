@@ -100,6 +100,22 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/avatar_container" />
 
+            <!-- FI_04: registered phone number, shown to the account owner -->
+            <TextView
+                android:id="@+id/tv_phone"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:fontFamily="@font/poppins_medium"
+                android:text="98765 43210"
+                android:textColor="#EAFFFFFF"
+                android:textSize="13sp"
+                android:letterSpacing="0.02"
+                android:elevation="2dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/tv_name" />
+
             <!-- IPL Team Badge -->
             <LinearLayout
                 android:id="@+id/ipl_team_badge"
@@ -116,7 +132,7 @@
                 android:orientation="horizontal"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/tv_name">
+                app:layout_constraintTop_toBottomOf="@id/tv_phone">
 
                 <View
                     android:id="@+id/ipl_badge_team_dot"
