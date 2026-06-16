@@ -682,6 +682,28 @@ class ChatActivityInHouse : AppCompatActivity() {
                         chatAdapter.notifyItemChanged(pos)
                     }
                 }
+
+                // TC_015: trigger the reply on a short drag.
+                override fun getSwipeThreshold(viewHolder: RecyclerView.ViewHolder): Float = 0.30f
+
+                // TC_015: clamp the horizontal travel so a reply swipe only peeks
+                // and springs back, instead of flinging the whole row off-screen —
+                // which read as the message "disappearing then reappearing".
+                override fun onChildDraw(
+                    c: android.graphics.Canvas,
+                    recyclerView: RecyclerView,
+                    viewHolder: RecyclerView.ViewHolder,
+                    dX: Float,
+                    dY: Float,
+                    actionState: Int,
+                    isCurrentlyActive: Boolean
+                ) {
+                    val maxReveal = viewHolder.itemView.width * 0.20f
+                    val clamped = dX.coerceIn(0f, maxReveal)
+                    super.onChildDraw(
+                        c, recyclerView, viewHolder, clamped, dY, actionState, isCurrentlyActive
+                    )
+                }
             }
         ).attachToRecyclerView(rvMessages)
     }

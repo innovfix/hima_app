@@ -156,11 +156,56 @@ class ChatAudioPlayer(
         return knownDurationsMs[messageId] ?: fallbackMs.toInt()
     }
 
+    // TC_015: resolve an audio message's duration from its file metadata without
+    // playing it, so the timer doesn't sit at "--:--" / 0 when the server omits
+    // the duration (which it does for both old messages and freshly-synced ones).
+    // Best-effort, off the main thread, cached in knownDurationsMs; on success
+    // [onResolved] fires on the main thread so the row can refresh.
+    private val durationExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
+    private val durationPrefetchInFlight =
+        java.util.Collections.synchronizedSet(HashSet<String>())
+
+    fun prefetchDuration(messageId: String, source: String?, onResolved: (String) -> Unit) {
+        if (source.isNullOrBlank()) return
+        knownDurationsMs[messageId]?.let { if (it > 0) return }
+        if (!durationPrefetchInFlight.add(messageId)) return
+        try {
+            durationExecutor.execute {
+                var resolved = 0
+                val retriever = android.media.MediaMetadataRetriever()
+                try {
+                    val uri = Uri.parse(source)
+                    val scheme = uri.scheme?.lowercase()
+                    if (scheme == "http" || scheme == "https") {
+                        retriever.setDataSource(source, HashMap<String, String>())
+                    } else {
+                        retriever.setDataSource(context, uri)
+                    }
+                    resolved = retriever.extractMetadata(
+                        android.media.MediaMetadataRetriever.METADATA_KEY_DURATION
+                    )?.toIntOrNull()?.coerceAtLeast(0) ?: 0
+                } catch (e: Exception) {
+                    // best-effort — leave unresolved, UI keeps "--:--"
+                } finally {
+                    try { retriever.release() } catch (_: Exception) {}
+                    durationPrefetchInFlight.remove(messageId)
+                }
+                if (resolved > 0) {
+                    knownDurationsMs[messageId] = resolved
+                    mainHandler.post { onResolved(messageId) }
+                }
+            }
+        } catch (e: java.util.concurrent.RejectedExecutionException) {
+            durationPrefetchInFlight.remove(messageId)
+        }
+    }
+
     fun release() {
         val previousId = currentMessageId
         releaseCurrentPlayer()
         currentMessageId = null
         previousId?.let(onPlaybackStateChanged)
+        runCatching { durationExecutor.shutdownNow() }
     }
 
     private fun setDataSource(player: MediaPlayer, source: String) {
