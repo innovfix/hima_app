@@ -91,6 +91,14 @@ class WithdrawActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityWithdrawBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        // Defense-in-depth: agency creators are paid by their agency and cannot withdraw.
+        // The Withdraw button is hidden in EarningsActivity and the server rejects the
+        // request anyway; this stops any deep-link/back-stack route into the form.
+        if (BaseApplication.getInstance()?.getPrefs()?.getUserData()?.withdrawal_blocked == true) {
+            Toast.makeText(this, getString(R.string.withdrawal_agency_blocked_text), Toast.LENGTH_LONG).show()
+            finish()
+            return
+        }
         window.statusBarColor = ContextCompat.getColor(this, R.color.white)
         WindowInsetsControllerCompat(window, binding.root).isAppearanceLightStatusBars = true
 
@@ -102,6 +110,27 @@ class WithdrawActivity : BaseActivity() {
             insets
         }
         initUI()
+    }
+
+    /**
+     * Shows a withdrawal-response message in a dismissible dialog instead of a toast,
+     * so long messages (e.g. the agency-block notice) are never truncated. Same look
+     * as the autopay-failed dialog; single "Got it" button.
+     */
+    private fun showWithdrawMessageDialog(message: String?) {
+        if (isFinishing || isDestroyed) return
+        val msg = message?.takeIf { it.isNotBlank() }
+            ?: getString(R.string.withdrawal_agency_blocked_text)
+        val view = layoutInflater.inflate(R.layout.dialog_withdrawal_blocked, null)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setView(view)
+            .setCancelable(true)
+            .create()
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.window?.setDimAmount(0.5f)
+        view.findViewById<android.widget.TextView>(R.id.tvWithdrawBlockedMsg).text = msg
+        view.findViewById<android.view.View>(R.id.btnWithdrawGotIt).setOnClickListener { dialog.dismiss() }
+        dialog.show()
     }
 
     private fun initUI() {
@@ -356,7 +385,9 @@ class WithdrawActivity : BaseActivity() {
                 finish()
             }
             else {
-                showAppToast(it.message, Toast.LENGTH_SHORT)
+                // Failure (incl. the agency-block message) — show in a dialog so the
+                // full text is readable instead of a truncated toast.
+                showWithdrawMessageDialog(it?.message)
             }
         })
 
@@ -364,13 +395,15 @@ class WithdrawActivity : BaseActivity() {
             if (it != null) {
                 Log.d("paymentMethod","UpiResposne $it")
 
-                showAppToast(it.message, Toast.LENGTH_SHORT)
                 val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
-                userData?.let { profileViewModel.getUsers(it.id) }
-                if (it.success==true){
+                userData?.let { u -> profileViewModel.getUsers(u.id) }
+                if (it.success == true) {
+                    showAppToast(it.message, Toast.LENGTH_SHORT)
                     finish()
+                } else {
+                    // Failure (incl. the agency-block message) — dialog, not a truncated toast.
+                    showWithdrawMessageDialog(it.message)
                 }
-
             }
             else {
                 showAppToast("Please try again", Toast.LENGTH_SHORT)

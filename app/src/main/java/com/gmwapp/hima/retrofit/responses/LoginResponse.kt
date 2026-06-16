@@ -50,6 +50,12 @@ data class UserData (
     val ifsc:String?,
     val holder_name:String?,
     val upi_id:String?,
+    // Agency creators are paid by their agency and cannot withdraw (server-enforced in
+    // withdrawals()/upi_withdrawals()). The app uses this only to hide the Withdraw
+    // button up-front; older builds without this field simply default to false.
+    @SerializedName("withdrawal_blocked")
+    @JsonAdapter(FlexibleBooleanDeserializer::class)
+    val withdrawal_blocked: Boolean? = false,
     val refer_code:String?,
     val referred_by:String?,
     val referral_coins_gained:String?,

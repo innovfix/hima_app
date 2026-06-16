@@ -1200,18 +1200,26 @@ class BaseApplication : Application(), Configuration.Provider {
      *
      * Marks the notification as counted in SharedPreferences so we don't double-count.
      */
-    fun trackNotificationConversion(notificationId: Int, action: String) {
+    fun trackNotificationConversion(notificationId: Int, action: String, amount: Int = 0) {
         if (notificationId <= 0) return
 
-        // Avoid double counting: if we already posted a conversion for this notif, skip.
+        // Per-(notification, action) dedupe so a single notification can record the
+        // whole funnel (click -> open -> purchase -> autopay -> call_enable -> ...)
+        // without double-counting the SAME action. A single boolean would let the
+        // first action block every later one.
         val trackPrefs = applicationContext.getSharedPreferences("notif_track", Context.MODE_PRIVATE)
-        val lastNotifId = trackPrefs.getInt("last_notif_id", 0)
-        val alreadyCounted = trackPrefs.getBoolean("last_notif_counted", false)
-        if (lastNotifId == notificationId && alreadyCounted) {
-            Log.d("NotifConversion", "Skip notif=$notificationId — already counted")
-            return
+        val countedKey = "notif_counted_actions_$notificationId"
+        // Synchronized so concurrent callers can't both pass the check-then-write
+        // for the same action (SharedPreferences read-modify-write is not atomic).
+        synchronized(notifTrackLock) {
+            val counted = trackPrefs.getStringSet(countedKey, emptySet()) ?: emptySet()
+            if (action in counted) {
+                Log.d("NotifConversion", "Skip notif=$notificationId action=$action — already counted")
+                return
+            }
+            // Copy the set — getStringSet may return a shared, mutable instance.
+            trackPrefs.edit().putStringSet(countedKey, counted + action).apply()
         }
-        trackPrefs.edit().putBoolean("last_notif_counted", true).apply()
 
         val userId = try {
             getPrefs()?.getUserData()?.id ?: 0
@@ -1232,6 +1240,9 @@ class BaseApplication : Application(), Configuration.Provider {
                 if (userId > 0) {
                     formBuilder.add("user_id", userId.toString())
                 }
+                if (amount > 0) {
+                    formBuilder.add("amount", amount.toString())
+                }
 
                 // BuildConfig.BASE_URL points at "<host>/api/auth/" — strip the auth/
                 // suffix so this endpoint also works correctly on demo + prod builds.
@@ -1244,15 +1255,32 @@ class BaseApplication : Application(), Configuration.Provider {
                 client.newCall(request).execute().use { response ->
                     Log.d(
                         "NotifConversion",
-                        "Posted notif=$notificationId action=$action user=$userId -> HTTP ${response.code} url=${request.url}"
+                        "Posted notif=$notificationId action=$action amount=$amount user=$userId -> HTTP ${response.code} url=${request.url}"
                     )
                 }
             } catch (e: Exception) {
                 Log.e("NotifConversion", "Failed to post conversion: ${e.message}")
-                // On failure, allow retry on next foreground.
-                trackPrefs.edit().putBoolean("last_notif_counted", false).apply()
+                // On failure, allow retry of THIS action only (copy the set).
+                synchronized(notifTrackLock) {
+                    val cur = trackPrefs.getStringSet(countedKey, emptySet()) ?: emptySet()
+                    trackPrefs.edit().putStringSet(countedKey, cur - action).apply()
+                }
             }
         }.start()
+    }
+
+    /** Guards the per-notification dedupe read-modify-write on SharedPreferences. */
+    private val notifTrackLock = Any()
+
+    /**
+     * The notification_id saved at receive-time (OneSignalNotificationServiceExtension).
+     * Conversion callsites pass this so a purchase/call-enable/etc. is attributed to
+     * the notification the user most recently received.
+     */
+    fun getLastNotificationId(): Int = try {
+        applicationContext.getSharedPreferences("notif_track", Context.MODE_PRIVATE).getInt("last_notif_id", 0)
+    } catch (e: Exception) {
+        0
     }
 
     /**
@@ -1266,9 +1294,11 @@ class BaseApplication : Application(), Configuration.Provider {
             val prefs = applicationContext.getSharedPreferences("notif_track", Context.MODE_PRIVATE)
             val notifId = prefs.getInt("last_notif_id", 0)
             val notifTime = prefs.getLong("last_notif_time", 0L)
-            val counted = prefs.getBoolean("last_notif_counted", false)
+            if (notifId <= 0 || notifTime <= 0L) return
 
-            if (notifId <= 0 || notifTime <= 0L || counted) return
+            // Don't re-record an "open" already counted for this notification.
+            val countedActions = prefs.getStringSet("notif_counted_actions_$notifId", emptySet()) ?: emptySet()
+            if ("open" in countedActions) return
 
             val ageMs = System.currentTimeMillis() - notifTime
             val windowMs = 5 * 60 * 1000L // 5 minutes

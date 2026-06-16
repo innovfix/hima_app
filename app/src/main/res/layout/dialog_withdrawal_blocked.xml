@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shown when a withdrawal is rejected (e.g. agency creators). Replaces the
+     truncating toast so the full server message is always readable. -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_autopay_failed_dialog"
+    android:orientation="vertical"
+    android:paddingHorizontal="24dp"
+    android:paddingTop="32dp"
+    android:paddingBottom="24dp">
+
+    <!-- Pink lock circle -->
+    <FrameLayout
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:layout_gravity="center_horizontal"
+        android:background="@drawable/bg_daily_coins_coin"
+        android:backgroundTint="#FFE6F3">
+
+        <ImageView
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:layout_gravity="center"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_lock_closed"
+            app:tint="@color/colorAccent" />
+    </FrameLayout>
+
+    <!-- Title -->
+    <TextView
+        android:id="@+id/tvWithdrawBlockedTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="16dp"
+        android:fontFamily="@font/poppins_bold"
+        android:text="@string/withdrawal_not_available_title"
+        android:textColor="#1A1A1A"
+        android:textSize="20sp" />
+
+    <!-- Message (set at runtime from the server response) -->
+    <TextView
+        android:id="@+id/tvWithdrawBlockedMsg"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="8dp"
+        android:fontFamily="@font/poppins_regular"
+        android:gravity="center"
+        android:text="@string/withdrawal_agency_blocked_text"
+        android:textColor="#666666"
+        android:textSize="13sp" />
+
+    <!-- Got it -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnWithdrawGotIt"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginTop="22dp"
+        android:background="@drawable/bg_autopay_failed_button"
+        android:backgroundTint="@null"
+        android:fontFamily="@font/poppins_semibold"
+        android:text="@string/got_it"
+        android:textAllCaps="false"
+        android:textColor="@color/white"
+        android:textSize="15sp"
+        app:cornerRadius="26dp"
+        app:elevation="0dp" />
+
+</LinearLayout>

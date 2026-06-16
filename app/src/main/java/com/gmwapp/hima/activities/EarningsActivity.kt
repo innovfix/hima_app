@@ -91,14 +91,7 @@ class EarningsActivity : BaseActivity() {
         accountViewModel.getSettings()
         prefs?.getUserData()?.let {
                 earningsViewModel.getEarnings(it.id)
-                val balance = it.balance
-                if (settingsData?.minimum_withdrawals != null && balance != null && balance < settingsData.minimum_withdrawals) {
-                    binding.btnWithdraw.visibility = View.GONE
-                    binding.llBalanceHintContainer.visibility = View.VISIBLE
-                } else {
-                    binding.btnWithdraw.visibility = View.VISIBLE
-                    binding.llBalanceHintContainer.visibility = View.GONE
-                }
+                applyWithdrawGate()
               //  binding.tvCurrentBalance.text = "₹" +balance.toString()
             }
         accountViewModel.settingsLiveData.observe(this, Observer {
@@ -110,6 +103,9 @@ class EarningsActivity : BaseActivity() {
                         val supportMail = settingsData1.support_mail
                         binding.tlBalanceHint.text =
                             getString(R.string.balance_hint_text, settingsData1.minimum_withdrawals)
+                        // Re-assert the withdraw gate now that fresh settings are in (an
+                        // agency-blocked creator must stay blocked regardless of balance).
+                        applyWithdrawGate()
                         binding.tvSupportMail.text = supportMail
                         val userData = prefs?.getUserData()
 
@@ -175,6 +171,38 @@ class EarningsActivity : BaseActivity() {
 //        })
 //    }
 
+    /**
+     * Decides Withdraw-button visibility. Priority:
+     *  1) Agency creators (withdrawal_blocked) — paid by their agency, can never withdraw.
+     *     Server also rejects the request; this just hides the button up-front.
+     *  2) Balance below the configured minimum — show the minimum-withdrawal hint.
+     *  3) Otherwise — show the button.
+     * Centralised so the async settings observer + onResume can't race to a wrong state.
+     */
+    private fun applyWithdrawGate() {
+        val prefs = BaseApplication.getInstance()?.getPrefs()
+        val userData = prefs?.getUserData() ?: return
+        val settingsData = prefs.getSettingsData()
+        val balance = userData.balance
+        when {
+            userData.withdrawal_blocked == true -> {
+                binding.btnWithdraw.visibility = View.GONE
+                binding.llBalanceHintContainer.visibility = View.VISIBLE
+                binding.tlBalanceHint.text = getString(R.string.withdrawal_agency_blocked_text)
+            }
+            settingsData?.minimum_withdrawals != null && balance != null && balance < settingsData.minimum_withdrawals -> {
+                binding.btnWithdraw.visibility = View.GONE
+                binding.llBalanceHintContainer.visibility = View.VISIBLE
+                binding.tlBalanceHint.text =
+                    getString(R.string.balance_hint_text, settingsData.minimum_withdrawals)
+            }
+            else -> {
+                binding.btnWithdraw.visibility = View.VISIBLE
+                binding.llBalanceHintContainer.visibility = View.GONE
+            }
+        }
+    }
+
     fun updateEarnings(){
         BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
             profileViewModel.getUsers(it)
@@ -199,6 +227,7 @@ class EarningsActivity : BaseActivity() {
         val prefs = BaseApplication.getInstance()?.getPrefs()
         prefs?.getUserData()?.let {
             earningsViewModel.getEarnings(it.id)}
+        applyWithdrawGate()
 
         updateEarnings()
         if (binding.cvPanDetails.visibility == View.VISIBLE) {
