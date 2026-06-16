@@ -666,8 +666,13 @@ class UserProfileDetailActivity : AppCompatActivity() {
                 if (userAbout.isBlank()) userAbout = data.describe_yourself.orEmpty()
                 if (userAge <= 0) userAge = data.age ?: 0
                 if (userImage.isBlank() && data.image.isNotBlank()) userImage = data.image
-                if (audioStatus == 0) audioStatus = data.audio_status ?: 0
-                if (videoStatus == 0) videoStatus = data.video_status ?: 0
+                // TC_011: let the freshly-fetched status win in BOTH directions, so a
+                // creator who just turned a call type OFF is reflected (the old
+                // one-way "promote 0→1 only" left a stale-enabled button). Keep the
+                // existing value when the API omits the field (null) instead of
+                // forcing it to 0 and disabling a known-available type.
+                data.audio_status?.let { audioStatus = it }
+                data.video_status?.let { videoStatus = it }
 
                 runOnUiThread { populateUserData() }
             }
