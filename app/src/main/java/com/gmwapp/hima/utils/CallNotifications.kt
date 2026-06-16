@@ -51,8 +51,20 @@ object CallNotifications {
     private const val TAG = "HimaIncomingCall"
     private const val MISSED_CALL_DIAG_TAG = "MissedCallDiag"
 
-    /** Mirrors [com.gmwapp.hima.agora.MyFirebaseMessagingService.CALLS_NOTIFICATION_CHANNEL_ID]. */
-    private const val CALLS_NOTIFICATION_CHANNEL_ID = "calls_v3"
+    /**
+     * Channel for the full-screen-intent incoming-call notification. Intentionally
+     * SEPARATE from [com.gmwapp.hima.agora.MyFirebaseMessagingService.CALLS_NOTIFICATION_CHANNEL_ID]
+     * ("calls_v5"): that channel plays an OS ringtone, whereas this path is silent
+     * and rings in-app via [com.gmwapp.hima.BaseApplication.playIncomingCallSound].
+     * Sharing one id would either break the OS ringtone or double-ring, so they must
+     * not be aliased.
+     *
+     * B9/TC_025 — bumped off "calls_v3" because notification channels are immutable
+     * per id on Android O+: removing setBypassDnd(true) only takes effect on a NEW
+     * id. The stale "calls_v3" (created with bypassDnd=true) is deleted in
+     * [ensureCallsChannel] so it stops bypassing Do Not Disturb on existing installs.
+     */
+    private const val CALLS_NOTIFICATION_CHANNEL_ID = "calls_silent_v1"
     const val INCOMING_CALL_NOTIFICATION_ID = 1
 
     /**
@@ -212,7 +224,7 @@ object CallNotifications {
         } else null
         Log.d(
             TAG,
-            "showIncoming: begin isMale=${payload.isMale} callId=${payload.callId} senderId=${payload.senderId} calls_v3_importance=$chImp"
+            "showIncoming: begin isMale=${payload.isMale} callId=${payload.callId} senderId=${payload.senderId} ch=$CALLS_NOTIFICATION_CHANNEL_ID importance=$chImp"
         )
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -654,6 +666,10 @@ object CallNotifications {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
         if (nm.getNotificationChannel(CALLS_NOTIFICATION_CHANNEL_ID) != null) return
+        // B9/TC_025 — drop the legacy "calls_v3" (created with bypassDnd=true) so it
+        // doesn't linger in Settings as a second "Incoming Calls" row that still
+        // bypasses Do Not Disturb. Idempotent; harmless if FCM already removed it.
+        runCatching { nm.deleteNotificationChannel("calls_v3") }
         val channel = NotificationChannel(
             CALLS_NOTIFICATION_CHANNEL_ID,
             "Incoming Calls",
