@@ -663,9 +663,10 @@ object CallNotifications {
             setSound(null, null)
             enableVibration(true)
             vibrationPattern = longArrayOf(0, 1000, 500, 1000)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                setBypassDnd(true)
-            }
+            // TC_025 (B9) — do NOT setBypassDnd. Hima is a social app, not a
+            // primary phone replacement; when the user turns on system Do Not
+            // Disturb we must respect it and stay silent. This mirrors the B199
+            // decision already applied to the FCM "calls_v5" channel.
         }
         nm.createNotificationChannel(channel)
     }

@@ -1384,6 +1384,11 @@ class BaseApplication : Application(), Configuration.Provider {
             Log.d("HimaIncomingCall", "startIncomingCallVibration: ringer SILENT, skip")
             return
         }
+        // TC_025 (B9): respect Do Not Disturb — no buzz while DND silences calls.
+        if (isDndSilencingIncomingCall()) {
+            Log.d("HimaIncomingCall", "startIncomingCallVibration: DND active, skip")
+            return
+        }
         val v: Vibrator? = try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 val vm = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
@@ -1422,8 +1427,40 @@ class BaseApplication : Application(), Configuration.Provider {
         ringtoneVibrator = null
     }
 
+    /**
+     * TC_025 (B9) — true when the system is in a Do Not Disturb mode that should
+     * silence an incoming social call (Priority-only / Alarms-only / Total
+     * silence). Reading the interruption filter needs no special permission.
+     * Returns false on any error or below API 23 so behaviour matches the
+     * pre-DND-aware build (ring as before).
+     */
+    private fun isDndSilencingIncomingCall(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false
+        return try {
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+                ?: return false
+            when (nm.currentInterruptionFilter) {
+                NotificationManager.INTERRUPTION_FILTER_PRIORITY,
+                NotificationManager.INTERRUPTION_FILTER_ALARMS,
+                NotificationManager.INTERRUPTION_FILTER_NONE -> true
+                else -> false // INTERRUPTION_FILTER_ALL / UNKNOWN → ring normally
+            }
+        } catch (e: Exception) {
+            Log.w("HimaIncomingCall", "isDndSilencingIncomingCall failed: ${e.message}")
+            false
+        }
+    }
+
     fun playIncomingCallSound() {
         Log.d("HimaIncomingCall", "playIncomingCallSound: begin")
+        // TC_025 (B9): respect system Do Not Disturb. When DND is silencing
+        // calls we must not ring or buzz — only the silent visual incoming-call
+        // UI remains so the user can still answer if they happen to look.
+        if (isDndSilencingIncomingCall()) {
+            Log.d("HimaIncomingCall", "playIncomingCallSound: DND active, suppressing ring + vibration")
+            stopRingtone() // make sure nothing from a prior ring is left playing
+            return
+        }
         // Stop any previous ringtone first
         stopRingtone()
         // Grab audio focus so background media (YouTube, Spotify, etc.) pauses
