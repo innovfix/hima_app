@@ -201,7 +201,9 @@ class EditProfileActivity : BaseActivity() {
                 } else {
                     selectedInterests.add(interest.name)
                 }
-                interestsListAdapter?.updateLimitReached(selectedInterests.size == 5)
+                // Cap is 4 (enforced in InterestsListAdapter); grey out the rest
+                // once 4 are picked so the limit is visible, not silent.
+                interestsListAdapter?.updateLimitReached(selectedInterests.size >= 4)
            //     showAppToast(selectedInterests.size.toString(), Toast.LENGTH_LONG)
                 updateButton()
             }

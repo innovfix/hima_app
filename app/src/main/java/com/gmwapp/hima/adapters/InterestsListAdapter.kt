@@ -42,6 +42,14 @@ class InterestsListAdapter(
                 interest.isSelected = interest.isSelected == null || interest.isSelected == false
                 interests[position] = interest
                 notifyDataSetChanged()
+            } else {
+                // At the 4-interest cap and this tile isn't selected — give clear
+                // feedback instead of silently ignoring the tap.
+                android.widget.Toast.makeText(
+                    activity,
+                    activity.getString(R.string.select_maximum),
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
             }
         }
 
