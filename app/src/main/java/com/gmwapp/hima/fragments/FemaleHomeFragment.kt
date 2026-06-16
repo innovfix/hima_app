@@ -633,9 +633,9 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
 
         binding.tvCoins.text = "₹" + userData?.balance.toString()
 
-        // Star Creator banner
+        // Star Creator banner — app-side kill-switch overrides the server `star` flag.
         binding.clStarCreatorBanner.visibility =
-            if (userData?.star == 1) View.VISIBLE else View.GONE
+            if (com.gmwapp.hima.utils.FeatureFlags.STAR_CREATOR_ENABLED && userData?.star == 1) View.VISIBLE else View.GONE
 
         Log.d("femaleuserdata", "${userData?.name} , ${userData?.language}")
 
@@ -764,7 +764,7 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
             prefsLocal.setUserDataPreservingLocalIntent(data)
             binding.tvCoins.text = "₹" + data.balance.toString()
             binding.clStarCreatorBanner.visibility =
-                if (data.star == 1) View.VISIBLE else View.GONE
+                if (com.gmwapp.hima.utils.FeatureFlags.STAR_CREATOR_ENABLED && data.star == 1) View.VISIBLE else View.GONE
             refreshIplBanner()
 
             // v1110 NO_AUTO_ONLINE fix (2026-06-11):

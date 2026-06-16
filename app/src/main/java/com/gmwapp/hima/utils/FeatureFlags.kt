@@ -30,4 +30,17 @@ object FeatureFlags {
      *     ludo_invite_expired / game_end are dropped silently.
      */
     const val LUDO_ENABLED = false
+
+    /**
+     * When false:
+     *   - the "you are a Star Creator" banner on the female Home is hidden regardless
+     *     of the server `star` flag,
+     *   - the "Apply to become a Star Creator" entry on the female Profile is hidden
+     *     regardless of the server `starcreator` flag,
+     *   - with both entry points gone the StarCreator* activities are unreachable.
+     *
+     * The StarCreator activities / endpoints / manifest entries remain compiled so
+     * flipping this back to true restores everything atomically.
+     */
+    const val STAR_CREATOR_ENABLED = false
 }
