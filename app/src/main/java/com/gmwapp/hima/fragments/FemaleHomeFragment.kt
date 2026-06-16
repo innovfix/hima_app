@@ -1017,6 +1017,17 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
             val lastLoggedStatus = sharedPreferences.getInt("last_voice_verified_status_${userData.id}", 0)
             
             if (lastLoggedStatus != 2) {
+                // TC_028 (B17): persist the per-user idempotency guard SYNCHRONOUSLY
+                // and BEFORE emitting. apply() only schedules an async disk write, so
+                // if the process was killed right after verification (common — the
+                // creator is bounced between screens at that moment) the flag never
+                // reached disk and the next launch re-fired the event, doubling the
+                // voice_verified funnel count. commit() + set-first closes that window
+                // and also blocks any rapid second onResume.
+                sharedPreferences.edit()
+                    .putInt("last_voice_verified_status_${userData.id}", 2)
+                    .commit()
+
                 // Prepare event parameters
                 val userId = userData.id
 
@@ -1057,11 +1068,8 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                     params = AppEventLogger.bundleToMap(firebaseBundle)
                 )
                 
-                // Mark as logged for this user (backend will also check, but this prevents unnecessary API calls)
-                sharedPreferences.edit()
-                    .putInt("last_voice_verified_status_${userData.id}", 2)
-                    .apply()
-                
+                // Idempotency guard already persisted above (commit) BEFORE emit.
+
                 Log.d("FemaleHomeFragment", "✅ voice_verified event logged to Firebase, Meta, AppsFlyer, and backend for user $userId")
             }
         }
