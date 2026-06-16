@@ -706,8 +706,11 @@ class ChatActivityInHouse : AppCompatActivity() {
                     }
                 }
 
-                // TC_015: trigger the reply on a short drag.
-                override fun getSwipeThreshold(viewHolder: RecyclerView.ViewHolder): Float = 0.30f
+                // TC_015: trigger the reply on a short drag. Kept just below the 20%
+                // onChildDraw visual clamp so the reply fires while the row is still
+                // visibly moving — a higher threshold than the clamp would make users
+                // release at the visual cap before the swipe ever registered.
+                override fun getSwipeThreshold(viewHolder: RecyclerView.ViewHolder): Float = 0.18f
 
                 // TC_015: clamp the horizontal travel so a reply swipe only peeks
                 // and springs back, instead of flinging the whole row off-screen —
