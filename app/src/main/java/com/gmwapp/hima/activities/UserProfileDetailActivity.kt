@@ -376,6 +376,22 @@ class UserProfileDetailActivity : AppCompatActivity() {
         )
     }
 
+    // TC_011 (B6): only the call type the creator actually enabled should look
+    // and act enabled. audioStatus / videoStatus come from the list card's
+    // intent extras and are refreshed from the profile API. Previously both
+    // buttons were always fully enabled, so a user could see — and even start —
+    // a video call on a creator who had only turned audio on.
+    private fun applyCallButtonAvailability() {
+        val audioEnabled = audioStatus == 1
+        val videoEnabled = videoStatus == 1
+        binding.btnAudioCall.isEnabled = audioEnabled
+        binding.btnAudioCall.isClickable = audioEnabled
+        binding.btnAudioCall.alpha = if (audioEnabled) 1f else 0.4f
+        binding.btnVideoCall.isEnabled = videoEnabled
+        binding.btnVideoCall.isClickable = videoEnabled
+        binding.btnVideoCall.alpha = if (videoEnabled) 1f else 0.4f
+    }
+
     private fun populateUserData() {
         displayedUserName = extractNameOnly(userName).ifBlank { userName }
 
@@ -386,6 +402,9 @@ class UserProfileDetailActivity : AppCompatActivity() {
         // after the user has already navigated away. 5 users on v1064-v1105
         // hit this in Crashlytics. Guard the load.
         if (isFinishing || isDestroyed) return
+
+        // TC_011: reflect the creator's per-type audio/video toggle on the buttons.
+        applyCallButtonAvailability()
 
         // Set user image
         Glide.with(this)
@@ -504,6 +523,15 @@ class UserProfileDetailActivity : AppCompatActivity() {
                 ).show()
                 return@setOnSingleClickListener
             }
+            // TC_011: block the call type the creator hasn't enabled.
+            if (audioStatus != 1) {
+                android.widget.Toast.makeText(
+                    this,
+                    "Audio call isn't available for this creator right now.",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+                return@setOnSingleClickListener
+            }
             startCall("audio")
         }
 
@@ -512,6 +540,15 @@ class UserProfileDetailActivity : AppCompatActivity() {
                 android.widget.Toast.makeText(
                     this,
                     "You can't call this user — you have been blocked.",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+                return@setOnSingleClickListener
+            }
+            // TC_011: block the call type the creator hasn't enabled.
+            if (videoStatus != 1) {
+                android.widget.Toast.makeText(
+                    this,
+                    "Video call isn't available for this creator right now.",
                     android.widget.Toast.LENGTH_SHORT
                 ).show()
                 return@setOnSingleClickListener
