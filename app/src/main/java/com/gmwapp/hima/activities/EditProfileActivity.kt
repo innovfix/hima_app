@@ -71,7 +71,10 @@ class EditProfileActivity : BaseActivity() {
 
         val gender = userData?.gender
 
-        if (gender == "male" || gender == "Male") {
+        // FI_03 — normalise casing/whitespace so variants like "MALE" or " male"
+        // also resolve as male (and hide the interests picker), not fall through to
+        // the female branch.
+        if (gender?.trim()?.lowercase() == "male") {
             binding.tvGender.text = "Male"
             // FI_03: a male user's interests are never displayed anywhere (only a
             // creator's interests are shown — on her profile/about cards), so the
