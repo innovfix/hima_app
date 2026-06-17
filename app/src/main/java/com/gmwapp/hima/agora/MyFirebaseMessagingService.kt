@@ -234,10 +234,18 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
             if (message.startsWith("incoming call")) {
                 val parts = message.split(" ")
-                if (parts.size >= 5) {
-                    val callId = parts[2]  // Extract callId from the message
-                    val receiverImg = parts[3]  // Extract receiver image URL
-                    val receiverName = parts[4]  // Extract receiver name
+                // B3/TC_005: callId is the only field required to show the
+                // incoming-call banner. This was gated on `parts.size >= 5` with
+                // receiverName = parts[4], so a creator name containing a space
+                // ("Riya Sharma") was truncated to its first word, and a blank or
+                // missing name/avatar could drop parts below 5 and suppress the
+                // WHOLE banner (the "no banner" in TC_005). Now: require only the
+                // callId; the avatar is the single token at [3]; the NAME is
+                // EVERYTHING after it, so spaces are preserved.
+                val callId = parts.getOrNull(2)
+                if (!callId.isNullOrBlank()) {
+                    val receiverImg = parts.getOrNull(3).orEmpty()           // avatar URL (single token)
+                    val receiverName = parts.drop(4).joinToString(" ").trim() // name (may contain spaces)
 
                     Log.d("startingActvity","$gender")
 
