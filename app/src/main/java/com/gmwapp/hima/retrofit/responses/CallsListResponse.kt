@@ -21,4 +21,7 @@ data class CallsListResponseData(
     val language: String = "",
     val interests: String = "",
     val describe_yourself: String = "",
+    // FI_06: 'rejected' marks a call declined while ringing (vs an unanswered "missed").
+    // Defaults to "" so older backend responses that omit the key stay compatible.
+    val end_reason: String = "",
 )

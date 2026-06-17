@@ -95,6 +95,22 @@
                         app:chipIconTint="@color/chip_missed_icon_selector"
                         android:textColor="@color/chip_text_selector" />
 
+                    <!-- FI_06: Rejected filter — calls declined while ringing -->
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_rejected"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="36dp"
+                        android:fontFamily="@font/poppins_medium"
+                        android:text="@string/rejected_call_label"
+                        android:textSize="13sp"
+                        app:chipBackgroundColor="@color/chip_bg_selector"
+                        app:chipStrokeColor="@color/chip_stroke_selector"
+                        app:chipStrokeWidth="1.2dp"
+                        app:chipCornerRadius="18dp"
+                        app:checkedIconVisible="false"
+                        android:textColor="@color/chip_text_selector" />
+
                     <com.google.android.material.chip.Chip
                         android:id="@+id/chip_talk_time"
                         style="@style/Widget.MaterialComponents.Chip.Choice"

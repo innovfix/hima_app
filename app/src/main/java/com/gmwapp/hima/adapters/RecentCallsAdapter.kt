@@ -210,10 +210,13 @@ class RecentCallsAdapter(
             // which left the clock-icon row visually empty. Show "Missed" instead.
             // For connected calls, roll 60+ minutes into hours so "1265 min 29 sec"
             // renders as "21 hr 5 min 29 sec".
-            holder.binding.tvDuration.text = if (rawDuration.isEmpty() || parseDuration(rawDuration) <= 0) {
-                activity.getString(R.string.missed_call_label)
-            } else {
-                formatDuration(rawDuration)
+            // FI_06: a declined call ("rejected") is distinct from an unanswered "missed".
+            // Check end_reason first so a rejected row (also empty-duration) isn't mislabeled.
+            holder.binding.tvDuration.text = when {
+                call.end_reason == "rejected" -> activity.getString(R.string.rejected_call_label)
+                rawDuration.isEmpty() || parseDuration(rawDuration) <= 0 ->
+                    activity.getString(R.string.missed_call_label)
+                else -> formatDuration(rawDuration)
             }
             // Remove click listener for non-favorite mode
             holder.binding.tvTime.setOnClickListener(null)

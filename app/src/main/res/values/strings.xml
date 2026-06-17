@@ -67,6 +67,8 @@
     <string name="favourite">Favourite</string>
     <string name="chat_now">Chat Now</string>
     <string name="missed_call_label">Missed</string>
+    <!-- FI_06: label + Rejected filter chip for calls declined while ringing -->
+    <string name="rejected_call_label">Rejected</string>
     <!-- Incoming call notification (CallStyle) -->
     <string name="incoming_audio_call_title">%1$s is calling you</string>
     <string name="incoming_audio_call_body">Audio call incoming</string>

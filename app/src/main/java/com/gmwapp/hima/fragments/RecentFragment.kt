@@ -304,6 +304,7 @@ class RecentFragment : BaseFragment(), Refreshable {
             val selectedChipId = checkedIds.firstOrNull() ?: return@setOnCheckedStateChangeListener
             val sortType = when (checkedIds.firstOrNull()) {
                 R.id.chip_missed    -> "missed"
+                R.id.chip_rejected  -> "rejected"
                 R.id.chip_talk_time -> "talk_time"
                 R.id.chip_a_z       -> "a_z"
                 else                -> "recent"
@@ -375,6 +376,7 @@ class RecentFragment : BaseFragment(), Refreshable {
     private fun restoreChipSelection(sortType: String) {
         val chipId = when (sortType) {
             "missed" -> R.id.chip_missed
+            "rejected" -> R.id.chip_rejected
             "talk_time" -> R.id.chip_talk_time
             "a_z" -> R.id.chip_a_z
             else -> R.id.chip_all
