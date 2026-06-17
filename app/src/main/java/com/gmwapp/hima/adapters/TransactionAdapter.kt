@@ -10,6 +10,7 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import com.gmwapp.hima.databinding.AdapterTransactionBinding
 import com.gmwapp.hima.retrofit.responses.TransactionsResponseData
+import com.gmwapp.hima.utils.DateTimeUtils
 
 
 class TransactionAdapter(
@@ -69,7 +70,7 @@ class TransactionAdapter(
                 // FI_05: show the actual call start time (started_time) alongside duration so
                 // charges can be reconciled with the real call session. Falls back to the
                 // transaction datetime if started_time is absent on older rows.
-                val startTime = formatStartTime(
+                val startTime = DateTimeUtils.formatCallStartTime(
                     transaction.started_time?.takeIf { it.isNotBlank() } ?: transaction.datetime
                 )
                 holder.binding.tvTransactionDate.text = buildString {
@@ -138,19 +139,6 @@ class TransactionAdapter(
 
     internal class ItemHolder(val binding: AdapterTransactionBinding) :
         RecyclerView.ViewHolder(binding.root) {
-    }
-
-    // FI_05: extract just the clock time (call start) from a "yyyy-MM-dd HH:mm:ss"
-    // datetime. Returns "" on null/blank/unparseable input so the caller can skip it.
-    fun formatStartTime(datetime: String?): String {
-        if (datetime.isNullOrBlank()) return ""
-        return try {
-            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-            val outputFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
-            outputFormat.format(inputFormat.parse(datetime)!!)
-        } catch (e: Exception) {
-            ""
-        }
     }
 
     fun formatTime(datetime: String): String {

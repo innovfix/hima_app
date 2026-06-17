@@ -8,8 +8,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.gmwapp.hima.R
 import com.gmwapp.hima.databinding.AdapterTransactionBinding
 import com.gmwapp.hima.retrofit.responses.FemaleTransactionsResponseData
-import java.text.SimpleDateFormat
-import java.util.Locale
+import com.gmwapp.hima.utils.DateTimeUtils
 
 class FemaleTransactionAdapter(
     val activity: Activity,
@@ -154,7 +153,7 @@ class FemaleTransactionAdapter(
     // the description string ("Jan 03 · 7 sec") which is where the backend puts it.
     private fun buildCallSubtitle(transaction: FemaleTransactionsResponseData): String {
         // FI_05: prefer the real call start time; fall back to transaction datetime on older rows.
-        val startTime = formatStartTime(
+        val startTime = DateTimeUtils.formatCallStartTime(
             transaction.started_time?.takeIf { it.isNotBlank() } ?: transaction.datetime
         )
         val durationPart = transaction.description
@@ -165,17 +164,6 @@ class FemaleTransactionAdapter(
             append(transaction.date)
             if (startTime.isNotEmpty()) append(", ").append(startTime)
             if (durationPart != null) append(" · ").append(durationPart)
-        }
-    }
-
-    private fun formatStartTime(datetime: String?): String {
-        if (datetime.isNullOrBlank()) return ""
-        return try {
-            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-            val outputFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
-            outputFormat.format(inputFormat.parse(datetime)!!)
-        } catch (e: Exception) {
-            ""
         }
     }
 

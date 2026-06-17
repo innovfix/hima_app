@@ -87,6 +87,22 @@ object DateTimeUtils {
             return dateString ?: "Unknown"
         }
     }
+
+    // Parses a server datetime string ("yyyy-MM-dd HH:mm:ss") and returns the
+    // 12-hour clock time in English ("02:30 AM"). Locale.ENGLISH keeps AM/PM
+    // from rendering in regional-script on Hindi/Tamil/etc. locale devices.
+    // Returns "" on null, blank, or unparseable input so callers can skip it.
+    fun formatCallStartTime(datetime: String?): String {
+        if (datetime.isNullOrBlank()) return ""
+        return try {
+            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH)
+            val outputFormat = SimpleDateFormat("hh:mm a", Locale.ENGLISH)
+            val parsed = inputFormat.parse(datetime) ?: return ""
+            outputFormat.format(parsed)
+        } catch (e: Exception) {
+            ""
+        }
+    }
 }
 
 
