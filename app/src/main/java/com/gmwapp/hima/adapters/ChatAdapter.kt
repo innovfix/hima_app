@@ -11,6 +11,7 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.PopupWindow
@@ -338,6 +339,12 @@ class ChatAdapter(
 
     private fun openImagePreview(source: String, anchor: View) {
         val dialog = Dialog(anchor.context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+        // The fullscreen image preview is a separate window from the chat Activity,
+        // so it needs its own FLAG_SECURE to stay screenshot/recording proof.
+        dialog.window?.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
         val imageView = AppCompatImageView(anchor.context).apply {
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,

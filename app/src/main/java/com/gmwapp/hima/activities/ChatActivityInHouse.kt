@@ -23,6 +23,7 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.ImageView
@@ -405,6 +406,13 @@ class ChatActivityInHouse : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Block screenshots / screen recording for the entire chat thread (text +
+        // inline image thumbnails). Must be set before setContentView so the window
+        // is flagged secure from first frame.
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
         setContentView(R.layout.activity_chat)
 
         markedReadOnce = savedInstanceState?.getBoolean(STATE_MARKED_READ_ONCE) ?: false

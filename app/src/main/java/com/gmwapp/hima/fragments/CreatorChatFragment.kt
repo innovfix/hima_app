@@ -93,6 +93,10 @@ class CreatorChatFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        // Block screenshots / screen recording for the creator chat-list tab. This
+        // fragment lives inside MainActivity, so scope the flag to its lifecycle and
+        // clear it on pause — other MainActivity tabs (wallet, profile) stay capturable.
+        activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
         loadTabUnreadCounts()
         registerCreatorChatListRefreshReceiver()
         startCollectingSocketNewMessage()
@@ -100,6 +104,7 @@ class CreatorChatFragment : Fragment() {
 
     override fun onPause() {
         super.onPause()
+        activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
         unregisterCreatorChatListRefreshReceiver()
     }
 
