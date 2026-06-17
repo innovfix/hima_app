@@ -410,6 +410,11 @@ class UserProfileDetailActivity : AppCompatActivity() {
     private fun observeCreatorPresence() {
         lifecycleScope.launch {
             socketManager.creatorStatusChanged.collect { ev ->
+                // TC_019: a presence event can land in the window after the activity
+                // starts finishing but before lifecycleScope cancels this collector —
+                // skip it so applyCallButtonAvailability() never touches a torn-down
+                // view hierarchy.
+                if (isFinishing || isDestroyed) return@collect
                 if (ev.creatorId == userId) {
                     audioStatus = ev.audioStatus
                     videoStatus = ev.videoStatus
