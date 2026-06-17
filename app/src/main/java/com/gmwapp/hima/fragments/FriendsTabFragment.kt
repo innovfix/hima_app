@@ -776,7 +776,9 @@ class FriendsTabFragment : Fragment() {
                 PinnedChatsPrefsHelper.isPinned(requireContext(), u.id.toString())
             } else {
                 false
-            }
+            },
+            // TC_022: keep blocked conversations in the list with a visible indicator.
+            isBlocked = chatItem.iHaveBlockedThisUser == true
         )
     }
 

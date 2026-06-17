@@ -25,6 +25,9 @@ data class ChatConversation(
     val language: String? = null,
     /** Local pin state for list sorting; from [com.gmwapp.hima.utils.PinnedChatsPrefsHelper]. */
     val isPinned: Boolean = false,
+    /** TC_022: true when the current user has blocked this chat partner — drives the
+     *  "Blocked" indicator so blocked conversations stay visible in the chat list. */
+    val isBlocked: Boolean = false,
 )
 
 
