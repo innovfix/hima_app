@@ -341,7 +341,9 @@ class ChatAdapter(
         val dialog = Dialog(anchor.context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
         // The fullscreen image preview is a separate window from the chat Activity,
         // so it needs its own FLAG_SECURE to stay screenshot/recording proof.
-        dialog.window?.setFlags(
+        // Abort rather than show private image content unsecured if window is null.
+        val dialogWindow = dialog.window ?: run { dialog.dismiss(); return }
+        dialogWindow.setFlags(
             WindowManager.LayoutParams.FLAG_SECURE,
             WindowManager.LayoutParams.FLAG_SECURE
         )
@@ -356,7 +358,7 @@ class ChatAdapter(
         }
         Glide.with(anchor).load(source).into(imageView)
         dialog.setContentView(imageView)
-        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.BLACK))
+        dialogWindow.setBackgroundDrawable(ColorDrawable(Color.BLACK))
         dialog.show()
     }
 
