@@ -76,7 +76,7 @@ class TransactionAdapter(
                 holder.binding.tvTransactionDate.text = buildString {
                     append(transaction.date)
                     if (startTime.isNotEmpty()) append(", ").append(startTime)
-                    if (transaction.duration.isNotBlank()) append(" · ").append(transaction.duration)
+                    if (!transaction.duration.isNullOrBlank()) append(" · ").append(transaction.duration)
                 }
 
                 // Set icon based on call type

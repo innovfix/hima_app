@@ -156,10 +156,10 @@ class FemaleTransactionAdapter(
         val startTime = DateTimeUtils.formatCallStartTime(
             transaction.started_time?.takeIf { it.isNotBlank() } ?: transaction.datetime
         )
-        val durationPart = transaction.description
-            ?.substringAfter("·", "")
-            ?.trim()
-            ?.takeIf { it.isNotEmpty() }
+        val durationPart = transaction.description?.let { desc ->
+            if (desc.contains("·")) desc.substringAfter("·").trim().takeIf { it.isNotEmpty() }
+            else desc.trim().takeIf { it.isNotEmpty() }
+        }
         return buildString {
             append(transaction.date)
             if (startTime.isNotEmpty()) append(", ").append(startTime)
