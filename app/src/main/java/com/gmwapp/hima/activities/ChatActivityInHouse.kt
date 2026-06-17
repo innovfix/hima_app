@@ -90,6 +90,7 @@ import com.gmwapp.hima.activities.WalletActivity
 import com.gmwapp.hima.utils.CallUnavailableFeedback
 import com.gmwapp.hima.utils.AudioRecorderController
 import com.gmwapp.hima.utils.ChatHistoryMemoryCache
+import com.gmwapp.hima.utils.ClearedChatsPrefsHelper
 import com.gmwapp.hima.utils.ImageCompressor
 
 @AndroidEntryPoint
@@ -2279,7 +2280,10 @@ class ChatActivityInHouse : AppCompatActivity() {
                             // Sort messages by date (oldest first) - WhatsApp style
                             // This ensures: index 0 = oldest message, index N = newest message
                             // With stackFromEnd=true, newest (index N) will appear at bottom, oldest (index 0) at top
-                            val sortedMessages = convertedMessages.sortedBy { it.date?.time ?: 0L }
+                            // TC_017: hide any messages the user cleared via "block + delete chat".
+                            val sortedMessages = dropClearedMessages(
+                                convertedMessages.sortedBy { it.date?.time ?: 0L }
+                            )
 
                             mergeServerMessagesPreservingPending(sortedMessages)
                             
@@ -2605,7 +2609,11 @@ class ChatActivityInHouse : AppCompatActivity() {
                                 
                                 // Sort older messages by date (oldest first)
                                 // This ensures chronological order: oldest first, newest last
-                                val sortedOlderMessages = convertedMessages.sortedBy { it.date?.time ?: 0L }
+                                // TC_017: also drop any messages cleared via "block + delete chat"
+                                // so pagination (scroll-up) can't resurrect them.
+                                val sortedOlderMessages = dropClearedMessages(
+                                    convertedMessages.sortedBy { it.date?.time ?: 0L }
+                                )
                                 
                                 val existingNonHeaders = messages.filterNot { it.isDateHeader }
                                 val existingIds = existingNonHeaders.map { it.id }.toSet()
@@ -3991,11 +3999,38 @@ class ChatActivityInHouse : AppCompatActivity() {
      */
     private fun clearChatLocally() {
         val sizeBefore = messages.size
+        // TC_017: persist a device-local "cleared upto" watermark (newest currently-loaded
+        // message's time, fallback now) so the cleared messages don't reappear after a
+        // later history re-fetch / reopen / relaunch. Without this, the empty snapshot below
+        // is only in-memory and the next getChatHistory() re-pulls everything from the server.
+        val clearedUpto = messages.asSequence()
+            .filterNot { it.isDateHeader }
+            .mapNotNull { it.date?.time }
+            .maxOrNull() ?: System.currentTimeMillis()
+        ClearedChatsPrefsHelper.setClearedUpto(this, myUserId, peerUserId, clearedUpto)
         messages.clear()
         chatAdapter.notifyDataSetChanged()
         runCatching { historyCache.putSnapshot(peerUserId, emptyList()) }
-        Log.d("ChatActivityInHouse", "🧹 Cleared local chat for peer=$peerUserId messagesBefore=$sizeBefore")
+        Log.d(
+            "ChatActivityInHouse",
+            "🧹 Cleared local chat for peer=$peerUserId messagesBefore=$sizeBefore clearedUpto=$clearedUpto"
+        )
         showAppToast(getString(R.string.chat_clearchat_toast), Toast.LENGTH_SHORT)
+    }
+
+    /**
+     * TC_017: drop messages cleared via "block + also delete chat". Anything at or before
+     * the persisted cleared-upto watermark for this peer is hidden on this device, so a
+     * server re-fetch / pagination cannot resurrect it. Messages with no parseable date
+     * are kept (can't be confidently classified as cleared).
+     */
+    private fun dropClearedMessages(serverMessages: List<ChatMessage>): List<ChatMessage> {
+        val clearedUpto = ClearedChatsPrefsHelper.getClearedUpto(this, myUserId, peerUserId)
+        if (clearedUpto <= 0L) return serverMessages
+        return serverMessages.filter { msg ->
+            val t = msg.date?.time
+            t == null || t > clearedUpto
+        }
     }
 
     private fun showUnblockConfirmationDialog() {
