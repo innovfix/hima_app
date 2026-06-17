@@ -200,6 +200,10 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     private var storedRemainingTime: String? = null
 
     private var countDownTimer: CountDownTimer? = null
+    // B4/TC_006+TC_021: epoch-ms when remaining time first read 0 (0 = not currently zero).
+    // Distinguishes a transient zero (rescued by the next positive resync) from a sustained
+    // zero (genuine coin-exhaustion → end the call). Reset on any positive read.
+    private var zeroRemainingSinceMs = 0L
     private var switchDialog: AlertDialog? = null  // Track current dialog
     private var faceDialog: Dialog? = null
     private var faceDetectedHandler: Handler? = null
@@ -2130,9 +2134,25 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         // timer ticking to zero, never from startCountdown being seeded with 0.
         if (totalMillis <= 0L) {
             binding.tvRemainingTime?.text = "00:00:00"
-            Log.w("RemainingTime", "skip auto-leave on non-positive remaining; defer to force-end/next resync")
+            // B4/TC_006+TC_021 (refined): a SINGLE zero can be transient (clock skew /
+            // mid-debit read) and must NOT drop a funded call. But a SUSTAINED zero is
+            // genuine coin-exhaustion and must end the call — this backend emits no
+            // callEndedNoCoins force-end. Track when zero first appeared (cleared on any
+            // positive resync below); end once it persists ~one resync interval. The 30s
+            // timer-resync guarantees re-evaluation.
+            val now = System.currentTimeMillis()
+            if (zeroRemainingSinceMs == 0L) zeroRemainingSinceMs = now
+            if (now - zeroRemainingSinceMs >= 25_000L && !isFinishing && !isDestroyed) {
+                Log.w("RemainingTime", "remaining stayed 0 for ${now - zeroRemainingSinceMs}ms — ending call (exhaustion)")
+                zeroRemainingSinceMs = 0L
+                leaveChannel(binding.LeaveButton)
+            } else {
+                Log.w("RemainingTime", "transient zero remaining — skip auto-leave; will end if it persists")
+            }
             return
         }
+        // Positive remaining — clear the sustained-zero tracker (a transient zero recovered).
+        zeroRemainingSinceMs = 0L
 
         countDownTimer =  object : CountDownTimer(totalMillis, 1000) {
             override fun onTick(millisUntilFinished: Long) {
