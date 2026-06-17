@@ -2121,6 +2121,19 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             (totalSeconds * 1000L).coerceAtLeast(0L)
         }
 
+        // B4/TC_006+TC_021: a freshly-fetched remaining time of 0 (server clock
+        // skew, a mid-debit read, or a stale "00:00:00") must NOT instantly tear
+        // down a CONNECTED call. CountDownTimer(0,..) fires onFinish immediately ->
+        // leaveChannel, dropping the call for BOTH sides (seconds after accept, or
+        // on the first 30s resync). Coin-exhaustion stays enforced by the server's
+        // callEndedNoCoins force-end FCM; a real "time's up" comes from a POSITIVE
+        // timer ticking to zero, never from startCountdown being seeded with 0.
+        if (totalMillis <= 0L) {
+            binding.tvRemainingTime?.text = "00:00:00"
+            Log.w("RemainingTime", "skip auto-leave on non-positive remaining; defer to force-end/next resync")
+            return
+        }
+
         countDownTimer =  object : CountDownTimer(totalMillis, 1000) {
             override fun onTick(millisUntilFinished: Long) {
                 val hours = millisUntilFinished / 3600000
