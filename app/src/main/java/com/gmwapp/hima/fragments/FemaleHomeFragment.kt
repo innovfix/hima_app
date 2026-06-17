@@ -665,12 +665,19 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                     if (name.isBlank()) null else name to avatar
                 })
             } else {
-                binding.cvFemaleDiscovery.visibility = View.GONE
+                // TC_020: keep the card visible with an empty state instead of hiding it.
+                renderDiscoveryCreators(emptyList())
             }
         })
 
         femaleUsersViewModel.femaleDiscoveryErrorLiveData.observe(viewLifecycleOwner, Observer {
-            binding.cvFemaleDiscovery.visibility = View.GONE
+            // TC_020: on a transient discovery error, keep the card visible. Preserve any
+            // already-shown creators; only fall back to the empty state if nothing loaded.
+            binding.cvFemaleDiscovery.visibility = View.VISIBLE
+            if (binding.llDiscoveryCreators.childCount == 0) {
+                binding.llDiscoveryCreators.visibility = View.GONE
+                binding.tvDiscoveryEmpty.visibility = View.VISIBLE
+            }
         })
 
         femaleUsersViewModel.reportResponseLiveData.observe(viewLifecycleOwner, Observer {
@@ -887,12 +894,19 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
     }
 
     private fun renderDiscoveryCreators(creators: List<Pair<String, String?>>) {
+        // TC_020: the online-presence card must stay visible at all times. Previously an
+        // empty (or failed) discovery fetch hid the whole card (View.GONE) — that was the
+        // "Online tab missing entirely" symptom. Now we keep the card and show an empty state.
+        binding.cvFemaleDiscovery.visibility = View.VISIBLE
         if (creators.isEmpty()) {
-            binding.cvFemaleDiscovery.visibility = View.GONE
+            binding.llDiscoveryCreators.removeAllViews()
+            binding.llDiscoveryCreators.visibility = View.GONE
+            binding.tvDiscoveryEmpty.visibility = View.VISIBLE
+            binding.tvOnlineCount.text = "0 online"
             return
         }
-
-        binding.cvFemaleDiscovery.visibility = View.VISIBLE
+        binding.tvDiscoveryEmpty.visibility = View.GONE
+        binding.llDiscoveryCreators.visibility = View.VISIBLE
         binding.llDiscoveryCreators.removeAllViews()
         val displayCreators = creators.take(12)
         val sortedMinutes = List(displayCreators.size) { Random.nextInt(1, 10) }.sorted()

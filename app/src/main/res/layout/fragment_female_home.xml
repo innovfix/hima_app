@@ -347,6 +347,21 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal" />
             </HorizontalScrollView>
+
+            <!-- TC_020: empty/error state so the online card stays visible at all times
+                 instead of disappearing when discovery returns nothing or fails. -->
+            <TextView
+                android:id="@+id/tv_discovery_empty"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:paddingVertical="6dp"
+                android:gravity="center"
+                android:fontFamily="@font/poppins_regular"
+                android:text="@string/no_creators_online"
+                android:textColor="@color/grey_medium"
+                android:textSize="13sp"
+                android:visibility="gone" />
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
