@@ -332,14 +332,14 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             val receiverId = senderId
                             sendAutoRejectNotification(userData?.id, receiverId, callType, channelName)
 
-                            // B204 — when the busy state was triggered by ANOTHER
-                            // app's VoIP/SIM call (not Hima's own), post a local
-                            // missed-call notification so the recipient can see and
-                            // tap-to-callback when they're free. Hima's own busy
-                            // state skips this (user is already in Hima, redundant).
-                            if (femaleOnAnotherAppCall) {
-                                postBusyMissedCall(callType, senderId, receiverName, receiverImg)
-                            }
+                            // B204 + TC_014 — whenever we auto-reject an incoming call
+                            // because the recipient is busy, leave a local "Missed call
+                            // from X" notification so they can call back once free. This
+                            // now fires for an in-Hima-call busy state too (previously only
+                            // an another-app/SIM call did), which was the TC_014 gap. One
+                            // post per FCM; the SINGLE-CALL GUARD above already drops
+                            // duplicate same-sender FCMs so this can't double-post.
+                            postBusyMissedCall(callType, senderId, receiverName, receiverImg)
                             return
                         }
 
@@ -527,12 +527,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             val receiverId = senderId
                             sendAutoRejectNotification(userData?.id, receiverId, callType, channelName)
 
-                            // B204 (symmetric, male side) — post local missed-call
-                            // notification when the busy state was an OTHER-app call
-                            // so the recipient can call back when they're free.
-                            if (maleOnAnotherAppCall) {
-                                postBusyMissedCall(callType, senderId, receiverName, receiverImg)
-                            }
+                            // B204 + TC_014 (symmetric, male side) — leave a "Missed call
+                            // from X" notification on ANY busy auto-reject, including an
+                            // in-Hima-call busy state (this is TC_014's main case: the user
+                            // is mid-call with creator A when creator B calls). One post per
+                            // FCM; same-sender duplicates are dropped by the guard above.
+                            postBusyMissedCall(callType, senderId, receiverName, receiverImg)
                             return
                         }
 
