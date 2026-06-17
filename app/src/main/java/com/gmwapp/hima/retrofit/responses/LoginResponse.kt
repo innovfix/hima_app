@@ -56,6 +56,13 @@ data class UserData (
     @SerializedName("withdrawal_blocked")
     @JsonAdapter(FlexibleBooleanDeserializer::class)
     val withdrawal_blocked: Boolean? = false,
+    // FI_01: admin account-block flag. false = not blocked, true = blocked by admin. Drives
+    // the "Your account has been blocked" banner on the User & Creator profile screens.
+    // FlexibleBooleanDeserializer handles 0/1/true/false from the backend interchangeably.
+    // Older builds / responses without this field default to false (not blocked).
+    @SerializedName("blocked")
+    @JsonAdapter(FlexibleBooleanDeserializer::class)
+    val blocked: Boolean? = false,
     val refer_code:String?,
     val referred_by:String?,
     val referral_coins_gained:String?,

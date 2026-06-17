@@ -82,6 +82,8 @@ import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
 import java.util.Arrays
+import com.gmwapp.hima.activities.HelpAndSupportActivity
+import com.gmwapp.hima.utils.setOnSingleClickListener
 
 
 @AndroidEntryPoint
@@ -569,6 +571,17 @@ open class BaseFragment : Fragment() {
 //        //        Intent intent = CallRouteActivity.getLockScreenIntent(context);
 //        return getPendingActivityIntent(context, intent)
 //    }
+    // FI_01: shared helper — show/hide the admin-blocked banner and wire its tap to
+    // Help & Support. Lives here so ProfileFragment and ProfileFemaleFragment don't
+    // duplicate the same logic. Call with your binding's blockBanner view.
+    protected fun applyBlockBanner(bannerView: View) {
+        val isBlocked = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.blocked == true
+        bannerView.visibility = if (isBlocked) View.VISIBLE else View.GONE
+        bannerView.setOnSingleClickListener {
+            activity?.let { startActivity(Intent(it, HelpAndSupportActivity::class.java)) }
+        }
+    }
+
     fun getPendingActivityIntent(context: Context?, intent: Intent?): PendingIntent {
         val openIntent = if (Build.VERSION.SDK_INT >= VERSION_CODES.M) {
             PendingIntent.getActivity(
