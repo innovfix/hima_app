@@ -914,7 +914,18 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     try { com.gmwapp.hima.agora.FcmCallService.stop(this) } catch (_: Throwable) {}
                     try { BaseApplication.getInstance()?.stopRingtone() } catch (_: Throwable) {}
                     try { cancelIncomingCallNotification() } catch (_: Throwable) {}
-                    // TC_026: replace the dismissed ring notification with a missed-call one.
+                    // TC_026: tear down the ring state FIRST — before the missed-call
+                    // notification, which blocks the FCM thread up to 2s loading the
+                    // caller's avatar (Glide.get(2s)). Previously that load sat between
+                    // here and the teardown, so a battery-restricted device that killed
+                    // the FCM process mid-load left clearIncomingCall()/finish() un-run
+                    // → a ghost ring screen. The missed-call payload was already captured
+                    // into locals above, so clearing the incoming-call state first is safe.
+                    try { BaseApplication.getInstance()?.clearIncomingCall() } catch (_: Throwable) {}
+                    currentActivity?.finish()
+                    // TC_026: now (after teardown) replace the dismissed ring notification
+                    // with a missed-call one. If the process is killed during the avatar
+                    // load only this notification is lost — the teardown already completed.
                     if (missedSenderId > 0) {
                         try {
                             com.gmwapp.hima.utils.CallNotifications.showMissed(
@@ -930,8 +941,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             Log.e(INCOMING_CALL_LOG_TAG, "TC_026 missed-call post failed: ${e.message}", e)
                         }
                     }
-                    try { BaseApplication.getInstance()?.clearIncomingCall() } catch (_: Throwable) {}
-                    currentActivity?.finish()
                 } else {
                     Log.d(INCOMING_CALL_LOG_TAG, "callEnded ignored — not in ring stage (Agora onUserOffline owns in-call teardown)")
                 }
