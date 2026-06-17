@@ -107,6 +107,9 @@ class BottomSheetLogout : BottomSheetDialogFragment() {
             val ctx = requireContext().applicationContext
             com.gmwapp.hima.utils.PinnedChatsPrefsHelper.clearAll(ctx)
             com.gmwapp.hima.utils.ChatNotificationStore.clearAll(ctx)
+            // TC_017: also wipe the "delete for me" chat watermark on logout so
+            // the next account on this device never inherits hidden messages.
+            com.gmwapp.hima.utils.ClearedChatsPrefsHelper.clearAll(ctx)
         }
         val hostActivity = activity ?: return
         val intent = Intent(hostActivity, NewLoginActivity::class.java).apply {
