@@ -14,6 +14,9 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import com.gmwapp.hima.socket.SocketManager
 import com.bumptech.glide.Glide
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
@@ -92,6 +95,9 @@ class UserProfileDetailActivity : AppCompatActivity() {
     private var isUpdatingNotifyPreference = false
     private var displayedUserName: String = ""
 
+    // TC_019: live creator-presence updates (toggle-off / logout) pushed via socket.
+    private val socketManager = SocketManager.getInstance()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityUserProfileDetailBinding.inflate(layoutInflater)
@@ -122,6 +128,10 @@ class UserProfileDetailActivity : AppCompatActivity() {
         // appear even when the launcher (chat list, notification, etc.) didn't
         // pass them in the intent.
         if (userId > 0) fetchProfileFromApi()
+
+        // TC_019: update the call buttons live if this creator goes offline/online
+        // while we're on her profile — instead of the user tapping a dead "Call".
+        observeCreatorPresence()
 
         // Show profile name in the top bar after collapsing
         setupToolbarTitleOnScroll()
@@ -394,6 +404,25 @@ class UserProfileDetailActivity : AppCompatActivity() {
     // intent extras and are refreshed from the profile API. Previously both
     // buttons were always fully enabled, so a user could see — and even start —
     // a video call on a creator who had only turned audio on.
+    // TC_019: when the backend pushes a creator_status_changed for the creator we're
+    // viewing, refresh audio/video status and re-apply the button availability so the
+    // buttons dim/disable (or re-enable) live — no refetch, no dead "Call" tap.
+    private fun observeCreatorPresence() {
+        lifecycleScope.launch {
+            socketManager.creatorStatusChanged.collect { ev ->
+                if (ev.creatorId == userId) {
+                    audioStatus = ev.audioStatus
+                    videoStatus = ev.videoStatus
+                    applyCallButtonAvailability()
+                    Log.d(
+                        "UserProfileDetail",
+                        "TC_019 live presence: creator=$userId audio=$audioStatus video=$videoStatus online=${ev.online}"
+                    )
+                }
+            }
+        }
+    }
+
     private fun applyCallButtonAvailability() {
         val audioEnabled = audioStatus == 1
         val videoEnabled = videoStatus == 1

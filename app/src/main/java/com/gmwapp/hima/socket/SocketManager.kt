@@ -95,6 +95,13 @@ class SocketManager private constructor() {
      */
     private val _chatMessageDeleted = eventFlow<String>()
     val chatMessageDeleted: SharedFlow<String> = _chatMessageDeleted.asSharedFlow()
+
+    // TC_019: real-time creator presence. Emitted when the backend tells the socket
+    // server a creator's audio/video toggle flipped (manual toggle-off OR logout),
+    // so a user VIEWING her card/profile sees availability change live — no refetch,
+    // no dead "Call" tap.
+    private val _creatorStatusChanged = eventFlow<CreatorStatusEvent>()
+    val creatorStatusChanged: SharedFlow<CreatorStatusEvent> = _creatorStatusChanged.asSharedFlow()
     
     /**
      * Connect to Socket.IO server using userId
@@ -325,6 +332,23 @@ class SocketManager private constructor() {
                     Log.d("SocketIOCheck", "✅ User room joined - Status: $status, User ID: $userId, Socket ID: $socketId")
                 } catch (e: Exception) {
                     Log.e("SocketIOCheck", "Error parsing connected event: ${e.message}", e)
+                }
+            }
+
+            // TC_019: creator availability changed in real time (toggle-off / logout).
+            // Backend → socket server → this event. Surfaced as a SharedFlow that the
+            // home list + profile screen collect to update the dot/buttons instantly.
+            on("creator_status_changed") { args ->
+                try {
+                    val data = args.getOrNull(0) as? JSONObject ?: return@on
+                    val creatorId = data.optInt("creator_id", 0)
+                    if (creatorId <= 0) return@on
+                    val audio = data.optInt("audio_status", 0)
+                    val video = data.optInt("video_status", 0)
+                    val online = data.optBoolean("online", audio == 1 || video == 1)
+                    _creatorStatusChanged.tryEmit(CreatorStatusEvent(creatorId, audio, video, online))
+                } catch (e: Exception) {
+                    Log.e("SocketIOCheck", "Error parsing creator_status_changed: ${e.message}", e)
                 }
             }
             
@@ -808,5 +832,13 @@ data class TypingEvent(
     val chatId: String,
     val userId: Int,
     val isTyping: Boolean
+)
+
+// TC_019: pushed when a creator's availability changes so viewers update live.
+data class CreatorStatusEvent(
+    val creatorId: Int,
+    val audioStatus: Int,
+    val videoStatus: Int,
+    val online: Boolean
 )
 
