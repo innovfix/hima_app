@@ -1901,7 +1901,17 @@ class ChatActivityInHouse : AppCompatActivity() {
                     messageSendMethod[tempId] = "api"
                     sendMessageViaAPI(tempId, payload.message)
                 } else {
-                    failPendingOutgoing(tempId, "Couldn't send attachment")
+                    // TC_016: media parity with the text path above. The file is
+                    // already uploaded (we hold its remote URL), so a dropped
+                    // socket emit recovers via the same REST fallback instead of
+                    // failing with "Couldn't send attachment". Only retry when we
+                    // actually have the URL; otherwise there is nothing to resend.
+                    val mediaUrl = payload.attachmentUrl
+                    if (!mediaUrl.isNullOrBlank()) {
+                        sendMediaViaFallbackAPI(tempId, payload.messageType, mediaUrl)
+                    } else {
+                        failPendingOutgoing(tempId, "Couldn't send attachment")
+                    }
                 }
             }
         }
