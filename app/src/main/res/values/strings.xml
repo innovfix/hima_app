@@ -67,6 +67,8 @@
     <string name="favourite">Favourite</string>
     <string name="chat_now">Chat Now</string>
     <string name="missed_call_label">Missed</string>
+    <!-- TC_022: chat-list indicator for a blocked conversation -->
+    <string name="chat_blocked_indicator">🚫 You blocked this user</string>
     <!-- TC_020: shown in the online-presence card when no creators are online / fetch fails -->
     <string name="no_creators_online">No creators online right now</string>
     <!-- FI_06: label + Rejected filter chip for calls declined while ringing -->
