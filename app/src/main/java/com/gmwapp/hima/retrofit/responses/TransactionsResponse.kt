@@ -18,6 +18,8 @@ data class TransactionsResponseData(
     val date: String,
     val call_type: String,
     val duration: String,
+    val started_time: String? = null,
+    val ended_time: String? = null,
     val call_user_name: String,
     val reason: String? = null,
     val is_ipl_room: Boolean = false,

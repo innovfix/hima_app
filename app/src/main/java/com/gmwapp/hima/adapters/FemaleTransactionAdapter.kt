@@ -8,6 +8,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.gmwapp.hima.R
 import com.gmwapp.hima.databinding.AdapterTransactionBinding
 import com.gmwapp.hima.retrofit.responses.FemaleTransactionsResponseData
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class FemaleTransactionAdapter(
     val activity: Activity,
@@ -68,8 +70,8 @@ class FemaleTransactionAdapter(
                 holder.binding.tvCoins.text = "$rupeeSymbol$formattedCoins"
                 holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#10B981"))
                 holder.binding.tvTransactionTitle.text = transaction.title ?: "Audio Session"
-                // Use description which should have duration format: "Jan 03 · 7 sec"
-                holder.binding.tvTransactionDate.text = transaction.description ?: transaction.date
+                // FI_05: date, call start time, then duration (pulled from description).
+                holder.binding.tvTransactionDate.text = buildCallSubtitle(transaction)
                 // Set icon and background color - same as male transactions
                 holder.binding.ivTransactionIcon.setImageResource(R.drawable.ic_audio_expense)
                 holder.binding.cvIconBackground.setCardBackgroundColor(android.graphics.Color.parseColor("#FFEBEE"))
@@ -81,8 +83,8 @@ class FemaleTransactionAdapter(
                 holder.binding.tvCoins.text = "$rupeeSymbol$formattedCoins"
                 holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#10B981"))
                 holder.binding.tvTransactionTitle.text = transaction.title ?: "Video Session"
-                // Use description which should have duration format: "Jan 03 · 7 sec"
-                holder.binding.tvTransactionDate.text = transaction.description ?: transaction.date
+                // FI_05: date, call start time, then duration (pulled from description).
+                holder.binding.tvTransactionDate.text = buildCallSubtitle(transaction)
                 // Set icon and background color - same as male transactions
                 holder.binding.ivTransactionIcon.setImageResource(R.drawable.ic_video_expense)
                 holder.binding.cvIconBackground.setCardBackgroundColor(android.graphics.Color.parseColor("#FFEBEE"))
@@ -145,6 +147,36 @@ class FemaleTransactionAdapter(
         // Log for debugging
         Log.d("female_transaction_datetime", "${transaction.datetime}")
         holder.binding.tvTransactionHint.text = activity.getString(R.string.session_id) + transaction.id
+    }
+
+    // FI_05: build "date, start-time · duration" for a call session. Date comes from
+    // transaction.date; start time from transaction.datetime; duration is recovered from
+    // the description string ("Jan 03 · 7 sec") which is where the backend puts it.
+    private fun buildCallSubtitle(transaction: FemaleTransactionsResponseData): String {
+        // FI_05: prefer the real call start time; fall back to transaction datetime on older rows.
+        val startTime = formatStartTime(
+            transaction.started_time?.takeIf { it.isNotBlank() } ?: transaction.datetime
+        )
+        val durationPart = transaction.description
+            ?.substringAfter("·", "")
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+        return buildString {
+            append(transaction.date)
+            if (startTime.isNotEmpty()) append(", ").append(startTime)
+            if (durationPart != null) append(" · ").append(durationPart)
+        }
+    }
+
+    private fun formatStartTime(datetime: String?): String {
+        if (datetime.isNullOrBlank()) return ""
+        return try {
+            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            val outputFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
+            outputFormat.format(inputFormat.parse(datetime)!!)
+        } catch (e: Exception) {
+            ""
+        }
     }
 
     fun addTransactions(newTransactions: List<FemaleTransactionsResponseData>) {

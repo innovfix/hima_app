@@ -17,5 +17,6 @@ data class FemaleTransactionsResponseData(
     val date: String,
     val title: String?, // Full string for audio/video sessions (e.g., "Audio session with username")
     val description: String?, // Additional description or duration info
+    val started_time: String? = null, // FI_05: actual call start time (for call_income rows)
 )
 

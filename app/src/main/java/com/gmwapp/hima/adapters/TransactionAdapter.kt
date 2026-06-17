@@ -66,7 +66,17 @@ class TransactionAdapter(
             }
             transaction.type == "coins_deduction" -> {
                 holder.binding.tvTransactionTitle.text = "$callType session with $callUserName"
-                holder.binding.tvTransactionDate.text = "${transaction.date} · ${transaction.duration}"
+                // FI_05: show the actual call start time (started_time) alongside duration so
+                // charges can be reconciled with the real call session. Falls back to the
+                // transaction datetime if started_time is absent on older rows.
+                val startTime = formatStartTime(
+                    transaction.started_time?.takeIf { it.isNotBlank() } ?: transaction.datetime
+                )
+                holder.binding.tvTransactionDate.text = buildString {
+                    append(transaction.date)
+                    if (startTime.isNotEmpty()) append(", ").append(startTime)
+                    if (transaction.duration.isNotBlank()) append(" · ").append(transaction.duration)
+                }
 
                 // Set icon based on call type
                 when (callType.lowercase()) {
@@ -128,6 +138,19 @@ class TransactionAdapter(
 
     internal class ItemHolder(val binding: AdapterTransactionBinding) :
         RecyclerView.ViewHolder(binding.root) {
+    }
+
+    // FI_05: extract just the clock time (call start) from a "yyyy-MM-dd HH:mm:ss"
+    // datetime. Returns "" on null/blank/unparseable input so the caller can skip it.
+    fun formatStartTime(datetime: String?): String {
+        if (datetime.isNullOrBlank()) return ""
+        return try {
+            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            val outputFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
+            outputFormat.format(inputFormat.parse(datetime)!!)
+        } catch (e: Exception) {
+            ""
+        }
     }
 
     fun formatTime(datetime: String): String {
