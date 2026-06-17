@@ -1154,6 +1154,10 @@ class BaseApplication : Application(), Configuration.Provider {
             chatHistoryMemoryCache.clearAll()
             com.gmwapp.hima.utils.PinnedChatsPrefsHelper.clearAll(this)
             com.gmwapp.hima.utils.ChatNotificationStore.clearAll(this)
+            // TC_017: wipe the per-conversation "delete for me" watermark too,
+            // else the next account on this device (sequential int ids can
+            // collide) inherits the previous user's hidden-message timestamps.
+            com.gmwapp.hima.utils.ClearedChatsPrefsHelper.clearAll(this)
         }
         // Drop the throttle so the next login fires the heartbeat immediately.
         runCatching { activeStatusReporter.reset() }
