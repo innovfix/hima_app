@@ -150,6 +150,14 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         onTick = { secondsRemaining ->
             binding.reconnectBanner.text = "Reconnecting… ${secondsRemaining}s"
         },
+        // TC_007: hide-only on disarm. We never SHOW the banner from here (the
+        // own-network reconnect banner stays disabled per v1067); the only
+        // shower is the 8s remote-video-freeze runnable. But when the watchdog
+        // clears we must guarantee the pill goes away even if no fresh remote
+        // video DECODING callback arrives to call hideRemoteAvatarSkeleton().
+        onArmedChanged = { armed ->
+            if (!armed) runOnUiThread { binding.reconnectBanner.visibility = View.GONE }
+        },
         onTimeout = {
             runOnUiThread {
                 Toast.makeText(
@@ -1290,6 +1298,10 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         btWatcher?.unregister()
         btWatcher = null
         reconnectWatchdog.cancel()
+        // TC_007: cancel the pending 8s avatar/banner show so it can't fire
+        // after teardown and mutate this dead activity's views.
+        pendingAvatarShow?.let { mainHandlerForAvatar.removeCallbacks(it) }
+        pendingAvatarShow = null
 
         // B143: deterministic teardown — disable audio+video, leave channel, then block on
         // RtcEngine.destroy() so the mic/camera are released before this activity finishes.
@@ -1487,23 +1499,29 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                 "VideoCallFlow",
                 "FemaleVideo.onRemoteVideoStateChanged uid=$uid state=$state reason=$reason"
             )
-            // B13/TC_007 recovery path: if the remote is starting/decoding but the
-            // canvas was never created (missed onUserJoined / recreation), bind it
-            // now. Runs BEFORE the videoUid guard below because this is exactly the
-            // case where videoUid may be stale/unset. Acts ONLY when the surface is
-            // genuinely MISSING — must not override the GONE state owned by the
-            // mute-blur / no-face-overlay logic (which hides without removing).
-            if ((state == Constants.REMOTE_VIDEO_STATE_STARTING ||
-                    state == Constants.REMOTE_VIDEO_STATE_DECODING) &&
-                (binding.remoteVideoViewContainer.childCount == 0 || remoteSurfaceView == null)
-            ) {
-                videoUid = uid
-                runOnUiThread { setupRemoteVideo(uid) }
-            }
-            if (uid != videoUid) return
-            // 2026-05-23 v1065 — debounce FROZEN/FAILED so tier-2/3 brief blips
-            // don't flash the avatar overlay. See MaleVideoCallingActivity for rationale.
+            // TC_007: marshal the entire handler onto the main thread. Agora
+            // delivers this on an internal worker thread, but the body reads View
+            // state (remoteVideoViewContainer.childCount) and rebinds the canvas —
+            // both must happen on the main thread. One runOnUiThread preserves the
+            // original top-to-bottom ordering exactly (recovery → videoUid guard →
+            // avatar state → FAILED rebind).
             runOnUiThread {
+                // B13/TC_007 recovery path: if the remote is starting/decoding but the
+                // canvas was never created (missed onUserJoined / recreation), bind it
+                // now. Runs BEFORE the videoUid guard below because this is exactly the
+                // case where videoUid may be stale/unset. Acts ONLY when the surface is
+                // genuinely MISSING — must not override the GONE state owned by the
+                // mute-blur / no-face-overlay logic (which hides without removing).
+                if ((state == Constants.REMOTE_VIDEO_STATE_STARTING ||
+                        state == Constants.REMOTE_VIDEO_STATE_DECODING) &&
+                    (binding.remoteVideoViewContainer.childCount == 0 || remoteSurfaceView == null)
+                ) {
+                    videoUid = uid
+                    setupRemoteVideo(uid)
+                }
+                if (uid != videoUid) return@runOnUiThread
+                // 2026-05-23 v1065 — debounce FROZEN/FAILED so tier-2/3 brief blips
+                // don't flash the avatar overlay. See MaleVideoCallingActivity for rationale.
                 when (state) {
                     Constants.REMOTE_VIDEO_STATE_DECODING -> {
                         pendingAvatarShow?.let { mainHandlerForAvatar.removeCallbacks(it); pendingAvatarShow = null }
@@ -1528,9 +1546,9 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                         }
                     }
                 }
-            }
-            if (state == Constants.REMOTE_VIDEO_STATE_FAILED) {
-                runOnUiThread { setupRemoteVideo(uid) }
+                if (state == Constants.REMOTE_VIDEO_STATE_FAILED) {
+                    setupRemoteVideo(uid)
+                }
             }
         }
 
@@ -3719,8 +3737,13 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         if (binding.ivRemoteAvatarSkeleton.visibility != View.GONE) {
             binding.ivRemoteAvatarSkeleton.visibility = View.GONE
         }
-        // TC_007: clear the "Reconnecting…" pill once the remote video recovers.
-        if (binding.reconnectBanner.visibility != View.GONE) {
+        // TC_007: clear the "Reconnecting…" pill once the remote video recovers,
+        // BUT only if the watchdog isn't still counting down an own-network /
+        // peer-stream stall. A transient remote-video DECODING while we're still
+        // reconnecting would otherwise erase the live countdown the watchdog owns
+        // (and the call is still about to auto-end). When the watchdog finally
+        // disarms, its onArmedChanged hides the pill.
+        if (!reconnectWatchdog.isArmed() && binding.reconnectBanner.visibility != View.GONE) {
             binding.reconnectBanner.visibility = View.GONE
         }
     }

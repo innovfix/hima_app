@@ -1,5 +1,7 @@
 package com.gmwapp.hima.retrofit.responses
 
+import com.google.gson.annotations.SerializedName
+
 data class CallsListResponse(
     val success: Boolean,
     val message: String,
@@ -23,5 +25,8 @@ data class CallsListResponseData(
     val describe_yourself: String = "",
     // FI_06: 'rejected' marks a call declined while ringing (vs an unanswered "missed").
     // Defaults to "" so older backend responses that omit the key stay compatible.
+    // @SerializedName pins the JSON key (sibling CallStatusResponse convention) so the
+    // mapping survives any future field-name obfuscation.
+    @SerializedName("end_reason")
     val end_reason: String = "",
 )
