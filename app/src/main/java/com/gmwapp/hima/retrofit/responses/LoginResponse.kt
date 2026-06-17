@@ -50,6 +50,12 @@ data class UserData (
     val ifsc:String?,
     val holder_name:String?,
     val upi_id:String?,
+    @SerializedName("withdrawal_blocked")
+    @JsonAdapter(FlexibleBooleanDeserializer::class)
+    val withdrawal_blocked: Boolean? = false,
+    @SerializedName("blocked")
+    @JsonAdapter(FlexibleBooleanDeserializer::class)
+    val blocked: Boolean? = false,
     val refer_code:String?,
     val referred_by:String?,
     val referral_coins_gained:String?,

@@ -346,6 +346,9 @@
     <string name="description_remaining_text">%d/250</string>
     <string name="description_minimum_text">Minimum 15 letters</string>
     <string name="contact_support_mail">Need Help? Please write to: </string>
+    <!-- FI_01: admin-blocked account indication banner (User + Creator profile) -->
+    <string name="account_blocked_banner_title">Your account has been blocked</string>
+    <string name="account_blocked_banner_cta">Tap to contact support →</string>
     <string name="delete_account_mail_subject">Need Support for User: - Mobile Number: %s, language: %s</string>
     <string name="mail_body" translatable="false">Hi &appname; Team,\n\nMy registered details are as follows:\n1. Mobile number is: %s\n2. Device name: %s\n3. User language: %s\n4. App version code: %d\n\nI need help in the following issue:\n\n{<b>Describe your issue here</b>}\n\nYou can reach out to me at the above number for more information.\n\nThanks,\n</string>
     <string name="press_back_again_to_exit">Press back again to exit</string>

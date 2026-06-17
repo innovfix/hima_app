@@ -205,11 +205,18 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
         iplRoomViewModel.getMatchSuggestions()
         updateValues()
         updateIplBadge()
+        updateBlockBanner()
+    }
+
+    private fun updateBlockBanner() {
+        if (!::binding.isInitialized) return
+        applyBlockBanner(binding.blockBanner)
     }
 
     private fun initUI() {
         updateValues()
         updateIplBadge()
+        updateBlockBanner()
         iplRoomViewModel.getMatchSuggestions() // Fetch today's matches for team picker
 
         dndController = DndController(
@@ -229,6 +236,7 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 val merged = UserDataLocalIntentMerge.mergePreserveLocalIntent(prev, fresh)
                 BaseApplication.getInstance()?.getPrefs()?.setUserData(merged)
                 updateIplBadge()
+                updateBlockBanner()
                 dndController.refresh()
             }
         }
