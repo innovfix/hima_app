@@ -311,9 +311,19 @@ class UserProfileDetailActivity : AppCompatActivity() {
                     "DECIDE peer=$userId self=${BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id} " +
                         "topIsBlocked=${response.isBlocked} dataIsBlocked=${response.data?.isBlocked} " +
                         "topBlockedStatus=${response.blockedStatus} dataBlockedStatus=${response.data?.blockedStatus} " +
-                        "computedIsUserBlocked=$isUserBlocked"
+                        "blockedByPeer=${response.data?.blockedByPeer} computedIsUserBlocked=$isUserBlocked"
                 )
                 updateBlockButtonUI()
+
+                // TC_027: if this creator has blocked the viewer, her profile must not be
+                // viewable and no call may be placed — close the screen with a clear
+                // message. This is the chokepoint, so it covers every entry point
+                // (recent / chat / search / deep link), not just the recent list.
+                if (response.data?.blockedByPeer == true) {
+                    showAppToast(getString(R.string.peer_calls_blocked), Toast.LENGTH_SHORT)
+                    finish()
+                    return@Observer
+                }
             }
             Log.d("UserProfileDetail", "====================================")
         })

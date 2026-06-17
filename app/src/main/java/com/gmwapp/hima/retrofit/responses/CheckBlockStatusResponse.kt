@@ -25,7 +25,12 @@ data class BlockStatusData(
     
     @SerializedName("blocked_status")
     val blockedStatus: Int? = null,  // 0 = unblocked, 2 = blocked
-    
+
+    // TC_027: true when the PEER (the creator being viewed) has blocked ME (the viewer).
+    // Distinct from is_blocked/blocked_status, which describe whether I blocked them.
+    @SerializedName("blocked_by_peer")
+    val blockedByPeer: Boolean? = null,
+
     @SerializedName("block_id")
     val blockId: Int? = null,
     
