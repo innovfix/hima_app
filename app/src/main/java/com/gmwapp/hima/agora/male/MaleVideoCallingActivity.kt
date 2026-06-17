@@ -188,7 +188,10 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     private val mainHandlerForAvatar = android.os.Handler(android.os.Looper.getMainLooper())
     private var pendingAvatarShow: Runnable? = null
 
-    private var videoUid = 0
+    // @Volatile: read/written on both the Agora IRtcEngineEventHandler worker
+    // thread (onRemoteVideoStateChanged/onUserJoined) and the UI thread, so it
+    // needs a happens-before guarantee to avoid a stale-read data race [TC_007].
+    @Volatile private var videoUid = 0
 
     private var appId: String? = null // Will be received from backend
 
@@ -251,7 +254,9 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
     private var localSurfaceView: SurfaceView? = null
 
-    private var remoteSurfaceView: SurfaceView? = null
+    // @Volatile: see videoUid — touched from the Agora callback thread and the
+    // UI thread; the recovery guard in onRemoteVideoStateChanged reads it [TC_007].
+    @Volatile private var remoteSurfaceView: SurfaceView? = null
     private var localPreviewOffsetX = Float.NaN
     private var localPreviewOffsetY = Float.NaN
     private var localPreviewTouchOffsetX = 0f
@@ -1604,6 +1609,12 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                         if (pendingAvatarShow == null) {
                             val run = Runnable {
                                 showRemoteAvatarSkeleton()
+                                // TC_007: after 8s of sustained freeze/failure, surface
+                                // the "Reconnecting…" pill over the avatar. Driven by the
+                                // remote-VIDEO-state path — NOT CallQualityUi's connection
+                                // banner (which stays disabled per v1067) — so it appears
+                                // only on a genuine sustained stall, never on brief blips.
+                                binding.reconnectBanner.visibility = View.VISIBLE
                                 pendingAvatarShow = null
                             }
                             pendingAvatarShow = run
@@ -3769,13 +3780,21 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     // as no-op so existing call sites compile. hideRemoteAvatarSkeleton stays
     // active so any pre-existing visible skeleton gets cleared on first call.
     private fun showRemoteAvatarSkeleton() {
-        // intentionally no-op
-        return
+        // TC_007: fill the otherwise-black remote tile with the peer's avatar
+        // (Glide-loaded into iv_remote_avatar_skeleton) so a frozen/failed — or
+        // muted — remote video shows a clear status surface instead of black.
+        if (binding.ivRemoteAvatarSkeleton.visibility != View.VISIBLE) {
+            binding.ivRemoteAvatarSkeleton.visibility = View.VISIBLE
+        }
     }
 
     private fun hideRemoteAvatarSkeleton() {
         if (binding.ivRemoteAvatarSkeleton.visibility != View.GONE) {
             binding.ivRemoteAvatarSkeleton.visibility = View.GONE
+        }
+        // TC_007: clear the "Reconnecting…" pill once the remote video recovers.
+        if (binding.reconnectBanner.visibility != View.GONE) {
+            binding.reconnectBanner.visibility = View.GONE
         }
     }
 
