@@ -264,6 +264,13 @@ class RecentCallsAdapter(
         
         // Add click listener on profile container to open profile detail
         holder.binding.profileContainer.setOnSingleClickListener {
+            // TC_027: a creator who has blocked this user (blocked==2) must not be
+            // viewable. Match the call-button gating above — show the blocked feedback
+            // instead of opening her profile, so the blocked user can't view the card.
+            if (call.blocked == 2) {
+                CallUnavailableFeedback.showBlocked(activity, holder.binding.root)
+                return@setOnSingleClickListener
+            }
             val intent = Intent(activity, UserProfileDetailActivity::class.java).apply {
                 putExtra(DConstants.USER_ID, call.id)
                 putExtra("USER_NAME", call.name)
