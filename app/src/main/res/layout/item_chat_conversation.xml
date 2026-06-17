@@ -264,6 +264,24 @@
             </LinearLayout>
         </LinearLayout>
 
+        <!-- TC_022: shown in place of the call buttons when this chat partner is blocked,
+             so the conversation stays visible in the list with a clear blocked indicator. -->
+        <TextView
+            android:id="@+id/tv_blocked_badge"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:gravity="center"
+            android:visibility="gone"
+            android:fontFamily="@font/poppins_medium"
+            android:text="@string/chat_blocked_indicator"
+            android:textColor="#B91C1C"
+            android:textSize="12sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/fl_image_container"
+            tools:visibility="visible" />
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </com.google.android.material.card.MaterialCardView>

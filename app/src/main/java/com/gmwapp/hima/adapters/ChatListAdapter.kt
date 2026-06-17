@@ -278,6 +278,11 @@ class ChatListAdapter(
             // disabled (grey) state instead of hiding so the row stays
             // visually balanced. Label shows per-minute coin rate when
             // enabled, "Unavailable" otherwise.
+            // TC_022: a blocked conversation stays in the list, but the call buttons are
+            // swapped for a clear "Blocked" badge so the user can still see/track it.
+            binding.tvBlockedBadge.visibility = if (conversation.isBlocked) View.VISIBLE else View.GONE
+            binding.callButtonsRow.visibility = if (conversation.isBlocked) View.GONE else View.VISIBLE
+
             val showAudio = conversation.audioStatus == 1
             val showVideo = conversation.videoStatus == 1
             val disabledTextColor = activity.getColor(R.color.chat_list_call_disabled_text)
