@@ -294,7 +294,10 @@ class UserProfileDetailActivity : AppCompatActivity() {
         blockUserViewModel.checkBlockStatusLiveData.observe(this, Observer { response ->
             Log.d("UserProfileDetail", "===== CHECK BLOCK STATUS OBSERVER =====")
             Log.d("UserProfileDetail", "Response: $response")
-            
+            // TC_027: if the user already left (back-pressed) while this check was
+            // in flight, don't re-fire finish()/toast on a closing activity.
+            if (isFinishing || isDestroyed) return@Observer
+
             if (response != null) {
                 blockStatusChecked = true
 
