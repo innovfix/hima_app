@@ -238,10 +238,10 @@ class FavouriteFragment : BaseFragment(), NetworkRetryable, Refreshable {
         Log.d("FavouriteFragment", "🔄 onResume - refreshing favourites list")
         loadFavouritesList(resetData = true)
 
-        // Reset flags if they were set
-        if (FcmUtils.shouldRefreshCallList == 1) {
-            FcmUtils.shouldRefreshCallList = 0
-        }
+        // TC_018: do NOT consume shouldRefreshCallList here. It is RecentFragment's
+        // signal to refresh the Recent call list after a rejected/missed call;
+        // Favourites already refreshes unconditionally above, so clearing the flag
+        // here only robbed Recent of its refresh when Favourites resumed first.
     }
     
     override fun onDestroyView() {

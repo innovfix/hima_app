@@ -54,6 +54,10 @@ class RecentFragment : BaseFragment(), Refreshable {
     // Debouncing for search
     private val searchHandler = Handler(Looper.getMainLooper())
     private var searchRunnable: Runnable? = null
+    // TC_018: the deferred post-call refresh (B107/B109). Held so a new onResume
+    // (or teardown) can cancel a still-pending one instead of stacking another
+    // full list-reset on top — prevents the offset race + repeated flicker.
+    private var deferredRefreshRunnable: Runnable? = null
     private val SEARCH_DEBOUNCE_DELAY = 300L // 300ms delay
 
     override fun onCreateView(
@@ -435,21 +439,28 @@ class RecentFragment : BaseFragment(), Refreshable {
         // is preserved on re-query (B109): without this the deferred refresh
         // would wipe the user's "san" search filter back to the unfiltered
         // list. Idempotent: if the worker already fired, just re-fetches.
-        view?.postDelayed({
-            if (isAdded && !isDetached) {
+        // Cancel any still-pending deferred refresh from a previous resume so
+        // rapid tab-switches don't stack multiple list-resets (TC_018).
+        deferredRefreshRunnable?.let { searchHandler.removeCallbacks(it) }
+        deferredRefreshRunnable = Runnable {
+            // Skip if a load is already in flight — the in-flight one will
+            // deliver fresh data; a second reset here only races on `offset`.
+            if (isAdded && !isDetached && !isLoading) {
                 loadCallsList(
                     currentSortType,
                     resetData = true,
                     searchQuery = currentSearchQuery
                 )
             }
-        }, 1500L)
+        }
+        searchHandler.postDelayed(deferredRefreshRunnable!!, 1500L)
     }
-    
+
     override fun onDestroyView() {
         super.onDestroyView()
         // Clean up search handler
         searchRunnable?.let { searchHandler.removeCallbacks(it) }
+        deferredRefreshRunnable?.let { searchHandler.removeCallbacks(it) }
         // Clean up listeners when fragment is destroyed
 //        unreadCountsMap.clear()
     }

@@ -33,9 +33,14 @@ object FcmUtils {
     // caller-side handlers flip this to 1 the instant the user expresses
     // call intent (RecentFragment.kt / FavouriteFragment.kt / adapters);
     // call cleanup paths flip it back to 0 (B181 fix).
-    var isUserAvailable = 0
+    // @Volatile — written from the WorkManager/FCM background thread, read on
+    // the main thread (RecentFragment.onResume / busy-check). Without it the
+    // reader can cache a stale value and miss a refresh signal indefinitely.
+    @Volatile var isUserAvailable = 0
 
-    var shouldRefreshCallList = 0
+    // @Volatile — same cross-thread contract as isUserAvailable: the call-list
+    // refresh flag is set off the main thread and read in onResume.
+    @Volatile var shouldRefreshCallList = 0
 
     private val _updatedTime = MutableLiveData<String?>()
     val updatedTime: LiveData<String?> get() = _updatedTime
