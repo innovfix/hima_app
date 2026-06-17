@@ -23,7 +23,12 @@ data class ChatItem(
     @SerializedName("last_message")
     val lastMessage: LastMessage?,
     @SerializedName("unread_count")
-    val unreadCount: Int
+    val unreadCount: Int,
+    // TC_022: true when the current user has blocked this chat partner. Backend already
+    // returns this; surfaced so the chat list can show a "Blocked" indicator and keep the
+    // conversation visible instead of it vanishing with no trace.
+    @SerializedName("i_have_blocked_this_user")
+    val iHaveBlockedThisUser: Boolean? = false
 )
 
 data class ChatUser(
