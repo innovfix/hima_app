@@ -12,6 +12,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.util.Log
+import android.widget.Toast
 import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.core.app.ActivityCompat
@@ -59,6 +60,20 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
     var userId: Int? = null
     private var prefetchedAgoraToken: String? = null
     private var prefetchedAgoraAppId: String? = null
+
+    // B10/TC_009: gate the call-screen launch on the "accepted" relay so the
+    // creator never enters a blank, caller-gone call. The backend's
+    // ACCEPTED_DEAD_BLOCK returns success=false / error="call_already_ended"
+    // (8s-grace-validated, so it won't eat a legit just-connected accept).
+    // Fail-OPEN: launch anyway on success / any other outcome / timeout, so a
+    // slow or failing relay never blocks a legitimate accept.
+    private val acceptGateHandler = Handler(Looper.getMainLooper())
+    private var acceptInFlight = false
+    private var acceptLaunchHandled = false
+    private var pendingChannel: String? = null
+    private var pendingReceiver: Int = -1
+    private var pendingCallType: String? = null
+    private val ACCEPT_GATE_TIMEOUT_MS = 2000L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -192,6 +207,28 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
 
 
 
+        // B10/TC_009: single gate observer. Only acts while an accept is in
+        // flight (acceptInFlight) and only once (acceptLaunchHandled). The
+        // "accepted" relay's 200-body lands here; real network failures go to
+        // the error LiveData instead (→ fail-open timer). Registered once.
+        fcmNotificationViewModel.notificationResponseLiveData.observe(this) { resp ->
+            if (!acceptInFlight || acceptLaunchHandled || resp == null) return@observe
+            val callAlreadyEnded = !resp.success &&
+                (resp.error == "call_already_ended" ||
+                    resp.message.contains("already ended", ignoreCase = true))
+            acceptLaunchHandled = true
+            acceptInFlight = false
+            acceptGateHandler.removeCallbacksAndMessages(null)
+            if (callAlreadyEnded) {
+                Log.d("CreatorCallDiag", "FAccept gate: call_already_ended → abort launch callId=$call_Id")
+                BaseApplication.getInstance()?.clearIncomingCall()
+                Toast.makeText(this, "This call has already ended", Toast.LENGTH_SHORT).show()
+                finish()
+            } else {
+                launchCallScreen()
+            }
+        }
+
         binding.accpet.setOnClickListener {
 
             if (receiverId != -1 && !channelName.isNullOrEmpty() && !callType.isNullOrEmpty()) {
@@ -205,40 +242,30 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
                     "FemaleAccept.acceptClick channel=$channelName callId=$call_Id callType=$callType " +
                         "tokenPrefetched=${!prefetchedAgoraToken.isNullOrEmpty()} appIdPrefetched=${!prefetchedAgoraAppId.isNullOrEmpty()}"
                 )
-                sendCallNotification(userId!!, receiverId, callType!!, channelName!!, "accepted")
 
-                if (callType == "audio") {
-                    BaseApplication.getInstance()?.stopRingtone()
-                    HimaTelecomManager.markActive()
-                    BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
-                    BaseApplication.getInstance()?.clearIncomingCall()
-                    val intent = Intent(this, FemaleAudioCallingActivity::class.java).apply {
-                        putExtra("CHANNEL_NAME", channelName)
-                        putExtra("RECEIVER_ID", receiverId)
-                        putExtra("CALL_ID", call_Id)
-                        prefetchedAgoraToken?.let { putExtra("AGORA_TOKEN", it) }
-                        prefetchedAgoraAppId?.let { putExtra("AGORA_APP_ID", it) }
-                        Log.d("RECEIVER_ID","$receiverId")
+                // B10/TC_009: silence the ring immediately (responsiveness) but
+                // DEFER the call-screen launch until the "accepted" relay tells
+                // us the call isn't already dead. The gate observer above and the
+                // fail-open timer below decide; markActive happens only on launch.
+                BaseApplication.getInstance()?.stopRingtone()
+                BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+
+                pendingChannel = channelName
+                pendingReceiver = receiverId
+                pendingCallType = callType
+                acceptInFlight = true
+                acceptLaunchHandled = false
+                acceptGateHandler.removeCallbacksAndMessages(null)
+                acceptGateHandler.postDelayed({
+                    if (!acceptLaunchHandled) {
+                        acceptLaunchHandled = true
+                        acceptInFlight = false
+                        Log.d("CreatorCallDiag", "FAccept gate: relay timeout → fail-open launch callId=$call_Id")
+                        launchCallScreen()
                     }
-                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    startActivity(intent)
-                    finish()
-                }else{
-                    BaseApplication.getInstance()?.stopRingtone()
-                    HimaTelecomManager.markActive()
-                    BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
-                    BaseApplication.getInstance()?.clearIncomingCall()
-                    val intent = Intent(this, FemaleVideoCallingActivity::class.java).apply {
-                        putExtra("CHANNEL_NAME", channelName)
-                        putExtra("RECEIVER_ID", receiverId)
-                        putExtra("CALL_ID", call_Id)
-                        prefetchedAgoraToken?.let { putExtra("AGORA_TOKEN", it) }
-                        prefetchedAgoraAppId?.let { putExtra("AGORA_APP_ID", it) }
-                    }
-                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    startActivity(intent)
-                    finish()
-                }
+                }, ACCEPT_GATE_TIMEOUT_MS)
+
+                sendCallNotification(userId!!, receiverId, callType!!, channelName!!, "accepted")
             }
         }
         binding.reject.setOnClickListener {
@@ -398,6 +425,35 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
         }
     }
 
+    // B10/TC_009: launch the in-call activity. Reached only after the accept
+    // gate clears (relay said the call is live, or fail-open timeout). markActive
+    // is done here — never on an aborted accept.
+    private fun launchCallScreen() {
+        if (isFinishing || isDestroyed) return
+        val channel = pendingChannel
+        val type = pendingCallType
+        val receiver = pendingReceiver
+        if (channel.isNullOrEmpty() || type.isNullOrEmpty() || receiver == -1) {
+            Log.w("CreatorCallDiag", "FAccept launchCallScreen: missing pending args → abort callId=$call_Id")
+            finish()
+            return
+        }
+        HimaTelecomManager.markActive()
+        BaseApplication.getInstance()?.clearIncomingCall()
+        val target = if (type == "audio") FemaleAudioCallingActivity::class.java
+                     else FemaleVideoCallingActivity::class.java
+        val intent = Intent(this, target).apply {
+            putExtra("CHANNEL_NAME", channel)
+            putExtra("RECEIVER_ID", receiver)
+            putExtra("CALL_ID", call_Id)
+            prefetchedAgoraToken?.let { putExtra("AGORA_TOKEN", it) }
+            prefetchedAgoraAppId?.let { putExtra("AGORA_APP_ID", it) }
+        }
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        startActivity(intent)
+        finish()
+    }
+
     private fun prefetchAgoraToken(channelForToken: String) {
         Log.d("AgoraTiming", "FemaleCallAccept prefetchAgoraToken started at ${System.currentTimeMillis()}")
         Log.d("VideoCallFlow", "FemaleAccept.prefetchToken.start channel=$channelForToken callId=$call_Id")
@@ -464,6 +520,9 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        // B10/TC_009: drop any pending accept-gate fail-open so it can't fire
+        // against a destroyed activity.
+        acceptGateHandler.removeCallbacksAndMessages(null)
         // Stop animations
         try {
             binding.pulseRingOuter.clearAnimation()

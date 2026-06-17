@@ -8,7 +8,12 @@ data class FcmNotificationResponse(
     val message: String,
     val response: ResponseData?,
     val data_sent: NotificationData?,
-    val fcm_token: String?
+    val fcm_token: String?,
+    // B10/TC_009: backend ACCEPTED_DEAD_BLOCK replies (HTTP 200) with
+    // error="call_already_ended" when the caller has already hung up. Surfaced
+    // so the creator's Accept can abort instead of entering a blank, caller-gone
+    // call. Nullable + default so the other deserializer branches stay valid.
+    val error: String? = null
 )
 
 data class ResponseData(
@@ -61,7 +66,8 @@ class FcmNotificationResponseDeserializer : JsonDeserializer<FcmNotificationResp
                                 message = dataSent.get("message")?.asString ?: ""
                             )
                         } else null,
-                        fcm_token = obj.get("fcm_token")?.asString
+                        fcm_token = obj.get("fcm_token")?.asString,
+                        error = obj.get("error")?.asString
                     )
                 }
                 json.isJsonPrimitive -> {
