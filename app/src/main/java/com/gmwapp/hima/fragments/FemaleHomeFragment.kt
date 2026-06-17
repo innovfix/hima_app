@@ -691,6 +691,15 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                     // initial text used. Same value source as tv_approx_earnings above.
                     binding.tvApproxEarningsOld.text = "₹${it.data[0].today_earnings}"
 
+                    // TC_020: the calls twin of the v1110 fix above was missed.
+                    // tv_total_calls_old — the "Total Calls" value inside the same
+                    // visible "Today's Activity" card — is never written by any other
+                    // Kotlin code, so it stayed on its hardcoded layout default "0"
+                    // regardless of real activity (the "Today's Activity missing"
+                    // symptom). Mirror today's calls into it; same value source as
+                    // tv_total_calls above.
+                    binding.tvTotalCallsOld.text = it.data[0].today_calls.toString()
+
                     // Restored 2026-05-22: load admin-uploaded call rates poster.
                     // (Autopay merge had hidden this; user confirmed the admin poster
                     // is the source of truth for the female-home Earnings Details card.)
