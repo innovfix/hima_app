@@ -897,10 +897,39 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 val notInActiveCall = BaseApplication.getInstance()?.isInRealCall() != true
                 if (inAcceptStage && notInActiveCall) {
                     Log.d(INCOMING_CALL_LOG_TAG, "callEnded during ring stage — dismissing accept screen (TC_MC_01)")
+                    // TC_026: capture the ringing caller's details (stored when the ring
+                    // started, via setIncomingCall/setIncomingCallerInfo) BEFORE
+                    // clearIncomingCall() wipes them — so an unanswered incoming call
+                    // leaves a "Missed call from X" notification (like a normal phone)
+                    // instead of vanishing without a trace. We only reach this branch when
+                    // the call was NOT answered (still on the Accept screen, not in a real
+                    // call), so it can never fire for a genuinely connected/ended call.
+                    val missedApp = BaseApplication.getInstance()
+                    val missedSenderId = missedApp?.getSenderIdForSplashActivity() ?: -1
+                    val missedCallType = missedApp?.getCallTypeForSplashActivity()
+                        ?.takeIf { it.isNotBlank() && it != "null" }
+                    val missedCallerName = missedApp?.getIncomingCallerName().orEmpty()
+                    val missedCallerImage = missedApp?.getIncomingCallerImage()
                     try { HimaTelecomManager.endActiveCall(DisconnectCause.REMOTE) } catch (_: Throwable) {}
                     try { com.gmwapp.hima.agora.FcmCallService.stop(this) } catch (_: Throwable) {}
                     try { BaseApplication.getInstance()?.stopRingtone() } catch (_: Throwable) {}
                     try { cancelIncomingCallNotification() } catch (_: Throwable) {}
+                    // TC_026: replace the dismissed ring notification with a missed-call one.
+                    if (missedSenderId > 0) {
+                        try {
+                            com.gmwapp.hima.utils.CallNotifications.showMissed(
+                                this,
+                                com.gmwapp.hima.utils.CallNotifications.MissedPayload(
+                                    callType = missedCallType,
+                                    senderId = missedSenderId,
+                                    callerName = missedCallerName,
+                                    callerImage = missedCallerImage
+                                )
+                            )
+                        } catch (e: Exception) {
+                            Log.e(INCOMING_CALL_LOG_TAG, "TC_026 missed-call post failed: ${e.message}", e)
+                        }
+                    }
                     try { BaseApplication.getInstance()?.clearIncomingCall() } catch (_: Throwable) {}
                     currentActivity?.finish()
                 } else {
