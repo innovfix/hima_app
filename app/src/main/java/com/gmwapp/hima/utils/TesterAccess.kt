@@ -2,6 +2,7 @@ package com.gmwapp.hima.utils
 
 import android.content.Context
 import android.os.SystemClock
+import android.util.Log
 import android.widget.Toast
 
 /**
@@ -19,6 +20,7 @@ object TesterAccess {
     @Volatile private var unlocked = false
 
     fun onVersionTap(context: Context) {
+        Log.d("TesterAccess", "onVersionTap called — unlocked=$unlocked tapCount=$tapCount")
         if (unlocked) {
             Toast.makeText(context, "Debug mode already active — hold version to share logs", Toast.LENGTH_SHORT).show()
             return
@@ -27,6 +29,7 @@ object TesterAccess {
         if (now - lastTapTime > TAP_RESET_MS) tapCount = 0
         lastTapTime = now
         tapCount++
+        Log.d("TesterAccess", "tapCount now=$tapCount")
 
         when {
             tapCount >= TAPS_REQUIRED -> {
