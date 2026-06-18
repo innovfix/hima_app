@@ -257,19 +257,10 @@ class ProfileFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
         val prefs = BaseApplication.getInstance()?.getPrefs()
         
-        // Show/Hide warnings card based on user gender (only for female users)
         val userGender = prefs?.getUserData()?.gender
-        android.util.Log.d("ProfileFragment", "User gender: $userGender")
-        android.util.Log.d("ProfileFragment", "DConstants.FEMALE: ${DConstants.FEMALE}")
-        android.util.Log.d("ProfileFragment", "Comparison result: ${userGender?.equals(DConstants.FEMALE, ignoreCase = true)}")
-        
-        if (userGender?.equals(DConstants.FEMALE, ignoreCase = true) == true) {
-            binding.clWarnings.visibility = View.VISIBLE
-            android.util.Log.d("ProfileFragment", "Warnings card set to VISIBLE")
-        } else {
-            binding.clWarnings.visibility = View.GONE
-            android.util.Log.d("ProfileFragment", "Warnings card set to GONE")
-        }
+
+        // Show the My Warnings card for all users on this profile (same card as the female profile)
+        binding.clWarnings.visibility = View.VISIBLE
 
         binding.clManageNotifications.visibility =
             if (userGender?.equals(DConstants.MALE, ignoreCase = true) == true) View.VISIBLE else View.GONE

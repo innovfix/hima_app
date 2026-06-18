@@ -319,8 +319,8 @@ class BankUpdateActivity : BaseActivity() {
         // genuine change still (correctly) goes through the server-side shield.
         val saved = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         if (!saved?.holder_name.isNullOrEmpty()) {
-            val unchanged = accountNumber.equals((saved?.account_num ?: "").trim(), ignoreCase = true) &&
-                    ifscCode.equals((saved?.ifsc ?: "").trim(), ignoreCase = true)
+            val unchanged = accountNumber.trim().equals((saved?.account_num ?: "").trim(), ignoreCase = true) &&
+                    ifscCode.trim().equals((saved?.ifsc ?: "").trim(), ignoreCase = true)
             if (unchanged) isFieldsValid = false
         }
 
