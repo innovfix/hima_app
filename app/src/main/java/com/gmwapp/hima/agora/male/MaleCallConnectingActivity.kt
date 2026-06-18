@@ -707,6 +707,23 @@ class MaleCallConnectingActivity : AppCompatActivity() {
                     "MConn.observer.fire status=$status channel=$channelName currentActivity=$cur"
                 )
 
+                // B2 / TC_003 — cross-listen guard. During a concurrent call
+                // collision the losing caller's connecting screen would otherwise
+                // consume the WINNER's "accepted" relay (a different Agora channel)
+                // and fake-connect into the wrong room — the "auto-connect" flash —
+                // or wrongly abort on a foreign "rejected". Only act on a status
+                // update whose channel matches THIS call's. currentCallChannelName is
+                // always set (in sendCallNotification) before any legitimate relay
+                // for our own call can arrive, so a null/mismatched channel here is
+                // always a foreign or stale signal and must be ignored.
+                if (channelName != currentCallChannelName) {
+                    Log.d(
+                        "CreatorCallDiag",
+                        "MConn.observer.ignore foreign/stale channel=$channelName own=$currentCallChannelName status=$status"
+                    )
+                    return@Observer
+                }
+
                 if (status == "accepted") {
                     FcmUtils.clearCallStatus()  // Clear before moving to AudioCallingActivity
                     // I039 — transition the Telecom outgoing connection from DIALING → ACTIVE
