@@ -227,7 +227,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     private val recentMissedDotTag = "recent_missed_dot"
     private var chatFriendsUnread: Int = 0
     private var chatGeneralUnread: Int = 0
+    // Pending received friend-requests — shown on the female Chat icon alongside unread messages.
+    private var chatRequestsUnread: Int = 0
     private val chatUnreadDotTag = "chat_unread_dot"
+    // Male "Friends" hub (favourite tab) — pending received friend-requests badge.
+    private var friendsRequestsUnread: Int = 0
+    private val friendsRequestDotTag = "friends_request_dot"
     private val paywallVideoContentPrefsKey = "paywall_video_content_response"
     private val showPaywallInsufficientIntentKey = "show_paywall_insufficient"
 
@@ -1465,6 +1470,8 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         // Refresh bottom nav badge for missed calls
         loadRecentMissedCountBadge()
         loadChatUnreadCountBadge()
+        // Male "Friends" hub badge for pending friend-requests (female path covers requests inside loadChatUnreadCountBadge).
+        loadFriendsRequestCountBadge()
 
         // Realtime: keep the chat badge fresh on incoming pushes / socket events.
         registerChatListBadgeReceiver()
@@ -1732,10 +1739,37 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 updateChatBadge()
             }
         })
+
+        // Pending received friend-requests also surface on the Chat icon — from any tab,
+        // not only while the Chat fragment is in front.
+        apiManager.getFriendTabsCounts(userData.id, object : NetworkCallback<com.gmwapp.hima.retrofit.responses.FriendTabsCountsResponse> {
+            override fun onResponse(
+                call: Call<com.gmwapp.hima.retrofit.responses.FriendTabsCountsResponse>,
+                response: retrofit2.Response<com.gmwapp.hima.retrofit.responses.FriendTabsCountsResponse>
+            ) {
+                chatRequestsUnread = if (response.isSuccessful && response.body()?.success == true) {
+                    response.body()?.data?.received_requests_count ?: 0
+                } else {
+                    0
+                }
+                updateChatBadge()
+            }
+
+            override fun onFailure(call: Call<com.gmwapp.hima.retrofit.responses.FriendTabsCountsResponse>, t: Throwable) {
+                chatRequestsUnread = 0
+                updateChatBadge()
+            }
+
+            override fun onNoNetwork() {
+                chatRequestsUnread = 0
+                updateChatBadge()
+            }
+        })
     }
 
     private fun updateChatBadge() {
-        val total = (chatFriendsUnread.coerceAtLeast(0) + chatGeneralUnread.coerceAtLeast(0))
+        // Chat icon badge = unread messages + pending received friend-requests.
+        val total = (chatFriendsUnread.coerceAtLeast(0) + chatGeneralUnread.coerceAtLeast(0) + chatRequestsUnread.coerceAtLeast(0))
 
         binding.bottomNavigationView.removeBadge(R.id.chat)
 
@@ -1773,6 +1807,113 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             )
             if (iconView == null) {
                 // Chat tab is hidden (e.g. male user) — don't leave a stray dot at (0,0).
+                dot.visibility = View.GONE
+                return@post
+            }
+
+            val iconPos = IntArray(2)
+            iconView.getLocationInWindow(iconPos)
+            val rootPos = IntArray(2)
+            rootView.getLocationInWindow(rootPos)
+
+            val iconLeft = iconPos[0] - rootPos[0]
+            val iconRight = iconLeft + iconView.width
+            val iconTop = iconPos[1] - rootPos[1]
+            val topMargin = iconTop - dotSize / 2
+
+            (dot.layoutParams as? FrameLayout.LayoutParams)?.let {
+                it.leftMargin = iconRight - dotSize / 2
+                it.topMargin = topMargin
+                dot.layoutParams = it
+            }
+            dot.visibility = View.VISIBLE
+        }
+    }
+
+    // Female Chat tab pushes its freshly-fetched received-request count so the
+    // Chat icon badge updates immediately, without waiting for the next onResume fetch.
+    fun setChatRequestsCount(count: Int) {
+        chatRequestsUnread = count.coerceAtLeast(0)
+        updateChatBadge()
+    }
+
+    // ---- Male "Friends" hub (favourite tab) — pending friend-request badge ----
+
+    fun refreshFriendsRequestCountBadge() {
+        loadFriendsRequestCountBadge()
+    }
+
+    // Lets FriendsHubFragment push its freshly-fetched received-request count up.
+    fun setFriendsRequestCount(count: Int) {
+        friendsRequestsUnread = count.coerceAtLeast(0)
+        updateFriendsBadge()
+    }
+
+    private fun loadFriendsRequestCountBadge() {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
+        if (userData.gender != DConstants.MALE) return
+        apiManager.getFriendTabsCounts(userData.id, object : NetworkCallback<com.gmwapp.hima.retrofit.responses.FriendTabsCountsResponse> {
+            override fun onResponse(
+                call: Call<com.gmwapp.hima.retrofit.responses.FriendTabsCountsResponse>,
+                response: retrofit2.Response<com.gmwapp.hima.retrofit.responses.FriendTabsCountsResponse>
+            ) {
+                friendsRequestsUnread = if (response.isSuccessful && response.body()?.success == true) {
+                    response.body()?.data?.received_requests_count ?: 0
+                } else {
+                    0
+                }
+                updateFriendsBadge()
+            }
+
+            override fun onFailure(call: Call<com.gmwapp.hima.retrofit.responses.FriendTabsCountsResponse>, t: Throwable) {
+                friendsRequestsUnread = 0
+                updateFriendsBadge()
+            }
+
+            override fun onNoNetwork() {
+                friendsRequestsUnread = 0
+                updateFriendsBadge()
+            }
+        })
+    }
+
+    private fun updateFriendsBadge() {
+        val total = friendsRequestsUnread.coerceAtLeast(0)
+        binding.bottomNavigationView.removeBadge(R.id.favourite)
+        if (total > 0) {
+            placeFavouriteBadge(total)
+        } else {
+            hideBadge(friendsRequestDotTag)
+        }
+    }
+
+    private fun getFavouriteBottomNavItemView(): BottomNavigationItemView? {
+        val menuView = binding.bottomNavigationView.getChildAt(0) as? BottomNavigationMenuView ?: return null
+        for (i in 0 until menuView.childCount) {
+            val item = menuView.getChildAt(i)
+            if (item is BottomNavigationItemView && item.itemData?.itemId == R.id.favourite) {
+                return item
+            }
+        }
+        return null
+    }
+
+    private fun placeFavouriteBadge(count: Int) {
+        val rootView = window.decorView.findViewById<ViewGroup>(android.R.id.content)
+        val dp = resources.displayMetrics.density
+        val dotSize = (18 * dp).toInt()
+
+        val dot = rootView.findViewWithTag<TextView>(friendsRequestDotTag)
+            ?: makeBadgeDot(friendsRequestDotTag)
+        dot.text = count.coerceAtMost(99).toString()
+
+        binding.bottomNavigationView.post {
+            val itemView = getFavouriteBottomNavItemView()
+            val iconView = itemView?.findViewById<View>(
+                com.google.android.material.R.id.navigation_bar_item_icon_view
+            )
+            if (iconView == null) {
+                // Favourite tab hidden (e.g. female user) — don't strand a dot at (0,0).
                 dot.visibility = View.GONE
                 return@post
             }

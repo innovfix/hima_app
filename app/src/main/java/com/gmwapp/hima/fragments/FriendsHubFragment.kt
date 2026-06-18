@@ -105,6 +105,8 @@ class FriendsHubFragment : Fragment(), Refreshable, NetworkRetryable {
                     val base = getString(R.string.chat_tab_requests)
                     binding.tabsFriendsHub.getTabAt(1)?.text =
                         if (receivedCount > 0) "$base ($receivedCount)" else base
+                    // Mirror pending requests on the bottom-nav "Friends" icon too.
+                    (activity as? com.gmwapp.hima.activities.MainActivity)?.setFriendsRequestCount(receivedCount)
                 }
             }
 
