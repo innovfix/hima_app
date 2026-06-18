@@ -189,6 +189,12 @@ class FriendsTabFragment : Fragment() {
             // without waiting for the 30s poll.
             registerChatListRefreshReceiver()
             startCollectingSocketNewMessage()
+        } else {
+            // Friend / Requests / Sent tabs: fetch on appear. Without this they stayed
+            // blank until the 30s auto-refresh or a manual pull-to-refresh (the per-tab
+            // load trigger was lost when setUserVisibleHint was removed). loadData() also
+            // drives updateEmptyState(), so an empty tab shows its placeholder immediately.
+            loadData()
         }
 
         // Restart auto-refresh
