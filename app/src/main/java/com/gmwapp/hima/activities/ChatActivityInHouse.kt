@@ -4341,7 +4341,22 @@ class ChatActivityInHouse : AppCompatActivity() {
      */
     private fun applyComposerGate() {
         val gate = lastChatGate
-        if (gate == null || gate.mode == "autopay") {
+        if (gate == null) {
+            // Gate not yet loaded (or API failed). Males defer to subscription gate.
+            // Females default to locked so the friends gate can't be bypassed when
+            // chat_gate_status is unreachable (e.g. 404, network error).
+            val isFemale = BaseApplication.getInstance()?.getPrefs()
+                ?.getUserData()?.gender?.equals(DConstants.FEMALE, ignoreCase = true) == true
+            if (isFemale) {
+                messageInputContainer?.visibility = View.GONE
+                friendshipLockContainer?.visibility = View.GONE
+            } else {
+                friendshipLockContainer?.visibility = View.GONE
+                applySubscriptionGate()
+            }
+            return
+        }
+        if (gate.mode == "autopay") {
             friendshipLockContainer?.visibility = View.GONE
             applySubscriptionGate()
             return
