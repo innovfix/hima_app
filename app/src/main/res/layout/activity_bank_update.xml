@@ -92,6 +92,19 @@
             android:layout_margin="@dimen/_10sdp"
             android:orientation="vertical">
 
+            <!-- Bank re-verify lockout fix: shown only when a verified bank already exists -->
+            <TextView
+                android:id="@+id/tvBankVerifiedHint"
+                android:visibility="gone"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="@dimen/_13sdp"
+                android:layout_marginTop="@dimen/_10sdp"
+                android:fontFamily="@font/poppins_medium"
+                android:text="Your bank is verified. You can change it only once every 24 hours."
+                android:textColor="@color/pink"
+                android:textSize="@dimen/_12sdp" />
+
             <!-- Holder Name -->
             <TextView
                 android:id="@+id/tvHolderName"

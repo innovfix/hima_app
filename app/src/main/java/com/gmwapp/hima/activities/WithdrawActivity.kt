@@ -745,7 +745,20 @@ class WithdrawActivity : BaseActivity() {
         super.onResume()
         panVerification()
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        // Bank re-verify lockout fix: reflect the saved-bank state synchronously from prefs so a
+        // just-verified bank shows as saved (✓) immediately, instead of briefly showing the
+        // "add bank" (➕) icon until the async refresh lands and tempting a re-entry.
+        applyBankSavedIcon(!userData?.holder_name.isNullOrEmpty())
         userData?.let { profileViewModel.getUsers(it.id) }
+    }
+
+    /** Bank re-verify lockout fix: single place to render the bank ➕/✓ icon + bankDetails flag. */
+    private fun applyBankSavedIcon(hasBank: Boolean) {
+        bankDetails = hasBank
+        binding.ivAddBank.setBackgroundResource(
+            if (hasBank) R.drawable.tick_circle_svg else R.drawable.ic_add_upi
+        )
+        binding.ivAddBank.rotation = 0f
     }
 
     private fun showTransactionChargesDialog(charges: List<TransactionCharge>) {

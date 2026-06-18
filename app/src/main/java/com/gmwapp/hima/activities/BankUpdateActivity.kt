@@ -99,6 +99,9 @@ class BankUpdateActivity : BaseActivity() {
         if (!userdata?.holder_name.isNullOrEmpty()){
             binding.tvHolderName.visibility= View.VISIBLE
             binding.etHolderName.visibility= View.VISIBLE
+            // Bank re-verify lockout fix: this creator already has a verified bank. Surface the
+            // 24h change rule so a re-tap on Verify never reads as a surprise lockout.
+            binding.tvBankVerifiedHint.visibility = View.VISIBLE
         }else{
             binding.etReEnterAccountNumber.visibility = View.VISIBLE
             binding.tvReEnterAccountNumber.visibility = View.VISIBLE
@@ -197,8 +200,26 @@ class BankUpdateActivity : BaseActivity() {
                 hideLoading()
                 showToast(it.message)
 
+                // Bank re-verify lockout fix: optimistically persist the just-verified bank into
+                // prefs RIGHT NOW, so the Withdraw screen reflects the saved account the
+                // instant we return — without waiting on the async profile round-trip.
+                // The stale-prefs window was making the creator see "add bank" again and
+                // re-submit her own account, tripping the server-side 24h cooldown.
+                val prefs = BaseApplication.getInstance()?.getPrefs()
+                val current = prefs?.getUserData()
+                if (prefs != null && current != null) {
+                    prefs.setUserData(
+                        current.copy(
+                            bank = it.data.bank,
+                            account_num = it.data.account_num,
+                            branch = it.data.branch,
+                            ifsc = it.data.ifsc,
+                            holder_name = it.data.holder_name
+                        )
+                    )
+                }
 
-                BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
+                prefs?.getUserData()?.id?.let {
                     profileViewModel.getUsers(it)
                 }
 
@@ -292,6 +313,16 @@ class BankUpdateActivity : BaseActivity() {
                 ifscCode.isNotEmpty()&&
                 reEnterAccountNumber.isNotEmpty()
 
+        // Bank re-verify lockout fix: never let her re-submit the account she's ALREADY verified.
+        // It's a no-op penny-drop the server treats as a fresh bank update and blocks with
+        // the 24h cooldown. Only enable Verify when the account/IFSC actually CHANGES — a
+        // genuine change still (correctly) goes through the server-side shield.
+        val saved = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        if (!saved?.holder_name.isNullOrEmpty()) {
+            val unchanged = accountNumber.equals((saved?.account_num ?: "").trim(), ignoreCase = true) &&
+                    ifscCode.equals((saved?.ifsc ?: "").trim(), ignoreCase = true)
+            if (unchanged) isFieldsValid = false
+        }
 
         // Enable or disable the update button
         binding.btnUpdate.isEnabled = isFieldsValid
