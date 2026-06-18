@@ -217,6 +217,10 @@ class UserProfileDetailActivity : AppCompatActivity() {
                     binding.btnSendFriendRequest.visibility = View.GONE
                     binding.cvFriendStatus.visibility = View.GONE
                     binding.llAcceptRejectButtons.visibility = View.GONE
+                    // Friends-Gated Chat: also hide the Variant-B button (post-reject the
+                    // backend reports "request_sent", so re-checking would mislead).
+                    binding.btnAddFriendPrimary.visibility = View.GONE
+                    binding.tvDeclineFriend.visibility = View.GONE
                     Log.d("UserProfileDetail", "✅ Reject successful - hiding all UI elements")
                 } else {
                     // Re-check friend request status to update UI for other actions
@@ -1142,51 +1146,67 @@ class UserProfileDetailActivity : AppCompatActivity() {
     }
 
     private fun updateUIBasedOnFriendStatus() {
-        // Always hide call buttons
+        // Friends-Gated Chat (Variant B): a single prominent Add-Friend button under the
+        // About Me card drives every state, shown for all viewers (friends UI everywhere).
+        // The legacy bottom action row + status card are kept hidden.
         binding.llCallButtons.visibility = View.GONE
-
-        // Send Friend Request button is hidden everywhere now (UI request).
-        // The friend-request flow itself still works if triggered elsewhere.
         binding.btnSendFriendRequest.visibility = View.GONE
+        binding.llAcceptRejectButtons.visibility = View.GONE
+        binding.cvFriendStatus.visibility = View.GONE
+        binding.llActionButtons.visibility = View.GONE
 
+        val card = binding.btnAddFriendPrimary
+        val label = binding.tvAddFriendText
+        val decline = binding.tvDeclineFriend
+        card.visibility = View.VISIBLE
+        card.alpha = 1f
+        card.isClickable = true
+        decline.visibility = View.GONE
         when (currentFriendStatus) {
             FriendStatus.NOT_FRIENDS -> {
-                // Send friend request button intentionally kept hidden.
-                binding.llAcceptRejectButtons.visibility = View.GONE
-                binding.cvFriendStatus.visibility = View.GONE
+                label.text = "Add Friend"
+                card.setOnClickListener { sendFriendRequest() }
             }
-            
             FriendStatus.REQUEST_SENT -> {
-                // Show status that request is sent (hide button, show message)
-                binding.btnSendFriendRequest.visibility = View.GONE
-                binding.llAcceptRejectButtons.visibility = View.GONE
-                binding.cvFriendStatus.visibility = View.VISIBLE
-                binding.tvFriendStatus.text = "Friend request sent"
+                label.text = "Request Sent"
+                card.alpha = 0.5f
+                card.isClickable = false
+                card.setOnClickListener(null)
             }
-            
             FriendStatus.REQUEST_RECEIVED -> {
-                // Show accept and reject friend request buttons
-                binding.btnSendFriendRequest.visibility = View.GONE
-                binding.llAcceptRejectButtons.visibility = View.VISIBLE
-                binding.cvFriendStatus.visibility = View.GONE
+                label.text = "Accept Friend Request"
+                card.setOnClickListener { acceptFriendRequest() }
+                decline.visibility = View.VISIBLE
+                decline.setOnClickListener { rejectFriendRequest() }
             }
-            
             FriendStatus.FRIENDS -> {
-                // Show friend status (call buttons are hidden)
-                binding.btnSendFriendRequest.visibility = View.GONE
-                binding.llAcceptRejectButtons.visibility = View.GONE
-                binding.cvFriendStatus.visibility = View.VISIBLE
-                binding.tvFriendStatus.text = "You are friends"
+                label.text = "✓ Friends — Remove"
+                card.setOnClickListener { confirmRemoveFriend() }
             }
         }
+    }
 
-        // Collapse this row when every child is GONE — otherwise empty margins stack above Report/Block.
-        val showActionButtonsSection =
-            binding.btnSendFriendRequest.visibility == View.VISIBLE ||
-                binding.llAcceptRejectButtons.visibility == View.VISIBLE ||
-                binding.llCallButtons.visibility == View.VISIBLE
-        binding.llActionButtons.visibility =
-            if (showActionButtonsSection) View.VISIBLE else View.GONE
+    private fun confirmRemoveFriend() {
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setMessage("Remove this friend? You won't be able to chat unless you become friends again.")
+            .setPositiveButton("Remove") { _, _ -> removeFriend() }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun removeFriend() {
+        val currentUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
+        if (currentUserId == 0) {
+            showAppToast("Unable to remove friend. Please try again.", Toast.LENGTH_SHORT)
+            return
+        }
+        // status = 2 on an accepted friendship -> backend deletes the row (B6), so the
+        // pair can re-friend later. The sendFriendRequest observer re-checks status after.
+        friendRequestViewModel.sendFriendRequest(
+            senderId = currentUserId,
+            receiverId = userId,
+            status = 2
+        )
     }
 
     // For testing purposes - simulate different friend statuses

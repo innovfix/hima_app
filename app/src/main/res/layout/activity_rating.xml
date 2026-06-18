@@ -341,6 +341,74 @@
             android:layout_marginStart="8dp" />
     </LinearLayout>
 
+    <!-- Friends-Gated Chat (Variant A): instant action chips — favourite (male) + add friend (all) -->
+    <LinearLayout
+        android:id="@+id/ll_action_chips"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:orientation="horizontal"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="@id/gl_right_margin_inner"
+        app:layout_constraintStart_toStartOf="@id/gl_left_margin_inner"
+        app:layout_constraintTop_toBottomOf="@id/ll_favourite_user">
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/chip_favourite"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="6dp"
+            android:layout_weight="1"
+            android:clickable="true"
+            android:focusable="true"
+            android:visibility="gone"
+            app:cardBackgroundColor="@color/white"
+            app:cardCornerRadius="22dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/colorAccent"
+            app:strokeWidth="1dp">
+
+            <TextView
+                android:id="@+id/tv_chip_favourite"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_semibold"
+                android:gravity="center"
+                android:minHeight="44dp"
+                android:paddingVertical="10dp"
+                android:text="♡ Add to Favourite"
+                android:textColor="@color/colorAccent"
+                android:textSize="12sp" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/chip_friend"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:layout_weight="1"
+            android:clickable="true"
+            android:focusable="true"
+            app:cardBackgroundColor="@color/white"
+            app:cardCornerRadius="22dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/colorAccent"
+            app:strokeWidth="1dp">
+
+            <TextView
+                android:id="@+id/tv_chip_friend"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_semibold"
+                android:gravity="center"
+                android:minHeight="44dp"
+                android:paddingVertical="10dp"
+                android:text="+ Add Friend"
+                android:textColor="@color/colorAccent"
+                android:textSize="12sp" />
+        </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
+
     <!-- Submit Button -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_submit"
@@ -359,7 +427,7 @@
         app:elevation="3dp"
         app:layout_constraintEnd_toEndOf="@id/gl_right_margin_inner"
         app:layout_constraintStart_toStartOf="@id/gl_left_margin_inner"
-        app:layout_constraintTop_toBottomOf="@id/ll_favourite_user"
+        app:layout_constraintTop_toBottomOf="@id/ll_action_chips"
         app:layout_constraintBottom_toBottomOf="parent" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>

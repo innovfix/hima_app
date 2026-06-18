@@ -377,7 +377,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         app:barrierDirection="top"
-        app:constraint_referenced_ids="message_input_container,subscribe_lock_container,autopay_failed_lock_container" />
+        app:constraint_referenced_ids="message_input_container,subscribe_lock_container,autopay_failed_lock_container,friendship_lock_container" />
 
     <!-- Date Divider Example (Optional) -->
     <TextView
@@ -724,6 +724,113 @@
                     android:textColor="@color/white"
                     android:textSize="14sp" />
             </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
+
+    <!-- Friends-Gated Chat: friendship lock (friends-mode composer lock — Variant C, code-driven states) -->
+    <LinearLayout
+        android:id="@+id/friendship_lock_container"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@color/white"
+        android:elevation="4dp"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingHorizontal="20dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="16dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <TextView
+            android:id="@+id/tv_friend_lock_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/poppins_semibold"
+            android:gravity="center"
+            android:text="Want to chat?"
+            android:textColor="#111827"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/tv_friend_lock_subtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:layout_marginBottom="12dp"
+            android:fontFamily="@font/poppins_medium"
+            android:gravity="center"
+            android:text="Send a friend request to start chatting."
+            android:textColor="#6B7280"
+            android:textSize="12sp" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btn_friend_lock_primary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clickable="true"
+            android:focusable="true"
+            app:cardBackgroundColor="@color/colorAccent"
+            app:cardCornerRadius="28dp"
+            app:cardElevation="2dp"
+            app:rippleColor="#33FFFFFF">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:minHeight="50dp"
+                android:orientation="horizontal"
+                android:paddingHorizontal="20dp"
+                android:paddingVertical="12dp">
+
+                <ImageView
+                    android:id="@+id/iv_friend_lock_primary_icon"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_marginEnd="10dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_user_add"
+                    app:tint="@color/white" />
+
+                <TextView
+                    android:id="@+id/tv_friend_lock_primary_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/poppins_semibold"
+                    android:text="Send friend request"
+                    android:textColor="@color/white"
+                    android:textSize="14sp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btn_friend_lock_secondary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:clickable="true"
+            android:focusable="true"
+            app:cardBackgroundColor="@color/white"
+            app:cardCornerRadius="28dp"
+            app:cardElevation="0dp"
+            app:rippleColor="#22000000"
+            app:strokeColor="@color/colorAccent"
+            app:strokeWidth="1dp">
+
+            <TextView
+                android:id="@+id/tv_friend_lock_secondary_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_semibold"
+                android:gravity="center"
+                android:minHeight="44dp"
+                android:paddingVertical="10dp"
+                android:text="View profile"
+                android:textColor="@color/colorAccent"
+                android:textSize="13sp" />
         </com.google.android.material.card.MaterialCardView>
     </LinearLayout>
 

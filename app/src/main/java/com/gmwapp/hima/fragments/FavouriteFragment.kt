@@ -57,10 +57,28 @@ class FavouriteFragment : BaseFragment(), NetworkRetryable, Refreshable {
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
         binding = FragmentFavouriteBinding.inflate(inflater, container, false)
-        setupStatusBarInsets()
+        // Friends-Gated Chat: when embedded as the "Favourites" tab of the Friends hub,
+        // the hub owns the header — hide our own app bar to avoid a double header.
+        val embedded = arguments?.getBoolean(ARG_EMBEDDED, false) ?: false
+        if (embedded) {
+            binding.appBarLayout.visibility = View.GONE
+        } else {
+            setupStatusBarInsets()
+        }
         initUI()
         observeViewModel()
         return binding.root
+    }
+
+    companion object {
+        private const val ARG_EMBEDDED = "embedded"
+
+        /** Embedded = true hides this fragment's own header (used inside the Friends hub). */
+        fun newInstance(embedded: Boolean): FavouriteFragment {
+            return FavouriteFragment().apply {
+                arguments = Bundle().apply { putBoolean(ARG_EMBEDDED, embedded) }
+            }
+        }
     }
 
     private fun setupStatusBarInsets() {

@@ -5,19 +5,28 @@
     android:layout_height="match_parent"
     android:background="@color/white">
 
+    <!-- Friends-Gated Chat: segmented-pill tabs (Variant B) — Friends | Requests | Sent -->
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/tabs_creator_chat"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@color/white"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="6dp"
+        android:background="@drawable/bg_segmented_tabs"
+        android:padding="4dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:tabGravity="fill"
         app:tabMode="fixed"
+        app:tabIndicator="@drawable/bg_tab_pill_selected"
         app:tabIndicatorColor="@color/colorAccent"
-        app:tabSelectedTextColor="@color/colorAccent"
-        app:tabTextColor="@color/grey_medium" />
+        app:tabIndicatorFullWidth="true"
+        app:tabIndicatorGravity="stretch"
+        app:tabRippleColor="@null"
+        app:tabSelectedTextColor="@color/white"
+        app:tabTextColor="#6B7280" />
 
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/vp_creator_chat"

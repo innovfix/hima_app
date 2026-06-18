@@ -21,15 +21,17 @@ import com.gmwapp.hima.databinding.FragmentCreatorChatBinding
 import com.gmwapp.hima.retrofit.ApiManager
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.MyChatResponse
+import com.gmwapp.hima.retrofit.responses.FriendTabsCountsResponse
 import dagger.hilt.android.AndroidEntryPoint
 import retrofit2.Call
 import retrofit2.Response
 import javax.inject.Inject
 
 /**
- * Female creator bottom-nav "Chat" destination: Friends / General sub-tabs over
- * [FriendsTabFragment] with [FriendsTabFragment.TYPE_CHAT_FRIENDS] and
- * [FriendsTabFragment.TYPE_CHAT_GENERAL].
+ * Female creator bottom-nav "Chat" destination (Friends-Gated Chat). Segmented-pill
+ * sub-tabs over [FriendsTabFragment]: Friends ([FriendsTabFragment.TYPE_CHAT_FRIENDS]),
+ * Requests received ([FriendsTabFragment.TYPE_THEIR_REQUESTS]) and Sent
+ * ([FriendsTabFragment.TYPE_MY_REQUESTS]).
  */
 @AndroidEntryPoint
 class CreatorChatFragment : Fragment() {
@@ -41,7 +43,8 @@ class CreatorChatFragment : Fragment() {
     private val binding get() = _binding!!
 
     private var friendsUnread = 0
-    private var generalUnread = 0
+    private var receivedCount = 0
+    private var sentCount = 0
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -55,31 +58,33 @@ class CreatorChatFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         if (requireActivity() is MainActivity) {
-            val basePaddingTop = binding.tabsCreatorChat.paddingTop
+            // Segmented-pill tabs carry a rounded background, so push them below the
+            // status bar with top MARGIN (not padding) — padding would extend the pill
+            // background up into the status-bar area.
+            val baseMarginTop = (binding.tabsCreatorChat.layoutParams as ViewGroup.MarginLayoutParams).topMargin
             ViewCompat.setOnApplyWindowInsetsListener(binding.tabsCreatorChat) { v, insets ->
                 val statusBarInset = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
-                v.setPadding(
-                    v.paddingLeft,
-                    basePaddingTop + statusBarInset,
-                    v.paddingRight,
-                    v.paddingBottom
-                )
+                val mlp = v.layoutParams as ViewGroup.MarginLayoutParams
+                mlp.topMargin = baseMarginTop + statusBarInset
+                v.layoutParams = mlp
                 insets
             }
             ViewCompat.requestApplyInsets(binding.tabsCreatorChat)
         }
 
         binding.vpCreatorChat.adapter = object : FragmentStateAdapter(this) {
-            override fun getItemCount(): Int = 2
+            override fun getItemCount(): Int = 3
             override fun createFragment(position: Int): Fragment = when (position) {
                 0 -> FriendsTabFragment.newInstance(FriendsTabFragment.TYPE_CHAT_FRIENDS)
-                else -> FriendsTabFragment.newInstance(FriendsTabFragment.TYPE_CHAT_GENERAL)
+                1 -> FriendsTabFragment.newInstance(FriendsTabFragment.TYPE_THEIR_REQUESTS)
+                else -> FriendsTabFragment.newInstance(FriendsTabFragment.TYPE_MY_REQUESTS)
             }
         }
         TabLayoutMediator(binding.tabsCreatorChat, binding.vpCreatorChat) { tab, position ->
             tab.text = when (position) {
                 0 -> getString(R.string.chat_tab_friends)
-                else -> getString(R.string.chat_tab_general)
+                1 -> getString(R.string.chat_tab_requests)
+                else -> getString(R.string.chat_tab_sent)
             }
         }.attach()
 
@@ -202,18 +207,19 @@ class CreatorChatFragment : Fragment() {
             }
         })
 
-        apiManager.getMyChatGeneral(userId, null, 100, 0, object : NetworkCallback<MyChatResponse> {
-            override fun onResponse(call: Call<MyChatResponse>, response: Response<MyChatResponse>) {
+        // Requests (received) + Sent counts come from the friend-tabs counts endpoint.
+        apiManager.getFriendTabsCounts(userId, object : NetworkCallback<FriendTabsCountsResponse> {
+            override fun onResponse(call: Call<FriendTabsCountsResponse>, response: Response<FriendTabsCountsResponse>) {
                 if (!isAdded) return
-                generalUnread = if (response.isSuccessful && response.body()?.success == true) {
-                    response.body()?.data?.chats?.sumOf { it.unreadCount } ?: 0
-                } else {
-                    0
+                val d = response.body()?.data
+                if (response.isSuccessful && response.body()?.success == true && d != null) {
+                    receivedCount = d.received_requests_count
+                    sentCount = d.my_requests_count
                 }
                 refreshTabTitles()
             }
 
-            override fun onFailure(call: Call<MyChatResponse>, t: Throwable) {
+            override fun onFailure(call: Call<FriendTabsCountsResponse>, t: Throwable) {
                 if (!isAdded) return
             }
 
@@ -226,8 +232,9 @@ class CreatorChatFragment : Fragment() {
     private fun refreshTabTitles() {
         if (_binding == null) return
         binding.tabsCreatorChat.getTabAt(0)?.text = formatTitle(R.string.chat_tab_friends, friendsUnread)
-        binding.tabsCreatorChat.getTabAt(1)?.text = formatTitle(R.string.chat_tab_general, generalUnread)
-        (activity as? MainActivity)?.updateChatUnreadCountBadge(friendsUnread, generalUnread)
+        binding.tabsCreatorChat.getTabAt(1)?.text = formatTitle(R.string.chat_tab_requests, receivedCount)
+        binding.tabsCreatorChat.getTabAt(2)?.text = formatTitle(R.string.chat_tab_sent, sentCount)
+        (activity as? MainActivity)?.updateChatUnreadCountBadge(friendsUnread, receivedCount)
     }
 
     private fun formatTitle(@StringRes resId: Int, count: Int): String {
