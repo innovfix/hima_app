@@ -45,6 +45,7 @@ fun View.setOnHold(holdMs: Long = 5000L, onHold: () -> Unit) {
             android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
                 v.parent?.requestDisallowInterceptTouchEvent(false)
                 handler.removeCallbacks(fire)
+                if (event.actionMasked == android.view.MotionEvent.ACTION_UP) v.performClick()
                 true
             }
             else -> true
