@@ -92,8 +92,11 @@ class FriendRequestViewModel @Inject constructor(
                             myFriendRequestsLiveData.postValue(responseBody)
                             Log.d("FriendRequestVM", "✅ My requests loaded: ${responseBody.count} requests")
                         } else {
-                            friendRequestErrorLiveData.postValue(responseBody.message)
-                            Log.e("FriendRequestVM", "❌ API Error: ${responseBody.message}")
+                            // Empty list: backend sends success=false ("No data found") on a 200.
+                            // Route it to the list LiveData so the tab renders its empty-state
+                            // placeholder instead of a blank screen + a recurring error toast.
+                            myFriendRequestsLiveData.postValue(responseBody)
+                            Log.d("FriendRequestVM", "ℹ️ My requests empty: ${responseBody.message}")
                         }
                     } else {
                         friendRequestErrorLiveData.postValue("Failed to load friend requests")
@@ -132,8 +135,11 @@ class FriendRequestViewModel @Inject constructor(
                             receivedFriendRequestsLiveData.postValue(responseBody)
                             Log.d("FriendRequestVM", "✅ Received requests loaded: ${responseBody.count} requests")
                         } else {
-                            friendRequestErrorLiveData.postValue(responseBody.message)
-                            Log.e("FriendRequestVM", "❌ API Error: ${responseBody.message}")
+                            // Empty list: backend sends success=false ("No data found") on a 200.
+                            // Route it to the list LiveData so the tab renders its empty-state
+                            // placeholder instead of a blank screen + a recurring error toast.
+                            receivedFriendRequestsLiveData.postValue(responseBody)
+                            Log.d("FriendRequestVM", "ℹ️ Received requests empty: ${responseBody.message}")
                         }
                     } else {
                         friendRequestErrorLiveData.postValue("Failed to load received requests")
@@ -172,8 +178,11 @@ class FriendRequestViewModel @Inject constructor(
                             friendsListLiveData.postValue(responseBody)
                             Log.d("FriendRequestVM", "✅ Friends list loaded: ${responseBody.count} friends")
                         } else {
-                            friendRequestErrorLiveData.postValue(responseBody.message)
-                            Log.e("FriendRequestVM", "❌ API Error: ${responseBody.message}")
+                            // Empty list: backend sends success=false ("No data found") on a 200.
+                            // Route it to the list LiveData so the tab renders its empty-state
+                            // placeholder instead of a blank screen + a recurring error toast.
+                            friendsListLiveData.postValue(responseBody)
+                            Log.d("FriendRequestVM", "ℹ️ Friends list empty: ${responseBody.message}")
                         }
                     } else {
                         friendRequestErrorLiveData.postValue("Failed to load friends list")
