@@ -482,6 +482,10 @@ class ChatActivityInHouse : AppCompatActivity() {
         }
         initPeerHeader()
         initAddFriendBanner()
+        // Friends-Gated Chat: lock the composer immediately for the new peer
+        // (gate was just reset to null), then fetch the real gate for this peer.
+        applyComposerGate()
+        refreshChatGate()
         connectSocket()
         loadMessages()
     }
@@ -3242,6 +3246,12 @@ class ChatActivityInHouse : AppCompatActivity() {
         historySilentRetryUsed = false
         suppressNextResumeHistoryReload = true
         isAddFriendBannerDismissedThisSession = false
+        // Friends-Gated Chat: the gate is per-conversation. Drop the previous
+        // peer's gate so peer B never inherits peer A's "unlocked" composer
+        // (a real friends-gate bypass when switching peers via onNewIntent).
+        // onNewIntent re-applies the (now-null) gate immediately, then refreshes.
+        lastChatGate = null
+        isFriendWithPeer = false
         activeAttachmentTempIds.clear()
         messages.clear()
         clearNewMessagePill()
@@ -4342,17 +4352,19 @@ class ChatActivityInHouse : AppCompatActivity() {
     private fun applyComposerGate() {
         val gate = lastChatGate
         if (gate == null) {
-            // Gate not yet loaded (or API failed). Males defer to subscription gate.
-            // Females default to locked so the friends gate can't be bypassed when
-            // chat_gate_status is unreachable (e.g. 404, network error).
-            val isFemale = BaseApplication.getInstance()?.getPrefs()
-                ?.getUserData()?.gender?.equals(DConstants.FEMALE, ignoreCase = true) == true
-            if (isFemale) {
-                messageInputContainer?.visibility = View.GONE
-                friendshipLockContainer?.visibility = View.GONE
-            } else {
+            // Gate not yet loaded (or API failed). Only a confirmed MALE defers to
+            // the subscription gate; everyone else (females AND any user whose local
+            // gender is null/unknown) fails closed with a locked composer so the
+            // friends gate can't be bypassed while chat_gate_status is unreachable
+            // (e.g. 404, network error, missing prefs).
+            val isMale = BaseApplication.getInstance()?.getPrefs()
+                ?.getUserData()?.gender?.equals(DConstants.MALE, ignoreCase = true) == true
+            if (isMale) {
                 friendshipLockContainer?.visibility = View.GONE
                 applySubscriptionGate()
+            } else {
+                messageInputContainer?.visibility = View.GONE
+                friendshipLockContainer?.visibility = View.GONE
             }
             return
         }
@@ -4434,6 +4446,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         apiManager.sendFriendRequest(senderId, receiverId, status, object : NetworkCallback<FriendRequestResponse> {
             override fun onResponse(call: Call<FriendRequestResponse>, response: Response<FriendRequestResponse>) {
                 isFriendRequestInFlight = false
+                if (!isUiSafe()) return
                 val ok = response.isSuccessful && response.body()?.success == true
                 val msg = when {
                     !ok -> getString(R.string.chat_add_friend_failure)
@@ -4447,12 +4460,14 @@ class ChatActivityInHouse : AppCompatActivity() {
 
             override fun onFailure(call: Call<FriendRequestResponse>, t: Throwable) {
                 isFriendRequestInFlight = false
+                if (!isUiSafe()) return
                 setFriendLockButtonsEnabled(true)
                 showAppToast(getString(R.string.chat_add_friend_failure), Toast.LENGTH_SHORT)
             }
 
             override fun onNoNetwork() {
                 isFriendRequestInFlight = false
+                if (!isUiSafe()) return
                 setFriendLockButtonsEnabled(true)
                 showAppToast(getString(R.string.chat_add_friend_failure), Toast.LENGTH_SHORT)
             }
@@ -4473,15 +4488,18 @@ class ChatActivityInHouse : AppCompatActivity() {
                     lastChatGate = body
                     isFriendWithPeer = body.friendStatus == "friends"
                 }
+                if (!isUiSafe()) return
                 applyComposerGate()
             }
 
             override fun onFailure(call: Call<com.gmwapp.hima.retrofit.responses.ChatGateStatusResponse>, t: Throwable) {
                 Log.w("ChatFriends", "refreshChatGate failed: ${t.message}")
+                if (!isUiSafe()) return
                 applyComposerGate()
             }
 
             override fun onNoNetwork() {
+                if (!isUiSafe()) return
                 applyComposerGate()
             }
         })
