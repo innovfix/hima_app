@@ -393,7 +393,7 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
         }
 
         binding.tvAppVersion.text = "Version ${BuildConfig.VERSION_NAME}"
-        binding.tvAppVersion.setOnSingleClickListener { TesterAccess.onVersionTap(requireContext()) }
+        binding.tvAppVersion.setOnClickListener { TesterAccess.onVersionTap(requireContext()) }
         binding.tvAppVersion.setOnHold(5000L) {
             if (TesterAccess.canUseDebugTools()) LogCapture.shareLogs(requireActivity())
         }

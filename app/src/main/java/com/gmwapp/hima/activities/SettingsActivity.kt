@@ -38,7 +38,7 @@ class SettingsActivity : AppCompatActivity() {
         binding.tvUserLanguage.text = userLanguage
 
         binding.tvAppVersion.text = "Version ${BuildConfig.VERSION_NAME}"
-        binding.tvAppVersion.setOnSingleClickListener { TesterAccess.onVersionTap(this) }
+        binding.tvAppVersion.setOnClickListener { TesterAccess.onVersionTap(this) }
         binding.tvAppVersion.setOnHold(5000L) {
             if (TesterAccess.canUseDebugTools()) LogCapture.shareLogs(this)
         }

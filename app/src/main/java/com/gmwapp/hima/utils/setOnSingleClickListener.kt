@@ -38,12 +38,14 @@ fun View.setOnHold(holdMs: Long = 5000L, onHold: () -> Unit) {
         when (event.actionMasked) {
             android.view.MotionEvent.ACTION_DOWN -> {
                 v.parent?.requestDisallowInterceptTouchEvent(true)
+                v.animate().alpha(0.4f).setDuration(150).start()
                 handler.removeCallbacks(fire)
                 handler.postDelayed(fire, holdMs)
                 true
             }
             android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
                 v.parent?.requestDisallowInterceptTouchEvent(false)
+                v.animate().alpha(1f).setDuration(150).start()
                 handler.removeCallbacks(fire)
                 if (event.actionMasked == android.view.MotionEvent.ACTION_UP) v.performClick()
                 true

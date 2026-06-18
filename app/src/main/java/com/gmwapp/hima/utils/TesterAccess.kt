@@ -33,12 +33,13 @@ object TesterAccess {
                 unlocked = true
                 tapCount = 0
                 LogCapture.startSessionLog(context)
-                Toast.makeText(context, "Debug mode unlocked — logging started. Hold version to share logs.", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Debug mode unlocked — logging started. Hold version to share logs.", Toast.LENGTH_SHORT).show()
             }
             tapCount >= 4 -> {
                 val remaining = TAPS_REQUIRED - tapCount
                 Toast.makeText(context, "$remaining more taps to unlock debug mode", Toast.LENGTH_SHORT).show()
             }
+            // taps 1–3 are silent — no hint that anything is happening
         }
     }
 
