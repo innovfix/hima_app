@@ -66,6 +66,10 @@
     <string name="chat_friends_empty_state_subtitle">Accept friend requests to chat with them here</string>
     <string name="chat_general_empty_state_title">No chats yet</string>
     <string name="chat_general_empty_state_subtitle">New conversations will appear here</string>
+    <string name="chat_requests_empty_title">No friend requests</string>
+    <string name="chat_requests_empty_subtitle">When someone adds you, it shows here</string>
+    <string name="chat_sent_empty_title">No sent requests</string>
+    <string name="chat_sent_empty_subtitle">Requests you send will appear here</string>
     <string name="recent">Recent</string>
     <string name="favourite">Favourite</string>
     <string name="chat_now">Chat Now</string>
