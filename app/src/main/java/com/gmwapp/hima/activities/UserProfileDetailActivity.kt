@@ -1098,11 +1098,27 @@ class UserProfileDetailActivity : AppCompatActivity() {
     }
 
     private fun confirmRemoveFriend() {
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setMessage("Remove this friend? You won't be able to chat unless you become friends again.")
-            .setPositiveButton("Remove") { _, _ -> removeFriend() }
-            .setNegativeButton("Cancel", null)
-            .show()
+        // Friends-Gated Chat: branded avatar-confirm dialog (replaces the plain AlertDialog).
+        val view = layoutInflater.inflate(R.layout.dialog_remove_friend, null)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this).setView(view).create()
+        dialog.window?.setBackgroundDrawable(
+            android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT)
+        )
+
+        val name = displayedUserName.ifBlank { userName }.ifBlank { "this user" }
+        view.findViewById<android.widget.TextView>(R.id.tv_dialog_title).text = "Remove $name?"
+
+        val avatar = view.findViewById<android.widget.ImageView>(R.id.iv_dialog_avatar)
+        if (userImage.isNotBlank() && !isDestroyed && !isFinishing) {
+            Glide.with(this).load(userImage).placeholder(R.drawable.star).into(avatar)
+        }
+
+        view.findViewById<View>(R.id.btn_dialog_keep).setOnClickListener { dialog.dismiss() }
+        view.findViewById<View>(R.id.btn_dialog_remove).setOnClickListener {
+            dialog.dismiss()
+            removeFriend()
+        }
+        dialog.show()
     }
 
     private fun removeFriend() {
