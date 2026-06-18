@@ -223,6 +223,12 @@ class UserProfileDetailActivity : AppCompatActivity() {
         friendRequestViewModel.friendRequestErrorLiveData.observe(this, Observer { error ->
             Log.e("UserProfileDetail", "❌ Friend request error: $error")
             showAppToast(error, Toast.LENGTH_SHORT)
+            // The legacy action row is hidden by default, so a failed
+            // check_friend_request would otherwise leave no add-friend button.
+            // Render the Variant-B button from the current (default NOT_FRIENDS)
+            // status so the screen is never buttonless. A duplicate reverse send
+            // is still rejected server-side ("Request already sent…").
+            updateUIBasedOnFriendStatus()
         })
 
         // Observe loading state
