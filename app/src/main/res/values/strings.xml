@@ -59,6 +59,9 @@
     <string name="chat_empty_state_subtitle">Messages from users will appear here</string>
     <string name="chat_tab_friends">Friends</string>
     <string name="chat_tab_general">General</string>
+    <string name="chat_tab_requests">Requests</string>
+    <string name="chat_tab_sent">Sent</string>
+    <string name="friends">Friends</string>
     <string name="chat_friends_empty_state_title">No friends yet</string>
     <string name="chat_friends_empty_state_subtitle">Accept friend requests to chat with them here</string>
     <string name="chat_general_empty_state_title">No chats yet</string>

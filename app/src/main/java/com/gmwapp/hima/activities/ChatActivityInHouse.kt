@@ -141,6 +141,15 @@ class ChatActivityInHouse : AppCompatActivity() {
     private var messageInputContainer: View? = null
     private var subscribeLockContainer: View? = null
     private var autopayFailedLockContainer: View? = null
+    // Friends-Gated Chat: friendship lock (friends-mode composer lock) + last gate result.
+    private var friendshipLockContainer: View? = null
+    private var tvFriendLockTitle: TextView? = null
+    private var tvFriendLockSubtitle: TextView? = null
+    private var btnFriendLockPrimary: View? = null
+    private var tvFriendLockPrimaryText: TextView? = null
+    private var btnFriendLockSecondary: View? = null
+    private var tvFriendLockSecondaryText: TextView? = null
+    private var lastChatGate: com.gmwapp.hima.retrofit.responses.ChatGateStatusResponse? = null
     private var btnSubscribeUnlock: View? = null
     private var btnBuyCoinsUnlock: View? = null
     private var chatEndedBanner: View? = null
@@ -414,7 +423,8 @@ class ChatActivityInHouse : AppCompatActivity() {
         initAddFriendBanner()
         setupClickListeners()
         setupComposer()
-        applySubscriptionGate()
+        applyComposerGate()
+        refreshChatGate()
         connectSocket()
         suppressNextResumeHistoryReload = true
         activityCreatedAtElapsed = SystemClock.elapsedRealtime()
@@ -574,6 +584,15 @@ class ChatActivityInHouse : AppCompatActivity() {
         tvBannerAddFriendTitle = findViewById(R.id.tv_banner_add_friend_title)
         btnBannerNotNow = findViewById(R.id.btn_banner_not_now)
         btnBannerAcceptFriend = findViewById(R.id.btn_banner_accept_friend)
+
+        // Friends-Gated Chat: friendship lock views (code-driven states).
+        friendshipLockContainer = findViewById(R.id.friendship_lock_container)
+        tvFriendLockTitle = findViewById(R.id.tv_friend_lock_title)
+        tvFriendLockSubtitle = findViewById(R.id.tv_friend_lock_subtitle)
+        btnFriendLockPrimary = findViewById(R.id.btn_friend_lock_primary)
+        tvFriendLockPrimaryText = findViewById(R.id.tv_friend_lock_primary_text)
+        btnFriendLockSecondary = findViewById(R.id.btn_friend_lock_secondary)
+        tvFriendLockSecondaryText = findViewById(R.id.tv_friend_lock_secondary_text)
 
         layoutHistoryError = findViewById(R.id.layout_history_error)
         tvHistoryError = findViewById(R.id.tv_history_error)
@@ -1042,9 +1061,9 @@ class ChatActivityInHouse : AppCompatActivity() {
             bannerAddFriend?.visibility = View.GONE
             return
         }
-        val showBannerAndMenu = !isFriendWithPeer
-        bannerAddFriend?.visibility =
-            if (showBannerAndMenu && !isAddFriendBannerDismissedThisSession) View.VISIBLE else View.GONE
+        // Friends-Gated Chat: the friendship lock (friendship_lock_container) now owns the
+        // not-friends CTA, so the legacy add-friend banner is retired to avoid duplicate UI.
+        bannerAddFriend?.visibility = View.GONE
     }
 
     private fun acceptAsFriend() {
@@ -3486,7 +3505,8 @@ class ChatActivityInHouse : AppCompatActivity() {
         // hit catches UPI-side cancels even when no webhook has arrived yet.
         // Cached gate applies first for instant feedback; observer at
         // observeAutopayPushEvents() re-applies the gate when the response lands.
-        applySubscriptionGate()
+        applyComposerGate()
+        refreshChatGate()
         BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let { uid ->
             autopayViewModel.subscriptionStatus(uid)
         }
@@ -4313,6 +4333,146 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     /**
+     * Friends-Gated Chat — top-level composer gate. Chooses between the autopay
+     * Subscribe/BuyCoins lock (autopay-language males) and the friendship lock
+     * (females + autopay-OFF males), driven by [lastChatGate] from chat_gate_status.
+     * Autopay-mode (and the pre-load state) defer to [applySubscriptionGate];
+     * friends-mode owns the composer here.
+     */
+    private fun applyComposerGate() {
+        val gate = lastChatGate
+        if (gate == null || gate.mode == "autopay") {
+            friendshipLockContainer?.visibility = View.GONE
+            applySubscriptionGate()
+            return
+        }
+        // Friends mode: autopay locks never apply; friendship governs the composer.
+        subscribeLockContainer?.visibility = View.GONE
+        autopayFailedLockContainer?.visibility = View.GONE
+        bannerAddFriend?.visibility = View.GONE
+        if (gate.unlocked) {
+            friendshipLockContainer?.visibility = View.GONE
+            messageInputContainer?.visibility = View.VISIBLE
+        } else {
+            messageInputContainer?.visibility = View.GONE
+            friendshipLockContainer?.visibility = View.VISIBLE
+            renderFriendshipLock(gate)
+        }
+    }
+
+    /** Render the friendship lock per the friend action (received / pending / send). */
+    private fun renderFriendshipLock(gate: com.gmwapp.hima.retrofit.responses.ChatGateStatusResponse) {
+        val name = peerName.ifBlank { "this user" }
+        setFriendLockButtonsEnabled(true)
+        when (gate.action) {
+            "accept_request" -> {
+                tvFriendLockTitle?.text = "$name wants to be friends"
+                tvFriendLockSubtitle?.text = "Accept to start chatting."
+                tvFriendLockPrimaryText?.text = "Accept"
+                tvFriendLockSecondaryText?.text = "Decline"
+                btnFriendLockSecondary?.visibility = View.VISIBLE
+                btnFriendLockPrimary?.setOnClickListener { doFriendAction(1) }
+                btnFriendLockSecondary?.setOnClickListener { doFriendAction(2) }
+            }
+            "request_sent" -> {
+                tvFriendLockTitle?.text = "Friend request sent"
+                tvFriendLockSubtitle?.text = "You can chat once $name accepts."
+                tvFriendLockPrimaryText?.text = "Request sent"
+                btnFriendLockPrimary?.isClickable = false
+                btnFriendLockPrimary?.alpha = 0.5f
+                btnFriendLockPrimary?.setOnClickListener(null)
+                tvFriendLockSecondaryText?.text = "View profile"
+                btnFriendLockSecondary?.visibility = View.VISIBLE
+                btnFriendLockSecondary?.setOnClickListener { openUserProfile() }
+            }
+            else -> { // send_friend_request (default)
+                tvFriendLockTitle?.text = "Want to chat with $name?"
+                tvFriendLockSubtitle?.text = "Send a friend request to start chatting."
+                tvFriendLockPrimaryText?.text = "Send friend request"
+                btnFriendLockPrimary?.setOnClickListener { doFriendAction(0) }
+                tvFriendLockSecondaryText?.text = "View profile"
+                btnFriendLockSecondary?.visibility = View.VISIBLE
+                btnFriendLockSecondary?.setOnClickListener { openUserProfile() }
+            }
+        }
+    }
+
+    private fun setFriendLockButtonsEnabled(enabled: Boolean) {
+        btnFriendLockPrimary?.isClickable = enabled
+        btnFriendLockPrimary?.alpha = if (enabled) 1f else 0.5f
+        btnFriendLockSecondary?.isClickable = enabled
+    }
+
+    /**
+     * Friend action from the lock. status: 0 = I send a request (me->peer),
+     * 1 = accept the peer's request, 2 = decline it. Re-reads the gate afterward so the
+     * composer/lock updates immediately.
+     */
+    private fun doFriendAction(status: Int) {
+        if (isFriendRequestInFlight) return
+        val me = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
+        val peer = peerUserId.takeIf { it > 0 } ?: return
+        val senderId = if (status == 0) me else peer
+        val receiverId = if (status == 0) peer else me
+        isFriendRequestInFlight = true
+        setFriendLockButtonsEnabled(false)
+        apiManager.sendFriendRequest(senderId, receiverId, status, object : NetworkCallback<FriendRequestResponse> {
+            override fun onResponse(call: Call<FriendRequestResponse>, response: Response<FriendRequestResponse>) {
+                isFriendRequestInFlight = false
+                val ok = response.isSuccessful && response.body()?.success == true
+                val msg = when {
+                    !ok -> getString(R.string.chat_add_friend_failure)
+                    status == 0 -> "Friend request sent"
+                    status == 1 -> getString(R.string.chat_add_friend_success, peerName)
+                    else -> "Request declined"
+                }
+                showAppToast(msg, Toast.LENGTH_SHORT)
+                refreshChatGate()
+            }
+
+            override fun onFailure(call: Call<FriendRequestResponse>, t: Throwable) {
+                isFriendRequestInFlight = false
+                setFriendLockButtonsEnabled(true)
+                showAppToast(getString(R.string.chat_add_friend_failure), Toast.LENGTH_SHORT)
+            }
+
+            override fun onNoNetwork() {
+                isFriendRequestInFlight = false
+                setFriendLockButtonsEnabled(true)
+                showAppToast(getString(R.string.chat_add_friend_failure), Toast.LENGTH_SHORT)
+            }
+        })
+    }
+
+    /** Friends-Gated Chat — read the per-conversation gate, then (re)apply the composer state. */
+    private fun refreshChatGate() {
+        val me = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
+        val peer = peerUserId.takeIf { it > 0 } ?: return
+        apiManager.chatGateStatus(me, peer, object : NetworkCallback<com.gmwapp.hima.retrofit.responses.ChatGateStatusResponse> {
+            override fun onResponse(
+                call: Call<com.gmwapp.hima.retrofit.responses.ChatGateStatusResponse>,
+                response: Response<com.gmwapp.hima.retrofit.responses.ChatGateStatusResponse>
+            ) {
+                val body = response.body()
+                if (response.isSuccessful && body?.success == true) {
+                    lastChatGate = body
+                    isFriendWithPeer = body.friendStatus == "friends"
+                }
+                applyComposerGate()
+            }
+
+            override fun onFailure(call: Call<com.gmwapp.hima.retrofit.responses.ChatGateStatusResponse>, t: Throwable) {
+                Log.w("ChatFriends", "refreshChatGate failed: ${t.message}")
+                applyComposerGate()
+            }
+
+            override fun onNoNetwork() {
+                applyComposerGate()
+            }
+        })
+    }
+
+    /**
      * Foreground reaction to OneSignal subscription_status push (autopay
      * failed/cancelled). Mirrors ChatActivity.observeAutopayPushEvents.
      */
@@ -4325,11 +4485,11 @@ class ChatActivityInHouse : AppCompatActivity() {
         autopayViewModel.statusLiveData.observe(this) { resp ->
             val data = resp?.data ?: return@observe
             com.gmwapp.hima.utils.SubscriptionStateCache.update(data)
-            applySubscriptionGate()
+            applyComposerGate()
         }
         // Re-gate when admin flips the language flag while chat is open.
         com.gmwapp.hima.utils.LanguageFeatureCache.updates.observe(this) {
-            applySubscriptionGate()
+            applyComposerGate()
         }
     }
 

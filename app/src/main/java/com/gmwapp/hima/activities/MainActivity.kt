@@ -72,6 +72,7 @@ import com.gmwapp.hima.dialogs.BottomSheetInsufficientCoinsPaywall
 import com.gmwapp.hima.dialogs.FreeCoinsWelcomeDialog
 import com.gmwapp.hima.dialogs.RatingDialog
 import com.gmwapp.hima.fragments.FavouriteFragment
+import com.gmwapp.hima.fragments.FriendsHubFragment
 import com.gmwapp.hima.fragments.CreatorChatFragment
 import com.gmwapp.hima.fragments.FemaleHomeFragment
 import com.gmwapp.hima.fragments.HomeFragment
@@ -856,7 +857,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             R.id.home -> current is HomeFragment || current is FemaleHomeFragment
             R.id.chat -> current is CreatorChatFragment
             R.id.recent -> current is RecentFragment
-            R.id.favourite -> current is FavouriteFragment
+            R.id.favourite -> current is FriendsHubFragment
             R.id.profile -> current is ProfileFragment || current is ProfileFemaleFragment
             else -> false
         }
@@ -914,7 +915,7 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             R.id.favourite -> {
                 window.statusBarColor = ContextCompat.getColor(this, R.color.white)
 
-                transaction.replace(R.id.flFragment, FavouriteFragment()).commit()
+                transaction.replace(R.id.flFragment, FriendsHubFragment()).commit()
                 return true
             }
 

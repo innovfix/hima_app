@@ -1789,6 +1789,19 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         }
     }
 
+    // Friends-Gated Chat: read the per-conversation gate for the chat screen.
+    fun chatGateStatus(
+        userId: Int,
+        peerId: Int,
+        callback: NetworkCallback<com.gmwapp.hima.retrofit.responses.ChatGateStatusResponse>
+    ) {
+        if (Helper.checkNetworkConnection()) {
+            getApiInterface().chatGateStatus(userId, peerId).enqueue(callback)
+        } else {
+            callback.onNoNetwork()
+        }
+    }
+
     fun getFriendTabsCounts(
         userId: Int,
         callback: NetworkCallback<FriendTabsCountsResponse>
@@ -3120,6 +3133,14 @@ interface ApiInterface {
         @Field("receiver_id") receiverId: Int,
         @Field("user_id") userId: Int
     ): Call<FriendRequestResponse>
+
+    // Friends-Gated Chat: per-conversation gate (lock state + friend action) for the chat screen.
+    @FormUrlEncoded
+    @POST("chat_gate_status")
+    fun chatGateStatus(
+        @Field("user_id") userId: Int,
+        @Field("peer_id") peerId: Int
+    ): Call<com.gmwapp.hima.retrofit.responses.ChatGateStatusResponse>
 
     @FormUrlEncoded
     @POST("friend_tabs_counts")

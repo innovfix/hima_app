@@ -71,6 +71,9 @@ class RatingActivity : BaseActivity() {
     private var wasFavoriteApiCalled = false
     private var isRatingApiCompleted = false
     private var isFavoriteApiCompleted = false
+    // Friends-Gated Chat (Variant A): instant action-chip state
+    private var isFavouriteSelected = false
+    private var isFriendRequestSent = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -96,6 +99,7 @@ class RatingActivity : BaseActivity() {
         initUi()
         showBlockToogle()
         showFavouriteToggle()
+        setupActionChips()
 
         // Add listener to review text input for validation
         binding.etUserName.addTextChangedListener {
@@ -181,7 +185,7 @@ class RatingActivity : BaseActivity() {
             var gender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
 
             val isBlocking = gender == "female" && binding.cbBlockUser.isChecked
-            val isAddingFavorite = gender == "male" && binding.cbFavouriteUser.isChecked
+            // Favourite + Add-friend are applied instantly via the action chips, not on Submit.
 
 
             val rating = if (selectedRating > 0) selectedRating else 0 // Default to 3 if no rating is selected
@@ -215,11 +219,6 @@ class RatingActivity : BaseActivity() {
                     blockMale(userid, call_userid)
                 }
 
-                if (isAddingFavorite && userid != null && call_userid != 0) {
-                    wasFavoriteApiCalled = true
-                    addToFavorite(userid, call_userid)
-                }
-
                 BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let {
                     if (call_userid != null) {
                         viewModel.updatedrating(it,call_userid,rating.toString(),title,description)
@@ -227,17 +226,13 @@ class RatingActivity : BaseActivity() {
                 }
 
             } else {
-                // If no rating is provided
+                // If no rating is provided (favourite/friend are applied instantly via chips)
                 if (isBlocking) {
                     // Only blocking - wait for block API to complete before finishing
                     blockMale(userid, call_userid)
                     // Don't finish here - let observeBlockuser() handle it
-                } else if (isAddingFavorite && userid != null && call_userid != 0) {
-                    // Only adding favorite - call API then finish after success
-                    wasFavoriteApiCalled = true
-                    addToFavorite(userid, call_userid)
                 } else {
-                    // Neither rating nor blocking nor favorite - just finish
+                    // Neither rating nor blocking - just finish
                     finish()
                 }
             }
@@ -387,7 +382,95 @@ class RatingActivity : BaseActivity() {
             binding.cbFavouriteUser.isChecked = false
         }
     }
-    
+
+    /**
+     * Friends-Gated Chat (Variant A): instant action chips above Submit. Favourite chip
+     * (male only) and Add-Friend chip (all) apply on TAP, not on Submit.
+     */
+    private fun setupActionChips() {
+        val gender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
+        val isMale = gender == "male"
+        // The chip row supersedes the legacy favourite checkbox.
+        binding.llFavouriteUser.visibility = View.GONE
+        binding.llActionChips.visibility = View.VISIBLE
+        binding.chipFavourite.visibility = if (isMale) View.VISIBLE else View.GONE
+
+        val userid = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
+        val callUserId = intent.getIntExtra(DConstants.RECEIVER_ID, 0)
+
+        binding.chipFavourite.setOnSingleClickListener {
+            if (isFavouriteSelected || userid == null || callUserId == 0) return@setOnSingleClickListener
+            setFavouriteChipSelected(true)            // optimistic
+            addToFavoriteInstant(userid, callUserId)
+        }
+        binding.chipFriend.setOnSingleClickListener {
+            if (isFriendRequestSent || userid == null || callUserId == 0) return@setOnSingleClickListener
+            sendFriendRequestInstant(userid, callUserId)
+        }
+    }
+
+    private fun setFavouriteChipSelected(selected: Boolean) {
+        isFavouriteSelected = selected
+        if (selected) {
+            binding.chipFavourite.setCardBackgroundColor(ContextCompat.getColor(this, R.color.colorAccent))
+            binding.chipFavourite.strokeWidth = 0
+            binding.tvChipFavourite.setTextColor(ContextCompat.getColor(this, R.color.white))
+            binding.tvChipFavourite.text = "✓ Favourited"
+        } else {
+            binding.chipFavourite.setCardBackgroundColor(ContextCompat.getColor(this, R.color.white))
+            binding.chipFavourite.strokeWidth = (resources.displayMetrics.density).toInt()
+            binding.tvChipFavourite.setTextColor(ContextCompat.getColor(this, R.color.colorAccent))
+            binding.tvChipFavourite.text = "♡ Add to Favourite"
+        }
+    }
+
+    /** Instant favourite add from the chip — does NOT close the sheet (unlike addToFavorite). */
+    private fun addToFavoriteInstant(userId: Int, favoriteId: Int) {
+        apiManager.addFavorite(userId, favoriteId, object : NetworkCallback<AddFavoriteResponse> {
+            override fun onResponse(call: Call<AddFavoriteResponse>, response: Response<AddFavoriteResponse>) {
+                if (!(response.isSuccessful && response.body()?.success == true)) {
+                    setFavouriteChipSelected(false)   // revert optimistic state
+                    showAppToast(response.body()?.message ?: "Couldn't add to favourites", Toast.LENGTH_SHORT)
+                }
+            }
+            override fun onFailure(call: Call<AddFavoriteResponse>, t: Throwable) {
+                setFavouriteChipSelected(false)
+                showAppToast("Couldn't add to favourites", Toast.LENGTH_SHORT)
+            }
+            override fun onNoNetwork() {
+                setFavouriteChipSelected(false)
+                showAppToast("No network connection", Toast.LENGTH_SHORT)
+            }
+        })
+    }
+
+    /** Instant friend request from the after-call sheet (status 0 = new request). */
+    private fun sendFriendRequestInstant(userId: Int, callUserId: Int) {
+        apiManager.sendFriendRequest(userId, callUserId, 0, object : NetworkCallback<com.gmwapp.hima.retrofit.responses.FriendRequestResponse> {
+            override fun onResponse(
+                call: Call<com.gmwapp.hima.retrofit.responses.FriendRequestResponse>,
+                response: Response<com.gmwapp.hima.retrofit.responses.FriendRequestResponse>
+            ) {
+                if (response.isSuccessful && response.body()?.success == true) {
+                    isFriendRequestSent = true
+                    binding.chipFriend.setCardBackgroundColor(ContextCompat.getColor(this@RatingActivity, R.color.colorAccent))
+                    binding.chipFriend.strokeWidth = 0
+                    binding.tvChipFriend.setTextColor(ContextCompat.getColor(this@RatingActivity, R.color.white))
+                    binding.tvChipFriend.text = "✓ Request sent"
+                    showAppToast(response.body()?.message ?: "Friend request sent", Toast.LENGTH_SHORT)
+                } else {
+                    showAppToast(response.body()?.message ?: "Couldn't send request", Toast.LENGTH_SHORT)
+                }
+            }
+            override fun onFailure(call: Call<com.gmwapp.hima.retrofit.responses.FriendRequestResponse>, t: Throwable) {
+                showAppToast("Couldn't send request", Toast.LENGTH_SHORT)
+            }
+            override fun onNoNetwork() {
+                showAppToast("No network connection", Toast.LENGTH_SHORT)
+            }
+        })
+    }
+
     private fun checkIfUserIsAlreadyFavorite() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
         val receiverId = intent.getIntExtra(DConstants.RECEIVER_ID, 0)

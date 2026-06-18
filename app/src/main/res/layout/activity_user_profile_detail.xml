@@ -381,6 +381,62 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Friends-Gated Chat (Variant B): prominent Add-Friend button under About Me -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/btn_add_friend_primary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="8dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:visibility="gone"
+                app:cardBackgroundColor="@color/colorAccent"
+                app:cardCornerRadius="28dp"
+                app:cardElevation="2dp"
+                app:rippleColor="#33FFFFFF">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:minHeight="52dp"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="20dp"
+                    android:paddingVertical="12dp">
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:layout_marginEnd="10dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_user_add"
+                        app:tint="@color/white" />
+
+                    <TextView
+                        android:id="@+id/tv_add_friend_text"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/poppins_semibold"
+                        android:text="Add Friend"
+                        android:textColor="@color/white"
+                        android:textSize="14sp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                android:id="@+id/tv_decline_friend"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:fontFamily="@font/poppins_semibold"
+                android:gravity="center"
+                android:padding="8dp"
+                android:text="Decline"
+                android:textColor="@color/grey_medium"
+                android:textSize="13sp"
+                android:visibility="gone" />
+
             <!-- Friend Request Status Card (Conditional) -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cv_friend_status"
