@@ -529,7 +529,16 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
         // live ring. Accept/reject/launch paths already clear it earlier
         // (:224/:292/:301/:442); this is the catch-all for every other exit.
         if (isFinishing) {
-            BaseApplication.getInstance()?.clearIncomingCall()
+            // Only clear if the still-armed incoming call is OURS. Mirror the
+            // stale-launch guard at :165-168: if a NEWER call has re-armed the
+            // flag with a different tag (pendingTag != our call_Id), leave it —
+            // clearing would wipe the newer call's live ring. Otherwise clear so
+            // a stuck flag can't blind the creator's next caller.
+            val pendingTag = BaseApplication.getInstance()?.getLastIncomingCallTag()
+            val ourTag = if (call_Id != 0) call_Id.toString() else null
+            if (pendingTag == null || ourTag == null || pendingTag == ourTag) {
+                BaseApplication.getInstance()?.clearIncomingCall()
+            }
         }
         // B10/TC_009: drop any pending accept-gate fail-open so it can't fire
         // against a destroyed activity.
