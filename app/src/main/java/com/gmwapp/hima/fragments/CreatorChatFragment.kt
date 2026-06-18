@@ -229,7 +229,10 @@ class CreatorChatFragment : Fragment() {
         binding.tabsCreatorChat.getTabAt(0)?.text = formatTitle(R.string.chat_tab_friends, friendsUnread)
         binding.tabsCreatorChat.getTabAt(1)?.text = formatTitle(R.string.chat_tab_requests, receivedCount)
         binding.tabsCreatorChat.getTabAt(2)?.text = formatTitle(R.string.chat_tab_sent, sentCount)
-        (activity as? MainActivity)?.updateChatUnreadCountBadge(friendsUnread, receivedCount)
+        // Unread messages drive the message badge; received-requests use the dedicated
+        // setter so they aren't conflated with the general-bucket unread count.
+        (activity as? MainActivity)?.updateChatUnreadCountBadge(friendsUnread, 0)
+        (activity as? MainActivity)?.setChatRequestsCount(receivedCount)
     }
 
     private fun formatTitle(@StringRes resId: Int, count: Int): String {
