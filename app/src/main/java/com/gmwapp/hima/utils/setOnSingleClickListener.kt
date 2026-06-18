@@ -22,3 +22,32 @@ fun View.setOnSingleClickListener(debounceMs: Long, onSingleClick: (View) -> Uni
         }
     }
 }
+
+/**
+ * Fires [onHold] once the view is pressed and held continuously for [holdMs].
+ * Lifting the finger before the time is up cancels it. Used for the hidden
+ * "Share logs" gesture on the version label after debug mode is unlocked.
+ */
+@android.annotation.SuppressLint("ClickableViewAccessibility")
+fun View.setOnHold(holdMs: Long = 5000L, onHold: () -> Unit) {
+    val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    val fire = Runnable { onHold() }
+    isClickable = true
+    isLongClickable = true
+    setOnTouchListener { v, event ->
+        when (event.actionMasked) {
+            android.view.MotionEvent.ACTION_DOWN -> {
+                v.parent?.requestDisallowInterceptTouchEvent(true)
+                handler.removeCallbacks(fire)
+                handler.postDelayed(fire, holdMs)
+                true
+            }
+            android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                v.parent?.requestDisallowInterceptTouchEvent(false)
+                handler.removeCallbacks(fire)
+                true
+            }
+            else -> true
+        }
+    }
+}

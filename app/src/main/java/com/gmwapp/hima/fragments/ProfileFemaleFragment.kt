@@ -1,5 +1,9 @@
 package com.gmwapp.hima.fragments
 
+import com.gmwapp.hima.BuildConfig
+import com.gmwapp.hima.utils.LogCapture
+import com.gmwapp.hima.utils.TesterAccess
+import com.gmwapp.hima.utils.setOnHold
 import com.gmwapp.hima.utils.showAppToast
 
 import android.app.Activity
@@ -386,6 +390,12 @@ class ProfileFemaleFragment : BaseFragment(), NetworkRetryable, Refreshable {
         binding.clHelpSupport.setOnSingleClickListener {
             val intent = Intent(context, HelpAndSupportActivity::class.java)
             startActivity(intent)
+        }
+
+        binding.tvAppVersion.text = "Version ${BuildConfig.VERSION_NAME}"
+        binding.tvAppVersion.setOnSingleClickListener { TesterAccess.onVersionTap(requireContext()) }
+        binding.tvAppVersion.setOnHold(5000L) {
+            if (TesterAccess.canUseDebugTools()) LogCapture.shareLogs(requireActivity())
         }
 
         accountViewModel.getSettings()

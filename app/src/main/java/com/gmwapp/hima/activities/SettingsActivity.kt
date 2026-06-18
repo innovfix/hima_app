@@ -5,8 +5,12 @@ import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowInsetsControllerCompat
+import com.gmwapp.hima.BuildConfig
 import com.gmwapp.hima.databinding.ActivitySettingsBinding
+import com.gmwapp.hima.utils.LogCapture
 import com.gmwapp.hima.utils.SubscriptionStateCache
+import com.gmwapp.hima.utils.TesterAccess
+import com.gmwapp.hima.utils.setOnHold
 import com.gmwapp.hima.utils.setOnSingleClickListener
 
 class SettingsActivity : AppCompatActivity() {
@@ -32,6 +36,12 @@ class SettingsActivity : AppCompatActivity() {
         val userLanguage = com.gmwapp.hima.BaseApplication.getInstance()
             ?.getPrefs()?.getUserData()?.language.orEmpty()
         binding.tvUserLanguage.text = userLanguage
+
+        binding.tvAppVersion.text = "Version ${BuildConfig.VERSION_NAME}"
+        binding.tvAppVersion.setOnSingleClickListener { TesterAccess.onVersionTap(this) }
+        binding.tvAppVersion.setOnHold(5000L) {
+            if (TesterAccess.canUseDebugTools()) LogCapture.shareLogs(this)
+        }
     }
 
     override fun onResume() {
