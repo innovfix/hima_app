@@ -494,6 +494,14 @@ class FriendsTabFragment : Fragment() {
                 binding.emptyStateTitle.text = getString(R.string.chat_general_empty_state_title)
                 binding.emptyStateSubtitle.text = getString(R.string.chat_general_empty_state_subtitle)
             }
+            TYPE_THEIR_REQUESTS -> {
+                binding.emptyStateTitle.text = getString(R.string.chat_requests_empty_title)
+                binding.emptyStateSubtitle.text = getString(R.string.chat_requests_empty_subtitle)
+            }
+            TYPE_MY_REQUESTS -> {
+                binding.emptyStateTitle.text = getString(R.string.chat_sent_empty_title)
+                binding.emptyStateSubtitle.text = getString(R.string.chat_sent_empty_subtitle)
+            }
             else -> {
                 binding.emptyStateTitle.text = getString(R.string.friends_empty_state_title)
                 binding.emptyStateSubtitle.text = getString(R.string.friends_empty_state_subtitle)
