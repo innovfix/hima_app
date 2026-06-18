@@ -621,74 +621,68 @@
                     </androidx.constraintlayout.widget.ConstraintLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- Warnings Card (Female Only) -->
+                <!-- Warnings Card -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/cl_warnings"
                     android:layout_width="match_parent"
-                    android:layout_height="90dp"
-                    android:layout_marginBottom="10dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="14dp"
                     android:clickable="true"
                     android:focusable="true"
                     android:visibility="gone"
                     android:foreground="@drawable/ripple_effect"
-                    app:cardCornerRadius="16dp"
-                    app:cardElevation="6dp">
+                    app:cardBackgroundColor="@color/white"
+                    app:cardCornerRadius="14dp"
+                    app:cardElevation="2dp">
 
-                    <LinearLayout
+                    <androidx.constraintlayout.widget.ConstraintLayout
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:background="@drawable/card_gradient_orange"
-                        android:gravity="center"
-                        android:orientation="horizontal"
-                        android:padding="16dp">
+                        android:layout_height="wrap_content"
+                        android:padding="14dp">
 
                         <com.google.android.material.card.MaterialCardView
-                            android:layout_width="50dp"
-                            android:layout_height="50dp"
+                            android:id="@+id/warnings_icon"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
                             app:cardBackgroundColor="#FFF7ED"
-                            app:cardCornerRadius="12dp"
-                            app:cardElevation="0dp">
+                            app:cardCornerRadius="10dp"
+                            app:cardElevation="0dp"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toTopOf="parent">
 
                             <ImageView
-                                android:layout_width="28dp"
-                                android:layout_height="28dp"
+                                android:layout_width="18dp"
+                                android:layout_height="18dp"
                                 android:layout_gravity="center"
                                 android:src="@drawable/ic_warning"
                                 app:tint="#F97316" />
                         </com.google.android.material.card.MaterialCardView>
 
-                        <LinearLayout
+                        <TextView
+                            android:id="@+id/tv_warnings"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="16dp"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:fontFamily="@font/poppins_bold"
-                                android:text="My Warnings"
-                                android:textColor="@color/black_light"
-                                android:textSize="16sp"
-                                android:letterSpacing="-0.01" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
-                                android:fontFamily="@font/poppins_regular"
-                                android:text="View warnings from admins"
-                                android:textColor="@color/grey_medium"
-                                android:textSize="11sp" />
-                        </LinearLayout>
+                            android:layout_marginStart="12dp"
+                            android:layout_marginEnd="8dp"
+                            android:fontFamily="@font/poppins_medium"
+                            android:text="My Warnings"
+                            android:textColor="@color/black_light"
+                            android:textSize="13sp"
+                            app:layout_constraintBottom_toBottomOf="@id/warnings_icon"
+                            app:layout_constraintEnd_toStartOf="@id/warnings_arrow"
+                            app:layout_constraintStart_toEndOf="@id/warnings_icon"
+                            app:layout_constraintTop_toTopOf="@id/warnings_icon" />
 
                         <ImageView
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
+                            android:id="@+id/warnings_arrow"
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
                             android:src="@drawable/ic_chevron_right"
-                            app:tint="@color/grey_dark" />
-                    </LinearLayout>
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintTop_toTopOf="parent" />
+                    </androidx.constraintlayout.widget.ConstraintLayout>
                 </com.google.android.material.card.MaterialCardView>
 
                 <!-- Do Not Disturb Card -->
