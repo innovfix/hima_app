@@ -520,6 +520,17 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        // TC_003 ghost-block fix: clear the "incoming call" freshness flag on any
+        // teardown that didn't already clear it — e.g. the launchCallScreen abort
+        // at :438 (missing pending args), a swipe-away, or a system kill. Left set,
+        // isIncomingCallFresh() stays true ~45s and the single-call guard silently
+        // auto-rejects the creator's NEXT caller, so she never rings. Guard on
+        // isFinishing so a config-change recreate (rotation) does NOT drop a still-
+        // live ring. Accept/reject/launch paths already clear it earlier
+        // (:224/:292/:301/:442); this is the catch-all for every other exit.
+        if (isFinishing) {
+            BaseApplication.getInstance()?.clearIncomingCall()
+        }
         // B10/TC_009: drop any pending accept-gate fail-open so it can't fire
         // against a destroyed activity.
         acceptGateHandler.removeCallbacksAndMessages(null)
