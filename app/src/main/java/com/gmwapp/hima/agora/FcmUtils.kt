@@ -113,7 +113,16 @@ object FcmUtils {
     }
 
     fun clearUserBusyStatus() {
-        _userBusyStatus.postValue(null)
+        // Mirror the clearCallStatus() pattern: setValue on main thread so the
+        // null is visible synchronously to the very next observer check in
+        // MaleCallConnectingActivity.startCallSetup() (which runs on Main via
+        // lifecycleScope). postValue queues behind any already-pending FCM
+        // "userBusy" delivery, so the observer would fire with stale data.
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            _userBusyStatus.value = null
+        } else {
+            _userBusyStatus.postValue(null)
+        }
         Log.d("FcmUtils", "User busy status cleared")
     }
 

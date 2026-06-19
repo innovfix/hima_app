@@ -1891,6 +1891,21 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             (totalSeconds * 1000L).coerceAtLeast(0L)
         }
 
+        // Guard: CountDownTimer(0, …) fires onFinish() on the very next main-
+        // thread tick, giving the appearance of an immediate hang-up with no
+        // explanation. This happens when get_remaining_time returns "0:00" —
+        // either because a zombie user_calls row (started_time set, ended_time
+        // null from a prior crashed call) inflated elapsed_seconds past the
+        // user's coin budget, or because a coin deduction race left the user
+        // with < 10 coins at the moment of the API response. Show a clear
+        // message so the user knows why the call ended, and exit cleanly.
+        if (totalMillis <= 0L) {
+            binding.tvRemainingTime?.text = "00:00:00"
+            Toast.makeText(this, "Your call balance has run out", Toast.LENGTH_SHORT).show()
+            leaveChannel(binding.LeaveButton)
+            return
+        }
+
         countDownTimer = object : CountDownTimer(totalMillis, 1000) {
             override fun onTick(millisUntilFinished: Long) {
                 val hours = millisUntilFinished / 3600000

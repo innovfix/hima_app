@@ -2092,6 +2092,16 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             (totalSeconds * 1000L).coerceAtLeast(0L)
         }
 
+        // Guard: same zero-millis bug as audio side — see MaleAudioCallingActivity.
+        if (totalMillis <= 0L) {
+            binding.tvRemainingTime?.text = "00:00:00"
+            if (!isFinishing && !isDestroyed) {
+                Toast.makeText(this, "Your call balance has run out", Toast.LENGTH_SHORT).show()
+                leaveChannel(binding.LeaveButton)
+            }
+            return
+        }
+
         countDownTimer =  object : CountDownTimer(totalMillis, 1000) {
             override fun onTick(millisUntilFinished: Long) {
                 val hours = millisUntilFinished / 3600000
