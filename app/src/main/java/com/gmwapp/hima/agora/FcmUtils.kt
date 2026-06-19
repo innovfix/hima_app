@@ -166,6 +166,10 @@ object FcmUtils {
 
     val greyScreenLiveData = MutableLiveData<String>()
 
+    /** Emits the peer user ID when that peer rejects the current user's friend request.
+     *  Consumers must call postValue(null) after handling to avoid re-firing on re-entry. */
+    val friendRequestRejectedLiveData = MutableLiveData<Int?>()
+
     /**
      * Server-driven force-end signal. Backend pushes
      * `message == "callEndedNoCoins"` FCM when the male's coins are

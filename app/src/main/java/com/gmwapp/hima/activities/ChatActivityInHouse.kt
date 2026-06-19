@@ -4778,6 +4778,16 @@ class ChatActivityInHouse : AppCompatActivity() {
         com.gmwapp.hima.utils.LanguageFeatureCache.updates.observe(this) {
             applyComposerGate()
         }
+        // Real-time rejection: when the peer rejects this user's friend request while
+        // the chat screen is open, silently re-fetch the gate so the male can re-request.
+        // Clear after handling so re-entry doesn't replay the stale value.
+        com.gmwapp.hima.agora.FcmUtils.friendRequestRejectedLiveData.observe(this) { peerId ->
+            if (peerId != null && peerId == peerUserId) {
+                com.gmwapp.hima.agora.FcmUtils.friendRequestRejectedLiveData.postValue(null)
+                showAppToast("Your request was declined. You can send a new one.", android.widget.Toast.LENGTH_SHORT)
+                refreshChatGate()
+            }
+        }
     }
 
     private fun showChatEndedBanner(

@@ -606,6 +606,17 @@ class BaseApplication : Application(), Configuration.Provider {
                     return
                 }
                 val additional = event.notification.additionalData
+                // Silent gate refresh: when the male's friend request is rejected while
+                // he is in the chat screen, suppress the notification banner and post the
+                // peer_id so ChatActivityInHouse can re-fetch the gate immediately.
+                if (additional?.optString("type", "") == "friend_request_rejected") {
+                    val peerId = additional.optInt("peer_id", 0)
+                    if (peerId > 0) {
+                        com.gmwapp.hima.agora.FcmUtils.friendRequestRejectedLiveData.postValue(peerId)
+                    }
+                    event.preventDefault()
+                    return
+                }
                 if (additional?.optString("type", "") == "message") {
                     val peerUserId = this@BaseApplication.parseMessageNotificationPeerUserId(additional)
                     val lastMessage = event.notification.body.orEmpty().trim()
@@ -957,8 +968,16 @@ class BaseApplication : Application(), Configuration.Provider {
                         Log.d("OneSignalClick", "✅ App OPEN - Opening ChatListActivity")
                         val intent = Intent(applicationContext, com.gmwapp.hima.activities.FriendsListActivity::class.java).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                            putExtra("target_tab", FriendsTabFragment.TYPE_FRIENDS)   // tell the activity which tab to open
-
+                            putExtra("target_tab", FriendsTabFragment.TYPE_FRIENDS)
+                        }
+                        startActivity(intent)
+                    }
+                    else if (type == "friend_request_rejected") {
+                        // Tapping the notification (rare — foreground handler suppresses the banner)
+                        // opens the Friends list so the male can see his sent-requests tab.
+                        val intent = Intent(applicationContext, com.gmwapp.hima.activities.FriendsListActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            putExtra("target_tab", FriendsTabFragment.TYPE_MY_REQUESTS)
                         }
                         startActivity(intent)
                     }

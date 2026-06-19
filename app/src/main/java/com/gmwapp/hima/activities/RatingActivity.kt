@@ -407,6 +407,51 @@ class RatingActivity : BaseActivity() {
             if (isFriendRequestSent || userid == null || callUserId == 0) return@setOnSingleClickListener
             sendFriendRequestInstant(userid, callUserId)
         }
+
+        // Disable the chip while the status check is in-flight to prevent a tap
+        // racing with the API response and sending a duplicate request.
+        if (userid != null && callUserId != 0) {
+            binding.chipFriend.isClickable = false
+            checkAndUpdateFriendChipState(userid, callUserId)
+        }
+    }
+
+    /** Queries the friend-request status and pre-fills the chip accordingly. */
+    private fun checkAndUpdateFriendChipState(userId: Int, callUserId: Int) {
+        apiManager.checkFriendRequest(userId, callUserId, userId, object : NetworkCallback<com.gmwapp.hima.retrofit.responses.FriendRequestResponse> {
+            override fun onResponse(
+                call: Call<com.gmwapp.hima.retrofit.responses.FriendRequestResponse>,
+                response: Response<com.gmwapp.hima.retrofit.responses.FriendRequestResponse>
+            ) {
+                when (if (response.isSuccessful) response.body()?.data?.status else null) {
+                    "accepted" -> setFriendChipAlreadyFriends()
+                    "pending"  -> setFriendChipRequestSent()
+                    else       -> binding.chipFriend.isClickable = true  // re-enable for normal send
+                }
+            }
+            override fun onFailure(call: Call<com.gmwapp.hima.retrofit.responses.FriendRequestResponse>, t: Throwable) {
+                binding.chipFriend.isClickable = true  // re-enable on error so user can still try
+            }
+            override fun onNoNetwork() {
+                binding.chipFriend.isClickable = true
+            }
+        })
+    }
+
+    private fun setFriendChipAlreadyFriends() {
+        isFriendRequestSent = true   // disable tap
+        binding.chipFriend.setCardBackgroundColor(ContextCompat.getColor(this, R.color.colorAccent))
+        binding.chipFriend.strokeWidth = 0
+        binding.tvChipFriend.setTextColor(ContextCompat.getColor(this, R.color.white))
+        binding.tvChipFriend.text = "✓ Already Friends"
+    }
+
+    private fun setFriendChipRequestSent() {
+        isFriendRequestSent = true   // disable tap
+        binding.chipFriend.setCardBackgroundColor(ContextCompat.getColor(this, R.color.colorAccent))
+        binding.chipFriend.strokeWidth = 0
+        binding.tvChipFriend.setTextColor(ContextCompat.getColor(this, R.color.white))
+        binding.tvChipFriend.text = "✓ Request Sent"
     }
 
     private fun setFavouriteChipSelected(selected: Boolean) {
