@@ -2208,13 +2208,12 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             (totalSeconds * 1000L).coerceAtLeast(0L)
         }
 
-        // Guard: same zero-millis bug as audio side — see MaleAudioCallingActivity.
+        // B4/TC_006+TC_021: see MaleAudioCallingActivity.startCountdown — a
+        // freshly-fetched 0 must NOT tear down a connected call; defer to the
+        // server's callEndedNoCoins force-end / next resync.
         if (totalMillis <= 0L) {
             binding.tvRemainingTime?.text = "00:00:00"
-            if (!isFinishing && !isDestroyed) {
-                Toast.makeText(this, "Your call balance has run out", Toast.LENGTH_SHORT).show()
-                leaveChannel(binding.LeaveButton)
-            }
+            Log.w("RemainingTime", "skip auto-leave on non-positive remaining; defer to force-end/next resync")
             return
         }
 

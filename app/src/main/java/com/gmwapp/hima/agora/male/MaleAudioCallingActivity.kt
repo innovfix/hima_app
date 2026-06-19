@@ -1891,18 +1891,16 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             (totalSeconds * 1000L).coerceAtLeast(0L)
         }
 
-        // Guard: CountDownTimer(0, …) fires onFinish() on the very next main-
-        // thread tick, giving the appearance of an immediate hang-up with no
-        // explanation. This happens when get_remaining_time returns "0:00" —
-        // either because a zombie user_calls row (started_time set, ended_time
-        // null from a prior crashed call) inflated elapsed_seconds past the
-        // user's coin budget, or because a coin deduction race left the user
-        // with < 10 coins at the moment of the API response. Show a clear
-        // message so the user knows why the call ended, and exit cleanly.
+        // B4/TC_006+TC_021: a freshly-fetched remaining time of 0 (server clock
+        // skew, a mid-debit read, or a stale "00:00:00") must NOT instantly tear
+        // down a CONNECTED call. CountDownTimer(0,..) fires onFinish immediately ->
+        // leaveChannel, dropping the call for BOTH sides (seconds after accept, or
+        // on the first 30s resync). Coin-exhaustion stays enforced by the server's
+        // callEndedNoCoins force-end FCM; a real "time's up" comes from a POSITIVE
+        // timer ticking to zero, never from startCountdown being seeded with 0.
         if (totalMillis <= 0L) {
             binding.tvRemainingTime?.text = "00:00:00"
-            Toast.makeText(this, "Your call balance has run out", Toast.LENGTH_SHORT).show()
-            leaveChannel(binding.LeaveButton)
+            Log.w("RemainingTime", "skip auto-leave on non-positive remaining; defer to force-end/next resync")
             return
         }
 

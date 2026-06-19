@@ -1819,12 +1819,12 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             (totalSeconds * 1000L).coerceAtLeast(0L)
         }
 
-        // Guard: CountDownTimer(0, …) fires onFinish() immediately. Same root
-        // cause as the male side — see MaleAudioCallingActivity.startCountdown.
+        // B4/TC_006+TC_021: see MaleAudioCallingActivity.startCountdown — a
+        // freshly-fetched 0 must NOT tear down a connected call; defer to the
+        // server's callEndedNoCoins force-end / next resync.
         if (totalMillis <= 0L) {
             binding.tvRemainingTime?.text = "00:00:00"
-            Toast.makeText(this, "Your call balance has run out", Toast.LENGTH_SHORT).show()
-            leaveChannel(binding.LeaveButton)
+            Log.w("RemainingTime", "skip auto-leave on non-positive remaining; defer to force-end/next resync")
             return
         }
 
