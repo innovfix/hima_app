@@ -145,20 +145,6 @@ class FriendsTabFragment : Fragment() {
         Log.d("FriendsTab", "🎬 onViewCreated - tabType: $tabType")
         
         setupRecyclerView()
-        if (requireActivity() is MainActivity && parentFragment !is CreatorChatFragment) {
-            val basePaddingTop = binding.rvFriends.paddingTop
-            ViewCompat.setOnApplyWindowInsetsListener(binding.rvFriends) { view, insets ->
-                val statusBarInset = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
-                view.setPadding(
-                    view.paddingLeft,
-                    basePaddingTop + statusBarInset,
-                    view.paddingRight,
-                    view.paddingBottom
-                )
-                insets
-            }
-            ViewCompat.requestApplyInsets(binding.rvFriends)
-        }
         setupSwipeRefresh()
         setupObservers()
         

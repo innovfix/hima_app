@@ -132,6 +132,12 @@ class UserProfileDetailActivity : AppCompatActivity() {
         // Setup observers for ViewModel
         setupObservers()
         
+        // Show loading state immediately so the button area isn't blank while the API responds
+        binding.btnAddFriendPrimary.visibility = View.VISIBLE
+        binding.btnAddFriendPrimary.alpha = 0.5f
+        binding.btnAddFriendPrimary.isClickable = false
+        binding.tvAddFriendText.text = "Loading..."
+
         // Check friend request status from API
         checkFriendRequestStatus()
         
