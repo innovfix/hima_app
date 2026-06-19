@@ -1397,39 +1397,50 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val nm = getSystemService(NotificationManager::class.java) ?: return
-            if (nm.getNotificationChannel(CALLS_NOTIFICATION_CHANNEL_ID) != null) return
-            // Drop the silent v3 and the bypass-DND v4 so Settings doesn't show
-            // multiple "Incoming Calls" rows after the v5 bump (B199).
-            runCatching { nm.deleteNotificationChannel("calls_v3") }
-            runCatching { nm.deleteNotificationChannel("calls_v4") }
-            val ringtoneUri = RingtoneManager.getActualDefaultRingtoneUri(
-                applicationContext,
-                RingtoneManager.TYPE_RINGTONE
-            ) ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-                ?: Settings.System.DEFAULT_RINGTONE_URI
-            val ringtoneAttrs = AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build()
-            val channel = NotificationChannel(
-                CALLS_NOTIFICATION_CHANNEL_ID,
-                "Incoming Calls",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
-                setSound(ringtoneUri, ringtoneAttrs)
-                enableVibration(true)
-                vibrationPattern = longArrayOf(0, 1000, 500, 1000)
-                // B199 — do NOT setBypassDnd. Hima is a social app, not a
-                // primary phone replacement; when the user enables system
-                // Do Not Disturb mode we must respect that and stay silent.
-                // The previous v4 channel set bypassDnd=true (carried over
-                // from the B147 Doze fix, but DND ≠ Doze — bypassing DND
-                // never helped with Doze and only annoyed users who'd
-                // explicitly muted their phone).
+            // B-v1110 #4 — createNotificationChannel has crashed in the field with
+            // SecurityException on some OEM ROMs (vibration / sound / ringtone-URI
+            // handling) despite VIBRATE being declared in the manifest. Wrap as a
+            // safety net: if the channel can't be created the worst case is default
+            // channel behaviour, which is far better than crashing the FCM service
+            // (which silently kills incoming-call pushes for that user).
+            try {
+                val nm = getSystemService(NotificationManager::class.java) ?: return
+                if (nm.getNotificationChannel(CALLS_NOTIFICATION_CHANNEL_ID) != null) return
+                // Drop the silent v3 and the bypass-DND v4 so Settings doesn't show
+                // multiple "Incoming Calls" rows after the v5 bump (B199).
+                runCatching { nm.deleteNotificationChannel("calls_v3") }
+                runCatching { nm.deleteNotificationChannel("calls_v4") }
+                val ringtoneUri = RingtoneManager.getActualDefaultRingtoneUri(
+                    applicationContext,
+                    RingtoneManager.TYPE_RINGTONE
+                ) ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+                    ?: Settings.System.DEFAULT_RINGTONE_URI
+                val ringtoneAttrs = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+                val channel = NotificationChannel(
+                    CALLS_NOTIFICATION_CHANNEL_ID,
+                    "Incoming Calls",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
+                    setSound(ringtoneUri, ringtoneAttrs)
+                    enableVibration(true)
+                    vibrationPattern = longArrayOf(0, 1000, 500, 1000)
+                    // B199 — do NOT setBypassDnd. Hima is a social app, not a
+                    // primary phone replacement; when the user enables system
+                    // Do Not Disturb mode we must respect that and stay silent.
+                    // The previous v4 channel set bypassDnd=true (carried over
+                    // from the B147 Doze fix, but DND ≠ Doze — bypassing DND
+                    // never helped with Doze and only annoyed users who'd
+                    // explicitly muted their phone).
+                }
+                nm.createNotificationChannel(channel)
+            } catch (t: Throwable) {
+                Log.e(INCOMING_CALL_LOG_TAG, "createNotificationChannel failed: ${t.javaClass.simpleName}: ${t.message}", t)
+                com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(t)
             }
-            nm.createNotificationChannel(channel)
         }
     }
 

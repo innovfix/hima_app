@@ -2177,7 +2177,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
                     isSwitchRequestPending=false
                     val remainingTime = binding.tvRemainingTime?.text.toString() // Get the current countdown time
-                    val timeParts = remainingTime.split(":").map { it.toInt() }
+                    // B-v1110 #1 (sibling) — guard "Connecting…" parse; empty list skips the size==3 block.
+                    val timeParts = remainingTime.split(":").mapNotNull { it.trim().toIntOrNull() }
 
 
                     if (timeParts.size == 3) {  // Ensure we have HH:MM:SS format
@@ -2868,7 +2869,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
         btnYes.setOnClickListener {
             val remainingTime = binding.tvRemainingTime?.text.toString()
-            val timeParts = remainingTime.split(":").map { it.toInt() }
+            // B-v1110 #1 (sibling) — guard "Connecting…" parse; empty list skips the size==3 block.
+            val timeParts = remainingTime.split(":").mapNotNull { it.trim().toIntOrNull() }
 
             if (timeParts.size == 3) {
                 val hours = timeParts[0]

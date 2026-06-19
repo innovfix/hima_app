@@ -2336,7 +2336,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
     fun logDailyActiveUserIfNeeded() {
         val prefs = BaseApplication.getInstance()?.getPrefs()
-        val todayDate = java.time.LocalDate.now().toString()
+        // B-v1110 #6 — java.time.LocalDate is API 26+; on API 24/25 devices
+        // (minSdk=24) it threw ClassNotFoundException at startup. SimpleDateFormat
+        // is available on every API level and yields the same "yyyy-MM-dd" string,
+        // so the day-boundary comparison below is unchanged.
+        val todayDate = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
         val lastLoggedDate = prefs?.getString("last_dau_logged_date")
         val bundle = Bundle().apply {
             putString("user_id", "${prefs?.getUserData()?.id}") // optional: useful for debugging

@@ -1560,7 +1560,12 @@ class BaseApplication : Application(), Configuration.Provider {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             mp.preferredDevice?.let { "${deviceTypeName(it.type)}#${it.id}" } ?: "default"
         } else "n/a"
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
+        // B-v1110 #5 — catch Throwable, not Exception: getPreferredDevice/
+        // getRoutedDevice are missing on some vendor ROMs and throw
+        // NoSuchMethodError, which extends Error (not Exception) and so slipped
+        // past the old catch and crashed call audio setup. This is a diagnostic
+        // string helper, so degrading to an error label is always safe.
         "err:${e.javaClass.simpleName}"
     }
 
@@ -1568,7 +1573,9 @@ class BaseApplication : Application(), Configuration.Provider {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             mp.routedDevice?.let { "${deviceTypeName(it.type)}#${it.id}" } ?: "unrouted"
         } else "n/a"
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
+        // B-v1110 #5 — see describePreferredDevice: NoSuchMethodError on
+        // getRoutedDevice() is an Error, so Throwable (not Exception) is required.
         "err:${e.javaClass.simpleName}"
     }
 

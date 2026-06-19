@@ -89,10 +89,24 @@ class CallingService : Service() {
             Notification.FLAG_NO_CLEAR or
             Notification.FLAG_ONGOING_EVENT
 
-        ServiceCompat.startForeground(
-            this, NOTIFICATION_ID, notification,
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
-        )
+        // B-v1110 #3 — startForeground can throw on Android 12+ even with the
+        // manifest FGS type + RECORD_AUDIO declared: ForegroundServiceStartNot-
+        // AllowedException (started while backgrounded), a microphone-type
+        // SecurityException (RECORD_AUDIO not granted at this instant), or
+        // ForegroundServiceDidNotStartInTimeException (past the start window).
+        // Any of these previously hard-crashed the call. Catch, report, and stop
+        // cleanly so the process never crashes; the call path already treats a
+        // missing foreground service as a failed start.
+        try {
+            ServiceCompat.startForeground(
+                this, NOTIFICATION_ID, notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+            )
+        } catch (t: Throwable) {
+            Log.e(TAG, "startForeground failed: ${t.javaClass.simpleName}: ${t.message}", t)
+            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(t)
+            runCatching { stopSelf() }
+        }
     }
 
     /**

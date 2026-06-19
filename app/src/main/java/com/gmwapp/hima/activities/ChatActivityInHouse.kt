@@ -1596,8 +1596,12 @@ class ChatActivityInHouse : AppCompatActivity() {
 
         appendMessageWithOptionalDateHeader(tempMessage)
         rememberPendingOutgoing(tempId, "", messageType, localAttachmentUrl)
+        // B-v1110 #8 (sibling) — bounds-guard the attachment-send scroll too.
         rvMessages.post {
-            rvMessages.smoothScrollToPosition(messages.size - 1)
+            val lastPos = messages.size - 1
+            if (lastPos >= 0) {
+                rvMessages.smoothScrollToPosition(lastPos)
+            }
         }
         return tempId
     }
@@ -1958,6 +1962,12 @@ class ChatActivityInHouse : AppCompatActivity() {
             socketManager.messageError.collect { error ->
                 Log.e("SocketIOCheck", "Message error: $error")
                 if (!isUiSafe() || error.startsWith("Reaction error:")) return@collect
+                // Friends-gated chat rejection (server throws "FRIENDS_REQUIRED: chat is
+                // locked" / "AUTOPAY_REQUIRED: ..."). The REST fallback enforces the SAME gate,
+                // so retrying it is pointless. Re-fetch the gate so the composer locks and shows
+                // the Add-Friend / Subscribe CTA instead of leaving an open input box.
+                val isGateError = error.startsWith("FRIENDS_REQUIRED") || error.startsWith("AUTOPAY_REQUIRED")
+                if (isGateError) refreshChatGate()
                 // T9: server doesn't echo a client_message_id yet, so we can't
                 // map a `message_error` back to a specific in-flight temp. To
                 // avoid mutating the wrong bubble when multiple sends are
@@ -1981,6 +1991,13 @@ class ChatActivityInHouse : AppCompatActivity() {
                 val socketPending = socketPendings.first()
                 val tempId = socketPending.key
                 val payload = socketPending.value
+                if (isGateError) {
+                    // Mark this message failed with the friendly reason; do NOT retry over REST.
+                    val msg = if (error.startsWith("AUTOPAY_REQUIRED")) "Subscribe to start chatting."
+                              else "You can chat once you are friends."
+                    failPendingOutgoing(tempId, msg)
+                    return@collect
+                }
                 if (payload.messageType == "text") {
                     messageSendMethod[tempId] = "api"
                     sendMessageViaAPI(tempId, payload.message)
@@ -2840,8 +2857,13 @@ class ChatActivityInHouse : AppCompatActivity() {
         appendMessageWithOptionalDateHeader(tempMessage)
 
         // Smooth scroll to bottom to show new message
+        // B-v1110 #8 — guard against an empty list (size-1 == -1 → "Invalid target
+        // position"). The post{} runs async, so the list could be emptied first.
         rvMessages.post {
-            rvMessages.smoothScrollToPosition(messages.size - 1)
+            val lastPos = messages.size - 1
+            if (lastPos >= 0) {
+                rvMessages.smoothScrollToPosition(lastPos)
+            }
         }
 
         // Try Socket.IO first, fallback to API
@@ -2885,10 +2907,18 @@ class ChatActivityInHouse : AppCompatActivity() {
                             }
                             Log.d("SocketIOCheck", "Message sent via fallback API - ID: ${fallbackMessage.id}")
                         } else {
+                            // Friends-gated chat: server returns success=false + code
+                            // FRIENDS_REQUIRED/AUTOPAY_REQUIRED (HTTP 200). Surface the friendly
+                            // reason and re-fetch the gate so the composer locks with the
+                            // Add-Friend / Subscribe CTA — not a generic "Couldn't send" toast.
+                            val gateCode = responseBody?.code
                             failPendingOutgoing(
                                 tempId,
                                 responseBody?.message ?: "Couldn't send message"
                             )
+                            if (gateCode == "FRIENDS_REQUIRED" || gateCode == "AUTOPAY_REQUIRED") {
+                                refreshChatGate()
+                            }
                         }
                     } else {
                         failPendingOutgoing(tempId, "Couldn't send message")
@@ -2989,8 +3019,12 @@ class ChatActivityInHouse : AppCompatActivity() {
             insertMessageChronologically(chatMessage)
 
             if (isSentByMe || wasNearBottom) {
+                // B-v1110 #8 (sibling) — bounds-guard the incoming-message scroll too.
                 rvMessages.post {
-                    rvMessages.smoothScrollToPosition(messages.size - 1)
+                    val lastPos = messages.size - 1
+                    if (lastPos >= 0) {
+                        rvMessages.smoothScrollToPosition(lastPos)
+                    }
                 }
             } else {
                 unseenIncomingCount += 1
@@ -3756,8 +3790,13 @@ class ChatActivityInHouse : AppCompatActivity() {
         mainHandler.removeCallbacks(recordingTicker)
         stopRecordingPulse()
         audioRecorderController.release()
-        chatAdapter.release()
-        
+        // B-v1110 #7 — onPause guards this with ::chatAdapter.isInitialized but
+        // onDestroy did not; an early teardown (activity destroyed before the
+        // adapter is created) crashed with UninitializedPropertyAccessException.
+        if (::chatAdapter.isInitialized) {
+            chatAdapter.release()
+        }
+
         Log.d("SocketIOCheck", "═══════════════════════════════════════")
         Log.d("SocketIOCheck", "👋 Leaving chat room (socket stays connected for app session)")
         Log.d("SocketIOCheck", "═══════════════════════════════════════")

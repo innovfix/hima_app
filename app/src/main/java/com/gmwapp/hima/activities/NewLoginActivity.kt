@@ -543,7 +543,9 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             closeKeyboard()
 
             val mobile = binding.etMobileNumber.text.toString()
-            val countryCode = binding.tvCountryCode.text.toString().toInt()
+            // B-v1110 #9 — tvCountryCode can read empty/"null" at startup; toInt()
+            // threw NumberFormatException. Default to 91 (India) when unparseable.
+            val countryCode = binding.tvCountryCode.text.toString().trim().toIntOrNull() ?: 91
             val mobileRegex = Regex("^[6-9]\\d{9}$")
 
             when {
@@ -611,7 +613,9 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
                 binding.otpSection.visibility  = View.VISIBLE
                 binding.cvOtpBack.visibility = View.VISIBLE
 
-                initOtpUI(mobile.toString(), otp.toString().toInt(),binding.tvCountryCode.text.toString().toInt())
+                // B-v1110 #9 (sibling) — same tvCountryCode guard as the send path;
+                // otp is always a valid Int so otp.toString().toInt() is safe.
+                initOtpUI(mobile.toString(), otp.toString().toInt(), binding.tvCountryCode.text.toString().trim().toIntOrNull() ?: 91)
 //                val intent = Intent(this, VerifyOTPActivity::class.java)
 //                intent.putExtra(DConstants.MOBILE_NUMBER, mobile)
 //                intent.putExtra(DConstants.COUNTRY_CODE, binding.tvCountryCode.text.toString().toInt())
