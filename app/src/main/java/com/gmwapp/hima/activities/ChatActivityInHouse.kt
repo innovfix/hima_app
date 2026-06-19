@@ -681,8 +681,24 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun attachSwipeToReply() {
+        // CHAT-091: route sent rows to START (left-swipe) and received rows to
+        // END (right-swipe) so each bubble has room to slide; draw a fade-in
+        // reply icon on the edge opposite the swipe direction.
+        val replyIcon = androidx.core.content.ContextCompat.getDrawable(this, R.drawable.ic_reply)
+        val replyIconSizePx = (24f * resources.displayMetrics.density).toInt()
+        val replyIconPaddingPx = (16f * resources.displayMetrics.density).toInt()
+        val replyIconTint = androidx.core.content.ContextCompat.getColor(this, R.color.colorAccent)
+
         ItemTouchHelper(
-            object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.END) {
+            object : ItemTouchHelper.SimpleCallback(
+                0,
+                ItemTouchHelper.START or ItemTouchHelper.END
+            ) {
+                // CHAT-091 follow-up v4: fire the reply once per gesture when the
+                // drag passes the trigger distance, NOT on swipe-complete. Reset
+                // when the row springs back to rest.
+                private var replyFiredThisGesture = false
+
                 override fun onMove(
                     recyclerView: RecyclerView,
                     viewHolder: RecyclerView.ViewHolder,
@@ -697,29 +713,24 @@ class ChatActivityInHouse : AppCompatActivity() {
                     if (pos == RecyclerView.NO_POSITION) return 0
                     val msg = messages.getOrNull(pos)
                     if (msg == null || msg.isDateHeader || msg.isDeleted || isPendingMessage(msg)) return 0
-                    return super.getSwipeDirs(recyclerView, viewHolder)
+                    // CHAT-091: sent bubbles swipe LEFT (START), received swipe RIGHT (END).
+                    return if (msg.isSentByMe) ItemTouchHelper.START else ItemTouchHelper.END
                 }
 
-                override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-                    val pos = viewHolder.bindingAdapterPosition
-                    if (pos != RecyclerView.NO_POSITION) {
-                        val msg = messages.getOrNull(pos)
-                        if (msg != null && !msg.isDateHeader && !msg.isDeleted && !isPendingMessage(msg)) {
-                            beginReplyTo(msg)
-                        }
-                        chatAdapter.notifyItemChanged(pos)
-                    }
-                }
+                // CHAT-091 follow-up v4: the row must NEVER complete the swipe — a
+                // completed swipe is a "dismiss", which left the bubble animated
+                // off-screen (the message appeared to vanish). Threshold > 1 and a
+                // huge escape velocity guarantee ItemTouchHelper always springs the
+                // row back to rest. The reply is triggered mid-drag in onChildDraw.
+                override fun getSwipeThreshold(viewHolder: RecyclerView.ViewHolder): Float = 10f
 
-                // TC_015: trigger the reply on a short drag. Kept just below the 20%
-                // onChildDraw visual clamp so the reply fires while the row is still
-                // visibly moving — a higher threshold than the clamp would make users
-                // release at the visual cap before the swipe ever registered.
-                override fun getSwipeThreshold(viewHolder: RecyclerView.ViewHolder): Float = 0.18f
+                override fun getSwipeEscapeVelocity(defaultValue: Float): Float =
+                    defaultValue * 100f
 
-                // TC_015: clamp the horizontal travel so a reply swipe only peeks
-                // and springs back, instead of flinging the whole row off-screen —
-                // which read as the message "disappearing then reappearing".
+                // Never fires now (threshold is unreachable) — kept because
+                // SimpleCallback declares it abstract.
+                override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) = Unit
+
                 override fun onChildDraw(
                     c: android.graphics.Canvas,
                     recyclerView: RecyclerView,
@@ -729,11 +740,51 @@ class ChatActivityInHouse : AppCompatActivity() {
                     actionState: Int,
                     isCurrentlyActive: Boolean
                 ) {
-                    val maxReveal = viewHolder.itemView.width * 0.20f
-                    val clamped = dX.coerceIn(0f, maxReveal)
-                    super.onChildDraw(
-                        c, recyclerView, viewHolder, clamped, dY, actionState, isCurrentlyActive
-                    )
+                    if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE) {
+                        val pos = viewHolder.bindingAdapterPosition
+                        val msg = if (pos != RecyclerView.NO_POSITION) messages.getOrNull(pos) else null
+                        if (msg != null && !msg.isDateHeader && !msg.isDeleted && !isPendingMessage(msg)) {
+                            val itemView = viewHolder.itemView
+
+                            if (replyIcon != null) {
+                                val iconThreshold = itemView.width / 4f
+                                val progress = (kotlin.math.abs(dX) / iconThreshold).coerceIn(0f, 1f)
+                                val centerY = itemView.top + itemView.height / 2
+                                val iconTop = centerY - replyIconSizePx / 2
+                                val iconLeft = if (msg.isSentByMe) {
+                                    itemView.right - replyIconPaddingPx - replyIconSizePx
+                                } else {
+                                    itemView.left + replyIconPaddingPx
+                                }
+                                replyIcon.setBounds(
+                                    iconLeft, iconTop,
+                                    iconLeft + replyIconSizePx, iconTop + replyIconSizePx
+                                )
+                                replyIcon.alpha = (progress * 255f).toInt()
+                                androidx.core.graphics.drawable.DrawableCompat.setTint(replyIcon, replyIconTint)
+                                replyIcon.draw(c)
+                            }
+
+                            // Trigger the reply once when the drag passes 30% of the
+                            // row width, while the finger is still down.
+                            val triggerDist = itemView.width * 0.30f
+                            if (!replyFiredThisGesture &&
+                                isCurrentlyActive &&
+                                kotlin.math.abs(dX) >= triggerDist
+                            ) {
+                                replyFiredThisGesture = true
+                                beginReplyToWithoutKeyboard(msg)
+                                viewHolder.itemView.performHapticFeedback(
+                                    android.view.HapticFeedbackConstants.LONG_PRESS
+                                )
+                            }
+                            // Reset for the next gesture once the row is back at rest.
+                            if (kotlin.math.abs(dX) < 1f) {
+                                replyFiredThisGesture = false
+                            }
+                        }
+                    }
+                    super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
                 }
             }
         ).attachToRecyclerView(rvMessages)
@@ -806,6 +857,15 @@ class ChatActivityInHouse : AppCompatActivity() {
         val imm = getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
             as? android.view.inputmethod.InputMethodManager
         imm?.showSoftInput(etMessage, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    // CHAT-091 v3: swipe-to-reply sets the reply target WITHOUT popping the
+    // keyboard (a keyboard after every swipe would cover the conversation).
+    private fun beginReplyToWithoutKeyboard(message: ChatMessage) {
+        if (message.isDateHeader || message.isDeleted) return
+        if (isPendingMessage(message)) return
+        pendingReplyTo = message
+        updateReplyPreviewUi()
     }
 
     private fun showChatMessageContextMenu(anchor: View, message: ChatMessage, position: Int) {
