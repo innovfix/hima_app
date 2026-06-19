@@ -1472,6 +1472,16 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
         override fun onUserOffline(uid: Int, reason: Int) {
           //  showMessage("Remote user offline $uid $reason")
 
+            // B-CALL RC#3: reason=1 = peer connection TIMED OUT (may rejoin). Arm the
+            // reconnect watchdog instead of ending; stream-resume / onRejoinChannelSuccess
+            // clears it on rejoin. Fail-safe: watchdog ends the call after ~30s if the
+            // peer never returns. reason 0 (voluntary leave) / 2 (kicked) end below.
+            if (reason == 1 && isRemoteUserJoined) {
+                Log.w("CallReconnect", "FemaleVideo onUserOffline reason=1 — reconnect grace, not ending")
+                reconnectWatchdog.peerStreamStalled(stalled = true)
+                return
+            }
+
             updateCallEndDetails()
             stopCountdown()
             runOnUiThread {

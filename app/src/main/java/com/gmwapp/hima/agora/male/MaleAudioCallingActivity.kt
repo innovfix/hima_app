@@ -1458,6 +1458,19 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
         override fun onUserOffline(uid: Int, reason: Int) {
 
+            // B-CALL RC#3: reason=1 means the peer's connection TIMED OUT (they may
+            // rejoin) — not a voluntary leave. Don't tear the call down on a transient
+            // drop; arm the existing reconnect watchdog (shows "Reconnecting…", and its
+            // onTimeout ends the call after ~30s if the peer never returns). The
+            // stream-resume handler (onRemoteAudioStateChanged) clears it on rejoin.
+            // Fail-safe: the watchdog ALWAYS ends the call, so this can't hang a call.
+            // reason 0 (voluntary leave) / 2 (kicked) still end immediately below.
+            if (reason == 1 && isRemoteUserJoined) {
+                Log.w("CallReconnect", "MaleAudio onUserOffline reason=1 — reconnect grace, not ending")
+                reconnectWatchdog.peerStreamStalled(stalled = true)
+                return
+            }
+
             updateCallEndDetails()
             stopCountdown()
           //  showMessage("Remote user left")
