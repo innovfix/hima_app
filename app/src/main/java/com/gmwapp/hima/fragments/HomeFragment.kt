@@ -1303,7 +1303,10 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         homeChatListRefreshReceiverRegistered = false
     }
 
-    private fun applyHomeIncoming(peerId: Int, text: String, type: String) {
+    // [messageId] is non-null only for Socket.IO deliveries; the OneSignal push
+    // broadcast passes null so it never bumps the unread count (the socket path owns
+    // counting). See ChatListAdapter.applyIncomingMessage for the rationale.
+    private fun applyHomeIncoming(peerId: Int, text: String, type: String, messageId: Long? = null) {
         val adapter = homeMyChatsAdapter ?: return
         val ts = com.google.firebase.Timestamp.now()
         val suppressUnread = com.gmwapp.hima.utils.ActiveChatTracker.isActiveFor(context, peerId)
@@ -1312,7 +1315,8 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             lastMessageText = text,
             lastMessageType = type,
             lastMessageTime = ts,
-            suppressUnreadIncrement = suppressUnread
+            suppressUnreadIncrement = suppressUnread,
+            incomingMessageId = messageId
         )
         if (!handled) {
             BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id?.let { loadMyChats(it) }
@@ -1338,7 +1342,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                             else -> ""
                         }
                     }
-                    applyHomeIncoming(peerId, previewText, previewType)
+                    applyHomeIncoming(peerId, previewText, previewType, msg.id)
                 }
             }
         }

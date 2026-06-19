@@ -57,7 +57,6 @@ import com.gmwapp.hima.models.MessageDeliveryStatus
 import com.gmwapp.hima.retrofit.ApiManager
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.ChatAttachmentUploadResponse
-import com.gmwapp.hima.retrofit.responses.MarkReadResponse
 import com.gmwapp.hima.retrofit.responses.MarkMessagesReadResponse
 import com.gmwapp.hima.retrofit.responses.MessageListResponse
 import com.gmwapp.hima.retrofit.responses.SendMessageResponse
@@ -3533,33 +3532,17 @@ class ChatActivityInHouse : AppCompatActivity() {
     private val markChatReadCooldownMs = 2_000L
 
     private fun markMessagesAsRead() {
-        // T20: skip if the same call fired within the cooldown window.
+        // The legacy `chats/mark-read` route (by chat_id) was never deployed
+        // server-side — it always 404'd, so messages that arrived while the thread
+        // was open never got cleared and the inbox badge kept counting them.
+        // Delegate to the working `mark_messages_read` path (by last message id),
+        // still throttled so a burst of incoming messages doesn't spam the endpoint.
         val now = SystemClock.elapsedRealtime()
         if (now - lastMarkedChatReadAt < markChatReadCooldownMs) {
             return
         }
         lastMarkedChatReadAt = now
-        apiManager.markRead(
-            userId = myUserId,
-            chatId = chatId,
-            object : NetworkCallback<MarkReadResponse> {
-                override fun onResponse(call: Call<MarkReadResponse>, response: Response<MarkReadResponse>) {
-                    if (response.isSuccessful) {
-                        Log.d("ChatActivityInHouse", "Messages marked as read")
-                    } else {
-                        Log.e("ChatActivityInHouse", "Error marking as read: ${response.code()}")
-                    }
-                }
-
-                override fun onFailure(call: Call<MarkReadResponse>, t: Throwable) {
-                    Log.e("ChatActivityInHouse", "Error marking as read: ${t.message}")
-                }
-
-                override fun onNoNetwork() {
-                    // Silent fail for read status
-                }
-            }
-        )
+        markMessagesAsReadIfAvailable()
     }
 
     private fun markMessagesAsReadWithLastMessageId(lastMessageId: Long) {
@@ -3750,11 +3733,10 @@ class ChatActivityInHouse : AppCompatActivity() {
             chatAdapter.release()
         }
 
-        // Fire both mark-read endpoints on exit so the inbox badge clears reliably
-        // on the next `my_chat` refresh. markMessagesAsReadIfAvailable() covers the
-        // `mark_messages_read` path (by last message id); markMessagesAsRead()
-        // covers the `chats/mark-read` path (by chat id) — the latter also works
-        // when the in-memory messages list is empty.
+        // Mark read on exit so the inbox badge clears reliably on the next
+        // `my_chat` refresh. Both calls below resolve to the same working
+        // `mark_messages_read` path (by last message id); the id-equality guard
+        // means the second is a cheap no-op.
         markReadOnExit()
 
         // Keep Socket.IO connected - do not disconnect on pause

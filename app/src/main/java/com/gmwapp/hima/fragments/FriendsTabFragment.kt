@@ -300,7 +300,8 @@ class FriendsTabFragment : Fragment() {
                         lastMessageText = previewText,
                         lastMessageType = previewType,
                         lastMessageTime = ts,
-                        suppressUnreadIncrement = suppressUnread
+                        suppressUnreadIncrement = suppressUnread,
+                        incomingMessageId = msg.id
                     )
                     if (!handled) {
                         loadChatConversations()
