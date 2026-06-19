@@ -192,6 +192,9 @@ class AutopayCheckoutActivity : AppCompatActivity(), CFSubscriptionResponseCallb
                     Log.w("BackendEvent", "Backend trial_activated failed: ${t.message}")
                 }
                 Toast.makeText(this, "Autopay active. Enjoy!", Toast.LENGTH_SHORT).show()
+                // Notification conversion: autopay mandate just became active.
+                val app = BaseApplication.getInstance()
+                app?.trackNotificationConversion(app.getLastNotificationId(), "autopay")
                 finish()
             } else if (checkoutLaunched && !data.is_active) {
                 // User came back without completing — show retry/close.

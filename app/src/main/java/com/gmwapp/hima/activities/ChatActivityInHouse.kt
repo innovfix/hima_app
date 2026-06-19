@@ -2828,6 +2828,13 @@ class ChatActivityInHouse : AppCompatActivity() {
             etMessage.setText("")
             return
         }
+        // Notification conversion: user is actively engaging (sending a chat message).
+        // Fired here (once per notification, via per-action dedupe) so it covers both
+        // the socket and API-fallback send paths without double-counting.
+        BaseApplication.getInstance()?.let { app ->
+            app.trackNotificationConversion(app.getLastNotificationId(), "message_sent")
+        }
+
         val replyRef = pendingReplyTo
         val bodyToSend = if (replyRef != null) {
             "${buildReplyHeaderLine(replyRef)}\n$typed"
@@ -4285,6 +4292,11 @@ class ChatActivityInHouse : AppCompatActivity() {
                 syncCallStatusTogglesFromPrefs()
                 Log.d("ChatActivityInHouse", "✅ Call status updated successfully")
                 showAppToast("Call status updated", Toast.LENGTH_SHORT)
+                // Notification conversion: creator turned calls ON (audio or video).
+                if (response.data.audio_status == 1 || response.data.video_status == 1) {
+                    val app = BaseApplication.getInstance()
+                    app?.trackNotificationConversion(app.getLastNotificationId(), "call_enable")
+                }
             } else if (response != null) {
                 // Revert toggles when API rejects update (toggle should be ON/OFF only on success).
                 syncCallStatusTogglesFromPrefs()
