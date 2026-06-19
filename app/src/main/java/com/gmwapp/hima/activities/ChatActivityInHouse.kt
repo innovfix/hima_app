@@ -4521,9 +4521,7 @@ class ChatActivityInHouse : AppCompatActivity() {
      */
     private fun extractNameOnly(username: String): String {
         if (username.isEmpty()) return username
-
-        // Remove trailing digits
-        return username.replace(Regex("\\d+$"), "").trim()
+        return username.replace(Regex("\\d{6,}$"), "").trim()
     }
 
     private fun isSubscriptionActive(): Boolean =
