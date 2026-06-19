@@ -3793,6 +3793,16 @@ class ChatActivityInHouse : AppCompatActivity() {
         popup.menu.findItem(R.id.action_block)?.isVisible = !iHaveBlockedThisUser
         popup.menu.findItem(R.id.action_unblock)?.isVisible = iHaveBlockedThisUser
 
+        // Tint "Delete chat" red so the destructive action reads as such
+        popup.menu.findItem(R.id.action_delete_chat)?.let { item ->
+            val span = android.text.SpannableString(item.title)
+            span.setSpan(
+                android.text.style.ForegroundColorSpan(android.graphics.Color.parseColor("#DC2626")),
+                0, span.length, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            item.title = span
+        }
+
         popup.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.action_accept_as_friend -> {
@@ -3807,10 +3817,85 @@ class ChatActivityInHouse : AppCompatActivity() {
                     showUnblockConfirmationDialog()
                     true
                 }
+                R.id.action_clear_chat -> {
+                    showClearChatConfirmation()
+                    true
+                }
+                R.id.action_delete_chat -> {
+                    showDeleteChatConfirmation()
+                    true
+                }
                 else -> false
             }
         }
         popup.show()
+    }
+
+    private fun showClearChatConfirmation() {
+        showChatActionConfirmation(
+            iconRes = R.drawable.ic_close_circle,
+            accentColorHex = "#ff1383",
+            titleRes = R.string.chat_clearchat_title,
+            messageRes = R.string.chat_clearchat_message,
+            confirmTextRes = R.string.chat_clearchat_confirm
+        ) { clearChatLocally() }
+    }
+
+    private fun showDeleteChatConfirmation() {
+        showChatActionConfirmation(
+            iconRes = R.drawable.delete,
+            accentColorHex = "#DC2626",
+            titleRes = R.string.chat_deletechat_title,
+            messageRes = R.string.chat_deletechat_message,
+            confirmTextRes = R.string.chat_deletechat_confirm
+        ) { deleteChatLocally() }
+    }
+
+    private fun showChatActionConfirmation(
+        iconRes: Int,
+        accentColorHex: String,
+        titleRes: Int,
+        messageRes: Int,
+        confirmTextRes: Int,
+        onConfirm: () -> Unit
+    ) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_chat_action_confirmation, null)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        val color = android.graphics.Color.parseColor(accentColorHex)
+        val ivIcon = dialogView.findViewById<ImageView>(R.id.iv_icon)
+        ivIcon.setImageResource(iconRes)
+        androidx.core.content.ContextCompat.getDrawable(this, R.drawable.circle_bg_accent)?.mutate()?.let { bg ->
+            bg.setTint(color)
+            ivIcon.background = bg
+        }
+
+        dialogView.findViewById<android.widget.TextView>(R.id.tv_title).setText(titleRes)
+        dialogView.findViewById<android.widget.TextView>(R.id.tv_message).setText(messageRes)
+
+        val btnConfirm = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_confirm)
+        btnConfirm.setText(confirmTextRes)
+        btnConfirm.backgroundTintList = android.content.res.ColorStateList.valueOf(color)
+        btnConfirm.setOnClickListener {
+            dialog.dismiss()
+            onConfirm()
+        }
+        dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_cancel).setOnClickListener {
+            dialog.dismiss()
+        }
+        dialog.show()
+    }
+
+    private fun deleteChatLocally() {
+        messages.clear()
+        chatAdapter.notifyDataSetChanged()
+        runCatching { historyCache.putSnapshot(peerUserId, emptyList()) }
+        showAppToast(getString(R.string.chat_deletechat_toast), Toast.LENGTH_SHORT)
+        finish()
     }
 
     private fun showBlockConfirmationDialog() {
@@ -3866,10 +3951,8 @@ class ChatActivityInHouse : AppCompatActivity() {
         messages.clear()
         chatAdapter.notifyDataSetChanged()
         runCatching { historyCache.putSnapshot(peerUserId, emptyList()) }
-        Log.d(
-            "ChatActivityInHouse",
-            "🧹 Cleared local chat for peer=$peerUserId messagesBefore=$sizeBefore"
-        )
+        Log.d("ChatActivityInHouse", "🧹 Cleared local chat for peer=$peerUserId messagesBefore=$sizeBefore")
+        showAppToast(getString(R.string.chat_clearchat_toast), Toast.LENGTH_SHORT)
     }
 
     private fun showUnblockConfirmationDialog() {
