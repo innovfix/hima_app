@@ -4513,19 +4513,27 @@ class ChatActivityInHouse : AppCompatActivity() {
     private fun applyComposerGate() {
         val gate = lastChatGate
         if (gate == null) {
-            // Gate not yet loaded (or API failed). Only a confirmed MALE defers to
-            // the subscription gate; everyone else (females AND any user whose local
-            // gender is null/unknown) fails closed with a locked composer so the
-            // friends gate can't be bypassed while chat_gate_status is unreachable
-            // (e.g. 404, network error, missing prefs).
-            val isMale = BaseApplication.getInstance()?.getPrefs()
-                ?.getUserData()?.gender?.equals(DConstants.MALE, ignoreCase = true) == true
-            if (isMale) {
-                friendshipLockContainer?.visibility = View.GONE
-                applySubscriptionGate()
-            } else {
-                messageInputContainer?.visibility = View.GONE
-                friendshipLockContainer?.visibility = View.GONE
+            val gender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
+            val isMale = gender?.equals(DConstants.MALE, ignoreCase = true) == true
+            val isFemale = gender?.equals(DConstants.FEMALE, ignoreCase = true) == true
+            when {
+                isMale -> {
+                    // Male — defer to subscription gate while friends-gate API loads.
+                    friendshipLockContainer?.visibility = View.GONE
+                    applySubscriptionGate()
+                }
+                isFemale -> {
+                    // Female users are recipients, never gated by friendship or autopay.
+                    // Show their composer immediately so they don't see a blank bar while
+                    // the gate API is in-flight or unreachable.
+                    messageInputContainer?.visibility = View.VISIBLE
+                    friendshipLockContainer?.visibility = View.GONE
+                }
+                else -> {
+                    // Gender unknown — fail-safe: hide composer to prevent gate bypass.
+                    messageInputContainer?.visibility = View.GONE
+                    friendshipLockContainer?.visibility = View.GONE
+                }
             }
             return
         }

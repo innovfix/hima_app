@@ -587,9 +587,8 @@ class FriendsTabFragment : Fragment() {
                         rejectFriendRequest(friend)
                     }
                     else -> {
-                        requireContext().showAppToast("Removed ${friend.name}", Toast.LENGTH_SHORT)
-                        // TODO: Call API to remove friend
-                        removeFriend(friend)
+                        // Remove accepted friendship — status=2 deletes the row server-side.
+                        removeFriendFromList(friend)
                     }
                 }
             },
@@ -654,6 +653,15 @@ class FriendsTabFragment : Fragment() {
             senderId = friend.friend_id,
             receiverId = userData.id,
             status = 3
+        )
+    }
+
+    private fun removeFriendFromList(friend: FriendData) {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
+        friendRequestViewModel.sendFriendRequest(
+            senderId = userData.id,
+            receiverId = friend.friend_id,
+            status = 2
         )
     }
 
