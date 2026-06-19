@@ -1787,6 +1787,12 @@ class ChatActivityInHouse : AppCompatActivity() {
                                 responseBody?.message ?: "Couldn't send attachment",
                                 Toast.LENGTH_SHORT
                             )
+                            // Friends-gated chat: same as the text path — re-fetch the gate so
+                            // the composer locks with the Add-Friend / Subscribe CTA.
+                            val gateCode = responseBody?.code
+                            if (gateCode == "FRIENDS_REQUIRED" || gateCode == "AUTOPAY_REQUIRED") {
+                                refreshChatGate()
+                            }
                         }
                     } else {
                         removeTempMessage(tempId)
