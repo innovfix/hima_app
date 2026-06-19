@@ -157,6 +157,21 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
 
         if (senderId <= 0) return false
 
+        // Stale-call guard (mirrors the FCM path's 20s check): after the device
+        // has been offline, OneSignal mass-delivers the queued call backlog on
+        // reconnect. Drop call pushes older than 60s so they don't render as fake
+        // ringing notifications that pile up and can't be dismissed. Fail-open:
+        // if the push carries no `call_sent_at` (older backend), show the call.
+        val callSentAtMs = data.optString("call_sent_at", "").toLongOrNull()
+        if (callSentAtMs != null && callSentAtMs > 0L) {
+            val ageMs = System.currentTimeMillis() - callSentAtMs
+            if (ageMs > 60_000L) {
+                Log.w(TAG, "Dropping stale OneSignal call push (${ageMs / 1000}s old) senderId=$senderId")
+                event.preventDefault()
+                return true
+            }
+        }
+
         val userData = com.gmwapp.hima.BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val isMale = userData?.gender == com.gmwapp.hima.constants.DConstants.MALE
 
