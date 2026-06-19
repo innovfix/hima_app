@@ -89,6 +89,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
     private var reportDialog: AlertDialog? = null
     private var isUserBlocked: Boolean = false
     private var blockStatusChecked: Boolean = false
+    private var isClosingDueToBlock = false
     private var isUpdatingNotifyPreference = false
     private var displayedUserName: String = ""
 
@@ -338,7 +339,8 @@ class UserProfileDetailActivity : AppCompatActivity() {
                 // viewable and no call may be placed — close the screen with a clear
                 // message. This is the chokepoint, so it covers every entry point
                 // (recent / chat / search / deep link), not just the recent list.
-                if (response.data?.blockedByPeer == true) {
+                if (response.data?.blockedByPeer == true && !isClosingDueToBlock) {
+                    isClosingDueToBlock = true
                     showAppToast(getString(R.string.peer_calls_blocked), Toast.LENGTH_SHORT)
                     finish()
                     return@Observer

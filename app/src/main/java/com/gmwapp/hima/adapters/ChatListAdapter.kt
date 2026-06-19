@@ -141,7 +141,7 @@ class ChatListAdapter(
         if (idx < 0) return false
 
         val current = conversations[idx]
-        val nextUnread = if (suppressUnreadIncrement) 0 else current.unreadCount + 1
+        val nextUnread = if (suppressUnreadIncrement) current.unreadCount else current.unreadCount + 1
         val updated = current.copy(
             lastMessage = lastMessageText,
             lastMessageType = lastMessageType,

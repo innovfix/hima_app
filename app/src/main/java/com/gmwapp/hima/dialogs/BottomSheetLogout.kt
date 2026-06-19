@@ -102,14 +102,15 @@ class BottomSheetLogout : BottomSheetDialogFragment() {
         // Wipe user-scoped chat caches/prefs so the next account on this device
         // does not inherit the previous user's history, pins, or stacked
         // notification content via shared peer ids.
+        val logoutUserId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: 0
         runCatching {
             BaseApplication.getInstance()?.chatHistoryMemoryCache?.clearAll()
             val ctx = requireContext().applicationContext
             com.gmwapp.hima.utils.PinnedChatsPrefsHelper.clearAll(ctx)
             com.gmwapp.hima.utils.ChatNotificationStore.clearAll(ctx)
-            // TC_017: also wipe the "delete for me" chat watermark on logout so
-            // the next account on this device never inherits hidden messages.
-            com.gmwapp.hima.utils.ClearedChatsPrefsHelper.clearAll(ctx)
+            // TC_017: wipe only this user's watermarks; a second account on this
+            // device that cleared its own chats should not lose that state.
+            com.gmwapp.hima.utils.ClearedChatsPrefsHelper.clearForUser(ctx, logoutUserId)
         }
         val hostActivity = activity ?: return
         val intent = Intent(hostActivity, NewLoginActivity::class.java).apply {

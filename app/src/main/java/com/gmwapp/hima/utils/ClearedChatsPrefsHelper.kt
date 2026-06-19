@@ -37,8 +37,13 @@ object ClearedChatsPrefsHelper {
             .getLong(keyFor(ownerId, peerId), 0L)
     }
 
-    /** Wipes all cleared-chat watermarks (e.g. on logout / account switch / clear_data). */
-    fun clearAll(context: Context) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().clear().apply()
+    /** Wipes only the watermarks belonging to [ownerId] (call on logout so the next account on this device keeps its own watermarks). */
+    fun clearForUser(context: Context, ownerId: Int) {
+        if (ownerId <= 0) return
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val editor = prefs.edit()
+        val prefix = "cleared_upto_${ownerId}_"
+        prefs.all.keys.filter { it.startsWith(prefix) }.forEach { editor.remove(it) }
+        editor.apply()
     }
 }

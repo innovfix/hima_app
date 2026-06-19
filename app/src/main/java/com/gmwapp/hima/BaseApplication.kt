@@ -1150,14 +1150,14 @@ class BaseApplication : Application(), Configuration.Provider {
             androidx.core.content.pm.ShortcutManagerCompat
                 .removeAllDynamicShortcuts(this)
         }
+        val teardownUserId = getPrefs()?.getUserData()?.id ?: 0
         runCatching {
             chatHistoryMemoryCache.clearAll()
             com.gmwapp.hima.utils.PinnedChatsPrefsHelper.clearAll(this)
             com.gmwapp.hima.utils.ChatNotificationStore.clearAll(this)
-            // TC_017: wipe the per-conversation "delete for me" watermark too,
-            // else the next account on this device (sequential int ids can
-            // collide) inherits the previous user's hidden-message timestamps.
-            com.gmwapp.hima.utils.ClearedChatsPrefsHelper.clearAll(this)
+            // TC_017: wipe only this user's watermarks so a different account
+            // that previously cleared chats on this device keeps its own state.
+            com.gmwapp.hima.utils.ClearedChatsPrefsHelper.clearForUser(this, teardownUserId)
         }
         // Drop the throttle so the next login fires the heartbeat immediately.
         runCatching { activeStatusReporter.reset() }
