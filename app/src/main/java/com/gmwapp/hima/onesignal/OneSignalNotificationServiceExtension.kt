@@ -44,6 +44,13 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
         const val EXTRA_PEER_ID = "peer_id"
         const val EXTRA_LAST_MESSAGE = "last_message"
         const val EXTRA_MESSAGE_TYPE = "message_type"
+
+        /**
+         * Fired for friend_request_received / friend_request_accepted / friend_request_rejected
+         * pushes so FriendsListActivity (male) and FriendsHubFragment (female) can refresh
+         * their tab-count badges without waiting for the next onResume.
+         */
+        const val ACTION_FRIEND_STATUS_CHANGED = "com.gmwapp.hima.ACTION_FRIEND_STATUS_CHANGED"
     }
 
     override fun onNotificationReceived(event: INotificationReceivedEvent) {
@@ -104,6 +111,9 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
             // matching here short-circuits the chat-message branch below.
             if (maybeHandleMissedCall(context, event)) return
             if (maybeHandleIncomingCall(context, event)) return
+
+            // Notify friends-hub screens to refresh badges on friend-request pushes.
+            maybeHandleFriendRequest(context, event)
 
             // Fold per-sender chat pushes into a single MessagingStyle notification.
             maybeHandleChatMessage(context, event)
@@ -276,6 +286,21 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
             Log.e("MissedCallDiag", "nse-showMissed threw effectiveId=$effectiveSenderId: ${it.message}", it)
         }
         return true
+    }
+
+    /**
+     * Fires [ACTION_FRIEND_STATUS_CHANGED] for friend-request push types so
+     * FriendsListActivity (male) / FriendsHubFragment (female) can refresh their
+     * tab-count badges immediately. Does NOT suppress the notification — the system
+     * still shows the push; this is purely an in-app signal.
+     */
+    private fun maybeHandleFriendRequest(context: Context, event: INotificationReceivedEvent) {
+        val data = event.notification.additionalData ?: return
+        val type = data.optString("type", "").lowercase()
+        if (type !in setOf("friend_request_received", "friend_request_accepted", "friend_request_rejected")) return
+        context.sendBroadcast(
+            Intent(ACTION_FRIEND_STATUS_CHANGED).setPackage(context.packageName)
+        )
     }
 
     /**
