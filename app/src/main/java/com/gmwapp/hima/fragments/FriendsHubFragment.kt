@@ -89,6 +89,9 @@ class FriendsHubFragment : Fragment(), Refreshable, NetworkRetryable {
         loadCounts()
     }
 
+    /** Called by child FriendsTabFragment after accept/reject/remove to sync badges. */
+    fun refreshCounts() = loadCounts()
+
     /** Refresh the Requests tab count badge from the friend-tabs counts endpoint. */
     private fun loadCounts() {
         val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return

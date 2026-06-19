@@ -1093,6 +1093,9 @@ class FriendsTabFragment : Fragment() {
      * Refresh tab counts in parent activity (works for both FriendsListActivity and ChatListActivity)
      */
     private fun refreshParentTabCounts() {
+        // FriendsHubFragment hosts this tab on the female side (inside MainActivity)
+        (parentFragment as? FriendsHubFragment)?.refreshCounts()
+
         activity?.let { parentActivity ->
             when (parentActivity) {
                 is com.gmwapp.hima.activities.FriendsListActivity -> {
@@ -1104,7 +1107,7 @@ class FriendsTabFragment : Fragment() {
                     Log.d("FriendsTab", "🔄 Refreshing tab counts in ChatListActivity")
                 }
                 else -> {
-                    Log.w("FriendsTab", "⚠️ Parent activity doesn't support tab count refresh")
+                    Log.d("FriendsTab", "🔄 Tab count refresh handled by FriendsHubFragment")
                 }
             }
         }
