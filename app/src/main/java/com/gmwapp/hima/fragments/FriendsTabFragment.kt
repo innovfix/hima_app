@@ -1093,8 +1093,11 @@ class FriendsTabFragment : Fragment() {
      * Refresh tab counts in parent activity (works for both FriendsListActivity and ChatListActivity)
      */
     private fun refreshParentTabCounts() {
-        // FriendsHubFragment hosts this tab on the female side (inside MainActivity)
+        // Inside MainActivity the parent is FriendsHubFragment (male Friends tab) or
+        // CreatorChatFragment (female Chat tab). Refresh whichever hosts us so the
+        // Requests/Sent counts drop immediately on accept/reject/remove.
         (parentFragment as? FriendsHubFragment)?.refreshCounts()
+        (parentFragment as? CreatorChatFragment)?.refreshCounts()
 
         activity?.let { parentActivity ->
             when (parentActivity) {

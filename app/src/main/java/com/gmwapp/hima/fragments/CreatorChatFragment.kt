@@ -194,6 +194,10 @@ class CreatorChatFragment : Fragment() {
         }
     }
 
+    /** Called by the child FriendsTabFragment after accept/reject/remove so the
+     *  Requests/Sent/Friends tab counts update immediately on the user's action. */
+    fun refreshCounts() = loadTabUnreadCounts()
+
     private fun loadTabUnreadCounts() {
         val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id ?: return
         if (userId == 0) return
