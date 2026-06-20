@@ -172,6 +172,10 @@ class UserProfileDetailActivity : AppCompatActivity() {
         super.onResume()
         Log.d("BlockUserAPI", "LIFECYCLE onResume peer=$userId — re-checking block status")
         checkBlockStatus()
+        // Re-check friend status too: a remove/accept/cancel done elsewhere (e.g. the
+        // Friends list) while this profile is backstacked must reflect on return —
+        // otherwise the button shows a stale state (e.g. "Request Sent" after a remove).
+        checkFriendRequestStatus()
     }
 
     private fun setupObservers() {
