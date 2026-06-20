@@ -100,6 +100,17 @@ class CreatorChatFragment : Fragment() {
         loadTabUnreadCounts()
         registerCreatorChatListRefreshReceiver()
         startCollectingSocketNewMessage()
+        applyPendingSubTab()
+    }
+
+    /**
+     * If a friend-request notification deep-link requested a specific sub-tab,
+     * jump to it (0=Friends, 1=Requests, 2=Sent). No-op when none requested.
+     */
+    fun applyPendingSubTab() {
+        if (_binding == null) return
+        val sub = (activity as? MainActivity)?.consumePendingFriendsSubTab() ?: -1
+        if (sub in 0..2) binding.vpCreatorChat.setCurrentItem(sub, false)
     }
 
     override fun onPause() {

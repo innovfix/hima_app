@@ -956,30 +956,18 @@ class BaseApplication : Application(), Configuration.Provider {
                         }
                     }
                    else if (type == "friend_request") {
-                        Log.d("OneSignalClick", "✅ App OPEN - Opening ChatListActivity")
-                        val intent = Intent(applicationContext, com.gmwapp.hima.activities.FriendsListActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                            putExtra("target_tab", FriendsTabFragment.TYPE_THEIR_REQUESTS)   // tell the activity which tab to open
-
-                        }
-                        startActivity(intent)
+                        // Open the integrated in-app Friends hub (bottom-nav) on the
+                        // Requests tab — NOT the standalone FriendsListActivity — so the
+                        // app shell (bottom nav) is preserved.
+                        openFriendsHubFromNotification(1)
                     }
                     else if (type == "friend_request_accepted") {
-                        Log.d("OneSignalClick", "✅ App OPEN - Opening ChatListActivity")
-                        val intent = Intent(applicationContext, com.gmwapp.hima.activities.FriendsListActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                            putExtra("target_tab", FriendsTabFragment.TYPE_FRIENDS)
-                        }
-                        startActivity(intent)
+                        openFriendsHubFromNotification(0)
                     }
                     else if (type == "friend_request_rejected") {
-                        // Tapping the notification (rare — foreground handler suppresses the banner)
-                        // opens the Friends list so the male can see his sent-requests tab.
-                        val intent = Intent(applicationContext, com.gmwapp.hima.activities.FriendsListActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                            putExtra("target_tab", FriendsTabFragment.TYPE_MY_REQUESTS)
-                        }
-                        startActivity(intent)
+                        // Tapping the notification (rare — foreground handler suppresses the
+                        // banner) opens the Friends hub on the Sent tab.
+                        openFriendsHubFromNotification(2)
                     }
 
                     else if (type == "creator_warning") {
@@ -1214,6 +1202,30 @@ class BaseApplication : Application(), Configuration.Provider {
             if (s.isNotEmpty()) return s
         }
         return null
+    }
+
+    /**
+     * Friend-request notification tap → open the integrated in-app Friends hub
+     * (a bottom-nav tab inside MainActivity) instead of the standalone
+     * FriendsListActivity, so the app shell (bottom nav) is preserved.
+     * Male  → Friends tab ([com.gmwapp.hima.fragments.FriendsHubFragment]);
+     * Female → Chat tab ([com.gmwapp.hima.fragments.CreatorChatFragment]).
+     * [subTab]: 0 = Friends, 1 = Requests received, 2 = Sent.
+     */
+    private fun openFriendsHubFromNotification(subTab: Int) {
+        val gender = try { getPrefs()?.getUserData()?.gender } catch (e: Exception) { null }
+        val tab = if (gender == com.gmwapp.hima.constants.DConstants.FEMALE)
+            com.gmwapp.hima.activities.MainActivity.TAB_CHAT
+        else
+            com.gmwapp.hima.activities.MainActivity.TAB_FAVOURITE
+        val intent = Intent(applicationContext, com.gmwapp.hima.activities.MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra(com.gmwapp.hima.activities.MainActivity.EXTRA_OPEN_TAB, tab)
+            putExtra(com.gmwapp.hima.activities.MainActivity.EXTRA_OPEN_SUBTAB, subTab)
+        }
+        startActivity(intent)
     }
 
     /**

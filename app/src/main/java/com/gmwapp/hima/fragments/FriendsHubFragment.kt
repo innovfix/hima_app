@@ -87,6 +87,17 @@ class FriendsHubFragment : Fragment(), Refreshable, NetworkRetryable {
     override fun onResume() {
         super.onResume()
         loadCounts()
+        applyPendingSubTab()
+    }
+
+    /**
+     * If a friend-request notification deep-link requested a specific sub-tab,
+     * jump to it (0=Friends, 1=Requests, 2=Sent). No-op when none requested.
+     */
+    fun applyPendingSubTab() {
+        if (_binding == null) return
+        val sub = (activity as? com.gmwapp.hima.activities.MainActivity)?.consumePendingFriendsSubTab() ?: -1
+        if (sub in 0..2) binding.vpFriendsHub.setCurrentItem(sub, false)
     }
 
     /** Called by child FriendsTabFragment after accept/reject/remove to sync badges. */
