@@ -1799,6 +1799,15 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     }
 
     private fun updateChatBadge() {
+        // The Chat tab exists only for female users. For males it's hidden, but its
+        // BottomNavigationItemView still lives in the view tree, so placeChatBadge's
+        // icon-null guard doesn't catch them and the dot lands at a bogus spot
+        // (the stray red dot at the bottom-left). Skip the chat badge entirely when
+        // the tab isn't visible — males surface friend-requests on the Friends badge.
+        if (binding.bottomNavigationView.menu.findItem(R.id.chat)?.isVisible != true) {
+            hideBadge(chatUnreadDotTag)
+            return
+        }
         // Chat icon badge = unread messages + pending received friend-requests.
         val total = (chatFriendsUnread.coerceAtLeast(0) + chatGeneralUnread.coerceAtLeast(0) + chatRequestsUnread.coerceAtLeast(0))
 
