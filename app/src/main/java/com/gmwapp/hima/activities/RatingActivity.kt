@@ -423,10 +423,12 @@ class RatingActivity : BaseActivity() {
                 call: Call<com.gmwapp.hima.retrofit.responses.FriendRequestResponse>,
                 response: Response<com.gmwapp.hima.retrofit.responses.FriendRequestResponse>
             ) {
-                when (if (response.isSuccessful) response.body()?.data?.status else null) {
-                    "accepted" -> setFriendChipAlreadyFriends()
-                    "pending"  -> setFriendChipRequestSent()
-                    else       -> binding.chipFriend.isClickable = true  // re-enable for normal send
+                // check_friend_request reports the state in `message` (it never populates
+                // data.status), so read that — mirroring UserProfileDetailActivity's mapping.
+                when (if (response.isSuccessful) response.body()?.message else null) {
+                    "You are friends"             -> setFriendChipAlreadyFriends()
+                    "Friend request already sent" -> setFriendChipRequestSent()
+                    else                          -> binding.chipFriend.isClickable = true  // re-enable for normal send
                 }
             }
             override fun onFailure(call: Call<com.gmwapp.hima.retrofit.responses.FriendRequestResponse>, t: Throwable) {
