@@ -3344,7 +3344,10 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         binding.blackscreen.visibility=View.GONE
         agoraEngine?.muteAllRemoteAudioStreams(false)
         agoraEngine?.muteLocalVideoStream(false)
-        agoraEngine?.muteLocalAudioStream(false)
+        // Respect the user's mute: this face-detection auto-resume must NOT re-open a
+        // mic the user muted (was unconditional). Matches the !isMuted guard used at
+        // every other unmute site. Fixes "muted female still heard by male".
+        if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
 
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val senderId = userData?.id

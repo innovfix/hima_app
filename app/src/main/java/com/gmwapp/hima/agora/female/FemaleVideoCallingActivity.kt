@@ -3659,7 +3659,9 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             binding.blackscreen.visibility = View.GONE
             agoraEngine?.muteAllRemoteAudioStreams(false)
             agoraEngine?.muteLocalVideoStream(false)
-            agoraEngine?.muteLocalAudioStream(false)
+            // Respect the user's mute: face-detection auto-resume must NOT re-open a
+            // mic the user muted (was unconditional). Fixes "muted user still heard".
+            if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
 
             val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
             val senderId = userData?.id
