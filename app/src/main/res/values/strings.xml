@@ -113,6 +113,8 @@
     <string name="chat_preview_voice">🎤 Voice message</string>
     <string name="chat_preview_video">Video</string>
     <string name="chat_preview_file">File</string>
+    <!-- CHAT-084: shown when a tapped reply-quote\'s original can\'t be found/paged in. -->
+    <string name="chat_reply_original_not_loaded">Original message not loaded</string>
     <string name="chat_preview_unsupported">Message</string>
     <string name="chat_unread_overflow">99+</string>
     <string name="chat_block_user">Block User</string>

@@ -295,6 +295,13 @@ class ChatActivityInHouse : AppCompatActivity() {
     private var hasMoreMessages = true
     private val MESSAGES_PER_PAGE = 10
 
+    // CHAT-084 reply-quote tap → scroll-to-original + flash. Paging-retry state
+    // for when the original isn't in the loaded window yet.
+    private var pendingReplyScrollMessageId: String? = null
+    private var pendingReplyScrollAttempts = 0
+    private val MAX_REPLY_SCROLL_PAGES = 5
+    private var replyFlashAnimator: android.animation.ValueAnimator? = null
+
     /** Latest wins for overlapping [getChatHistory] calls so an older response cannot replace a newer list. */
     private val historyLoadRequestId = AtomicInteger(0)
 
@@ -868,18 +875,171 @@ class ChatActivityInHouse : AppCompatActivity() {
         return header.substring(separator + 2).trim().takeIf { it.isNotEmpty() }
     }
 
+    /**
+     * CHAT-084: tap a reply bubble's quote strip → smooth-scroll the list to the
+     * original message and briefly flash its row (WhatsApp-style) so the user
+     * can tell which message is being referenced.
+     *
+     * The inline-reply payload only carries author + snippet (no original id), so
+     * we match by snippet, scanning BACKWARDS from the reply's own position (a
+     * reply can only refer to something earlier — avoids matching a later "ok").
+     * Media replies carry placeholder snippets ("📷 Photo" / "🎤 Voice message")
+     * and the original media bubble has an empty body, so we match those by
+     * messageType instead. If the original isn't paged in yet, load older pages
+     * and retry (bounded) before giving up — same as WhatsApp's jump-to-quoted.
+     */
     private fun scrollToInlineReplyOriginal(message: ChatMessage) {
         val snippet = parseInlineReplySnippet(message.message) ?: return
-        val targetIndex = messages.indexOfFirst { candidate ->
-            !candidate.isDateHeader &&
-                candidate.id != message.id &&
-                !candidate.isDeleted &&
-                candidate.message.contains(snippet, ignoreCase = true)
+        // A fresh tap on a different reply resets the paging-retry counter.
+        if (pendingReplyScrollMessageId != message.id) {
+            pendingReplyScrollAttempts = 0
         }
-        if (targetIndex != -1) {
-            rvMessages.smoothScrollToPosition(targetIndex)
-            chatAdapter.notifyItemChanged(targetIndex)
+        val replyIndex = messages.indexOfFirst { it.id == message.id }
+        if (replyIndex < 0) {
+            clearPendingReplyScroll()
+            android.widget.Toast.makeText(
+                this, R.string.chat_reply_original_not_loaded, android.widget.Toast.LENGTH_SHORT
+            ).show()
+            return
         }
+
+        val targetMessageType: String? = detectReplyTargetMessageType(snippet)
+
+        var targetIndex = -1
+        for (i in (replyIndex - 1) downTo 0) {
+            val c = messages[i]
+            if (c.isDateHeader || c.isDeleted) continue
+            val matched = if (targetMessageType != null) {
+                c.messageType.equals(targetMessageType, ignoreCase = true)
+            } else {
+                c.message.contains(snippet, ignoreCase = true)
+            }
+            if (matched) {
+                targetIndex = i
+                break
+            }
+        }
+        if (targetIndex == -1) {
+            // Original not in the loaded window yet — page older messages in and
+            // retry (bounded) before giving up.
+            if (hasMoreMessages && !isLoadingMore &&
+                pendingReplyScrollAttempts < MAX_REPLY_SCROLL_PAGES
+            ) {
+                pendingReplyScrollMessageId = message.id
+                pendingReplyScrollAttempts++
+                loadMoreMessages()
+                return
+            }
+            clearPendingReplyScroll()
+            android.widget.Toast.makeText(
+                this, R.string.chat_reply_original_not_loaded, android.widget.Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+        clearPendingReplyScroll()
+        rvMessages.smoothScrollToPosition(targetIndex)
+        scheduleReplyFlash(targetIndex)
+    }
+
+    private fun clearPendingReplyScroll() {
+        pendingReplyScrollMessageId = null
+        pendingReplyScrollAttempts = 0
+    }
+
+    /**
+     * Called after each pagination page lands. If a reply-tap is waiting for its
+     * original to be paged in, re-run the search now that more messages exist.
+     */
+    private fun maybeRetryPendingReplyScroll() {
+        val id = pendingReplyScrollMessageId ?: return
+        val msg = messages.firstOrNull { !it.isDateHeader && it.id == id }
+        if (msg == null) {
+            clearPendingReplyScroll()
+            return
+        }
+        scrollToInlineReplyOriginal(msg)
+    }
+
+    /**
+     * Classify a reply-quote snippet as a media placeholder so the scan matches
+     * by messageType (media bubbles have an empty body). Mirrors the static
+     * snippets [buildReplySnippetText] produces. Null → plain text → text match.
+     */
+    private fun detectReplyTargetMessageType(snippet: String): String? {
+        val s = snippet.trim()
+        if (s == getString(R.string.chat_preview_voice) ||
+            s.startsWith("🎤", ignoreCase = true) ||
+            s.equals("Voice message", ignoreCase = true)
+        ) {
+            return "audio"
+        }
+        if (s == getString(R.string.chat_preview_photo) ||
+            s.startsWith("📷", ignoreCase = true) ||
+            s.equals("Photo", ignoreCase = true)
+        ) {
+            return "image"
+        }
+        return null
+    }
+
+    /**
+     * Run the flash once the target row is on screen and the list settles.
+     *  1) already visible → animate now; 2) scroll in flight → wait for IDLE;
+     *  3) safety timeout (1500ms) in case smoothScroll was a no-op.
+     */
+    private fun scheduleReplyFlash(index: Int) {
+        rvMessages.findViewHolderForAdapterPosition(index)?.itemView?.let {
+            animateReplyFlash(it)
+            return
+        }
+        val listener = object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
+            override fun onScrollStateChanged(
+                rv: androidx.recyclerview.widget.RecyclerView, newState: Int
+            ) {
+                if (newState != androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_IDLE) return
+                rv.removeOnScrollListener(this)
+                rv.findViewHolderForAdapterPosition(index)?.itemView?.let { animateReplyFlash(it) }
+            }
+        }
+        rvMessages.addOnScrollListener(listener)
+        rvMessages.postDelayed({
+            rvMessages.removeOnScrollListener(listener)
+            if (replyFlashAnimator?.isRunning != true) {
+                rvMessages.findViewHolderForAdapterPosition(index)?.itemView
+                    ?.let { animateReplyFlash(it) }
+            }
+        }, 1500L)
+    }
+
+    /**
+     * 1000ms flash on a row — 200ms fade-in (alpha 0→64/255), 500ms hold, 300ms
+     * fade-out. Uses [View.foreground] so the bubble drawable is untouched; alpha
+     * caps at 64 (~25%) so the text stays readable through the tint.
+     */
+    private fun animateReplyFlash(row: android.view.View) {
+        replyFlashAnimator?.cancel()
+        val flashColor = androidx.core.content.ContextCompat.getColor(this, R.color.chat_reply_flash)
+        val fg = android.graphics.drawable.ColorDrawable(flashColor).apply { alpha = 0 }
+        row.foreground = fg
+        val anim = android.animation.ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 1000L
+            addUpdateListener { v ->
+                val frac = v.animatedValue as Float
+                val intensity = when {
+                    frac < 0.2f -> frac / 0.2f
+                    frac < 0.7f -> 1f
+                    else -> (1f - frac) / 0.3f
+                }
+                fg.alpha = (intensity * 64f).toInt().coerceIn(0, 64)
+                row.invalidate()
+            }
+            addListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: android.animation.Animator) { row.foreground = null }
+                override fun onAnimationCancel(animation: android.animation.Animator) { row.foreground = null }
+            })
+        }
+        replyFlashAnimator = anim
+        anim.start()
     }
 
     private fun beginReplyTo(message: ChatMessage) {
@@ -1364,7 +1524,9 @@ class ChatActivityInHouse : AppCompatActivity() {
             peerName.takeIf { it.isNotBlank() } ?: getString(R.string.chat_reply_you)
         }
         val avatar = if (message.isSentByMe) {
-            ""
+            // "You" header — show the logged-in user's own avatar, not a blank
+            // placeholder. Same self-image source the call/profile screens use.
+            BaseApplication.getInstance()?.getPrefs()?.getUserData()?.image.orEmpty()
         } else {
             intent.getStringExtra("USER_IMAGE").orEmpty()
         }
@@ -2836,6 +2998,9 @@ class ChatActivityInHouse : AppCompatActivity() {
                         }
                     }
                     isLoadingMore = false
+                    // CHAT-084: a reply-tap may be waiting for its original to be
+                    // paged in — retry the jump now that this page has landed.
+                    rvMessages.post { maybeRetryPendingReplyScroll() }
                 }
 
                 override fun onFailure(call: Call<ChatHistoryResponse>, t: Throwable) {

@@ -177,4 +177,7 @@
     <color name="ipl_timer_text">#1B5E20</color>
     <color name="ipl_member_badge_bg">#33FFFFFF</color>
 
+    <!-- CHAT-084: brand pink overlay for the brief reply-quote tap flash. -->
+    <color name="chat_reply_flash">#FF1383</color>
+
 </resources>
