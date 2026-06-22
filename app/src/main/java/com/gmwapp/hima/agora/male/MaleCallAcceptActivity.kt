@@ -40,7 +40,6 @@ import com.gmwapp.hima.viewmodels.FcmNotificationViewModel
 import com.gmwapp.hima.viewmodels.UserAvatarViewModel
 import com.gmwapp.hima.viewmodels.AccountViewModel
 import dagger.hilt.android.AndroidEntryPoint
-import kotlin.system.exitProcess
 
 @AndroidEntryPoint
 class MaleCallAcceptActivity : AppCompatActivity() {
@@ -150,9 +149,6 @@ class MaleCallAcceptActivity : AppCompatActivity() {
             binding.calltype.setText("Incoming Video Call")
             binding.callTypeIcon.setImageResource(R.drawable.ic_videocam)
         }
-
-        val keyguardManager = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
-        val isLocked = keyguardManager.isKeyguardLocked // Check if device is locked
 
         val pendingTag = BaseApplication.getInstance()?.getLastIncomingCallTag()
         val expectedTag = if (call_Id != 0) call_Id.toString() else null
@@ -297,23 +293,28 @@ class MaleCallAcceptActivity : AppCompatActivity() {
 
                 sendCallNotification(userId!!, receiverId, callType!!, channelName!!, "rejected")
 
-                if (isLocked) {
-                    HimaTelecomManager.endActiveCall(DisconnectCause.REJECTED)
-                    BaseApplication.getInstance()?.stopRingtone()
-                    BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
-                    BaseApplication.getInstance()?.clearIncomingCall()
-                    finishAffinity()  // Closes all activities in the task
-                    exitProcess(0)    // Force closes the app
-                }
-
                 HimaTelecomManager.endActiveCall(DisconnectCause.REJECTED)
                 BaseApplication.getInstance()?.stopRingtone()
                 BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
                 BaseApplication.getInstance()?.clearIncomingCall()
-                val intent = Intent(this@MaleCallAcceptActivity, MainActivity::class.java)
+                // Re-check the keyguard NOW (not the onCreate snapshot) so an
+                // unlock-after-ring is routed correctly.
+                val lockedNow = (getSystemService(KEYGUARD_SERVICE) as KeyguardManager).isKeyguardLocked
+                if (lockedNow) {
+                    // Device is locked: just dismiss the call screen back to the
+                    // lockscreen. Do NOT open MainActivity over the keyguard, and
+                    // NEVER kill the app. The old finishAffinity()+exitProcess(0)
+                    // here force-closed the entire app whenever a call was declined
+                    // while the device was locked (and the FSI shows over the
+                    // keyguard, so this fired even when the user thought they were
+                    // "in the app").
+                    finish()
+                } else {
+                    val intent = Intent(this@MaleCallAcceptActivity, MainActivity::class.java)
                     intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                startActivity(intent)
-                finish()
+                    startActivity(intent)
+                    finish()
+                }
             }
         }
 
