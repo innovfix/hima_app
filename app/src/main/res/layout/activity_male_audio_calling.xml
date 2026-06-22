@@ -162,6 +162,46 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
+    <!-- Video-mode mute indicators (icon-only): peer (left) + self (right),
+         shown at the TOP during video so they don't float over the remote
+         video at the old avatar positions. Audio mode keeps using the
+         per-avatar femaleMute/maleMute badges in users_container. -->
+    <LinearLayout
+        android:id="@+id/ll_video_mute_top"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:elevation="12dp"
+        android:layout_marginTop="8dp"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/timer_container">
+
+        <ImageView
+            android:id="@+id/iv_peer_mute_top"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_marginEnd="10dp"
+            android:padding="6dp"
+            android:background="@drawable/bg_circle_mute_top"
+            android:src="@drawable/mute_img"
+            android:visibility="gone"
+            android:contentDescription="Other person muted" />
+
+        <ImageView
+            android:id="@+id/iv_self_mute_top"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:padding="6dp"
+            android:background="@drawable/bg_circle_mute_top"
+            android:src="@drawable/mute_img"
+            android:visibility="gone"
+            android:contentDescription="You are muted" />
+
+    </LinearLayout>
+
     <!-- "Reconnecting…" pill — toggled by CallQualityUi from Agora onConnectionStateChanged. -->
     <TextView
         android:id="@+id/reconnect_banner"

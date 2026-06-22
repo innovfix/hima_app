@@ -244,6 +244,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     var receiverName = ""
 
     private var isMuted = false
+    // Peer's current mic-mute state (from onUserMuteAudio) so the top video-mode
+    // indicator reflects it correctly across an audio<->video switch.
+    private var isPeerAudioMuted = false
     private var isSpeakerOn = true
 
     private var audioFocusHelper: CallAudioFocusHelper? = null
@@ -1580,30 +1583,10 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
         override fun onUserMuteAudio(uid: Int, muted: Boolean) {
             // This is triggered when remote user (with uid) mutes/unmutes their mic
-            if (muted) {
-                Log.d("userMuted","User is muted")
-                runOnUiThread {
-                    if (!isVideoCallGoing){
-                        binding.femaleMute.visibility= View.VISIBLE
-
-                    }else{
-                        binding.femaleMute.visibility= View.INVISIBLE
-                    }
-                    // B055 — top pill is visible in BOTH audio and video modes
-                    // so the user always knows silence is intentional, even
-                    // after a mid-call audio→video switch hides the avatar.
-                    binding.remoteMicMutedPill.visibility = View.VISIBLE
-                }
-
-            } else {
-                Log.d("userMuted","User is not muted")
-
-                runOnUiThread {
-                    binding.femaleMute.visibility= View.INVISIBLE
-                    binding.remoteMicMutedPill.visibility = View.GONE
-                }
-
-            }
+            Log.d("userMuted", if (muted) "User is muted" else "User is not muted")
+            isPeerAudioMuted = muted
+            // Renders femaleMute (audio mode) or iv_peer_mute_top (video mode).
+            updateMuteIndicators()
         }
 
 
@@ -2194,7 +2177,30 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         binding.btnMuteUnmute.setImageResource(muteIcon)
         // B054 — flip the self-avatar mute badge so the user sees the same
         // indicator on their own avatar that the peer already sees on theirs.
-        binding.maleMute.visibility = if (isMuted) View.VISIBLE else View.INVISIBLE
+        updateMuteIndicators()
+    }
+
+    /**
+     * Single source of truth for the mute badges. In AUDIO mode the per-avatar
+     * center badges (maleMute = self, femaleMute = peer) are used. In VIDEO mode
+     * the avatars are hidden, so we show small icon-only badges at the TOP
+     * (iv_self_mute_top / iv_peer_mute_top) instead of letting the center badges
+     * float over the remote video at the old avatar positions.
+     */
+    private fun updateMuteIndicators() {
+        runOnUiThread {
+            if (isVideoCallGoing) {
+                binding.maleMute.visibility = View.INVISIBLE
+                binding.femaleMute.visibility = View.INVISIBLE
+                binding.ivSelfMuteTop.visibility = if (isMuted) View.VISIBLE else View.GONE
+                binding.ivPeerMuteTop.visibility = if (isPeerAudioMuted) View.VISIBLE else View.GONE
+                binding.llVideoMuteTop.visibility = View.VISIBLE
+            } else {
+                binding.llVideoMuteTop.visibility = View.GONE
+                binding.maleMute.visibility = if (isMuted) View.VISIBLE else View.INVISIBLE
+                binding.femaleMute.visibility = if (isPeerAudioMuted) View.VISIBLE else View.INVISIBLE
+            }
+        }
     }
 
     // Function to toggle speaker on/off
@@ -2355,8 +2361,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         binding.btnMuteUnmute.setImageResource(
             if (isMuted) R.drawable.mute_img else R.drawable.unmute_img
         )
-        // B054 — keep the self-avatar badge in sync with restored mute state.
-        binding.maleMute.visibility = if (isMuted) View.VISIBLE else View.INVISIBLE
+        // B054 — keep the self mute badge in sync with restored mute state
+        // (center badge in audio, top badge in video).
+        updateMuteIndicators()
         // applyAudioRoute re-runs Agora + router + icon in one atomic call so
         // there's no half-applied state after restore.
         applyAudioRoute(restoredRoute)
@@ -2823,6 +2830,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         // / FrameLayout still showed a residual rounded shape on the left
         // (female side) after switching to video.
         binding.usersContainer.visibility = View.GONE
+        // Move the mute indicators to the top icon-only badges for video mode.
+        updateMuteIndicators()
 
 
         runOnUiThread {
@@ -3217,6 +3226,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         binding.tvMaleName.visibility = View.VISIBLE
         // Re-show parent container that we hid when switching to video.
         binding.usersContainer.visibility = View.VISIBLE
+        // Move mute indicators back to the per-avatar center badges.
+        updateMuteIndicators()
 
 
         runOnUiThread {
