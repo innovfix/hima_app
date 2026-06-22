@@ -1906,7 +1906,23 @@ class ChatActivityInHouse : AppCompatActivity() {
         }
     }
 
-    private fun uploadAndSendAttachment(tempId: String, file: File, messageType: String) {
+    private fun uploadAndSendAttachment(tempId: String, file: File, messageType: String, attempt: Int = 1) {
+        // TC_016: attachment uploads failed intermittently (transient timeout / 5xx) with
+        // no retry, surfacing "Couldn't send attachment". Retry a couple of times with a
+        // short backoff before giving up; only the FINAL attempt removes the temp + deletes
+        // the file, so the optimistic bubble stays put while we retry.
+        val maxAttempts = 3
+        val retryUpload = retry@{
+            if (attempt >= maxAttempts) return@retry false
+            activeAttachmentTempIds.remove(tempId)
+            activeAttachmentCalls.remove(tempId)
+            rvMessages.postDelayed(
+                { if (!isFinishing && !isDestroyed) uploadAndSendAttachment(tempId, file, messageType, attempt + 1) },
+                1500L * attempt
+            )
+            Log.w("ChatMedia", "TC_016: retrying attachment upload, attempt ${attempt + 1}/$maxAttempts")
+            true
+        }
         val uploadCall = apiManager.uploadChatAttachment(
             userId = myUserId,
             toUserId = peerUserId,
@@ -1923,6 +1939,9 @@ class ChatActivityInHouse : AppCompatActivity() {
                     val success = response.isSuccessful && response.body()?.success == true &&
                         !remoteUrl.isNullOrBlank()
                     if (!success) {
+                        // Retry transient server errors (5xx); permanent failures (4xx,
+                        // version gate) fall through and surface the message immediately.
+                        if (response.code() >= 500 && retryUpload()) return
                         removeTempMessage(tempId)
                         val body = response.body()
                         val minVer = body?.data?.requiredMinVersion
@@ -1964,6 +1983,8 @@ class ChatActivityInHouse : AppCompatActivity() {
                         file.delete()
                         return
                     }
+                    // Transient network error (timeout/reset) — retry before giving up.
+                    if (retryUpload()) return
                     removeTempMessage(tempId)
                     showAppToast("Couldn't upload attachment", Toast.LENGTH_SHORT)
                     file.delete()
@@ -3276,6 +3297,16 @@ class ChatActivityInHouse : AppCompatActivity() {
             messageSendMethod[realMessageId] = "socket"
             Log.d("ChatActivityInHouse", "Replaced temp message with real message ID: $realMessageId")
         } else {
+            // TC_017: a socket backlog replay (reconnect / late delivery) can re-deliver a
+            // message that was already cleared via "block + delete chat". Honour the same
+            // cleared-upto watermark the history path (dropClearedMessages) uses, so cleared
+            // messages can't reappear through the realtime path a few minutes later.
+            val clearedUpto = ClearedChatsPrefsHelper.getClearedUpto(this, myUserId, peerUserId)
+            val msgTime = chatMessage.date?.time
+            if (clearedUpto > 0L && msgTime != null && msgTime <= clearedUpto) {
+                Log.d("RealtimeChat", "TC_017: dropping socket message at/before cleared watermark")
+                return
+            }
             val wasNearBottom = isRecyclerNearBottom()
             insertMessageChronologically(chatMessage)
 
