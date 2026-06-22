@@ -96,6 +96,11 @@ class SocketManager private constructor() {
     private val _chatMessageDeleted = eventFlow<String>()
     val chatMessageDeleted: SharedFlow<String> = _chatMessageDeleted.asSharedFlow()
 
+    /** Real-time read receipts: the peer (readerId) has read my sent messages up to
+     *  lastMessageId, so their blue ticks should flip without a history reload. */
+    private val _messagesRead = eventFlow<MessagesReadEvent>()
+    val messagesRead: SharedFlow<MessagesReadEvent> = _messagesRead.asSharedFlow()
+
     // TC_019: real-time creator presence. Emitted when the backend tells the socket
     // server a creator's audio/video toggle flipped (manual toggle-off OR logout),
     // so a user VIEWING her card/profile sees availability change live — no refetch,
@@ -558,6 +563,20 @@ class SocketManager private constructor() {
                 }
             }
 
+            on("messages_read") { args ->
+                try {
+                    val payload = args.firstOrNull() as? JSONObject ?: return@on
+                    val readerId = payload.optInt("reader_id", 0)
+                    val lastId = payload.optLong("last_message_id", 0L)
+                    if (readerId > 0 && lastId > 0L) {
+                        _messagesRead.tryEmit(MessagesReadEvent(readerId, lastId))
+                        Log.d("ChatRead", "messages_read RX reader=$readerId lastId=$lastId")
+                    }
+                } catch (e: Exception) {
+                    Log.e("ChatRead", "Error parsing messages_read: ${e.message}", e)
+                }
+            }
+
             on("message_deleted") { args ->
                 try {
                     val payload = args.firstOrNull() as? JSONObject ?: return@on
@@ -582,6 +601,26 @@ class SocketManager private constructor() {
      * socket isn't connected so the caller can fall back to the REST endpoint.
      * Server broadcasts `message_deleted` to both rooms on success.
      */
+    /**
+     * Tell the SENDER, in real time, that I (the reader) have read their messages up to
+     * lastMessageId — so their blue ticks flip immediately instead of only on reload.
+     * Persistence is still handled by the REST mark-read call; this is the live signal.
+     */
+    fun markRead(fromUserId: Int, toUserId: Int, lastMessageId: Long) {
+        if (!isConnected() || lastMessageId <= 0L) return
+        try {
+            val data = JSONObject().apply {
+                put("from_user_id", fromUserId)
+                put("to_user_id", toUserId)
+                put("last_message_id", lastMessageId)
+            }
+            socket?.emit("mark_read", data)
+            Log.d("ChatRead", "📤 mark_read emitted reader=$fromUserId sender=$toUserId lastId=$lastMessageId")
+        } catch (e: Exception) {
+            Log.e("ChatRead", "markRead emit failed: ${e.message}", e)
+        }
+    }
+
     fun deleteMessage(fromUserId: Int, toUserId: Int, messageId: String): Boolean {
         if (!isConnected()) {
             Log.w("ChatDelete", "deleteMessage: socket not connected — caller should use REST")
@@ -822,6 +861,12 @@ data class ChatMessageSocket(
     // TC_015: voice-note length in ms, carried end-to-end so a freshly-sent/received
     // audio shows its real duration immediately (null/0 => resolve from the file).
     val audioDurationMs: Long? = null
+)
+
+/** Real-time read receipt: [readerId] has read messages up to [lastMessageId]. */
+data class MessagesReadEvent(
+    val readerId: Int,
+    val lastMessageId: Long
 )
 
 data class ReactionUpdateEvent(

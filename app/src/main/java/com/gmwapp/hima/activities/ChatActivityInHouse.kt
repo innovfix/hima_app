@@ -2372,8 +2372,36 @@ class ChatActivityInHouse : AppCompatActivity() {
                 Log.d("ChatDelete", "✅ Applied remote tombstone for id=$deletedId idx=$idx")
             }
         }
+
+        lifecycleScope.launch {
+            socketManager.messagesRead.collect { ev ->
+                if (!isUiSafe()) return@collect
+                // The reader is my chat peer → flip my sent bubbles to READ (blue tick)
+                // for everything up to the id they've read, live, no reload needed.
+                // Snapshot peerUserId to avoid a mutation race with onNewIntent peer-switch.
+                val currentPeer = peerUserId
+                if (ev.readerId == currentPeer) {
+                    markSentMessagesReadUpTo(ev.lastMessageId)
+                }
+            }
+        }
     }
-    
+
+    /** Flip my own sent messages (id <= [lastMessageId]) to READ for live blue ticks. */
+    private fun markSentMessagesReadUpTo(lastMessageId: Long) {
+        var changed = false
+        for (i in messages.indices) {
+            val m = messages[i]
+            if (m.isDateHeader || !m.isSentByMe || m.deliveryStatus == MessageDeliveryStatus.READ) continue
+            val idLong = m.id.toLongOrNull() ?: continue
+            if (idLong <= lastMessageId) {
+                messages[i] = m.copy(deliveryStatus = MessageDeliveryStatus.READ)
+                changed = true
+            }
+        }
+        if (changed) chatAdapter.notifyDataSetChanged()
+    }
+
     private fun handleIncomingReaction(reactionUpdate: com.gmwapp.hima.socket.ReactionUpdateEvent) {
         val messageId = reactionUpdate.messageId.toString()
         val messageIndex = messages.indexOfFirst { it.id == messageId }
@@ -3930,6 +3958,10 @@ class ChatActivityInHouse : AppCompatActivity() {
             return
         }
         lastMarkedReadMessageId = lastMessageId.toString()
+        // Real-time blue ticks: tell the sender immediately over the socket (the REST
+        // call below still persists is_read; this is just the live signal so the
+        // sender's ticks flip without waiting for them to reload history).
+        socketManager.markRead(myUserId, peerUserId, lastMessageId)
         apiManager.markMessagesRead(
             userId = myUserId,
             receiverId = peerUserId,
