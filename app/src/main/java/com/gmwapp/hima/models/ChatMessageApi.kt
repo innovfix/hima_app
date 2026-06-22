@@ -27,6 +27,10 @@ data class ChatMessageApi(
     val reactions: List<MessageReaction>? = null,  // Array of {user_id, reaction_emoji}
     /** 1 when the sender has deleted-for-everyone; backend also blanks `message`/`attachment_url`. */
     @SerializedName("is_deleted")
-    val isDeleted: Int? = null
+    val isDeleted: Int? = null,
+    /** TC_015: voice-note length in ms (null for old rows recorded before this was stored;
+     *  the client then resolves duration from the audio file header). */
+    @SerializedName("audio_duration_ms")
+    val audioDurationMs: Long? = null
 )
 

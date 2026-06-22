@@ -236,7 +236,8 @@ class ChatActivityInHouse : AppCompatActivity() {
     private data class PendingOutgoingPayload(
         val message: String,
         val messageType: String,
-        val attachmentUrl: String?
+        val attachmentUrl: String?,
+        val audioDurationMs: Long? = null
     )
 
     private val pendingOutgoingByTempId = LinkedHashMap<String, PendingOutgoingPayload>()
@@ -1761,7 +1762,9 @@ class ChatActivityInHouse : AppCompatActivity() {
                 localAttachmentUrl = recordingResult.file.toURI().toString(),
                 audioDurationMs = recordingResult.durationMs
             )
-            uploadAndSendAttachment(tempId, recordingResult.file, "audio")
+            // TC_015: carry the measured duration through upload→send so it's persisted
+            // server-side and echoed back, instead of being lost on the round-trip.
+            uploadAndSendAttachment(tempId, recordingResult.file, "audio", audioDurationMs = recordingResult.durationMs)
         } catch (e: Exception) {
             Log.e("ChatMedia", "Audio recording stop failed: ${e.message}", e)
             isRecording = false
@@ -1831,7 +1834,8 @@ class ChatActivityInHouse : AppCompatActivity() {
         )
 
         appendMessageWithOptionalDateHeader(tempMessage)
-        rememberPendingOutgoing(tempId, "", messageType, localAttachmentUrl)
+        // TC_015: remember the duration too so the socket-error REST fallback still sends it.
+        rememberPendingOutgoing(tempId, "", messageType, localAttachmentUrl, audioDurationMs.takeIf { it > 0 })
         // B-v1110 #8 (sibling) — bounds-guard the attachment-send scroll too.
         rvMessages.post {
             val lastPos = messages.size - 1
@@ -1863,12 +1867,14 @@ class ChatActivityInHouse : AppCompatActivity() {
         tempId: String,
         message: String,
         messageType: String,
-        attachmentUrl: String? = null
+        attachmentUrl: String? = null,
+        audioDurationMs: Long? = null
     ) {
         pendingOutgoingByTempId[tempId] = PendingOutgoingPayload(
             message = message,
             messageType = messageType,
-            attachmentUrl = attachmentUrl
+            attachmentUrl = attachmentUrl,
+            audioDurationMs = audioDurationMs
         )
     }
 
@@ -1876,9 +1882,19 @@ class ChatActivityInHouse : AppCompatActivity() {
         val tempIndex = messages.indexOfFirst { it.id == tempId }
         if (tempIndex == -1) return false
 
-        val existingReactions = messages[tempIndex].reactions
+        val existing = messages[tempIndex]
+        // TC_015: don't lose the optimistic voice-note duration if the echoed real
+        // message arrives without one (e.g. before the server persists/returns it).
+        val preservedDuration = when {
+            realMessage.audioDurationMs > 0L -> realMessage.audioDurationMs
+            realMessage.messageType == "audio" -> existing.audioDurationMs
+            else -> 0L
+        }
         // M18: ChatMessage.reactions is val — copy() instead of mutating in place.
-        messages[tempIndex] = realMessage.copy(reactions = existingReactions)
+        messages[tempIndex] = realMessage.copy(
+            reactions = existing.reactions,
+            audioDurationMs = preservedDuration
+        )
         pendingOutgoingByTempId.remove(tempId)
         messageSendMethod.remove(tempId)
         messageSendMethod[realMessage.id] = method
@@ -1906,7 +1922,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         }
     }
 
-    private fun uploadAndSendAttachment(tempId: String, file: File, messageType: String, attempt: Int = 1) {
+    private fun uploadAndSendAttachment(tempId: String, file: File, messageType: String, attempt: Int = 1, audioDurationMs: Long? = null) {
         // TC_016: attachment uploads failed intermittently (transient timeout / 5xx) with
         // no retry, surfacing "Couldn't send attachment". Retry a couple of times with a
         // short backoff before giving up; only the FINAL attempt removes the temp + deletes
@@ -1917,7 +1933,7 @@ class ChatActivityInHouse : AppCompatActivity() {
             activeAttachmentTempIds.remove(tempId)
             activeAttachmentCalls.remove(tempId)
             rvMessages.postDelayed(
-                { if (!isFinishing && !isDestroyed) uploadAndSendAttachment(tempId, file, messageType, attempt + 1) },
+                { if (!isFinishing && !isDestroyed) uploadAndSendAttachment(tempId, file, messageType, attempt + 1, audioDurationMs) },
                 1500L * attempt
             )
             Log.w("ChatMedia", "TC_016: retrying attachment upload, attempt ${attempt + 1}/$maxAttempts")
@@ -1957,10 +1973,10 @@ class ChatActivityInHouse : AppCompatActivity() {
                     updateTempMessage(tempId) { current ->
                         current.copy(attachmentUrl = remoteUrl)
                     }
-                    rememberPendingOutgoing(tempId, "", messageType, remoteUrl)
+                    rememberPendingOutgoing(tempId, "", messageType, remoteUrl, audioDurationMs)
 
                     if (!socketManager.isConnected()) {
-                        sendMediaViaFallbackAPI(tempId, messageType, remoteUrl!!)
+                        sendMediaViaFallbackAPI(tempId, messageType, remoteUrl!!, audioDurationMs)
                         file.delete()
                         return
                     }
@@ -1971,7 +1987,8 @@ class ChatActivityInHouse : AppCompatActivity() {
                         peerUserId,
                         "",
                         messageType,
-                        remoteUrl
+                        remoteUrl,
+                        audioDurationMs
                     )
                     file.delete()
                 }
@@ -2010,7 +2027,7 @@ class ChatActivityInHouse : AppCompatActivity() {
      * When the socket is down after a successful upload, send the media message via REST
      * using the same fields as socket (`message_type`, `attachment_url`).
      */
-    private fun sendMediaViaFallbackAPI(tempId: String, messageType: String, attachmentUrl: String) {
+    private fun sendMediaViaFallbackAPI(tempId: String, messageType: String, attachmentUrl: String, audioDurationMs: Long? = null) {
         messageSendMethod[tempId] = "api"
         val apiCall = apiManager.fallbackSendMessage(
             fromUserId = myUserId,
@@ -2018,6 +2035,7 @@ class ChatActivityInHouse : AppCompatActivity() {
             message = "",
             messageType = messageType,
             attachmentUrl = attachmentUrl,
+            audioDurationMs = audioDurationMs,
             callback = object : NetworkCallback<FallbackSendMessageResponse> {
                 override fun onResponse(
                     call: Call<FallbackSendMessageResponse>,
@@ -2272,7 +2290,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                     // actually have the URL; otherwise there is nothing to resend.
                     val mediaUrl = payload.attachmentUrl
                     if (!mediaUrl.isNullOrBlank()) {
-                        sendMediaViaFallbackAPI(tempId, payload.messageType, mediaUrl)
+                        sendMediaViaFallbackAPI(tempId, payload.messageType, mediaUrl, payload.audioDurationMs)
                     } else {
                         failPendingOutgoing(tempId, "Couldn't send attachment")
                     }
@@ -3362,7 +3380,9 @@ class ChatActivityInHouse : AppCompatActivity() {
             messageType = apiMsg.messageType,
             attachmentUrl = if (isDeleted) null else apiMsg.attachmentUrl,
             deliveryStatus = deliveryStatus,
-            isDeleted = isDeleted
+            isDeleted = isDeleted,
+            // TC_015: real stored duration if present; 0 => adapter resolves from the file.
+            audioDurationMs = apiMsg.audioDurationMs ?: 0L
         )
     }
 
@@ -3395,7 +3415,9 @@ class ChatActivityInHouse : AppCompatActivity() {
             deliveryStatus = deliveryStatus,
             // T6: carry through the server's tombstone flag so a socket-only delivery
             // (no API refresh in flight) renders the deleted-bubble state immediately.
-            isDeleted = socketMsg.isDeleted
+            isDeleted = socketMsg.isDeleted,
+            // TC_015: real stored duration if the server echoed it; 0 => resolve from file.
+            audioDurationMs = socketMsg.audioDurationMs ?: 0L
         )
     }
 
@@ -3424,7 +3446,8 @@ class ChatActivityInHouse : AppCompatActivity() {
             reactions = reactionsMap,
             messageType = fallbackMsg.messageType,
             attachmentUrl = fallbackMsg.attachmentUrl,
-            deliveryStatus = deliveryStatus
+            deliveryStatus = deliveryStatus,
+            audioDurationMs = fallbackMsg.audioDurationMs ?: 0L
         )
     }
 

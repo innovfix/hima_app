@@ -1526,6 +1526,7 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         message: String,
         messageType: String? = null,
         attachmentUrl: String? = null,
+        audioDurationMs: Long? = null,
         callback: NetworkCallback<FallbackSendMessageResponse>
     ): Call<FallbackSendMessageResponse>? {
         if (Helper.checkNetworkConnection()) {
@@ -1534,7 +1535,8 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
                 toUserId,
                 message,
                 messageType,
-                attachmentUrl
+                attachmentUrl,
+                audioDurationMs
             )
             apiCall.enqueue(callback)
             return apiCall
@@ -3282,7 +3284,8 @@ interface ApiInterface {
         @Field("to_user_id") toUserId: Int,
         @Field("message") message: String,
         @Field("message_type") messageType: String? = null,
-        @Field("attachment_url") attachmentUrl: String? = null
+        @Field("attachment_url") attachmentUrl: String? = null,
+        @Field("audio_duration_ms") audioDurationMs: Long? = null
     ): Call<FallbackSendMessageResponse>
 
     @FormUrlEncoded

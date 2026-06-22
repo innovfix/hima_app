@@ -37,7 +37,9 @@ data class FallbackMessage(
     @SerializedName("created_at")
     val createdAt: String? = null,
     @SerializedName("updated_at")
-    val updatedAt: String? = null
+    val updatedAt: String? = null,
+    @SerializedName("audio_duration_ms")
+    val audioDurationMs: Long? = null
 )
 
 
