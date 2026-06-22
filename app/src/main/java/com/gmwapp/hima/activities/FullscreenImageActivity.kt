@@ -44,6 +44,13 @@ class FullscreenImageActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // The chat surfaces are screenshot/recording-proof (FLAG_SECURE); this
+        // viewer is a separate window and shows the same sensitive chat images,
+        // so it must set its own FLAG_SECURE to avoid a screenshot regression.
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
         setContentView(R.layout.activity_fullscreen_image)
 
         // Edge-to-edge: photo lives behind the system bars, chrome handles

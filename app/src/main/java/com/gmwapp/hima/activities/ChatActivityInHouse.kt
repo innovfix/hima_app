@@ -301,6 +301,8 @@ class ChatActivityInHouse : AppCompatActivity() {
     private var pendingReplyScrollAttempts = 0
     private val MAX_REPLY_SCROLL_PAGES = 5
     private var replyFlashAnimator: android.animation.ValueAnimator? = null
+    private var replyFlashScrollListener: androidx.recyclerview.widget.RecyclerView.OnScrollListener? = null
+    private var replyFlashTimeoutRunnable: Runnable? = null
 
     /** Latest wins for overlapping [getChatHistory] calls so an older response cannot replace a newer list. */
     private val historyLoadRequestId = AtomicInteger(0)
@@ -992,23 +994,32 @@ class ChatActivityInHouse : AppCompatActivity() {
             animateReplyFlash(it)
             return
         }
+        // Tear down any prior pending-flash wiring before scheduling a new one.
+        replyFlashScrollListener?.let { rvMessages.removeOnScrollListener(it) }
+        replyFlashTimeoutRunnable?.let { rvMessages.removeCallbacks(it) }
         val listener = object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
             override fun onScrollStateChanged(
                 rv: androidx.recyclerview.widget.RecyclerView, newState: Int
             ) {
                 if (newState != androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_IDLE) return
                 rv.removeOnScrollListener(this)
+                replyFlashScrollListener = null
                 rv.findViewHolderForAdapterPosition(index)?.itemView?.let { animateReplyFlash(it) }
             }
         }
+        replyFlashScrollListener = listener
         rvMessages.addOnScrollListener(listener)
-        rvMessages.postDelayed({
-            rvMessages.removeOnScrollListener(listener)
+        val timeout = Runnable {
+            replyFlashScrollListener?.let { rvMessages.removeOnScrollListener(it) }
+            replyFlashScrollListener = null
+            replyFlashTimeoutRunnable = null
             if (replyFlashAnimator?.isRunning != true) {
                 rvMessages.findViewHolderForAdapterPosition(index)?.itemView
                     ?.let { animateReplyFlash(it) }
             }
-        }, 1500L)
+        }
+        replyFlashTimeoutRunnable = timeout
+        rvMessages.postDelayed(timeout, 1500L)
     }
 
     /**
@@ -3000,7 +3011,13 @@ class ChatActivityInHouse : AppCompatActivity() {
                     isLoadingMore = false
                     // CHAT-084: a reply-tap may be waiting for its original to be
                     // paged in — retry the jump now that this page has landed.
-                    rvMessages.post { maybeRetryPendingReplyScroll() }
+                    // Only on a successful page; on HTTP error don't retry (it would
+                    // loop loadMoreMessages and bypass the 429 cooldown) — clear it.
+                    if (response.isSuccessful) {
+                        rvMessages.post { maybeRetryPendingReplyScroll() }
+                    } else {
+                        clearPendingReplyScroll()
+                    }
                 }
 
                 override fun onFailure(call: Call<ChatHistoryResponse>, t: Throwable) {
@@ -4002,6 +4019,14 @@ class ChatActivityInHouse : AppCompatActivity() {
         mainHandler.removeCallbacks(retryHistoryRunnable)
         currentHistoryCall?.cancel()
         currentMoreCall?.cancel()
+        // CHAT-084: stop the reply-flash so its animator/listener/timeout can't
+        // fire on a destroyed view tree (recycled row tint bleed / leak).
+        replyFlashAnimator?.cancel()
+        replyFlashAnimator = null
+        replyFlashScrollListener?.let { rvMessages.removeOnScrollListener(it) }
+        replyFlashScrollListener = null
+        replyFlashTimeoutRunnable?.let { rvMessages.removeCallbacks(it) }
+        replyFlashTimeoutRunnable = null
         // T12: cancel any in-flight attachment uploads / sends so their callbacks
         // don't run on a destroyed view tree.
         activeAttachmentCalls.values.forEach { runCatching { it.cancel() } }
