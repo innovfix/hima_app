@@ -8,9 +8,11 @@ import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.updatePadding
 import com.bumptech.glide.Glide
 import com.github.chrisbanes.photoview.PhotoView
 import com.gmwapp.hima.R
@@ -59,6 +61,20 @@ class FullscreenImageActivity : AppCompatActivity() {
         chromeTop = findViewById(R.id.chrome_top)
         chromeBottom = findViewById(R.id.chrome_bottom)
 
+        // Safe-area: photo stays edge-to-edge behind the bars, but push the top
+        // chrome (back/avatar/name/time) below the status bar and the bottom
+        // chrome (Reply/React) above the nav bar. fitsSystemWindows was unreliable
+        // here, so apply the system-bar insets explicitly (matches the rest of
+        // the app). Capture the XML paddings once so repeated callbacks don't stack.
+        val topBasePadding = chromeTop.paddingTop
+        val bottomBasePadding = chromeBottom.paddingBottom
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.root)) { _, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            chromeTop.updatePadding(top = topBasePadding + bars.top)
+            chromeBottom.updatePadding(bottom = bottomBasePadding + bars.bottom)
+            insets
+        }
+
         val imageUrl = intent.getStringExtra(EXTRA_IMAGE_URL).orEmpty()
         val peerName = intent.getStringExtra(EXTRA_PEER_NAME).orEmpty()
         val peerAvatar = intent.getStringExtra(EXTRA_PEER_AVATAR).orEmpty()
@@ -93,10 +109,10 @@ class FullscreenImageActivity : AppCompatActivity() {
             if (!zoomed && !chromeVisible) setChromeVisible(true)
         }
 
-        findViewById<TextView>(R.id.btn_reply).setOnClickListener {
+        findViewById<View>(R.id.btn_reply).setOnClickListener {
             finishWithAction(ACTION_REPLY)
         }
-        findViewById<TextView>(R.id.btn_react).setOnClickListener {
+        findViewById<View>(R.id.btn_react).setOnClickListener {
             finishWithAction(ACTION_REACT)
         }
     }

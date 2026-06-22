@@ -31,8 +31,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@drawable/bg_chat_image_viewer_top_scrim"
-        android:fitsSystemWindows="true"
+        android:fitsSystemWindows="false"
         android:paddingHorizontal="8dp"
+        android:paddingTop="6dp"
         android:paddingBottom="14dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -109,7 +110,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@drawable/bg_chat_image_viewer_bottom_scrim"
-        android:fitsSystemWindows="true"
+        android:fitsSystemWindows="false"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingHorizontal="14dp"
@@ -119,7 +120,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
-        <TextView
+        <LinearLayout
             android:id="@+id/btn_reply"
             android:layout_width="0dp"
             android:layout_height="44dp"
@@ -127,17 +128,28 @@
             android:layout_weight="1"
             android:background="@drawable/bg_chat_image_viewer_pill"
             android:clickable="true"
-            android:drawablePadding="6dp"
             android:focusable="true"
-            android:fontFamily="@font/poppins_semibold"
             android:gravity="center"
-            android:text="@string/chat_image_viewer_reply"
-            android:textColor="@android:color/white"
-            android:textSize="13sp"
-            app:drawableStartCompat="@drawable/ic_reply"
-            app:drawableTint="@android:color/white" />
+            android:orientation="horizontal">
 
-        <TextView
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_marginEnd="6dp"
+                android:contentDescription="@string/chat_image_viewer_reply"
+                android:src="@drawable/ic_reply"
+                app:tint="@android:color/white" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_semibold"
+                android:text="@string/chat_image_viewer_reply"
+                android:textColor="@android:color/white"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <LinearLayout
             android:id="@+id/btn_react"
             android:layout_width="0dp"
             android:layout_height="44dp"
@@ -146,11 +158,25 @@
             android:background="@drawable/bg_chat_image_viewer_pill"
             android:clickable="true"
             android:focusable="true"
-            android:fontFamily="@font/poppins_semibold"
             android:gravity="center"
-            android:text="@string/chat_image_viewer_react"
-            android:textColor="@android:color/white"
-            android:textSize="13sp" />
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_marginEnd="6dp"
+                android:contentDescription="@string/chat_image_viewer_react"
+                android:src="@drawable/baseline_face_24"
+                app:tint="@android:color/white" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_semibold"
+                android:text="@string/chat_image_viewer_react"
+                android:textColor="@android:color/white"
+                android:textSize="13sp" />
+        </LinearLayout>
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
