@@ -92,6 +92,7 @@ class UserProfileDetailActivity : AppCompatActivity() {
     private var reportDialog: AlertDialog? = null
     private var isUserBlocked: Boolean = false
     private var blockStatusChecked: Boolean = false
+    private var isClosingDueToBlock = false
     private var isUpdatingNotifyPreference = false
     private var displayedUserName: String = ""
 
@@ -142,6 +143,12 @@ class UserProfileDetailActivity : AppCompatActivity() {
         // Setup observers for ViewModel
         setupObservers()
         
+        // Show loading state immediately so the button area isn't blank while the API responds
+        binding.btnAddFriendPrimary.visibility = View.VISIBLE
+        binding.btnAddFriendPrimary.alpha = 0.5f
+        binding.btnAddFriendPrimary.isClickable = false
+        binding.tvAddFriendText.text = "Loading..."
+
         // Check friend request status from API
         checkFriendRequestStatus()
         
@@ -175,6 +182,10 @@ class UserProfileDetailActivity : AppCompatActivity() {
         super.onResume()
         Log.d("BlockUserAPI", "LIFECYCLE onResume peer=$userId — re-checking block status")
         checkBlockStatus()
+        // Re-check friend status too: a remove/accept/cancel done elsewhere (e.g. the
+        // Friends list) while this profile is backstacked must reflect on return —
+        // otherwise the button shows a stale state (e.g. "Request Sent" after a remove).
+        checkFriendRequestStatus()
     }
 
     private fun setupObservers() {
@@ -233,6 +244,12 @@ class UserProfileDetailActivity : AppCompatActivity() {
         friendRequestViewModel.friendRequestErrorLiveData.observe(this, Observer { error ->
             Log.e("UserProfileDetail", "❌ Friend request error: $error")
             showAppToast(error, Toast.LENGTH_SHORT)
+            // The legacy action row is hidden by default, so a failed
+            // check_friend_request would otherwise leave no add-friend button.
+            // Render the Variant-B button from the current (default NOT_FRIENDS)
+            // status so the screen is never buttonless. A duplicate reverse send
+            // is still rejected server-side ("Request already sent…").
+            updateUIBasedOnFriendStatus()
         })
 
         // Observe loading state
@@ -336,7 +353,8 @@ class UserProfileDetailActivity : AppCompatActivity() {
                 // viewable and no call may be placed — close the screen with a clear
                 // message. This is the chokepoint, so it covers every entry point
                 // (recent / chat / search / deep link), not just the recent list.
-                if (response.data?.blockedByPeer == true) {
+                if (response.data?.blockedByPeer == true && !isClosingDueToBlock) {
+                    isClosingDueToBlock = true
                     showAppToast(getString(R.string.peer_calls_blocked), Toast.LENGTH_SHORT)
                     finish()
                     return@Observer
@@ -1187,11 +1205,27 @@ class UserProfileDetailActivity : AppCompatActivity() {
     }
 
     private fun confirmRemoveFriend() {
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setMessage("Remove this friend? You won't be able to chat unless you become friends again.")
-            .setPositiveButton("Remove") { _, _ -> removeFriend() }
-            .setNegativeButton("Cancel", null)
-            .show()
+        // Friends-Gated Chat: branded avatar-confirm dialog (replaces the plain AlertDialog).
+        val view = layoutInflater.inflate(R.layout.dialog_remove_friend, null)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this).setView(view).create()
+        dialog.window?.setBackgroundDrawable(
+            android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT)
+        )
+
+        val name = displayedUserName.ifBlank { userName }.ifBlank { "this user" }
+        view.findViewById<android.widget.TextView>(R.id.tv_dialog_title).text = "Remove $name?"
+
+        val avatar = view.findViewById<android.widget.ImageView>(R.id.iv_dialog_avatar)
+        if (userImage.isNotBlank() && !isDestroyed && !isFinishing) {
+            Glide.with(this).load(userImage).placeholder(R.drawable.star).into(avatar)
+        }
+
+        view.findViewById<View>(R.id.btn_dialog_keep).setOnClickListener { dialog.dismiss() }
+        view.findViewById<View>(R.id.btn_dialog_remove).setOnClickListener {
+            dialog.dismiss()
+            removeFriend()
+        }
+        dialog.show()
     }
 
     private fun removeFriend() {
@@ -1221,11 +1255,9 @@ class UserProfileDetailActivity : AppCompatActivity() {
      */
     private fun extractNameOnly(username: String): String {
         if (username.isEmpty()) return username
-        
-        // Remove trailing digits
-        return username.replace(Regex("\\d+$"), "").trim()
+        return username.replace(Regex("\\d{6,}$"), "").trim()
     }
-    
+
     /**
      * Check if the current user has already favorited this profile
      */

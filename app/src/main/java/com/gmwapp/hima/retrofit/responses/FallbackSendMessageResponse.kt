@@ -5,7 +5,9 @@ import com.google.gson.annotations.SerializedName
 data class FallbackSendMessageResponse(
     val success: Boolean,
     val message: String?,
-    val data: FallbackMessageData?
+    val data: FallbackMessageData?,
+    // Chat-gate rejection reason when success=false: "FRIENDS_REQUIRED" | "AUTOPAY_REQUIRED".
+    val code: String? = null
 )
 
 data class FallbackMessageData(

@@ -2836,7 +2836,10 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
         val remainingTime =
             binding.tvRemainingTime?.text.toString() // Get the current countdown time
-        val timeParts = remainingTime.split(":").map { it.toInt() }
+        // B-v1110 #1 (sibling) — same "Connecting…" crash guard as
+        // observeCallSwitchAcceptance: non-numeric text yields an empty list so
+        // the size==3 block is skipped instead of throwing NumberFormatException.
+        val timeParts = remainingTime.split(":").mapNotNull { it.trim().toIntOrNull() }
 
         if (timeParts.size == 3) {  // Ensure we have HH:MM:SS format
             val hours = timeParts[0]
@@ -3013,7 +3016,11 @@ class MaleVideoCallingActivity : AppCompatActivity() {
 
                     val remainingTime =
                         binding.tvRemainingTime?.text.toString() // Get the current countdown time
-                    val timeParts = remainingTime.split(":").map { it.toInt() }
+                    // B-v1110 #1 — tvRemainingTime can read "Connecting…" before the
+                    // HH:MM:SS timer starts; toInt() on that crashed the live call.
+                    // mapNotNull + toIntOrNull yields an empty list for non-numeric
+                    // text, so the size==3 block below is simply skipped (no crash).
+                    val timeParts = remainingTime.split(":").mapNotNull { it.trim().toIntOrNull() }
 
 
                     if (timeParts.size == 3) {  // Ensure we have HH:MM:SS format
@@ -3172,7 +3179,9 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                         .setMessage("$receiverName requested for video call")
                         .setPositiveButton("Confirm") { _, _ ->
                             val remainingTime = binding.tvRemainingTime?.text.toString()
-                            val timeParts = remainingTime.split(":").map { it.toInt() }
+                            // B-v1110 #1 (sibling) — guard the "Connecting…" parse on
+                            // the incoming switch-to-video Confirm path too.
+                            val timeParts = remainingTime.split(":").mapNotNull { it.trim().toIntOrNull() }
                             if (timeParts.size == 3) {
                                 val hours = timeParts[0]
                                 val minutes = timeParts[1]

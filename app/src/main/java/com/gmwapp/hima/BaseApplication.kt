@@ -606,6 +606,17 @@ class BaseApplication : Application(), Configuration.Provider {
                     return
                 }
                 val additional = event.notification.additionalData
+                // Silent gate refresh: when the male's friend request is rejected while
+                // he is in the chat screen, suppress the notification banner and post the
+                // peer_id so ChatActivityInHouse can re-fetch the gate immediately.
+                if (additional?.optString("type", "") == "friend_request_rejected") {
+                    val peerId = additional.optInt("peer_id", 0)
+                    if (peerId > 0) {
+                        com.gmwapp.hima.agora.FcmUtils.friendRequestRejectedLiveData.postValue(peerId)
+                    }
+                    event.preventDefault()
+                    return
+                }
                 if (additional?.optString("type", "") == "message") {
                     val peerUserId = this@BaseApplication.parseMessageNotificationPeerUserId(additional)
                     val lastMessage = event.notification.body.orEmpty().trim()
@@ -945,22 +956,18 @@ class BaseApplication : Application(), Configuration.Provider {
                         }
                     }
                    else if (type == "friend_request") {
-                        Log.d("OneSignalClick", "✅ App OPEN - Opening ChatListActivity")
-                        val intent = Intent(applicationContext, com.gmwapp.hima.activities.FriendsListActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                            putExtra("target_tab", FriendsTabFragment.TYPE_THEIR_REQUESTS)   // tell the activity which tab to open
-
-                        }
-                        startActivity(intent)
+                        // Open the integrated in-app Friends hub (bottom-nav) on the
+                        // Requests tab — NOT the standalone FriendsListActivity — so the
+                        // app shell (bottom nav) is preserved.
+                        openFriendsHubFromNotification(1)
                     }
                     else if (type == "friend_request_accepted") {
-                        Log.d("OneSignalClick", "✅ App OPEN - Opening ChatListActivity")
-                        val intent = Intent(applicationContext, com.gmwapp.hima.activities.FriendsListActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                            putExtra("target_tab", FriendsTabFragment.TYPE_FRIENDS)   // tell the activity which tab to open
-
-                        }
-                        startActivity(intent)
+                        openFriendsHubFromNotification(0)
+                    }
+                    else if (type == "friend_request_rejected") {
+                        // Tapping the notification (rare — foreground handler suppresses the
+                        // banner) opens the Friends hub on the Sent tab.
+                        openFriendsHubFromNotification(2)
                     }
 
                     else if (type == "creator_warning") {
@@ -1150,14 +1157,14 @@ class BaseApplication : Application(), Configuration.Provider {
             androidx.core.content.pm.ShortcutManagerCompat
                 .removeAllDynamicShortcuts(this)
         }
+        val teardownUserId = getPrefs()?.getUserData()?.id ?: 0
         runCatching {
             chatHistoryMemoryCache.clearAll()
             com.gmwapp.hima.utils.PinnedChatsPrefsHelper.clearAll(this)
             com.gmwapp.hima.utils.ChatNotificationStore.clearAll(this)
-            // TC_017: wipe the per-conversation "delete for me" watermark too,
-            // else the next account on this device (sequential int ids can
-            // collide) inherits the previous user's hidden-message timestamps.
-            com.gmwapp.hima.utils.ClearedChatsPrefsHelper.clearAll(this)
+            // TC_017: wipe only this user's watermarks so a different account
+            // that previously cleared chats on this device keeps its own state.
+            com.gmwapp.hima.utils.ClearedChatsPrefsHelper.clearForUser(this, teardownUserId)
         }
         // Drop the throttle so the next login fires the heartbeat immediately.
         runCatching { activeStatusReporter.reset() }
@@ -1195,6 +1202,30 @@ class BaseApplication : Application(), Configuration.Provider {
             if (s.isNotEmpty()) return s
         }
         return null
+    }
+
+    /**
+     * Friend-request notification tap → open the integrated in-app Friends hub
+     * (a bottom-nav tab inside MainActivity) instead of the standalone
+     * FriendsListActivity, so the app shell (bottom nav) is preserved.
+     * Male  → Friends tab ([com.gmwapp.hima.fragments.FriendsHubFragment]);
+     * Female → Chat tab ([com.gmwapp.hima.fragments.CreatorChatFragment]).
+     * [subTab]: 0 = Friends, 1 = Requests received, 2 = Sent.
+     */
+    private fun openFriendsHubFromNotification(subTab: Int) {
+        val gender = try { getPrefs()?.getUserData()?.gender } catch (e: Exception) { null }
+        val tab = if (gender == com.gmwapp.hima.constants.DConstants.FEMALE)
+            com.gmwapp.hima.activities.MainActivity.TAB_CHAT
+        else
+            com.gmwapp.hima.activities.MainActivity.TAB_FAVOURITE
+        val intent = Intent(applicationContext, com.gmwapp.hima.activities.MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra(com.gmwapp.hima.activities.MainActivity.EXTRA_OPEN_TAB, tab)
+            putExtra(com.gmwapp.hima.activities.MainActivity.EXTRA_OPEN_SUBTAB, subTab)
+        }
+        startActivity(intent)
     }
 
     /**
@@ -1627,7 +1658,12 @@ class BaseApplication : Application(), Configuration.Provider {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             mp.preferredDevice?.let { "${deviceTypeName(it.type)}#${it.id}" } ?: "default"
         } else "n/a"
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
+        // B-v1110 #5 — catch Throwable, not Exception: getPreferredDevice/
+        // getRoutedDevice are missing on some vendor ROMs and throw
+        // NoSuchMethodError, which extends Error (not Exception) and so slipped
+        // past the old catch and crashed call audio setup. This is a diagnostic
+        // string helper, so degrading to an error label is always safe.
         "err:${e.javaClass.simpleName}"
     }
 
@@ -1635,7 +1671,9 @@ class BaseApplication : Application(), Configuration.Provider {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             mp.routedDevice?.let { "${deviceTypeName(it.type)}#${it.id}" } ?: "unrouted"
         } else "n/a"
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
+        // B-v1110 #5 — see describePreferredDevice: NoSuchMethodError on
+        // getRoutedDevice() is an Error, so Throwable (not Exception) is required.
         "err:${e.javaClass.simpleName}"
     }
 

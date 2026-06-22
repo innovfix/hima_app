@@ -57,7 +57,6 @@ import com.gmwapp.hima.models.MessageDeliveryStatus
 import com.gmwapp.hima.retrofit.ApiManager
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.ChatAttachmentUploadResponse
-import com.gmwapp.hima.retrofit.responses.MarkReadResponse
 import com.gmwapp.hima.retrofit.responses.MarkMessagesReadResponse
 import com.gmwapp.hima.retrofit.responses.MessageListResponse
 import com.gmwapp.hima.retrofit.responses.SendMessageResponse
@@ -491,6 +490,10 @@ class ChatActivityInHouse : AppCompatActivity() {
         }
         initPeerHeader()
         initAddFriendBanner()
+        // Friends-Gated Chat: lock the composer immediately for the new peer
+        // (gate was just reset to null), then fetch the real gate for this peer.
+        applyComposerGate()
+        refreshChatGate()
         connectSocket()
         loadMessages()
     }
@@ -1592,8 +1595,12 @@ class ChatActivityInHouse : AppCompatActivity() {
 
         appendMessageWithOptionalDateHeader(tempMessage)
         rememberPendingOutgoing(tempId, "", messageType, localAttachmentUrl)
+        // B-v1110 #8 (sibling) — bounds-guard the attachment-send scroll too.
         rvMessages.post {
-            rvMessages.smoothScrollToPosition(messages.size - 1)
+            val lastPos = messages.size - 1
+            if (lastPos >= 0) {
+                rvMessages.smoothScrollToPosition(lastPos)
+            }
         }
         return tempId
     }
@@ -1779,6 +1786,12 @@ class ChatActivityInHouse : AppCompatActivity() {
                                 responseBody?.message ?: "Couldn't send attachment",
                                 Toast.LENGTH_SHORT
                             )
+                            // Friends-gated chat: same as the text path — re-fetch the gate so
+                            // the composer locks with the Add-Friend / Subscribe CTA.
+                            val gateCode = responseBody?.code
+                            if (gateCode == "FRIENDS_REQUIRED" || gateCode == "AUTOPAY_REQUIRED") {
+                                refreshChatGate()
+                            }
                         }
                     } else {
                         removeTempMessage(tempId)
@@ -1954,6 +1967,12 @@ class ChatActivityInHouse : AppCompatActivity() {
             socketManager.messageError.collect { error ->
                 Log.e("SocketIOCheck", "Message error: $error")
                 if (!isUiSafe() || error.startsWith("Reaction error:")) return@collect
+                // Friends-gated chat rejection (server throws "FRIENDS_REQUIRED: chat is
+                // locked" / "AUTOPAY_REQUIRED: ..."). The REST fallback enforces the SAME gate,
+                // so retrying it is pointless. Re-fetch the gate so the composer locks and shows
+                // the Add-Friend / Subscribe CTA instead of leaving an open input box.
+                val isGateError = error.startsWith("FRIENDS_REQUIRED") || error.startsWith("AUTOPAY_REQUIRED")
+                if (isGateError) refreshChatGate()
                 // T9: server doesn't echo a client_message_id yet, so we can't
                 // map a `message_error` back to a specific in-flight temp. To
                 // avoid mutating the wrong bubble when multiple sends are
@@ -1977,6 +1996,13 @@ class ChatActivityInHouse : AppCompatActivity() {
                 val socketPending = socketPendings.first()
                 val tempId = socketPending.key
                 val payload = socketPending.value
+                if (isGateError) {
+                    // Mark this message failed with the friendly reason; do NOT retry over REST.
+                    val msg = if (error.startsWith("AUTOPAY_REQUIRED")) "Subscribe to start chatting."
+                              else "You can chat once you are friends."
+                    failPendingOutgoing(tempId, msg)
+                    return@collect
+                }
                 if (payload.messageType == "text") {
                     messageSendMethod[tempId] = "api"
                     sendMessageViaAPI(tempId, payload.message)
@@ -2843,8 +2869,13 @@ class ChatActivityInHouse : AppCompatActivity() {
         appendMessageWithOptionalDateHeader(tempMessage)
 
         // Smooth scroll to bottom to show new message
+        // B-v1110 #8 — guard against an empty list (size-1 == -1 → "Invalid target
+        // position"). The post{} runs async, so the list could be emptied first.
         rvMessages.post {
-            rvMessages.smoothScrollToPosition(messages.size - 1)
+            val lastPos = messages.size - 1
+            if (lastPos >= 0) {
+                rvMessages.smoothScrollToPosition(lastPos)
+            }
         }
 
         // Try Socket.IO first, fallback to API
@@ -2888,10 +2919,18 @@ class ChatActivityInHouse : AppCompatActivity() {
                             }
                             Log.d("SocketIOCheck", "Message sent via fallback API - ID: ${fallbackMessage.id}")
                         } else {
+                            // Friends-gated chat: server returns success=false + code
+                            // FRIENDS_REQUIRED/AUTOPAY_REQUIRED (HTTP 200). Surface the friendly
+                            // reason and re-fetch the gate so the composer locks with the
+                            // Add-Friend / Subscribe CTA — not a generic "Couldn't send" toast.
+                            val gateCode = responseBody?.code
                             failPendingOutgoing(
                                 tempId,
                                 responseBody?.message ?: "Couldn't send message"
                             )
+                            if (gateCode == "FRIENDS_REQUIRED" || gateCode == "AUTOPAY_REQUIRED") {
+                                refreshChatGate()
+                            }
                         }
                     } else {
                         failPendingOutgoing(tempId, "Couldn't send message")
@@ -2992,8 +3031,12 @@ class ChatActivityInHouse : AppCompatActivity() {
             insertMessageChronologically(chatMessage)
 
             if (isSentByMe || wasNearBottom) {
+                // B-v1110 #8 (sibling) — bounds-guard the incoming-message scroll too.
                 rvMessages.post {
-                    rvMessages.smoothScrollToPosition(messages.size - 1)
+                    val lastPos = messages.size - 1
+                    if (lastPos >= 0) {
+                        rvMessages.smoothScrollToPosition(lastPos)
+                    }
                 }
             } else {
                 unseenIncomingCount += 1
@@ -3360,6 +3403,12 @@ class ChatActivityInHouse : AppCompatActivity() {
         historySilentRetryUsed = false
         suppressNextResumeHistoryReload = true
         isAddFriendBannerDismissedThisSession = false
+        // Friends-Gated Chat: the gate is per-conversation. Drop the previous
+        // peer's gate so peer B never inherits peer A's "unlocked" composer
+        // (a real friends-gate bypass when switching peers via onNewIntent).
+        // onNewIntent re-applies the (now-null) gate immediately, then refreshes.
+        lastChatGate = null
+        isFriendWithPeer = false
         activeAttachmentTempIds.clear()
         messages.clear()
         clearNewMessagePill()
@@ -3490,33 +3539,17 @@ class ChatActivityInHouse : AppCompatActivity() {
     private val markChatReadCooldownMs = 2_000L
 
     private fun markMessagesAsRead() {
-        // T20: skip if the same call fired within the cooldown window.
+        // The legacy `chats/mark-read` route (by chat_id) was never deployed
+        // server-side — it always 404'd, so messages that arrived while the thread
+        // was open never got cleared and the inbox badge kept counting them.
+        // Delegate to the working `mark_messages_read` path (by last message id),
+        // still throttled so a burst of incoming messages doesn't spam the endpoint.
         val now = SystemClock.elapsedRealtime()
         if (now - lastMarkedChatReadAt < markChatReadCooldownMs) {
             return
         }
         lastMarkedChatReadAt = now
-        apiManager.markRead(
-            userId = myUserId,
-            chatId = chatId,
-            object : NetworkCallback<MarkReadResponse> {
-                override fun onResponse(call: Call<MarkReadResponse>, response: Response<MarkReadResponse>) {
-                    if (response.isSuccessful) {
-                        Log.d("ChatActivityInHouse", "Messages marked as read")
-                    } else {
-                        Log.e("ChatActivityInHouse", "Error marking as read: ${response.code()}")
-                    }
-                }
-
-                override fun onFailure(call: Call<MarkReadResponse>, t: Throwable) {
-                    Log.e("ChatActivityInHouse", "Error marking as read: ${t.message}")
-                }
-
-                override fun onNoNetwork() {
-                    // Silent fail for read status
-                }
-            }
-        )
+        markMessagesAsReadIfAvailable()
     }
 
     private fun markMessagesAsReadWithLastMessageId(lastMessageId: Long) {
@@ -3707,11 +3740,10 @@ class ChatActivityInHouse : AppCompatActivity() {
             chatAdapter.release()
         }
 
-        // Fire both mark-read endpoints on exit so the inbox badge clears reliably
-        // on the next `my_chat` refresh. markMessagesAsReadIfAvailable() covers the
-        // `mark_messages_read` path (by last message id); markMessagesAsRead()
-        // covers the `chats/mark-read` path (by chat id) — the latter also works
-        // when the in-memory messages list is empty.
+        // Mark read on exit so the inbox badge clears reliably on the next
+        // `my_chat` refresh. Both calls below resolve to the same working
+        // `mark_messages_read` path (by last message id); the id-equality guard
+        // means the second is a cheap no-op.
         markReadOnExit()
 
         // Keep Socket.IO connected - do not disconnect on pause
@@ -3753,8 +3785,13 @@ class ChatActivityInHouse : AppCompatActivity() {
         mainHandler.removeCallbacks(recordingTicker)
         stopRecordingPulse()
         audioRecorderController.release()
-        chatAdapter.release()
-        
+        // B-v1110 #7 — onPause guards this with ::chatAdapter.isInitialized but
+        // onDestroy did not; an early teardown (activity destroyed before the
+        // adapter is created) crashed with UninitializedPropertyAccessException.
+        if (::chatAdapter.isInitialized) {
+            chatAdapter.release()
+        }
+
         Log.d("SocketIOCheck", "═══════════════════════════════════════")
         Log.d("SocketIOCheck", "👋 Leaving chat room (socket stays connected for app session)")
         Log.d("SocketIOCheck", "═══════════════════════════════════════")
@@ -3901,6 +3938,16 @@ class ChatActivityInHouse : AppCompatActivity() {
         popup.menu.findItem(R.id.action_block)?.isVisible = !iHaveBlockedThisUser
         popup.menu.findItem(R.id.action_unblock)?.isVisible = iHaveBlockedThisUser
 
+        // Tint "Delete chat" red so the destructive action reads as such
+        popup.menu.findItem(R.id.action_delete_chat)?.let { item ->
+            val span = android.text.SpannableString(item.title)
+            span.setSpan(
+                android.text.style.ForegroundColorSpan(android.graphics.Color.parseColor("#DC2626")),
+                0, span.length, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            item.title = span
+        }
+
         popup.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.action_accept_as_friend -> {
@@ -3915,10 +3962,85 @@ class ChatActivityInHouse : AppCompatActivity() {
                     showUnblockConfirmationDialog()
                     true
                 }
+                R.id.action_clear_chat -> {
+                    showClearChatConfirmation()
+                    true
+                }
+                R.id.action_delete_chat -> {
+                    showDeleteChatConfirmation()
+                    true
+                }
                 else -> false
             }
         }
         popup.show()
+    }
+
+    private fun showClearChatConfirmation() {
+        showChatActionConfirmation(
+            iconRes = R.drawable.ic_close_circle,
+            accentColorHex = "#ff1383",
+            titleRes = R.string.chat_clearchat_title,
+            messageRes = R.string.chat_clearchat_message,
+            confirmTextRes = R.string.chat_clearchat_confirm
+        ) { clearChatLocally() }
+    }
+
+    private fun showDeleteChatConfirmation() {
+        showChatActionConfirmation(
+            iconRes = R.drawable.delete,
+            accentColorHex = "#DC2626",
+            titleRes = R.string.chat_deletechat_title,
+            messageRes = R.string.chat_deletechat_message,
+            confirmTextRes = R.string.chat_deletechat_confirm
+        ) { deleteChatLocally() }
+    }
+
+    private fun showChatActionConfirmation(
+        iconRes: Int,
+        accentColorHex: String,
+        titleRes: Int,
+        messageRes: Int,
+        confirmTextRes: Int,
+        onConfirm: () -> Unit
+    ) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_chat_action_confirmation, null)
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        val color = android.graphics.Color.parseColor(accentColorHex)
+        val ivIcon = dialogView.findViewById<ImageView>(R.id.iv_icon)
+        ivIcon.setImageResource(iconRes)
+        androidx.core.content.ContextCompat.getDrawable(this, R.drawable.circle_bg_accent)?.mutate()?.let { bg ->
+            bg.setTint(color)
+            ivIcon.background = bg
+        }
+
+        dialogView.findViewById<android.widget.TextView>(R.id.tv_title).setText(titleRes)
+        dialogView.findViewById<android.widget.TextView>(R.id.tv_message).setText(messageRes)
+
+        val btnConfirm = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_confirm)
+        btnConfirm.setText(confirmTextRes)
+        btnConfirm.backgroundTintList = android.content.res.ColorStateList.valueOf(color)
+        btnConfirm.setOnClickListener {
+            dialog.dismiss()
+            onConfirm()
+        }
+        dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_cancel).setOnClickListener {
+            dialog.dismiss()
+        }
+        dialog.show()
+    }
+
+    private fun deleteChatLocally() {
+        messages.clear()
+        chatAdapter.notifyDataSetChanged()
+        runCatching { historyCache.putSnapshot(peerUserId, emptyList()) }
+        showAppToast(getString(R.string.chat_deletechat_toast), Toast.LENGTH_SHORT)
+        finish()
     }
 
     private fun showBlockConfirmationDialog() {
@@ -3987,6 +4109,7 @@ class ChatActivityInHouse : AppCompatActivity() {
             "ChatActivityInHouse",
             "🧹 Cleared local chat for peer=$peerUserId messagesBefore=$sizeBefore clearedUpto=$clearedUpto"
         )
+        showAppToast(getString(R.string.chat_clearchat_toast), Toast.LENGTH_SHORT)
     }
 
     /**
@@ -4410,9 +4533,7 @@ class ChatActivityInHouse : AppCompatActivity() {
      */
     private fun extractNameOnly(username: String): String {
         if (username.isEmpty()) return username
-
-        // Remove trailing digits
-        return username.replace(Regex("\\d+$"), "").trim()
+        return username.replace(Regex("\\d{6,}$"), "").trim()
     }
 
     private fun isSubscriptionActive(): Boolean =
@@ -4488,7 +4609,32 @@ class ChatActivityInHouse : AppCompatActivity() {
      */
     private fun applyComposerGate() {
         val gate = lastChatGate
-        if (gate == null || gate.mode == "autopay") {
+        if (gate == null) {
+            val gender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
+            val isMale = gender?.equals(DConstants.MALE, ignoreCase = true) == true
+            val isFemale = gender?.equals(DConstants.FEMALE, ignoreCase = true) == true
+            when {
+                isMale -> {
+                    // Male — defer to subscription gate while friends-gate API loads.
+                    friendshipLockContainer?.visibility = View.GONE
+                    applySubscriptionGate()
+                }
+                isFemale -> {
+                    // Female users are recipients, never gated by friendship or autopay.
+                    // Show their composer immediately so they don't see a blank bar while
+                    // the gate API is in-flight or unreachable.
+                    messageInputContainer?.visibility = View.VISIBLE
+                    friendshipLockContainer?.visibility = View.GONE
+                }
+                else -> {
+                    // Gender unknown — fail-safe: hide composer to prevent gate bypass.
+                    messageInputContainer?.visibility = View.GONE
+                    friendshipLockContainer?.visibility = View.GONE
+                }
+            }
+            return
+        }
+        if (gate.mode == "autopay") {
             friendshipLockContainer?.visibility = View.GONE
             applySubscriptionGate()
             return
@@ -4566,6 +4712,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         apiManager.sendFriendRequest(senderId, receiverId, status, object : NetworkCallback<FriendRequestResponse> {
             override fun onResponse(call: Call<FriendRequestResponse>, response: Response<FriendRequestResponse>) {
                 isFriendRequestInFlight = false
+                if (!isUiSafe()) return
                 val ok = response.isSuccessful && response.body()?.success == true
                 val msg = when {
                     !ok -> getString(R.string.chat_add_friend_failure)
@@ -4579,12 +4726,14 @@ class ChatActivityInHouse : AppCompatActivity() {
 
             override fun onFailure(call: Call<FriendRequestResponse>, t: Throwable) {
                 isFriendRequestInFlight = false
+                if (!isUiSafe()) return
                 setFriendLockButtonsEnabled(true)
                 showAppToast(getString(R.string.chat_add_friend_failure), Toast.LENGTH_SHORT)
             }
 
             override fun onNoNetwork() {
                 isFriendRequestInFlight = false
+                if (!isUiSafe()) return
                 setFriendLockButtonsEnabled(true)
                 showAppToast(getString(R.string.chat_add_friend_failure), Toast.LENGTH_SHORT)
             }
@@ -4605,15 +4754,18 @@ class ChatActivityInHouse : AppCompatActivity() {
                     lastChatGate = body
                     isFriendWithPeer = body.friendStatus == "friends"
                 }
+                if (!isUiSafe()) return
                 applyComposerGate()
             }
 
             override fun onFailure(call: Call<com.gmwapp.hima.retrofit.responses.ChatGateStatusResponse>, t: Throwable) {
                 Log.w("ChatFriends", "refreshChatGate failed: ${t.message}")
+                if (!isUiSafe()) return
                 applyComposerGate()
             }
 
             override fun onNoNetwork() {
+                if (!isUiSafe()) return
                 applyComposerGate()
             }
         })
@@ -4637,6 +4789,16 @@ class ChatActivityInHouse : AppCompatActivity() {
         // Re-gate when admin flips the language flag while chat is open.
         com.gmwapp.hima.utils.LanguageFeatureCache.updates.observe(this) {
             applyComposerGate()
+        }
+        // Real-time rejection: when the peer rejects this user's friend request while
+        // the chat screen is open, silently re-fetch the gate so the male can re-request.
+        // Clear after handling so re-entry doesn't replay the stale value.
+        com.gmwapp.hima.agora.FcmUtils.friendRequestRejectedLiveData.observe(this) { peerId ->
+            if (peerId != null && peerId == peerUserId) {
+                com.gmwapp.hima.agora.FcmUtils.friendRequestRejectedLiveData.postValue(null)
+                showAppToast("Your request was declined. You can send a new one.", android.widget.Toast.LENGTH_SHORT)
+                refreshChatGate()
+            }
         }
     }
 

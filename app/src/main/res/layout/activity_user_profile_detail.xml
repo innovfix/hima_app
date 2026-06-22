@@ -611,14 +611,21 @@
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
 
-            <!-- Action Buttons Section -->
+            <!-- Action Buttons Section (legacy) — hidden by default. The Variant-B
+                 btn_add_friend_primary above drives every friend state once
+                 check_friend_request responds; keeping this visible-by-default
+                 flashed a tappable "Send Friend Request" before the API resolved,
+                 which let a user send a redundant reverse request when the peer
+                 had already requested them. updateUIBasedOnFriendStatus() keeps
+                 this GONE. -->
             <LinearLayout
                 android:id="@+id/ll_action_buttons"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:layout_marginTop="8dp"
-                android:layout_marginBottom="0dp">
+                android:layout_marginBottom="0dp"
+                android:visibility="gone">
 
                 <!-- Send Friend Request Button -->
                 <com.google.android.material.card.MaterialCardView

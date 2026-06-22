@@ -87,7 +87,21 @@ class FriendsHubFragment : Fragment(), Refreshable, NetworkRetryable {
     override fun onResume() {
         super.onResume()
         loadCounts()
+        applyPendingSubTab()
     }
+
+    /**
+     * If a friend-request notification deep-link requested a specific sub-tab,
+     * jump to it (0=Friends, 1=Requests, 2=Sent). No-op when none requested.
+     */
+    fun applyPendingSubTab() {
+        if (_binding == null) return
+        val sub = (activity as? com.gmwapp.hima.activities.MainActivity)?.consumePendingFriendsSubTab() ?: -1
+        if (sub in 0..2) binding.vpFriendsHub.setCurrentItem(sub, false)
+    }
+
+    /** Called by child FriendsTabFragment after accept/reject/remove to sync badges. */
+    fun refreshCounts() = loadCounts()
 
     /** Refresh the Requests tab count badge from the friend-tabs counts endpoint. */
     private fun loadCounts() {
@@ -102,9 +116,20 @@ class FriendsHubFragment : Fragment(), Refreshable, NetworkRetryable {
                 val d = response.body()?.data
                 if (response.isSuccessful && response.body()?.success == true && d != null) {
                     receivedCount = d.received_requests_count
-                    val base = getString(R.string.chat_tab_requests)
+                    // Append " (n)" to each tab when its count > 0; otherwise show the
+                    // plain label (no "(0)"). Mirrors the male FriendsListActivity badges.
+                    fun labelWithCount(resId: Int, count: Int): String {
+                        val base = getString(resId)
+                        return if (count > 0) "$base ($count)" else base
+                    }
+                    binding.tabsFriendsHub.getTabAt(0)?.text =
+                        labelWithCount(R.string.chat_tab_friends, d.friends_count)
                     binding.tabsFriendsHub.getTabAt(1)?.text =
-                        if (receivedCount > 0) "$base ($receivedCount)" else base
+                        labelWithCount(R.string.chat_tab_requests, d.received_requests_count)
+                    binding.tabsFriendsHub.getTabAt(2)?.text =
+                        labelWithCount(R.string.chat_tab_sent, d.my_requests_count)
+                    binding.tabsFriendsHub.getTabAt(3)?.text =
+                        labelWithCount(R.string.favourite, d.favourites_count)
                     // Mirror pending requests on the bottom-nav "Friends" icon too.
                     (activity as? com.gmwapp.hima.activities.MainActivity)?.setFriendsRequestCount(receivedCount)
                 }

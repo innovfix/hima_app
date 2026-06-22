@@ -1,6 +1,9 @@
 package com.gmwapp.hima.activities
 
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
@@ -14,6 +17,7 @@ import androidx.viewpager2.adapter.FragmentStateAdapter
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.databinding.ActivityFriendsListBinding
 import com.gmwapp.hima.fragments.FriendsTabFragment
+import com.gmwapp.hima.onesignal.OneSignalNotificationServiceExtension
 import com.gmwapp.hima.retrofit.ApiManager
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.FriendTabsCountsResponse
@@ -30,6 +34,28 @@ class FriendsListActivity : AppCompatActivity() {
 
     @Inject
     lateinit var apiManager: ApiManager
+
+    private val friendStatusReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            loadTabCounts()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        loadTabCounts()
+        val filter = IntentFilter(OneSignalNotificationServiceExtension.ACTION_FRIEND_STATUS_CHANGED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(friendStatusReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(friendStatusReceiver, filter)
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        try { unregisterReceiver(friendStatusReceiver) } catch (_: Exception) {}
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

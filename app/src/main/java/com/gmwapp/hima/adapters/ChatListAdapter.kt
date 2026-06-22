@@ -51,6 +51,28 @@ class ChatListAdapter(
     // creator's user id, values are Boolean (true == subscribed).
     private val notifyPrefs = activity.getSharedPreferences(NotifyOnlinePrefsHelper.PREFS_NAME, Context.MODE_PRIVATE)
 
+    // Idempotency guard for the realtime unread bump. A single inbound message can
+    // reach the list twice — once over Socket.IO and once via the OneSignal push
+    // broadcast — and on reconnect the socket can replay a backlog of messages the
+    // server already counts. Bumping per-delivery inflated the badge to "every
+    // message ever" instead of the WhatsApp-style unseen-only count. We therefore
+    // bump at most once per unique message id; the bounded set caps memory.
+    private val countedIncomingIds = LinkedHashSet<Long>()
+    private val maxCountedIncomingIds = 1000
+
+    /** Records [id] as counted; returns true only the first time we see it. */
+    private fun rememberCountedIncomingId(id: Long): Boolean {
+        if (!countedIncomingIds.add(id)) return false
+        if (countedIncomingIds.size > maxCountedIncomingIds) {
+            val it = countedIncomingIds.iterator()
+            if (it.hasNext()) {
+                it.next()
+                it.remove()
+            }
+        }
+        return true
+    }
+
     private fun isSubscribed(userId: String): Boolean =
         notifyPrefs.getBoolean("notify_$userId", false)
 
@@ -129,19 +151,34 @@ class ChatListAdapter(
      *   0 (the thread has its own mark-read flow).
      * - If [peerUserId] isn't in the list yet, returns `false` so the host can
      *   trigger a full `loadData()` to pull the new conversation in from the API.
+     *
+     * The unread badge is bumped at most once per unique [incomingMessageId].
+     * Socket.IO deliveries carry the id; the OneSignal push broadcast passes `null`
+     * and therefore never bumps the count — the socket path owns counting, and the
+     * host's periodic `my_chat` refresh reconciles the authoritative server value.
+     * This stops the same message being counted twice (socket + push) and stops
+     * reconnect backlog replays from inflating the badge.
      */
     fun applyIncomingMessage(
         peerUserId: String,
         lastMessageText: String,
         lastMessageType: String,
         lastMessageTime: com.google.firebase.Timestamp,
-        suppressUnreadIncrement: Boolean = false
+        suppressUnreadIncrement: Boolean = false,
+        incomingMessageId: Long? = null
     ): Boolean {
         val idx = conversations.indexOfFirst { it.userId == peerUserId }
         if (idx < 0) return false
 
         val current = conversations[idx]
-        val nextUnread = if (suppressUnreadIncrement) 0 else current.unreadCount + 1
+        // Record every id-bearing (socket) delivery so a later replay of the same
+        // message can't re-bump the badge. Bump only on the first sighting of an id,
+        // and only when the chat for this peer isn't currently open. Deliveries with
+        // no id (the OneSignal push broadcast) never bump — the socket path owns
+        // counting; the host's periodic `my_chat` refresh reconciles the server value.
+        val firstSighting = incomingMessageId != null && rememberCountedIncomingId(incomingMessageId)
+        val countThis = firstSighting && !suppressUnreadIncrement
+        val nextUnread = if (countThis) current.unreadCount + 1 else current.unreadCount
         val updated = current.copy(
             lastMessage = lastMessageText,
             lastMessageType = lastMessageType,

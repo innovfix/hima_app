@@ -156,6 +156,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         // needed (right now only TAB_RECENT is consumed).
         const val EXTRA_OPEN_TAB = "open_tab"
         const val TAB_RECENT = "recent"
+        const val TAB_FAVOURITE = "favourite"
+        const val TAB_CHAT = "chat"
+        // Sub-tab index inside the Friends hub (male) / Chat hub (female):
+        // 0 = Friends, 1 = Requests received, 2 = Sent. -1 = none.
+        const val EXTRA_OPEN_SUBTAB = "open_subtab"
     }
 
     lateinit var binding: ActivityMainBinding
@@ -835,19 +840,45 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         val tab = routingIntent?.getStringExtra(EXTRA_OPEN_TAB) ?: return
         val targetItem = when (tab) {
             TAB_RECENT -> R.id.recent
+            TAB_FAVOURITE -> R.id.favourite
+            TAB_CHAT -> R.id.chat
             else -> {
                 android.util.Log.w("MainActivity", "Unknown OPEN_TAB extra: $tab")
                 return
             }
         }
         if (binding.bottomNavigationView.menu.findItem(targetItem) == null) {
-            // The Recent menu item is hidden for gender-restricted users in
+            // The target menu item is hidden for gender-restricted users in
             // some flows — bail rather than crash.
             android.util.Log.w("MainActivity", "OPEN_TAB target $tab not in current bottom nav")
             return
         }
+        // Stash the requested Friends/Chat sub-tab BEFORE selecting the tab so the
+        // hub fragment can pick it up in its onResume after the swap (-1 = none).
+        pendingFriendsSubTab = routingIntent.getIntExtra(EXTRA_OPEN_SUBTAB, -1)
         if (binding.bottomNavigationView.selectedItemId != targetItem) {
             binding.bottomNavigationView.selectedItemId = targetItem
+        } else {
+            // Already on the target tab — no fragment swap (so no onResume), apply now.
+            applyPendingFriendsSubTabToCurrentHub()
+        }
+    }
+
+    /** Friends/Chat hub sub-tab requested by a notification deep-link; consumed once by the hub fragment (-1 = none). */
+    var pendingFriendsSubTab: Int = -1
+        private set
+
+    /** Consumed by [FriendsHubFragment]/[CreatorChatFragment] to jump to the requested sub-tab. */
+    fun consumePendingFriendsSubTab(): Int {
+        val v = pendingFriendsSubTab
+        pendingFriendsSubTab = -1
+        return v
+    }
+
+    private fun applyPendingFriendsSubTabToCurrentHub() {
+        when (val current = supportFragmentManager.findFragmentById(R.id.flFragment)) {
+            is FriendsHubFragment -> current.applyPendingSubTab()
+            is CreatorChatFragment -> current.applyPendingSubTab()
         }
     }
 
@@ -1768,6 +1799,15 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
     }
 
     private fun updateChatBadge() {
+        // The Chat tab exists only for female users. For males it's hidden, but its
+        // BottomNavigationItemView still lives in the view tree, so placeChatBadge's
+        // icon-null guard doesn't catch them and the dot lands at a bogus spot
+        // (the stray red dot at the bottom-left). Skip the chat badge entirely when
+        // the tab isn't visible — males surface friend-requests on the Friends badge.
+        if (binding.bottomNavigationView.menu.findItem(R.id.chat)?.isVisible != true) {
+            hideBadge(chatUnreadDotTag)
+            return
+        }
         // Chat icon badge = unread messages + pending received friend-requests.
         val total = (chatFriendsUnread.coerceAtLeast(0) + chatGeneralUnread.coerceAtLeast(0) + chatRequestsUnread.coerceAtLeast(0))
 
@@ -2336,7 +2376,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
     fun logDailyActiveUserIfNeeded() {
         val prefs = BaseApplication.getInstance()?.getPrefs()
-        val todayDate = java.time.LocalDate.now().toString()
+        // B-v1110 #6 — java.time.LocalDate is API 26+; on API 24/25 devices
+        // (minSdk=24) it threw ClassNotFoundException at startup. SimpleDateFormat
+        // is available on every API level and yields the same "yyyy-MM-dd" string,
+        // so the day-boundary comparison below is unchanged.
+        val todayDate = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
         val lastLoggedDate = prefs?.getString("last_dau_logged_date")
         val bundle = Bundle().apply {
             putString("user_id", "${prefs?.getUserData()?.id}") // optional: useful for debugging

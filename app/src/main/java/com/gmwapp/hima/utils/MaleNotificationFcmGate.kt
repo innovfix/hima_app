@@ -54,7 +54,7 @@ object MaleNotificationFcmGate {
 
         if (isOperationalOrCritical(type, message)) return false
 
-        if (type == "message" || type == "friend_request" || type == "friend_request_accepted") {
+        if (type == "message" || type == "friend_request" || type == "friend_request_accepted" || type == "friend_request_rejected") {
             return !prefs.getBoolPref(MaleNotificationPreferenceKeys.CHAT_AND_FRIENDS, true)
         }
         if (type == "your ticket") {
@@ -92,6 +92,7 @@ object MaleNotificationFcmGate {
         add("message")
         add("friend_request")
         add("friend_request_accepted")
+        add("friend_request_rejected")
         add("your ticket")
         addAll(LUDO_TYPES)
         add("clear_data")

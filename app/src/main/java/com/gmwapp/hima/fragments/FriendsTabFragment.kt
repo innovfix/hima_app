@@ -145,20 +145,6 @@ class FriendsTabFragment : Fragment() {
         Log.d("FriendsTab", "🎬 onViewCreated - tabType: $tabType")
         
         setupRecyclerView()
-        if (requireActivity() is MainActivity && parentFragment !is CreatorChatFragment) {
-            val basePaddingTop = binding.rvFriends.paddingTop
-            ViewCompat.setOnApplyWindowInsetsListener(binding.rvFriends) { view, insets ->
-                val statusBarInset = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
-                view.setPadding(
-                    view.paddingLeft,
-                    basePaddingTop + statusBarInset,
-                    view.paddingRight,
-                    view.paddingBottom
-                )
-                insets
-            }
-            ViewCompat.requestApplyInsets(binding.rvFriends)
-        }
         setupSwipeRefresh()
         setupObservers()
         
@@ -314,7 +300,8 @@ class FriendsTabFragment : Fragment() {
                         lastMessageText = previewText,
                         lastMessageType = previewType,
                         lastMessageTime = ts,
-                        suppressUnreadIncrement = suppressUnread
+                        suppressUnreadIncrement = suppressUnread,
+                        incomingMessageId = msg.id
                     )
                     if (!handled) {
                         loadChatConversations()
@@ -601,9 +588,8 @@ class FriendsTabFragment : Fragment() {
                         rejectFriendRequest(friend)
                     }
                     else -> {
-                        requireContext().showAppToast("Removed ${friend.name}", Toast.LENGTH_SHORT)
-                        // TODO: Call API to remove friend
-                        removeFriend(friend)
+                        // Remove accepted friendship — status=2 deletes the row server-side.
+                        removeFriendFromList(friend)
                     }
                 }
             },
@@ -668,6 +654,15 @@ class FriendsTabFragment : Fragment() {
             senderId = friend.friend_id,
             receiverId = userData.id,
             status = 3
+        )
+    }
+
+    private fun removeFriendFromList(friend: FriendData) {
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData() ?: return
+        friendRequestViewModel.sendFriendRequest(
+            senderId = userData.id,
+            receiverId = friend.friend_id,
+            status = 2
         )
     }
 
@@ -1098,6 +1093,12 @@ class FriendsTabFragment : Fragment() {
      * Refresh tab counts in parent activity (works for both FriendsListActivity and ChatListActivity)
      */
     private fun refreshParentTabCounts() {
+        // Inside MainActivity the parent is FriendsHubFragment (male Friends tab) or
+        // CreatorChatFragment (female Chat tab). Refresh whichever hosts us so the
+        // Requests/Sent counts drop immediately on accept/reject/remove.
+        (parentFragment as? FriendsHubFragment)?.refreshCounts()
+        (parentFragment as? CreatorChatFragment)?.refreshCounts()
+
         activity?.let { parentActivity ->
             when (parentActivity) {
                 is com.gmwapp.hima.activities.FriendsListActivity -> {
@@ -1109,7 +1110,7 @@ class FriendsTabFragment : Fragment() {
                     Log.d("FriendsTab", "🔄 Refreshing tab counts in ChatListActivity")
                 }
                 else -> {
-                    Log.w("FriendsTab", "⚠️ Parent activity doesn't support tab count refresh")
+                    Log.d("FriendsTab", "🔄 Tab count refresh handled by FriendsHubFragment")
                 }
             }
         }

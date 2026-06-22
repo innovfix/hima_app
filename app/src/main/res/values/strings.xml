@@ -120,6 +120,16 @@
     <string name="chat_unblock_user_title">Unblock User?</string>
     <string name="chat_unblock_user_message">Once you unblock this user, you\'ll be able to send and receive messages from them again.</string>
     <string name="chat_unblock_action">Unblock</string>
+    <string name="chat_clearchat_action">Clear chat</string>
+    <string name="chat_deletechat_action">Delete chat</string>
+    <string name="chat_clearchat_title">Clear this chat?</string>
+    <string name="chat_clearchat_message">All messages will be removed from this device. The chat will stay in your list.</string>
+    <string name="chat_clearchat_confirm">Clear chat</string>
+    <string name="chat_clearchat_toast">Chat cleared</string>
+    <string name="chat_deletechat_title">Delete this chat?</string>
+    <string name="chat_deletechat_message">This chat will be removed from your chat list. Messages will be deleted from this device.</string>
+    <string name="chat_deletechat_confirm">Delete</string>
+    <string name="chat_deletechat_toast">Chat deleted</string>
     <string name="chat_audio_unavailable">Audio unavailable</string>
     <string name="chat_back_desc">Back</string>
     <string name="chat_audio_call_desc">Audio Call</string>

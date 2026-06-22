@@ -398,37 +398,51 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
             }
 
             override fun onResponse(call: okhttp3.Call, response: OkHttpResponse) {
-                val resultStr = response.body?.string()
-                val json = JSONObject(resultStr)
-                val phonePeStatus = json.getJSONObject("phonepe_status")
-                val state = phonePeStatus.getString("state")
-
-                val localRecord = json.getJSONObject("local_record")
-                val coin_id = localRecord.getString("coin_id")
-                val order_id = localRecord.getString("order_id")
-                Log.d("PhonePeOrderStatus", "Order Status: $resultStr")
-                Log.d("PhonePeOrderState", "Order State: $state,  Coin_id : $coin_id , Order_id :$order_id ")
-                Log.d("PhoneperesultStr", "$resultStr")
-
-
-                if (state=="COMPLETED"){
-                    runOnUiThread{
-                        showAppToast("Payment Successful", Toast.LENGTH_LONG)
-                        user_id?.let { WalletViewModel.addCoins(it, coin_id, 1, order_id, "Coins purchased") }
-                        updatePurchaseOnMeta()
-                        // Notification conversion: attribute this recharge (₹) to the
-                        // most recent notification the user received.
-                        val app = BaseApplication.getInstance()
-                        val rupees = app?.getPrefs()?.getString("last_coin_amount")?.toDoubleOrNull()?.toInt() ?: 0
-                        app?.trackNotificationConversion(app.getLastNotificationId(), "purchase", rupees)
+                // B-v1110 #2 — the PhonePe status response was parsed with
+                // getJSONObject/getString and no try/catch, so any unexpected
+                // shape (e.g. missing "state") threw JSONException and crashed the
+                // wallet mid-payment. Coins are still credited by the backend
+                // webhook/cron, so we must never tell the user "Failed" on a parse
+                // error — only show a non-success message, never a false failure.
+                try {
+                    val resultStr = response.body?.string()
+                    if (resultStr.isNullOrBlank()) {
+                        runOnUiThread {
+                            showAppToast("Couldn't confirm payment. If money was deducted, coins will be added shortly.", Toast.LENGTH_LONG)
+                        }
+                        return
                     }
+                    val json = JSONObject(resultStr)
+                    val state = json.optJSONObject("phonepe_status")?.optString("state") ?: ""
+                    val localRecord = json.optJSONObject("local_record")
+                    val coin_id = localRecord?.optString("coin_id") ?: ""
+                    val order_id = localRecord?.optString("order_id") ?: ""
+                    Log.d("PhonePeOrderStatus", "Order Status: $resultStr")
+                    Log.d("PhonePeOrderState", "Order State: $state,  Coin_id : $coin_id , Order_id :$order_id ")
+                    Log.d("PhoneperesultStr", "$resultStr")
 
-                }else{
-                    runOnUiThread{
-                        showAppToast("Payment Failed", Toast.LENGTH_LONG)
+                    if (state == "COMPLETED") {
+                        runOnUiThread {
+                            showAppToast("Payment Successful", Toast.LENGTH_LONG)
+                            user_id?.let { WalletViewModel.addCoins(it, coin_id, 1, order_id, "Coins purchased") }
+                            updatePurchaseOnMeta()
+                            // Notification conversion: attribute this recharge (₹) to the
+                            // most recent notification the user received.
+                            val app = BaseApplication.getInstance()
+                            val rupees = app?.getPrefs()?.getString("last_coin_amount")?.toDoubleOrNull()?.toInt() ?: 0
+                            app?.trackNotificationConversion(app.getLastNotificationId(), "purchase", rupees)
+                        }
+                    } else {
+                        runOnUiThread {
+                            showAppToast("Payment is being confirmed — coins will be added shortly.", Toast.LENGTH_LONG)
+                        }
+                    }
+                } catch (e: Exception) {
+                    FirebaseCrashlytics.getInstance().recordException(e)
+                    runOnUiThread {
+                        showAppToast("Couldn't confirm status. If money was deducted, coins will be added shortly.", Toast.LENGTH_LONG)
                     }
                 }
-
             }
         })
     }
