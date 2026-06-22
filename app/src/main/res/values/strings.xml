@@ -77,6 +77,7 @@
     <string name="missed_call_label">Missed</string>
     <!-- TC_022: chat-list indicator for a blocked conversation -->
     <string name="chat_blocked_indicator">🚫 You blocked this user</string>
+    <string name="chat_peer_blocked_indicator">🚫 You can\'t message this user</string>
     <!-- TC_020: shown in the online-presence card when no creators are online / fetch fails -->
     <string name="no_creators_online">No creators online right now</string>
     <!-- FI_06: label + Rejected filter chip for calls declined while ringing -->
@@ -122,6 +123,10 @@
     <string name="chat_unblock_user_title">Unblock User?</string>
     <string name="chat_unblock_user_message">Once you unblock this user, you\'ll be able to send and receive messages from them again.</string>
     <string name="chat_unblock_action">Unblock</string>
+    <string name="chat_blocked_lock_title">You can\'t message this user</string>
+    <string name="chat_blocked_lock_subtitle">%1$s has blocked you, so you can no longer send messages or call.</string>
+    <string name="chat_i_blocked_lock_title">You blocked %1$s</string>
+    <string name="chat_i_blocked_lock_subtitle">Unblock to send messages or call.</string>
     <string name="chat_clearchat_action">Clear chat</string>
     <string name="chat_deletechat_action">Delete chat</string>
     <string name="chat_clearchat_title">Clear this chat?</string>

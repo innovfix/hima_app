@@ -2573,7 +2573,10 @@ class ChatActivityInHouse : AppCompatActivity() {
                             
                             // Update blocked status (for UI display purposes)
                             iHaveBlockedThisUser = data.iHaveBlockedThisUser
-                            
+                            // Re-evaluate the composer: if I've blocked this peer, lock it
+                            // with an Unblock CTA instead of leaving the input box open.
+                            applyComposerGate()
+
                             Log.d("ChatPagination", "═══════════════════════════════════════")
                             Log.d("ChatPagination", "✅ INITIAL LOAD RESPONSE:")
                             Log.d("ChatPagination", "Total Messages: ${data.totalMessages}")
@@ -3655,6 +3658,9 @@ class ChatActivityInHouse : AppCompatActivity() {
         // onNewIntent re-applies the (now-null) gate immediately, then refreshes.
         lastChatGate = null
         isFriendWithPeer = false
+        // Block state is also per-conversation: reset it so peer B never inherits
+        // peer A's "You blocked this user" composer lock when switching via onNewIntent.
+        iHaveBlockedThisUser = false
         activeAttachmentTempIds.clear()
         messages.clear()
         clearNewMessagePill()
@@ -4153,6 +4159,16 @@ class ChatActivityInHouse : AppCompatActivity() {
             acceptAsFriend()
         }
 
+        // Clear / Delete chat — parity with the male overflow menu (showRegularMenu).
+        popupView.findViewById<TextView>(R.id.item_clear_chat)?.setOnClickListener {
+            popupWindow.dismiss()
+            showClearChatConfirmation()
+        }
+        popupView.findViewById<TextView>(R.id.item_delete_chat)?.setOnClickListener {
+            popupWindow.dismiss()
+            showDeleteChatConfirmation()
+        }
+
         // Measure popup to get its width
         popupView.measure(
             android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED),
@@ -4477,6 +4493,9 @@ class ChatActivityInHouse : AppCompatActivity() {
                         if (responseBody?.success == true) {
                             iHaveBlockedThisUser = true
                             cancelInFlightSendsForBlock()
+                            // Lock the composer immediately — don't wait for the history
+                            // round-trip, or the input box stays usable in the gap.
+                            applyComposerGate()
                             showAppToast(responseBody.message, Toast.LENGTH_SHORT)
                             Log.d("ChatActivityInHouse", "✅ User blocked successfully")
                             // Reload chat history to update blocked status
@@ -4513,6 +4532,9 @@ class ChatActivityInHouse : AppCompatActivity() {
                         val responseBody = response.body()
                         if (responseBody?.success == true) {
                             iHaveBlockedThisUser = false
+                            // Unlock the composer immediately so the user isn't left
+                            // staring at the Unblock lock until history returns.
+                            applyComposerGate()
                             showAppToast(responseBody.message, Toast.LENGTH_SHORT)
                             Log.d("ChatActivityInHouse", "✅ User unblocked successfully")
                             // Reload chat history to update blocked status
@@ -4862,6 +4884,19 @@ class ChatActivityInHouse : AppCompatActivity() {
      * friends-mode owns the composer here.
      */
     private fun applyComposerGate() {
+        // If THIS user has blocked the peer, lock the composer with an Unblock CTA —
+        // they can't message someone they've blocked (the socket rejects it anyway),
+        // so a visible input box was misleading. Takes precedence over every gate
+        // state and applies to both genders (females are otherwise never gated).
+        if (iHaveBlockedThisUser) {
+            subscribeLockContainer?.visibility = View.GONE
+            autopayFailedLockContainer?.visibility = View.GONE
+            bannerAddFriend?.visibility = View.GONE
+            messageInputContainer?.visibility = View.GONE
+            friendshipLockContainer?.visibility = View.VISIBLE
+            renderIBlockedLock()
+            return
+        }
         val gate = lastChatGate
         if (gate == null) {
             val gender = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender
@@ -4888,6 +4923,19 @@ class ChatActivityInHouse : AppCompatActivity() {
             }
             return
         }
+        // Blocked: the peer has blocked this user (chat_gate_status returns
+        // mode/reason "blocked"). Takes precedence over autopay/friends — lock the
+        // composer and show a clear "you're blocked" indication instead of a stray
+        // "send friend request" CTA (they may still be friends on record).
+        if (gate.mode == "blocked" || gate.reason == "blocked") {
+            subscribeLockContainer?.visibility = View.GONE
+            autopayFailedLockContainer?.visibility = View.GONE
+            bannerAddFriend?.visibility = View.GONE
+            messageInputContainer?.visibility = View.GONE
+            friendshipLockContainer?.visibility = View.VISIBLE
+            renderBlockedLock()
+            return
+        }
         if (gate.mode == "autopay") {
             friendshipLockContainer?.visibility = View.GONE
             applySubscriptionGate()
@@ -4911,6 +4959,8 @@ class ChatActivityInHouse : AppCompatActivity() {
     private fun renderFriendshipLock(gate: com.gmwapp.hima.retrofit.responses.ChatGateStatusResponse) {
         val name = peerName.ifBlank { "this user" }
         setFriendLockButtonsEnabled(true)
+        // Restore button visibility in case a prior blocked-lock render hid them.
+        btnFriendLockPrimary?.visibility = View.VISIBLE
         when (gate.action) {
             "accept_request" -> {
                 tvFriendLockTitle?.text = "$name wants to be friends"
@@ -4942,6 +4992,39 @@ class ChatActivityInHouse : AppCompatActivity() {
                 btnFriendLockSecondary?.setOnClickListener { openUserProfile() }
             }
         }
+    }
+
+    /**
+     * "I blocked them" lock: this user blocked the peer. Reuses the friendship-lock
+     * container, shows an unblock prompt, and turns the primary button into Unblock.
+     */
+    private fun renderIBlockedLock() {
+        val name = peerName.ifBlank { "this user" }
+        tvFriendLockTitle?.text = getString(R.string.chat_i_blocked_lock_title, name)
+        tvFriendLockSubtitle?.text = getString(R.string.chat_i_blocked_lock_subtitle)
+        btnFriendLockSecondary?.visibility = View.GONE
+        btnFriendLockPrimary?.visibility = View.VISIBLE
+        tvFriendLockPrimaryText?.text = getString(R.string.chat_unblock_action)
+        btnFriendLockPrimary?.isClickable = true
+        btnFriendLockPrimary?.alpha = 1f
+        btnFriendLockPrimary?.setOnClickListener { showUnblockConfirmationDialog() }
+    }
+
+    /**
+     * Blocked lock: the peer has blocked this user. Reuses the friendship-lock
+     * container but shows a block indication and hides the friend-request buttons —
+     * there is no action the blocked user can take here.
+     */
+    private fun renderBlockedLock() {
+        val name = peerName.ifBlank { "this user" }
+        // Clear any stale listeners from a prior lock state before hiding the buttons,
+        // so a reused container can't fire an old action if it's shown again.
+        btnFriendLockPrimary?.setOnClickListener(null)
+        btnFriendLockSecondary?.setOnClickListener(null)
+        tvFriendLockTitle?.text = getString(R.string.chat_blocked_lock_title)
+        tvFriendLockSubtitle?.text = getString(R.string.chat_blocked_lock_subtitle, name)
+        btnFriendLockPrimary?.visibility = View.GONE
+        btnFriendLockSecondary?.visibility = View.GONE
     }
 
     private fun setFriendLockButtonsEnabled(enabled: Boolean) {

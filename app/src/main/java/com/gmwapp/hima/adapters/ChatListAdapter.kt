@@ -317,8 +317,16 @@ class ChatListAdapter(
             // enabled, "Unavailable" otherwise.
             // TC_022: a blocked conversation stays in the list, but the call buttons are
             // swapped for a clear "Blocked" badge so the user can still see/track it.
-            binding.tvBlockedBadge.visibility = if (conversation.isBlocked) View.VISIBLE else View.GONE
-            binding.callButtonsRow.visibility = if (conversation.isBlocked) View.GONE else View.VISIBLE
+            // Show a badge when EITHER I blocked them (isBlocked) OR they blocked me
+            // (peerBlockedMe). Either way the call buttons are swapped for the badge so
+            // the row reads as blocked instead of looking normal.
+            val showBlockedBadge = conversation.isBlocked || conversation.peerBlockedMe
+            binding.tvBlockedBadge.text = if (conversation.isBlocked)
+                activity.getString(R.string.chat_blocked_indicator)
+            else
+                activity.getString(R.string.chat_peer_blocked_indicator)
+            binding.tvBlockedBadge.visibility = if (showBlockedBadge) View.VISIBLE else View.GONE
+            binding.callButtonsRow.visibility = if (showBlockedBadge) View.GONE else View.VISIBLE
 
             val showAudio = conversation.audioStatus == 1
             val showVideo = conversation.videoStatus == 1

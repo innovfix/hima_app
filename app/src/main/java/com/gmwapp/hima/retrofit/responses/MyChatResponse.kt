@@ -28,7 +28,11 @@ data class ChatItem(
     // returns this; surfaced so the chat list can show a "Blocked" indicator and keep the
     // conversation visible instead of it vanishing with no trace.
     @SerializedName("i_have_blocked_this_user")
-    val iHaveBlockedThisUser: Boolean? = false
+    val iHaveBlockedThisUser: Boolean? = false,
+    // True when the chat partner has blocked ME — lets a blocked user see an
+    // indication in their own chat list instead of the row looking normal.
+    @SerializedName("peer_blocked_me")
+    val peerBlockedMe: Boolean? = false
 )
 
 data class ChatUser(

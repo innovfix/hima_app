@@ -787,7 +787,8 @@ class FriendsTabFragment : Fragment() {
                 false
             },
             // TC_022: keep blocked conversations in the list with a visible indicator.
-            isBlocked = chatItem.iHaveBlockedThisUser == true
+            isBlocked = chatItem.iHaveBlockedThisUser == true,
+            peerBlockedMe = chatItem.peerBlockedMe == true
         )
     }
 

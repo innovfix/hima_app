@@ -1006,7 +1006,10 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                             coinPerMinAudio = item.user.coinPerMinAudio ?: 10,
                             coinPerMinVideo = item.user.coinPerMinVideo ?: 60,
                             language = item.user.language,
-                            isPinned = PinnedChatsPrefsHelper.isPinned(activityCtx, item.user.id.toString())
+                            isPinned = PinnedChatsPrefsHelper.isPinned(activityCtx, item.user.id.toString()),
+                            isBlocked = item.iHaveBlockedThisUser == true,
+                            // Show a "you can't message" marker when the creator blocked me.
+                            peerBlockedMe = item.peerBlockedMe == true
                         )
                     } catch (_: Exception) { null }
                 }

@@ -28,6 +28,9 @@ data class ChatConversation(
     /** TC_022: true when the current user has blocked this chat partner — drives the
      *  "Blocked" indicator so blocked conversations stay visible in the chat list. */
     val isBlocked: Boolean = false,
+    /** True when the chat partner has blocked ME — shows a "you can't message" marker
+     *  in my own chat list so a blocked conversation doesn't look normal. */
+    val peerBlockedMe: Boolean = false,
 )
 
 
