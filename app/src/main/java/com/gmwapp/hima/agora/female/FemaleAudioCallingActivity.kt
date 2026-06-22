@@ -197,6 +197,15 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     var isClicked : Boolean = false
 
     var switchCallID =0
+    // Mirrors the MaleAudioCallingActivity fix: video switch needs a fresh
+    // call_id from getCallIdforCallSwitch(); if the user confirms before it
+    // arrives (or a transient failure), park the switch and proceed when it
+    // lands instead of dead-ending with a bare "Try Again".
+    private var pendingVideoSwitchSeconds: Int? = null
+    private var pendingVideoSwitchUserId: Int? = null
+    private val switchCallIdHandler = Handler(Looper.getMainLooper())
+    private var switchCallIdTimeoutRunnable: Runnable? = null
+    private var switchCallIdObserverRegistered = false
     var receiverName = ""
 
     private var isMuted = false
@@ -1892,6 +1901,11 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         // float over RatingActivity / next screen as a phantom video popup.
         switchDialog?.dismiss()
         switchDialog = null
+        // Cancel any pending video-switch wait so its timeout can't fire post-teardown.
+        switchCallIdTimeoutRunnable?.let { switchCallIdHandler.removeCallbacks(it) }
+        switchCallIdTimeoutRunnable = null
+        pendingVideoSwitchSeconds = null
+        pendingVideoSwitchUserId = null
         // B081 backstop — restore pre-switch video_status if leaveChannel
         // never ran (system-killed activity).
         restoreGlobalVideoStatusIfSwitched()
@@ -2270,7 +2284,11 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
                     it1, it,callType,1
                 )
             }
-            callIdObserver()
+            // Register once — getCallIdforCallSwitch can be called again on retry.
+            if (!switchCallIdObserverRegistered) {
+                switchCallIdObserverRegistered = true
+                callIdObserver()
+            }
         }
     }
 
@@ -2283,6 +2301,32 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
                 Log.d("switchCallIdObserver", "$switchCallID")
 
+                // A confirmed video switch was waiting on this id — send it now.
+                val pendingSecs = pendingVideoSwitchSeconds
+                if (pendingSecs != null && switchCallID != 0) {
+                    val uid = pendingVideoSwitchUserId
+                    pendingVideoSwitchSeconds = null
+                    pendingVideoSwitchUserId = null
+                    switchCallIdTimeoutRunnable?.let { r -> switchCallIdHandler.removeCallbacks(r) }
+                    if (!isFinishing && !isDestroyed) {
+                        if (uid != null) {
+                            sendSwitchCallRequestNotification(uid, receiverId, "video", "switchToVideo $switchCallID")
+                        }
+                        Toast.makeText(this, "Video session request sent", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } else if (pendingVideoSwitchSeconds != null) {
+                // Hard failure (null / success=false) while a switch was waiting.
+                pendingVideoSwitchSeconds = null
+                pendingVideoSwitchUserId = null
+                switchCallIdTimeoutRunnable?.let { r -> switchCallIdHandler.removeCallbacks(r) }
+                if (!isFinishing && !isDestroyed) {
+                    Toast.makeText(
+                        this,
+                        "Couldn't start video session. Please try again.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
         }
     }
@@ -2842,15 +2886,7 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         btnYes.setOnClickListener {
             dialog.dismiss()
             if (totalSeconds > 360) {
-                if (switchCallID == 0) {
-                    Toast.makeText(this, "Try Again", Toast.LENGTH_SHORT).show()
-                } else {
-                    if (userid != null) {
-                        Log.d("SwitchCallIdWhileSending","$switchCallID")
-                        sendSwitchCallRequestNotification(userid, receiverId, "video", "switchToVideo $switchCallID")
-                    }
-                    Toast.makeText(this, "Video session request sent", Toast.LENGTH_SHORT).show()
-                }
+                proceedOrAwaitVideoSwitch(totalSeconds, userid)
             } else {
                 Toast.makeText(this, "$receiverName don't have enough coins", Toast.LENGTH_SHORT).show()
             }
@@ -2858,7 +2894,46 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         
         dialog.show()
     }
-    
+
+    /**
+     * Twin of MaleAudioCallingActivity.proceedOrAwaitVideoSwitch. If the fresh
+     * call_id is ready, send the switch request now; otherwise re-request it,
+     * show a connecting state, and proceed automatically when [callIdObserver]
+     * receives it — surfacing a real error only after an 8s timeout or a hard
+     * failure, instead of the old bare "Try Again".
+     */
+    private fun proceedOrAwaitVideoSwitch(totalSeconds: Int, userid: Int?) {
+        if (switchCallID != 0) {
+            if (userid != null) {
+                Log.d("SwitchCallIdWhileSending", "$switchCallID")
+                sendSwitchCallRequestNotification(userid, receiverId, "video", "switchToVideo $switchCallID")
+            }
+            Toast.makeText(this, "Video session request sent", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        pendingVideoSwitchSeconds = totalSeconds
+        pendingVideoSwitchUserId = userid
+        Toast.makeText(this, "Preparing video session…", Toast.LENGTH_SHORT).show()
+        getCallIdforCallSwitch("video")
+
+        switchCallIdTimeoutRunnable?.let { switchCallIdHandler.removeCallbacks(it) }
+        val timeout = Runnable {
+            if (isFinishing || isDestroyed) return@Runnable
+            if (pendingVideoSwitchSeconds != null && switchCallID == 0) {
+                pendingVideoSwitchSeconds = null
+                pendingVideoSwitchUserId = null
+                Toast.makeText(
+                    this,
+                    "Couldn't start video session. Please try again.",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+        switchCallIdTimeoutRunnable = timeout
+        switchCallIdHandler.postDelayed(timeout, 8000)
+    }
+
     private fun showIncomingSwitchVideoRequest(userid: Int?, requesterName: String): AlertDialog {
         val dialogView = layoutInflater.inflate(R.layout.dialog_switch_video, null)
         // B068 — modal. Outside-tap and back can't dismiss this dialog; only
