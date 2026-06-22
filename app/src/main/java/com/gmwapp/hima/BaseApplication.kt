@@ -2238,10 +2238,13 @@ class BaseApplication : Application(), Configuration.Provider {
      * otherwise legacy `cancel(1)`.
      */
     fun cancelIncomingCallStyleNotification() {
-        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
-        val tag = lastIncomingCallTag
-        if (tag != null) nm.cancel(tag, INCOMING_CALL_NOTIFICATION_ID)
-        else nm.cancel(INCOMING_CALL_NOTIFICATION_ID)
+        // GHOST_CALL_FIX_2026_06_22 — was: cancel only the single tracked tag at
+        // id=1. That left sibling incoming-call banners alive — the calls_silent_v1
+        // heads-up path, or a second banner with a different call_id tag from a
+        // retry/duplicate ring. A leftover tappable banner for an already-ended
+        // call = ghost call. Route through the thorough sweep so EVERY incoming-call
+        // surface dies together on accept/reject/disconnect.
+        cancelAllIncomingCallNotifications()
     }
 
     /**
@@ -2264,14 +2267,23 @@ class BaseApplication : Application(), Configuration.Provider {
         // Sweep the active tray for anything else that smells like a call push.
         runCatching {
             nm.activeNotifications?.forEach { sbn ->
-                val channel = sbn.notification?.channelId
-                if (channel == com.gmwapp.hima.agora.MyFirebaseMessagingService.CALLS_NOTIFICATION_CHANNEL_ID) {
-                    nm.cancel(sbn.tag, sbn.id)
-                    return@forEach
-                }
-                if (looksLikeCallPush(sbn.notification)) {
-                    nm.cancel(sbn.tag, sbn.id)
-                }
+                val n = sbn.notification
+                val channel = n?.channelId
+                // Match incoming-call banners by CHANNEL. The previous version only
+                // matched the FCM CallStyle channel (calls_v5) + a text heuristic, so
+                // it MISSED the CallNotifications heads-up banner (calls_silent_v1) —
+                // the exact banner that lingered and enabled the ghost call. We add it
+                // here. NOTE: we deliberately do NOT match by id==1 or category==CALL,
+                // because the ONGOING in-call notification (CallingService / FcmCallService)
+                // also uses id=1 + CATEGORY_CALL — matching those would wrongly cancel a
+                // LIVE call's notification when a second incoming call is dismissed. The
+                // incoming channels are the safe discriminator (and we never touch the
+                // missed-calls channel).
+                val isIncomingCallBanner =
+                    channel == com.gmwapp.hima.agora.MyFirebaseMessagingService.CALLS_NOTIFICATION_CHANNEL_ID ||
+                        channel == com.gmwapp.hima.utils.CallNotifications.CALLS_NOTIFICATION_CHANNEL_ID ||
+                        looksLikeCallPush(n)
+                if (isIncomingCallBanner) nm.cancel(sbn.tag, sbn.id)
             }
         }
     }
@@ -2289,11 +2301,41 @@ class BaseApplication : Application(), Configuration.Provider {
     }
 
     fun clearIncomingCall() {
+        // GHOST_CALL_FIX_2026_06_22 — record this call_id as positively-ended so the
+        // heads-up "Answer" action can refuse to ghost-join it (see
+        // [wasCallRecentlyEnded]). Done here because every teardown path (full-screen
+        // reject, notification reject, answer, disconnect) funnels through here.
+        markCallEnded(this.callIdForSplashActivity ?: 0)
         this.incomingCall = false
         this.incomingCallSetAt = 0L
         this.lastIncomingCallTag = null
         this.incomingCallerName = null
         this.incomingCallerImage = null
+    }
+
+    /** call_ids positively ended this session, id -> endedAtMs. See [wasCallRecentlyEnded]. */
+    private val recentlyEndedCalls = java.util.concurrent.ConcurrentHashMap<Int, Long>()
+
+    /**
+     * GHOST_CALL_FIX_2026_06_22 — remember a call_id that was declined / rejected /
+     * already accepted so a stale heads-up "Answer" tap can be refused. Only
+     * POSITIVELY-ended ids are recorded, so an unknown / genuinely-live call is
+     * never falsely blocked. Self-prunes entries older than 60s.
+     */
+    fun markCallEnded(callId: Int) {
+        if (callId <= 0) return
+        val now = System.currentTimeMillis()
+        recentlyEndedCalls[callId] = now
+        val it = recentlyEndedCalls.entries.iterator()
+        while (it.hasNext()) { if (now - it.next().value > 60_000L) it.remove() }
+    }
+
+    /** True only if [callId] was explicitly ended within the last 60s. */
+    fun wasCallRecentlyEnded(callId: Int): Boolean {
+        if (callId <= 0) return false
+        val t = recentlyEndedCalls[callId] ?: return false
+        if (System.currentTimeMillis() - t > 60_000L) { recentlyEndedCalls.remove(callId); return false }
+        return true
     }
 
     fun isIncomingCall(): Boolean = incomingCall

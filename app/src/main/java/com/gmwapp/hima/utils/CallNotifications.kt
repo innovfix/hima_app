@@ -64,7 +64,10 @@ object CallNotifications {
      * id. The stale "calls_v3" (created with bypassDnd=true) is deleted in
      * [ensureCallsChannel] so it stops bypassing Do Not Disturb on existing installs.
      */
-    private const val CALLS_NOTIFICATION_CHANNEL_ID = "calls_silent_v1"
+    // Public so BaseApplication.cancelAllIncomingCallNotifications can target this
+    // incoming-call banner channel by name (the safe discriminator — id=1 and
+    // category=CALL are shared with the ONGOING in-call notification).
+    const val CALLS_NOTIFICATION_CHANNEL_ID = "calls_silent_v1"
     const val INCOMING_CALL_NOTIFICATION_ID = 1
 
     /**

@@ -40,6 +40,27 @@ class CallActionReceiver : BroadcastReceiver() {
 
                 Log.d("CallReceiver", "Call Accepted: callType=$callType, senderId=$senderId, channelName=$channelName, callId=$callId")
 
+                // GHOST_CALL_FIX_2026_06_22 — the heads-up "Answer" has no liveness
+                // gate of its own (unlike FemaleCallAcceptActivity). If this banner
+                // is for a call that already ended (she declined it on the full-screen
+                // but a sibling banner lingered), joining would drop her into a dead
+                // Agora channel. Refuse and clean up instead of ghost-joining.
+                if (callId != null && callId > 0 &&
+                    BaseApplication.getInstance()?.wasCallRecentlyEnded(callId) == true) {
+                    Log.d("HimaIncomingCall", "ACTION_ACCEPT_CALL blocked: callId=$callId already ended (stale banner)")
+                    BaseApplication.getInstance()?.stopRingtone()
+                    BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
+                    BaseApplication.getInstance()?.clearIncomingCall()
+                    HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
+                    Toast.makeText(context.applicationContext, "This call has already ended", Toast.LENGTH_SHORT).show()
+                    context.applicationContext.startActivity(
+                        Intent(context.applicationContext, MainActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        }
+                    )
+                    return
+                }
+
                 val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
                 sendAcceptedFcmFireAndForget(
                     context,
@@ -155,6 +176,24 @@ class CallActionReceiver : BroadcastReceiver() {
                 val callId = extras?.getInt("CALL_ID", -1)
 
                 Log.d("CallReceiver_Male", "Call Accepted: callType=$callType, senderId=$senderId, channelName=$channelName, callId=$callId")
+
+                // GHOST_CALL_FIX_2026_06_22 — same stale-banner guard as the female
+                // heads-up Answer above: never join a call_id we already ended.
+                if (callId != null && callId > 0 &&
+                    BaseApplication.getInstance()?.wasCallRecentlyEnded(callId) == true) {
+                    Log.d("CallReceiver_Male", "ACTION_ACCEPT_CALL_MALE blocked: callId=$callId already ended (stale banner)")
+                    BaseApplication.getInstance()?.stopRingtone()
+                    BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
+                    BaseApplication.getInstance()?.clearIncomingCall()
+                    HimaTelecomManager.endActiveCall(DisconnectCause.REJECTED)
+                    Toast.makeText(context.applicationContext, "This call has already ended", Toast.LENGTH_SHORT).show()
+                    context.applicationContext.startActivity(
+                        Intent(context.applicationContext, MainActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        }
+                    )
+                    return
+                }
 
                 val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
                 val userId = userData?.id
