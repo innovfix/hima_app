@@ -90,6 +90,7 @@ import com.gmwapp.hima.utils.CallUnavailableFeedback
 import com.gmwapp.hima.utils.AudioRecorderController
 import com.gmwapp.hima.utils.ChatHistoryMemoryCache
 import com.gmwapp.hima.utils.ClearedChatsPrefsHelper
+import com.gmwapp.hima.utils.LocallyDeletedMessagesStore
 import com.gmwapp.hima.utils.ImageCompressor
 
 @AndroidEntryPoint
@@ -1082,8 +1083,12 @@ class ChatActivityInHouse : AppCompatActivity() {
         if (isPendingMessage(message)) return
         val popup = PopupMenu(this, anchor, Gravity.END)
         menuInflater.inflate(R.menu.menu_chat_message, popup.menu)
-        // Delete-for-everyone is only offered to the sender of the message.
+        // Delete-for-everyone is only offered to the SENDER of the message.
         popup.menu.findItem(R.id.action_delete)?.isVisible = message.isSentByMe
+        // CHAT-138: "Delete for me" is a local-only hide, offered on ANY message
+        // (sent or received) that has reached the menu (pending/deleted already
+        // early-returned above).
+        popup.menu.findItem(R.id.action_delete_for_me)?.isVisible = true
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 R.id.action_reply -> {
@@ -1098,10 +1103,48 @@ class ChatActivityInHouse : AppCompatActivity() {
                     confirmDeleteMessage(message)
                     true
                 }
+                R.id.action_delete_for_me -> {
+                    confirmDeleteForMe(message)
+                    true
+                }
                 else -> false
             }
         }
         popup.show()
+    }
+
+    /**
+     * CHAT-138: local-only hide. Server is never told; peer's view is unaffected.
+     * Persisted in [LocallyDeletedMessagesStore] so the hide survives chat reloads.
+     */
+    private fun confirmDeleteForMe(message: ChatMessage) {
+        if (!isUiSafe()) return
+        if (message.isDateHeader) return
+        if (isPendingMessage(message)) return
+        AlertDialog.Builder(this)
+            .setTitle(R.string.chat_delete_for_me_title)
+            .setMessage(R.string.chat_delete_for_me_message)
+            .setPositiveButton(R.string.chat_delete_confirm) { _, _ ->
+                performDeleteForMe(message)
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun performDeleteForMe(message: ChatMessage) {
+        if (!isUiSafe()) return
+        LocallyDeletedMessagesStore.add(this, myUserId, peerUserId, message.id)
+        // Reply-target safety: if the row I'm about to remove is the active reply
+        // anchor, clear the composer state so the preview doesn't point at a gone row.
+        if (pendingReplyTo?.id == message.id) {
+            pendingReplyTo = null
+            updateReplyPreviewUi()
+        }
+        // Rebuild from the current rows: filterOutLocallyDeleted (inside
+        // rebuildMessagesWithHeaders) drops the row we just hid, and the rebuild
+        // re-derives date headers so none are left orphaned over an empty day.
+        rebuildMessagesWithHeaders(messages.filterNot { it.isDateHeader })
+        chatAdapter.notifyDataSetChanged()
     }
 
     private fun confirmDeleteMessage(message: ChatMessage) {
@@ -2426,8 +2469,9 @@ class ChatActivityInHouse : AppCompatActivity() {
                 val ageMs = historyCache.snapshotAgeMs(peerUserId)
                 val before = messages.size
                 messages.clear()
-                messages.addAll(snap)
-                updateTopHeader(messages)
+                // CHAT-138: the cached snapshot may predate a "Delete for me" done
+                // earlier this session — re-filter so a hidden message can't return.
+                rebuildMessagesWithHeaders(snap.filterNot { it.isDateHeader })
                 chatAdapter.notifyDataSetChanged()
                 if (CHAT_REOPEN_VERBOSE) {
                     Log.d(
@@ -3520,8 +3564,20 @@ class ChatActivityInHouse : AppCompatActivity() {
 
     private fun rebuildMessagesWithHeaders(source: List<ChatMessage>) {
         messages.clear()
-        messages.addAll(sortedChatMessages(source))
+        // CHAT-138: drop anything the user "Deleted for me" on this device.
+        messages.addAll(sortedChatMessages(filterOutLocallyDeleted(source)))
         updateTopHeader(messages)
+    }
+
+    /**
+     * CHAT-138: remove rows whose id is in this peer's "Delete for me" set.
+     * Date headers always pass.
+     */
+    private fun filterOutLocallyDeleted(source: List<ChatMessage>): List<ChatMessage> {
+        if (myUserId <= 0 || peerUserId <= 0) return source
+        val deletedSet = LocallyDeletedMessagesStore.getAll(this, myUserId, peerUserId)
+        if (deletedSet.isEmpty()) return source
+        return source.filter { it.isDateHeader || !deletedSet.contains(it.id) }
     }
 
     private fun pendingPayloadMatchesMessage(
@@ -3737,6 +3793,15 @@ class ChatActivityInHouse : AppCompatActivity() {
      * For bulk loads use [updateTopHeader] + range/full notify instead.
      */
     private fun appendMessageWithOptionalDateHeader(newMsg: ChatMessage) {
+        // CHAT-138: if the user already deleted this messageId for themselves on this
+        // device, don't let it come back via a socket replay or history pagination.
+        // Date headers and pending optimistic rows skip the check.
+        if (!newMsg.isDateHeader && !isPendingMessage(newMsg) && newMsg.id.isNotBlank() &&
+            myUserId > 0 && peerUserId > 0 &&
+            LocallyDeletedMessagesStore.isLocallyDeleted(this, myUserId, peerUserId, newMsg.id)
+        ) {
+            return
+        }
         val prev = lastNonHeaderMessage()
         if (prev == null) {
             if (newMsg.date != null) {

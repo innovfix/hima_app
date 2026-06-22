@@ -7,6 +7,9 @@
         android:id="@+id/action_reaction"
         android:title="@string/chat_action_add_reaction" />
     <item
+        android:id="@+id/action_delete_for_me"
+        android:title="@string/chat_action_delete_for_me" />
+    <item
         android:id="@+id/action_delete"
         android:title="@string/chat_action_delete" />
 </menu>

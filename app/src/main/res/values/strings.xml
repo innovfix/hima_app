@@ -185,8 +185,11 @@
     <string name="chat_reply_header_line">↩ %1$s: %2$s</string>
     <string name="chat_action_reply">Reply</string>
     <string name="chat_action_add_reaction">Add reaction</string>
-    <string name="chat_action_delete">Delete</string>
-    <string name="chat_delete_title">Delete message?</string>
+    <string name="chat_action_delete">Delete for everyone</string>
+    <string name="chat_action_delete_for_me">Delete for me</string>
+    <string name="chat_delete_for_me_title">Delete for me?</string>
+    <string name="chat_delete_for_me_message">This will hide the message from your chat. The other person will still see it.</string>
+    <string name="chat_delete_title">Delete for everyone?</string>
     <string name="chat_delete_message">This will remove the message from your chat and the other person\'s chat. This can\'t be undone.</string>
     <string name="chat_delete_confirm">Delete</string>
     <string name="chat_message_deleted_toast">Message deleted</string>
