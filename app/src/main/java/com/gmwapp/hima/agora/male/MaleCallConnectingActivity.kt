@@ -182,7 +182,18 @@ class MaleCallConnectingActivity : AppCompatActivity() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 Log.d("MaleCallConnecting", "onBackPressed called - fromChat=$fromChat, chatPeerUserId=$chatPeerUserId")
-                
+
+                // Tear down the self-managed Telecom outgoing connection placed in
+                // registerOutgoingWithTelecom(). Without this, a user-cancel (back-press)
+                // while still DIALING strands the connection — Telecom then blocks EVERY
+                // subsequent outgoing call with the system error "Cannot place a call as
+                // there is already another call connecting" until the app is killed. The
+                // timeout (disconnectCall) and reject paths already do this; the manual
+                // cancel path was the missing one. Cover both branches below by calling here.
+                com.gmwapp.hima.agora.telecom.HimaTelecomManager.endActiveCall(
+                    android.telecom.DisconnectCause.LOCAL
+                )
+
                 if (userId != null && receiverId != -1 && callType != null) {
                     sendCallNotification(userId!!, receiverId, callType!!, "callDeclined")
                     Log.d("CallStatus", "MaleConnecting.cancel → not_answered/caller self=$userId peer=$receiverId callId=$callId")
