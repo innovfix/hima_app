@@ -206,6 +206,11 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     private val switchCallIdHandler = Handler(Looper.getMainLooper())
     private var switchCallIdTimeoutRunnable: Runnable? = null
     private var switchCallIdObserverRegistered = false
+    // B069 storm fix: these observers were re-attached on every switch send,
+    // stacking duplicate observers on shared LiveData and multiplying the
+    // clear↔observe churn. Register each at most once per activity.
+    private var notificationSentObserverRegistered = false
+    private var callSwitchAcceptanceObserverRegistered = false
     var receiverName = ""
 
     private var isMuted = false
@@ -2171,6 +2176,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
     }
 
     fun observeSwitchCallNotificationSent(){
+        if (notificationSentObserverRegistered) return
+        notificationSentObserverRegistered = true
         fcmNotificationViewModel.notificationResponseLiveData.observe(this) { response ->
             response?.let {
                 if (it.success) {
@@ -2192,6 +2199,8 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
 
 
     fun observeCallSwitchAcceptance() {
+        if (callSwitchAcceptanceObserverRegistered) return
+        callSwitchAcceptanceObserverRegistered = true
         FcmUtils.updatedCallSwitch.observe(this, androidx.lifecycle.Observer { updatedCallSwitch ->
             // B082 — bail if the call has already ended; a late switch
             // payload arriving in the finish window must not act on this

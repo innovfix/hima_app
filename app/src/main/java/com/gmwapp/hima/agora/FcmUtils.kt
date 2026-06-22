@@ -108,8 +108,32 @@ object FcmUtils {
     }
 
     fun clearCallSwitch() {
-        _callSwitchPostedAt = 0L
-        _updatedCallSwitch.postValue(null)
+        // B069 storm fix: LiveData dispatches postValue(null) to every observer
+        // even when the value is ALREADY null. Each call-switch observer's
+        // stale-guard then sees postedAt==0 and calls clearCallSwitch() again —
+        // an unbounded clear↔observe ping-pong on the main thread (seen at 300k+
+        // iterations with multiple observers attached). It saturates the UI
+        // thread (the female side accumulates the most observers, so she's hit
+        // hardest — can't even initiate a switch) and lets a real payload such
+        // as "VideoAccepted" be clobbered by a queued null before the acceptance
+        // observer reads it.
+        //
+        // The clear↔observe loop runs on the main thread, so we break it there:
+        // read .value (only legal on the main thread) and skip the redundant
+        // dispatch when already cleared. Off the main thread (FCM binder), .value
+        // must not be read — fall back to postValue, which is rare (teardown)
+        // and harmless now that the observers register at most once.
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            if (_updatedCallSwitch.value == null) {
+                _callSwitchPostedAt = 0L
+                return
+            }
+            _callSwitchPostedAt = 0L
+            _updatedCallSwitch.value = null
+        } else {
+            _callSwitchPostedAt = 0L
+            _updatedCallSwitch.postValue(null)
+        }
     }
 
     fun updateUserBusyStatus(callType: String, userName: String) {

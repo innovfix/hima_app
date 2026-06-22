@@ -191,6 +191,10 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     // Guard so repeated switch attempts don't stack multiple observers on the
     // shared callFemaleUserResponseLiveData.
     private var switchCallIdObserverRegistered = false
+    // B069 storm fix: register these once per activity (see female side) so
+    // duplicate observers don't stack on shared LiveData and multiply churn.
+    private var notificationSentObserverRegistered = false
+    private var callSwitchAcceptanceObserverRegistered = false
     private var isVideoCallGoing: Boolean = false
 
     private var switchDialog: AlertDialog? = null  // Track current dialog
@@ -2682,6 +2686,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     }
 
     fun observeSwitchCallNotificationSent(){
+        if (notificationSentObserverRegistered) return
+        notificationSentObserverRegistered = true
         fcmNotificationViewModel.notificationResponseLiveData.observe(this) { response ->
             response?.let {
                 if (it.success) {
@@ -2703,6 +2709,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
 
     fun observeCallSwitchAcceptance() {
+        if (callSwitchAcceptanceObserverRegistered) return
+        callSwitchAcceptanceObserverRegistered = true
         FcmUtils.updatedCallSwitch.observe(this, androidx.lifecycle.Observer { updatedCallSwitch ->
             // B082 — drop late switch payloads once the activity is finishing.
             if (isFinishing || isDestroyed) {

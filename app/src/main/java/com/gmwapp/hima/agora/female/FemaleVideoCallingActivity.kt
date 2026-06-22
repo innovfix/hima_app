@@ -242,6 +242,10 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
 
     var switchCallID =0
+    // B069 storm fix: register these once per activity so duplicate observers
+    // don't stack on shared LiveData and multiply the clear↔observe churn.
+    private var notificationSentObserverRegistered = false
+    private var callSwitchAcceptanceObserverRegistered = false
 
     private val uid = 0
     // @Volatile: read/written on both the Agora IRtcEngineEventHandler worker
@@ -2889,6 +2893,8 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
 
     fun observeSwitchCallNotificationSent(){
+        if (notificationSentObserverRegistered) return
+        notificationSentObserverRegistered = true
         fcmNotificationViewModel.notificationResponseLiveData.observe(this) { response ->
             response?.let {
                 if (it.success) {
@@ -2909,6 +2915,8 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     }
 
     fun observeCallSwitchAcceptance() {
+        if (callSwitchAcceptanceObserverRegistered) return
+        callSwitchAcceptanceObserverRegistered = true
         FcmUtils.updatedCallSwitch.observe(this, androidx.lifecycle.Observer { updatedCallSwitch ->
             // B082 — drop late switch FCMs once the activity is finishing.
             if (isFinishing || isDestroyed) {
