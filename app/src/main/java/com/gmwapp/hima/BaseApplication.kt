@@ -472,7 +472,11 @@ class BaseApplication : Application(), Configuration.Provider {
         runCatching {
             val savedUserId = getPrefs()?.getUserData()?.id
             if (savedUserId != null && savedUserId > 0) {
-                OneSignal.login(savedUserId.toString())
+                // Bug A leak fix: prefix the OneSignal external id per environment
+                // (demo build = "demo_<id>", prod build = "<id>") so a demo call can
+                // never resolve a prod-registered device that shares the same integer
+                // id in the shared OneSignal project. Prod prefix is "" → unchanged.
+                OneSignal.login(BuildConfig.ONESIGNAL_EXTERNAL_PREFIX + savedUserId.toString())
                 // Always re-assert opt-in. The local `optedIn` flag reads cached state
                 // and can be stale-true while the server still has enabled=false, so
                 // guarding on it was the bug that stranded users after re-login.
@@ -2446,6 +2450,15 @@ class BaseApplication : Application(), Configuration.Provider {
         this.lastIncomingCallTag = null
         this.incomingCallerName = null
         this.incomingCallerImage = null
+        // The incoming-call ring banner is FcmCallService's FOREGROUND notification.
+        // NotificationManager.cancel() / cancelAllIncomingCallNotifications() CANNOT
+        // dismiss a foreground-service notification — only stopping the service does.
+        // That is why the banner used to linger after the call was declined on the
+        // full-screen, and tapping its Answer/Decline ("This call has already ended")
+        // left it on screen. Since every teardown path funnels through here, stopping
+        // the service here clears the lingering banner everywhere at once. stop() is an
+        // exception-guarded, idempotent no-op when the service isn't running.
+        runCatching { com.gmwapp.hima.agora.FcmCallService.stop(this) }
     }
 
     /** call_ids positively ended this session, id -> endedAtMs. See [wasCallRecentlyEnded]. */
