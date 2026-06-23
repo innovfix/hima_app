@@ -1606,12 +1606,19 @@ class BaseApplication : Application(), Configuration.Provider {
                 .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                 .build()
 
-            val ringtoneUri = RingtoneManager.getActualDefaultRingtoneUri(
-                applicationContext,
-                RingtoneManager.TYPE_RINGTONE
-            ) ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-                ?: android.provider.Settings.System.DEFAULT_RINGTONE_URI
-            Log.d("HimaIncomingCall", "ringtone uri=$ringtoneUri")
+            // Candidate ringtone URIs, in preference order. The user's chosen default
+            // ringtone may be a custom external-storage file we lack permission to read
+            // (READ_MEDIA_AUDIO) — setDataSource then throws and the call would ring
+            // SILENTLY (verified on a Realme/ColorOS device whose default ringtone was a
+            // user song). Fall back through the system defaults to a bundled raw resource
+            // that is always readable, so the phone still rings no matter what.
+            val ringtoneCandidates = buildList {
+                RingtoneManager.getActualDefaultRingtoneUri(applicationContext, RingtoneManager.TYPE_RINGTONE)?.let { add(it) }
+                RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)?.let { add(it) }
+                RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)?.let { add(it) }
+                add(android.provider.Settings.System.DEFAULT_RINGTONE_URI)
+                add(android.net.Uri.parse("android.resource://$packageName/${R.raw.rhythm}"))
+            }.distinct()
             // On the headset path the ring plays on STREAM_VOICE_CALL so it reaches
             // the headset instead of the phone speaker — but that stream ignores the
             // ring slider AND the silent/vibrate ringer mode, so the ring comes out at
@@ -1636,9 +1643,30 @@ class BaseApplication : Application(), Configuration.Provider {
                 1f
             }
             Log.d("HimaIncomingCall", "ringtone volume scalar=$ringScalar (headsetPath=$useHeadsetRingPath)")
-            mediaPlayer = MediaPlayer().apply {
+            // Bind the first candidate whose setDataSource succeeds. A failed
+            // setDataSource leaves MediaPlayer in Error state, so reset() back to Idle
+            // before trying the next URI.
+            val boundPlayer = MediaPlayer()
+            var boundUri: android.net.Uri? = null
+            for (cand in ringtoneCandidates) {
+                try {
+                    boundPlayer.reset()
+                    boundPlayer.setDataSource(applicationContext, cand)
+                    boundUri = cand
+                    break
+                } catch (e: Exception) {
+                    Log.w("HimaIncomingCall", "ringtone setDataSource failed uri=$cand: ${e.message}")
+                }
+            }
+            if (boundUri == null) {
+                Log.e("HimaIncomingCall", "playIncomingCallSound: no readable ringtone uri, aborting ring")
+                runCatching { boundPlayer.release() }
+                stopRingtone()
+                return
+            }
+            Log.d("HimaIncomingCall", "ringtone uri=$boundUri")
+            mediaPlayer = boundPlayer.apply {
                 setAudioAttributes(audioAttributes)
-                setDataSource(applicationContext, ringtoneUri)
                 isLooping = true
                 setOnPreparedListener { mp ->
                     Log.d(
