@@ -10,6 +10,7 @@ import android.telecom.TelecomManager
 import android.telecom.VideoProfile
 import android.util.Log
 import com.gmwapp.hima.BaseApplication
+import com.gmwapp.hima.agora.CallChannel
 import com.gmwapp.hima.agora.female.FemaleAudioCallingActivity
 import com.gmwapp.hima.agora.female.FemaleVideoCallingActivity
 import com.gmwapp.hima.agora.male.MaleAudioCallingActivity
@@ -162,7 +163,8 @@ class HimaConnection(
         val gender = extras.getString(EXTRA_RECEIVER_GENDER)
         val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
 
-        if (userId != null && senderId > 0 && !callType.isNullOrEmpty() && !channelName.isNullOrEmpty()) {
+        if (userId != null && senderId > 0 && !callType.isNullOrEmpty() &&
+            !channelName.isNullOrEmpty() && channelName != CallChannel.DEFAULT_SENTINEL) {
             sendCallStatus(userId, senderId, callType, channelName, "accepted")
         }
 
@@ -269,7 +271,13 @@ class HimaConnection(
         senderId: Int,
         callId: Int
     ): Intent? {
-        if (channelName.isNullOrEmpty() || callType.isNullOrEmpty()) return null
+        // Never build a join intent for a channel-less push: a blank channel, or
+        // the "default_channel" sentinel the receive paths substitute when no
+        // channel is present, would drop the answerer into a SHARED Agora room
+        // (crossed-over audio / wrong-call UI) instead of the caller's unique
+        // channel. Returning null makes onAnswer() disconnect cleanly.
+        if (channelName.isNullOrEmpty() || channelName == CallChannel.DEFAULT_SENTINEL ||
+            callType.isNullOrEmpty()) return null
         return when {
             gender == "male" && callType == "audio" ->
                 Intent(appContext, MaleAudioCallingActivity::class.java).apply {

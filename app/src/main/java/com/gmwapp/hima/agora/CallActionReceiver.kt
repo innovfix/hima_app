@@ -61,6 +61,23 @@ class CallActionReceiver : BroadcastReceiver() {
                     return
                 }
 
+                // Channel-less push (OneSignal call_request / bad FCM) carries no
+                // real channel — joining the "default_channel" sentinel would drop
+                // her into a SHARED room with unrelated callers. Refuse + clean up.
+                if (!CallChannel.isJoinable(channelName)) {
+                    Log.w("HimaIncomingCall", "ACTION_ACCEPT_CALL: unusable channel='$channelName' — refusing shared-room join")
+                    HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
+                    BaseApplication.getInstance()?.stopRingtone()
+                    BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+                    BaseApplication.getInstance()?.clearIncomingCall()
+                    Toast.makeText(
+                        context.applicationContext,
+                        "Couldn't connect this call. Please ask them to call again.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    return
+                }
+
                 val userId = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.id
                 sendAcceptedFcmFireAndForget(
                     context,
@@ -192,6 +209,22 @@ class CallActionReceiver : BroadcastReceiver() {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                         }
                     )
+                    return
+                }
+
+                // Channel-less push — refuse so the male is never dropped into the
+                // shared "default_channel" room (checked before the coins gate).
+                if (!CallChannel.isJoinable(channelName)) {
+                    Log.w("CallReceiver_Male", "ACTION_ACCEPT_CALL_MALE: unusable channel='$channelName' — refusing shared-room join")
+                    HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
+                    BaseApplication.getInstance()?.stopRingtone()
+                    BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+                    BaseApplication.getInstance()?.clearIncomingCall()
+                    Toast.makeText(
+                        context.applicationContext,
+                        "Couldn't connect this call. Please ask them to call again.",
+                        Toast.LENGTH_LONG
+                    ).show()
                     return
                 }
 

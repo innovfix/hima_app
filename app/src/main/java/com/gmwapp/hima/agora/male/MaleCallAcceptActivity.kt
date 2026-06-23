@@ -29,6 +29,7 @@ import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
 import com.gmwapp.hima.activities.WalletActivity
+import com.gmwapp.hima.agora.CallChannel
 import com.gmwapp.hima.agora.telecom.HimaTelecomManager
 import android.telecom.DisconnectCause
 import com.gmwapp.hima.databinding.ActivityMaleCallAcceptBinding
@@ -134,8 +135,10 @@ class MaleCallAcceptActivity : AppCompatActivity() {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 100)
         }
 
-        // Pre-fetch Agora token while the user decides to accept/reject
-        if (!channelName.isNullOrEmpty()) {
+        // Pre-fetch Agora token while the user decides to accept/reject.
+        // Only for a real, joinable channel — never the "default_channel"
+        // sentinel (a channel-less push) which would just waste a token fetch.
+        if (CallChannel.isJoinable(channelName)) {
             prefetchAgoraToken(channelName!!)
         }
 
@@ -194,7 +197,7 @@ class MaleCallAcceptActivity : AppCompatActivity() {
         Log.d("MaleCallAccept_CallID","$call_Id")
 
         binding.accpet.setOnClickListener {
-            if (receiverId != -1 && !channelName.isNullOrEmpty() && !callType.isNullOrEmpty()) {
+            if (receiverId != -1 && CallChannel.isJoinable(channelName) && !callType.isNullOrEmpty()) {
                 // Check if male has enough coins (minimum 10 coins required)
                 val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
                 val currentCoins = userData?.coins ?: 0
@@ -271,6 +274,24 @@ class MaleCallAcceptActivity : AppCompatActivity() {
                     startActivity(intent)
                     finish()
                 }
+            } else {
+                // Channel-less push (no real "<id>_<ts>" channel) — never join the
+                // shared "default_channel" room (black screen + other callers'
+                // audio while the caller waits alone). Tell him and tear down.
+                Log.w(
+                    "VideoCallFlow",
+                    "MaleAccept: refusing accept, unusable channel='$channelName' callId=$call_Id receiver=$receiverId"
+                )
+                Toast.makeText(
+                    this,
+                    "Couldn't connect this call. Please ask them to call again.",
+                    Toast.LENGTH_LONG
+                ).show()
+                HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
+                BaseApplication.getInstance()?.stopRingtone()
+                BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+                BaseApplication.getInstance()?.clearIncomingCall()
+                finish()
             }
         }
 

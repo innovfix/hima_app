@@ -29,6 +29,7 @@ import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
 import com.gmwapp.hima.R
 import com.gmwapp.hima.activities.MainActivity
+import com.gmwapp.hima.agora.CallChannel
 import com.gmwapp.hima.agora.MyFirebaseMessagingService
 import com.gmwapp.hima.agora.telecom.HimaTelecomManager
 import android.telecom.DisconnectCause
@@ -142,7 +143,7 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
         }
 
         // Pre-fetch Agora token while the user decides to accept/reject
-        if (!channelName.isNullOrEmpty()) {
+        if (CallChannel.isJoinable(channelName)) {
             prefetchAgoraToken(channelName!!)
         }
 
@@ -227,7 +228,7 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
 
         binding.accpet.setOnClickListener {
 
-            if (receiverId != -1 && !channelName.isNullOrEmpty() && !callType.isNullOrEmpty()) {
+            if (receiverId != -1 && CallChannel.isJoinable(channelName) && !callType.isNullOrEmpty()) {
                 Log.d(
                     "CreatorCallDiag",
                     "FAccept.click sender(female)=$userId receiver(male)=$receiverId " +
@@ -262,6 +263,24 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
                 }, ACCEPT_GATE_TIMEOUT_MS)
 
                 sendCallNotification(userId!!, receiverId, callType!!, channelName!!, "accepted")
+            } else {
+                // Channel-less push (no real "<id>_<ts>" channel) — never join the
+                // shared "default_channel" room (black screen + other callers'
+                // audio while the caller waits alone). Tell her and tear down.
+                Log.w(
+                    "VideoCallFlow",
+                    "FemaleAccept: refusing accept, unusable channel='$channelName' callId=$call_Id receiver=$receiverId"
+                )
+                Toast.makeText(
+                    this,
+                    "Couldn't connect this call. Please ask them to call again.",
+                    Toast.LENGTH_LONG
+                ).show()
+                HimaTelecomManager.endActiveCall(DisconnectCause.LOCAL)
+                BaseApplication.getInstance()?.stopRingtone()
+                BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+                BaseApplication.getInstance()?.clearIncomingCall()
+                finish()
             }
         }
         binding.reject.setOnClickListener {
@@ -433,8 +452,9 @@ class FemaleCallAcceptActivity : AppCompatActivity() {
         val channel = pendingChannel
         val type = pendingCallType
         val receiver = pendingReceiver
-        if (channel.isNullOrEmpty() || type.isNullOrEmpty() || receiver == -1) {
-            Log.w("CreatorCallDiag", "FAccept launchCallScreen: missing pending args → abort callId=$call_Id")
+        if (channel.isNullOrEmpty() || channel == CallChannel.DEFAULT_SENTINEL ||
+            type.isNullOrEmpty() || receiver == -1) {
+            Log.w("CreatorCallDiag", "FAccept launchCallScreen: missing/unusable pending args → abort callId=$call_Id")
             finish()
             return
         }
