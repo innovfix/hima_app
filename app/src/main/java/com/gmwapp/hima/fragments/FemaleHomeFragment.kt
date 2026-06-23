@@ -1009,6 +1009,11 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
 
     override fun onResume() {
         super.onResume()
+        // Bug #10 — app-open account-blocked banner (creator Home, dismissable)
+        applyDismissableBlockBanner(
+            binding.blockBannerFemale.root,
+            binding.blockBannerFemale.btnCloseBanner
+        )
         val prefs = BaseApplication.getInstance()?.getPrefs()
         val userData = prefs?.getUserData()
 
