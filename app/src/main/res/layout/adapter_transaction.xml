@@ -6,8 +6,8 @@
     android:layout_height="wrap_content"
     android:layout_marginStart="16dp"
     android:layout_marginEnd="16dp"
-    android:layout_marginTop="6dp"
-    android:layout_marginBottom="6dp"
+    android:layout_marginTop="5dp"
+    android:layout_marginBottom="5dp"
     app:cardCornerRadius="14dp"
     app:cardElevation="2dp"
     app:strokeWidth="0dp"
@@ -16,14 +16,14 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="14dp">
+        android:padding="11dp">
 
         <!-- Transaction Icon Background -->
         <androidx.cardview.widget.CardView
             android:id="@+id/cv_icon_background"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            app:cardCornerRadius="22dp"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            app:cardCornerRadius="19dp"
             app:cardElevation="0dp"
             app:cardBackgroundColor="#F8F9FA"
             app:layout_constraintStart_toStartOf="parent"
@@ -32,8 +32,8 @@
 
             <ImageView
                 android:id="@+id/iv_transaction_icon"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
+                android:layout_width="21dp"
+                android:layout_height="21dp"
                 android:layout_gravity="center"
                 android:src="@drawable/ic_wallet_add"
                 android:contentDescription="@string/edit" />
@@ -63,13 +63,13 @@
             android:id="@+id/tv_transaction_date"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
+            android:layout_marginTop="1dp"
             android:text="Oct 07 · 22 sec"
             android:textSize="12sp"
             android:fontFamily="@font/poppins_regular"
             android:textColor="#6B7280"
-            android:lineSpacingExtra="1dp"
-            android:maxLines="2"
+            android:lineSpacingExtra="0dp"
+            android:maxLines="1"
             android:ellipsize="end"
             app:layout_constraintStart_toStartOf="@+id/tv_transaction_title"
             app:layout_constraintEnd_toStartOf="@+id/iv_coin"

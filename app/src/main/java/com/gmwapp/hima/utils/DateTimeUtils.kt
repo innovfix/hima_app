@@ -109,13 +109,12 @@ object DateTimeUtils {
     }
 
     /**
-     * Builds the two-line transaction subtitle shared by the male & female
-     * transaction lists (FI_05), so the long "date, time · duration" string no
-     * longer wraps mid-word in the narrow row:
-     *   line 1:  "<date>, <start-time>"   (start time accented)
-     *   line 2:  "<duration>"             (smaller + lighter)
-     * Any part is omitted if absent, so a row with no time/duration still reads
-     * cleanly. Render in tv_transaction_date with maxLines=2.
+     * Builds the single-line transaction subtitle shared by the male & female
+     * transaction lists (FI_05): "<date>, <start-time>  ·  <duration>" — start
+     * time accented (indigo), duration slightly smaller and gray. Any part is
+     * omitted if absent, so a row with no time/duration still reads cleanly.
+     * Kept on one line (vs the earlier two-line version) to keep the row compact;
+     * render in tv_transaction_date with maxLines=1 + ellipsize=end.
      */
     fun buildTxnSubtitle(date: String?, startTimeRaw: String?, duration: String?): CharSequence {
         val time = formatCallStartTime(startTimeRaw)
@@ -131,12 +130,12 @@ object DateTimeUtils {
             )
         }
         if (!duration.isNullOrBlank()) {
-            if (sb.isNotEmpty()) sb.append("\n")
+            if (sb.isNotEmpty()) sb.append("  ·  ")
             val start = sb.length
             sb.append(duration.trim())
-            sb.setSpan(android.text.style.RelativeSizeSpan(0.86f), start, sb.length, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+            sb.setSpan(android.text.style.RelativeSizeSpan(0.92f), start, sb.length, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
             sb.setSpan(
-                android.text.style.ForegroundColorSpan(android.graphics.Color.parseColor("#9CA3AF")),
+                android.text.style.ForegroundColorSpan(android.graphics.Color.parseColor("#6B7280")),
                 start, sb.length, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
             )
         }

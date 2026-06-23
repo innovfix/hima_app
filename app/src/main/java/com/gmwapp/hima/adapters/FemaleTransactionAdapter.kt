@@ -74,7 +74,7 @@ class FemaleTransactionAdapter(
                 holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#10B981"))
                 holder.binding.tvTransactionTitle.text = transaction.title ?: "Audio Session"
                 // FI_05: date, call start time, then duration (pulled from description).
-                holder.binding.tvTransactionDate.maxLines = 2
+                holder.binding.tvTransactionDate.maxLines = 1
                 holder.binding.tvTransactionDate.text = buildCallSubtitle(transaction)
                 // Set icon and background color - same as male transactions
                 holder.binding.ivTransactionIcon.setImageResource(R.drawable.ic_audio_expense)
@@ -88,7 +88,7 @@ class FemaleTransactionAdapter(
                 holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#10B981"))
                 holder.binding.tvTransactionTitle.text = transaction.title ?: "Video Session"
                 // FI_05: date, call start time, then duration (pulled from description).
-                holder.binding.tvTransactionDate.maxLines = 2
+                holder.binding.tvTransactionDate.maxLines = 1
                 holder.binding.tvTransactionDate.text = buildCallSubtitle(transaction)
                 // Set icon and background color - same as male transactions
                 holder.binding.ivTransactionIcon.setImageResource(R.drawable.ic_video_expense)

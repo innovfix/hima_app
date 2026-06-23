@@ -75,7 +75,7 @@ class TransactionAdapter(
                 // so it reconciles to the real call without wrapping mid-word.
                 // started_time (time-only) preferred; falls back to the full
                 // datetime on older rows. See DateTimeUtils.buildTxnSubtitle.
-                holder.binding.tvTransactionDate.maxLines = 2
+                holder.binding.tvTransactionDate.maxLines = 1
                 holder.binding.tvTransactionDate.text = DateTimeUtils.buildTxnSubtitle(
                     transaction.date,
                     transaction.started_time?.takeIf { it.isNotBlank() } ?: transaction.datetime,
