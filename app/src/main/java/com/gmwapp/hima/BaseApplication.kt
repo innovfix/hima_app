@@ -1486,6 +1486,70 @@ class BaseApplication : Application(), Configuration.Provider {
         }
     }
 
+    // ---- Volume-button silence for the incoming ringtone (Activity-independent) ----
+    // We play the ringtone via our own MediaPlayer, so the OS "press volume to
+    // silence ringer" never reaches it, and Activity.onKeyDown only fires when the
+    // full-screen accept screen actually has focus — which doesn't happen when the
+    // call shows only as a heads-up notification. A ContentObserver on the system
+    // volume catches the hardware press in EVERY case: any ring/notification/music/
+    // voice volume change while ringing → stop the ringtone, mirroring how a native
+    // incoming call goes silent the moment you tap a volume button.
+    private var ringtoneVolumeObserver: android.database.ContentObserver? = null
+    private var ringtoneVolumeBaseline: IntArray? = null
+    private val ringtoneWatchedStreams = intArrayOf(
+        AudioManager.STREAM_RING,
+        AudioManager.STREAM_NOTIFICATION,
+        AudioManager.STREAM_MUSIC,
+        AudioManager.STREAM_VOICE_CALL
+    )
+
+    private fun snapshotRingtoneVolumes(am: AudioManager): IntArray =
+        IntArray(ringtoneWatchedStreams.size) { i ->
+            runCatching { am.getStreamVolume(ringtoneWatchedStreams[i]) }.getOrDefault(-1)
+        }
+
+    private fun registerRingtoneVolumeObserver() {
+        if (ringtoneVolumeObserver != null) return
+        val am = applicationContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        ringtoneVolumeBaseline = snapshotRingtoneVolumes(am)
+        val observer = object : android.database.ContentObserver(
+            android.os.Handler(android.os.Looper.getMainLooper())
+        ) {
+            override fun onChange(selfChange: Boolean) {
+                super.onChange(selfChange)
+                val audio = applicationContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+                val now = snapshotRingtoneVolumes(audio)
+                val base = ringtoneVolumeBaseline
+                // Compare against baseline so unrelated Settings.System changes don't
+                // false-trigger; only an actual volume index change silences. With no
+                // baseline yet we have no evidence of a volume press, so do NOT silence.
+                val changed = base != null && now.indices.any { now[it] != base[it] }
+                ringtoneVolumeBaseline = now
+                if (changed && isRingtonePlaying()) {
+                    Log.d("HimaIncomingCall", "volume changed while ringing → silencing ringtone")
+                    // Silence the ring only — keep the incoming-call notification so the
+                    // user can still answer/decline, exactly like a native silence press.
+                    stopRingtone()
+                }
+            }
+        }
+        runCatching {
+            applicationContext.contentResolver.registerContentObserver(
+                android.provider.Settings.System.CONTENT_URI, true, observer
+            )
+            ringtoneVolumeObserver = observer
+            Log.d("HimaIncomingCall", "ringtone volume observer registered")
+        }
+    }
+
+    private fun unregisterRingtoneVolumeObserver() {
+        ringtoneVolumeObserver?.let { obs ->
+            runCatching { applicationContext.contentResolver.unregisterContentObserver(obs) }
+        }
+        ringtoneVolumeObserver = null
+        ringtoneVolumeBaseline = null
+    }
+
     fun playIncomingCallSound() {
         Log.d("HimaIncomingCall", "playIncomingCallSound: begin")
         // TC_025 (B9): respect system Do Not Disturb. When DND is silencing
@@ -1498,6 +1562,10 @@ class BaseApplication : Application(), Configuration.Provider {
         }
         // Stop any previous ringtone first
         stopRingtone()
+        // Catch hardware volume-button presses even when only a heads-up
+        // notification is showing (no focused Activity for onKeyDown), so a
+        // volume tap silences the ring the same way a native call does.
+        registerRingtoneVolumeObserver()
         // Grab audio focus so background media (YouTube, Spotify, etc.) pauses
         // while we ring (B150). No-op if FCM service already grabbed it.
         requestRingtoneFocus()
@@ -1544,6 +1612,30 @@ class BaseApplication : Application(), Configuration.Provider {
             ) ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
                 ?: android.provider.Settings.System.DEFAULT_RINGTONE_URI
             Log.d("HimaIncomingCall", "ringtone uri=$ringtoneUri")
+            // On the headset path the ring plays on STREAM_VOICE_CALL so it reaches
+            // the headset instead of the phone speaker — but that stream ignores the
+            // ring slider AND the silent/vibrate ringer mode, so the ring comes out at
+            // the (usually loud) in-call level no matter how low the user set the ring
+            // volume. Mirror the ring slider onto the MediaPlayer's own volume: low
+            // ring volume → quiet ring, silent/vibrate ringer → no ring, on the headset
+            // too. The non-headset path already routes through STREAM_RING (OS-scaled),
+            // so we leave its scalar at the default 1.0 to avoid double-attenuation.
+            val ringScalar: Float = if (useHeadsetRingPath) {
+                runCatching {
+                    val vam = applicationContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                    when (vam.ringerMode) {
+                        AudioManager.RINGER_MODE_SILENT, AudioManager.RINGER_MODE_VIBRATE -> 0f
+                        else -> {
+                            val rmax = vam.getStreamMaxVolume(AudioManager.STREAM_RING)
+                            val rvol = vam.getStreamVolume(AudioManager.STREAM_RING)
+                            if (rmax <= 0) 1f else (rvol.toFloat() / rmax).coerceIn(0f, 1f)
+                        }
+                    }
+                }.getOrDefault(1f)
+            } else {
+                1f
+            }
+            Log.d("HimaIncomingCall", "ringtone volume scalar=$ringScalar (headsetPath=$useHeadsetRingPath)")
             mediaPlayer = MediaPlayer().apply {
                 setAudioAttributes(audioAttributes)
                 setDataSource(applicationContext, ringtoneUri)
@@ -1557,6 +1649,10 @@ class BaseApplication : Application(), Configuration.Provider {
                     )
                     try {
                         if (mediaPlayer === mp) {
+                            // Apply the ring scalar in the Prepared state — some OEM
+                            // MediaPlayers (e.g. MIUI) no-op setVolume() in Initialized,
+                            // which would leak a full-volume ring on the headset path.
+                            runCatching { mp.setVolume(ringScalar, ringScalar) }
                             mp.start()
                             Log.d(
                                 "HimaIncomingCall",
@@ -2027,6 +2123,9 @@ class BaseApplication : Application(), Configuration.Provider {
             Log.e("MediaPlayer", "Error stopping ringtone: ${e.message}")
         } finally {
             mediaPlayer = null
+            // Stop watching volume keys once the ring is gone (paired with
+            // registerRingtoneVolumeObserver in playIncomingCallSound).
+            unregisterRingtoneVolumeObserver()
             // Release ringtone audio focus so paused media (YouTube etc.) can
             // resume — paired with requestRingtoneFocus in playIncomingCallSound
             // and the FCM service for the B150 fix.

@@ -178,6 +178,21 @@ class HimaConnection(
         }
     }
 
+    /**
+     * System "silence ringer" — invoked when the user presses a hardware volume
+     * button (or the system silence action) while this self-managed call is
+     * RINGING. Because this is a Telecom call, the framework owns the volume
+     * buttons, so the press never reaches Activity.onKeyDown — this is the only
+     * reliable hook to mute our own MediaPlayer ringtone, exactly the way a
+     * native incoming call goes silent on a volume press. We stop the sound but
+     * keep the connection ringing so the user can still answer/decline.
+     */
+    override fun onSilence() {
+        super.onSilence()
+        Log.d(TAG, "onSilence — silencing incoming ringtone")
+        BaseApplication.getInstance()?.stopRingtone()
+    }
+
     override fun onReject() {
         super.onReject()
         handleRejectOrDisconnect()
