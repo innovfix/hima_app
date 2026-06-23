@@ -407,7 +407,9 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             config.mContext = baseContext
             config.mAppId = appId!!
             config.mEventHandler = mRtcEventHandler
-            agoraEngine = RtcEngine.create(config)
+            // Wait out any straggling RtcEngine.destroy() from a prior call before
+            // creating — prevents the "black screen after several video calls" race.
+            agoraEngine = com.gmwapp.hima.utils.AgoraTeardownHelper.createEngineSafely(config, "FemaleVideoCalling")
             // Enable video and audio modules
             agoraEngine!!.enableVideo()
             agoraEngine!!.enableAudio()

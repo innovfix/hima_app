@@ -364,7 +364,9 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
             config.mContext = baseContext
             config.mAppId = appId!!
             config.mEventHandler = mRtcEventHandler
-            agoraEngine = RtcEngine.create(config)
+            // Wait out any straggling RtcEngine.destroy() from a prior call before
+            // creating — prevents the cross-call engine-overlap black-screen race.
+            agoraEngine = com.gmwapp.hima.utils.AgoraTeardownHelper.createEngineSafely(config, "FemaleAudioCalling")
 
             // Enable only audio module (Disable video)
             agoraEngine!!.enableAudio()
