@@ -18,7 +18,6 @@ import com.gmwapp.hima.retrofit.responses.FemaleUsersResponseData
 import com.gmwapp.hima.agora.FcmUtils
 import com.gmwapp.hima.utils.setOnSingleClickListener
 import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -88,33 +87,14 @@ class FemaleUserAdapter(
             holder.binding.iplTeamBadgeCard.visibility = View.GONE
         }
 
-        // Last message + time. Time always sits in the bottom row, beside the
-        // unread badge — never on the name line.
-        val lastMessage = femaleUser.last_message
-        val hasMessage = lastMessage != null && lastMessage.message.isNotBlank()
-        if (hasMessage) {
-            holder.binding.tvLastMessage.visibility = View.VISIBLE
-            holder.binding.tvLastMessage.text = lastMessage!!.message
-            holder.binding.tvLastMessage.setTextColor(
-                activity.resources.getColor(R.color.grey_medium, null)
-            )
-            holder.binding.tvTimeBottom.text = formatChatTime(lastMessage.timestamp)
-            holder.binding.tvTimeBottom.visibility = View.VISIBLE
-        } else {
-            // No previous message — hide the "Tap to call and chat" hint.
-            // The whole row is already clickable (opens chat), so no prompt needed.
-            holder.binding.tvLastMessage.visibility = View.GONE
-            holder.binding.tvTimeBottom.text = ""
-            holder.binding.tvTimeBottom.visibility = View.GONE
-        }
-
-        val unread = femaleUser.unread_count
-        if (unread > 0) {
-            holder.binding.tvUnreadCount.visibility = View.VISIBLE
-            holder.binding.tvUnreadCount.text = if (unread > 99) "99+" else unread.toString()
-        } else {
-            holder.binding.tvUnreadCount.visibility = View.GONE
-        }
+        // Home cards intentionally show only name + call/chat actions — no chat
+        // preview. The last message, its time, and the unread badge are hidden
+        // here so a friend's card looks identical to a non-friend's; the chat
+        // preview belongs in the dedicated chat/friends list, not on home.
+        holder.binding.tvLastMessage.visibility = View.GONE
+        holder.binding.tvTimeBottom.text = ""
+        holder.binding.tvTimeBottom.visibility = View.GONE
+        holder.binding.tvUnreadCount.visibility = View.GONE
 
         // Whole row click → open in-house chat with this female.
         holder.binding.main.setOnSingleClickListener {
@@ -234,39 +214,6 @@ class FemaleUserAdapter(
             if (diffDays >= 0) diffDays else 10
         } catch (_: Exception) {
             10
-        }
-    }
-
-    /**
-     * Format like WhatsApp: "10:30 AM" if today, "Yesterday" if yesterday,
-     * weekday name within the last week, else "MMM dd".
-     */
-    private fun formatChatTime(timestamp: String?): String {
-        if (timestamp.isNullOrBlank()) return ""
-        return try {
-            val parser = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-            val date = parser.parse(timestamp) ?: return ""
-
-            val now = Calendar.getInstance()
-            val msgCal = Calendar.getInstance().apply { time = date }
-
-            val sameDay = now.get(Calendar.YEAR) == msgCal.get(Calendar.YEAR) &&
-                    now.get(Calendar.DAY_OF_YEAR) == msgCal.get(Calendar.DAY_OF_YEAR)
-
-            val yesterdayCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
-            val isYesterday = yesterdayCal.get(Calendar.YEAR) == msgCal.get(Calendar.YEAR) &&
-                    yesterdayCal.get(Calendar.DAY_OF_YEAR) == msgCal.get(Calendar.DAY_OF_YEAR)
-
-            val diffDays = TimeUnit.MILLISECONDS.toDays(now.timeInMillis - msgCal.timeInMillis)
-
-            when {
-                sameDay -> SimpleDateFormat("h:mm a", Locale.getDefault()).format(date)
-                isYesterday -> "Yesterday"
-                diffDays in 2..6 -> SimpleDateFormat("EEE", Locale.getDefault()).format(date)
-                else -> SimpleDateFormat("MMM dd", Locale.getDefault()).format(date)
-            }
-        } catch (_: Exception) {
-            ""
         }
     }
 
