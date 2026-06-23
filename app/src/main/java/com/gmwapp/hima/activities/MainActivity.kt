@@ -353,6 +353,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         }
         BaseApplication.getInstance()?.messageCameWhenIsAlive = 1
 
+        // Welcome-gift trial dialog — DESIGN ONLY (no API/backend wiring).
+        // Shows once the home screen is up; ₹1 button -> Toast + dismiss,
+        // Skip Now -> dismiss.
+        binding.root.post { showWelcomeGiftDialog() }
+
         fromApplication = intent.getBooleanExtra("fromApplication", false)
 
         checkIndividualPaymentType()
@@ -684,6 +689,38 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             }
 
 
+    }
+
+    // Design-only welcome-gift dialog. No backend calls — the ₹1 CTA just
+    // shows a Toast and closes; Skip Now closes. Wire real trial/payment
+    // logic here later if needed.
+    private var welcomeGiftDialog: Dialog? = null
+
+    private fun showWelcomeGiftDialog() {
+        if (isFinishing || isDestroyed) return
+        if (welcomeGiftDialog?.isShowing == true) return
+
+        welcomeGiftDialog = Dialog(this).apply {
+            requestWindowFeature(Window.FEATURE_NO_TITLE)
+            setContentView(R.layout.dialog_welcome_gift)
+            setCancelable(true)
+            window?.setLayout(
+                (resources.displayMetrics.widthPixels * 0.92).toInt(),
+                WindowManager.LayoutParams.WRAP_CONTENT
+            )
+            window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+            findViewById<View>(R.id.tvSkip)?.setOnClickListener { dismiss() }
+            findViewById<View>(R.id.btnTrial)?.setOnClickListener {
+                Toast.makeText(
+                    this@MainActivity,
+                    "Trial activated for ₹1!",
+                    Toast.LENGTH_SHORT
+                ).show()
+                dismiss()
+            }
+            show()
+        }
     }
 
     private fun showUpdateDialog(link: String, description: String) {

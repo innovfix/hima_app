@@ -186,6 +186,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         setupPaymentTypeLoginObserverOnce()
         checkIndividualPaymentType()
         initUI()
+        showWalletTrialDialog()
         setupWalletObservers()
         intializePhonpe()
         checkReferralOffer()
@@ -251,6 +252,39 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
      * languages DO see the banner — the CTA routes them to PLAN_DIRECT_OLD
      * (₹299 first charge, no second free trial).
      */
+    /**
+     * Welcome-gift trial offer shown as a DIALOG over the wallet. DESIGN ONLY —
+     * the auto-rotating ViewFlipper cycles Features -> How it works -> Why
+     * auto-pay; the ₹1 button shows a Toast and closes; Skip Now closes.
+     */
+    private var walletTrialDialog: android.app.Dialog? = null
+
+    private fun showWalletTrialDialog() {
+        if (isFinishing || isDestroyed) return
+        if (walletTrialDialog?.isShowing == true) return
+        walletTrialDialog = android.app.Dialog(this).apply {
+            requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+            setContentView(R.layout.view_wallet_trial_card)
+            setCancelable(true)
+            window?.setLayout(
+                (resources.displayMetrics.widthPixels * 0.92).toInt(),
+                android.view.WindowManager.LayoutParams.WRAP_CONTENT
+            )
+            window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+            val flipper = findViewById<android.widget.ViewFlipper>(R.id.wgFlipper)
+            flipper?.startFlipping()
+            setOnDismissListener { flipper?.stopFlipping() }
+
+            findViewById<View>(R.id.tvSkip)?.setOnClickListener { dismiss() }
+            findViewById<View>(R.id.btnTrial)?.setOnClickListener {
+                Toast.makeText(this@WalletActivity, "Trial activated for ₹1!", Toast.LENGTH_SHORT).show()
+                dismiss()
+            }
+            show()
+        }
+    }
+
     private fun refreshSubscribeBannerVisibility() {
         val isActive = com.gmwapp.hima.utils.SubscriptionStateCache.isActive(this)
         val everActive = com.gmwapp.hima.utils.SubscriptionStateCache.everActive(this)
@@ -258,7 +292,8 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         val reSubEnabled = com.gmwapp.hima.utils.LanguageFeatureCache.isReSubscriptionEnabled(this)
         val lapsedAndBlocked = everActive && !isActive && !reSubEnabled
         val showSubscribeBanner = autopayLanguage && !isActive && !lapsedAndBlocked
-        binding.cvSubscribeBanner.visibility = if (showSubscribeBanner) View.VISIBLE else View.GONE
+        // Banner replaced by the welcome-gift trial card (top 80%) — keep hidden.
+        binding.cvSubscribeBanner.visibility = View.GONE
         // Banner CTA copy mirrors the plan_type that openCheckout will pick:
         // never-ever-active → ₹1 trial; lapsed/cancelled → ₹299 direct.
         binding.btnSubscribeNow.text = if (!everActive) "₹1 only" else "₹299 only"
