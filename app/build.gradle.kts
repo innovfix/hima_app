@@ -122,6 +122,11 @@ android {
             // dev there breaks /autopay_initiate and the trial sheet config endpoints.
             buildConfigField("String", "BASE_URL", "\"https://demohima.himaapp.in/api/auth/\"")
             buildConfigField("String", "ONESIGNAL_APP_ID", "\"5cd4154a-1ece-4c3b-b6af-e88bafee64cd\"")
+            // Bug A leak fix: demo and prod share ONE OneSignal project (same app id
+            // above), so a bare integer external id collides across environments. The
+            // "demo_" prefix scopes demo logins so a demo call can never resolve a
+            // prod-registered device with the same user id. Consumed in BaseApplication.
+            buildConfigField("String", "ONESIGNAL_EXTERNAL_PREFIX", "\"demo_\"")
         }
         create("production") {
             dimension = "hima"
@@ -132,6 +137,8 @@ android {
             // pushes when isInActiveCall() gets stuck in stale=true after a prior call.
             buildConfigField("String", "BASE_URL", "\"https://himaapp.in/api/auth/\"")
             buildConfigField("String", "ONESIGNAL_APP_ID", "\"5cd4154a-1ece-4c3b-b6af-e88bafee64cd\"")
+            // Prod prefix is empty → login external id is the bare user id (unchanged).
+            buildConfigField("String", "ONESIGNAL_EXTERNAL_PREFIX", "\"\"")
         }
     }
     compileOptions {
