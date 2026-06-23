@@ -5317,18 +5317,12 @@ class ChatActivityInHouse : AppCompatActivity() {
         val active = isSubscriptionActive()
         val reSubEnabled = com.gmwapp.hima.utils.LanguageFeatureCache.isReSubscriptionEnabled(this)
         if (ever && !active && !reSubEnabled) return
-        // Trial sheet (with explainer video) for everyone who has never had
-        // an autopay mandate; banner sheet only for lapsed/cancelled. The
-        // ever_active gate is the single source of truth — Users who already
-        // saw the pitch don't need the video re-shown.
+        // Never-active users: the ₹1 trial bottom-sheet is retired — send them to
+        // Wallet, where the welcome-gift banner is the autopay (₹1) upsell.
+        // Lapsed/cancelled users keep the ₹299 re-subscribe sheet so a locked
+        // composer still has a way to unlock.
         if (!com.gmwapp.hima.utils.SubscriptionStateCache.everActive(this)) {
-            val sheet = com.gmwapp.hima.dialogs.BottomSheetTrialOffer.newInstance()
-            sheet.setOnTryNowClickListener {
-                startActivity(AutopayCheckoutActivity.intentFor(
-                    this, AutopayCheckoutActivity.PLAN_TRIAL_NEW
-                ))
-            }
-            sheet.show(supportFragmentManager, com.gmwapp.hima.dialogs.BottomSheetTrialOffer.TAG)
+            startActivity(android.content.Intent(this, WalletActivity::class.java))
         } else {
             val sheet = com.gmwapp.hima.dialogs.BottomSheetOldUserSubscribe.newInstance(
                 bannerOnly = true,

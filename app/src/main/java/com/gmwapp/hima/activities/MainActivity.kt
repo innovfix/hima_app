@@ -353,10 +353,10 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         }
         BaseApplication.getInstance()?.messageCameWhenIsAlive = 1
 
-        // Welcome-gift trial dialog — DESIGN ONLY (no API/backend wiring).
-        // Shows once the home screen is up; ₹1 button -> Toast + dismiss,
-        // Skip Now -> dismiss.
-        binding.root.post { showWelcomeGiftDialog() }
+        // Welcome-gift (₹1 trial) dialog is NOT shown here: at onCreate the
+        // subscription cache isn't populated yet, so the eligibility gate can't
+        // be trusted. HomeFragment triggers showWelcomeGiftDialog() once its
+        // subscription_status observer has the real state (cold-start safe).
 
         fromApplication = intent.getBooleanExtra("fromApplication", false)
 
@@ -691,14 +691,16 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
     }
 
-    // Design-only welcome-gift dialog. No backend calls — the ₹1 CTA just
-    // shows a Toast and closes; Skip Now closes. Wire real trial/payment
-    // logic here later if needed.
+    // Welcome-gift (₹1 trial) dialog. Gated to male users on autopay languages
+    // who have never had an autopay mandate (see WelcomeGiftPromo). The ₹1 CTA
+    // opens the real autopay checkout; Skip Now closes. Called by HomeFragment
+    // once subscription_status is known. Public + idempotent.
     private var welcomeGiftDialog: Dialog? = null
 
-    private fun showWelcomeGiftDialog() {
+    fun showWelcomeGiftDialog() {
         if (isFinishing || isDestroyed) return
         if (welcomeGiftDialog?.isShowing == true) return
+        if (!com.gmwapp.hima.utils.WelcomeGiftPromo.isEligible(this)) return
 
         welcomeGiftDialog = Dialog(this).apply {
             requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -712,11 +714,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
             findViewById<View>(R.id.tvSkip)?.setOnClickListener { dismiss() }
             findViewById<View>(R.id.btnTrial)?.setOnClickListener {
-                Toast.makeText(
-                    this@MainActivity,
-                    "Trial activated for ₹1!",
-                    Toast.LENGTH_SHORT
-                ).show()
+                startActivity(
+                    AutopayCheckoutActivity.intentFor(
+                        this@MainActivity,
+                        AutopayCheckoutActivity.PLAN_TRIAL_NEW
+                    )
+                )
                 dismiss()
             }
             show()

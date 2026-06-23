@@ -186,7 +186,8 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         setupPaymentTypeLoginObserverOnce()
         checkIndividualPaymentType()
         initUI()
-        showWalletTrialDialog()
+        // Welcome-gift banner is triggered from onResume (gate needs subscription
+        // state, which isn't guaranteed populated this early in onCreate).
         setupWalletObservers()
         intializePhonpe()
         checkReferralOffer()
@@ -236,6 +237,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         BaseApplication.getInstance()?.getPrefs()?.getUserData()?.let { WalletViewModel.getCoins(it.id) }
         checkIndividualPaymentType()
         refreshSubscribeBannerVisibility()
+        showWalletTrialDialog()
         Log.d("cashfreeLastOrderId","$cashfreeLastOrderId")
         if (cashfreeLastOrderId.isNotEmpty()){
             checkCashfreeOderStatus(cashfreeLastOrderId)
@@ -253,15 +255,20 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
      * (₹299 first charge, no second free trial).
      */
     /**
-     * Welcome-gift trial offer shown as a DIALOG over the wallet. DESIGN ONLY —
-     * the auto-rotating ViewFlipper cycles Features -> How it works -> Why
-     * auto-pay; the ₹1 button shows a Toast and closes; Skip Now closes.
+     * Welcome-gift (₹1 trial) offer shown as a DIALOG over the wallet. Gated to
+     * male users on autopay languages who have never had an autopay mandate
+     * (WelcomeGiftPromo). The ₹1 button opens the real autopay checkout; Skip Now
+     * closes. Shown once per Wallet visit, only once subscription state is known.
      */
     private var walletTrialDialog: android.app.Dialog? = null
+    private var walletTrialDialogShown = false
 
     private fun showWalletTrialDialog() {
         if (isFinishing || isDestroyed) return
+        if (walletTrialDialogShown) return
         if (walletTrialDialog?.isShowing == true) return
+        if (!com.gmwapp.hima.utils.WelcomeGiftPromo.isEligible(this)) return
+        walletTrialDialogShown = true
         walletTrialDialog = android.app.Dialog(this).apply {
             requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
             setContentView(R.layout.view_wallet_trial_card)
@@ -278,7 +285,12 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 
             findViewById<View>(R.id.tvSkip)?.setOnClickListener { dismiss() }
             findViewById<View>(R.id.btnTrial)?.setOnClickListener {
-                Toast.makeText(this@WalletActivity, "Trial activated for ₹1!", Toast.LENGTH_SHORT).show()
+                startActivity(
+                    AutopayCheckoutActivity.intentFor(
+                        this@WalletActivity,
+                        AutopayCheckoutActivity.PLAN_TRIAL_NEW
+                    )
+                )
                 dismiss()
             }
             show()

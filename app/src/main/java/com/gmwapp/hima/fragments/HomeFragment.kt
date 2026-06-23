@@ -43,7 +43,6 @@ import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.callbacks.Refreshable
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.FragmentHomeBinding
-import com.gmwapp.hima.dialogs.BottomSheetTrialOffer
 import com.gmwapp.hima.retrofit.responses.FemaleUsersResponseData
 import com.gmwapp.hima.utils.Helper
 import com.gmwapp.hima.utils.PinnedChatsPrefsHelper
@@ -120,36 +119,9 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
     private fun initUI() {
         binding.clCoins.setOnSingleClickListener {
-            // Subscribed (any state) → open wallet directly; Wallet hides the banner on its own.
-            // Never had autopay (and not subscribed) → trial sheet, but only if
-            // the user's language has autopay enabled per admin config. Otherwise
-            // the trial surface stays hidden and the coin tap just opens Wallet.
-            //
-            // Cold-start race: SubscriptionStateCache.everActive defaults to
-            // false until APIs land, so !everActive is true on cold start →
-            // trial sheet shows optimistically. LanguageFeatureCache.isAutopayEligible()
-            // handles the language-side cold start internally (cache OR static
-            // whitelist fallback), so the same single helper is used by
-            // HomeFragment and AutopayCheckoutActivity — gates can't disagree.
-            val ctx = requireContext()
-            val isSubscribed = SubscriptionStateCache.isActive(ctx)
-            val autopayEligible = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEligible(ctx)
-            val cachesPopulated = com.gmwapp.hima.utils.LanguageFeatureCache.isPopulated(ctx) &&
-                SubscriptionStateCache.isPopulated()
-            if (!isSubscribed && autopayEligible &&
-                (!SubscriptionStateCache.everActive(ctx) || !cachesPopulated)
-            ) {
-                val sheet = BottomSheetTrialOffer()
-                sheet.setOnTryNowClickListener {
-                    startActivity(com.gmwapp.hima.activities.AutopayCheckoutActivity.intentFor(
-                        requireContext(),
-                        com.gmwapp.hima.activities.AutopayCheckoutActivity.PLAN_TRIAL_NEW
-                    ))
-                }
-                sheet.show(parentFragmentManager, "trial_offer")
-            } else {
-                startActivity(android.content.Intent(requireContext(), WalletActivity::class.java))
-            }
+            // The old ₹1 trial bottom-sheet is retired; the welcome-gift banner is
+            // the only autopay upsell now. Tapping coins always opens Wallet.
+            startActivity(android.content.Intent(requireContext(), WalletActivity::class.java))
         }
 
         setupSubscriptionObservers()
@@ -429,26 +401,14 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         return coins >= required
     }
 
+    // The ₹1 trial bottom-sheet is retired. A new/unsubscribed user who taps a
+    // creator's call button is sent to Wallet (the welcome-gift banner there is
+    // the autopay upsell). Kept as a function so handleCallClick's gate + return
+    // stay intact — no call ever starts for an unsubscribed new user.
     private fun showTrialOfferSheet() {
         if (!isAdded) return
         val ctx = context ?: return
-        // Trial offer is autopay-only. For non-autopay languages, send the
-        // user to Wallet to buy coin packs instead — that's the legacy
-        // pre-autopay coin-only flow this language is supposed to use.
-        if (!com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(ctx)) {
-            startActivity(Intent(ctx, WalletActivity::class.java))
-            return
-        }
-        val existing = childFragmentManager.findFragmentByTag(BottomSheetTrialOffer.TAG)
-        if (existing is BottomSheetTrialOffer && existing.isAdded) return
-        BottomSheetTrialOffer.newInstance().apply {
-            setOnTryNowClickListener {
-                val c = context ?: return@setOnTryNowClickListener
-                startActivity(com.gmwapp.hima.activities.AutopayCheckoutActivity.intentFor(
-                    c, com.gmwapp.hima.activities.AutopayCheckoutActivity.PLAN_TRIAL_NEW
-                ))
-            }
-        }.show(childFragmentManager, BottomSheetTrialOffer.TAG)
+        startActivity(Intent(ctx, WalletActivity::class.java))
     }
 
     private fun showInsufficientFundsSheet() {
@@ -553,6 +513,19 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
     companion object {
         private var autopayDialogShownThisSession = false
+        private var welcomeGiftShownThisSession = false
+
+        /**
+         * Reset once-per-session dialog flags on logout so a second account on
+         * the same device (same process) is re-evaluated for the welcome-gift /
+         * autopay-failed dialogs instead of inheriting the previous user's
+         * "already shown" state.
+         */
+        @JvmStatic
+        fun resetSessionDialogFlags() {
+            autopayDialogShownThisSession = false
+            welcomeGiftShownThisSession = false
+        }
     }
 
     private val midnightHandler = Handler(Looper.getMainLooper())
@@ -673,6 +646,19 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 !autopayDialogShownThisSession && (autopayLanguage || data.ever_active)) {
                 autopayDialogShownThisSession = true
                 if (isAdded) showAutopayFailedDialog(data.status)
+            }
+
+            // Welcome-gift (₹1 trial) banner — now that real subscription state
+            // has landed, show it once per session to eligible never-active male
+            // users on autopay languages (full gate in WelcomeGiftPromo). Flag is
+            // only set when eligible, so a state change later in the session can
+            // still trigger it.
+            if (!welcomeGiftShownThisSession &&
+                com.gmwapp.hima.utils.WelcomeGiftPromo.isEligible(ctx)) {
+                welcomeGiftShownThisSession = true
+                (activity as? com.gmwapp.hima.activities.MainActivity)?.let { mainAct ->
+                    binding.root.post { if (isAdded) mainAct.showWelcomeGiftDialog() }
+                }
             }
         }
 
