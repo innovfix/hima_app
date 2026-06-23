@@ -412,6 +412,59 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
+        <!-- Bug #10: account-blocked suspension strip (shown when the signed-in user's
+             own account is admin-suspended). Negative margins break out of the
+             container's 16dp/8dp padding so the strip is edge-to-edge above the input. -->
+        <LinearLayout
+            android:id="@+id/account_blocked_chat_strip"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="-16dp"
+            android:layout_marginEnd="-16dp"
+            android:layout_marginTop="-8dp"
+            android:layout_marginBottom="8dp"
+            android:background="#FDECEC"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="10dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_marginEnd="10dp"
+                android:src="@drawable/ic_warning"
+                android:tint="#DC2626"
+                android:contentDescription="@string/account_blocked_banner_title" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/account_blocked_banner_title"
+                    android:textColor="#B3261E"
+                    android:textSize="12.5sp"
+                    android:fontFamily="@font/poppins_semibold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/account_blocked_banner_cta"
+                    android:textColor="#DC2626"
+                    android:textSize="11.5sp"
+                    android:fontFamily="@font/poppins_regular" />
+            </LinearLayout>
+        </LinearLayout>
+
         <LinearLayout
             android:id="@+id/layout_reply_preview"
             android:layout_width="match_parent"

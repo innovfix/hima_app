@@ -141,6 +141,7 @@ class ChatActivityInHouse : AppCompatActivity() {
     private lateinit var btnMic: ImageButton
     private lateinit var ivAttach: ImageView
     private var messageInputContainer: View? = null
+    private var accountBlockedChatStrip: View? = null
     private var subscribeLockContainer: View? = null
     private var autopayFailedLockContainer: View? = null
     // Friends-Gated Chat: friendship lock (friends-mode composer lock) + last gate result.
@@ -564,6 +565,7 @@ class ChatActivityInHouse : AppCompatActivity() {
         btnMic = findViewById(R.id.btn_mic)
         ivAttach = findViewById(R.id.iv_attach)
         messageInputContainer = findViewById(R.id.message_input_container)
+        accountBlockedChatStrip = findViewById(R.id.account_blocked_chat_strip)
         subscribeLockContainer = findViewById(R.id.subscribe_lock_container)
         autopayFailedLockContainer = findViewById(R.id.autopay_failed_lock_container)
         chatEndedBanner = findViewById(R.id.ll_chat_ended_banner)
@@ -2108,7 +2110,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                             // Friends-gated chat: same as the text path — re-fetch the gate so
                             // the composer locks with the Add-Friend / Subscribe CTA.
                             val gateCode = responseBody?.code
-                            if (gateCode == "FRIENDS_REQUIRED" || gateCode == "AUTOPAY_REQUIRED") {
+                            if (gateCode == "FRIENDS_REQUIRED" || gateCode == "AUTOPAY_REQUIRED" || gateCode == "ACCOUNT_BLOCKED") {
                                 refreshChatGate()
                             }
                         }
@@ -2290,7 +2292,8 @@ class ChatActivityInHouse : AppCompatActivity() {
                 // locked" / "AUTOPAY_REQUIRED: ..."). The REST fallback enforces the SAME gate,
                 // so retrying it is pointless. Re-fetch the gate so the composer locks and shows
                 // the Add-Friend / Subscribe CTA instead of leaving an open input box.
-                val isGateError = error.startsWith("FRIENDS_REQUIRED") || error.startsWith("AUTOPAY_REQUIRED")
+                val isAccountBlocked = error.startsWith("ACCOUNT_BLOCKED")
+                val isGateError = error.startsWith("FRIENDS_REQUIRED") || error.startsWith("AUTOPAY_REQUIRED") || isAccountBlocked
                 if (isGateError) refreshChatGate()
                 // T9: server doesn't echo a client_message_id yet, so we can't
                 // map a `message_error` back to a specific in-flight temp. To
@@ -2317,8 +2320,11 @@ class ChatActivityInHouse : AppCompatActivity() {
                 val payload = socketPending.value
                 if (isGateError) {
                     // Mark this message failed with the friendly reason; do NOT retry over REST.
-                    val msg = if (error.startsWith("AUTOPAY_REQUIRED")) "Subscribe to start chatting."
-                              else "You can chat once you are friends."
+                    val msg = when {
+                        isAccountBlocked -> "Your account has been blocked."
+                        error.startsWith("AUTOPAY_REQUIRED") -> "Subscribe to start chatting."
+                        else -> "You can chat once you are friends."
+                    }
                     failPendingOutgoing(tempId, msg)
                     return@collect
                 }
@@ -3288,7 +3294,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                                 tempId,
                                 responseBody?.message ?: "Couldn't send message"
                             )
-                            if (gateCode == "FRIENDS_REQUIRED" || gateCode == "AUTOPAY_REQUIRED") {
+                            if (gateCode == "FRIENDS_REQUIRED" || gateCode == "AUTOPAY_REQUIRED" || gateCode == "ACCOUNT_BLOCKED") {
                                 refreshChatGate()
                             }
                         }
@@ -5065,6 +5071,41 @@ class ChatActivityInHouse : AppCompatActivity() {
         }
     }
 
+    private fun isOwnAccountBlocked(): Boolean =
+        BaseApplication.getInstance()?.getPrefs()?.getUserData()?.blocked == true ||
+            lastChatGate?.reason == "account_blocked"
+
+    /** Bug #10 — lock the composer + show the suspension strip when the signed-in
+     *  user's own account is admin-suspended. The backend already rejects the send;
+     *  this makes the state visible instead of a silent "couldn't send" toast. */
+    private fun lockComposerForAccountBlocked() {
+        accountBlockedChatStrip?.visibility = View.VISIBLE
+        accountBlockedChatStrip?.setOnClickListener {
+            startActivity(Intent(this, HelpAndSupportActivity::class.java))
+        }
+        messageInputContainer?.visibility = View.VISIBLE
+        friendshipLockContainer?.visibility = View.GONE
+        subscribeLockContainer?.visibility = View.GONE
+        autopayFailedLockContainer?.visibility = View.GONE
+        etMessage.isEnabled = false
+        etMessage.hint = getString(R.string.chat_blocked_composer_hint)
+        btnSend.isEnabled = false; btnSend.alpha = 0.4f
+        btnMic.isEnabled = false; btnMic.alpha = 0.4f
+        ivAttach.isEnabled = false; ivAttach.alpha = 0.4f
+    }
+
+    /** Revert the account-blocked composer lock (admin un-blocked + gate refreshed). */
+    private fun clearAccountBlockedComposerLock() {
+        accountBlockedChatStrip?.visibility = View.GONE
+        if (!etMessage.isEnabled) {
+            etMessage.isEnabled = true
+            etMessage.hint = getString(R.string.chat_input_hint)
+            btnSend.isEnabled = true; btnSend.alpha = 1f
+            btnMic.isEnabled = true; btnMic.alpha = 1f
+            ivAttach.isEnabled = true; ivAttach.alpha = 1f
+        }
+    }
+
     /**
      * Friends-Gated Chat — top-level composer gate. Chooses between the autopay
      * Subscribe/BuyCoins lock (autopay-language males) and the friendship lock
@@ -5073,6 +5114,10 @@ class ChatActivityInHouse : AppCompatActivity() {
      * friends-mode owns the composer here.
      */
     private fun applyComposerGate() {
+        // Bug #10 — account-level admin suspension locks the composer above every
+        // other gate (mirrors chatSendDecision / the socket gate).
+        if (isOwnAccountBlocked()) { lockComposerForAccountBlocked(); return }
+        clearAccountBlockedComposerLock()
         // If THIS user has blocked the peer, lock the composer with an Unblock CTA —
         // they can't message someone they've blocked (the socket rejects it anyway),
         // so a visible input box was misleading. Takes precedence over every gate

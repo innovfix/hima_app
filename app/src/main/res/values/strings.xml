@@ -157,6 +157,7 @@
     <string name="chat_send_message_desc">Send message</string>
     <string name="chat_peer_avatar_desc">Chat avatar</string>
     <string name="chat_input_hint">Type a message...</string>
+    <string name="chat_blocked_composer_hint">🔒  You can\'t send messages</string>
     <string name="chat_recording_slide_cancel">Slide up to cancel</string>
     <string name="chat_recording_release_cancel">Release to cancel</string>
     <string name="chat_recording_timer_zero">00:00</string>
