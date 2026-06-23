@@ -114,13 +114,37 @@ class WithdrawActivity : BaseActivity() {
 
     /**
      * Shows a withdrawal-response message in a dismissible dialog instead of a toast,
-     * so long messages (e.g. the agency-block notice) are never truncated. Same look
-     * as the autopay-failed dialog; single "Got it" button.
+     * so long messages are never truncated. Same look as the autopay-failed dialog;
+     * single "Got it" button.
+     *
+     * The agency framing ("Withdrawal not available" + "managed by your agency") is shown
+     * ONLY for genuine agency creators (withdrawal_blocked == true). Every other failure —
+     * a server 4xx/5xx whose body Retrofit drops to null, or a 200 with a blank message —
+     * gets the real server text when present, otherwise a neutral generic error. Previously
+     * the agency string was the catch-all fallback, so any failed withdrawal was mislabelled
+     * as an agency block even for non-agency users.
      */
     private fun showWithdrawMessageDialog(message: String?) {
         if (isFinishing || isDestroyed) return
-        val msg = message?.takeIf { it.isNotBlank() }
-            ?: getString(R.string.withdrawal_agency_blocked_text)
+        val isAgencyBlocked =
+            BaseApplication.getInstance()?.getPrefs()?.getUserData()?.withdrawal_blocked == true
+        val serverMsg = message?.takeIf { it.isNotBlank() }
+        val title: String
+        val msg: String
+        when {
+            isAgencyBlocked -> {
+                title = getString(R.string.withdrawal_not_available_title)
+                msg = serverMsg ?: getString(R.string.withdrawal_agency_blocked_text)
+            }
+            serverMsg != null -> {
+                title = getString(R.string.withdrawal_failed_title)
+                msg = serverMsg
+            }
+            else -> {
+                title = getString(R.string.withdrawal_failed_title)
+                msg = getString(R.string.withdrawal_failed_generic)
+            }
+        }
         val view = layoutInflater.inflate(R.layout.dialog_withdrawal_blocked, null)
         val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
             .setView(view)
@@ -128,8 +152,9 @@ class WithdrawActivity : BaseActivity() {
             .create()
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
         dialog.window?.setDimAmount(0.5f)
+        view.findViewById<android.widget.TextView>(R.id.tvWithdrawBlockedTitle).text = title
         view.findViewById<android.widget.TextView>(R.id.tvWithdrawBlockedMsg).text = msg
-        view.findViewById<android.view.View>(R.id.btnWithdrawGotIt).setOnClickListener { dialog.dismiss() }
+        view.findViewById<MaterialButton>(R.id.btnWithdrawGotIt).setOnClickListener { dialog.dismiss() }
         dialog.show()
     }
 
