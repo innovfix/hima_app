@@ -282,6 +282,14 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             response?.data?.let { userData ->
                 // Use call-fix branch's preserving setter (keeps locally-set intent flags)
                 BaseApplication.getInstance()?.getPrefs()?.setUserDataPreservingLocalIntent(userData)
+                // Bug #10 — re-apply the account-blocked banner now that fresh server
+                // data has landed. onResume() evaluated it against the stale cached
+                // UserData.blocked (this getUsers() refresh runs async, after that), so
+                // without this the banner only appeared on the NEXT launch.
+                applyDismissableBlockBanner(
+                    binding.blockBannerHome.root,
+                    binding.blockBannerHome.btnCloseBanner
+                )
                 // Autopay UX: new users with no subscription history display zero coins
                 // until they take action; matches refreshCoinsDisplayFromCache.
                 val displayCoins =

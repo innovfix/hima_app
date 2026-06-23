@@ -778,6 +778,14 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
             // B075 — preserve the user's toggle / DND intent. The updateCallStatus
             // observer below is the legitimate writer for audio_status / video_status.
             prefsLocal.setUserDataPreservingLocalIntent(data)
+            // Bug #10 — re-apply the account-blocked banner now that fresh server data
+            // has landed. onResume() evaluated it against the stale cached
+            // UserData.blocked (this getUsers() refresh runs async, after that), so
+            // without this the creator's banner only appeared on the NEXT launch.
+            applyDismissableBlockBanner(
+                binding.blockBannerFemale.root,
+                binding.blockBannerFemale.btnCloseBanner
+            )
             binding.tvCoins.text = "₹" + data.balance.toString()
             binding.clStarCreatorBanner.visibility =
                 if (com.gmwapp.hima.utils.FeatureFlags.STAR_CREATOR_ENABLED && data.star == 1) View.VISIBLE else View.GONE
