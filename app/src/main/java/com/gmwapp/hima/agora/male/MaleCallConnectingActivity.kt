@@ -694,13 +694,31 @@ class MaleCallConnectingActivity : AppCompatActivity() {
         agoraViewModel.getAgoraToken(channelName, 0, "publisher", 3600)
     }
 
+    private var unreachableHandled = false
+
     fun observeNotificationResponse() {
         fcmNotificationViewModel.notificationResponseLiveData.observe(this) { response ->
             response?.let {
                 if (it.success) {
                     Log.d("FCMNotification", "Notification sent successfully!")
                 } else {
-                    Log.e("FCMNotification", "Failed to send notification")
+                    Log.e("FCMNotification", "Failed to send notification: ${it.message}")
+                    // Fix 2 — the receiver has no deliverable FCM token (logged out /
+                    // backend stored "0"), so the ring was never delivered. Don't leave
+                    // the caller dangling on "Connecting" for the full 40s timeout: tear
+                    // the call down now via the same path the timeout uses. Matched
+                    // narrowly on the backend's "...does not have an FCM token" message;
+                    // the response deserializer reports transient/malformed responses as
+                    // success=true, so this cannot false-trigger and kill a live call.
+                    if (!unreachableHandled && it.message.contains("FCM token", ignoreCase = true)) {
+                        unreachableHandled = true
+                        Toast.makeText(
+                            this@MaleCallConnectingActivity,
+                            "User is not available right now",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        disconnectCall()
+                    }
                 }
             }
         }

@@ -568,6 +568,8 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
         finish()
     }
 
+    private var unreachableHandled = false
+
     fun observeNotificationResponse() {
         fcmNotificationViewModel.notificationResponseLiveData.observe(this) { response ->
             response?.let {
@@ -575,6 +577,17 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                     Log.d("FCMNotification", "Notification sent successfully to male user!")
                 } else {
                     Log.e("FCMNotification", "Failed to send notification: ${it.message}")
+                    // Fix 2 — receiver unreachable (no deliverable FCM token). End the
+                    // caller's "Connecting" now instead of waiting out the 40s timeout.
+                    // disconnectCall() has no currentActivity guard on this side, so the
+                    // single-shot unreachableHandled flag keeps it from re-firing on the
+                    // callDeclined echo. Narrow message match means transient/malformed
+                    // responses (reported as success=true) never trip it.
+                    if (!unreachableHandled && it.message.contains("FCM token", ignoreCase = true)) {
+                        unreachableHandled = true
+                        Toast.makeText(this, "User is not available right now", Toast.LENGTH_LONG).show()
+                        disconnectCall()
+                    }
                 }
             }
         }
@@ -698,6 +711,13 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
     }
 
     private fun disconnectCall() {
+        // Guard symmetric with the male side (MaleCallConnectingActivity.disconnectCall):
+        // only tear down while this connecting screen is actually foreground. Without it,
+        // a late notification-response (Fix 2) or timeout callback arriving after the call
+        // was already accepted — and we transitioned to FemaleAudioCallingActivity — would
+        // endActiveCall(LOCAL) + navigate to MainActivity and kill a LIVE call. Hardens the
+        // pre-existing timeout/back-press callers too, not just the new Fix 2 caller.
+        if (BaseApplication.getInstance()?.getCurrentActivity() !is FemaleCallConnectingActivity) return
         isRunning = false
         cancelTimeoutTracking()
         // I039 — local cancel (timeout or user back-pressed). Mirror the male side.
