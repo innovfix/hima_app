@@ -26,6 +26,9 @@
     <!-- B196 — shown when a SIM phone call (or another cellular interrupt)
          pauses the Hima call audio. Hidden again when the phone call ends. -->
     <string name="call_on_hold_phone_busy">On hold — phone call in progress</string>
+    <!-- Shown to the OTHER party when the peer puts the call on hold to take a
+         cellular / VoIP call. %1$s = peer's display name. -->
+    <string name="call_peer_on_hold">%1$s is on hold</string>
     <string name="call_route_earpiece">Earpiece</string>
     <string name="call_route_speaker">Speaker</string>
     <string name="call_route_bluetooth">Bluetooth</string>

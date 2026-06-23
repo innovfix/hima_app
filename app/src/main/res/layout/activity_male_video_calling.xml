@@ -228,6 +228,25 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/reconnect_banner" />
 
+    <!-- Shown to the OTHER party when the peer puts the call on hold to take a
+         cellular / VoIP call (HOLD signal over the Agora data stream). Text is
+         set at runtime via call_peer_on_hold with the peer's name. -->
+    <TextView
+        android:id="@+id/peer_on_hold_banner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/bg_reconnect_pill"
+        android:elevation="10dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:textColor="@android:color/white"
+        android:textSize="12sp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/on_hold_banner" />
+
     <!-- Visible mute badge (Perumal 2026-05-22, simplified from d0739380): toggled by onUserMuteAudio (peer mute) AND by toggleMute (self mute). Replaces the invisible remote_mic_muted_pill which was anchor-only. -->
     <ImageView
         android:id="@+id/iv_remote_mic_muted"

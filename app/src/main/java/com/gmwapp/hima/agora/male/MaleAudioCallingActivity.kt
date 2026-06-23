@@ -214,6 +214,11 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     private var isJoined = false
     private var agoraEngine: RtcEngine? = null
 
+    // In-call "on hold" signaling over the Agora data stream — tells the peer
+    // when we step away for a cellular / VoIP call so they see a dedicated
+    // "‹Name› is on hold" banner. See CallHoldSignal.
+    private val holdSignal = com.gmwapp.hima.utils.CallHoldSignal { agoraEngine }
+
     // B127: real-time RECORD_AUDIO revoke listener; started on join, stopped on teardown.
     private var micWatcher: com.gmwapp.hima.utils.MicPermissionWatcher? = null
 
@@ -457,8 +462,8 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                 // B196 — true second arg flips the on-hold banner visible so
                 // the user knows their Hima call is paused while the SIM call
                 // is active. Hidden again when the SIM call ends.
-                onCellularCallActive = { muteForInterrupt(true, showOnHoldBanner = true) },
-                onCellularCallEnded = { muteForInterrupt(false, showOnHoldBanner = true) }
+                onCellularCallActive = { muteForInterrupt(true) },
+                onCellularCallEnded = { muteForInterrupt(false) }
             ).also { it.register() }
         }
         if (btWatcher == null) {
@@ -503,13 +508,14 @@ class MaleAudioCallingActivity : AppCompatActivity() {
     }
 
     /**
-     * @param showOnHoldBanner when true, also flips the on-hold banner
-     *   visible/hidden — used by the cellular phone-state path so the user
-     *   sees a clear "On hold — phone call in progress" pill (B196). The
-     *   audio-focus path leaves the banner alone since EXCLUSIVE focus means
-     *   we don't actually expect to lose focus to another app post-fix.
+     * Mutes/unmutes our audio (and remote streams) when an external call
+     * interrupts the Hima call, and signals the peer so BOTH sides see an
+     * "on hold" banner. Shows our own banner (B196) and sends the HOLD/UNHOLD
+     * data-stream signal for ALL interrupt sources — cellular
+     * (CallPhoneStateHelper) and VoIP / other-app audio-focus loss
+     * (CallAudioFocusHelper) — not just SIM calls.
      */
-    private fun muteForInterrupt(muted: Boolean, showOnHoldBanner: Boolean = false) {
+    private fun muteForInterrupt(muted: Boolean) {
         runOnUiThread {
             if (muted) {
                 if (!mutedByInterrupt) {
@@ -520,19 +526,21 @@ class MaleAudioCallingActivity : AppCompatActivity() {
                     // mixes with the caller's voice out of the same speaker otherwise.
                     // B001: same effect when a GSM/WhatsApp call interrupts.
                     agoraEngine?.muteAllRemoteAudioStreams(true)
+                    // Tell the peer we've stepped away so they show the
+                    // "‹Name› is on hold" banner instead of a bare mute pill.
+                    holdSignal.sendHold(true)
                 }
-                if (showOnHoldBanner) {
-                    runCatching { binding.onHoldBanner.visibility = View.VISIBLE }
-                }
+                // Show our own on-hold banner for ALL interrupt sources (SIM
+                // calls AND VoIP/other-app audio-focus loss), not just cellular.
+                runCatching { binding.onHoldBanner.visibility = View.VISIBLE }
             } else {
                 if (mutedByInterrupt) {
                     mutedByInterrupt = false
                     if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
                     agoraEngine?.muteAllRemoteAudioStreams(false)
+                    holdSignal.sendHold(false)
                 }
-                if (showOnHoldBanner) {
-                    runCatching { binding.onHoldBanner.visibility = View.GONE }
-                }
+                runCatching { binding.onHoldBanner.visibility = View.GONE }
             }
         }
     }
@@ -1400,8 +1408,22 @@ class MaleAudioCallingActivity : AppCompatActivity() {
             mutedByInterrupt = false
             if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
             agoraEngine?.muteAllRemoteAudioStreams(false)
+            // Open the reliable data stream used for peer "on hold" signaling.
+            holdSignal.onChannelJoined()
             startTimeoutTracking()
             startMicRevokeWatcher()
+        }
+
+        // Peer "on hold" signal — show/hide the dedicated banner when the other
+        // party steps away for a cellular / VoIP call (and clears it on resume).
+        override fun onStreamMessage(uid: Int, streamId: Int, data: ByteArray?) {
+            super.onStreamMessage(uid, streamId, data)
+            val onHold = com.gmwapp.hima.utils.CallHoldSignal.parse(data) ?: return
+            runOnUiThread {
+                binding.peerOnHoldBanner.text =
+                    getString(R.string.call_peer_on_hold, receiverName)
+                binding.peerOnHoldBanner.visibility = if (onHold) View.VISIBLE else View.GONE
+            }
         }
 
         override fun onNetworkQuality(uid: Int, txQuality: Int, rxQuality: Int) {
@@ -1475,6 +1497,9 @@ class MaleAudioCallingActivity : AppCompatActivity() {
         }
 
         override fun onUserOffline(uid: Int, reason: Int) {
+            // Peer left — clear any stale "on hold" banner (no UNHOLD arrives if
+            // they dropped abruptly while on hold).
+            runOnUiThread { runCatching { binding.peerOnHoldBanner.visibility = View.GONE } }
 
             // B-CALL RC#3: reason=1 means the peer's connection TIMED OUT (they may
             // rejoin) — not a voluntary leave. Don't tear the call down on a transient

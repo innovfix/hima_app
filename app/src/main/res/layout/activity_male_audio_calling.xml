@@ -238,6 +238,25 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/reconnect_banner" />
 
+    <!-- Shown to the OTHER party when the peer puts the call on hold to take a
+         cellular / VoIP call (HOLD signal over the Agora data stream). Text is
+         set at runtime via call_peer_on_hold with the peer's name. -->
+    <TextView
+        android:id="@+id/peer_on_hold_banner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/bg_reconnect_pill"
+        android:elevation="10dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:textColor="@android:color/white"
+        android:textSize="12sp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/on_hold_banner" />
+
     <!-- B055 — top-bar "Peer is muted" pill was removed; the unsized
          drawableStart icon rendered huge on real devices. The small
          per-avatar femaleMute/maleMute badges in users_container are the
