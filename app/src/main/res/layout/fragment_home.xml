@@ -246,7 +246,7 @@
                 android:fontFamily="@font/poppins_semibold"
                 android:minWidth="132dp"
                 android:paddingHorizontal="20dp"
-                android:text="💬 Chats · FREE"
+                android:text="💬 Chats"
                 android:textAllCaps="false"
                 android:textSize="13sp"
                 app:cornerRadius="22dp"
