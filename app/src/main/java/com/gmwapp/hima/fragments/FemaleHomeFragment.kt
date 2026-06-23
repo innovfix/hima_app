@@ -202,19 +202,30 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
     }
 
     fun askPermissions() {
-        val permissionNeeded =
-            arrayOf("android.permission.RECORD_AUDIO", "android.permission.CAMERA")
+        // RECORD_AUDIO + CAMERA are MANDATORY for calls. READ_PHONE_STATE is
+        // OPTIONAL — it only lets CallPhoneStateHelper detect an incoming SIM call
+        // mid-Hima-call and show the "on hold" banner. We request whichever are
+        // missing, but the mandatory gate (and onRequestPermissionsResult) consider
+        // ONLY mic+camera, so denying phone-state can never block the call flow.
+        val cameraGranted = context?.let {
+            ContextCompat.checkSelfPermission(it, "android.permission.CAMERA")
+        } == PackageManager.PERMISSION_GRANTED
+        val recordGranted = context?.let {
+            ContextCompat.checkSelfPermission(it, "android.permission.RECORD_AUDIO")
+        } == PackageManager.PERMISSION_GRANTED
+        val phoneStateGranted = context?.let {
+            ContextCompat.checkSelfPermission(it, "android.permission.READ_PHONE_STATE")
+        } == PackageManager.PERMISSION_GRANTED
 
-        if (context?.let {
-                ContextCompat.checkSelfPermission(
-                    it, "android.permission.CAMERA"
-                )
-            } != PackageManager.PERMISSION_GRANTED || context?.let {
-                ContextCompat.checkSelfPermission(
-                    it, "android.permission.RECORD_AUDIO"
-                )
-            } != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(permissionNeeded, CALL_PERMISSIONS_REQUEST_CODE)
+        // Only request what's missing (avoids relying on a fixed grantResults
+        // index, which the OS may compact to the actually-requested set).
+        val missing = mutableListOf<String>()
+        if (!recordGranted) missing.add("android.permission.RECORD_AUDIO")
+        if (!cameraGranted) missing.add("android.permission.CAMERA")
+        if (!phoneStateGranted) missing.add("android.permission.READ_PHONE_STATE")
+
+        if (missing.isNotEmpty()) {
+            requestPermissions(missing.toTypedArray(), CALL_PERMISSIONS_REQUEST_CODE)
         } else {
            checkOverlayPermission()
 //            askNotificationPermission() // Directly proceed to notification permission
@@ -359,8 +370,16 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         when (requestCode) {
             CALL_PERMISSIONS_REQUEST_CODE -> if (grantResults.isNotEmpty()) {
-                val permissionToCamera = grantResults[0] == PackageManager.PERMISSION_GRANTED
-                val permissionToRecord = grantResults[1] == PackageManager.PERMISSION_GRANTED
+                // Re-check actual current grant state instead of trusting fixed
+                // grantResults indices: the requested array now varies (only missing
+                // perms are requested) and READ_PHONE_STATE is optional, so an index
+                // read could be wrong or throw. Only mic+camera gate the call flow.
+                val permissionToCamera = context?.let {
+                    ContextCompat.checkSelfPermission(it, "android.permission.CAMERA")
+                } == PackageManager.PERMISSION_GRANTED
+                val permissionToRecord = context?.let {
+                    ContextCompat.checkSelfPermission(it, "android.permission.RECORD_AUDIO")
+                } == PackageManager.PERMISSION_GRANTED
                 if (!(permissionToCamera && permissionToRecord)) {
                     val intent = Intent(context, GrantPermissionsActivity::class.java)
                     startActivity(intent)

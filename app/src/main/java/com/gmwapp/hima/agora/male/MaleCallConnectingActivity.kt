@@ -270,8 +270,19 @@ class MaleCallConnectingActivity : AppCompatActivity() {
         FcmUtils.isUserAvailable = 1
         Log.d("FcmUtils.isUserAvailable", "${FcmUtils.isUserAvailable}")
 
+        // RECORD_AUDIO is required for the call. READ_PHONE_STATE is OPTIONAL and
+        // only powers the "on hold" banner when a SIM call interrupts the Hima
+        // call (CallPhoneStateHelper) — request it together so the user isn't
+        // prompted again mid-call; denying it never blocks the call.
+        val callPerms = mutableListOf<String>()
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 100)
+            callPerms.add(Manifest.permission.RECORD_AUDIO)
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+            callPerms.add(Manifest.permission.READ_PHONE_STATE)
+        }
+        if (callPerms.isNotEmpty()) {
+            ActivityCompat.requestPermissions(this, callPerms.toTypedArray(), 100)
         }
 
         lifecycleScope.launch {

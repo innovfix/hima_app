@@ -520,8 +520,11 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                     agoraEngine?.muteAllRemoteAudioStreams(false)
                     agoraEngine?.muteAllRemoteVideoStreams(false)
                     holdSignal.sendHold(false)
+                    // Hide the banner only on a real interrupt->resume transition;
+                    // a spurious focus-regain (mutedByInterrupt already false) must
+                    // not dismiss a banner the cellular path is still showing.
+                    runCatching { binding.onHoldBanner.visibility = View.GONE }
                 }
-                runCatching { binding.onHoldBanner.visibility = View.GONE }
             }
         }
     }

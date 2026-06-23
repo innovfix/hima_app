@@ -130,9 +130,19 @@ class MaleCallAcceptActivity : AppCompatActivity() {
                 "callType=$callType userId=$userId"
         )
 
-        // Pre-request RECORD_AUDIO so permission dialog won't block call start on accept
+        // Pre-request RECORD_AUDIO so permission dialog won't block call start on accept.
+        // READ_PHONE_STATE is OPTIONAL — it only powers the "on hold" banner when a SIM
+        // call interrupts the Hima call (CallPhoneStateHelper); denying it never blocks
+        // the call. Requested together so the user isn't prompted again mid-call.
+        val acceptPerms = mutableListOf<String>()
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 100)
+            acceptPerms.add(Manifest.permission.RECORD_AUDIO)
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+            acceptPerms.add(Manifest.permission.READ_PHONE_STATE)
+        }
+        if (acceptPerms.isNotEmpty()) {
+            ActivityCompat.requestPermissions(this, acceptPerms.toTypedArray(), 100)
         }
 
         // Pre-fetch Agora token while the user decides to accept/reject.
