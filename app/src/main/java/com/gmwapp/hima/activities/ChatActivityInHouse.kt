@@ -4755,8 +4755,13 @@ class ChatActivityInHouse : AppCompatActivity() {
     private fun setupCallButtons() {
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         val isMaleUser = userData?.gender?.equals(DConstants.MALE, ignoreCase = true) == true
-        
-        if (isMaleUser && peerUserId > 0 && myUserId > 0) {
+        val isFemaleUser = userData?.gender?.equals(DConstants.FEMALE, ignoreCase = true) == true
+
+        // Both males and female creators get the in-chat call buttons. checkCallAvailability()
+        // returns is_blocked + the peer's audio/video status; updateCallButtonsState() already
+        // skips the peer-status gate for a female caller (males have no UI to set those flags),
+        // so both buttons enable correctly for her.
+        if ((isMaleUser || isFemaleUser) && peerUserId > 0 && myUserId > 0) {
             checkCallAvailability()
         } else {
             callButtonsContainer.visibility = View.GONE
@@ -4764,9 +4769,18 @@ class ChatActivityInHouse : AppCompatActivity() {
     }
 
     private fun checkCallAvailability() {
+        // The endpoint hard-validates that male_user_id is actually male and
+        // female_user_id female. When the viewer is the female creator, SHE is the
+        // female_user_id and the male peer is the male_user_id — so swap the args by
+        // role, otherwise the backend rejects with success=false/null data and the
+        // call buttons are silently hidden for every creator.
+        val isCurrentUserFemale = BaseApplication.getInstance()?.getPrefs()
+            ?.getUserData()?.gender?.equals(DConstants.FEMALE, ignoreCase = true) == true
+        val maleId = if (isCurrentUserFemale) peerUserId else myUserId
+        val femaleId = if (isCurrentUserFemale) myUserId else peerUserId
         apiManager.checkCallAvailability(
-            maleUserId = myUserId,
-            femaleUserId = peerUserId,
+            maleUserId = maleId,
+            femaleUserId = femaleId,
             object : NetworkCallback<CheckCallAvailabilityResponse> {
                 override fun onResponse(
                     call: Call<CheckCallAvailabilityResponse>,
@@ -4903,7 +4917,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                         forAudio = true
                     )
                 }
-                !hasEnoughCoinsForCall(perMinAudioRate) -> {
+                !isCurrentUserFemale && !hasEnoughCoinsForCall(perMinAudioRate) -> {
                     showTrialOfferSheet()
                 }
                 else -> {
@@ -4924,7 +4938,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                         forAudio = false
                     )
                 }
-                !hasEnoughCoinsForCall(perMinVideoRate) -> {
+                !isCurrentUserFemale && !hasEnoughCoinsForCall(perMinVideoRate) -> {
                     showTrialOfferSheet()
                 }
                 else -> {
@@ -4942,14 +4956,38 @@ class ChatActivityInHouse : AppCompatActivity() {
     private fun initiateCall(callType: String) {
         val userName = extractNameOnly(intent.getStringExtra("USER_NAME") ?: "User")
         val userImage = intent.getStringExtra("USER_IMAGE") ?: ""
-        
-        val intent = Intent(this, com.gmwapp.hima.agora.male.MaleCallConnectingActivity::class.java).apply {
-            putExtra(DConstants.CALL_TYPE, callType)
-            putExtra(DConstants.RECEIVER_ID, peerUserId)
-            putExtra(DConstants.IMAGE, userImage)
-            putExtra(DConstants.RECEIVER_NAME, userName)
-            putExtra("FROM_CHAT", true)
-            putExtra("CHAT_PEER_USER_ID", peerUserId)
+
+        val isCurrentUserFemale = BaseApplication.getInstance()?.getPrefs()
+            ?.getUserData()?.gender?.equals(DConstants.FEMALE, ignoreCase = true) == true
+
+        val intent = if (isCurrentUserFemale) {
+            // Female creator -> male user. Use FemaleCallConnectingActivity with the same
+            // extras Recent/Favourite already pass for a female-initiated call
+            // (RecentFragment.startMaleCallConnectingActivity), so the flow is identical.
+            Intent(this, com.gmwapp.hima.agora.female.FemaleCallConnectingActivity::class.java).apply {
+                putExtra(DConstants.CALL_TYPE, callType)
+                putExtra(DConstants.RECEIVER_ID, peerUserId)
+                putExtra(DConstants.RECEIVER_NAME, userName)
+                putExtra(DConstants.CALL_ID, 0)
+                putExtra(DConstants.IMAGE, userImage)
+                putExtra(DConstants.IS_RECEIVER_DETAILS_AVAILABLE, true)
+                putExtra(DConstants.TEXT, getString(R.string.wait_user_hint, userName))
+                putExtra("FROM_CHAT", true)
+                putExtra("CHAT_PEER_USER_ID", peerUserId)
+            }
+        } else {
+            // Male path — unchanged.
+            Intent(this, com.gmwapp.hima.agora.male.MaleCallConnectingActivity::class.java).apply {
+                putExtra(DConstants.CALL_TYPE, callType)
+                putExtra(DConstants.RECEIVER_ID, peerUserId)
+                putExtra(DConstants.IMAGE, userImage)
+                putExtra(DConstants.RECEIVER_NAME, userName)
+                putExtra("FROM_CHAT", true)
+                putExtra("CHAT_PEER_USER_ID", peerUserId)
+            }
+        }
+        if (isCurrentUserFemale) {
+            com.gmwapp.hima.agora.FcmUtils.isUserAvailable = 1
         }
         startActivity(intent)
     }

@@ -124,8 +124,8 @@
                 <!-- Audio Call Button -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/cv_audio_call"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
                     android:layout_marginEnd="6dp"
                     android:clickable="true"
                     android:focusable="true"
@@ -141,7 +141,7 @@
                         android:layout_height="match_parent"
                         android:src="@drawable/ic_phone_modern"
                         android:scaleType="centerInside"
-                        android:padding="10dp"
+                        android:padding="9dp"
                         app:tint="@color/grey_medium"
                         android:contentDescription="@string/chat_audio_call_desc" />
 
@@ -150,8 +150,8 @@
                 <!-- Video Call Button -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/cv_video_call"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
                     android:clickable="true"
                     android:focusable="true"
                     app:cardBackgroundColor="@color/light_grey"
@@ -166,7 +166,7 @@
                         android:layout_height="match_parent"
                         android:src="@drawable/ic_video_modern"
                         android:scaleType="centerInside"
-                        android:padding="10dp"
+                        android:padding="9dp"
                         app:tint="@color/grey_medium"
                         android:contentDescription="@string/chat_video_call_desc" />
 
