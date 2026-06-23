@@ -68,12 +68,12 @@
             android:textSize="12sp"
             android:fontFamily="@font/poppins_regular"
             android:textColor="#6B7280"
-            android:maxLines="1"
+            android:lineSpacingExtra="1dp"
+            android:maxLines="2"
             android:ellipsize="end"
             app:layout_constraintStart_toStartOf="@+id/tv_transaction_title"
             app:layout_constraintEnd_toStartOf="@+id/iv_coin"
-            app:layout_constraintTop_toBottomOf="@+id/tv_transaction_title"
-            app:layout_constraintBottom_toBottomOf="@+id/cv_icon_background" />
+            app:layout_constraintTop_toBottomOf="@+id/tv_transaction_title" />
 
         <!-- Transaction Hint (Session ID) - Hidden by default -->
         <TextView

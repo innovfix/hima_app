@@ -44,6 +44,10 @@ class TransactionAdapter(
         val callType = transaction.call_type.orEmpty().replaceFirstChar { it.uppercase() }
         val callUserName = transaction.call_user_name
 
+        // Default to single line; only call rows use the two-line subtitle below.
+        // Reset every bind so a recycled call-row holder doesn't keep maxLines=2.
+        holder.binding.tvTransactionDate.maxLines = 1
+
         // Set transaction details based on type
         when {
             // IPL Room transactions take priority over generic types — but only
@@ -67,17 +71,16 @@ class TransactionAdapter(
             }
             transaction.type == "coins_deduction" -> {
                 holder.binding.tvTransactionTitle.text = "$callType session with $callUserName"
-                // FI_05: show the actual call start time (started_time) alongside duration so
-                // charges can be reconciled with the real call session. Falls back to the
-                // transaction datetime if started_time is absent on older rows.
-                val startTime = DateTimeUtils.formatCallStartTime(
-                    transaction.started_time?.takeIf { it.isNotBlank() } ?: transaction.datetime
+                // FI_05: two-line subtitle — "date, start-time" then duration —
+                // so it reconciles to the real call without wrapping mid-word.
+                // started_time (time-only) preferred; falls back to the full
+                // datetime on older rows. See DateTimeUtils.buildTxnSubtitle.
+                holder.binding.tvTransactionDate.maxLines = 2
+                holder.binding.tvTransactionDate.text = DateTimeUtils.buildTxnSubtitle(
+                    transaction.date,
+                    transaction.started_time?.takeIf { it.isNotBlank() } ?: transaction.datetime,
+                    transaction.duration
                 )
-                holder.binding.tvTransactionDate.text = buildString {
-                    append(transaction.date)
-                    if (startTime.isNotEmpty()) append(", ").append(startTime)
-                    if (!transaction.duration.isNullOrBlank()) append(" · ").append(transaction.duration)
-                }
 
                 // Set icon based on call type
                 when (callType.lowercase()) {

@@ -88,20 +88,59 @@ object DateTimeUtils {
         }
     }
 
-    // Parses a server datetime string ("yyyy-MM-dd HH:mm:ss") and returns the
-    // 12-hour clock time in English ("02:30 AM"). Locale.ENGLISH keeps AM/PM
-    // from rendering in regional-script on Hindi/Tamil/etc. locale devices.
-    // Returns "" on null, blank, or unparseable input so callers can skip it.
-    fun formatCallStartTime(datetime: String?): String {
-        if (datetime.isNullOrBlank()) return ""
-        return try {
-            val inputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH)
-            val outputFormat = SimpleDateFormat("hh:mm a", Locale.ENGLISH)
-            val parsed = inputFormat.parse(datetime) ?: return ""
-            outputFormat.format(parsed)
-        } catch (e: Exception) {
-            ""
+    // Returns the 12-hour clock time in English ("1:06 PM"). Accepts EITHER a
+    // full datetime ("yyyy-MM-dd HH:mm:ss", as in the transaction `datetime`) OR
+    // a time-only value ("HH:mm:ss" / "HH:mm" — the backend stores `started_time`
+    // time-only, e.g. "13:06:45"). Without the time-only patterns the start time
+    // silently dropped (parse failure → ""), which is why it never rendered.
+    // Locale.ENGLISH keeps AM/PM from rendering in regional script on
+    // Hindi/Tamil/etc. locale devices. Returns "" on null/blank/unparseable input.
+    fun formatCallStartTime(value: String?): String {
+        if (value.isNullOrBlank()) return ""
+        val output = SimpleDateFormat("h:mm a", Locale.ENGLISH)
+        for (pattern in listOf("yyyy-MM-dd HH:mm:ss", "HH:mm:ss", "HH:mm")) {
+            try {
+                val fmt = SimpleDateFormat(pattern, Locale.ENGLISH).apply { isLenient = false }
+                val parsed = fmt.parse(value.trim()) ?: continue
+                return output.format(parsed)
+            } catch (_: Exception) { /* try next pattern */ }
         }
+        return ""
+    }
+
+    /**
+     * Builds the two-line transaction subtitle shared by the male & female
+     * transaction lists (FI_05), so the long "date, time · duration" string no
+     * longer wraps mid-word in the narrow row:
+     *   line 1:  "<date>, <start-time>"   (start time accented)
+     *   line 2:  "<duration>"             (smaller + lighter)
+     * Any part is omitted if absent, so a row with no time/duration still reads
+     * cleanly. Render in tv_transaction_date with maxLines=2.
+     */
+    fun buildTxnSubtitle(date: String?, startTimeRaw: String?, duration: String?): CharSequence {
+        val time = formatCallStartTime(startTimeRaw)
+        val sb = android.text.SpannableStringBuilder()
+        if (!date.isNullOrBlank()) sb.append(date.trim())
+        if (time.isNotEmpty()) {
+            if (sb.isNotEmpty()) sb.append(", ")
+            val start = sb.length
+            sb.append(time)
+            sb.setSpan(
+                android.text.style.ForegroundColorSpan(android.graphics.Color.parseColor("#4F46E5")),
+                start, sb.length, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+        }
+        if (!duration.isNullOrBlank()) {
+            if (sb.isNotEmpty()) sb.append("\n")
+            val start = sb.length
+            sb.append(duration.trim())
+            sb.setSpan(android.text.style.RelativeSizeSpan(0.86f), start, sb.length, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+            sb.setSpan(
+                android.text.style.ForegroundColorSpan(android.graphics.Color.parseColor("#9CA3AF")),
+                start, sb.length, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+        }
+        return sb
     }
 }
 

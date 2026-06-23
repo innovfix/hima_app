@@ -60,6 +60,10 @@ class FemaleTransactionAdapter(
         holder.binding.ivCoin.visibility = android.view.View.GONE
         val rupeeSymbol = activity.getString(R.string.rupee_symbol)
 
+        // Default to single line; only call rows use the two-line subtitle below.
+        // Reset every bind so a recycled call-row holder doesn't keep maxLines=2.
+        holder.binding.tvTransactionDate.maxLines = 1
+
         // Set transaction details based on type
         // IMPORTANT: All female transactions are CREDITS (they earn money)
         when (transactionType) {
@@ -70,6 +74,7 @@ class FemaleTransactionAdapter(
                 holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#10B981"))
                 holder.binding.tvTransactionTitle.text = transaction.title ?: "Audio Session"
                 // FI_05: date, call start time, then duration (pulled from description).
+                holder.binding.tvTransactionDate.maxLines = 2
                 holder.binding.tvTransactionDate.text = buildCallSubtitle(transaction)
                 // Set icon and background color - same as male transactions
                 holder.binding.ivTransactionIcon.setImageResource(R.drawable.ic_audio_expense)
@@ -83,6 +88,7 @@ class FemaleTransactionAdapter(
                 holder.binding.tvCoins.setTextColor(android.graphics.Color.parseColor("#10B981"))
                 holder.binding.tvTransactionTitle.text = transaction.title ?: "Video Session"
                 // FI_05: date, call start time, then duration (pulled from description).
+                holder.binding.tvTransactionDate.maxLines = 2
                 holder.binding.tvTransactionDate.text = buildCallSubtitle(transaction)
                 // Set icon and background color - same as male transactions
                 holder.binding.ivTransactionIcon.setImageResource(R.drawable.ic_video_expense)
@@ -148,23 +154,21 @@ class FemaleTransactionAdapter(
         holder.binding.tvTransactionHint.text = activity.getString(R.string.session_id) + transaction.id
     }
 
-    // FI_05: build "date, start-time · duration" for a call session. Date comes from
-    // transaction.date; start time from transaction.datetime; duration is recovered from
-    // the description string ("Jan 03 · 7 sec") which is where the backend puts it.
-    private fun buildCallSubtitle(transaction: FemaleTransactionsResponseData): String {
-        // FI_05: prefer the real call start time; fall back to transaction datetime on older rows.
-        val startTime = DateTimeUtils.formatCallStartTime(
-            transaction.started_time?.takeIf { it.isNotBlank() } ?: transaction.datetime
-        )
+    // FI_05: two-line subtitle — "date, start-time" then duration — so it
+    // reconciles to the real call without wrapping mid-word. Start time prefers
+    // the real call started_time (time-only), falling back to the transaction
+    // datetime on older rows; duration is recovered from the description string
+    // ("Jan 03 · 7 sec"). See DateTimeUtils.buildTxnSubtitle.
+    private fun buildCallSubtitle(transaction: FemaleTransactionsResponseData): CharSequence {
         val durationPart = transaction.description?.let { desc ->
             if (desc.contains("·")) desc.substringAfter("·").trim().takeIf { it.isNotEmpty() }
             else desc.trim().takeIf { it.isNotEmpty() }
         }
-        return buildString {
-            append(transaction.date)
-            if (startTime.isNotEmpty()) append(", ").append(startTime)
-            if (durationPart != null) append(" · ").append(durationPart)
-        }
+        return DateTimeUtils.buildTxnSubtitle(
+            transaction.date,
+            transaction.started_time?.takeIf { it.isNotBlank() } ?: transaction.datetime,
+            durationPart
+        )
     }
 
     fun addTransactions(newTransactions: List<FemaleTransactionsResponseData>) {
