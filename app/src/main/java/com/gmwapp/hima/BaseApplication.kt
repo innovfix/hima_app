@@ -733,6 +733,14 @@ class BaseApplication : Application(), Configuration.Provider {
                             false
                         }
                         if (posted) {
+                            // Record the caller id so a later `callDeclined` push can
+                            // be matched and dismiss this ring. The FCM ring path does
+                            // this via setIncomingCall(); the OneSignal path posts the
+                            // CallStyle notification directly and used to record nothing,
+                            // so MyFirebaseMessagingService's `senderId == previousSenderId`
+                            // guard never matched and the ring lingered on-screen with no
+                            // immediate cut when the caller cancelled.
+                            getInstance()?.saveSenderId(incoming.senderId)
                             event.preventDefault()
                             return
                         }

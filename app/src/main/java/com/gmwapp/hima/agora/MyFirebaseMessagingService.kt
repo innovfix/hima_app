@@ -1504,7 +1504,14 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
 
     fun cancelIncomingCallNotification() {
-        BaseApplication.getInstance()?.cancelIncomingCallStyleNotification()
+        // Use the tray sweeper rather than the tag-based cancel: a ring delivered
+        // via the OneSignal CallStyle path records neither a senderId nor a
+        // lastIncomingCallTag, so cancelIncomingCallStyleNotification() (which
+        // cancels by lastIncomingCallTag) silently missed it — the ring stayed
+        // on-screen with no immediate cut when the caller cancelled. The sweeper
+        // clears every incoming-call notification by channel/content, matching the
+        // dismiss every *CallingActivity already uses.
+        BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
         // B171 — the incoming-call notification is the foreground notification
         // of FcmCallService. NotificationManager.cancel() can't dismiss a
         // foreground-service notification — only stopping the service does,
