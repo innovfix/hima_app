@@ -218,6 +218,11 @@
         android:orientation="vertical"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
+        <!-- Bug #10: app-open account-blocked banner (dismissable, shown when UserData.blocked) -->
+        <include
+            android:id="@+id/block_banner_home"
+            layout="@layout/view_account_blocked_banner" />
+
         <!-- Filter Pills Below AppBar (scrollable for 4 buttons) -->
         <HorizontalScrollView
             android:layout_width="match_parent"

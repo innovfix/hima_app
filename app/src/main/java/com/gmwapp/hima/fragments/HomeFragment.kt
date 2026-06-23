@@ -1153,6 +1153,11 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
     override fun onResume() {
         super.onResume()
+        // Bug #10 — app-open account-blocked banner (dismissable, reappears each launch)
+        applyDismissableBlockBanner(
+            binding.blockBannerHome.root,
+            binding.blockBannerHome.btnCloseBanner
+        )
         val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
         userData?.id?.let { profileViewModel.getUsers(it) }
         observeCoins()

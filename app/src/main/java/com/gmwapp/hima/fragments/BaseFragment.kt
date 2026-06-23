@@ -582,6 +582,32 @@ open class BaseFragment : Fragment() {
         }
     }
 
+    /**
+     * Bug #10 — app-open dismissable "account blocked" banner (Option B card).
+     * Shows while the signed-in user's own account is admin-suspended (UserData.blocked == true),
+     * unless already dismissed this session. Tap body -> Help & Support; close (✕) -> hide for
+     * this launch only (reappears on the next cold start). Informational only — the real block
+     * (calls / chat / withdrawals) is enforced server-side regardless of dismissal.
+     */
+    protected fun applyDismissableBlockBanner(bannerRoot: View, closeButton: View) {
+        val isBlocked = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.blocked == true
+        bannerRoot.visibility =
+            if (isBlocked && !blockBannerDismissedThisSession) View.VISIBLE else View.GONE
+        bannerRoot.setOnSingleClickListener {
+            activity?.let { startActivity(Intent(it, HelpAndSupportActivity::class.java)) }
+        }
+        closeButton.setOnSingleClickListener {
+            blockBannerDismissedThisSession = true
+            bannerRoot.visibility = View.GONE
+        }
+    }
+
+    companion object {
+        /** Reset on process (cold) start, so the blocked banner reappears every app launch. */
+        @JvmStatic
+        var blockBannerDismissedThisSession = false
+    }
+
     fun getPendingActivityIntent(context: Context?, intent: Intent?): PendingIntent {
         val openIntent = if (Build.VERSION.SDK_INT >= VERSION_CODES.M) {
             PendingIntent.getActivity(

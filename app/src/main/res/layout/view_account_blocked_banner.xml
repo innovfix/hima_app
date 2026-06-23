@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bug #10 — app-open "Account blocked" banner (Option B: elevated card, red accent,
+     icon badge, ✕ dismiss). Shown on Home while UserData.blocked == true. -->
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/banner_card"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="12dp"
+    android:layout_marginEnd="12dp"
+    android:layout_marginTop="10dp"
+    android:layout_marginBottom="2dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:visibility="gone"
+    app:cardBackgroundColor="@android:color/white"
+    app:cardCornerRadius="14dp"
+    app:cardElevation="6dp"
+    tools:visibility="visible">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <!-- red left accent bar -->
+        <View
+            android:layout_width="5dp"
+            android:layout_height="match_parent"
+            android:background="#DC2626" />
+
+        <!-- icon badge -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="13dp"
+            android:layout_marginBottom="13dp"
+            app:cardBackgroundColor="#FEE2E2"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="0dp">
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_warning"
+                android:tint="#DC2626"
+                android:contentDescription="@string/account_blocked_banner_title" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- texts + CTA -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="12dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/account_blocked_banner_title"
+                android:textColor="#B3261E"
+                android:textSize="14sp"
+                android:fontFamily="@font/poppins_semibold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:text="@string/account_blocked_banner_subtitle"
+                android:textColor="@color/grey_medium"
+                android:textSize="11sp"
+                android:fontFamily="@font/poppins_regular" />
+
+            <TextView
+                android:id="@+id/tv_banner_cta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="9dp"
+                android:background="@drawable/bg_account_blocked_cta"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp"
+                android:text="@string/account_blocked_cta_short"
+                android:textColor="@android:color/white"
+                android:textSize="11sp"
+                android:fontFamily="@font/poppins_semibold" />
+        </LinearLayout>
+
+        <!-- ✕ dismiss -->
+        <ImageView
+            android:id="@+id/btn_close_banner"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginEnd="2dp"
+            android:padding="12dp"
+            android:src="@drawable/baseline_close_24"
+            android:tint="#B0A0A0"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Dismiss banner"
+            tools:ignore="HardcodedText" />
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>
