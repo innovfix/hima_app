@@ -1180,6 +1180,15 @@ class BaseApplication : Application(), Configuration.Provider {
         }
         // Drop the throttle so the next login fires the heartbeat immediately.
         runCatching { activeStatusReporter.reset() }
+        // Autopay/welcome-gift gating must not leak to the next account on a
+        // shared device: reset the once-per-session banner flags and clear the
+        // subscription + language caches so the gate fails closed
+        // (isPopulated == false) until the new user's own state is fetched.
+        runCatching {
+            com.gmwapp.hima.fragments.HomeFragment.resetSessionDialogFlags()
+            com.gmwapp.hima.utils.SubscriptionStateCache.clear()
+            com.gmwapp.hima.utils.LanguageFeatureCache.clear(this)
+        }
         // T13: `my_app_prefs` (set by the OneSignal click handler) survives the
         // standard `clearUserData()` wipe — without this, the next user inherits
         // the previous user's `notification_user_id` from the prior install.

@@ -1,0 +1,446 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/wg_dialog_bg"
+    android:overScrollMode="never">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="22dp">
+
+    <!-- Skip Now -->
+    <TextView
+        android:id="@+id/tvSkip"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end"
+        android:layout_marginTop="6dp"
+        android:layout_marginEnd="4dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:fontFamily="@font/poppins_medium"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:text="Skip Now"
+        android:textColor="@color/pink"
+        android:textSize="13sp" />
+
+    <!-- Exclusive Welcome Offer pill -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:background="@drawable/wg_pill_bg"
+        android:fontFamily="@font/poppins_semibold"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:paddingTop="5dp"
+        android:paddingBottom="5dp"
+        android:text="♥  Exclusive Welcome Offer  ♥"
+        android:textColor="@color/pink_bold"
+        android:textSize="11sp" />
+
+    <!-- Title -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:fontFamily="@font/poppins_extrabold"
+        android:gravity="center"
+        android:text="10 Days Free"
+        android:textColor="@color/pink_bold"
+        android:textSize="20sp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:fontFamily="@font/poppins_bold"
+        android:gravity="center"
+        android:lineSpacingMultiplier="1.12"
+        android:text="Audio Calls &amp;\nUnlimited Chats"
+        android:textColor="#1A1A1A"
+        android:textSize="14sp" />
+
+    <!-- Only ₹1 Today badge -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="22dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="6dp"
+            android:fontFamily="@font/poppins_bold"
+            android:text="»»"
+            android:textColor="@color/pink"
+            android:textSize="14sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/wg_today_badge"
+            android:fontFamily="@font/poppins_semibold"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:text="Only ₹1 Today"
+            android:textColor="#1A1A1A"
+            android:textSize="14sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:fontFamily="@font/poppins_bold"
+            android:text="««"
+            android:textColor="@color/pink"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <!-- AUTO-ROTATING CARD -->
+    <ViewFlipper
+        android:id="@+id/wgFlipper"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:autoStart="true"
+        android:flipInterval="2500"
+        android:inAnimation="@android:anim/fade_in"
+        android:outAnimation="@android:anim/fade_out"
+        android:measureAllChildren="true">
+
+        <!-- ===== Panel A: Features ===== -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/wg_card_bg"
+            android:orientation="vertical"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="18dp"
+            android:paddingBottom="18dp">
+
+            <LinearLayout style="@style/WgRow">
+
+                <FrameLayout
+                    android:layout_width="36dp"
+                    android:layout_height="36dp">
+
+                    <ImageView
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:background="@drawable/wg_feature_circle"
+                        android:padding="8dp"
+                        android:src="@drawable/ic_phone"
+                        app:tint="@color/pink"
+                        tools:ignore="ContentDescription" />
+
+                    <ImageView
+                        android:layout_width="14dp"
+                        android:layout_height="14dp"
+                        android:layout_gravity="bottom|end"
+                        android:src="@drawable/ic_check_circle"
+                        app:tint="#22C55E"
+                        tools:ignore="ContentDescription" />
+                </FrameLayout>
+
+                <LinearLayout style="@style/WgRowText">
+
+                    <TextView
+                        style="@style/WgTitle"
+                        android:text="1 Free Audio Call Daily" />
+
+                    <TextView
+                        style="@style/WgSub"
+                        android:text="Connect with someone new every day" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <View style="@style/WgDivider" />
+
+            <LinearLayout style="@style/WgRow">
+
+                <FrameLayout
+                    android:layout_width="36dp"
+                    android:layout_height="36dp">
+
+                    <ImageView
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:background="@drawable/wg_feature_circle"
+                        android:padding="8dp"
+                        android:src="@drawable/ic_chat_bubble"
+                        app:tint="@color/pink"
+                        tools:ignore="ContentDescription" />
+
+                    <ImageView
+                        android:layout_width="14dp"
+                        android:layout_height="14dp"
+                        android:layout_gravity="bottom|end"
+                        android:src="@drawable/ic_check_circle"
+                        app:tint="#22C55E"
+                        tools:ignore="ContentDescription" />
+                </FrameLayout>
+
+                <LinearLayout style="@style/WgRowText">
+
+                    <TextView
+                        style="@style/WgTitle"
+                        android:text="Unlimited Chats" />
+
+                    <TextView
+                        style="@style/WgSub"
+                        android:text="No limits. No restrictions." />
+                </LinearLayout>
+            </LinearLayout>
+
+            <View style="@style/WgDivider" />
+
+            <LinearLayout style="@style/WgRow">
+
+                <FrameLayout
+                    android:layout_width="36dp"
+                    android:layout_height="36dp">
+
+                    <ImageView
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:background="@drawable/wg_feature_circle"
+                        android:padding="8dp"
+                        android:src="@drawable/ic_wg_calendar"
+                        tools:ignore="ContentDescription" />
+
+                    <ImageView
+                        android:layout_width="14dp"
+                        android:layout_height="14dp"
+                        android:layout_gravity="bottom|end"
+                        android:src="@drawable/ic_check_circle"
+                        app:tint="#22C55E"
+                        tools:ignore="ContentDescription" />
+                </FrameLayout>
+
+                <LinearLayout style="@style/WgRowText">
+
+                    <TextView
+                        style="@style/WgTitle"
+                        android:text="Zero Charges for 10 Days" />
+
+                    <TextView
+                        style="@style/WgSub"
+                        android:text="₹299 charged only after trial ends" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ===== Panel B: How it works ===== -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/wg_card_bg"
+            android:orientation="vertical"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="18dp"
+            android:paddingBottom="18dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:fontFamily="@font/poppins_bold"
+                android:text="How it works"
+                android:textColor="@color/pink"
+                android:textSize="15sp" />
+
+            <LinearLayout style="@style/WgRow">
+
+                <TextView
+                    style="@style/WgNum"
+                    android:text="1" />
+
+                <TextView
+                    style="@style/WgStepText"
+                    android:text="Pay ₹1 today via UPI" />
+            </LinearLayout>
+
+            <View style="@style/WgDivider" />
+
+            <LinearLayout style="@style/WgRow">
+
+                <TextView
+                    style="@style/WgNum"
+                    android:text="2" />
+
+                <TextView
+                    style="@style/WgStepText"
+                    android:text="Get 10 free coins every day" />
+            </LinearLayout>
+
+            <View style="@style/WgDivider" />
+
+            <LinearLayout style="@style/WgRow">
+
+                <TextView
+                    style="@style/WgNum"
+                    android:text="3" />
+
+                <TextView
+                    style="@style/WgStepText"
+                    android:text="₹299 auto-charged on day 11" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ===== Panel C: Why auto-pay is better ===== -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/wg_card_bg"
+            android:orientation="vertical"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="18dp"
+            android:paddingBottom="18dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:fontFamily="@font/poppins_bold"
+                android:text="Why auto-pay is better"
+                android:textColor="@color/pink"
+                android:textSize="15sp" />
+
+            <LinearLayout style="@style/WgRow">
+
+                <ImageView
+                    style="@style/WgWhyIcon"
+                    android:src="@drawable/ic_phone"
+                    tools:ignore="ContentDescription" />
+
+                <TextView
+                    style="@style/WgStepText"
+                    android:text="Never run out of coins mid-call" />
+            </LinearLayout>
+
+            <View style="@style/WgDivider" />
+
+            <LinearLayout style="@style/WgRow">
+
+                <ImageView
+                    style="@style/WgWhyIcon"
+                    android:src="@drawable/ic_wg_coins"
+                    tools:ignore="ContentDescription" />
+
+                <TextView
+                    style="@style/WgStepText"
+                    android:text="Coins auto-credited every 10 days" />
+            </LinearLayout>
+
+            <View style="@style/WgDivider" />
+
+            <LinearLayout style="@style/WgRow">
+
+                <ImageView
+                    style="@style/WgWhyIcon"
+                    android:src="@drawable/ic_wg_refresh"
+                    tools:ignore="ContentDescription" />
+
+                <TextView
+                    style="@style/WgStepText"
+                    android:text="No manual recharge needed" />
+            </LinearLayout>
+        </LinearLayout>
+    </ViewFlipper>
+
+    <!-- Start Your Trial button -->
+    <FrameLayout
+        android:id="@+id/btnTrial"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginTop="26dp"
+        android:background="@drawable/wg_cta_gradient"
+        android:clickable="true"
+        android:focusable="true">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:fontFamily="@font/poppins_bold"
+            android:text="Start Your Trial - ₹1"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp" />
+
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:layout_gravity="center_vertical|end"
+            android:layout_marginEnd="18dp"
+            android:src="@drawable/ic_chevron_right"
+            app:tint="#FFFFFF"
+            tools:ignore="ContentDescription" />
+    </FrameLayout>
+
+    <!-- Footer badges -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="20dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:src="@drawable/ic_check_circle"
+            app:tint="@color/pink"
+            tools:ignore="ContentDescription" />
+
+        <TextView
+            style="@style/WgFooter"
+            android:text="UPI Secured" />
+
+        <View style="@style/WgFootDivider" />
+
+        <ImageView
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:src="@drawable/ic_check_circle"
+            app:tint="@color/pink"
+            tools:ignore="ContentDescription" />
+
+        <TextView
+            style="@style/WgFooter"
+            android:text="Cancel Anytime" />
+
+        <View style="@style/WgFootDivider" />
+
+        <ImageView
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:src="@drawable/ic_check_circle"
+            app:tint="@color/pink"
+            tools:ignore="ContentDescription" />
+
+        <TextView
+            style="@style/WgFooter"
+            android:text="No Hidden Fees" />
+    </LinearLayout>
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

@@ -186,6 +186,8 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         setupPaymentTypeLoginObserverOnce()
         checkIndividualPaymentType()
         initUI()
+        // Welcome-gift banner is triggered from onResume (gate needs subscription
+        // state, which isn't guaranteed populated this early in onCreate).
         setupWalletObservers()
         intializePhonpe()
         checkReferralOffer()
@@ -235,6 +237,7 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         BaseApplication.getInstance()?.getPrefs()?.getUserData()?.let { WalletViewModel.getCoins(it.id) }
         checkIndividualPaymentType()
         refreshSubscribeBannerVisibility()
+        showWalletTrialDialog()
         Log.d("cashfreeLastOrderId","$cashfreeLastOrderId")
         if (cashfreeLastOrderId.isNotEmpty()){
             checkCashfreeOderStatus(cashfreeLastOrderId)
@@ -251,6 +254,49 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
      * languages DO see the banner — the CTA routes them to PLAN_DIRECT_OLD
      * (₹299 first charge, no second free trial).
      */
+    /**
+     * Welcome-gift (₹1 trial) offer shown as a DIALOG over the wallet. Gated to
+     * male users on autopay languages who have never had an autopay mandate
+     * (WelcomeGiftPromo). The ₹1 button opens the real autopay checkout; Skip Now
+     * closes. Shown once per Wallet visit, only once subscription state is known.
+     */
+    private var walletTrialDialog: android.app.Dialog? = null
+    private var walletTrialDialogShown = false
+
+    private fun showWalletTrialDialog() {
+        if (isFinishing || isDestroyed) return
+        if (walletTrialDialogShown) return
+        if (walletTrialDialog?.isShowing == true) return
+        if (!com.gmwapp.hima.utils.WelcomeGiftPromo.isEligible(this)) return
+        walletTrialDialogShown = true
+        walletTrialDialog = android.app.Dialog(this).apply {
+            requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+            setContentView(R.layout.view_wallet_trial_card)
+            setCancelable(true)
+            window?.setLayout(
+                (resources.displayMetrics.widthPixels * 0.92).toInt(),
+                android.view.WindowManager.LayoutParams.WRAP_CONTENT
+            )
+            window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+            val flipper = findViewById<android.widget.ViewFlipper>(R.id.wgFlipper)
+            flipper?.startFlipping()
+            setOnDismissListener { flipper?.stopFlipping() }
+
+            findViewById<View>(R.id.tvSkip)?.setOnClickListener { dismiss() }
+            findViewById<View>(R.id.btnTrial)?.setOnClickListener {
+                startActivity(
+                    AutopayCheckoutActivity.intentFor(
+                        this@WalletActivity,
+                        AutopayCheckoutActivity.PLAN_TRIAL_NEW
+                    )
+                )
+                dismiss()
+            }
+            show()
+        }
+    }
+
     private fun refreshSubscribeBannerVisibility() {
         val isActive = com.gmwapp.hima.utils.SubscriptionStateCache.isActive(this)
         val everActive = com.gmwapp.hima.utils.SubscriptionStateCache.everActive(this)
@@ -258,7 +304,8 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         val reSubEnabled = com.gmwapp.hima.utils.LanguageFeatureCache.isReSubscriptionEnabled(this)
         val lapsedAndBlocked = everActive && !isActive && !reSubEnabled
         val showSubscribeBanner = autopayLanguage && !isActive && !lapsedAndBlocked
-        binding.cvSubscribeBanner.visibility = if (showSubscribeBanner) View.VISIBLE else View.GONE
+        // Banner replaced by the welcome-gift trial card (top 80%) — keep hidden.
+        binding.cvSubscribeBanner.visibility = View.GONE
         // Banner CTA copy mirrors the plan_type that openCheckout will pick:
         // never-ever-active → ₹1 trial; lapsed/cancelled → ₹299 direct.
         binding.btnSubscribeNow.text = if (!everActive) "₹1 only" else "₹299 only"

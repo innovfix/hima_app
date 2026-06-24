@@ -123,6 +123,23 @@
         android:orientation="horizontal"
         app:layout_constraintGuide_percent="0.92" />
 
+    <!-- Coin list (the trial offer is now shown as a dialog over this screen) -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_plans"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="@dimen/_8sdp"
+        android:paddingHorizontal="@dimen/_10sdp"
+        android:paddingTop="@dimen/_4sdp"
+        android:paddingBottom="@dimen/_8sdp"
+        android:clipToPadding="false"
+        android:clipChildren="false"
+        android:overScrollMode="never"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/header_container"
+        app:layout_constraintBottom_toTopOf="@+id/btn_add_coins" />
+
     <ImageView
         android:visibility="gone"
         android:id="@+id/iv_bonus"
@@ -145,11 +162,11 @@
         android:alpha="0.5"
         app:layout_constraintHeight_default="percent"
         app:layout_constraintHeight_percent="0.02"
-        app:layout_constraintBottom_toTopOf="@+id/rv_plans"
+        app:layout_constraintBottom_toTopOf="@+id/btn_add_coins"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Subscribe Now Banner -->
+    <!-- Subscribe Now Banner — hidden; replaced by the trial card above -->
     <FrameLayout
         android:id="@+id/cv_subscribe_banner"
         android:layout_width="0dp"
@@ -158,6 +175,7 @@
         android:layout_marginEnd="16dp"
         android:layout_marginTop="14dp"
         android:background="@drawable/bg_subscribe_card"
+        android:visibility="gone"
         android:clickable="true"
         android:focusable="true"
         app:layout_constraintEnd_toEndOf="parent"
@@ -285,22 +303,6 @@
 
         </LinearLayout>
     </FrameLayout>
-
-    <androidx.recyclerview.widget.RecyclerView
-        android:layout_marginTop="@dimen/_16sdp"
-        android:id="@+id/rv_plans"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:paddingHorizontal="@dimen/_10sdp"
-        android:paddingTop="@dimen/_4sdp"
-        android:paddingBottom="@dimen/_8sdp"
-        android:clipToPadding="false"
-        android:nestedScrollingEnabled="false"
-        android:overScrollMode="never"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/cv_subscribe_banner"
-        app:layout_constraintBottom_toTopOf="@+id/btn_add_coins" />
 
     <LinearLayout
         android:id="@+id/ll_recharge"

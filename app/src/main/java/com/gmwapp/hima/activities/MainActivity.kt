@@ -353,6 +353,11 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         }
         BaseApplication.getInstance()?.messageCameWhenIsAlive = 1
 
+        // Welcome-gift (₹1 trial) dialog is NOT shown here: at onCreate the
+        // subscription cache isn't populated yet, so the eligibility gate can't
+        // be trusted. HomeFragment triggers showWelcomeGiftDialog() once its
+        // subscription_status observer has the real state (cold-start safe).
+
         fromApplication = intent.getBooleanExtra("fromApplication", false)
 
         checkIndividualPaymentType()
@@ -684,6 +689,41 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
             }
 
 
+    }
+
+    // Welcome-gift (₹1 trial) dialog. Gated to male users on autopay languages
+    // who have never had an autopay mandate (see WelcomeGiftPromo). The ₹1 CTA
+    // opens the real autopay checkout; Skip Now closes. Called by HomeFragment
+    // once subscription_status is known. Public + idempotent.
+    private var welcomeGiftDialog: Dialog? = null
+
+    fun showWelcomeGiftDialog() {
+        if (isFinishing || isDestroyed) return
+        if (welcomeGiftDialog?.isShowing == true) return
+        if (!com.gmwapp.hima.utils.WelcomeGiftPromo.isEligible(this)) return
+
+        welcomeGiftDialog = Dialog(this).apply {
+            requestWindowFeature(Window.FEATURE_NO_TITLE)
+            setContentView(R.layout.dialog_welcome_gift)
+            setCancelable(true)
+            window?.setLayout(
+                (resources.displayMetrics.widthPixels * 0.92).toInt(),
+                WindowManager.LayoutParams.WRAP_CONTENT
+            )
+            window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+            findViewById<View>(R.id.tvSkip)?.setOnClickListener { dismiss() }
+            findViewById<View>(R.id.btnTrial)?.setOnClickListener {
+                startActivity(
+                    AutopayCheckoutActivity.intentFor(
+                        this@MainActivity,
+                        AutopayCheckoutActivity.PLAN_TRIAL_NEW
+                    )
+                )
+                dismiss()
+            }
+            show()
+        }
     }
 
     private fun showUpdateDialog(link: String, description: String) {
