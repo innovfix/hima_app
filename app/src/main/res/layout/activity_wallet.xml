@@ -137,7 +137,8 @@
         android:overScrollMode="never"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/header_container"
+        app:layout_constraintTop_toBottomOf="@+id/cv_subscribe_banner"
+        app:layout_goneMarginTop="@dimen/_8sdp"
         app:layout_constraintBottom_toTopOf="@+id/btn_add_coins" />
 
     <ImageView

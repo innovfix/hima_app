@@ -302,12 +302,16 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         val everActive = com.gmwapp.hima.utils.SubscriptionStateCache.everActive(this)
         val autopayLanguage = com.gmwapp.hima.utils.LanguageFeatureCache.isAutopayEnabled(this)
         val reSubEnabled = com.gmwapp.hima.utils.LanguageFeatureCache.isReSubscriptionEnabled(this)
-        val lapsedAndBlocked = everActive && !isActive && !reSubEnabled
-        val showSubscribeBanner = autopayLanguage && !isActive && !lapsedAndBlocked
-        // Banner replaced by the welcome-gift trial card (top 80%) — keep hidden.
-        binding.cvSubscribeBanner.visibility = View.GONE
-        // Banner CTA copy mirrors the plan_type that openCheckout will pick:
-        // never-ever-active → ₹1 trial; lapsed/cancelled → ₹299 direct.
+        val isMale = BaseApplication.getInstance()?.getPrefs()?.getUserData()?.gender ==
+            com.gmwapp.hima.constants.DConstants.MALE
+        // Re-subscribe banner: ONLY for cancelled/lapsed users (ever had a mandate,
+        // not active now) on an autopay language where admin allows re-subscription.
+        // Never-active users get the ₹1 welcome dialog instead, so the two surfaces
+        // never collide; active subscribers see nothing.
+        val showResubBanner = isMale && autopayLanguage && everActive && !isActive && reSubEnabled
+        binding.cvSubscribeBanner.visibility = if (showResubBanner) View.VISIBLE else View.GONE
+        // Banner only shows for lapsed (everActive) users → openCheckout picks
+        // PLAN_DIRECT_OLD; CTA reads "₹299 only".
         binding.btnSubscribeNow.text = if (!everActive) "₹1 only" else "₹299 only"
     }
 
