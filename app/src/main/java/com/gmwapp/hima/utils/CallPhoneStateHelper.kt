@@ -35,8 +35,6 @@ class CallPhoneStateHelper(
     @Suppress("NewApi") // Guarded below.
     private var telephonyCallback: TelephonyCallback? = null
 
-    private var wasActive = false
-
     @SuppressLint("MissingPermission")
     fun register() {
         if (!hasPhoneStatePermission()) {
@@ -89,21 +87,28 @@ class CallPhoneStateHelper(
 
     private fun handleState(state: Int) {
         when (state) {
-            TelephonyManager.CALL_STATE_RINGING,
-            TelephonyManager.CALL_STATE_OFFHOOK -> {
-                if (!wasActive) {
-                    wasActive = true
-                    Log.d(TAG, "Cellular call active (state=$state) -> muting Agora")
-                    try { onCellularCallActive() } catch (e: Exception) { Log.e(TAG, "callback threw", e) }
-                }
+            // Only a *real incoming* cellular call is a genuine interrupt, and it
+            // always passes through RINGING first. We deliberately do NOT key off
+            // CALL_STATE_OFFHOOK here: while a Hima call is up, our own
+            // self-managed VoIP connection (HimaConnection, set ACTIVE via
+            // Telecom) is reported as OFFHOOK by the device on some OEMs
+            // (Samsung observed). Treating that OFFHOOK as a cellular call fired
+            // the "On hold — phone call in progress" banner (and the peer's
+            // "‹Name› is on hold" banner) and muted the mic on EVERY Hima call
+            // even though no SIM call existed. RINGING is unambiguous: our active
+            // VoIP connection is ACTIVE, never RINGING. (A SIM call that gets
+            // answered still mutes correctly — RINGING precedes OFFHOOK; and
+            // audio-focus loss is a second safety net.) Callbacks are idempotent
+            // downstream, so firing once per RINGING/IDLE edge is safe.
+            TelephonyManager.CALL_STATE_RINGING -> {
+                Log.d(TAG, "Incoming cellular call ringing -> muting Agora")
+                try { onCellularCallActive() } catch (e: Exception) { Log.e(TAG, "callback threw", e) }
             }
             TelephonyManager.CALL_STATE_IDLE -> {
-                if (wasActive) {
-                    wasActive = false
-                    Log.d(TAG, "Cellular call ended -> restoring Agora")
-                    try { onCellularCallEnded() } catch (e: Exception) { Log.e(TAG, "callback threw", e) }
-                }
+                Log.d(TAG, "Cellular state idle -> restoring Agora")
+                try { onCellularCallEnded() } catch (e: Exception) { Log.e(TAG, "callback threw", e) }
             }
+            // CALL_STATE_OFFHOOK intentionally ignored (see above).
         }
     }
 
