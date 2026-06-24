@@ -73,6 +73,16 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
     private var isRunning = true  // Keeps the loop running
     private val designOnly = false  // Toggle: true = UI only (no API/FCM), false = full flow
 
+    // The receiver's FCM token is briefly stale ('0'/absent) right after call_male_user's
+    // OneSignal push wakes their app — it re-registers a couple of seconds later
+    // (BaseApplication cold-start sync). A "no FCM token"/404 from sendNotification is
+    // therefore transient on the first attempt, so retry the ring a few times before
+    // surfacing failure instead of forcing the user to redial 2-3 times.
+    private var ringNotifRetryCount = 0
+    private var lastRingNotifMessage: String? = null
+    private val maxRingNotifRetries = 3
+    private val ringNotifRetryDelayMs = 2000L
+
     private var elapsedTime = 0  // Tracks elapsed seconds
     private val timeoutHandler = Handler(Looper.getMainLooper())
     private val timeoutRunnable = object : Runnable {
@@ -511,7 +521,10 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
 
                 if (callId != 0) {
                     prefetchAgoraToken(channelName)
-                    sendCallNotification(userId!!, receiverId, callType!!, "incoming call $callId $myAvatar $myname")
+                    val ringMessage = "incoming call $callId $myAvatar $myname"
+                    lastRingNotifMessage = ringMessage
+                    ringNotifRetryCount = 0
+                    sendCallNotification(userId!!, receiverId, callType!!, ringMessage)
                     observeNotificationResponse()
                     // I039 — register outgoing call with Telecom so a SIM / WhatsApp
                     // call mid-Hima triggers the system second-call UI.
@@ -575,6 +588,7 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
             response?.let {
                 if (it.success) {
                     Log.d("FCMNotification", "Notification sent successfully to male user!")
+                    lastRingNotifMessage = null  // ring delivered — stop any pending retry
                 } else {
                     Log.e("FCMNotification", "Failed to send notification: ${it.message}")
                     // Fix 2 — receiver unreachable (no deliverable FCM token). End the
@@ -595,9 +609,42 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
         fcmNotificationViewModel.notificationErrorLiveData.observe(this) { error ->
             error?.let {
                 Log.e("FCMNotification", "Notification error: $it")
-                Toast.makeText(this, "Failed to connect: $it", Toast.LENGTH_SHORT).show()
+                if (shouldRetryRingNotification(it)) {
+                    ringNotifRetryCount++
+                    Log.d(
+                        "FCMNotification",
+                        "Receiver token not ready — retry $ringNotifRetryCount/$maxRingNotifRetries in ${ringNotifRetryDelayMs}ms"
+                    )
+                    handler.postDelayed({
+                        val uid = userId
+                        val ct = callType
+                        if (isRunning && !isFinishing && !isDestroyed &&
+                            lastRingNotifMessage != null && uid != null && ct != null) {
+                            sendCallNotification(uid, receiverId, ct, lastRingNotifMessage!!)
+                        }
+                    }, ringNotifRetryDelayMs)
+                } else {
+                    Toast.makeText(this, "Failed to connect: $it", Toast.LENGTH_SHORT).show()
+                }
             }
         }
+    }
+
+    /**
+     * The receiver's FCM token is briefly missing right after the OneSignal call push
+     * cold-starts their app (it re-registers within ~2s). Treat a "no FCM token" / 404
+     * from sendNotification as transient and retry the ring a few times — but only while
+     * we're still actively connecting (isRunning && !isFinishing), only for the ring
+     * (lastRingNotifMessage != null, never the callDeclined teardown send), and only up
+     * to the cap so a genuinely tokenless receiver still fails fast enough.
+     */
+    private fun shouldRetryRingNotification(error: String): Boolean {
+        val tokenNotReady = error.contains("FCM token", ignoreCase = true) ||
+            error.contains("Error: 404", ignoreCase = true)
+        return isRunning && !isFinishing &&
+            tokenNotReady &&
+            lastRingNotifMessage != null &&
+            ringNotifRetryCount < maxRingNotifRetries
     }
 
     /**
