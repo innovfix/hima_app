@@ -1636,8 +1636,12 @@ class BaseApplication : Application(), Configuration.Provider {
             val ringtoneCandidates = buildList {
                 RingtoneManager.getActualDefaultRingtoneUri(applicationContext, RingtoneManager.TYPE_RINGTONE)?.let { add(it) }
                 RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)?.let { add(it) }
-                RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)?.let { add(it) }
                 add(android.provider.Settings.System.DEFAULT_RINGTONE_URI)
+                // Bundled, always-readable real ringtone is the LAST resort. Deliberately NOT
+                // TYPE_NOTIFICATION: when the user's chosen ringtone is an unreadable custom
+                // file (shared storage, no READ_MEDIA_AUDIO), the notification (message) tone
+                // IS readable and would bind first — so the call rang with the user's MESSAGE
+                // tone instead of a ring. Skipping it lets us fall through to R.raw.rhythm.
                 add(android.net.Uri.parse("android.resource://$packageName/${R.raw.rhythm}"))
             }.distinct()
             // On the headset path the ring plays on STREAM_VOICE_CALL so it reaches
