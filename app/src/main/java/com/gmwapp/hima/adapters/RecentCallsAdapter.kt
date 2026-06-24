@@ -308,6 +308,12 @@ class RecentCallsAdapter(
             notifyDataSetChanged()
             return
         }
+        // NOTE: do NOT de-dupe the recent list by `id` — here `id` is the PEER user id
+        // (call_user_id/user_id), not a per-call key, and the list is one row per call
+        // (backend calls_list has no GROUP BY). Deduping by id would collapse legitimate
+        // repeat calls to the same person. The duplicate-on-first-open bug is fixed at the
+        // source instead: RecentFragment guards its onResume reload with !isLoading so it
+        // no longer races initUI's page-0 fetch.
         val start = callList.size
         callList.addAll(newData)
         notifyItemRangeInserted(start, newData.size)

@@ -418,7 +418,14 @@ class RecentFragment : BaseFragment(), Refreshable {
     override fun onResume() {
         super.onResume()
 
-        if (FcmUtils.isUserAvailable==0){
+        // Skip if a load is already in flight (e.g. initUI's first-open page-0 fetch) so
+        // we don't fire a second reset-load that races the first — the root of the
+        // duplicate-row-on-first-open bug (two page-0 responses appended back-to-back).
+        // Same "skip if in-flight" guard the deferred refresh below uses; the in-flight
+        // load already delivers fresh data. We fix it here rather than de-duping in the
+        // adapter, because the recent list is one-row-per-call and its `id` is the peer
+        // user id, so de-duping by id would wrongly merge legitimate repeat calls.
+        if (FcmUtils.isUserAvailable==0 && !isLoading){
             loadCallsList(currentSortType, resetData = true)
         }
 
