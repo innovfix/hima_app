@@ -3,6 +3,9 @@ package com.gmwapp.hima.retrofit.responses
 import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonDeserializer
 import com.google.gson.JsonElement
+import com.google.gson.JsonPrimitive
+import com.google.gson.JsonSerializationContext
+import com.google.gson.JsonSerializer
 import com.google.gson.annotations.JsonAdapter
 import com.google.gson.annotations.SerializedName
 import java.lang.reflect.Type
@@ -80,7 +83,7 @@ data class UserData (
     val play_ludo: Boolean? = false
 )
 
-class FlexibleBooleanDeserializer : JsonDeserializer<Boolean> {
+class FlexibleBooleanDeserializer : JsonDeserializer<Boolean>, JsonSerializer<Boolean> {
     override fun deserialize(
         json: JsonElement?,
         typeOfT: Type,
@@ -97,4 +100,18 @@ class FlexibleBooleanDeserializer : JsonDeserializer<Boolean> {
             else -> false
         }
     }
+
+    // Without an explicit serializer, @JsonAdapter leaves the WRITE path to fall
+    // through to reflective serialization, which writes a Boolean as an empty
+    // object "{}". That corrupted the value when DPreferences.setUserData()
+    // re-serialized UserData to prefs: the next getUserData() read saw "{}",
+    // hit the !isJsonPrimitive branch above, and returned false — so `blocked`
+    // (and `withdrawal_blocked`) were silently wiped on every cache round-trip,
+    // which is why the account-blocked Home banner never appeared. Emit a real
+    // JSON boolean so the round-trip is lossless.
+    override fun serialize(
+        src: Boolean?,
+        typeOfSrc: Type,
+        context: JsonSerializationContext
+    ): JsonElement = JsonPrimitive(src ?: false)
 }
