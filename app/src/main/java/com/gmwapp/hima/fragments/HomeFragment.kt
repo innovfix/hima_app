@@ -863,6 +863,40 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         INTEREST_PILLS.forEach { (interest, _) ->
             interestButton(interest)?.setOnClickListener { applyInterestFilter(interest) }
         }
+
+        // One-time discovery nudge so users notice the new interest pills off-screen.
+        maybeShowInterestPillNudge()
+    }
+
+    /**
+     * First launch after the interest-pills update: gently auto-scroll the filter
+     * row to reveal the colourful interest pills, pause, then spring back to All —
+     * so users discover there's more to scroll. Runs once (prefs flag), and only
+     * when the pills are actually off-screen (skips on wide screens).
+     */
+    private fun maybeShowInterestPillNudge() {
+        if (!::binding.isInitialized) return
+        val ctx = context ?: return
+        val sp = ctx.getSharedPreferences("home_ui_prefs", android.content.Context.MODE_PRIVATE)
+        if (sp.getBoolean("interest_pills_nudge_shown", false)) return
+
+        val scroll = binding.filterPillsScroll
+        scroll.postDelayed({
+            if (!isAdded || !::binding.isInitialized) return@postDelayed
+            val music = binding.btnFilterMusic
+            val viewportRight = scroll.scrollX + scroll.width
+            // Already fully visible (wide screen) → no nudge needed; don't burn the flag.
+            if (music.right <= viewportRight) return@postDelayed
+            sp.edit().putBoolean("interest_pills_nudge_shown", true).apply()
+
+            val density = resources.displayMetrics.density
+            val target = (music.left - 64 * density).toInt().coerceAtLeast(0)
+            scroll.smoothScrollTo(target, 0)
+            scroll.postDelayed({
+                if (!isAdded || !::binding.isInitialized) return@postDelayed
+                scroll.smoothScrollTo(0, 0)
+            }, 1200L)
+        }, 700L)
     }
 
     private fun refreshStarTabVisibility() {

@@ -225,6 +225,7 @@
 
         <!-- Filter Pills Below AppBar (scrollable for 4 buttons) -->
         <HorizontalScrollView
+            android:id="@+id/filter_pills_scroll"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:scrollbars="none"
