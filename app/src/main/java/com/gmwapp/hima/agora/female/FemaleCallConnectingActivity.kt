@@ -684,7 +684,20 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
                         }
                     }, ringNotifRetryDelayMs)
                 } else {
-                    Toast.makeText(this, "Failed to connect: $it", Toast.LENGTH_SHORT).show()
+                    // Retries exhausted — the receiver is genuinely unreachable
+                    // (logged out / no deliverable FCM token, backend 404
+                    // "Receiver does not have an FCM token"). Show the SAME
+                    // friendly message as the success=false path above instead of
+                    // dumping the raw 404 JSON, and end the dangling "Connecting"
+                    // screen. Mirrors the male-side connecting twin.
+                    if (!unreachableHandled &&
+                        (it.contains("FCM token", ignoreCase = true) || it.contains("404"))) {
+                        unreachableHandled = true
+                        Toast.makeText(this, "User is not available right now", Toast.LENGTH_LONG).show()
+                        disconnectCall()
+                    } else {
+                        Toast.makeText(this, "Couldn't connect. Please try again.", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }
