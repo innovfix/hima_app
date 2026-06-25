@@ -545,6 +545,10 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     companion object {
         private var autopayDialogShownThisSession = false
         private var welcomeGiftShownThisSession = false
+        // Interest-pill discovery nudge plays at most once per app launch (resets on
+        // cold start / process death), and stops permanently once the user taps any
+        // interest pill (persisted in prefs).
+        private var interestNudgePlayedThisProcess = false
 
         /**
          * Reset once-per-session dialog flags on logout so a second account on
@@ -556,6 +560,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         fun resetSessionDialogFlags() {
             autopayDialogShownThisSession = false
             welcomeGiftShownThisSession = false
+            interestNudgePlayedThisProcess = false
         }
     }
 
@@ -876,18 +881,21 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
      */
     private fun maybeShowInterestPillNudge() {
         if (!::binding.isInitialized) return
+        // At most once per app launch (not on every return to Home in a session).
+        if (interestNudgePlayedThisProcess) return
         val ctx = context ?: return
         val sp = ctx.getSharedPreferences("home_ui_prefs", android.content.Context.MODE_PRIVATE)
-        if (sp.getBoolean("interest_pills_nudge_shown", false)) return
+        // Stop nudging permanently once the user has tapped any interest pill.
+        if (sp.getBoolean("interest_pill_used", false)) return
 
         val scroll = binding.filterPillsScroll
         scroll.postDelayed({
             if (!isAdded || !::binding.isInitialized) return@postDelayed
             val music = binding.btnFilterMusic
             val viewportRight = scroll.scrollX + scroll.width
-            // Already fully visible (wide screen) → no nudge needed; don't burn the flag.
+            // Already fully visible (wide screen) → no nudge needed.
             if (music.right <= viewportRight) return@postDelayed
-            sp.edit().putBoolean("interest_pills_nudge_shown", true).apply()
+            interestNudgePlayedThisProcess = true
 
             val density = resources.displayMetrics.density
             val target = (music.left - 64 * density).toInt().coerceAtLeast(0)
@@ -1025,6 +1033,9 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
         filterType = "interest"
         selectedInterest = interest
+        // User engaged an interest pill → stop the discovery nudge permanently.
+        ctx.getSharedPreferences("home_ui_prefs", android.content.Context.MODE_PRIVATE)
+            .edit().putBoolean("interest_pill_used", true).apply()
         updateFilterButtonStyles()
         // Clear existing data, then reload with the interest filter.
         femaleUsersViewModel.femaleUsersResponseLiveData.value?.data?.clear()
