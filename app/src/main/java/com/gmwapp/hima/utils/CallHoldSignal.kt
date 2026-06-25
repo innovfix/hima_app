@@ -24,6 +24,11 @@ import io.agora.rtc2.RtcEngine
 class CallHoldSignal(private val engineProvider: () -> RtcEngine?) {
 
     private var dataStreamId: Int = -1
+    // The last hold state we actually transmitted. Dedups so we only send on a
+    // real change — prevents a spurious UNHOLD (e.g. an audio-focus regain with
+    // no prior hold) from racing in and clearing a peer banner that a genuine
+    // HOLD just put up.
+    private var sentHold = false
 
     /** Call from onJoinChannelSuccess to (re)create the reliable data stream. */
     fun onChannelJoined() {
@@ -33,7 +38,10 @@ class CallHoldSignal(private val engineProvider: () -> RtcEngine?) {
                 ordered = true
             }
             val id = engineProvider()?.createDataStream(cfg) ?: -1
-            if (id >= 0) dataStreamId = id
+            if (id >= 0) {
+                dataStreamId = id
+                sentHold = false // fresh stream — peer state unknown, allow next send
+            }
             Log.d(TAG, "data stream id=$dataStreamId")
         } catch (e: Exception) {
             Log.e(TAG, "createDataStream failed: ${e.message}")
@@ -44,9 +52,11 @@ class CallHoldSignal(private val engineProvider: () -> RtcEngine?) {
     fun sendHold(onHold: Boolean) {
         val engine = engineProvider() ?: return
         if (dataStreamId < 0) return
+        if (onHold == sentHold) return // no state change — don't spam / don't race
         val msg = if (onHold) MSG_HOLD else MSG_UNHOLD
         try {
             engine.sendStreamMessage(dataStreamId, msg.toByteArray(Charsets.UTF_8))
+            sentHold = onHold
         } catch (e: Exception) {
             Log.e(TAG, "sendStreamMessage failed: ${e.message}")
         }
