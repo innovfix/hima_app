@@ -339,6 +339,15 @@ class CallActionReceiver : BroadcastReceiver() {
 
                 reportCallStatusRejected(context, userid, receiverId, callId)
 
+                // Count this notification/lock-screen decline toward the 3-strike
+                // auto-offline block. The in-app full-screen Reject button already
+                // posts this (MaleCallAcceptActivity); this path was the missing one,
+                // so real declines never accrued and the male stayed "online".
+                // male_user_id = self (userid), female_user_id = caller (receiverId).
+                if (userid != null && receiverId > 0) {
+                    (context.applicationContext as BaseApplication).reportRejectCount(userid, receiverId)
+                }
+
                 val fcmNotificationRepository = (context.applicationContext as BaseApplication).fcmNotificationRepository
 
                 if (userid != null && receiverId != null && callType != null && channelName != null) {

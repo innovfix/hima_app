@@ -2836,6 +2836,42 @@ class BaseApplication : Application(), Configuration.Provider {
         }
     }
 
+    /**
+     * Post a reject toward the 3-strike auto-offline block.
+     * Mirrors the in-app reject button (MaleCallAcceptActivity → callRejectCount)
+     * so that declines from the notification / lock screen are also counted.
+     * Fire-and-forget; failures are logged but never block call teardown.
+     */
+    fun reportRejectCount(maleUserId: Int, femaleUserId: Int) {
+        if (maleUserId <= 0 || femaleUserId <= 0) {
+            Log.w("CallStatus", "reportRejectCount skipped male=$maleUserId female=$femaleUserId")
+            return
+        }
+        getApiManager()?.callRejectCount(
+            maleUserId,
+            femaleUserId,
+            object : com.gmwapp.hima.retrofit.callbacks.NetworkCallback<com.gmwapp.hima.retrofit.responses.CallRejectCountResponse> {
+                override fun onResponse(
+                    call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.CallRejectCountResponse>,
+                    response: retrofit2.Response<com.gmwapp.hima.retrofit.responses.CallRejectCountResponse>
+                ) {
+                    Log.d("CallStatus", "reportRejectCount posted male=$maleUserId female=$femaleUserId body=${response.body()}")
+                }
+
+                override fun onFailure(
+                    call: retrofit2.Call<com.gmwapp.hima.retrofit.responses.CallRejectCountResponse>,
+                    t: Throwable
+                ) {
+                    Log.e("CallStatus", "reportRejectCount failed male=$maleUserId female=$femaleUserId", t)
+                }
+
+                override fun onNoNetwork() {
+                    Log.w("CallStatus", "reportRejectCount — no network male=$maleUserId female=$femaleUserId")
+                }
+            }
+        )
+    }
+
     // Helper function to parse UTM parameters
     private fun parseUtmParameters(referrerUrl: String): Map<String, String> {
         val params = mutableMapOf<String, String>()
