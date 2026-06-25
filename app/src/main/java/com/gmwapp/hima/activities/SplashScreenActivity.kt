@@ -293,19 +293,32 @@ class SplashScreenActivity : BaseActivity() {
         if (isIncomingCall) {
             Log.d("SplashActivity", "Incoming call detected! Redirecting to Call Accept Screen.")
 
-            Handler(Looper.getMainLooper()).postDelayed({
-                val intent = Intent(this, FemaleCallAcceptActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    putExtra("CALL_TYPE", callType)
-                    putExtra("SENDER_ID", senderId)
-                    putExtra("CHANNEL_NAME", channelName)
-                    putExtra("CALL_ID", callId)
-                    Log.d("CALL_TYPE_Data", "$callType")
+            // Navigate to the call screen EXACTLY ONCE and take priority over the normal
+            // routing. Previously this raw startActivity raced the profile/app-update
+            // observers and the 8s fallback (each of which also startActivity+finish),
+            // so a cold-start-from-call could launch several activities and the splash
+            // re-appeared repeatedly. Claiming the navigation guard + cancelling the
+            // fallback makes every other path no-op (they all check hasNavigatedFromSplash).
+            if (!hasNavigatedFromSplash) {
+                hasNavigatedFromSplash = true
+                splashTimeoutHandler.removeCallbacks(splashTimeoutRunnable)
 
-                }
-                startActivity(intent)
-                finish()
-            }, 2000)  // Delay ONLY if there's an incoming call
+                Handler(Looper.getMainLooper()).postDelayed({
+                    val intent = Intent(this, FemaleCallAcceptActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                            Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                            Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        putExtra("CALL_TYPE", callType)
+                        putExtra("SENDER_ID", senderId)
+                        putExtra("CHANNEL_NAME", channelName)
+                        putExtra("CALL_ID", callId)
+                        Log.d("CALL_TYPE_Data", "$callType")
+
+                    }
+                    startActivity(intent)
+                    finish()
+                }, 2000)  // Delay ONLY if there's an incoming call
+            }
         } else {
             Log.d("SplashActivity", "No incoming call. Redirecting to MainActivity.")
         }

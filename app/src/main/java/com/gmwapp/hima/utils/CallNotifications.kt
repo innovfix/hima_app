@@ -220,6 +220,31 @@ object CallNotifications {
     }
 
     fun showIncoming(context: Context, payload: IncomingPayload) {
+        // Guard against stale / duplicate / delayed incoming-call pushes. If this
+        // call_id was already ended (creator answered, declined, or the call was torn
+        // down) within the last 60s, do NOT post the ongoing CallStyle banner.
+        // Otherwise a late or retried push re-shows the un-swipeable ring banner ~30s
+        // after the call is already over. Centralised here so every push path
+        // (FCM, OneSignal foreground, OneSignal NSE) is covered.
+        if (BaseApplication.getInstance()?.wasCallRecentlyEnded(payload.callId) == true) {
+            Log.d(TAG, "showIncoming: SKIP — callId=${payload.callId} was recently ended (stale/duplicate push)")
+            return
+        }
+        // Busy-rejected calls are remembered for 2h (not 60s) so a stale/duplicate push
+        // can't resurface the screen after a long current call ends.
+        if (BaseApplication.getInstance()?.wasCallBusyRejected(payload.callId) == true) {
+            Log.d(TAG, "showIncoming: SKIP — callId=${payload.callId} was busy-rejected (stale push after long call)")
+            return
+        }
+        // De-duplicate across providers. showIncoming is the OneSignal-only path; FCM (the
+        // primary path) rings + shows its own foreground banner and claims ownership via
+        // setIncomingCall -> markCallOwnedByFcm. If FCM already owns this caller's call, skip
+        // the OneSignal banner so the user sees ONE banner, not two. OneSignal still acts as
+        // a delivery fallback: if FCM never arrived, nothing claimed ownership and this posts.
+        if (BaseApplication.getInstance()?.isCallOwnedByFcm(payload.senderId) == true) {
+            Log.d(TAG, "showIncoming: SKIP — FCM already owns senderId=${payload.senderId} (defer, avoid duplicate banner)")
+            return
+        }
         ensureCallsChannel(context)
         val chImp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             (context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)
@@ -389,6 +414,15 @@ object CallNotifications {
      *   the user revoked POST_NOTIFICATIONS.
      */
     fun showMissed(context: Context, payload: MissedPayload): Boolean {
+        // A missed call means the incoming ring is over. Clear the ongoing,
+        // un-swipeable CallStyle incoming banner (setOngoing=true) first — otherwise
+        // it lingers on screen with stale Decline/Answer buttons that the user cannot
+        // swipe away. Centralised here so EVERY missed-call path (OneSignal NSE, FCM,
+        // BaseApplication) clears the stuck banner before posting the swipeable
+        // missed-call notification below.
+        runCatching {
+            BaseApplication.getInstance()?.cancelAllIncomingCallNotifications()
+        }
         // Defensive: normalize upstream title/body (e.g. "📞 Missed call from Kishore12")
         // so Person name + avatar initial match chat-style notifications.
         val cleanedName = normalizeMissedCallCallerName(payload.callerName)

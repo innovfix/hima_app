@@ -671,13 +671,24 @@ class BaseApplication : Application(), Configuration.Provider {
                 val isMissedCall =
                     additional?.optString("type", "")?.lowercase() == "missed_call" ||
                         additional?.optString("type", "")?.lowercase() == "call_missed" ||
-                        title.contains("missed call") || body.contains("missed call")
+                        // Match "missed call", "missed audio call" AND "missed video call".
+                        // The audio/video word sits between "missed" and "call", so a plain
+                        // contains("missed call") check misses those titles and the push
+                        // wrongly renders as an incoming CallStyle banner with Answer/Decline.
+                        (title.contains("missed") && title.contains("call")) ||
+                        (body.contains("missed") && body.contains("call"))
 
                 if (isInActiveCall() &&
                     looksLikeCallPush(event.notification.additionalData) &&
                     !isMissedCall
                 ) {
                     Log.d("OneSignal_InCall", "Already in active call — suppressing OneSignal incoming-call push")
+                    // Remember this busy-rejected call so a later/retried push (FCM or
+                    // OneSignal) doesn't resurface as a ghost incoming screen after the
+                    // current call ends — even if that call lasts 20+ minutes. Mirrors the
+                    // FCM busy-reject path.
+                    val busyCallId = additional?.optInt("call_id", 0) ?: 0
+                    if (busyCallId > 0) markCallBusyRejected(busyCallId)
                     event.preventDefault()
                     return
                 }
@@ -2367,6 +2378,17 @@ class BaseApplication : Application(), Configuration.Provider {
         this.incomingCall = true
         this.incomingCallSetAt = System.currentTimeMillis()
         this.lastIncomingCallTag = callId.toString()
+        // FCM is the primary call path (it owns the ringtone + foreground service). Claim
+        // this call so the OneSignal handler defers and won't post a duplicate banner.
+        markCallOwnedByFcm(senderId)
+        // If OneSignal's banner already beat FCM to the tray, remove ONLY it. Its
+        // notification is (tag=callId, id=INCOMING_CALL_NOTIFICATION_ID); FcmCallService's
+        // foreground ring notification is (tag=null, id=INCOMING_CALL_NOTIFICATION_ID), so
+        // cancelling by this tag never touches the ring/foreground banner.
+        runCatching {
+            (getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)
+                ?.cancel(callId.toString(), INCOMING_CALL_NOTIFICATION_ID)
+        }
     }
 
     /**
@@ -2478,6 +2500,25 @@ class BaseApplication : Application(), Configuration.Provider {
     private val recentlyEndedCalls = java.util.concurrent.ConcurrentHashMap<Int, Long>()
 
     /**
+     * senderIds whose incoming call the FCM (primary) path has taken ownership of:
+     * senderId -> ownedAtMs. FCM owns the ringtone + foreground service, so the OneSignal
+     * handler DEFERS to these to avoid posting a duplicate banner. Both providers still
+     * DELIVER the push (full redundancy) — only the redundant second banner is suppressed.
+     * 45s ring window. See [markCallOwnedByFcm] / [isCallOwnedByFcm].
+     */
+    private val fcmOwnedCalls = java.util.concurrent.ConcurrentHashMap<Int, Long>()
+
+    /**
+     * callIds rejected because the recipient was BUSY (already in a call). Kept far longer
+     * than [recentlyEndedCalls] (60s) because the CURRENT call that caused the busy state can
+     * last 20+ minutes, and the rejected call's late/duplicate push only resurfaces when THAT
+     * call finally ends — which can be well past 60s. callIds are unique per attempt, so the
+     * long (2h) retention NEVER blocks a genuine new call. See [markCallBusyRejected] /
+     * [wasCallBusyRejected].
+     */
+    private val busyRejectedCallIds = java.util.concurrent.ConcurrentHashMap<Int, Long>()
+
+    /**
      * GHOST_CALL_FIX_2026_06_22 — remember a call_id that was declined / rejected /
      * already accepted so a stale heads-up "Answer" tap can be refused. Only
      * POSITIVELY-ended ids are recorded, so an unknown / genuinely-live call is
@@ -2496,6 +2537,42 @@ class BaseApplication : Application(), Configuration.Provider {
         if (callId <= 0) return false
         val t = recentlyEndedCalls[callId] ?: return false
         if (System.currentTimeMillis() - t > 60_000L) { recentlyEndedCalls.remove(callId); return false }
+        return true
+    }
+
+    /** Mark that the FCM (primary) path owns the incoming call from [senderId]. */
+    fun markCallOwnedByFcm(senderId: Int) {
+        if (senderId <= 0) return
+        val now = System.currentTimeMillis()
+        fcmOwnedCalls[senderId] = now
+        val it = fcmOwnedCalls.entries.iterator()
+        while (it.hasNext()) { if (now - it.next().value > 45_000L) it.remove() }
+    }
+
+    /** True if FCM took ownership of an incoming call from [senderId] within the last 45s. */
+    fun isCallOwnedByFcm(senderId: Int): Boolean {
+        if (senderId <= 0) return false
+        val t = fcmOwnedCalls[senderId] ?: return false
+        if (System.currentTimeMillis() - t > 45_000L) { fcmOwnedCalls.remove(senderId); return false }
+        return true
+    }
+
+    /** Remember a call rejected because the recipient was busy (see [busyRejectedCallIds]). */
+    fun markCallBusyRejected(callId: Int) {
+        if (callId <= 0) return
+        val now = System.currentTimeMillis()
+        busyRejectedCallIds[callId] = now
+        // Purge entries older than 2h (covers very long calls); callIds are unique so this
+        // never blocks a new call, and it caps memory.
+        val it = busyRejectedCallIds.entries.iterator()
+        while (it.hasNext()) { if (now - it.next().value > 2 * 60 * 60_000L) it.remove() }
+    }
+
+    /** True if [callId] was busy-rejected within the last 2 hours (covers very long calls). */
+    fun wasCallBusyRejected(callId: Int): Boolean {
+        if (callId <= 0) return false
+        val t = busyRejectedCallIds[callId] ?: return false
+        if (System.currentTimeMillis() - t > 2 * 60 * 60_000L) { busyRejectedCallIds.remove(callId); return false }
         return true
     }
 

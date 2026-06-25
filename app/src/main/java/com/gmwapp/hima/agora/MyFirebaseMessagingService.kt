@@ -244,6 +244,18 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 // EVERYTHING after it, so spaces are preserved.
                 val callId = parts.getOrNull(2)
                 if (!callId.isNullOrBlank()) {
+                    // Suppress a retried/duplicate push for a call already ended or
+                    // busy-rejected. Without this, a call auto-rejected while the creator
+                    // was busy can resurface as a ghost incoming screen after her current
+                    // call ends (the late/retried FCM gets processed once she is free).
+                    val callIdInt = callId.toIntOrNull() ?: 0
+                    val appGuard = BaseApplication.getInstance()
+                    if (callIdInt > 0 &&
+                        (appGuard?.wasCallRecentlyEnded(callIdInt) == true ||
+                            appGuard?.wasCallBusyRejected(callIdInt) == true)) {
+                        Log.d("FCM", "Incoming call_id=$callIdInt recently ended or busy-rejected — ignoring stale/retried push")
+                        return
+                    }
                     val receiverImg = parts.getOrNull(3).orEmpty()           // avatar URL (single token)
                     val receiverName = parts.drop(4).joinToString(" ").trim() // name (may contain spaces)
 
@@ -286,6 +298,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                                 callType,
                                 channelName
                             )
+                            // Remember this busy-rejected call so a late/retried push for it
+                            // doesn't resurface as a ghost incoming screen after the current
+                            // call ends — even if that call lasts 20+ minutes.
+                            if (callIdInt > 0) BaseApplication.getInstance()?.markCallBusyRejected(callIdInt)
                         } else {
                             Log.d(
                                 "FCM",
@@ -348,6 +364,11 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                             // post per FCM; the SINGLE-CALL GUARD above already drops
                             // duplicate same-sender FCMs so this can't double-post.
                             postBusyMissedCall(callType, senderId, receiverName, receiverImg)
+                            // Remember this busy-rejected call so a late/retried push for it
+                            // doesn't resurface as a ghost incoming screen after the current
+                            // call ends — even if that call lasts 20+ minutes (the reported
+                            // duplicate-incoming-after-busy bug).
+                            if (callIdInt > 0) BaseApplication.getInstance()?.markCallBusyRejected(callIdInt)
                             return
                         }
 

@@ -134,7 +134,11 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
         if (type == "missed_call" || type == "call_missed") return true
         val title = notif.title.orEmpty().lowercase()
         val body = notif.body.orEmpty().lowercase()
-        return title.contains("missed call") || body.contains("missed call")
+        // Match "missed call", "missed audio call" AND "missed video call". The audio/video
+        // word sits between "missed" and "call", so contains("missed call") alone misses
+        // those titles and the push wrongly renders as an incoming CallStyle banner.
+        return (title.contains("missed") && title.contains("call")) ||
+            (body.contains("missed") && body.contains("call"))
     }
 
     /**
