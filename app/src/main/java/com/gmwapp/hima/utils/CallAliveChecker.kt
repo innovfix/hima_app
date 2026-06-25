@@ -42,6 +42,34 @@ object CallAliveChecker {
         // right after Agora CONNECTED. Reverting to Agora's natural onUserOffline
         // + the 30s watchdog as fallback. User-reported regression vs Play Store v1064.
         return
+        doCheck(callId, requireEndReason = false, onShouldEnd = onShouldEnd)
+    }
+
+    /**
+     * Caller-side, PRE-CONNECT variant. Safe to poll from the "Connecting…"
+     * screens (Male/FemaleCallConnectingActivity) where the call has NOT yet
+     * been answered — so the v1068 "looked dead right after CONNECTED" race
+     * cannot apply (an unanswered call has ended_time NULL and created < 30s,
+     * so backend reports alive=true during legitimate ringing).
+     *
+     * Why this exists: the callee's decline reaches the caller only via a
+     * best-effort FCM "rejected" relay. When that push is dropped/delayed
+     * (Doze, battery optimization, stale token, flaky link) the caller would
+     * otherwise dangle on "Connecting…" for the full 40s timeout even though
+     * the backend already stamped the call ended (CALL_DEAD_MARKER /
+     * end_reason='rejected'). One PK lookup confirms the authoritative state.
+     */
+    fun checkConnectingDead(callId: Int, onShouldEnd: () -> Unit) {
+        // requireEndReason=true: only disconnect when the call was ACTIVELY ended
+        // (end_reason set, e.g. 'rejected'/'not_answered'), NOT when the backend's
+        // 30s "never-answered" age-guard alone flips alive=false. The connecting
+        // screen keeps its own 40s ring timeout (sized for slow ROMs that defer the
+        // ringer UI up to ~15s); acting on the age-guard here would cut a still-
+        // legitimately-ringing call short at ~30s.
+        doCheck(callId, requireEndReason = true, onShouldEnd = onShouldEnd)
+    }
+
+    private fun doCheck(callId: Int, requireEndReason: Boolean, onShouldEnd: () -> Unit) {
         if (callId <= 0) {
             Log.d(TAG, "skip: callId=$callId")
             return
@@ -61,9 +89,13 @@ object CallAliveChecker {
                 client.newCall(req).execute().use { resp ->
                     val raw = resp.body?.string() ?: return@Thread
                     Log.d(TAG, "callId=$callId resp=$raw")
-                    // Cheap parse: look for "alive":false. Backend returns
-                    //   { "alive": true|false, "ended_time": "...", "call_id": N }
-                    val dead = raw.contains("\"alive\":false") || raw.contains("\"alive\": false")
+                    // Backend returns:
+                    //   { "alive": true|false, "ended_time": "...", "reason": "...", "call_id": N }
+                    val notAlive = raw.contains("\"alive\":false") || raw.contains("\"alive\": false")
+                    // A genuine peer-end carries a non-null end_reason ("reason":"rejected"…).
+                    // The age-guard path leaves it null ("reason":null), which we must ignore.
+                    val hasEndReason = Regex("\"reason\"\\s*:\\s*\"[^\"]+\"").containsMatchIn(raw)
+                    val dead = notAlive && (!requireEndReason || hasEndReason)
                     if (dead) {
                         Handler(Looper.getMainLooper()).post {
                             try { onShouldEnd() } catch (t: Throwable) { Log.w(TAG, "onShouldEnd threw: ${t.message}") }

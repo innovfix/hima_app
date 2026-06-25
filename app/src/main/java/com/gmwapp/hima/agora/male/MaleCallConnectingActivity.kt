@@ -108,6 +108,75 @@ class MaleCallConnectingActivity : AppCompatActivity() {
 
     fun cancelTimeoutTracking() {
         timeoutHandler.removeCallbacks(timeoutRunnable) // Stop tracking if call is accepted
+        stopAlivePolling() // every terminal path (accept/reject/busy/cancel) cancels the timeout
+    }
+
+    // ── Caller-side liveness poll ───────────────────────────────────────────
+    // The callee's decline reaches us only via a best-effort FCM "rejected"
+    // relay. When that push is dropped/delayed (Doze, battery optimization,
+    // stale token, flaky link) we'd otherwise sit on "Connecting…" for the full
+    // 40s timeout even though the backend already stamped the call ended. Poll
+    // the authoritative server state every few seconds while ringing; bail out
+    // the instant it reports dead. One primary-key lookup per tick (cheap).
+    private val aliveHandler = Handler(Looper.getMainLooper())
+    private val aliveIntervalMs = 2500L
+    private var peerEndedHandled = false
+    private val alivePollRunnable = object : Runnable {
+        override fun run() {
+            if (!isRunning || isFinishing || isDestroyed) return
+            if (callId > 0) {
+                com.gmwapp.hima.utils.CallAliveChecker.checkConnectingDead(callId) {
+                    if (isRunning && !isFinishing && !isDestroyed) {
+                        Log.d("CreatorCallDiag", "MConn.alivePoll -> backend says call ended, disconnecting caller")
+                        exitBecausePeerEnded()
+                    }
+                }
+            }
+            aliveHandler.postDelayed(this, aliveIntervalMs)
+        }
+    }
+
+    private fun startAlivePolling() {
+        aliveHandler.removeCallbacks(alivePollRunnable)
+        aliveHandler.postDelayed(alivePollRunnable, aliveIntervalMs)
+    }
+
+    private fun stopAlivePolling() {
+        aliveHandler.removeCallbacks(alivePollRunnable)
+    }
+
+    /**
+     * The peer already ended the call server-side (decline / not-answered) and
+     * we learned it from the liveness poll rather than the FCM relay. Mirror the
+     * "rejected" observer branch exactly: tear down Telecom, clear status, and
+     * navigate out — but do NOT re-post callStatus, because the peer already
+     * posted the terminal state (re-posting would double-stamp the call row).
+     */
+    private fun exitBecausePeerEnded() {
+        if (peerEndedHandled) return
+        peerEndedHandled = true
+        isRunning = false
+        cancelTimeoutTracking()
+        stopAlivePolling()
+        com.gmwapp.hima.agora.telecom.HimaTelecomManager.endActiveCall(
+            android.telecom.DisconnectCause.REJECTED
+        )
+        FcmUtils.clearCallStatus()
+        if (fromChat && chatPeerUserId != -1) {
+            val intent = Intent(this@MaleCallConnectingActivity, com.gmwapp.hima.activities.ChatActivityInHouse::class.java).apply {
+                putExtra("USER_ID", chatPeerUserId)
+                putExtra("USER_NAME", receiverName ?: "")
+                putExtra("USER_IMAGE", receiverImg ?: "")
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
+            startActivity(intent)
+            finish()
+        } else {
+            val intent = Intent(this@MaleCallConnectingActivity, MainActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            startActivity(intent)
+            finish()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -575,6 +644,10 @@ class MaleCallConnectingActivity : AppCompatActivity() {
                     ringNotifRetryCount = 0
                     sendCallNotification(userId!!, receiverId, callType!!, ringMessage)
                     startTimeoutTracking()
+                    // Fallback for a dropped "rejected" FCM relay: poll the
+                    // authoritative call state so a callee decline disconnects
+                    // the caller in ~seconds instead of waiting out the 40s timeout.
+                    startAlivePolling()
                     // I039 — register the outgoing call with Telecom so a SIM / WhatsApp
                     // call arriving mid-Hima-call triggers the system second-call UI
                     // (Hold & Answer / End & Answer) instead of ringing on top of the

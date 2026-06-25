@@ -701,7 +701,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
 
 
-            if (message == "accepted" || message == "rejected" && gender=="male") {
+            // Parenthesized: without the parens `&&` binds tighter than `||`, so this
+            // read as `accepted || (rejected && male)` — a FEMALE receiving "accepted"
+            // wrongly ran this male branch (posting with channelName) on top of the
+            // female branch below. Intended: only the male caller's device handles its
+            // own accepted/rejected relay here (keyed on channelName).
+            if ((message == "accepted" || message == "rejected") && gender == "male") {
                 Log.d(
                     "MaleVideoEndFlow",
                     "route=male_accepted_rejected_updateCallStatus message=$message channelName=$channelName currentActivity=${fcmCurrentActivity?.javaClass?.simpleName}"

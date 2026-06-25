@@ -108,6 +108,62 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
 
     fun cancelTimeoutTracking() {
         timeoutHandler.removeCallbacks(timeoutRunnable) // Stop tracking if call is accepted
+        stopAlivePolling() // every terminal path (accept/reject/cancel) cancels the timeout
+    }
+
+    // ── Caller-side liveness poll (symmetric with MaleCallConnectingActivity) ──
+    // The callee's decline reaches us only via a best-effort FCM relay; when it's
+    // dropped/delayed we'd dangle on "Connecting…" for the full 40s timeout even
+    // though the backend already stamped the call ended. Poll the authoritative
+    // state (one PK lookup per tick) and bail out the instant it reports dead.
+    private val aliveHandler = Handler(Looper.getMainLooper())
+    private val aliveIntervalMs = 2500L
+    private var peerEndedHandled = false
+    private val alivePollRunnable = object : Runnable {
+        override fun run() {
+            if (!isRunning || isFinishing || isDestroyed) return
+            if (!designOnly && callId > 0) {
+                com.gmwapp.hima.utils.CallAliveChecker.checkConnectingDead(callId) {
+                    if (isRunning && !isFinishing && !isDestroyed) {
+                        Log.d("CallStatus", "FemaleConnecting.alivePoll -> backend says call ended, disconnecting caller")
+                        exitBecausePeerEnded()
+                    }
+                }
+            }
+            aliveHandler.postDelayed(this, aliveIntervalMs)
+        }
+    }
+
+    private fun startAlivePolling() {
+        aliveHandler.removeCallbacks(alivePollRunnable)
+        aliveHandler.postDelayed(alivePollRunnable, aliveIntervalMs)
+    }
+
+    private fun stopAlivePolling() {
+        aliveHandler.removeCallbacks(alivePollRunnable)
+    }
+
+    /**
+     * Peer ended the call server-side and we learned it from the liveness poll
+     * rather than the FCM relay. Mirror the "rejected" observer branch: tear
+     * down Telecom, clear status, navigate to Main — without re-posting
+     * callStatus (the peer already posted the terminal state).
+     */
+    private fun exitBecausePeerEnded() {
+        if (peerEndedHandled) return
+        peerEndedHandled = true
+        isRunning = false
+        cancelTimeoutTracking()
+        stopAlivePolling()
+        com.gmwapp.hima.agora.telecom.HimaTelecomManager.endActiveCall(
+            android.telecom.DisconnectCause.REJECTED
+        )
+        FcmUtils.clearCallStatus()
+        FcmUtils.shouldRefreshCallList = 1
+        val intent = Intent(this@FemaleCallConnectingActivity, MainActivity::class.java)
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        startActivity(intent)
+        finish()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -446,6 +502,10 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
 
     private fun startProgressLoop() {
         startTimeoutTracking()
+        // Fallback for a dropped FCM relay — see startAlivePolling(): poll the
+        // authoritative call state so a callee decline disconnects the caller in
+        // ~seconds instead of waiting out the 40s timeout. Guards designOnly/callId.
+        startAlivePolling()
         handler.post(object : Runnable {
             override fun run() {
                 if (progressStatus < 100 && isRunning) {
