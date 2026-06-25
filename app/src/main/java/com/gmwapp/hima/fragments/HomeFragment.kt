@@ -77,6 +77,12 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         "Travel" to 0xFF06B6D4.toInt(),
     )
 
+    // Left→right on-screen order of the filter pills, used for swipe-to-adjacent-pile
+    // navigation. Matches the layout order (interest pills: Music, Movies, Foodie, Love, Travel).
+    private val FILTER_ORDER: List<String> = listOf(
+        "my_chats", "all", "new", "star", "Music", "Movies", "Foodie", "Love", "Travel"
+    )
+
     private fun interestButton(name: String): com.google.android.material.button.MaterialButton? = when (name) {
         "Music"  -> binding.btnFilterMusic
         "Love"   -> binding.btnFilterLove
@@ -873,6 +879,105 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
         // One-time discovery nudge so users notice the new interest pills off-screen.
         maybeShowInterestPillNudge()
+
+        // Swipe left/right anywhere on the list to move to the next/previous filter pile.
+        setupSwipeBetweenFilters()
+    }
+
+    // ---- Swipe-between-piles (FILTER_ORDER) ----------------------------------
+    // Observe-only horizontal-fling detector on the list. It NEVER consumes touch
+    // events, so vertical scroll, item taps, and pull-to-refresh are untouched.
+    // A decisive horizontal fling selects the adjacent visible pile via the exact
+    // same applyFilter()/applyInterestFilter() path as a tap.
+    private fun setupSwipeBetweenFilters() {
+        if (!::binding.isInitialized) return
+        // Called once per view creation (single call site in setupFilterButtons), so the
+        // listener is attached to the current rvProfiles instance — survives view recreation.
+        val ctx = context ?: return
+
+        val detector = android.view.GestureDetector(ctx,
+            object : android.view.GestureDetector.SimpleOnGestureListener() {
+                override fun onFling(
+                    e1: android.view.MotionEvent?, e2: android.view.MotionEvent,
+                    velocityX: Float, velocityY: Float
+                ): Boolean {
+                    if (e1 == null) return false
+                    val dx = e2.x - e1.x
+                    val dy = e2.y - e1.y
+                    // Decisive horizontal fling only — must clearly beat the vertical
+                    // component so we never fight list scroll or pull-to-refresh.
+                    if (kotlin.math.abs(dx) > 80f &&
+                        kotlin.math.abs(dx) > kotlin.math.abs(dy) * 2f &&
+                        kotlin.math.abs(velocityX) > 800f
+                    ) {
+                        goToAdjacentFilter(if (dx < 0) 1 else -1)
+                        return true
+                    }
+                    return false
+                }
+            })
+
+        binding.rvProfiles.addOnItemTouchListener(object :
+            androidx.recyclerview.widget.RecyclerView.OnItemTouchListener {
+            override fun onInterceptTouchEvent(
+                rv: androidx.recyclerview.widget.RecyclerView, e: android.view.MotionEvent
+            ): Boolean {
+                detector.onTouchEvent(e)
+                return false // never steal — purely observational
+            }
+            override fun onTouchEvent(
+                rv: androidx.recyclerview.widget.RecyclerView, e: android.view.MotionEvent
+            ) {}
+            override fun onRequestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {}
+        })
+    }
+
+    // Visible pile keys in on-screen order (Star is hidden unless startab == 1).
+    private fun visibleFilterKeys(): List<String> {
+        val starOn = (BaseApplication.getInstance()?.getPrefs()?.getUserData()?.startab ?: 0) == 1
+        return FILTER_ORDER.filter { it != "star" || starOn }
+    }
+
+    private fun currentFilterKey(): String =
+        if (filterType == "interest") (selectedInterest ?: "all") else filterType
+
+    private fun goToAdjacentFilter(dir: Int) {
+        if (!::binding.isInitialized) return
+        val keys = visibleFilterKeys()
+        val cur = keys.indexOf(currentFilterKey())
+        if (cur < 0) return
+        val next = cur + dir
+        if (next !in keys.indices) return // stop at the ends (no wrap-around)
+        val key = keys[next]
+        animateListSwap(dir)
+        if (INTEREST_PILLS.any { it.first == key }) applyInterestFilter(key) else applyFilter(key)
+        scrollPillIntoView(key)
+    }
+
+    // Keep the newly-active pill visible/centered in the horizontal pill bar.
+    private fun scrollPillIntoView(key: String) {
+        if (!::binding.isInitialized) return
+        val btn = when (key) {
+            "my_chats" -> binding.btnFilterMyChats
+            "all"      -> binding.btnFilterAll
+            "new"      -> binding.btnFilterNew
+            "star"     -> binding.btnFilterStar
+            else       -> interestButton(key)
+        } ?: return
+        val scroll = binding.filterPillsScroll
+        scroll.post {
+            val target = (btn.left - (scroll.width - btn.width) / 2).coerceAtLeast(0)
+            scroll.smoothScrollTo(target, 0)
+        }
+    }
+
+    // Subtle slide so the swipe reads as a page change (content reloads via the API).
+    private fun animateListSwap(dir: Int) {
+        if (!::binding.isInitialized) return
+        val rv = binding.rvProfiles
+        if (rv.width == 0) return
+        rv.translationX = (rv.width * 0.06f) * (if (dir > 0) 1f else -1f)
+        rv.animate().translationX(0f).setDuration(220).start()
     }
 
     /**
