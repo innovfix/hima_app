@@ -17,10 +17,10 @@
 
     <ImageView
         android:id="@+id/iv_interest"
-        android:layout_width="11dp"
-        android:layout_height="11dp"
+        android:layout_width="13dp"
+        android:layout_height="13dp"
         android:scaleType="fitCenter"
-        android:layout_marginEnd="5dp"
+        android:layout_marginEnd="7dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"

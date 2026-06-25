@@ -1,5 +1,6 @@
 package com.gmwapp.hima.retrofit
 
+import android.util.Log
 import com.gmwapp.hima.activities.RetrofitClient
 import com.gmwapp.hima.retrofit.callbacks.NetworkCallback
 import com.gmwapp.hima.retrofit.responses.AiOnboardingCompleteResponse
@@ -405,6 +406,7 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
         userId: Int, filter: String? = null, interest: String? = null, callback: NetworkCallback<FemaleUsersResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
+            Log.d("femaleListApi", "REQUEST -> female_users_list | user_id=$userId, filter=$filter, interest=$interest")
             val apiCall: Call<FemaleUsersResponse> = getApiInterface().getFemaleUsers(userId, filter, interest)
             apiCall.enqueue(callback)
         } else {

@@ -63,7 +63,12 @@ class FemaleUsersViewModel @Inject constructor(private val femaleUsersRepositori
                     call: Call<FemaleUsersResponse>,
                     response: Response<FemaleUsersResponse>
                 ) {
-                    femaleUsersResponseLiveData.postValue(response.body());
+                    val body = response.body()
+                    Log.d("femaleListApi", "RESPONSE <- female_users_list | sent[filter=$filter, interest=$interest] | code=${response.code()}, success=${body?.success}, message=${body?.message}, count=${body?.data?.size}")
+                    body?.data?.forEachIndexed { i, u ->
+                        Log.d("femaleListApi", "  [$i] id=${u.id}, name=${u.name}, interests=${u.interests}, audio=${u.audio_status}, video=${u.video_status}, is_star=${u.is_star}")
+                    }
+                    femaleUsersResponseLiveData.postValue(body);
                     Log.d("checkResponse","${response.body()}")
                 }
 

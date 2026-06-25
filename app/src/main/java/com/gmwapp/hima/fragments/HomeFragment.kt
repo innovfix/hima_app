@@ -821,6 +821,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         setLoading(true)
         // Interest pills reuse the shared (non-"new") base list, filtered by interest.
         if (filterType == "interest" && selectedInterest != null) {
+            Log.d("filterpassing", "female_users_list -> user_id=$userId, filter=null, interest=$selectedInterest (filterType=$filterType)")
             femaleUsersViewModel.getFemaleUsers(userId, null, selectedInterest)
             return
         }
@@ -829,6 +830,7 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             "star" -> "star"
             else   -> null
         }
+        Log.d("filterpassing", "female_users_list -> user_id=$userId, filter=$filter, interest=null (filterType=$filterType)")
         femaleUsersViewModel.getFemaleUsers(userId, filter)
     }
 

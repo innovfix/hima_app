@@ -343,26 +343,6 @@
                 android:layout_height="match_parent" />
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_filter_love"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="wrap_content"
-                android:layout_height="44dp"
-                android:clickable="true"
-                android:focusable="true"
-                android:fontFamily="@font/poppins_semibold"
-                android:minWidth="85dp"
-                android:paddingHorizontal="24dp"
-                android:text="❤️ Love"
-                android:textAllCaps="false"
-                android:textSize="13sp"
-                app:cornerRadius="22dp"
-                app:elevation="2dp" />
-
-            <Space
-                android:layout_width="10dp"
-                android:layout_height="match_parent" />
-
-            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_filter_movies"
                 style="@style/Widget.Material3.Button"
                 android:layout_width="wrap_content"
@@ -393,6 +373,26 @@
                 android:minWidth="85dp"
                 android:paddingHorizontal="24dp"
                 android:text="🍔 Foodie"
+                android:textAllCaps="false"
+                android:textSize="13sp"
+                app:cornerRadius="22dp"
+                app:elevation="2dp" />
+
+            <Space
+                android:layout_width="10dp"
+                android:layout_height="match_parent" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_filter_love"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="wrap_content"
+                android:layout_height="44dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:fontFamily="@font/poppins_semibold"
+                android:minWidth="85dp"
+                android:paddingHorizontal="24dp"
+                android:text="❤️ Love"
                 android:textAllCaps="false"
                 android:textSize="13sp"
                 app:cornerRadius="22dp"

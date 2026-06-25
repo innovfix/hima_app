@@ -529,8 +529,16 @@ class UserProfileDetailActivity : AppCompatActivity() {
     }
 
     private fun setupInterests() {
-        val interestsAsString = userInterests.trim('[', ']').split(", ")
-        
+        // Backend data is inconsistent: some creators store interests with a space after
+        // the comma ("Love, Movies") and some without ("Art,Movies,Cooking"). Split on the
+        // comma only and trim each token so every interest becomes its own chip with its
+        // real icon — regardless of spacing/brackets/quotes.
+        val interestsAsString = userInterests
+            .trim('[', ']')
+            .split(",")
+            .map { it.trim().trim('"') }
+            .filter { it.isNotBlank() }
+
         val staggeredGridLayoutManager = FlexboxLayoutManager(this).apply {
             flexWrap = FlexWrap.WRAP
             alignItems = AlignItems.FLEX_START
