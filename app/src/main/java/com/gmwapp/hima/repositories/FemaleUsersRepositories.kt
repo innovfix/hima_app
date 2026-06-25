@@ -17,8 +17,8 @@ import retrofit2.Response
 import javax.inject.Inject
 
 class FemaleUsersRepositories @Inject constructor(private val apiManager: ApiManager) {
-    fun getFemaleUsers(userId: Int, filter: String? = null, callback: NetworkCallback<FemaleUsersResponse>) {
-        apiManager.getFemaleUsers(userId, filter, callback)
+    fun getFemaleUsers(userId: Int, filter: String? = null, interest: String? = null, callback: NetworkCallback<FemaleUsersResponse>) {
+        apiManager.getFemaleUsers(userId, filter, interest, callback)
     }
 
     fun getFemaleDiscovery(userId: Int, callback: NetworkCallback<FemaleDiscoveryResponse>) {

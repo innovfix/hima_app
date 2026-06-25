@@ -56,9 +56,9 @@ class FemaleUsersViewModel @Inject constructor(private val femaleUsersRepositori
     val femaleTalkDurationResponseLiveData = MutableLiveData<GetFemaleTalkDurationResponse>()
     val femaleTalkDurationErrorLiveData = MutableLiveData<String>()
 
-    fun getFemaleUsers(userId: Int, filter: String? = null) {
+    fun getFemaleUsers(userId: Int, filter: String? = null, interest: String? = null) {
         viewModelScope.launch {
-            femaleUsersRepositories.getFemaleUsers(userId, filter, object:NetworkCallback<FemaleUsersResponse> {
+            femaleUsersRepositories.getFemaleUsers(userId, filter, interest, object:NetworkCallback<FemaleUsersResponse> {
                 override fun onResponse(
                     call: Call<FemaleUsersResponse>,
                     response: Response<FemaleUsersResponse>

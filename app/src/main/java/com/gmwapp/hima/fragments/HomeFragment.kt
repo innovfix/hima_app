@@ -62,6 +62,29 @@ import kotlinx.coroutines.launch
 class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
     private var isAllFabVisible: Boolean = false
     private var filterType: String = "all" // Default filter is "all" — open on creators list so users see who to call
+    // When filterType == "interest", this holds the selected interest name (e.g. "Music").
+    // The backend filters the (already-cached) online-female list by this interest.
+    private var selectedInterest: String? = null
+
+    // Top-5 interest pills (data-driven): interest name (sent to the API) + selected
+    // fill colour. Button views are resolved fresh from `binding` via interestButton()
+    // so we never cache a stale view across view re-creation.
+    private val INTEREST_PILLS: List<Pair<String, Int>> = listOf(
+        "Music"  to 0xFF9C1DF9.toInt(),
+        "Love"   to 0xFFFF2D6B.toInt(),
+        "Movies" to 0xFF2388F2.toInt(),
+        "Foodie" to 0xFFF5820D.toInt(),
+        "Travel" to 0xFF06B6D4.toInt(),
+    )
+
+    private fun interestButton(name: String): com.google.android.material.button.MaterialButton? = when (name) {
+        "Music"  -> binding.btnFilterMusic
+        "Love"   -> binding.btnFilterLove
+        "Movies" -> binding.btnFilterMovies
+        "Foodie" -> binding.btnFilterFoodie
+        "Travel" -> binding.btnFilterTravel
+        else     -> null
+    }
     lateinit var binding: FragmentHomeBinding
     private val femaleUsersViewModel: FemaleUsersViewModel by viewModels()
     private val autopayViewModel: AutopayViewModel by viewModels()
@@ -791,6 +814,11 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
     private fun loadFemaleUsers(userId: Int) {
         setLoading(true)
+        // Interest pills reuse the shared (non-"new") base list, filtered by interest.
+        if (filterType == "interest" && selectedInterest != null) {
+            femaleUsersViewModel.getFemaleUsers(userId, null, selectedInterest)
+            return
+        }
         val filter = when (filterType) {
             "new"  -> "new"
             "star" -> "star"
@@ -831,6 +859,10 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         binding.btnFilterAll.setOnClickListener { applyFilter("all") }
         binding.btnFilterNew.setOnClickListener { applyFilter("new") }
         binding.btnFilterStar.setOnClickListener { applyFilter("star") }
+        // Interest pills — each filters the list to online females who picked that interest.
+        INTEREST_PILLS.forEach { (interest, _) ->
+            interestButton(interest)?.setOnClickListener { applyInterestFilter(interest) }
+        }
     }
 
     private fun refreshStarTabVisibility() {
@@ -849,8 +881,10 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
         val whiteText   = resources.getColor(R.color.white, null)
         val borderColor = resources.getColorStateList(R.color.light_grey, null)
 
-        // Reset all to unselected state first
-        listOf(binding.btnFilterMyChats, binding.btnFilterAll, binding.btnFilterNew, binding.btnFilterStar).forEach {
+        // Reset all to unselected state first (including the 5 interest pills)
+        val resetPills = listOf(binding.btnFilterMyChats, binding.btnFilterAll, binding.btnFilterNew, binding.btnFilterStar) +
+            INTEREST_PILLS.mapNotNull { interestButton(it.first) }
+        resetPills.forEach {
             it.backgroundTintList = whiteColor
             it.setTextColor(greyColor)
             it.strokeWidth = strokeWidthPx
@@ -878,6 +912,15 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                 backgroundTintList = goldColor
                 setTextColor(whiteText)
                 strokeWidth = 0
+            }
+            "interest" -> {
+                val color = INTEREST_PILLS.firstOrNull { it.first == selectedInterest }?.second
+                val button = selectedInterest?.let { interestButton(it) }
+                if (color != null && button != null) {
+                    button.backgroundTintList = android.content.res.ColorStateList.valueOf(color)
+                    button.setTextColor(whiteText)
+                    button.strokeWidth = 0
+                }
             }
         }
     }
@@ -912,6 +955,8 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
 
         // Preconditions OK — commit the state change and fire the load.
         filterType = selectedFilter
+        // Switching to a non-interest pill clears any active interest selection.
+        selectedInterest = null
         updateFilterButtonStyles()
         if (selectedFilter == "my_chats") {
             loadMyChats(userId)
@@ -922,6 +967,35 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
             // Reload with new filter
             loadFemaleUsers(userId)
         }
+    }
+
+    /**
+     * Interest-pill tap. Mirrors [applyFilter]'s precondition guards, then sets
+     * filterType="interest" + the chosen interest and reloads. The backend filters
+     * the (already-cached) online-female list by this interest — no extra DB query.
+     */
+    private fun applyInterestFilter(interest: String) {
+        if (filterType == "interest" && selectedInterest == interest) return
+
+        val userData = BaseApplication.getInstance()?.getPrefs()?.getUserData()
+        val userId = userData?.id
+        val ctx = context
+        if (userId == null) {
+            ctx?.let { Toast.makeText(it, "Please wait a moment and try again", Toast.LENGTH_SHORT).show() }
+            return
+        }
+        if (ctx == null || !isInternetAvailable(ctx)) {
+            ctx?.let { Toast.makeText(it, "No internet — check connection and retry", Toast.LENGTH_SHORT).show() }
+            return
+        }
+
+        filterType = "interest"
+        selectedInterest = interest
+        updateFilterButtonStyles()
+        // Clear existing data, then reload with the interest filter.
+        femaleUsersViewModel.femaleUsersResponseLiveData.value?.data?.clear()
+        (binding.rvProfiles.adapter as? FemaleUserAdapter)?.notifyDataSetChanged()
+        loadFemaleUsers(userId)
     }
 
     private fun sortMyChatsPinnedFirst(

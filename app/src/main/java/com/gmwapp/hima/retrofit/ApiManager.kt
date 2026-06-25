@@ -402,10 +402,10 @@ class ApiManager @Inject constructor(private val retrofit: Retrofit) {
     }
 
     fun getFemaleUsers(
-        userId: Int, filter: String? = null, callback: NetworkCallback<FemaleUsersResponse>
+        userId: Int, filter: String? = null, interest: String? = null, callback: NetworkCallback<FemaleUsersResponse>
     ) {
         if (Helper.checkNetworkConnection()) {
-            val apiCall: Call<FemaleUsersResponse> = getApiInterface().getFemaleUsers(userId, filter)
+            val apiCall: Call<FemaleUsersResponse> = getApiInterface().getFemaleUsers(userId, filter, interest)
             apiCall.enqueue(callback)
         } else {
             callback.onNoNetwork()
@@ -2497,7 +2497,8 @@ interface ApiInterface {
     @POST("female_users_list")
     fun getFemaleUsers(
         @Field("user_id") userId: Int,
-        @Field("filter") filter: String?
+        @Field("filter") filter: String?,
+        @Field("interest") interest: String? = null
     ): Call<FemaleUsersResponse>
 
     @FormUrlEncoded
