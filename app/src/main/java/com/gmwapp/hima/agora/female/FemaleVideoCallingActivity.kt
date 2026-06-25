@@ -296,13 +296,15 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     private var localSurfaceView: SurfaceView? = null
 
-    // Locked-device video fix: when a video call is accepted from a SECURE
-    // lockscreen, joinChannel() would bind the Agora SurfaceViews while the
-    // window is still occluded by the keyguard → permanent black screen (and we
-    // never publish, so the caller stays "connecting"). We defer the join until
-    // the window regains focus AFTER the keyguard is dismissed; this holds the
-    // pending join request in the meantime. Null when no join is deferred.
-    private var pendingJoinView: View? = null
+    // Locked-accept video fix: when a video call is answered from a SECURE
+    // lockscreen we no longer defer the whole join (that left the caller stuck on
+    // "connecting" past his 20s watchdog while she entered her pattern, and she
+    // landed on a blue/empty screen). Instead we join the channel IMMEDIATELY as
+    // audio-only — exactly like an audio call, which connects fine over the
+    // lockscreen — and defer ONLY the camera (binding SurfaceViews to a
+    // keyguard-occluded window is what renders black). True while that post-unlock
+    // camera publish is still pending. See joinChannel / publishVideoAfterUnlock.
+    private var pendingVideoPublishAfterUnlock = false
 
     // @Volatile: see videoUid — touched from the Agora callback thread and the
     // UI thread; the recovery guard in onRemoteVideoStateChanged reads it [TC_007].
@@ -1999,37 +2001,20 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
     }
 
     fun joinChannel(view: View) {
-        // Locked-device guard: if the device keyguard is still up (video call
-        // accepted from a SECURE lockscreen), joining now binds the camera/remote
-        // SurfaceViews to an occluded window — Agora renders black and never
-        // recovers after unlock, and we never publish so the caller is stuck on
-        // "connecting". Defer the join until the keyguard is dismissed: prompt the
-        // unlock and re-run joinChannel from onWindowFocusChanged once focus
-        // returns. No-op when the device is already unlocked (normal flow).
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val keyguard = getSystemService(android.content.Context.KEYGUARD_SERVICE)
-                as? android.app.KeyguardManager
-            if (keyguard?.isKeyguardLocked == true) {
-                pendingJoinView = view
-                // Primary signal: KeyguardDismissCallback fires the instant the
-                // pattern is entered. onWindowFocusChanged is the backup for OEMs
-                // where the callback doesn't fire. Both consume pendingJoinView,
-                // so whichever runs first wins and the other no-ops.
-                try {
-                    keyguard.requestDismissKeyguard(
-                        this,
-                        object : android.app.KeyguardManager.KeyguardDismissCallback() {
-                            override fun onDismissSucceeded() {
-                                runOnUiThread { performDeferredJoinIfUnlocked() }
-                            }
-                        }
-                    )
-                } catch (_: Exception) {}
-                Log.d("FemaleVideoCalling", "joinChannel deferred — keyguard locked; will join after unlock")
-                return
-            }
-        }
-        pendingJoinView = null
+        // Locked-accept handling. Earlier we deferred the ENTIRE join until the
+        // keyguard was dismissed — but a lockscreen pattern entry routinely takes
+        // longer than the caller-side 20s "connecting" watchdog, so the caller
+        // gave up before she ever joined (caller stuck "connecting", creator left
+        // on a blue/empty screen). Audio calls never had this problem because they
+        // join immediately over the lockscreen. So we do the same below: join NOW
+        // (audio-only) so the caller connects right away, and defer ONLY the camera
+        // — binding the camera/remote SurfaceViews to a keyguard-occluded window is
+        // the part that renders black. The camera is published after unlock via
+        // publishVideoAfterUnlock().
+        val keyguardLocked = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            (getSystemService(android.content.Context.KEYGUARD_SERVICE)
+                as? android.app.KeyguardManager)?.isKeyguardLocked == true
+        } else false
         // B128: log the live permission state at the camera-open boundary so
         // QA can confirm "Only this time" lifecycle in logcat. Permissions are
         // NEVER cached locally — every check goes through ContextCompat.
@@ -2061,13 +2046,42 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
             // when switching to audio; don't inherit a stale "don't subscribe" state.
             options.autoSubscribeVideo = true
             options.autoSubscribeAudio = true
-            setupLocalVideo()
-            localSurfaceView!!.visibility = View.VISIBLE
-            agoraEngine!!.startPreview()
+
+            if (keyguardLocked) {
+                // Audio-only join over the lockscreen: do NOT open the camera or
+                // bind the local preview yet (an occluded window renders black and
+                // can fail to open the camera on some OEMs). The mic still
+                // publishes, so the caller's onUserJoined fires and he connects
+                // instantly. The camera is attached + published the moment she
+                // unlocks, in publishVideoAfterUnlock().
+                options.publishCameraTrack = false
+                agoraEngine?.enableLocalVideo(false)
+                pendingVideoPublishAfterUnlock = true
+                // Prompt the unlock so video can attach. Primary signal is the
+                // dismiss callback; onWindowFocusChanged / onResume are backups.
+                try {
+                    (getSystemService(android.content.Context.KEYGUARD_SERVICE)
+                        as? android.app.KeyguardManager)?.requestDismissKeyguard(
+                        this,
+                        object : android.app.KeyguardManager.KeyguardDismissCallback() {
+                            override fun onDismissSucceeded() {
+                                runOnUiThread { publishVideoAfterUnlock() }
+                            }
+                        }
+                    )
+                } catch (_: Exception) {}
+                Log.d("FemaleVideoCalling", "joinChannel: keyguard locked — joining audio-only, camera deferred to unlock")
+            } else {
+                pendingVideoPublishAfterUnlock = false
+                setupLocalVideo()
+                localSurfaceView!!.visibility = View.VISIBLE
+                agoraEngine!!.startPreview()
+            }
+
             val result = agoraEngine!!.joinChannel(token, channelName, uid, options)
             if (result == 0) {
                 Log.d("AgorajoinChannel", "joinChannel: Success $result")
-                if (cameraOk) {
+                if (!keyguardLocked && cameraOk) {
                     localSurfaceView!!.visibility = View.VISIBLE
                     var startpreview = agoraEngine!!.startPreview()
                     Log.d("startpreview", "$startpreview")
@@ -2503,31 +2517,55 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        // Backup signal (see joinChannel): perform a keyguard-deferred join once
-        // the window regains focus after unlock.
-        if (hasFocus) performDeferredJoinIfUnlocked()
+        // Backup signal (see joinChannel): publish the deferred camera once the
+        // window regains focus after unlock.
+        if (hasFocus) publishVideoAfterUnlock()
     }
 
     /**
-     * Run a joinChannel() that was deferred while the keyguard was up — but only
-     * once the keyguard is actually gone, so the Agora SurfaceViews bind to a
-     * visible window (avoids the locked-accept black-screen). Safe to call more
-     * than once: it consumes pendingJoinView, so only the first caller joins.
+     * Attach + publish the local camera once the keyguard is gone, for a video
+     * call answered from a SECURE lockscreen. The channel join already happened
+     * (audio-only) the instant she answered, so the caller is already connected;
+     * this only upgrades our side to video. Safe to call repeatedly — it consumes
+     * [pendingVideoPublishAfterUnlock], so only the first run after unlock
+     * publishes; while still locked it no-ops and waits for the next trigger.
      */
-    private fun performDeferredJoinIfUnlocked() {
-        val pending = pendingJoinView ?: return
-        // The dismiss callback holds an Activity ref; if we were torn down while
-        // locked, drop the deferred join instead of touching a dead engine.
+    private fun publishVideoAfterUnlock() {
+        if (!pendingVideoPublishAfterUnlock) return
+        // Dismiss callback / onResume can fire after teardown; never touch a dead engine.
         if (isFinishing || isDestroyed) {
-            pendingJoinView = null
+            pendingVideoPublishAfterUnlock = false
             return
         }
         val keyguard = getSystemService(android.content.Context.KEYGUARD_SERVICE)
             as? android.app.KeyguardManager
-        if (keyguard == null || !keyguard.isKeyguardLocked) {
-            pendingJoinView = null
-            Log.d("FemaleVideoCalling", "keyguard dismissed — performing deferred joinChannel")
-            joinChannel(pending)
+        // Still locked → wait for the next trigger (dismiss cb / focus / resume).
+        if (keyguard != null && keyguard.isKeyguardLocked) return
+        pendingVideoPublishAfterUnlock = false
+        if (!checkSelfPermission()) return
+        // Broken/unavailable camera: stay audio-only (matches enableVideoCall's
+        // CameraAvailability fallback) rather than crash on camera open.
+        val cameraOk = com.gmwapp.hima.utils.CameraAvailability.isCameraAvailable(this)
+        if (!cameraOk) {
+            Log.w("FemaleVideoCalling", "publishVideoAfterUnlock: camera unavailable — staying audio-only")
+            return
+        }
+        runOnUiThread {
+            if (isFinishing || isDestroyed) return@runOnUiThread
+            Log.d("FemaleVideoCalling", "keyguard dismissed — attaching + publishing camera")
+            agoraEngine?.enableLocalVideo(true)
+            agoraEngine?.muteLocalVideoStream(false)
+            if (localSurfaceView == null) setupLocalVideo()
+            localSurfaceView?.visibility = View.VISIBLE
+            agoraEngine?.startPreview()
+            // Start publishing the camera now that the window is visible. Mirrors
+            // the publishCameraTrack pattern used by enableVideoCall / the
+            // audio→video upgrade elsewhere in this codebase.
+            agoraEngine?.updateChannelMediaOptions(ChannelMediaOptions().apply {
+                publishCameraTrack = true
+                autoSubscribeVideo = true
+                autoSubscribeAudio = true
+            })
         }
     }
 
@@ -2547,10 +2585,10 @@ class FemaleVideoCallingActivity : AppCompatActivity() {
                 Log.w("FemaleVideoCalling", "requestDismissKeyguard failed: ${e.message}")
             }
         }
-        // Locked-device video fix: third trigger for a keyguard-deferred join, in
-        // case neither the dismiss callback nor onWindowFocusChanged fired. No-op
-        // unless a join is pending AND the keyguard is now gone.
-        performDeferredJoinIfUnlocked()
+        // Locked-accept video fix: third trigger for the deferred camera publish,
+        // in case neither the dismiss callback nor onWindowFocusChanged fired.
+        // No-op unless a publish is pending AND the keyguard is now gone.
+        publishVideoAfterUnlock()
         // B162 — recover from a stuck interrupt-mute (focus loss without
         // matching regain). User on call surface = audio expected.
         audioFocusHelper?.request()
