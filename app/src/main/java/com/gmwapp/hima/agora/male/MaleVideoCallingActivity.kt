@@ -3893,11 +3893,12 @@ class MaleVideoCallingActivity : AppCompatActivity() {
     // as no-op so existing call sites compile. hideRemoteAvatarSkeleton stays
     // active so any pre-existing visible skeleton gets cleared on first call.
     private fun showRemoteAvatarSkeleton() {
-        // TC_007: fill the otherwise-black remote tile with the peer's avatar
-        // (Glide-loaded into iv_remote_avatar_skeleton) so a frozen/failed — or
-        // muted — remote video shows a clear status surface instead of black.
-        if (binding.ivRemoteAvatarSkeleton.visibility != View.VISIBLE) {
-            binding.ivRemoteAvatarSkeleton.visibility = View.VISIBLE
+        // Avatar overlay disabled per product decision (2026-06-26): the peer avatar
+        // flashed as a "ghost" on every brief remote-video restart/mute (STARTING is
+        // instant). Keep it GONE always — frozen/failed still shows the Reconnecting
+        // pill, peer-mute still blurs; the tile just stays black instead of flashing.
+        if (binding.ivRemoteAvatarSkeleton.visibility != View.GONE) {
+            binding.ivRemoteAvatarSkeleton.visibility = View.GONE
         }
     }
 
