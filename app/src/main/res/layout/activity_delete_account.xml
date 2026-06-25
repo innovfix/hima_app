@@ -520,7 +520,7 @@
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:background="@drawable/delete_account_button_background"
-            android:enabled="false"
+            android:enabled="true"
             android:fontFamily="@font/poppins_semibold"
             android:text="@string/delete_account"
             android:textAllCaps="false"

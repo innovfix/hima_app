@@ -115,10 +115,10 @@ class DeleteAccountActivity : BaseActivity(), OnButtonClickListener {
             }
         })
         binding.btnDeleteAccount.setOnSingleClickListener({
-            val bottomSheet = BottomSheetDeleteAccount()
-            bottomSheet.show(
-                supportFragmentManager, "BottomSheetDeleteAccount"
-            )
+            // Account deletion is handled via a support ticket (the ticket queue is
+            // monitored; the old mail flow was a dead-end). Route the user to Raise Ticket.
+            showAppToast(getString(R.string.delete_account_raise_ticket_toast), Toast.LENGTH_LONG)
+            startActivity(Intent(this, SubmitTicketActivity::class.java))
         })
         profileViewModel.deleteUserErrorLiveData.observe(this, Observer {
             showAppToast(getString(R.string.please_try_again_later), Toast.LENGTH_LONG)

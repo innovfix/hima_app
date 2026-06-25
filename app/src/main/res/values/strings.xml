@@ -364,6 +364,7 @@
     <string name="other">Other</string>
     <string name="tell_us_about_your_issue">Tell us about your issue</string>
     <string name="delete_account_text">Are you sure you want to delete your profile?</string>
+    <string name="delete_account_raise_ticket_toast">To delete your account, please raise a ticket here. Tell us the issue and our team will help you.</string>
     <string name="give_us_a_description">Give us a description:</string>
     <string name="description_remaining_text">%d/250</string>
     <string name="description_minimum_text">Minimum 15 letters</string>
