@@ -288,6 +288,7 @@ class ChatActivityInHouse : AppCompatActivity() {
     private var peerAudioStatus: Int? = null  // 0 or 1
     private var peerVideoStatus: Int? = null   // 0 or 1
     private var isCallBlocked: Boolean = false  // true if male user is blocked by female user (blocked = 1 or 2)
+    private var peerCallBlocked: Boolean = false  // FEMALE_3_REJECT_BLOCK — female auto-blocked this male (3 rejects/5min), 60-min cooldown
     private var callStatusAudioSwitch: com.google.android.material.switchmaterial.SwitchMaterial? = null
     private var callStatusVideoSwitch: com.google.android.material.switchmaterial.SwitchMaterial? = null
     private var isApplyingCallStatusToggleState = false
@@ -4796,6 +4797,7 @@ class ChatActivityInHouse : AppCompatActivity() {
                         val responseData = response.body()?.data
                         if (responseData != null) {
                             isCallBlocked = responseData.is_blocked
+                            peerCallBlocked = responseData.call_blocked
                             peerAudioStatus = responseData.audio_status
                             peerVideoStatus = responseData.video_status
                             
@@ -4839,9 +4841,10 @@ class ChatActivityInHouse : AppCompatActivity() {
     private fun updateCallButtonsState() {
         Log.d("CallButtons", "Updating call buttons state. Blocked: $isCallBlocked, Audio: $peerAudioStatus, Video: $peerVideoStatus")
         
-        // If blocked (is_blocked = true), disable both buttons
-        if (isCallBlocked) {
-            Log.d("CallButtons", "User is BLOCKED - disabling both audio and video buttons")
+        // If blocked (is_blocked = true) OR auto-blocked by 3 rejects (call_blocked),
+        // disable both buttons. FEMALE_3_REJECT_BLOCK greys them for the 60-min cooldown.
+        if (isCallBlocked || peerCallBlocked) {
+            Log.d("CallButtons", "User is BLOCKED (is_blocked=$isCallBlocked call_blocked=$peerCallBlocked) - disabling both audio and video buttons")
             mainHandler.post {
                 if (!isUiSafe()) return@post
                 // DISABLED - Gray for both buttons
@@ -4916,6 +4919,9 @@ class ChatActivityInHouse : AppCompatActivity() {
                 isCallBlocked -> {
                     showAppToast("You are blocked by this user", Toast.LENGTH_SHORT)
                 }
+                peerCallBlocked -> {
+                    showAppToast("You can't call this user right now. Please try again later.", Toast.LENGTH_SHORT)
+                }
                 !isCurrentUserFemale && peerAudioStatus != 1 -> {
                     CallUnavailableFeedback.show(
                         this,
@@ -4936,6 +4942,9 @@ class ChatActivityInHouse : AppCompatActivity() {
             when {
                 isCallBlocked -> {
                     showAppToast("You are blocked by this user", Toast.LENGTH_SHORT)
+                }
+                peerCallBlocked -> {
+                    showAppToast("You can't call this user right now. Please try again later.", Toast.LENGTH_SHORT)
                 }
                 !isCurrentUserFemale && peerVideoStatus != 1 -> {
                     CallUnavailableFeedback.show(

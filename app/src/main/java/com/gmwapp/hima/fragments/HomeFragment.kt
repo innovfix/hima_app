@@ -1096,8 +1096,12 @@ class HomeFragment : BaseFragment(), NetworkRetryable, Refreshable {
                         // male and there are no audio/video toggles to honor —
                         // both forced to 1. For male viewers, the server values
                         // (creator's toggles) flow through unchanged.
-                        val audioAvail = if (currentUserIsFemale) 1 else (item.user.audioStatus ?: 1)
-                        val videoAvail = if (currentUserIsFemale) 1 else (item.user.videoStatus ?: 1)
+                        // FEMALE_3_REJECT_BLOCK — but if she auto-blocked this male
+                        // (3 rejects/5min), force BOTH to 0 so his call buttons grey
+                        // out for the 60-min cooldown (overrides the force-enable).
+                        val rejectBlocked = item.user.callBlocked == true
+                        val audioAvail = if (rejectBlocked) 0 else if (currentUserIsFemale) 1 else (item.user.audioStatus ?: 1)
+                        val videoAvail = if (rejectBlocked) 0 else if (currentUserIsFemale) 1 else (item.user.videoStatus ?: 1)
                         com.gmwapp.hima.models.ChatConversation(
                             threadId = item.chatId,
                             userId = item.user.id.toString(),

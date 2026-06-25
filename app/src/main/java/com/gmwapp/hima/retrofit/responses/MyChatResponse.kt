@@ -63,7 +63,12 @@ data class ChatUser(
     @SerializedName("coin_per_min_audio")
     val coinPerMinAudio: Int? = 10,
     @SerializedName("coin_per_min_video")
-    val coinPerMinVideo: Int? = 60
+    val coinPerMinVideo: Int? = 60,
+    // FEMALE_3_REJECT_BLOCK — true when this female viewer auto-blocked this male
+    // (rejected 3x in 5 min). Distinct from a mutual user-block: drives a greyed
+    // call button for the 60-min cooldown. Old backend omits it → defaults false.
+    @SerializedName("call_blocked")
+    val callBlocked: Boolean? = false
 )
 
 data class LastMessage(

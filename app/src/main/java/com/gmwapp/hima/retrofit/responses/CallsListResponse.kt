@@ -29,4 +29,9 @@ data class CallsListResponseData(
     // mapping survives any future field-name obfuscation.
     @SerializedName("end_reason")
     val end_reason: String = "",
+    // FEMALE_3_REJECT_BLOCK — true when this female viewer auto-blocked this male
+    // (rejected 3x in 5 min). Greys the callback button in Recents for the 60-min
+    // cooldown. Old backend omits it → defaults false.
+    @SerializedName("call_blocked")
+    val call_blocked: Boolean? = false,
 )

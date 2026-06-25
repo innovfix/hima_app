@@ -154,13 +154,25 @@ class RecentCallsAdapter(
             // Treat male peers as always available (mirrors B080 in
             // FriendsTabFragment + the chat-screen fix). The backend still
             // rejects upstream if the male is deleted, blocked, or busy.
-            holder.binding.ivAudioCircle.setOnSingleClickListener {
-                onAudioListener.onItemSelected(call)
+            if (call.call_blocked == true) {
+                // FEMALE_3_REJECT_BLOCK — she auto-blocked this male (3 rejects/5min);
+                // grey the callback button for the 60-min cooldown.
+                holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
+                holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
+                holder.binding.ivAudio.isEnabled = false
+                holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
+                holder.binding.ivAudioCircle.setOnSingleClickListener {
+                    CallUnavailableFeedback.show(activity, holder.binding.root, forAudio = true)
+                }
+            } else {
+                holder.binding.ivAudioCircle.setOnSingleClickListener {
+                    onAudioListener.onItemSelected(call)
+                }
+                holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.colorAccent))
+                holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.white))
+                holder.binding.ivAudio.isEnabled = true
+                holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
             }
-            holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.colorAccent))
-            holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.white))
-            holder.binding.ivAudio.isEnabled = true
-            holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
 
             holder.binding.ivVideoCircle.setOnSingleClickListener { onVideoListener.onItemSelected(call) }
             holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.green))

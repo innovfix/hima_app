@@ -762,8 +762,11 @@ class FriendsTabFragment : Fragment() {
             ?.equals(DConstants.FEMALE, ignoreCase = true) == true
         // B080 + B097 — resolve once so isOnline can also check availability.
         // See HomeFragment.loadMyChats for full rationale.
-        val audioAvail = if (currentUserIsFemale) 1 else (u.audioStatus ?: 1)
-        val videoAvail = if (currentUserIsFemale) 1 else (u.videoStatus ?: 1)
+        // FEMALE_3_REJECT_BLOCK — if she auto-blocked this male (3 rejects/5min),
+        // force BOTH to 0 so his call buttons grey out for the 60-min cooldown.
+        val rejectBlocked = u.callBlocked == true
+        val audioAvail = if (rejectBlocked) 0 else if (currentUserIsFemale) 1 else (u.audioStatus ?: 1)
+        val videoAvail = if (rejectBlocked) 0 else if (currentUserIsFemale) 1 else (u.videoStatus ?: 1)
         return ChatConversation(
             threadId = chatItem.chatId,
             userId = u.id.toString(),

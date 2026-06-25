@@ -10,6 +10,10 @@ data class CallAvailabilityData(
     val male_user_id: Int,
     val female_user_id: Int,
     val is_blocked: Boolean,
+    // FEMALE_3_REJECT_BLOCK — true when this female auto-blocked this male by
+    // rejecting 3x in 5 min (60-min cooldown). Separate from is_blocked (mutual
+    // user-block, different message). Old backend omits it → defaults false.
+    val call_blocked: Boolean = false,
     val audio_status: Int,
     val video_status: Int
 )
