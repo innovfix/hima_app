@@ -127,6 +127,9 @@ android {
             // "demo_" prefix scopes demo logins so a demo call can never resolve a
             // prod-registered device with the same user id. Consumed in BaseApplication.
             buildConfigField("String", "ONESIGNAL_EXTERNAL_PREFIX", "\"demo_\"")
+            buildConfigField("String", "MMP_BASE_URL", "\"https://mmp.himaofficial.in\"")
+            buildConfigField("String", "MMP_SDK_KEY", "\"mmp_sFcODEe0e1DgS9IlAFBRxMQ9aPMG\"")
+            buildConfigField("String", "MMP_SDK_SECRET", "\"G5V0J8qvP2aN64XXdJs4DYXzzwHd6eDi1kwwCo5UJdsMjUREUJUbkzHpN7GK4c0a\"")
         }
         create("production") {
             dimension = "hima"
@@ -139,6 +142,9 @@ android {
             buildConfigField("String", "ONESIGNAL_APP_ID", "\"5cd4154a-1ece-4c3b-b6af-e88bafee64cd\"")
             // Prod prefix is empty → login external id is the bare user id (unchanged).
             buildConfigField("String", "ONESIGNAL_EXTERNAL_PREFIX", "\"\"")
+            buildConfigField("String", "MMP_BASE_URL", "\"https://mmp.himaofficial.in\"")
+            buildConfigField("String", "MMP_SDK_KEY", "\"mmp_sFcODEe0e1DgS9IlAFBRxMQ9aPMG\"")
+            buildConfigField("String", "MMP_SDK_SECRET", "\"G5V0J8qvP2aN64XXdJs4DYXzzwHd6eDi1kwwCo5UJdsMjUREUJUbkzHpN7GK4c0a\"")
         }
     }
     compileOptions {
@@ -206,7 +212,7 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     // Retrofit
-    implementation("com.squareup.okhttp3:logging-interceptor:4.5.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
     
     // Socket.IO
     implementation("io.socket:socket.io-client:2.1.0")
@@ -298,8 +304,11 @@ dependencies {
     //Zoho chat
     implementation ("com.zoho.salesiq:mobilisten:8.2.2")
 
-    //Appflyer
-    implementation ("com.appsflyer:af-android-sdk:6.15.0")
+    // MMP: Google Advertising ID (GAID) for attribution keying
+    implementation("com.google.android.gms:play-services-ads-identifier:18.0.1")
+
+    // MMP: OkHttp for direct HTTPS calls to mmp.himaofficial.in
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     //Install referer
     implementation ("com.android.installreferrer:installreferrer:2.2")

@@ -18,7 +18,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.GridLayoutManager
-import com.appsflyer.AppsFlyerLib
+import com.gmwapp.hima.mmp.MmpClient
 import com.bumptech.glide.Glide
 import com.cashfree.pg.api.CFPaymentGatewayService
 import com.cashfree.pg.base.exception.CFException
@@ -1039,15 +1039,10 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
 
         BaseApplication.firebaseAnalytics.logEvent(FirebaseAnalytics.Event.PURCHASE, purchaseBundle)
 
-        val purchaseEvent = HashMap<String, Any>()
-        purchaseEvent["af_revenue"] = coinAmount       // Total amount (decimal preferred)
-        purchaseEvent["af_currency"] = "INR"        // 3-letter code, e.g. "INR", "USD"
-        purchaseEvent["af_coin_id"] = "$coinId"
-
-        AppsFlyerLib.getInstance().logEvent(
-            this,
-            "af_purchase",
-            purchaseEvent
+        MmpClient.trackPurchase(
+            revenueInr = coinAmount,
+            productId = coinId,
+            customerUserId = userId?.toString()
         )
 
         // Log to backend (only Firebase events)
@@ -1466,14 +1461,11 @@ class WalletActivity : BaseActivity(), CFCheckoutResponseCallback {
         val pointsIdInt = pointsId.toIntOrNull()
         val priceDouble = amount?.toDoubleOrNull() ?: 0.0
 
-        val checkoutEvent = HashMap<String, Any>()
-        checkoutEvent["af_price"] = priceDouble
-        checkoutEvent["af_currency"] = "INR"
-
-        AppsFlyerLib.getInstance().logEvent(
-            this,
-            "af_initiated_checkout",
-            checkoutEvent
+        MmpClient.trackEvent(
+            eventName = "initiated_checkout",
+            revenue = priceDouble,
+            params = mapOf("coin_id" to "$pointsId"),
+            customerUserId = userId?.toString()
         )
 
         val firebaseBundle = Bundle().apply {

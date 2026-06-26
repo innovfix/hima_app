@@ -61,8 +61,7 @@ import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
 
-import com.appsflyer.AppsFlyerLib;
-import com.appsflyer.AppsFlyerConversionListener;
+import com.gmwapp.hima.mmp.MmpClient
 import com.gmwapp.hima.activities.ChatActivityInHouse
 import com.gmwapp.hima.activities.ChatListActivity
 import com.gmwapp.hima.activities.MainActivity
@@ -397,7 +396,11 @@ class BaseApplication : Application(), Configuration.Provider {
 
         firebaseAnalytics = FirebaseAnalytics.getInstance(this)
 
-        appflyer()
+        MmpClient.init(this)
+        // Re-identify returning users so MMP can link their GAID to their account.
+        getPrefs()?.getUserData()?.id?.let { uid ->
+            MmpClient.identify(uid.toString())
+        }
 
         // 2026-05-25 v1075 — Meta SDK v18 defaults AutoInit/AutoLog to FALSE for
         // GDPR compliance. Events won't reach Meta Events Manager unless we
@@ -2607,45 +2610,6 @@ class BaseApplication : Application(), Configuration.Provider {
         return false  // App is in background
     }
 
-    fun appflyer() {
-        val conversionDataListener = object : AppsFlyerConversionListener {
-            override fun onConversionDataSuccess(conversionData: MutableMap<String, Any>?) {
-                // BUG-011: Don't log sensitive attribution data in release builds
-                if (BuildConfig.DEBUG) {
-                    conversionData?.let {
-                        for ((key, value) in it) {
-                            Log.d("AppsFlyer", "Conversion data: $key = $value")
-                        }
-                    } ?: Log.d("AppsFlyer", "Conversion data is null")
-                }
-            }
-
-            override fun onConversionDataFail(errorMessage: String?) {
-                if (BuildConfig.DEBUG) {
-                    Log.e("AppsFlyer", "Conversion data failure: $errorMessage")
-                }
-            }
-
-            override fun onAppOpenAttribution(attributionData: MutableMap<String, String>?) {
-                if (BuildConfig.DEBUG) {
-                    attributionData?.let {
-                        for ((key, value) in it) {
-                            Log.d("AppsFlyer", "Attribution data: $key = $value")
-                        }
-                    } ?: Log.d("AppsFlyer", "Attribution data is null")
-                }
-            }
-
-            override fun onAttributionFailure(errorMessage: String?) {
-                if (BuildConfig.DEBUG) {
-                    Log.e("AppsFlyer", "Attribution failure: $errorMessage")
-                }
-            }
-        }
-
-        AppsFlyerLib.getInstance().init("a3v6JFHivKze4bos9RQMf8", conversionDataListener, applicationContext)
-        AppsFlyerLib.getInstance().start(applicationContext)
-    }
 
     fun initZoho(appKey: String?, accessKey: String?) {
         var userGender = getInstance()?.getPrefs()?.getUserData()?.gender

@@ -52,7 +52,7 @@ import androidx.work.Data
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequest
 import androidx.work.WorkManager
-import com.appsflyer.AppsFlyerLib
+import com.gmwapp.hima.mmp.MmpClient
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.gmwapp.hima.BaseApplication
@@ -1558,14 +1558,10 @@ class MaleAudioCallingActivity : AppCompatActivity() {
 
             FirebaseAnalytics.getInstance(this@MaleAudioCallingActivity).logEvent("call_started", bundle)
 
-            val eventValues = HashMap<String, Any>()
-            eventValues["user_id"] = maleUserId
-            eventValues["call_type"] = "Audio"
-
-            AppsFlyerLib.getInstance().logEvent(
-                this@MaleAudioCallingActivity,
-                "call_started",
-                eventValues
+            MmpClient.trackEvent(
+                eventName = "call_started",
+                params = mapOf("user_id" to maleUserId, "call_type" to "Audio"),
+                customerUserId = "$maleUserId"
             )
 
             // Log to backend (only Firebase events)

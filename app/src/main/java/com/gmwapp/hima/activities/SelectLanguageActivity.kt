@@ -17,7 +17,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.GridLayoutManager
-import com.appsflyer.AppsFlyerLib
+import com.gmwapp.hima.mmp.MmpClient
 import com.facebook.appevents.AppEventsConstants
 import com.facebook.appevents.AppEventsLogger
 import com.gmwapp.hima.BaseApplication
@@ -88,15 +88,7 @@ class SelectLanguageActivity : BaseActivity() {
                 // exceed registration (male-only) because female signups were
                 // never tracked. Now both genders fire af_complete_registration
                 // + EVENT_NAME_COMPLETED_REGISTRATION + SIGN_UP + backend log.)
-                val registrationEvent = HashMap<String, Any>()
-                registrationEvent["user_id"] = "${it.data.id}"
-                registrationEvent["gender"] = it.data.gender ?: ""
-
-                AppsFlyerLib.getInstance().logEvent(
-                    this,
-                    "af_complete_registration",
-                    registrationEvent
-                )
+                MmpClient.trackSignup(customerUserId = "${it.data.id}")
 
                 val params = Bundle()
                 params.putString("user_id", "${it.data.id}")

@@ -50,7 +50,7 @@ import com.gmwapp.hima.viewmodels.ZohoMailViewModel
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.facebook.appevents.AppEventsConstants
 import com.facebook.appevents.AppEventsLogger
-import com.appsflyer.AppsFlyerLib
+import com.gmwapp.hima.mmp.MmpClient
 import com.onesignal.OneSignal
 import com.zoho.commons.LauncherModes
 import com.zoho.commons.LauncherProperties
@@ -1112,19 +1112,18 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
                     AppEventsLogger.newLogger(requireContext()).logEvent("voice_verified", metaParams)
                 }.onFailure { Log.w("FemaleHomeFragment", "voice_verified Meta emit failed: ${it.message}") }
 
-                // 3. AppsFlyer - voice_verified
-                val appsFlyerEvent = HashMap<String, Any>().apply {
-                    put("user_id", "$userId")
-                    put("gender", userData.gender ?: "")
-                    put("status", "${userData.status}")
-                }
+                // 3. MMP - voice_verified
                 runCatching {
-                    AppsFlyerLib.getInstance().logEvent(
-                        requireContext(),
-                        "voice_verified",
-                        appsFlyerEvent
+                    MmpClient.trackEvent(
+                        eventName = "voice_verified",
+                        params = mapOf(
+                            "user_id" to "$userId",
+                            "gender" to (userData.gender ?: ""),
+                            "status" to "${userData.status}"
+                        ),
+                        customerUserId = "$userId"
                     )
-                }.onFailure { Log.w("FemaleHomeFragment", "voice_verified AppsFlyer emit failed: ${it.message}") }
+                }.onFailure { Log.w("FemaleHomeFragment", "voice_verified MMP emit failed: ${it.message}") }
 
                 // 4. Log to backend (only Firebase events)
                 runCatching {
@@ -1218,16 +1217,15 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         }
         AppEventsLogger.newLogger(requireContext()).logEvent("two_min_duration_completed", metaParams)
         
-        // 3. AppsFlyer - two_min_duration_completed
-        val appsFlyerEvent = HashMap<String, Any>().apply {
-            put("user_id", "$userId")
-            put("total_talk_duration_minutes", totalMinutes)
-            put("gender", userData.gender ?: "")
-        }
-        AppsFlyerLib.getInstance().logEvent(
-            requireContext(),
-            "two_min_duration_completed",
-            appsFlyerEvent
+        // 3. MMP - two_min_duration_completed
+        MmpClient.trackEvent(
+            eventName = "two_min_duration_completed",
+            params = mapOf(
+                "user_id" to "$userId",
+                "total_talk_duration_minutes" to totalMinutes,
+                "gender" to (userData.gender ?: "")
+            ),
+            customerUserId = "$userId"
         )
         
         // 4. Log to backend (only Firebase events)

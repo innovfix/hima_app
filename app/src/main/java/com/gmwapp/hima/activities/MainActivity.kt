@@ -40,7 +40,7 @@ import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.appsflyer.AppsFlyerLib
+import com.gmwapp.hima.mmp.MmpClient
 import com.bumptech.glide.Glide
 import com.cashfree.pg.api.CFPaymentGatewayService
 import com.cashfree.pg.base.exception.CFException
@@ -1100,15 +1100,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
         }
 
 
-        var af_price =  getDiscountedPriceFromTotal(total_amount)
-        val checkoutEvent = HashMap<String, Any>()
-        checkoutEvent["af_price"] = "$af_price"          // Cart total
-        checkoutEvent["af_currency"] = "INR"
-
-        AppsFlyerLib.getInstance().logEvent(
-            this,
-            "af_initiated_checkout",
-            checkoutEvent
+        val af_price = getDiscountedPriceFromTotal(total_amount)
+        MmpClient.trackEvent(
+            eventName = "initiated_checkout",
+            revenue = af_price.toDouble(),
+            params = mapOf("coin_id" to "$pointsId"),
+            customerUserId = userId?.toString()
         )
 
         val firebaseBundle = Bundle().apply {
@@ -2282,15 +2279,10 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
 
         BaseApplication.firebaseAnalytics.logEvent(FirebaseAnalytics.Event.PURCHASE, purchaseBundle)
 
-        val purchaseEvent = HashMap<String, Any>()
-        purchaseEvent["af_revenue"] = coinAmount       // Total amount (decimal preferred)
-        purchaseEvent["af_currency"] = "INR"        // 3-letter code, e.g. "INR", "USD"
-        purchaseEvent["af_coin_id"] = "$coinId"
-
-        AppsFlyerLib.getInstance().logEvent(
-            this,
-            "af_purchase",
-            purchaseEvent
+        MmpClient.trackPurchase(
+            revenueInr = coinAmount,
+            productId = coinId,
+            customerUserId = userID
         )
 
         // Log to backend (only Firebase events)
@@ -2440,17 +2432,12 @@ class MainActivity : BaseActivity(), BottomNavigationView.OnNavigationItemSelect
                 params = AppEventLogger.bundleToMap(bundle)
             )
 
-            if (prefs?.getUserData()?.gender=="male"){
-
-            val eventValues = HashMap<String, Any>()
-            eventValues["user_id"] = "${prefs?.getUserData()?.id}"
-            AppsFlyerLib.getInstance().logEvent(
-                this,
-                "daily_active_user",
-                eventValues
-            )
-
-        }
+            if (prefs?.getUserData()?.gender == "male") {
+                MmpClient.trackEvent(
+                    eventName = "daily_active_user",
+                    customerUserId = "${prefs?.getUserData()?.id}"
+                )
+            }
         }
 
     }

@@ -5,7 +5,7 @@ import android.os.Bundle
 import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import com.appsflyer.AppsFlyerLib
+import com.gmwapp.hima.mmp.MmpClient
 import com.facebook.appevents.AppEventsConstants
 import com.facebook.appevents.AppEventsLogger
 import com.gmwapp.hima.BaseApplication
@@ -119,14 +119,17 @@ object SubscriptionStateCache {
         }
 
         try {
-            val afParams = HashMap<String, Any>()
-            afParams["af_price"] = "$priceForPlan"
-            afParams["af_currency"] = "INR"
-            afParams["plan_type"] = planType
-            afParams["language"] = language ?: ""
-            AppsFlyerLib.getInstance().logEvent(app, "af_start_trial", afParams)
+            MmpClient.trackEvent(
+                eventName = "start_trial",
+                revenue = priceForPlan,
+                params = mapOf(
+                    "plan_type" to planType,
+                    "language" to (language ?: "")
+                ),
+                customerUserId = "${userId ?: ""}"
+            )
         } catch (t: Throwable) {
-            Log.w("StartTrialCache", "AppsFlyer start_trial failed: ${t.message}")
+            Log.w("StartTrialCache", "MMP start_trial failed: ${t.message}")
         }
 
         try {
