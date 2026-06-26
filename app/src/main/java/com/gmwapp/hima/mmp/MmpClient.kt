@@ -189,6 +189,14 @@ object MmpClient {
                 val timestamp = (System.currentTimeMillis() / 1000).toString()
                 val sig = hmac("$timestamp.$json", BuildConfig.MMP_SDK_SECRET)
 
+                // Full payload being sent to the MMP server — endpoint, JSON body and the
+                // signed headers (key/timestamp/signature). Filter logcat with tag "data_sent".
+                Log.d(
+                    "data_sent",
+                    "MMP POST ${BuildConfig.MMP_BASE_URL}$path | body=$json | " +
+                        "X-MMP-Key=${BuildConfig.MMP_SDK_KEY} | X-MMP-Timestamp=$timestamp | X-MMP-Signature=$sig"
+                )
+
                 val req = Request.Builder()
                     .url("${BuildConfig.MMP_BASE_URL}$path")
                     .addHeader("Content-Type", "application/json")
@@ -199,15 +207,20 @@ object MmpClient {
                     .build()
 
                 http.newCall(req).execute().use { resp ->
+                    val respBody = resp.body?.string() ?: ""
+                    Log.d(
+                        "data_sent",
+                        "MMP RESPONSE $path -> HTTP ${resp.code} (success=${resp.isSuccessful}) body=$respBody"
+                    )
                     if (resp.isSuccessful && onSuccess != null) {
-                        val res = JSONObject(resp.body?.string() ?: "{}")
+                        val res = JSONObject(respBody.ifBlank { "{}" })
                         onSuccess(
                             res.optInt("install_id").takeIf { it > 0 },
                             res.optString("deferred_deep_link").ifBlank { null }
                         )
                     }
                     if (!resp.isSuccessful) {
-                        Log.w(TAG, "Non-2xx response for $path: ${resp.code}")
+                        Log.w(TAG, "Non-2xx response for $path: ${resp.code} body=$respBody")
                     }
                 }
             } catch (_: IOException) {
