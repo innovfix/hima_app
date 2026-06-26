@@ -190,6 +190,12 @@ class MaleVideoCallingActivity : AppCompatActivity() {
         }
     )
     private var mutedByInterrupt = false
+    // B196 false-positive fix: tracks ONLY a real cellular (SIM) call — the sole
+    // interrupt source allowed to surface the "On hold — phone call in progress"
+    // banner + peer HOLD signal. Audio-focus interrupts (notifications, the
+    // assistant, other apps, VoIP) still mute audio but never set this, so they
+    // no longer raise a phantom on-hold banner when there is no phone call.
+    private var cellularInterrupt = false
     var isClicked : Boolean = false
 
     // 2026-05-23 v1065 — debounced peer-avatar overlay for FROZEN/FAILED.
@@ -514,8 +520,8 @@ class MaleVideoCallingActivity : AppCompatActivity() {
             phoneStateHelper = CallPhoneStateHelper(
                 context = this,
                 // B196 — second arg flips the on-hold banner visible/hidden.
-                onCellularCallActive = { muteForInterrupt(true) },
-                onCellularCallEnded = { muteForInterrupt(false) }
+                onCellularCallActive = { muteForInterrupt(true, fromCellular = true) },
+                onCellularCallEnded = { muteForInterrupt(false, fromCellular = true) }
             ).also { it.register() }
         }
         if (btWatcher == null) {
@@ -545,7 +551,7 @@ class MaleVideoCallingActivity : AppCompatActivity() {
      * (CallPhoneStateHelper) and VoIP / other-app audio-focus loss
      * (CallAudioFocusHelper) — not just SIM calls.
      */
-    private fun muteForInterrupt(muted: Boolean) {
+    private fun muteForInterrupt(muted: Boolean, fromCellular: Boolean = false) {
         runOnUiThread {
             if (muted) {
                 if (!mutedByInterrupt) {
@@ -556,24 +562,29 @@ class MaleVideoCallingActivity : AppCompatActivity() {
                     // B001: also mute remote video so we stop pulling bandwidth during the interrupt.
                     agoraEngine?.muteAllRemoteAudioStreams(true)
                     agoraEngine?.muteAllRemoteVideoStreams(true)
-                    // Tell the peer we've stepped away so they show the
-                    // "‹Name› is on hold" banner instead of a bare mute pill.
-                    holdSignal.sendHold(true)
                 }
-                // Show our own on-hold banner for ALL interrupt sources (SIM
-                // calls AND VoIP/other-app audio-focus loss), not just cellular.
-                runCatching { binding.onHoldBanner.visibility = View.VISIBLE }
+                // B196 false-positive fix: only a real cellular (SIM) call may
+                // raise the "On hold — phone call in progress" banner and tell
+                // the peer we've stepped away. Audio-focus interrupts mute above
+                // but must NOT claim a phone call is in progress.
+                if (fromCellular) {
+                    cellularInterrupt = true
+                    holdSignal.sendHold(true)
+                    runCatching { binding.onHoldBanner.visibility = View.VISIBLE }
+                }
             } else {
+                // Clear the banner + peer signal only when the cellular call
+                // itself ends — never on an unrelated audio-focus regain.
+                if (fromCellular && cellularInterrupt) {
+                    cellularInterrupt = false
+                    holdSignal.sendHold(false)
+                    runCatching { binding.onHoldBanner.visibility = View.GONE }
+                }
                 if (mutedByInterrupt) {
                     mutedByInterrupt = false
                     if (!isMuted) agoraEngine?.muteLocalAudioStream(false)
                     agoraEngine?.muteAllRemoteAudioStreams(false)
                     agoraEngine?.muteAllRemoteVideoStreams(false)
-                    holdSignal.sendHold(false)
-                    // Hide the banner only on a real interrupt->resume transition;
-                    // a spurious focus-regain (mutedByInterrupt already false) must
-                    // not dismiss a banner the cellular path is still showing.
-                    runCatching { binding.onHoldBanner.visibility = View.GONE }
                 }
             }
         }
