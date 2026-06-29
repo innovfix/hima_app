@@ -72,17 +72,34 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- ====== FIXED TOP — hero + title + profile card (no scrolling) ====== -->
+    <!-- ====== Whole page scrolls together (profile card no longer pinned) ====== -->
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/profile_scroll"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        android:overScrollMode="never"
+        android:paddingBottom="16dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/block_banner">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:orientation="vertical">
+
+    <!-- hero + title + profile card -->
     <FrameLayout
         android:id="@+id/profile_top_fixed"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:clipChildren="false"
         android:clipToPadding="false"
-        android:elevation="6dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/block_banner">
+        android:elevation="6dp">
 
         <View
             android:id="@+id/header_background"
@@ -95,7 +112,7 @@
             android:layout_width="28dp"
             android:layout_height="28dp"
             android:layout_gravity="top|end"
-            android:layout_marginTop="56dp"
+            android:layout_marginTop="10dp"
             android:layout_marginEnd="14dp"
             android:alpha="0.5"
             android:src="@drawable/ic_balloon"
@@ -105,7 +122,7 @@
             android:layout_width="22dp"
             android:layout_height="22dp"
             android:layout_gravity="top|end"
-            android:layout_marginTop="72dp"
+            android:layout_marginTop="24dp"
             android:layout_marginEnd="44dp"
             android:alpha="0.4"
             android:src="@drawable/ic_balloon"
@@ -115,7 +132,7 @@
             android:layout_width="18dp"
             android:layout_height="18dp"
             android:layout_gravity="top|end"
-            android:layout_marginTop="92dp"
+            android:layout_marginTop="44dp"
             android:layout_marginEnd="20dp"
             android:alpha="0.45"
             android:src="@drawable/ic_balloon"
@@ -125,7 +142,7 @@
             android:layout_width="16dp"
             android:layout_height="16dp"
             android:layout_gravity="top|end"
-            android:layout_marginTop="60dp"
+            android:layout_marginTop="14dp"
             android:layout_marginEnd="72dp"
             android:alpha="0.55"
             android:src="@drawable/ic_sparkle"
@@ -135,7 +152,7 @@
             android:layout_width="12dp"
             android:layout_height="12dp"
             android:layout_gravity="top|end"
-            android:layout_marginTop="98dp"
+            android:layout_marginTop="50dp"
             android:layout_marginEnd="62dp"
             android:alpha="0.5"
             android:src="@drawable/ic_sparkle"
@@ -145,7 +162,7 @@
             android:layout_width="10dp"
             android:layout_height="10dp"
             android:layout_gravity="top|end"
-            android:layout_marginTop="50dp"
+            android:layout_marginTop="8dp"
             android:layout_marginEnd="44dp"
             android:alpha="0.45"
             android:src="@drawable/ic_sparkle"
@@ -159,7 +176,7 @@
             android:clipToPadding="false"
             android:orientation="vertical"
             android:paddingHorizontal="20dp"
-            android:paddingTop="70dp"
+            android:paddingTop="20dp"
             android:paddingBottom="0dp">
 
             <!-- "My Profile" title -->
@@ -537,21 +554,12 @@
          Internal NestedScrollView lets the menu items scroll INSIDE the card. ====== -->
     <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
-        android:layout_height="0dp"
+        android:layout_height="wrap_content"
         android:layout_marginHorizontal="16dp"
         android:layout_marginBottom="12dp"
         app:cardBackgroundColor="@color/white"
         app:cardCornerRadius="16dp"
-        app:cardElevation="1dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tv_settings_header">
-
-        <androidx.core.widget.NestedScrollView
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:overScrollMode="never">
+        app:cardElevation="1dp">
 
             <LinearLayout
                 android:id="@+id/menu_container"
@@ -1261,7 +1269,9 @@
                     android:layout_height="0dp"
                     android:visibility="gone" />
             </LinearLayout>
-        </androidx.core.widget.NestedScrollView>
     </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
