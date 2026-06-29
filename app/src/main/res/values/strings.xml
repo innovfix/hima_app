@@ -314,7 +314,7 @@
     <string name="personalise_yourself_hint">Pick your gender and avatar to make your profile unique</string>
     <string name="gender_change_warning">Gender can\'t be changed later</string>
     <string name="language_you_speak">Choose your language</string>
-    <string name="language_hint">Select your preferred language to connect with others</string>
+    <string name="language_hint">Pick the language you\'re most comfortable in 🌐</string>
     <string name="hindi">Hindi</string>
     <string name="telugu">Telugu</string>
     <string name="malayalam">Malayalam</string>
@@ -378,6 +378,11 @@
     <string name="mail_body" translatable="false">Hi &appname; Team,\n\nMy registered details are as follows:\n1. Mobile number is: %s\n2. Device name: %s\n3. User language: %s\n4. App version code: %d\n\nI need help in the following issue:\n\n{<b>Describe your issue here</b>}\n\nYou can reach out to me at the above number for more information.\n\nThanks,\n</string>
     <string name="press_back_again_to_exit">Press back again to exit</string>
     <string name="tell_us_about_yourself">Tell us about yourself</string>
+    <string name="create_your_profile">Create your profile</string>
+    <string name="create_profile_subtitle">Help people know the real you ✨</string>
+    <string name="required_label">Required</string>
+    <string name="choose_topics_hint">Choose 1–4 topics</string>
+    <string name="min_15_characters">Min 15 characters</string>
     <string name="tell_us_about_yourself_hint">The information you share will be visible to all your hi mas</string>
     <string name="enter_your_age">Enter your Age</string>
     <string name="enter_your_age_hint">This info will not be shared with Hi ma</string>

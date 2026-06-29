@@ -36,8 +36,10 @@ class AvatarsListAdapter(
             .into(holder.binding.ivAvatar)
 
         val isSelected = position == selectedPosition
+        val density = activity.resources.displayMetrics.density
         holder.binding.ivAvatarSelected.visibility = if (isSelected) View.VISIBLE else View.GONE
-        holder.binding.cardAvatar.strokeWidth = if (isSelected) 3 else 2
+        holder.binding.cardAvatar.strokeWidth =
+            (if (isSelected) 3 * density else 0f).toInt()
         holder.binding.cardAvatar.strokeColor = ContextCompat.getColor(
             activity,
             if (isSelected) R.color.colorAccent else R.color.divider

@@ -338,12 +338,12 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         super.onCreate(savedInstanceState)
         binding = ActivityNewLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        // Keep system bars opaque on login for better readability of SDK consent footer.
-        window.statusBarColor = getColor(R.color.pink)
-        window.navigationBarColor = getColor(R.color.pink)
+        // Light login background: match system bars to the page and use dark icons.
+        window.statusBarColor = getColor(R.color.grey_extra_light)
+        window.navigationBarColor = getColor(R.color.white)
         WindowCompat.getInsetsController(window, window.decorView).apply {
-            isAppearanceLightStatusBars = false
-            isAppearanceLightNavigationBars = false
+            isAppearanceLightStatusBars = true
+            isAppearanceLightNavigationBars = true
         }
 
         // Add animated background (same as splash screen)
@@ -588,7 +588,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
             }
 
             override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
-                window.statusBarColor = resources.getColor(R.color.dark_blue)
+                window.statusBarColor = resources.getColor(R.color.grey_extra_light)
                 updateSendOtpButtonState()
             }
 
@@ -747,7 +747,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 
 
     private fun initOtpUI(mobile: String, otp: Int, countryCode: Int) {
-        window.statusBarColor = resources.getColor(R.color.dark_blue)
+        window.statusBarColor = resources.getColor(R.color.grey_extra_light)
         if (verifyOtpEnabledTint == null) {
             verifyOtpEnabledTint = binding.btnVerifyOtp.backgroundTintList
         }
@@ -1060,6 +1060,7 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         try {
             Glide.with(this)
                 .load(R.drawable.logo)
+                .placeholder(R.drawable.logo)
                 .into(binding.imageViewLogo)
         } catch (e: Exception) {
             Log.e("LoginAnimation", "Error loading logo: ${e.message}")
@@ -1110,6 +1111,8 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
         circle2Rotate.start()
         circle2ScaleX.start()
         circle2ScaleY.start()
+
+        startDecorAnimations()
     }
 
     private fun registerFcmTokenForNewLogin(userId: Int) {
@@ -1144,6 +1147,103 @@ class NewLoginActivity : BaseActivity(), OnItemSelectionListener<Country> {
 //            }
 //        }
 //    }
+
+    // ===== Login decorative animations (float / twinkle / entrance / shine / breathing) =====
+    private val decorAnimators = mutableListOf<android.animation.Animator>()
+
+    private fun startDecorAnimations() {
+        val density = resources.displayMetrics.density
+        fun dp(v: Float) = v * density
+
+        val tiles = listOf(
+            binding.orbChat, binding.orbStar, binding.orbConnect,
+            binding.orbVideo, binding.orbPhone, binding.orbHeart
+        )
+        val sparks = listOf(
+            binding.spark1, binding.spark2, binding.spark3, binding.spark4, binding.spark5
+        )
+        val shines = listOf(
+            binding.shineChat, binding.shineVideo, binding.shineVoice, binding.shineConnect
+        )
+
+        // Window after which all entrance animations have finished.
+        val entranceTotal = 80L * (tiles.size + sparks.size) + 500L
+
+        // ENTRANCE — fade + scale-in around the logo, staggered.
+        (tiles + sparks).forEachIndexed { i, v ->
+            v.alpha = 0f
+            v.scaleX = 0.6f
+            v.scaleY = 0.6f
+            v.animate()
+                .alpha(1f).scaleX(1f).scaleY(1f)
+                .setStartDelay(80L * i)
+                .setDuration(380)
+                .setInterpolator(android.view.animation.OvershootInterpolator(1.6f))
+                .start()
+        }
+
+        // FLOAT — tiles gently bob up/down, varied timing, staggered.
+        val floatDur = longArrayOf(2300, 2600, 2750, 2450, 2100, 2250)
+        tiles.forEachIndexed { i, v ->
+            val a = ObjectAnimator.ofFloat(v, "translationY", 0f, -dp(7f)).apply {
+                duration = floatDur[i % floatDur.size]
+                repeatCount = ObjectAnimator.INFINITE
+                repeatMode = ObjectAnimator.REVERSE
+                interpolator = AccelerateDecelerateInterpolator()
+                startDelay = entranceTotal + 120L * i
+            }
+            decorAnimators.add(a); a.start()
+        }
+
+        // TWINKLE — sparkles pulse opacity + slight scale (after entrance).
+        val twinkleDur = longArrayOf(1400, 1700, 1300, 1550, 1850)
+        sparks.forEachIndexed { i, v ->
+            val pa = android.animation.PropertyValuesHolder.ofFloat("alpha", 1f, 0.35f)
+            val px = android.animation.PropertyValuesHolder.ofFloat("scaleX", 1f, 0.82f)
+            val py = android.animation.PropertyValuesHolder.ofFloat("scaleY", 1f, 0.82f)
+            val a = ObjectAnimator.ofPropertyValuesHolder(v, pa, px, py).apply {
+                duration = twinkleDur[i % twinkleDur.size]
+                repeatCount = ObjectAnimator.INFINITE
+                repeatMode = ObjectAnimator.REVERSE
+                interpolator = AccelerateDecelerateInterpolator()
+                startDelay = entranceTotal + 90L * i
+            }
+            decorAnimators.add(a); a.start()
+        }
+
+        // SHINE — gloss sweep across each feature tile; sweep then hold = gap between passes.
+        val shineStart = -dp(60f)
+        val shineEnd = dp(60f)
+        shines.forEachIndexed { i, v ->
+            val kf0 = android.animation.Keyframe.ofFloat(0f, shineStart)
+            val kf1 = android.animation.Keyframe.ofFloat(0.45f, shineEnd)
+            val kf2 = android.animation.Keyframe.ofFloat(1f, shineEnd)
+            val pvh = android.animation.PropertyValuesHolder.ofKeyframe("translationX", kf0, kf1, kf2)
+            val a = ObjectAnimator.ofPropertyValuesHolder(v, pvh).apply {
+                duration = 3400
+                repeatCount = ObjectAnimator.INFINITE
+                startDelay = 220L * i
+            }
+            decorAnimators.add(a); a.start()
+        }
+
+        // LOGO — slow breathing.
+        val lpx = android.animation.PropertyValuesHolder.ofFloat("scaleX", 1f, 1.03f)
+        val lpy = android.animation.PropertyValuesHolder.ofFloat("scaleY", 1f, 1.03f)
+        val logoAnim = ObjectAnimator.ofPropertyValuesHolder(binding.logoContainer, lpx, lpy).apply {
+            duration = 4000
+            repeatCount = ObjectAnimator.INFINITE
+            repeatMode = ObjectAnimator.REVERSE
+            interpolator = AccelerateDecelerateInterpolator()
+        }
+        decorAnimators.add(logoAnim); logoAnim.start()
+    }
+
+    override fun onDestroy() {
+        decorAnimators.forEach { it.cancel() }
+        decorAnimators.clear()
+        super.onDestroy()
+    }
 
 }
 

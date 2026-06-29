@@ -1,130 +1,159 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/grey_extra_light"
-    android:fitsSystemWindows="true"
+    android:background="@drawable/bg_onboarding_light"
     tools:context=".activities.SelectLanguageActivity">
 
-    <!-- Header Section -->
-    <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/app_bar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@drawable/bg_gradiend"
-        android:elevation="0dp"
-        android:fitsSystemWindows="true"
-        app:elevation="0dp">
+    <!-- ===== Top bar: back button + 4-step progress (step 3 of 4) ===== -->
+    <ImageView
+        android:id="@+id/iv_back"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="14dp"
+        android:background="@drawable/bg_back_btn_square"
+        android:contentDescription="@string/account_privacy"
+        android:padding="11dp"
+        android:rotation="180"
+        android:src="@drawable/right_arrow"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:tint="@color/onboarding_title" />
 
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <!-- Back Button -->
-            <ImageView
-                android:id="@+id/iv_back"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_margin="16dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/account_privacy"
-                android:padding="8dp"
-                android:rotation="180"
-                android:src="@drawable/right_arrow"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:tint="@color/white" />
-
-            <!-- Title Section -->
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="24dp"
-                android:layout_marginTop="16dp"
-                android:layout_marginEnd="24dp"
-                android:layout_marginBottom="24dp"
-                android:orientation="vertical"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/iv_back">
-
-                <TextView
-                    android:id="@+id/tv_language"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="6dp"
-                    android:fontFamily="@font/poppins_bold"
-                    android:text="@string/language_you_speak"
-                    android:textColor="@color/white"
-                    android:textSize="26sp" />
-
-                <TextView
-                    android:id="@+id/tv_language_hint"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="@font/poppins_regular"
-                    android:text="@string/language_hint"
-                    android:textColor="@color/pink_extra_light"
-                    android:textSize="14sp" />
-            </LinearLayout>
-        </androidx.constraintlayout.widget.ConstraintLayout>
-    </com.google.android.material.appbar.AppBarLayout>
-
-    <!-- Main Content -->
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:paddingBottom="80dp"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+        android:id="@+id/ll_steps"
+        android:layout_width="0dp"
+        android:layout_height="6dp"
+        android:layout_marginStart="14dp"
+        android:layout_marginEnd="20dp"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toBottomOf="@id/iv_back"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/iv_back"
+        app:layout_constraintTop_toTopOf="@id/iv_back">
 
-        <!-- Language List -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv_languages"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:clipToPadding="false"
-            android:nestedScrollingEnabled="false"
-            android:overScrollMode="never"
-            android:paddingHorizontal="16dp"
-            android:paddingTop="12dp"
-            android:paddingBottom="12dp" />
+        <View
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_step_active" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_step_active" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_step_active" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/bg_step_inactive" />
     </LinearLayout>
 
-    <!-- Continue Button -->
-    <RelativeLayout
+    <!-- ===== Title + subtitle + accent underline ===== -->
+    <TextView
+        android:id="@+id/tv_language"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="28dp"
+        android:layout_marginEnd="20dp"
+        android:fontFamily="@font/poppins_bold"
+        android:text="@string/language_you_speak"
+        android:textColor="@color/onboarding_title"
+        android:textSize="30sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/iv_back" />
+
+    <TextView
+        android:id="@+id/tv_language_hint"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="6dp"
+        android:layout_marginEnd="20dp"
+        android:fontFamily="@font/poppins_regular"
+        android:text="@string/language_hint"
+        android:textColor="@color/grey_medium"
+        android:textSize="14sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tv_language" />
+
+    <View
+        android:id="@+id/v_title_underline"
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_step_active"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tv_language_hint" />
+
+    <!-- ===== Language list ===== -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_languages"
         android:layout_width="match_parent"
-        android:layout_height="54dp"
-        android:layout_gravity="bottom"
-        android:layout_margin="20dp">
+        android:layout_height="0dp"
+        android:layout_marginTop="12dp"
+        android:clipToPadding="false"
+        android:overScrollMode="never"
+        android:paddingHorizontal="20dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="12dp"
+        app:layout_constraintBottom_toTopOf="@id/fl_continue"
+        app:layout_constraintTop_toBottomOf="@id/v_title_underline"
+        tools:listitem="@layout/adapter_language" />
+
+    <!-- ===== Continue button ===== -->
+    <FrameLayout
+        android:id="@+id/fl_continue"
+        android:layout_width="0dp"
+        android:layout_height="56dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="20dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_continue"
             android:layout_width="match_parent"
-            android:layout_height="54dp"
+            android:layout_height="match_parent"
             android:backgroundTint="@color/colorAccent"
             android:enabled="false"
             android:fontFamily="@font/poppins_semibold"
             android:text="@string/continue_text"
             android:textAllCaps="false"
             android:textColor="@color/white"
-            android:textSize="15sp"
-            app:cornerRadius="12dp"
-            app:elevation="6dp" />
+            android:textSize="16sp"
+            app:cornerRadius="28dp"
+            app:elevation="0dp" />
 
         <ProgressBar
             android:id="@+id/pb_continue_loader"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_centerInParent="true"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:layout_gravity="center"
             android:indeterminate="true"
             android:indeterminateTint="@color/white"
             android:visibility="gone" />
+    </FrameLayout>
 
-    </RelativeLayout>
-
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

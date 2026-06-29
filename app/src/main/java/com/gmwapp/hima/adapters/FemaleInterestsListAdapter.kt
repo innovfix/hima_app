@@ -7,7 +7,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.gmwapp.hima.R
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
-import com.gmwapp.hima.databinding.AdapterInterestBinding
+import com.gmwapp.hima.databinding.AdapterInterestFemalePillBinding
 import com.gmwapp.hima.retrofit.responses.Interests
 import com.gmwapp.hima.utils.setOnSingleClickListener
 
@@ -22,7 +22,7 @@ class FemaleInterestsListAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val itemHolder = ItemHolder(
-            AdapterInterestBinding.inflate(
+            AdapterInterestFemalePillBinding.inflate(
                 LayoutInflater.from(parent.context), parent, false
             )
         )
@@ -41,19 +41,18 @@ class FemaleInterestsListAdapter(
         }
         if(interest.isSelected == true){
             holder.binding.main.isEnabled  = true
-            holder.binding.main.setBackgroundResource(R.drawable.d_button_bg_interest_selected)
-            holder.binding.tvInterest.setTextColor(activity.getColor(R.color.interest_selected_text_color))
+            holder.binding.main.setBackgroundResource(R.drawable.bg_interest_chip_female_selected)
+            holder.binding.tvInterest.setTextColor(activity.getColor(R.color.colorAccent))
         } else if(isLimitreached){
             holder.binding.main.isEnabled  = false
-            holder.binding.main.setBackgroundResource(R.drawable.d_button_bg_female_interest_disabled)
+            holder.binding.main.setBackgroundResource(R.drawable.bg_interest_chip_female_disabled)
             holder.binding.tvInterest.setTextColor(activity.getColor(R.color.interest_disabled_text_color))
         }else{
             holder.binding.main.isEnabled  = true
-            holder.binding.main.setBackgroundResource(R.drawable.d_button_bg_female_interest)
-            holder.binding.tvInterest.setTextColor(activity.getColor(R.color.interest_text_color))
+            holder.binding.main.setBackgroundResource(R.drawable.bg_interest_chip_female)
+            holder.binding.tvInterest.setTextColor(activity.getColor(R.color.onboarding_title))
         }
         holder.binding.tvInterest.text = interest.name
-        holder.binding.ivInterest.setImageResource(interest.image)
     }
 
     fun updateLimitReached(isLimitreached: Boolean){
@@ -64,7 +63,7 @@ class FemaleInterestsListAdapter(
         return interests.size
     }
 
-    internal class ItemHolder(val binding: AdapterInterestBinding) :
+    internal class ItemHolder(val binding: AdapterInterestFemalePillBinding) :
         RecyclerView.ViewHolder(binding.root) {
     }
 }

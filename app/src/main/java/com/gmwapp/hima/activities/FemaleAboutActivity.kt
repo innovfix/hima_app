@@ -24,6 +24,7 @@ import com.gmwapp.hima.adapters.LanguageAdapter
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.ActivityFemaleAboutBinding
+import com.gmwapp.hima.databinding.AdapterInterestFemalePillBinding
 import com.gmwapp.hima.databinding.ActivitySelectLanguageBinding
 import com.gmwapp.hima.retrofit.responses.Interests
 import com.gmwapp.hima.retrofit.responses.Language
@@ -43,7 +44,7 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class FemaleAboutActivity : BaseActivity() {
     lateinit var binding: ActivityFemaleAboutBinding
-    private var interestsListAdapter: FemaleInterestsListAdapter? = null
+    private val interestChips = ArrayList<Pair<AdapterInterestFemalePillBinding, Interests>>()
     private var selectedInterests: ArrayList<String> = ArrayList()
     private var isValidAge = false;
     private var isContinueLoading = false
@@ -51,9 +52,13 @@ class FemaleAboutActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityFemaleAboutBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        // Pink gradient AppBarLayout extends under the status bar via
-        // fitsSystemWindows=true in the layout. Use LIGHT (white) icons.
-        WindowCompat.getInsetsController(window, window.decorView)?.isAppearanceLightStatusBars = false
+        // Light onboarding theme: white status bar with DARK icons, and pad the
+        // root for the status/nav bar insets so content sits below the notch.
+        applySystemBarInsets(
+            binding.root,
+            statusBarColor = R.color.white,
+            darkStatusBarIcons = true,
+        )
         initUI()
     }
 
@@ -171,62 +176,74 @@ class FemaleAboutActivity : BaseActivity() {
             startActivity(intent)
         }
 
-        val staggeredGridLayoutManager = FlexboxLayoutManager(this).apply {
-            flexWrap = FlexWrap.WRAP
-            alignItems = AlignItems.FLEX_START
-            flexDirection = FlexDirection.ROW
-            justifyContent = JustifyContent.FLEX_START
-        }
-        val itemDecoration = FlexboxItemDecoration(this).apply {
-            setDrawable(ContextCompat.getDrawable(this@FemaleAboutActivity, R.drawable.bg_divider))
-            setOrientation(FlexboxItemDecoration.VERTICAL)
-        }
-        binding.rvInterests.addItemDecoration(itemDecoration)
-        binding.rvInterests.setLayoutManager(staggeredGridLayoutManager)
-        interestsListAdapter = FemaleInterestsListAdapter(this, arrayListOf(
-            Interests(
-                getString(R.string.politics), R.drawable.politics, false
-            ),
-            Interests(
-                getString(R.string.art), R.drawable.art, false
-            ),
-            Interests(
-                getString(R.string.sports), R.drawable.sports, false
-            ),
-            Interests(
-                getString(R.string.movies), R.drawable.movie, false
-            ),
-            Interests(
-                getString(R.string.music), R.drawable.music, false
-            ),
-            Interests(
-                getString(R.string.foodie), R.drawable.foodie, false
-            ),
-            Interests(
-                getString(R.string.travel), R.drawable.travel, false
-            ),
-            Interests(
-                getString(R.string.photography), R.drawable.photography, false
-            ),
-            Interests(
-                getString(R.string.love), R.drawable.love, false
-            ),
-            Interests(
-                getString(R.string.cooking), R.drawable.cooking, false
-            ),
-        ), false, object : OnItemSelectionListener<Interests> {
-            override fun onItemSelected(interest: Interests) {
+        setupInterestChips()
+    }
+
+    /**
+     * Build the interest pills directly into the [FlexboxLayout]. We use a static
+     * FlexboxLayout (not RecyclerView + FlexboxLayoutManager) because the layout
+     * manager under-measures its wrap_content height inside a scroll container and
+     * clipped the last row of chips.
+     */
+    private fun setupInterestChips() {
+        val interests = arrayListOf(
+            Interests(getString(R.string.politics), R.drawable.politics, false),
+            Interests(getString(R.string.art), R.drawable.art, false),
+            Interests(getString(R.string.sports), R.drawable.sports, false),
+            Interests(getString(R.string.movies), R.drawable.movie, false),
+            Interests(getString(R.string.music), R.drawable.music, false),
+            Interests(getString(R.string.foodie), R.drawable.foodie, false),
+            Interests(getString(R.string.travel), R.drawable.travel, false),
+            Interests(getString(R.string.photography), R.drawable.photography, false),
+            Interests(getString(R.string.love), R.drawable.love, false),
+            Interests(getString(R.string.cooking), R.drawable.cooking, false),
+        )
+
+        val inflater = layoutInflater
+        binding.fblInterests.removeAllViews()
+        interestChips.clear()
+        interests.forEach { interest ->
+            val item = AdapterInterestFemalePillBinding.inflate(inflater, binding.fblInterests, false)
+            item.tvInterest.text = interest.name
+            item.main.setOnSingleClickListener {
                 if (interest.isSelected == true) {
+                    interest.isSelected = false
                     selectedInterests.remove(interest.name)
                 } else {
+                    if (selectedInterests.size >= 4) return@setOnSingleClickListener
+                    interest.isSelected = true
                     selectedInterests.add(interest.name)
                 }
-                interestsListAdapter?.updateLimitReached(selectedInterests.size == 4)
+                refreshInterestChips()
                 updateButton()
             }
-        })
-        binding.rvInterests.setAdapter(interestsListAdapter)
+            interestChips.add(item to interest)
+            binding.fblInterests.addView(item.root)
+        }
+        refreshInterestChips()
+    }
 
+    private fun refreshInterestChips() {
+        val limitReached = selectedInterests.size >= 4
+        interestChips.forEach { (item, interest) ->
+            when {
+                interest.isSelected == true -> {
+                    item.main.isEnabled = true
+                    item.main.setBackgroundResource(R.drawable.bg_interest_chip_female_selected)
+                    item.tvInterest.setTextColor(getColor(R.color.colorAccent))
+                }
+                limitReached -> {
+                    item.main.isEnabled = false
+                    item.main.setBackgroundResource(R.drawable.bg_interest_chip_female_disabled)
+                    item.tvInterest.setTextColor(getColor(R.color.interest_disabled_text_color))
+                }
+                else -> {
+                    item.main.isEnabled = true
+                    item.main.setBackgroundResource(R.drawable.bg_interest_chip_female)
+                    item.tvInterest.setTextColor(getColor(R.color.onboarding_title))
+                }
+            }
+        }
     }
 
     private fun hasUnsavedInput(): Boolean {

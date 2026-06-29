@@ -7,36 +7,25 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
-    android:background="@drawable/splash_gradient_background">
+    android:background="@color/grey_extra_light">
 
-    <!-- Animated background circles (same as splash) -->
+    <!-- ===== Hidden compatibility views (kept for ViewBinding) ===== -->
     <View
         android:id="@+id/circle1"
-        android:layout_width="200dp"
-        android:layout_height="200dp"
-        android:alpha="0.1"
-        android:background="@drawable/splash_circle"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.1"
-        app:layout_constraintStart_toStartOf="parent"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.2" />
+        app:layout_constraintStart_toStartOf="parent" />
 
     <View
         android:id="@+id/circle2"
-        android:layout_width="150dp"
-        android:layout_height="150dp"
-        android:alpha="0.15"
-        android:background="@drawable/splash_circle"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.9"
-        app:layout_constraintStart_toStartOf="parent"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.15" />
+        app:layout_constraintStart_toStartOf="parent" />
 
-    <!-- Hidden ViewPager2 for Onboarding (for compatibility) -->
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/viewPagerOnboarding"
         android:layout_width="0dp"
@@ -59,7 +48,220 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal" />
 
-    <!-- Back button shown only on OTP step, top-left over the gradient -->
+    <!-- ===== Floating decorative feature badges + sparkles (top area) =====
+         Every item is constrained to BOTH parent edges so horizontal_bias
+         positions it across the full width (otherwise it pins to one edge). -->
+
+    <!-- Chat -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:id="@+id/orb_chat"
+        app:cardBackgroundColor="#FDE7F1"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="0dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.05"
+        app:layout_constraintVertical_bias="0.05"
+        app:layout_constraintBottom_toBottomOf="parent">
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_chat_bubble"
+            app:tint="#FF1383"
+            tools:ignore="ContentDescription" />
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Star -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:id="@+id/orb_star"
+        app:cardBackgroundColor="#FFF1D6"
+        app:cardCornerRadius="15dp"
+        app:cardElevation="0dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.20"
+        app:layout_constraintVertical_bias="0.105"
+        app:layout_constraintBottom_toBottomOf="parent">
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_star"
+            app:tint="#F5A623"
+            tools:ignore="ContentDescription" />
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Connect (infinity) -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="46dp"
+        android:layout_height="46dp"
+        android:id="@+id/orb_connect"
+        app:cardBackgroundColor="#FFEAD9"
+        app:cardCornerRadius="15dp"
+        app:cardElevation="0dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.80"
+        app:layout_constraintVertical_bias="0.105"
+        app:layout_constraintBottom_toBottomOf="parent">
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_infinity"
+            app:tint="#FF6A2B"
+            tools:ignore="ContentDescription" />
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Video -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:id="@+id/orb_video"
+        app:cardBackgroundColor="#E3EDFF"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="0dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.95"
+        app:layout_constraintVertical_bias="0.05"
+        app:layout_constraintBottom_toBottomOf="parent">
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_videocam"
+            app:tint="#3B82F6"
+            tools:ignore="ContentDescription" />
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Voice / Phone -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:id="@+id/orb_phone"
+        app:cardBackgroundColor="#E4F8EA"
+        app:cardCornerRadius="15dp"
+        app:cardElevation="0dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.05"
+        app:layout_constraintVertical_bias="0.15"
+        app:layout_constraintBottom_toBottomOf="parent">
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_phone"
+            app:tint="#22C55E"
+            tools:ignore="ContentDescription" />
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Heart -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="46dp"
+        android:layout_height="46dp"
+        android:id="@+id/orb_heart"
+        app:cardBackgroundColor="#EFEAFF"
+        app:cardCornerRadius="15dp"
+        app:cardElevation="0dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.95"
+        app:layout_constraintVertical_bias="0.15"
+        app:layout_constraintBottom_toBottomOf="parent">
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_heart_filled"
+            app:tint="#8B5CF6"
+            tools:ignore="ContentDescription" />
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Sparkles -->
+    <ImageView
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:id="@+id/spark1"
+        android:src="@drawable/ic_sparkle"
+        app:tint="#F5A623"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.31"
+        app:layout_constraintVertical_bias="0.05"
+        app:layout_constraintBottom_toBottomOf="parent"
+        tools:ignore="ContentDescription" />
+
+    <ImageView
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:id="@+id/spark2"
+        android:src="@drawable/ic_sparkle"
+        app:tint="#FF1383"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.85"
+        app:layout_constraintVertical_bias="0.02"
+        app:layout_constraintBottom_toBottomOf="parent"
+        tools:ignore="ContentDescription" />
+
+    <ImageView
+        android:layout_width="12dp"
+        android:layout_height="12dp"
+        android:id="@+id/spark3"
+        android:src="@drawable/ic_sparkle"
+        app:tint="#FF6A2B"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.65"
+        app:layout_constraintVertical_bias="0.065"
+        app:layout_constraintBottom_toBottomOf="parent"
+        tools:ignore="ContentDescription" />
+
+    <ImageView
+        android:layout_width="14dp"
+        android:layout_height="14dp"
+        android:id="@+id/spark4"
+        android:src="@drawable/ic_sparkle"
+        app:tint="#34D399"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.20"
+        app:layout_constraintVertical_bias="0.15"
+        app:layout_constraintBottom_toBottomOf="parent"
+        tools:ignore="ContentDescription" />
+
+    <ImageView
+        android:layout_width="13dp"
+        android:layout_height="13dp"
+        android:id="@+id/spark5"
+        android:src="@drawable/ic_sparkle"
+        app:tint="#A78BFA"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.82"
+        app:layout_constraintVertical_bias="0.155"
+        app:layout_constraintBottom_toBottomOf="parent"
+        tools:ignore="ContentDescription" />
+
+    <!-- Back button shown only on OTP step, top-left -->
     <androidx.cardview.widget.CardView
         android:id="@+id/cv_otp_back"
         android:layout_width="42dp"
@@ -68,7 +270,7 @@
         android:visibility="gone"
         app:cardCornerRadius="12dp"
         app:cardElevation="1dp"
-        app:cardBackgroundColor="#F8F9FA"
+        app:cardBackgroundColor="#FFFFFF"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
@@ -84,7 +286,7 @@
 
     </androidx.cardview.widget.CardView>
 
-    <!-- Logo and Welcome Section with animated design -->
+    <!-- ===== Logo + Brand + Feature row ===== -->
     <LinearLayout
         android:id="@+id/ll_logo_section"
         android:layout_width="match_parent"
@@ -93,28 +295,28 @@
         android:gravity="center"
         android:paddingHorizontal="24dp"
         android:paddingTop="40dp"
-        android:paddingBottom="24dp"
+        android:paddingBottom="16dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toTopOf="@id/ll_login_section"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- Logo in circular container (same as splash) -->
+        <!-- Square brand logo -->
         <androidx.cardview.widget.CardView
             android:id="@+id/logoContainer"
-            android:layout_width="120dp"
-            android:layout_height="120dp"
+            android:layout_width="94dp"
+            android:layout_height="94dp"
             android:layout_gravity="center"
-            android:elevation="12dp"
-            app:cardBackgroundColor="@color/colorPrimary"
-            app:cardCornerRadius="60dp"
-            app:cardElevation="12dp"
-            android:layout_marginBottom="24dp">
+            android:elevation="9dp"
+            app:cardBackgroundColor="@color/colorAccent"
+            app:cardCornerRadius="27dp"
+            app:cardElevation="9dp"
+            android:layout_marginBottom="12dp">
 
             <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:padding="28dp">
+                android:padding="24dp">
 
                 <ImageView
                     android:id="@+id/imageViewLogo"
@@ -133,25 +335,234 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Welcome to HI ma"
-            android:textSize="28sp"
-            android:textColor="@color/white"
+            android:text="@string/app_name"
+            android:textSize="30sp"
+            android:textColor="#1F2430"
             android:fontFamily="@font/poppins_bold"
-            android:letterSpacing="0.05"
-            android:layout_marginBottom="4dp" />
+            android:letterSpacing="-0.01"
+            android:layout_marginBottom="1dp" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Login to continue"
-            android:textSize="15sp"
-            android:textColor="#E0FFFFFF"
-            android:fontFamily="@font/poppins_regular"
-            android:letterSpacing="0.02" />
+            android:text="Where Feelings Connect"
+            android:textSize="14sp"
+            android:textColor="@color/grey_medium"
+            android:fontFamily="@font/poppins_regular" />
+
+        <!-- Feature row -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="18dp"
+            android:gravity="center">
+
+            <!-- Chat -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_marginHorizontal="10dp">
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/feat_chat"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    app:cardBackgroundColor="@android:color/transparent"
+                    app:cardCornerRadius="15dp"
+                    app:cardElevation="6dp"
+                    android:outlineSpotShadowColor="#FF1383"
+                    android:outlineAmbientShadowColor="#FF1383">
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/bg_feat_chat" />
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_chat_bubble"
+                        app:tint="#FFFFFF"
+                        tools:ignore="ContentDescription" />
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/bg_tile_gloss" />
+                    <View
+                        android:id="@+id/shine_chat"
+                        android:layout_width="16dp"
+                        android:layout_height="96dp"
+                        android:layout_gravity="center"
+                        android:background="@drawable/bg_shine"
+                        android:rotation="20"
+                        android:translationX="-60dp" />
+                </com.google.android.material.card.MaterialCardView>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="Chat"
+                    android:textSize="12sp"
+                    android:textColor="#4B5563"
+                    android:fontFamily="@font/poppins_medium" />
+            </LinearLayout>
+
+            <!-- Video -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_marginHorizontal="10dp">
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/feat_video"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    app:cardBackgroundColor="@android:color/transparent"
+                    app:cardCornerRadius="15dp"
+                    app:cardElevation="6dp"
+                    android:outlineSpotShadowColor="#2F6BFF"
+                    android:outlineAmbientShadowColor="#2F6BFF">
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/bg_feat_video" />
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_videocam"
+                        app:tint="#FFFFFF"
+                        tools:ignore="ContentDescription" />
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/bg_tile_gloss" />
+                    <View
+                        android:id="@+id/shine_video"
+                        android:layout_width="16dp"
+                        android:layout_height="96dp"
+                        android:layout_gravity="center"
+                        android:background="@drawable/bg_shine"
+                        android:rotation="20"
+                        android:translationX="-60dp" />
+                </com.google.android.material.card.MaterialCardView>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="Video"
+                    android:textSize="12sp"
+                    android:textColor="#4B5563"
+                    android:fontFamily="@font/poppins_medium" />
+            </LinearLayout>
+
+            <!-- Voice -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_marginHorizontal="10dp">
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/feat_voice"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    app:cardBackgroundColor="@android:color/transparent"
+                    app:cardCornerRadius="15dp"
+                    app:cardElevation="6dp"
+                    android:outlineSpotShadowColor="#12B76A"
+                    android:outlineAmbientShadowColor="#12B76A">
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/bg_feat_voice" />
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_phone"
+                        app:tint="#FFFFFF"
+                        tools:ignore="ContentDescription" />
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/bg_tile_gloss" />
+                    <View
+                        android:id="@+id/shine_voice"
+                        android:layout_width="16dp"
+                        android:layout_height="96dp"
+                        android:layout_gravity="center"
+                        android:background="@drawable/bg_shine"
+                        android:rotation="20"
+                        android:translationX="-60dp" />
+                </com.google.android.material.card.MaterialCardView>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="Voice"
+                    android:textSize="12sp"
+                    android:textColor="#4B5563"
+                    android:fontFamily="@font/poppins_medium" />
+            </LinearLayout>
+
+            <!-- Connect -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_marginHorizontal="10dp">
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/feat_connect"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    app:cardBackgroundColor="@android:color/transparent"
+                    app:cardCornerRadius="15dp"
+                    app:cardElevation="6dp"
+                    android:outlineSpotShadowColor="#7C4DFF"
+                    android:outlineAmbientShadowColor="#7C4DFF">
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/bg_feat_connect" />
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_heart_filled"
+                        app:tint="#FFFFFF"
+                        tools:ignore="ContentDescription" />
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/bg_tile_gloss" />
+                    <View
+                        android:id="@+id/shine_connect"
+                        android:layout_width="16dp"
+                        android:layout_height="96dp"
+                        android:layout_gravity="center"
+                        android:background="@drawable/bg_shine"
+                        android:rotation="20"
+                        android:translationX="-60dp" />
+                </com.google.android.material.card.MaterialCardView>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="Connect"
+                    android:textSize="12sp"
+                    android:textColor="#4B5563"
+                    android:fontFamily="@font/poppins_medium" />
+            </LinearLayout>
+
+        </LinearLayout>
 
     </LinearLayout>
 
-    <!-- Login Form Section with rounded top corners -->
+    <!-- ===== Form sheet (rounded top) ===== -->
     <LinearLayout
         android:id="@+id/ll_login_section"
         android:layout_width="match_parent"
@@ -159,14 +570,14 @@
         android:orientation="vertical"
         android:background="@drawable/login_form_background"
         android:paddingTop="28dp"
-        android:paddingBottom="32dp"
-        android:paddingHorizontal="20dp"
+        android:paddingBottom="28dp"
+        android:paddingHorizontal="24dp"
         android:visibility="visible"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- Login Section -->
+        <!-- ===== Login Section ===== -->
         <LinearLayout
             android:id="@+id/login_section"
             android:layout_width="match_parent"
@@ -174,239 +585,265 @@
             android:orientation="vertical"
             android:visibility="gone">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="15sp"
-            android:layout_marginBottom="6dp"
-            android:textColor="@color/colorAccent"
-            android:fontFamily="@font/poppins_semibold"
-            android:text="@string/mobile_number"/>
-
-        <androidx.cardview.widget.CardView
-            android:id="@+id/cv_login"
-            android:layout_width="match_parent"
-            android:layout_height="52dp"
-            android:layout_marginBottom="8dp"
-            app:cardElevation="0dp"
-            app:cardCornerRadius="8dp"
-            app:cardBackgroundColor="@color/grey_extra_light"
-            app:strokeColor="@color/divider"
-            app:strokeWidth="1dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:paddingHorizontal="14dp">
-
-                <androidx.constraintlayout.widget.ConstraintLayout
-                    android:id="@+id/cl_country"
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:clickable="false"
-                    android:focusable="false">
-
-                    <ImageView
-                        android:id="@+id/iv_flag"
-                        android:layout_width="24dp"
-                        android:layout_height="16dp"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toTopOf="parent"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        android:src="@drawable/india"
-                        tools:ignore="ContentDescription" />
-
-                    <ImageView
-                        android:id="@+id/iv_down_arrow"
-                        android:layout_width="16dp"
-                        android:layout_height="16dp"
-                        app:layout_constraintStart_toEndOf="@+id/iv_flag"
-                        android:layout_marginStart="4dp"
-                        app:layout_constraintTop_toTopOf="parent"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        android:src="@drawable/ic_down_arrow"
-                        app:tint="@color/colorPrimaryDark"
-                        android:visibility="gone"
-                        tools:ignore="ContentDescription" />
-                </androidx.constraintlayout.widget.ConstraintLayout>
-
-                <TextView
-                    android:id="@+id/tv_country_code"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:textColor="@color/colorAccent"
-                    android:textSize="15sp"
-                    android:text="+91"
-                    android:fontFamily="@font/poppins_semibold" />
-
-                <EditText
-                    android:id="@+id/et_mobile_number"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:layout_height="match_parent"
-                    android:layout_marginStart="8dp"
-                    android:autofillHints="phone"
-                    android:background="@android:color/transparent"
-                    android:textCursorDrawable="@drawable/color_cursor"
-                    android:textColor="@color/black_light"
-                    android:hint="Enter number"
-                    android:textColorHint="@color/grey_medium"
-                    android:textSize="15sp"
-                    android:imeOptions="actionDone"
-                    android:inputType="phone"
-                    android:maxLength="10"
-                    android:fontFamily="@font/poppins_medium" />
-            </LinearLayout>
-        </androidx.cardview.widget.CardView>
-        <!-- Referral code checkbox -->
-        <CheckBox
-            android:id="@+id/referCode_checkbox"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            android:text="Have a referral code?"
-            android:textColor="@color/grey_medium"
-            android:textSize="13sp"
-            android:buttonTint="@color/colorAccent"
-            android:fontFamily="@font/poppins_regular"
-            android:visibility="visible" />
-
-        <androidx.cardview.widget.CardView
-            android:id="@+id/cv_referCode"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            android:visibility="gone"
-            app:cardElevation="0dp"
-            app:cardCornerRadius="8dp"
-            app:cardBackgroundColor="@color/grey_extra_light"
-            app:strokeColor="@color/divider"
-            app:strokeWidth="1dp">
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:paddingHorizontal="14dp"
-                android:paddingVertical="12dp">
-                <EditText
-                    android:id="@+id/et_referCode"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:layout_height="wrap_content"
-                    android:hint="Enter referral code"
-                    android:textSize="15sp"
-                    android:textColor="@color/black_light"
-                    android:fontFamily="@font/poppins_medium"
-                    android:background="@android:color/transparent"
-                    android:imeOptions="actionDone" />
-                <RelativeLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/applyReferral"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Apply"
-                        android:textSize="13sp"
-                        android:textColor="@color/white"
-                        android:fontFamily="@font/poppins_semibold"
-                        app:cornerRadius="6dp"
-                        app:backgroundTint="@color/colorAccent" />
-
-                    <ProgressBar
-                        android:id="@+id/pb_apply_referral_loader"
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
-                        android:elevation="8dp"
-                        android:indeterminate="true"
-                        android:visibility="gone"
-                        android:indeterminateTint="@color/white"
-                        android:layout_centerInParent="true" />
-
-                </RelativeLayout>
-            </LinearLayout>
-        </androidx.cardview.widget.CardView>
-
-        <TextView
-            android:id="@+id/tv_otp_text"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="12sp"
-            android:layout_marginBottom="16dp"
-            android:textColor="@color/grey_medium"
-            android:fontFamily="@font/poppins_regular"
-            android:text="@string/you_will_receive_an_otp_on_this_number"/>
-
-        <!-- Send OTP Button -->
-        <RelativeLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_send_otp"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:textAllCaps="false"
-                android:enabled="false"
-                android:fontFamily="@font/poppins_semibold"
-                android:text="@string/send_otp"
-                android:textSize="15sp"
-                app:cornerRadius="8dp"
-                android:textColor="@color/white"
-                app:backgroundTint="@color/colorAccent"/>
-
-            <ProgressBar
-                android:id="@+id/pb_send_otp_loader"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:elevation="8dp"
-                android:indeterminate="true"
-                android:visibility="gone"
-                android:indeterminateTint="@color/white"
-                android:layout_centerInParent="true"/>
-        </RelativeLayout>
-
-        <!-- Terms and Conditions -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="start"
-            android:layout_marginTop="4dp">
-
-            <CheckBox
-                android:id="@+id/cb_terms_and_conditions"
+            <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:buttonTint="@color/colorAccent"
-                android:checked="true"
-                android:focusable="false"
-                android:minWidth="0dp"
-                android:minHeight="0dp"
-                android:padding="0dp"
-                android:visibility="gone" />
+                android:text="Get Started"
+                android:textSize="26sp"
+                android:textColor="#1F2430"
+                android:fontFamily="@font/poppins_bold" />
 
             <TextView
-                android:id="@+id/tv_terms_and_conditions"
-                android:layout_width="0dp"
-                android:layout_weight="1"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center_vertical"
-                android:fontFamily="@font/poppins_regular"
-                android:text="@string/terms_and_conditions_text"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="22dp"
+                android:text="Enter your mobile number to continue"
+                android:textSize="14sp"
                 android:textColor="@color/grey_medium"
-                android:textSize="11sp" />
-        </LinearLayout>
+                android:fontFamily="@font/poppins_regular" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="15sp"
+                android:layout_marginBottom="8dp"
+                android:textColor="#1F2430"
+                android:fontFamily="@font/poppins_semibold"
+                android:text="@string/mobile_number" />
+
+            <androidx.cardview.widget.CardView
+                android:id="@+id/cv_login"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginBottom="14dp"
+                app:cardElevation="0dp"
+                app:cardCornerRadius="14dp"
+                app:cardBackgroundColor="@color/white"
+                app:strokeColor="#E3E6EC"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingHorizontal="16dp">
+
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:id="@+id/cl_country"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:clickable="false"
+                        android:focusable="false">
+
+                        <ImageView
+                            android:id="@+id/iv_flag"
+                            android:layout_width="26dp"
+                            android:layout_height="18dp"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            android:src="@drawable/india"
+                            tools:ignore="ContentDescription" />
+
+                        <ImageView
+                            android:id="@+id/iv_down_arrow"
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            app:layout_constraintStart_toEndOf="@+id/iv_flag"
+                            android:layout_marginStart="4dp"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            android:src="@drawable/ic_down_arrow"
+                            app:tint="@color/colorPrimaryDark"
+                            android:visibility="gone"
+                            tools:ignore="ContentDescription" />
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                    <TextView
+                        android:id="@+id/tv_country_code"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:textColor="#1F2430"
+                        android:textSize="16sp"
+                        android:text="+91"
+                        android:fontFamily="@font/poppins_semibold" />
+
+                    <View
+                        android:layout_width="1dp"
+                        android:layout_height="24dp"
+                        android:layout_marginStart="12dp"
+                        android:background="#E3E6EC" />
+
+                    <EditText
+                        android:id="@+id/et_mobile_number"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="match_parent"
+                        android:layout_marginStart="12dp"
+                        android:autofillHints="phone"
+                        android:background="@android:color/transparent"
+                        android:textCursorDrawable="@drawable/color_cursor"
+                        android:textColor="#1F2430"
+                        android:hint="98765 43210"
+                        android:textColorHint="#9AA0AC"
+                        android:textSize="16sp"
+                        android:imeOptions="actionDone"
+                        android:inputType="phone"
+                        android:maxLength="10"
+                        android:fontFamily="@font/poppins_medium" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- Referral code checkbox -->
+            <CheckBox
+                android:id="@+id/referCode_checkbox"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:text="Have a referral code?"
+                android:textColor="#4B5563"
+                android:textSize="14sp"
+                android:buttonTint="@color/colorAccent"
+                android:fontFamily="@font/poppins_regular"
+                android:visibility="visible" />
+
+            <androidx.cardview.widget.CardView
+                android:id="@+id/cv_referCode"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="14dp"
+                android:visibility="gone"
+                app:cardElevation="0dp"
+                app:cardCornerRadius="14dp"
+                app:cardBackgroundColor="@color/white"
+                app:strokeColor="#E3E6EC"
+                app:strokeWidth="1dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="10dp">
+                    <EditText
+                        android:id="@+id/et_referCode"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:hint="Enter referral code"
+                        android:textSize="15sp"
+                        android:textColor="#1F2430"
+                        android:textColorHint="#9AA0AC"
+                        android:fontFamily="@font/poppins_medium"
+                        android:background="@android:color/transparent"
+                        android:imeOptions="actionDone" />
+                    <RelativeLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/applyReferral"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Apply"
+                            android:textSize="13sp"
+                            android:textColor="@color/white"
+                            android:fontFamily="@font/poppins_semibold"
+                            app:cornerRadius="8dp"
+                            app:backgroundTint="@color/colorAccent" />
+
+                        <ProgressBar
+                            android:id="@+id/pb_apply_referral_loader"
+                            android:layout_width="18dp"
+                            android:layout_height="18dp"
+                            android:elevation="8dp"
+                            android:indeterminate="true"
+                            android:visibility="gone"
+                            android:indeterminateTint="@color/white"
+                            android:layout_centerInParent="true" />
+
+                    </RelativeLayout>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <TextView
+                android:id="@+id/tv_otp_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:layout_marginBottom="18dp"
+                android:textColor="@color/grey_medium"
+                android:fontFamily="@font/poppins_regular"
+                android:text="@string/you_will_receive_an_otp_on_this_number" />
+
+            <!-- Send OTP Button -->
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="14dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_send_otp"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:textAllCaps="false"
+                    android:enabled="false"
+                    android:fontFamily="@font/poppins_semibold"
+                    android:text="@string/send_otp"
+                    android:textSize="16sp"
+                    app:cornerRadius="14dp"
+                    android:textColor="@color/white"
+                    app:backgroundTint="@color/colorAccent" />
+
+                <ProgressBar
+                    android:id="@+id/pb_send_otp_loader"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:elevation="8dp"
+                    android:indeterminate="true"
+                    android:visibility="gone"
+                    android:indeterminateTint="@color/white"
+                    android:layout_centerInParent="true" />
+            </RelativeLayout>
+
+            <!-- Terms and Conditions -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="start"
+                android:layout_marginTop="2dp">
+
+                <CheckBox
+                    android:id="@+id/cb_terms_and_conditions"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:buttonTint="@color/colorAccent"
+                    android:checked="true"
+                    android:focusable="false"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:padding="0dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/tv_terms_and_conditions"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_vertical"
+                    android:fontFamily="@font/poppins_regular"
+                    android:text="@string/terms_and_conditions_text"
+                    android:textColor="@color/grey_medium"
+                    android:textSize="11sp" />
+            </LinearLayout>
 
         </LinearLayout>
 
-        <!-- OTP Section -->
+        <!-- ===== OTP Section ===== -->
         <LinearLayout
             android:id="@+id/otp_section"
             android:layout_width="match_parent"
@@ -417,11 +854,20 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:text="Verify OTP"
+                android:textSize="26sp"
+                android:textColor="#1F2430"
+                android:fontFamily="@font/poppins_bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:textSize="13sp"
-                android:layout_marginBottom="4dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="14dp"
                 android:textColor="@color/grey_medium"
                 android:fontFamily="@font/poppins_regular"
-                android:text="OTP sent to"/>
+                android:text="OTP sent to" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -435,9 +881,9 @@
                     android:layout_weight="1"
                     android:layout_height="wrap_content"
                     android:textSize="16sp"
-                    android:textColor="@color/black_light"
+                    android:textColor="#1F2430"
                     android:fontFamily="@font/poppins_semibold"
-                    android:text="7010565083"/>
+                    android:text="7010565083" />
 
                 <TextView
                     android:id="@+id/iv_edit"
@@ -451,7 +897,7 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:paddingVertical="4dp"
-                    android:paddingHorizontal="8dp"/>
+                    android:paddingHorizontal="8dp" />
             </LinearLayout>
 
             <TextView
@@ -462,7 +908,7 @@
                 android:layout_marginBottom="10dp"
                 android:textColor="@color/grey_medium"
                 android:fontFamily="@font/poppins_medium"
-                android:text="Enter 6-digit OTP"/>
+                android:text="Enter 6-digit OTP" />
 
             <com.chaos.view.PinView
                 android:id="@+id/pv_otp"
@@ -494,15 +940,15 @@
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_verify_otp"
                     android:layout_width="match_parent"
-                    android:layout_height="52dp"
+                    android:layout_height="56dp"
                     android:textAllCaps="false"
                     android:enabled="false"
                     android:fontFamily="@font/poppins_semibold"
                     android:text="Verify OTP"
-                    android:textSize="15sp"
-                    app:cornerRadius="8dp"
+                    android:textSize="16sp"
+                    app:cornerRadius="14dp"
                     android:textColor="@color/white"
-                    app:backgroundTint="@color/colorAccent"/>
+                    app:backgroundTint="@color/colorAccent" />
 
                 <ProgressBar
                     android:id="@+id/pb_verify_otp_loader"
@@ -512,7 +958,7 @@
                     android:indeterminate="true"
                     android:visibility="gone"
                     android:indeterminateTint="@color/white"
-                    android:layout_centerInParent="true"/>
+                    android:layout_centerInParent="true" />
             </RelativeLayout>
 
             <!-- Resend OTP Section -->
@@ -529,7 +975,7 @@
                     android:text="Didn't receive the OTP? "
                     android:textSize="13sp"
                     android:textColor="@color/grey_medium"
-                    android:fontFamily="@font/poppins_regular"/>
+                    android:fontFamily="@font/poppins_regular" />
 
                 <RelativeLayout
                     android:layout_width="wrap_content"
@@ -563,7 +1009,7 @@
                         android:layout_centerInParent="true"
                         android:indeterminate="true"
                         android:visibility="gone"
-                        android:indeterminateTint="@color/colorAccent"/>
+                        android:indeterminateTint="@color/colorAccent" />
                 </RelativeLayout>
             </LinearLayout>
 

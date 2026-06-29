@@ -9,10 +9,10 @@
     android:clickable="true"
     android:focusable="true"
     app:cardBackgroundColor="@color/white"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="1dp"
-    app:rippleColor="@color/colorAccent"
-    app:strokeColor="@color/divider"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="0dp"
+    app:rippleColor="@android:color/transparent"
+    app:strokeColor="@color/onboarding_card_border"
     app:strokeWidth="1dp">
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -25,7 +25,7 @@
             android:id="@+id/iv_language"
             android:layout_width="52dp"
             android:layout_height="52dp"
-            android:background="@drawable/circle_bg_grey"
+            android:background="@drawable/circle_bg_pink_light"
             android:gravity="center"
             android:text="ह"
             android:textColor="@color/colorAccent"
@@ -81,6 +81,36 @@
             app:tint="@color/colorAccent"
             tools:ignore="ContentDescription"
             tools:visibility="visible" />
+
+        <!-- Big native-script "hero" revealed (left→right) during the badge sweep -->
+        <TextView
+            android:id="@+id/tv_hero_native"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:alpha="0"
+            android:fontFamily="@font/poppins_bold"
+            android:gravity="center"
+            android:text="हिंदी"
+            android:textColor="@color/colorAccent"
+            android:textSize="30sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:ignore="HardcodedText" />
+
+        <!-- Gloss shine overlay (swept across on selection; alpha 0 at rest) -->
+        <View
+            android:id="@+id/v_shine"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_margin="-16dp"
+            android:alpha="0"
+            android:background="@drawable/bg_shine_sweep"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </com.google.android.material.card.MaterialCardView>

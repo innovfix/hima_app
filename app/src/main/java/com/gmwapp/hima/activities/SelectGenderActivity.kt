@@ -1,9 +1,14 @@
 package com.gmwapp.hima.activities
 
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
+import android.animation.PropertyValuesHolder
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.View
+import android.view.animation.AccelerateDecelerateInterpolator
+import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -37,6 +42,8 @@ class SelectGenderActivity : BaseActivity() {
     private val profileViewModel: ProfileViewModel by viewModels()
     private var selectedGender = "male"
     private var avatarsListAdapter: AvatarsListAdapter? = null
+    private var entranceAnimator: AnimatorSet? = null
+    private var breathingAnimator: ObjectAnimator? = null
 
     @javax.inject.Inject
     lateinit var apiManager: ApiManager
@@ -45,12 +52,13 @@ class SelectGenderActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivitySelectGenderBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        // API 35+ forces edge-to-edge. The layout uses fitsSystemWindows=true
-        // on the AppBarLayout so the pink gradient extends *under* the status
-        // bar. We only need to force LIGHT status-bar icons (white) so they
-        // stay readable against the pink gradient.
-        WindowInsetsControllerCompat(window, binding.root)
-            .isAppearanceLightStatusBars = false
+        // Light onboarding theme: white status bar with DARK icons, and pad the
+        // root for the status/nav bar insets so content sits below the notch.
+        applySystemBarInsets(
+            binding.root,
+            statusBarColor = R.color.white,
+            darkStatusBarIcons = true,
+        )
         callTrackingInfoFromSavedAddress()
         initUI()
     }
@@ -58,6 +66,13 @@ class SelectGenderActivity : BaseActivity() {
     override fun onResume() {
         super.onResume()
         setContinueLoading(false)
+    }
+
+    override fun onDestroy() {
+        // Stop the infinite breathing loop so it doesn't leak the activity.
+        entranceAnimator?.cancel()
+        breathingAnimator?.cancel()
+        super.onDestroy()
     }
 
     private fun initUI() {
@@ -140,8 +155,9 @@ class SelectGenderActivity : BaseActivity() {
             }
         })
         
-        // Set initial male selection
-        updateGenderSelection(true)
+        // Set initial male selection (no entrance animation on first paint —
+        // just start the idle breathing on the default-selected card).
+        updateGenderSelection(true, animateEntrance = false)
     }
 
     private fun setContinueLoading(isLoading: Boolean) {
@@ -150,46 +166,110 @@ class SelectGenderActivity : BaseActivity() {
         binding.btnContinue.isEnabled = !isLoading
     }
     
-    private fun updateGenderSelection(isMale: Boolean) {
-        val accentColor = ColorStateList.valueOf(getColor(R.color.colorAccent))
-        val dividerColor = ColorStateList.valueOf(getColor(R.color.divider))
-        val greyColor = getColor(R.color.grey_medium)
-        val accentTextColor = getColor(R.color.colorAccent)
-        val whiteColor = getColor(R.color.white)
-        val greyLightColor = getColor(R.color.grey_extra_light)
-        
-        if (isMale) {
-            // Male selected
-            binding.cvMale.setStrokeColor(accentColor)
-            binding.cvMale.strokeWidth = 6
-            binding.cvMale.setCardBackgroundColor(whiteColor)
-            binding.btnMale.setTextColor(accentTextColor)
-            binding.iconMale.setBackgroundResource(R.drawable.circle_bg_accent)
-            binding.iconMale.setTextColor(whiteColor)
-            
-            // Female unselected
-            binding.cvFemale.setStrokeColor(dividerColor)
-            binding.cvFemale.strokeWidth = 3
-            binding.cvFemale.setCardBackgroundColor(whiteColor)
-            binding.btnFemale.setTextColor(greyColor)
-            binding.iconFemale.setBackgroundResource(R.drawable.circle_bg_grey)
-            binding.iconFemale.setTextColor(greyColor)
+    private fun updateGenderSelection(isMale: Boolean, animateEntrance: Boolean = true) {
+        applyCardState(
+            card = binding.cvMale,
+            icon = binding.iconMale,
+            title = binding.btnMale,
+            selected = isMale,
+        )
+        applyCardState(
+            card = binding.cvFemale,
+            icon = binding.iconFemale,
+            title = binding.btnFemale,
+            selected = !isMale,
+        )
+
+        val selectedIcon = if (isMale) binding.iconMale else binding.iconFemale
+        val otherIcon = if (isMale) binding.iconFemale else binding.iconMale
+        animateGenderIcon(selectedIcon, otherIcon, animateEntrance)
+    }
+
+    /**
+     * Combo motion for the selected gender icon:
+     *  1. a 3D coin-flip reveal,
+     *  2. a quick wiggle of the ♂/♀ symbol as it lands,
+     *  3. then a continuous "breathing" pulse while the card stays selected.
+     * The previously-selected icon is reset to rest.
+     */
+    private fun animateGenderIcon(selected: TextView, other: TextView, entrance: Boolean) {
+        // Tear down any in-flight motion so rapid toggles stay clean.
+        entranceAnimator?.cancel()
+        breathingAnimator?.cancel()
+        breathingAnimator = null
+        resetIconTransforms(other)
+        resetIconTransforms(selected)
+
+        val density = resources.displayMetrics.density
+        // Push the 3D camera back so the coin-flip doesn't fish-eye / clip.
+        selected.cameraDistance = 8000 * density
+
+        if (entrance) {
+            val flip = ObjectAnimator.ofFloat(selected, View.ROTATION_Y, 0f, 360f).apply {
+                duration = 600
+                interpolator = AccelerateDecelerateInterpolator()
+            }
+            val wiggle = ObjectAnimator.ofFloat(
+                selected, View.ROTATION, 0f, -14f, 12f, -6f, 0f
+            ).apply {
+                duration = 550
+                startDelay = 470
+                interpolator = AccelerateDecelerateInterpolator()
+            }
+            entranceAnimator = AnimatorSet().apply {
+                playTogether(flip, wiggle)
+                start()
+            }
+            startBreathing(selected, delayMs = 700)
         } else {
-            // Female selected
-            binding.cvFemale.setStrokeColor(accentColor)
-            binding.cvFemale.strokeWidth = 6
-            binding.cvFemale.setCardBackgroundColor(whiteColor)
-            binding.btnFemale.setTextColor(accentTextColor)
-            binding.iconFemale.setBackgroundResource(R.drawable.circle_bg_accent)
-            binding.iconFemale.setTextColor(whiteColor)
-            
-            // Male unselected
-            binding.cvMale.setStrokeColor(dividerColor)
-            binding.cvMale.strokeWidth = 3
-            binding.cvMale.setCardBackgroundColor(whiteColor)
-            binding.btnMale.setTextColor(greyColor)
-            binding.iconMale.setBackgroundResource(R.drawable.circle_bg_grey)
-            binding.iconMale.setTextColor(greyColor)
+            startBreathing(selected, delayMs = 0)
+        }
+    }
+
+    private fun startBreathing(icon: TextView, delayMs: Long) {
+        val anim = ObjectAnimator.ofPropertyValuesHolder(
+            icon,
+            PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 1.07f),
+            PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, 1.07f),
+        ).apply {
+            duration = 1200
+            startDelay = delayMs
+            repeatCount = ObjectAnimator.INFINITE
+            repeatMode = ObjectAnimator.REVERSE
+            interpolator = AccelerateDecelerateInterpolator()
+        }
+        breathingAnimator = anim
+        anim.start()
+    }
+
+    private fun resetIconTransforms(icon: TextView) {
+        icon.animate().cancel()
+        icon.rotation = 0f
+        icon.rotationY = 0f
+        icon.scaleX = 1f
+        icon.scaleY = 1f
+    }
+
+    /** Paint a gender card to match the redesigned selected / unselected look. */
+    private fun applyCardState(
+        card: com.google.android.material.card.MaterialCardView,
+        icon: android.widget.TextView,
+        title: android.widget.TextView,
+        selected: Boolean,
+    ) {
+        val density = resources.displayMetrics.density
+        if (selected) {
+            card.setStrokeColor(ColorStateList.valueOf(getColor(R.color.colorAccent)))
+            card.strokeWidth = (2 * density).toInt()
+            icon.setBackgroundResource(R.drawable.circle_bg_accent)
+            icon.setTextColor(getColor(R.color.white))
+            title.setTextColor(getColor(R.color.colorAccent))
+        } else {
+            card.setStrokeColor(ColorStateList.valueOf(getColor(R.color.onboarding_card_border)))
+            card.strokeWidth = (1 * density).toInt()
+            icon.setBackgroundResource(R.drawable.circle_bg_grey)
+            icon.setTextColor(getColor(R.color.black_light))
+            title.setTextColor(getColor(R.color.onboarding_title))
         }
     }
 

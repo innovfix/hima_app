@@ -50,11 +50,13 @@ class SelectLanguageActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivitySelectLanguageBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        // API 35+ forces edge-to-edge. The layout uses fitsSystemWindows=true
-        // on the AppBarLayout so the pink gradient extends *under* the status
-        // bar. Force LIGHT status-bar icons so they stay readable on the pink.
-        WindowInsetsControllerCompat(window, binding.root)
-            .isAppearanceLightStatusBars = false
+        // Light onboarding theme: white status bar with DARK icons, and pad the
+        // root for the status/nav bar insets so content sits below the notch.
+        applySystemBarInsets(
+            binding.root,
+            statusBarColor = R.color.white,
+            darkStatusBarIcons = true,
+        )
         initUI()
     }
 

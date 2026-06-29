@@ -2,6 +2,11 @@
 <resources>
     <color name="colorPrimary">#ff1383</color>
     <color name="colorAccent">#ff1383</color>
+    <!-- Onboarding redesign (gender step) -->
+    <color name="onboarding_title">#3A3A3A</color>
+    <color name="onboarding_card_border">#E6E7EB</color>
+    <color name="onboarding_step_inactive">#E8E8EC</color>
+    <color name="onboarding_back_btn_bg">#F1F1F4</color>
     <color name="colorPrimaryDark">#ff0d4a</color>
     <color name="colorPrimaryLight">#FFA5CF</color>
     <color name="dark_blue">#ff1383</color>
