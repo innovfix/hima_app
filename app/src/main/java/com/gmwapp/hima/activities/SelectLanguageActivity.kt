@@ -267,24 +267,29 @@ class SelectLanguageActivity : BaseActivity() {
 
     /**
      * Static fallback for /language_config when the API returns null/fails.
-     * Mirrors the seed data in `language_configs` table — North Indian
-     * languages → autopay, South Indian → ai_onboarding. Prevents Hindi
-     * users from getting wrongly routed into the AI-onboarding flow on a
-     * transient API hiccup. Case-insensitive lookup so admin/curl-created
-     * users with non-standard casing (e.g. "hindi") still map correctly.
+     *
+     * Only the autopay whitelist (North Indian languages) is inferred here —
+     * autopay is non-disruptive (offers just surface from home) and this
+     * keeps Hindi-style users from a cold-start mis-route.
+     *
+     * ai_onboarding is intentionally NOT inferred: it is a disruptive,
+     * one-time flow we enter ONLY when the server explicitly returns
+     * "ai_onboarding". On a failed/empty language_config we default to
+     * "none" (skip to home) so the admin config fully decides. This stops
+     * a language whose admin feature is "none" (e.g. Tamil) from being
+     * wrongly pushed into AI onboarding on a transient API hiccup.
+     *
+     * Case-insensitive lookup so admin/curl-created users with non-standard
+     * casing (e.g. "hindi") still map correctly.
      */
     private fun fallbackFeature(language: String): String {
         val autopayLanguages = setOf(
             "hindi", "bengali", "assamese", "gujarati",
             "punjabi", "odia", "marathi"
         )
-        val aiOnboardingLanguages = setOf(
-            "tamil", "telugu", "kannada", "malayalam"
-        )
         val key = language.trim().lowercase()
         return when {
             key in autopayLanguages -> "autopay"
-            key in aiOnboardingLanguages -> "ai_onboarding"
             else -> "none"
         }
     }
