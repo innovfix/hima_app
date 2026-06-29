@@ -87,6 +87,50 @@ object CallNotifications {
     private const val MISSED_CALL_ID_MASK = 0x60000000
 
     /**
+     * Max age before a queued incoming-call push is treated as stale and dropped
+     * instead of rung. After a device is offline, OneSignal mass-delivers its
+     * queued call backlog on reconnect; a call that ended hours ago would
+     * otherwise render as a fake full-screen ring that piles up and can't be
+     * dismissed (no live `callDeclined` cancel is ever coming for a long-dead
+     * call). 60s — generous vs. OneSignal delivery latency, lethal to a backlog.
+     * (The raw-FCM path uses a tighter 20s; OneSignal delivery is slower.)
+     */
+    const val STALE_INCOMING_CALL_MAX_AGE_MS = 60_000L
+
+    /**
+     * Age (ms) of an incoming-call push, or `null` when no trustworthy send-time
+     * is available — callers must FAIL OPEN (ring) on null rather than silently
+     * dropping a real call.
+     *
+     * Trust order:
+     *   1. `call_sent_at` custom payload field (epoch seconds OR ms) when the
+     *      backend includes it.
+     *   2. OneSignal's own [com.onesignal.notifications.INotification.sentTime]
+     *      (set when OneSignal dispatched the push, from FCM's `google.sent_time`,
+     *      preserved across queued/delayed delivery). This is the key fallback the
+     *      previous `call_sent_at`-only guard lacked: the OneSignal call template
+     *      carries no custom timestamp, so that guard always failed open and let
+     *      the reconnect backlog ring through.
+     *
+     * NOTE on units: in OneSignal Android SDK 5.1.34, `sentTime` is epoch
+     * **seconds** (the SDK stores `google.sent_time / 1000`), whereas a backend
+     * `call_sent_at` may be seconds OR ms. [normalizeEpochMs] rescales both to ms —
+     * do not remove that rescaling just because one source "looks like" ms.
+     */
+    fun incomingCallPushAgeMs(callSentAtRaw: String?, oneSignalSentTime: Long): Long? {
+        val sentMs = normalizeEpochMs(callSentAtRaw?.trim()?.toLongOrNull())
+            ?: normalizeEpochMs(oneSignalSentTime)
+            ?: return null
+        return System.currentTimeMillis() - sentMs
+    }
+
+    /** Coerce an epoch value to milliseconds; values below ~year-2001-in-ms are seconds. */
+    private fun normalizeEpochMs(v: Long?): Long? {
+        if (v == null || v <= 0L) return null
+        return if (v < 1_000_000_000_000L) v * 1000L else v
+    }
+
+    /**
      * Strips "Missed call from …" / similar prefixes from server or OneSignal title
      * so [Person] name and avatar initial match the real peer (e.g. "Kishore12").
      * Safe to call on already-clean names (idempotent).

@@ -173,19 +173,23 @@ class OneSignalNotificationServiceExtension : INotificationServiceExtension {
 
         if (senderId <= 0) return false
 
-        // Stale-call guard (mirrors the FCM path's 20s check): after the device
-        // has been offline, OneSignal mass-delivers the queued call backlog on
-        // reconnect. Drop call pushes older than 60s so they don't render as fake
-        // ringing notifications that pile up and can't be dismissed. Fail-open:
-        // if the push carries no `call_sent_at` (older backend), show the call.
-        val callSentAtMs = data.optString("call_sent_at", "").toLongOrNull()
-        if (callSentAtMs != null && callSentAtMs > 0L) {
-            val ageMs = System.currentTimeMillis() - callSentAtMs
-            if (ageMs > 60_000L) {
-                Log.w(TAG, "Dropping stale OneSignal call push (${ageMs / 1000}s old) senderId=$senderId")
-                event.preventDefault()
-                return true
-            }
+        // Stale-call guard (mirrors the FCM path's freshness check): after the
+        // device has been offline, OneSignal mass-delivers the queued call backlog
+        // on reconnect. Drop call pushes older than the freshness window so they
+        // don't render as fake ringing notifications that pile up and can't be
+        // dismissed (no live cancel is coming for a long-dead call). Age comes from
+        // `call_sent_at` if the backend sends it, else OneSignal's own sentTime —
+        // so the guard works even though the call template carries no custom
+        // timestamp (the previous call_sent_at-only check always failed open here).
+        // Fail-open only when NEITHER source yields a usable send-time.
+        val ageMs = com.gmwapp.hima.utils.CallNotifications.incomingCallPushAgeMs(
+            data.optString("call_sent_at", ""),
+            event.notification.sentTime
+        )
+        if (ageMs != null && ageMs > com.gmwapp.hima.utils.CallNotifications.STALE_INCOMING_CALL_MAX_AGE_MS) {
+            Log.w(TAG, "Dropping stale OneSignal call push (${ageMs / 1000}s old) senderId=$senderId")
+            event.preventDefault()
+            return true
         }
 
         val userData = com.gmwapp.hima.BaseApplication.getInstance()?.getPrefs()?.getUserData()

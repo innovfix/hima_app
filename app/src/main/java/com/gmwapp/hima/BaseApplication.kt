@@ -738,6 +738,22 @@ class BaseApplication : Application(), Configuration.Provider {
 
                 // Incoming call: post the same CallStyle UI as the FCM path.
                 if (looksLikeCallPush(additional) && !isInActiveCall() && !isMissedCall) {
+                    // Stale-call guard: OneSignal mass-delivers its queued call
+                    // backlog when the device reconnects after being offline, so a
+                    // call that ended hours ago would ring here as a fake incoming
+                    // call (and pile up — no cancel is coming for a long-dead call).
+                    // Mirror the NSE / FCM-path guard; uses call_sent_at if present,
+                    // else OneSignal's own sentTime. Suppress entirely when stale.
+                    val callAgeMs = com.gmwapp.hima.utils.CallNotifications.incomingCallPushAgeMs(
+                        additional?.optString("call_sent_at", ""),
+                        event.notification.sentTime
+                    )
+                    if (callAgeMs != null &&
+                        callAgeMs > com.gmwapp.hima.utils.CallNotifications.STALE_INCOMING_CALL_MAX_AGE_MS) {
+                        Log.w("OneSignal_Incoming", "Ignoring stale incoming call push (${callAgeMs / 1000}s old)")
+                        event.preventDefault()
+                        return
+                    }
                     val incoming = parseOneSignalIncomingCallPayload(additional, event.notification)
                     if (incoming != null) {
                         val posted = runCatching {
