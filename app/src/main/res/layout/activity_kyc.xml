@@ -71,10 +71,22 @@
                     android:text="@string/complete_Kyc"
                     android:textColor="@color/kyc_text_primary"
                     android:textSize="20sp"
-                    app:layout_constraintBottom_toBottomOf="@id/iv_back"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toEndOf="@id/iv_back"
                     app:layout_constraintTop_toTopOf="@id/iv_back" />
+
+                <TextView
+                    android:id="@+id/tv_kyc_subtitle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:fontFamily="@font/poppins_regular"
+                    android:text="Verify your PAN to enable payouts"
+                    android:textColor="@color/kyc_text_secondary"
+                    android:textSize="13sp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/iv_back"
+                    app:layout_constraintTop_toBottomOf="@id/tv_withdraw" />
 
             </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -99,23 +111,46 @@
                 android:orientation="vertical"
                 android:padding="24dp">
 
-                <!-- Form Title -->
-                <TextView
+                <!-- Form Header: pink card badge + title + subtitle -->
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:fontFamily="@font/poppins_semibold"
-                    android:text="PAN Card Details"
-                    android:textColor="@color/kyc_text_primary"
-                    android:textSize="18sp" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:fontFamily="@font/poppins_regular"
-                    android:text="Please provide your PAN card information for verification"
-                    android:textColor="@color/kyc_text_secondary"
-                    android:textSize="13sp" />
+                    <ImageView
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:background="@drawable/circle_bg_pink_light"
+                        android:padding="11dp"
+                        android:src="@drawable/pan"
+                        android:contentDescription="@string/pan_card_number"
+                        app:tint="@color/colorAccent" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="14dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/poppins_semibold"
+                            android:text="PAN Card Details"
+                            android:textColor="@color/kyc_text_primary"
+                            android:textSize="18sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/poppins_regular"
+                            android:text="Used for verification only"
+                            android:textColor="@color/kyc_text_secondary"
+                            android:textSize="13sp" />
+                    </LinearLayout>
+                </LinearLayout>
 
                 <!-- Divider -->
                 <View
@@ -202,12 +237,16 @@
                     android:orientation="horizontal"
                     android:padding="12dp">
 
-                    <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
+                    <TextView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
                         android:layout_gravity="center_vertical"
-                        android:src="@drawable/ic_info"
-                        app:tint="@color/kyc_primary" />
+                        android:background="@drawable/circle_bg_accent"
+                        android:gravity="center"
+                        android:text="i"
+                        android:textColor="@color/white"
+                        android:textSize="12sp"
+                        android:textStyle="bold|italic" />
 
                     <TextView
                         android:layout_width="0dp"
@@ -216,8 +255,8 @@
                         android:layout_marginStart="10dp"
                         android:layout_weight="1"
                         android:fontFamily="@font/poppins_regular"
-                        android:text="Your information is secure and will be used for verification purposes only"
-                        android:textColor="@color/kyc_text_secondary"
+                        android:text="Your information is secure and reviewed by our admin team within 24 hours."
+                        android:textColor="@color/kyc_primary"
                         android:textSize="12sp" />
 
                 </LinearLayout>
@@ -239,7 +278,7 @@
             android:textAllCaps="false"
             android:textColor="@color/kyc_button_text_color"
             android:textSize="16sp"
-            app:cornerRadius="12dp"
+            app:cornerRadius="28dp"
             app:elevation="2dp"
             app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
             app:layout_constraintStart_toStartOf="@id/gl_left_margin"

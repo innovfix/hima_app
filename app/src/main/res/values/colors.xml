@@ -50,6 +50,9 @@
     <color name="grey">#545454</color>
     <color name="grey_extra_light">#F5F6F8</color>
     <color name="light_grey">#E8EAED</color>
+    <color name="chat_call_audio_bg">#FFFDE7F1</color>
+    <color name="chat_call_video_bg">#FFF4E7FF</color>
+    <color name="chat_call_grey_bg">#FFF1F2F5</color>
     <color name="text_light_grey">#979797</color>
     <color name="purple_400">#6E4EEF</color>
     <color name="brown">#A34148</color>
@@ -74,16 +77,16 @@
     <color name="professional_card_bg">#1E293B</color>
 
     <!-- KYC Professional Colors -->
-    <color name="kyc_primary">#2563EB</color>
-    <color name="kyc_primary_dark">#1E40AF</color>
+    <color name="kyc_primary">#FF1383</color>
+    <color name="kyc_primary_dark">#C70E66</color>
     <color name="kyc_background">#F8FAFC</color>
     <color name="kyc_card_bg">#FFFFFF</color>
     <color name="kyc_text_primary">#1E293B</color>
     <color name="kyc_text_secondary">#64748B</color>
     <color name="kyc_text_hint">#94A3B8</color>
     <color name="kyc_border">#E2E8F0</color>
-    <color name="kyc_border_focused">#2563EB</color>
-    <color name="kyc_button_bg">#2563EB</color>
+    <color name="kyc_border_focused">#FF1383</color>
+    <color name="kyc_button_bg">#FF1383</color>
     <color name="kyc_button_text">#FFFFFF</color>
     <color name="kyc_button_disabled">#CBD5E1</color>
     <color name="kyc_button_text_disabled">#94A3B8</color>
