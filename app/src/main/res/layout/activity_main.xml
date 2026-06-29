@@ -56,7 +56,7 @@
         app:itemTextAppearanceActive="@style/BottomNavTextActive"
         app:itemTextAppearanceInactive="@style/BottomNavTextInactive"
         app:itemActiveIndicatorStyle="@style/BottomNavIndicator"
-        app:itemRippleColor="#20FF1381"
+        app:itemRippleColor="@android:color/transparent"
         app:itemPaddingTop="6dp"
         app:itemPaddingBottom="6dp"
         app:menu="@menu/bottom_nav_menu" />

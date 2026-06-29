@@ -204,25 +204,27 @@
 
     <!-- Modern Bottom Navigation Styles -->
     <style name="BottomNavTextActive" parent="TextAppearance.AppCompat.Caption">
-        <item name="android:textSize">11sp</item>
-        <item name="android:textStyle">bold</item>
-        <item name="android:letterSpacing">0.02</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textStyle">normal</item>
+        <item name="android:letterSpacing">0.01</item>
         <item name="android:textColor">@color/pink</item>
-        <item name="fontFamily">sans-serif-medium</item>
+        <item name="fontFamily">@font/poppins_semibold</item>
+        <item name="android:fontFamily">@font/poppins_semibold</item>
     </style>
 
     <style name="BottomNavTextInactive" parent="TextAppearance.AppCompat.Caption">
-        <item name="android:textSize">10sp</item>
+        <item name="android:textSize">12sp</item>
         <item name="android:textStyle">normal</item>
         <item name="android:letterSpacing">0.01</item>
         <item name="android:textColor">#64748B</item>
-        <item name="fontFamily">sans-serif</item>
+        <item name="fontFamily">@font/poppins_medium</item>
+        <item name="android:fontFamily">@font/poppins_medium</item>
     </style>
 
     <style name="BottomNavIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
         <item name="android:width">64dp</item>
         <item name="android:height">40dp</item>
-        <item name="android:color">#FFF0F6</item>
+        <item name="android:color">@android:color/transparent</item>
         <item name="shapeAppearance">@style/BottomNavIndicatorShape</item>
     </style>
 

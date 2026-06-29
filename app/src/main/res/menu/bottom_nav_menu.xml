@@ -3,7 +3,7 @@
     <item
         android:id="@+id/home"
         android:enabled="true"
-        android:icon="@drawable/nav_home"
+        android:icon="@drawable/nav_home_state"
         android:iconTint="@color/white"
         android:title="@string/home"
         android:tooltipText="@null"
@@ -27,15 +27,15 @@
     <item
         android:id="@+id/favourite"
         android:enabled="true"
-        android:icon="@drawable/nav_favourite"
+        android:icon="@drawable/nav_favourite_selector"
         android:iconTint="@color/white"
-        android:title="@string/friends"
+        android:title="@string/favourite"
         android:tooltipText="@null"
         app:showAsAction="always" />
     <item
         android:id="@+id/profile"
         android:enabled="true"
-        android:icon="@drawable/nav_profile"
+        android:icon="@drawable/nav_profile_state"
         android:iconTint="@color/white"
         android:title="@string/profile"
         android:tooltipText="@null"
