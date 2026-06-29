@@ -158,7 +158,8 @@ class RecentCallsAdapter(
             holder.binding.ivVideoCircle.visibility = View.VISIBLE
             holder.binding.ivAudio.visibility = View.VISIBLE
             holder.binding.ivVideo.visibility = View.VISIBLE
-            holder.binding.tvAmount.visibility = View.VISIBLE // Show earnings
+            // Per-call earnings pill, centred under the call buttons.
+            holder.binding.tvAmount.visibility = View.VISIBLE
             holder.binding.tvAmount.text = activity.getString(R.string.rupee_text, call.income)
 
             // Female viewer calling back a male — audio_status / video_status
@@ -181,15 +182,17 @@ class RecentCallsAdapter(
                 holder.binding.ivAudioCircle.setOnSingleClickListener {
                     onAudioListener.onItemSelected(call)
                 }
-                holder.binding.ivAudioCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.colorAccent))
-                holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.white))
+                // Unfilled look: light-pink circle with a pink phone icon.
+                holder.binding.ivAudioCircle.setCardBackgroundColor(android.graphics.Color.parseColor("#FCE3EE"))
+                holder.binding.ivAudio.setColorFilter(ContextCompat.getColor(activity, R.color.colorAccent))
                 holder.binding.ivAudio.isEnabled = true
                 holder.binding.ivAudio.setImageResource(R.drawable.ic_phone_modern)
             }
 
             holder.binding.ivVideoCircle.setOnSingleClickListener { onVideoListener.onItemSelected(call) }
-            holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.green))
-            holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.white))
+            // Unfilled look: light-grey circle with a grey video icon.
+            holder.binding.ivVideoCircle.setCardBackgroundColor(ContextCompat.getColor(activity, R.color.grey_extra_light))
+            holder.binding.ivVideo.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
             holder.binding.ivVideo.isEnabled = true
             holder.binding.ivVideo.setImageResource(R.drawable.ic_video_modern)
             // Show the Video button on the female/creator card too (both Audio + Video).
