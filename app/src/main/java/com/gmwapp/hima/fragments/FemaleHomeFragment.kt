@@ -626,6 +626,15 @@ class FemaleHomeFragment : BaseFragment(), Refreshable {
         binding.cvCreatorLevel.visibility = View.GONE
         binding.cvCreatorLevel.setOnSingleClickListener { /* disabled */ }
 
+        // Target female-home redesign: only the 4 target cards (Availability, tip,
+        // Today's Activity, Creators Joining) are shown. Hide the extras in code too,
+        // since some are force-shown by observers/XML otherwise.
+        // cv_call_rates (blue Earnings Details chart) stays — handled by the
+        // call_rates observer below (shown when the admin poster exists).
+        binding.cvPriceSlab.visibility = View.GONE
+        binding.cvYourBadge.visibility = View.GONE
+        binding.cvYourAverage.visibility = View.GONE
+
         // IPL Room Calls banner click — visibility handled by refreshIplBanner()
         binding.cardIplRooms.setOnClickListener {
             startActivity(Intent(requireContext(), com.gmwapp.hima.activities.IplRoomsActivity::class.java))
