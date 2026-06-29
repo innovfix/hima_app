@@ -199,19 +199,64 @@ class FemaleCallConnectingActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding = ActivityFemaleCallConnectingBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        // B014 — match the connecting screen's white background instead of
-        // hardcoding black. Dark status-bar icons stay legible against white.
-        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+
+        // UI-only ambience: rotating gradient ring + drifting glows + ripples.
+        run {
+            val d = resources.displayMetrics.density
+            fun loop(a: android.animation.ObjectAnimator, dur: Long) {
+                a.duration = dur
+                a.repeatCount = android.animation.ObjectAnimator.INFINITE
+                a.repeatMode = android.animation.ObjectAnimator.REVERSE
+                a.interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+                a.start()
+            }
+            fun driftGlow(v: android.view.View, dx: Float, dy: Float, durX: Long, durY: Long) {
+                loop(android.animation.ObjectAnimator.ofFloat(v, "translationX", dx), durX)
+                loop(android.animation.ObjectAnimator.ofFloat(v, "translationY", dy), durY)
+                loop(android.animation.ObjectAnimator.ofFloat(v, "scaleX", 1.28f), durX + 1500)
+                loop(android.animation.ObjectAnimator.ofFloat(v, "scaleY", 1.28f), durY + 1500)
+                loop(android.animation.ObjectAnimator.ofFloat(v, "alpha", 0.45f, 1f), durX)
+            }
+            fun ripple(v: android.view.View, delay: Long) {
+                v.alpha = 0f
+                val dec = android.view.animation.DecelerateInterpolator()
+                listOf(
+                    android.animation.ObjectAnimator.ofFloat(v, "scaleX", 0.7f, 2.85f),
+                    android.animation.ObjectAnimator.ofFloat(v, "scaleY", 0.7f, 2.85f),
+                    android.animation.ObjectAnimator.ofFloat(v, "alpha", 0.5f, 0f)
+                ).forEach {
+                    it.duration = 3000
+                    it.startDelay = delay
+                    it.repeatCount = android.animation.ObjectAnimator.INFINITE
+                    it.interpolator = dec
+                    it.start()
+                }
+            }
+            android.animation.ObjectAnimator.ofFloat(binding.waveRing1, "rotation", 0f, 360f).apply {
+                duration = 3200
+                repeatCount = android.animation.ObjectAnimator.INFINITE
+                interpolator = android.view.animation.LinearInterpolator()
+                start()
+            }
+            driftGlow(binding.glowTl, 85f * d, 95f * d, 6200, 8000)
+            driftGlow(binding.glowBr, -82f * d, -90f * d, 7000, 9200)
+            ripple(binding.callRipple1, 0)
+            ripple(binding.callRipple2, 1000)
+            ripple(binding.callRipple3, 2000)
+        }
+        // Dark connecting screen — match the status bar to the dark page bg and
+        // render the status-bar icons LIGHT (white) so they stay legible.
+        window.statusBarColor = android.graphics.Color.parseColor("#0D0D10")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             window.insetsController?.setSystemBarsAppearance(
-                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                0,
                 android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
             )
         } else {
             @Suppress("DEPRECATION")
             window.decorView.systemUiVisibility =
-                window.decorView.systemUiVisibility or
-                    android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                window.decorView.systemUiVisibility and
+                    android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
         }
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())

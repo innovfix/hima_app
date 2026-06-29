@@ -6,8 +6,28 @@
     android:fitsSystemWindows="true"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F8F9FA">
+    android:background="#0D0D10">
 
+    <!-- Drifting "smoke" glows (animated in code), behind all content -->
+    <View
+        android:id="@+id/glow_tl"
+        android:layout_width="300dp"
+        android:layout_height="300dp"
+        android:layout_marginStart="-90dp"
+        android:layout_marginTop="-90dp"
+        android:background="@drawable/bg_call_glow_pink"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <View
+        android:id="@+id/glow_br"
+        android:layout_width="320dp"
+        android:layout_height="320dp"
+        android:layout_marginEnd="-90dp"
+        android:layout_marginBottom="-110dp"
+        android:background="@drawable/bg_call_glow_purple"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/gl_left_margin"
@@ -31,7 +51,9 @@
         android:layout_margin="12dp"
         app:cardCornerRadius="18dp"
         app:cardElevation="2dp"
-        app:cardBackgroundColor="@color/white"
+        app:cardBackgroundColor="#1D1D24"
+        app:strokeColor="#333333"
+        app:strokeWidth="1dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
@@ -41,8 +63,8 @@
             android:layout_height="18dp"
             android:layout_gravity="center"
             android:src="@drawable/baseline_close_24"
-            android:tint="#555555"
-            app:tint="#555555" />
+            android:tint="#CFCFD6"
+            app:tint="#CFCFD6" />
     </com.google.android.material.card.MaterialCardView>
     
     <androidx.core.widget.NestedScrollView
@@ -81,7 +103,7 @@
         android:layout_marginTop="8dp"
         android:fontFamily="@font/poppins_bold"
         android:text="@string/how_was_your_call_with_shyam"
-        android:textColor="#1A1A1A"
+        android:textColor="#FFFFFF"
         android:textSize="20sp"
         android:lineSpacingExtra="0dp"
         app:layout_constraintEnd_toEndOf="@+id/gl_right_margin_inner"
@@ -97,7 +119,7 @@
         android:layout_marginTop="4dp"
         android:fontFamily="@font/poppins_regular"
         android:text="Your feedback helps us improve"
-        android:textColor="#757575"
+        android:textColor="#9A9AA6"
         android:textSize="12sp"
         app:layout_constraintEnd_toEndOf="@+id/gl_right_margin_inner"
         app:layout_constraintStart_toStartOf="@id/gl_left_margin_inner"
@@ -300,7 +322,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Block this user"
-            android:textColor="#333333"
+            android:textColor="#B8B8C2"
             android:fontFamily="@font/poppins_regular"
             android:textSize="12sp"
             android:layout_gravity="center_vertical"
@@ -334,7 +356,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Add to Favourite"
-            android:textColor="#333333"
+            android:textColor="#FFFFFF"
             android:fontFamily="@font/poppins_regular"
             android:textSize="12sp"
             android:layout_gravity="center_vertical"

@@ -107,14 +107,35 @@ class RatingActivity : BaseActivity() {
         }
 
 
-        window.statusBarColor = Color.parseColor("#ffffff") // startColor of your gradient
+        window.statusBarColor = Color.parseColor("#0D0D10") // dark feedback bg
 
-        // Make status bar icons light (white) so they're visible on black background
+        // Dark background — render status-bar icons LIGHT (white).
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             window.insetsController?.setSystemBarsAppearance(
-                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                0,
                 android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
             )
+        }
+
+        // UI-only ambience: drifting "smoke" glows behind the dark feedback form.
+        run {
+            val d = resources.displayMetrics.density
+            fun loop(a: android.animation.ObjectAnimator, dur: Long) {
+                a.duration = dur
+                a.repeatCount = android.animation.ObjectAnimator.INFINITE
+                a.repeatMode = android.animation.ObjectAnimator.REVERSE
+                a.interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+                a.start()
+            }
+            fun driftGlow(v: android.view.View, dx: Float, dy: Float, durX: Long, durY: Long) {
+                loop(android.animation.ObjectAnimator.ofFloat(v, "translationX", dx), durX)
+                loop(android.animation.ObjectAnimator.ofFloat(v, "translationY", dy), durY)
+                loop(android.animation.ObjectAnimator.ofFloat(v, "scaleX", 1.28f), durX + 1500)
+                loop(android.animation.ObjectAnimator.ofFloat(v, "scaleY", 1.28f), durY + 1500)
+                loop(android.animation.ObjectAnimator.ofFloat(v, "alpha", 0.45f, 1f), durX)
+            }
+            driftGlow(binding.glowTl, 85f * d, 95f * d, 6200, 8000)
+            driftGlow(binding.glowBr, -82f * d, -90f * d, 7000, 9200)
         }
         }
 

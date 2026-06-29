@@ -214,22 +214,19 @@ class MaleCallConnectingActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding =ActivityMaleCallConnectingBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        // B014 — the connecting layout has a white background (bg_white).
-        // Hardcoding the status bar to black created the jarring "completely
-        // black bar over a white screen" look. Match it to the page bg and
-        // ask the OS to render the status-bar icons in dark colors so they
-        // stay legible against white.
-        window.statusBarColor = ContextCompat.getColor(this, R.color.white)
+        // Dark connecting screen — match the status bar to the dark page bg and
+        // render the status-bar icons LIGHT (white) so they stay legible.
+        window.statusBarColor = android.graphics.Color.parseColor("#0D0D10")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             window.insetsController?.setSystemBarsAppearance(
-                android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                0,
                 android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
             )
         } else {
             @Suppress("DEPRECATION")
             window.decorView.systemUiVisibility =
-                window.decorView.systemUiVisibility or
-                    android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                window.decorView.systemUiVisibility and
+                    android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
         }
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -478,6 +475,59 @@ class MaleCallConnectingActivity : AppCompatActivity() {
         
         // Subtle connecting dots animation
         startConnectingDotsAnimation()
+
+        // Dark-theme ambience: rotating gradient ring, drifting glows, ripples.
+        startCallAmbienceAnimations()
+    }
+
+    private fun startCallAmbienceAnimations() {
+        val d = resources.displayMetrics.density
+        // Rotating gradient ring around the top avatar.
+        android.animation.ObjectAnimator.ofFloat(binding.waveRing1, "rotation", 0f, 360f).apply {
+            duration = 3200
+            repeatCount = android.animation.ObjectAnimator.INFINITE
+            interpolator = android.view.animation.LinearInterpolator()
+            start()
+        }
+        // Drifting "smoke" glows.
+        driftGlow(binding.glowTl, 85f * d, 95f * d, 6200, 8000)
+        driftGlow(binding.glowBr, -82f * d, -90f * d, 7000, 9200)
+        // Ripples emanating from the connection arrows (staggered).
+        startCallRipple(binding.callRipple1, 0)
+        startCallRipple(binding.callRipple2, 1000)
+        startCallRipple(binding.callRipple3, 2000)
+    }
+
+    private fun driftGlow(v: android.view.View, dx: Float, dy: Float, durX: Long, durY: Long) {
+        val ad = android.view.animation.AccelerateDecelerateInterpolator()
+        fun loop(anim: android.animation.ObjectAnimator, dur: Long) {
+            anim.duration = dur
+            anim.repeatCount = android.animation.ObjectAnimator.INFINITE
+            anim.repeatMode = android.animation.ObjectAnimator.REVERSE
+            anim.interpolator = ad
+            anim.start()
+        }
+        loop(android.animation.ObjectAnimator.ofFloat(v, "translationX", dx), durX)
+        loop(android.animation.ObjectAnimator.ofFloat(v, "translationY", dy), durY)
+        loop(android.animation.ObjectAnimator.ofFloat(v, "scaleX", 1.28f), durX + 1500)
+        loop(android.animation.ObjectAnimator.ofFloat(v, "scaleY", 1.28f), durY + 1500)
+        loop(android.animation.ObjectAnimator.ofFloat(v, "alpha", 0.45f, 1f), durX)
+    }
+
+    private fun startCallRipple(v: android.view.View, delay: Long) {
+        v.alpha = 0f
+        val dec = android.view.animation.DecelerateInterpolator()
+        listOf(
+            android.animation.ObjectAnimator.ofFloat(v, "scaleX", 0.7f, 2.85f),
+            android.animation.ObjectAnimator.ofFloat(v, "scaleY", 0.7f, 2.85f),
+            android.animation.ObjectAnimator.ofFloat(v, "alpha", 0.5f, 0f)
+        ).forEach {
+            it.duration = 3000
+            it.startDelay = delay
+            it.repeatCount = android.animation.ObjectAnimator.INFINITE
+            it.interpolator = dec
+            it.start()
+        }
     }
 
     /**

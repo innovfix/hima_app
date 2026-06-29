@@ -519,6 +519,33 @@ class FemaleAudioCallingActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding = ActivityFemaleAudioCallingBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // UI-only ambience: rotating gradient ring + drifting "smoke" glows.
+        run {
+            val d = resources.displayMetrics.density
+            fun loop(a: android.animation.ObjectAnimator, dur: Long) {
+                a.duration = dur
+                a.repeatCount = android.animation.ObjectAnimator.INFINITE
+                a.repeatMode = android.animation.ObjectAnimator.REVERSE
+                a.interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+                a.start()
+            }
+            fun driftGlow(v: android.view.View, dx: Float, dy: Float, durX: Long, durY: Long) {
+                loop(android.animation.ObjectAnimator.ofFloat(v, "translationX", dx), durX)
+                loop(android.animation.ObjectAnimator.ofFloat(v, "translationY", dy), durY)
+                loop(android.animation.ObjectAnimator.ofFloat(v, "scaleX", 1.28f), durX + 1500)
+                loop(android.animation.ObjectAnimator.ofFloat(v, "scaleY", 1.28f), durY + 1500)
+                loop(android.animation.ObjectAnimator.ofFloat(v, "alpha", 0.45f, 1f), durX)
+            }
+            android.animation.ObjectAnimator.ofFloat(binding.peerGradientRing, "rotation", 0f, 360f).apply {
+                duration = 3400
+                repeatCount = android.animation.ObjectAnimator.INFINITE
+                interpolator = android.view.animation.LinearInterpolator()
+                start()
+            }
+            driftGlow(binding.glowTl, 85f * d, 95f * d, 6200, 8000)
+            driftGlow(binding.glowBr, -82f * d, -90f * d, 7000, 9200)
+        }
         // B042: show "Connecting..." instead of stuck 00:00:00 while we wait
         // for the peer to join the Agora channel. startCountdown() overwrites
         // this on its first tick once onUserJoined() fires.
