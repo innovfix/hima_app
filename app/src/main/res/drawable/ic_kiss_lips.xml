@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kiss lips / love icon. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,9 C9.5,7 6,7 4,9 C2,11 3,14 6,15 C8,15.5 10.5,15 12,14 C13.5,15 16,15.5 18,15 C21,14 22,11 20,9 C18,7 14.5,7 12,9 Z M7,11 C7.5,11 8,11.4 8,12 C8,12.6 7.5,13 7,13 C6.5,13 6,12.6 6,12 C6,11.4 6.5,11 7,11 Z M17,11 C17.5,11 18,11.4 18,12 C18,12.6 17.5,13 17,13 C16.5,13 16,12.6 16,12 C16,11.4 16.5,11 17,11 Z" />
+</vector>

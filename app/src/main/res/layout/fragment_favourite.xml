@@ -17,36 +17,119 @@
         android:paddingTop="10dp"
         app:elevation="2dp">
 
-        <LinearLayout
+        <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
+            android:clipChildren="false"
+            android:clipToPadding="false"
             android:paddingHorizontal="20dp"
             android:paddingTop="20dp"
             android:paddingBottom="16dp">
 
-            <!-- Title -->
-            <TextView
-                android:id="@+id/tv_favourite_calls"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/poppins_bold"
-                android:letterSpacing="-0.02"
-                android:text="@string/favourite"
-                android:textColor="@color/black_light"
-                android:textSize="22sp" />
-
-            <!-- Subtitle -->
-            <TextView
+            <!-- Title + subtitle -->
+            <LinearLayout
+                android:id="@+id/ll_fav_titles"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:fontFamily="@font/poppins_regular"
-                android:text="Your favorite contacts"
-                android:textColor="@color/grey_medium"
-                android:textSize="13sp" />
-            
-        </LinearLayout>
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tv_favourite_calls"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/poppins_bold"
+                    android:letterSpacing="-0.02"
+                    android:text="@string/favourite"
+                    android:textColor="@color/black_light"
+                    android:textSize="22sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:fontFamily="@font/poppins_regular"
+                    android:text="Your favorite contacts"
+                    android:textColor="@color/grey_medium"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <!-- Decorative hearts + sparkles cluster (top-right) -->
+            <FrameLayout
+                android:layout_width="124dp"
+                android:layout_height="64dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true">
+
+                <ImageView
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_gravity="top|end"
+                    android:layout_marginTop="2dp"
+                    android:layout_marginEnd="6dp"
+                    android:alpha="0.85"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_heart_filled"
+                    app:tint="#FF5FA2" />
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_gravity="top|end"
+                    android:layout_marginTop="26dp"
+                    android:layout_marginEnd="28dp"
+                    android:alpha="0.7"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_heart_filled"
+                    app:tint="#FF5FA2" />
+
+                <ImageView
+                    android:layout_width="13dp"
+                    android:layout_height="13dp"
+                    android:layout_gravity="top|end"
+                    android:layout_marginTop="0dp"
+                    android:layout_marginEnd="46dp"
+                    android:alpha="0.6"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_heart_filled"
+                    app:tint="#FF5FA2" />
+
+                <ImageView
+                    android:layout_width="11dp"
+                    android:layout_height="11dp"
+                    android:layout_gravity="top|end"
+                    android:layout_marginTop="38dp"
+                    android:layout_marginEnd="8dp"
+                    android:alpha="0.55"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_heart_filled"
+                    app:tint="#FF5FA2" />
+
+                <ImageView
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:layout_gravity="top|end"
+                    android:layout_marginTop="22dp"
+                    android:layout_marginEnd="60dp"
+                    android:alpha="0.5"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_sparkle"
+                    app:tint="#FFB3D4" />
+
+                <ImageView
+                    android:layout_width="9dp"
+                    android:layout_height="9dp"
+                    android:layout_gravity="top|end"
+                    android:layout_marginTop="2dp"
+                    android:layout_marginEnd="74dp"
+                    android:alpha="0.5"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_sparkle"
+                    app:tint="#FFB3D4" />
+            </FrameLayout>
+
+        </RelativeLayout>
     </com.google.android.material.appbar.AppBarLayout>
 
     <!-- Main Content -->

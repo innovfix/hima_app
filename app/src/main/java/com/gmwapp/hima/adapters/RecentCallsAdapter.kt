@@ -18,6 +18,7 @@ import com.gmwapp.hima.activities.UserProfileDetailActivity
 import com.gmwapp.hima.callbacks.OnItemSelectionListener
 import com.gmwapp.hima.constants.DConstants
 import com.gmwapp.hima.databinding.AdapterCoinBinding
+import com.gmwapp.hima.databinding.AdapterFavouriteCallsBinding
 import com.gmwapp.hima.databinding.AdapterRecentCallsBinding
 import com.gmwapp.hima.retrofit.ApiManager
 import com.gmwapp.hima.retrofit.responses.CallsListResponse
@@ -51,6 +52,14 @@ class RecentCallsAdapter(
 
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        // Favourite tab uses its own clean card (adapter_favourite_calls.xml). Recent is unaffected.
+        if (isFavouriteMode) {
+            return FavouriteHolder(
+                AdapterFavouriteCallsBinding.inflate(
+                    LayoutInflater.from(parent.context), parent, false
+                )
+            )
+        }
         val itemHolder = ItemHolder(
             AdapterRecentCallsBinding.inflate(
                 LayoutInflater.from(parent.context), parent, false
@@ -60,8 +69,12 @@ class RecentCallsAdapter(
     }
 
     override fun onBindViewHolder(holderParent: RecyclerView.ViewHolder, position: Int) {
-        val holder: ItemHolder = holderParent as ItemHolder
         val call: CallsListResponseData = callList[position]
+        if (holderParent is FavouriteHolder) {
+            bindFavourite(holderParent, call)
+            return
+        }
+        val holder: ItemHolder = holderParent as ItemHolder
         Glide.with(activity).load(call.image).apply(
             RequestOptions().circleCrop()
         ).into(holder.binding.ivImage)
@@ -277,6 +290,33 @@ class RecentCallsAdapter(
 
         }
         
+        // Online / Offline labels under each call button — derived from the
+        // final button availability set by all the branches above (and matched
+        // to each button's visibility, so a hidden video button hides its label
+        // and the divider).
+        val onlineColor = ContextCompat.getColor(activity, R.color.green)
+        val offlineColor = ContextCompat.getColor(activity, R.color.grey_medium)
+
+        holder.binding.tvAudioStatus.visibility = holder.binding.ivAudioCircle.visibility
+        if (holder.binding.ivAudio.isEnabled) {
+            holder.binding.tvAudioStatus.text = activity.getString(R.string.call_status_online)
+            holder.binding.tvAudioStatus.setTextColor(onlineColor)
+        } else {
+            holder.binding.tvAudioStatus.text = activity.getString(R.string.call_status_offline)
+            holder.binding.tvAudioStatus.setTextColor(offlineColor)
+        }
+
+        holder.binding.tvVideoStatus.visibility = holder.binding.ivVideoCircle.visibility
+        holder.binding.vBtnDivider.visibility =
+            if (holder.binding.ivVideoCircle.visibility == View.VISIBLE) View.VISIBLE else View.GONE
+        if (holder.binding.ivVideo.isEnabled) {
+            holder.binding.tvVideoStatus.text = activity.getString(R.string.call_status_online)
+            holder.binding.tvVideoStatus.setTextColor(onlineColor)
+        } else {
+            holder.binding.tvVideoStatus.text = activity.getString(R.string.call_status_offline)
+            holder.binding.tvVideoStatus.setTextColor(offlineColor)
+        }
+
         // Add click listener on profile container to open profile detail
         holder.binding.profileContainer.setOnSingleClickListener {
             // TC_027: a creator who has blocked this user (blocked==2) must not be
@@ -462,6 +502,83 @@ class RecentCallsAdapter(
         intent.putExtra("USER_IMAGE", call.image)
         activity.startActivity(intent)
     }
+
+    /**
+     * Favourite-tab card binding. Online => tinted circle (pink audio / purple video) + coin +
+     * per-min rate; Offline => grey circle + "Offline". Rates are the app-wide defaults
+     * (audio 10/min, video 60/min) since CallsListResponseData carries no per-contact price.
+     * Favourite is male-only (4-tab nav), so this only handles the male caller path.
+     */
+    private fun bindFavourite(holder: FavouriteHolder, call: CallsListResponseData) {
+        val b = holder.binding
+        Glide.with(activity).load(call.image)
+            .apply(RequestOptions().circleCrop()).into(b.ivImage)
+        b.tvName.text = call.name.replace(Regex("[0-9]"), "")
+
+        // Chat Now -> open chat directly (no friend gating, mirrors prior favourite behavior)
+        b.cardChatNow.setOnSingleClickListener { openChatActivity(call) }
+
+        val blocked = call.blocked == 2
+        configureFavouriteButton(
+            online = call.audio_status == 1 && !blocked, blocked = blocked, forAudio = true,
+            circle = b.flAudio, icon = b.ivAudio, rateRow = b.llAudioRate, statusLabel = b.tvAudioStatus,
+            onlineCircleBg = R.drawable.circle_bg_pink_light, onlineIconTint = R.color.colorAccent,
+            root = b.root, call = call
+        )
+        configureFavouriteButton(
+            online = call.video_status == 1 && !blocked, blocked = blocked, forAudio = false,
+            circle = b.flVideo, icon = b.ivVideo, rateRow = b.llVideoRate, statusLabel = b.tvVideoStatus,
+            onlineCircleBg = R.drawable.circle_bg_purple_light, onlineIconTint = R.color.purple,
+            root = b.root, call = call
+        )
+
+        b.profileContainer.setOnSingleClickListener {
+            if (blocked) {
+                CallUnavailableFeedback.showBlocked(activity, b.root)
+                return@setOnSingleClickListener
+            }
+            val intent = Intent(activity, UserProfileDetailActivity::class.java).apply {
+                putExtra(DConstants.USER_ID, call.id)
+                putExtra("USER_NAME", call.name)
+                putExtra("USER_IMAGE", call.image)
+                putExtra("USER_LANGUAGE", call.language)
+                putExtra("USER_INTERESTS", call.interests)
+                putExtra("USER_ABOUT", call.describe_yourself)
+                putExtra("USER_AGE", 0)
+                putExtra("AUDIO_STATUS", call.audio_status)
+                putExtra("VIDEO_STATUS", call.video_status)
+            }
+            activity.startActivity(intent)
+        }
+    }
+
+    private fun configureFavouriteButton(
+        online: Boolean, blocked: Boolean, forAudio: Boolean,
+        circle: View, icon: android.widget.ImageView, rateRow: View, statusLabel: View,
+        onlineCircleBg: Int, onlineIconTint: Int, root: View, call: CallsListResponseData
+    ) {
+        if (online) {
+            circle.setBackgroundResource(onlineCircleBg)
+            icon.setColorFilter(ContextCompat.getColor(activity, onlineIconTint))
+            rateRow.visibility = View.VISIBLE
+            statusLabel.visibility = View.GONE
+            circle.setOnSingleClickListener {
+                if (forAudio) onAudioListener.onItemSelected(call) else onVideoListener.onItemSelected(call)
+            }
+        } else {
+            circle.setBackgroundResource(R.drawable.circle_bg_grey)
+            icon.setColorFilter(ContextCompat.getColor(activity, R.color.grey_medium))
+            rateRow.visibility = View.GONE
+            statusLabel.visibility = View.VISIBLE
+            circle.setOnSingleClickListener {
+                if (blocked) CallUnavailableFeedback.showBlocked(activity, root)
+                else CallUnavailableFeedback.show(activity, root, forAudio = forAudio)
+            }
+        }
+    }
+
+    internal class FavouriteHolder(val binding: AdapterFavouriteCallsBinding) :
+        RecyclerView.ViewHolder(binding.root)
 
     internal class ItemHolder(val binding: AdapterRecentCallsBinding) :
         RecyclerView.ViewHolder(binding.root)
