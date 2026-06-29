@@ -1,288 +1,309 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Chat list row. Buttons are styled in code by ChatListAdapter.bind():
+     online => tinted circle (pink call / purple video) + coin/rate (male) or
+     "Online" (female), offline => grey circle + "Offline". IDs preserved. -->
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginHorizontal="16dp"
-    android:layout_marginVertical="4dp"
+    android:layout_marginVertical="5dp"
     android:clickable="true"
     android:focusable="true"
-    app:cardCornerRadius="16dp"
-    app:cardElevation="1dp"
     app:cardBackgroundColor="@color/white"
+    app:cardCornerRadius="18dp"
+    app:cardElevation="2dp"
     app:rippleColor="@color/light_grey">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="12dp">
+        android:orientation="vertical"
+        android:paddingHorizontal="14dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="12dp">
 
-        <!-- User Image with Online Indicator -->
-        <FrameLayout
-            android:id="@+id/fl_image_container"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
-
-            <de.hdodenhof.circleimageview.CircleImageView
-                android:id="@+id/iv_user_image"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:src="@drawable/small_profile"
-                app:civ_border_width="2dp"
-                app:civ_border_color="@color/grey_extra_light"
-                tools:src="@drawable/small_profile" />
-
-            <!-- Online Indicator -->
-            <View
-                android:id="@+id/v_online_indicator"
-                android:layout_width="14dp"
-                android:layout_height="14dp"
-                android:layout_gravity="bottom|end"
-                android:layout_marginEnd="2dp"
-                android:layout_marginBottom="2dp"
-                android:background="@drawable/circle_bg_green"
-                android:visibility="gone" />
-        </FrameLayout>
-
-        <!-- User Name -->
-        <TextView
-            android:id="@+id/tv_user_name"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:layout_marginEnd="8dp"
-            android:fontFamily="@font/poppins_semibold"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:text="User Name"
-            android:textColor="@color/black_light"
-            android:textSize="16sp"
-            app:layout_constraintEnd_toStartOf="@id/iv_pin"
-            app:layout_constraintStart_toEndOf="@id/fl_image_container"
-            app:layout_constraintTop_toTopOf="@id/fl_image_container"
-            app:layout_constraintBottom_toTopOf="@id/tv_last_message"
-            app:layout_constraintVertical_chainStyle="packed"
-            tools:text="Sarah Johnson" />
-
-        <!-- Pin chat (local, max 3) — to the left of notify bell -->
-        <ImageView
-            android:id="@+id/iv_pin"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_marginEnd="2dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:clickable="true"
-            android:contentDescription="@string/chat_pin_action"
-            android:focusable="true"
-            android:padding="14dp"
-            android:src="@drawable/ic_pin_outline"
-            app:layout_constraintBottom_toBottomOf="@id/iv_notify_bell"
-            app:layout_constraintEnd_toStartOf="@id/iv_notify_bell"
-            app:layout_constraintTop_toTopOf="@id/iv_notify_bell"
-            app:tint="@color/chat_list_bell_inactive" />
-
-        <!-- Last Message -->
-        <TextView
-            android:id="@+id/tv_last_message"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:layout_marginTop="2dp"
-            android:layout_marginEnd="8dp"
-            android:fontFamily="@font/poppins_regular"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:text="Last message preview..."
-            android:textColor="@color/grey_medium"
-            android:textSize="13sp"
-            app:layout_constraintBottom_toBottomOf="@id/fl_image_container"
-            app:layout_constraintEnd_toStartOf="@id/tv_unread_count"
-            app:layout_constraintStart_toEndOf="@id/fl_image_container"
-            app:layout_constraintTop_toBottomOf="@id/tv_user_name"
-            tools:text="Hey! How are you doing today?" />
-
-        <!-- Unread Count Badge — inline with the time, to its left, so it never
-             collides with the call buttons row below. -->
-        <TextView
-            android:id="@+id/tv_unread_count"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:minWidth="18dp"
-            android:minHeight="18dp"
-            android:layout_marginEnd="6dp"
-            android:background="@drawable/circle_bg_red"
-            android:fontFamily="@font/poppins_bold"
-            android:gravity="center"
-            android:includeFontPadding="false"
-            android:paddingHorizontal="5dp"
-            android:text="3"
-            android:textColor="@color/white"
-            android:textSize="10sp"
-            android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="@id/tv_time"
-            app:layout_constraintEnd_toStartOf="@id/tv_time"
-            app:layout_constraintTop_toTopOf="@id/tv_time"
-            tools:text="5"
-            tools:visibility="visible" />
-
-        <!-- Notify-when-online bell icon — subscribes the current user to get
-             a notification when this creator comes online. Tap toggles on/off. -->
-        <ImageView
-            android:id="@+id/iv_notify_bell"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_marginEnd="4dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:clickable="true"
-            android:contentDescription="@string/notify_bell_default_desc"
-            android:focusable="true"
-            android:padding="14dp"
-            android:src="@drawable/ic_notifications_off"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@id/tv_user_name"
-            app:layout_constraintBottom_toBottomOf="@id/tv_user_name"
-            app:tint="@color/chat_list_bell_inactive" />
-
-        <!-- Time — baseline-aligned with the last message so short ("1m") and
-             long ("Just now", "Yesterday") values always sit on the same row
-             without overlapping the message preview. -->
-        <TextView
-            android:id="@+id/tv_time"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:fontFamily="@font/poppins_regular"
-            android:maxLines="1"
-            android:text="2m"
-            android:textColor="@color/grey_medium"
-            android:textSize="11sp"
-            app:layout_constraintBaseline_toBaselineOf="@id/tv_last_message"
-            app:layout_constraintEnd_toEndOf="parent"
-            tools:text="Just now" />
-
-        <!-- Audio & Video Call Buttons -->
+        <!-- Top row: date (left) + pin + bell (right) -->
         <LinearLayout
-            android:id="@+id/call_buttons_row"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
             android:gravity="center_vertical"
-            android:orientation="horizontal"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/fl_image_container">
+            android:orientation="horizontal">
 
-            <LinearLayout
-                android:id="@+id/btn_audio_call"
+            <TextView
+                android:id="@+id/tv_time"
                 android:layout_width="0dp"
-                android:layout_height="40dp"
+                android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginEnd="6dp"
-                android:background="@drawable/button_audio_gradient"
-                android:foreground="?attr/selectableItemBackground"
+                android:fontFamily="@font/poppins_medium"
+                android:maxLines="1"
+                android:text="2m"
+                android:textColor="@color/grey_medium"
+                android:textSize="11sp"
+                tools:text="May 15" />
+
+            <ImageView
+                android:id="@+id/iv_pin"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
                 android:clickable="true"
+                android:contentDescription="@string/chat_pin_action"
                 android:focusable="true"
-                android:gravity="center"
-                android:orientation="horizontal"
-                android:paddingHorizontal="10dp">
+                android:padding="6dp"
+                android:src="@drawable/ic_pin_outline"
+                app:tint="@color/chat_list_bell_inactive" />
 
-                <ImageView
-                    android:id="@+id/iv_audio_icon"
-                    android:layout_width="15dp"
-                    android:layout_height="15dp"
-                    android:contentDescription="@null"
-                    android:src="@drawable/ic_phone"
-                    app:tint="@color/white" />
-
-                <ImageView
-                    android:id="@+id/iv_audio_coin"
-                    android:layout_width="14dp"
-                    android:layout_height="14dp"
-                    android:layout_marginStart="6dp"
-                    android:contentDescription="@null"
-                    android:src="@drawable/coin_d" />
-
-                <TextView
-                    android:id="@+id/tv_audio_rate"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="5dp"
-                    android:fontFamily="@font/poppins_semibold"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:text="10/min"
-                    android:textColor="@color/white"
-                    android:textSize="12sp"
-                    tools:text="10/min" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/btn_video_call"
-                android:layout_width="0dp"
-                android:layout_height="40dp"
-                android:layout_weight="1"
-                android:layout_marginStart="6dp"
-                android:background="@drawable/button_video_gradient"
-                android:foreground="?attr/selectableItemBackground"
+            <ImageView
+                android:id="@+id/iv_notify_bell"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginStart="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
                 android:clickable="true"
+                android:contentDescription="@string/notify_bell_default_desc"
                 android:focusable="true"
-                android:gravity="center"
-                android:orientation="horizontal"
-                android:paddingHorizontal="10dp">
-
-                <ImageView
-                    android:id="@+id/iv_video_icon"
-                    android:layout_width="17dp"
-                    android:layout_height="17dp"
-                    android:contentDescription="@null"
-                    android:src="@drawable/baseline_video_chat_24"
-                    app:tint="@color/white" />
-
-                <ImageView
-                    android:id="@+id/iv_video_coin"
-                    android:layout_width="14dp"
-                    android:layout_height="14dp"
-                    android:layout_marginStart="6dp"
-                    android:contentDescription="@null"
-                    android:src="@drawable/coin_d" />
-
-                <TextView
-                    android:id="@+id/tv_video_rate"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="5dp"
-                    android:fontFamily="@font/poppins_semibold"
-                    android:includeFontPadding="false"
-                    android:maxLines="1"
-                    android:text="60/min"
-                    android:textColor="@color/white"
-                    android:textSize="12sp"
-                    tools:text="60/min" />
-            </LinearLayout>
+                android:padding="6dp"
+                android:src="@drawable/ic_notifications_off"
+                app:tint="@color/chat_list_bell_inactive" />
         </LinearLayout>
 
-        <!-- TC_022: shown in place of the call buttons when this chat partner is blocked,
-             so the conversation stays visible in the list with a clear blocked indicator. -->
-        <TextView
-            android:id="@+id/tv_blocked_badge"
-            android:layout_width="0dp"
+        <!-- Main row: avatar | name+message | call buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:gravity="center"
-            android:visibility="gone"
-            android:fontFamily="@font/poppins_medium"
-            android:text="@string/chat_blocked_indicator"
-            android:textColor="#B91C1C"
-            android:textSize="12sp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/fl_image_container"
-            tools:visibility="visible" />
+            android:layout_marginTop="2dp"
+            android:baselineAligned="false"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
+            <!-- Avatar + online dot -->
+            <FrameLayout
+                android:id="@+id/fl_image_container"
+                android:layout_width="54dp"
+                android:layout_height="54dp">
+
+                <de.hdodenhof.circleimageview.CircleImageView
+                    android:id="@+id/iv_user_image"
+                    android:layout_width="54dp"
+                    android:layout_height="54dp"
+                    android:src="@drawable/small_profile"
+                    app:civ_border_color="@color/grey_extra_light"
+                    app:civ_border_width="2dp"
+                    tools:src="@drawable/small_profile" />
+
+                <View
+                    android:id="@+id/v_online_indicator"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:layout_gravity="bottom|end"
+                    android:layout_marginEnd="1dp"
+                    android:layout_marginBottom="1dp"
+                    android:background="@drawable/circle_bg_green"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
+            </FrameLayout>
+
+            <!-- Name + message -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tv_user_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/poppins_semibold"
+                    android:maxLines="1"
+                    android:text="User Name"
+                    android:textColor="@color/black_light"
+                    android:textSize="16sp"
+                    tools:text="Jacob" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/tv_last_message"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/poppins_regular"
+                        android:maxLines="1"
+                        android:text="Last message preview..."
+                        android:textColor="@color/grey_medium"
+                        android:textSize="13sp"
+                        tools:text="Hi" />
+
+                    <TextView
+                        android:id="@+id/tv_unread_count"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:background="@drawable/circle_bg_red"
+                        android:fontFamily="@font/poppins_bold"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:minWidth="18dp"
+                        android:minHeight="18dp"
+                        android:paddingHorizontal="5dp"
+                        android:text="3"
+                        android:textColor="@color/white"
+                        android:textSize="10sp"
+                        android:visibility="gone"
+                        tools:text="5"
+                        tools:visibility="visible" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Call buttons (aligned with avatar) -->
+            <LinearLayout
+                android:id="@+id/call_buttons_row"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:baselineAligned="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <!-- Audio column -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_horizontal"
+                    android:minWidth="52dp"
+                    android:orientation="vertical">
+
+                    <FrameLayout
+                        android:id="@+id/btn_audio_call"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:background="@drawable/circle_bg_grey"
+                        android:clickable="true"
+                        android:focusable="true">
+
+                        <ImageView
+                            android:id="@+id/iv_audio_icon"
+                            android:layout_width="18dp"
+                            android:layout_height="18dp"
+                            android:layout_gravity="center"
+                            android:contentDescription="@null"
+                            android:src="@drawable/ic_phone"
+                            app:tint="@color/grey_medium" />
+                    </FrameLayout>
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:id="@+id/iv_audio_coin"
+                            android:layout_width="11dp"
+                            android:layout_height="11dp"
+                            android:layout_marginEnd="3dp"
+                            android:contentDescription="@null"
+                            android:src="@drawable/coin_d"
+                            android:visibility="gone"
+                            tools:visibility="gone" />
+
+                        <TextView
+                            android:id="@+id/tv_audio_rate"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/poppins_medium"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:text="Offline"
+                            android:textColor="@color/grey_medium"
+                            android:textSize="10sp"
+                            tools:text="Offline" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- Video column -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:gravity="center_horizontal"
+                    android:minWidth="52dp"
+                    android:orientation="vertical">
+
+                    <FrameLayout
+                        android:id="@+id/btn_video_call"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:background="@drawable/circle_bg_grey"
+                        android:clickable="true"
+                        android:focusable="true">
+
+                        <ImageView
+                            android:id="@+id/iv_video_icon"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:layout_gravity="center"
+                            android:contentDescription="@null"
+                            android:src="@drawable/ic_video_modern"
+                            app:tint="@color/grey_medium" />
+                    </FrameLayout>
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:id="@+id/iv_video_coin"
+                            android:layout_width="11dp"
+                            android:layout_height="11dp"
+                            android:layout_marginEnd="3dp"
+                            android:contentDescription="@null"
+                            android:src="@drawable/coin_d"
+                            android:visibility="gone"
+                            tools:visibility="gone" />
+
+                        <TextView
+                            android:id="@+id/tv_video_rate"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/poppins_medium"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:text="Offline"
+                            android:textColor="@color/grey_medium"
+                            android:textSize="10sp"
+                            tools:text="Offline" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- Blocked badge — shown in place of call buttons -->
+                <TextView
+                    android:id="@+id/tv_blocked_badge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/poppins_medium"
+                    android:text="@string/chat_blocked_indicator"
+                    android:textColor="#B91C1C"
+                    android:textSize="12sp"
+                    android:visibility="gone"
+                    tools:visibility="gone" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
 
 </com.google.android.material.card.MaterialCardView>
-

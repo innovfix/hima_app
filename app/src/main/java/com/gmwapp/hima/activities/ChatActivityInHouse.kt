@@ -278,6 +278,8 @@ class ChatActivityInHouse : AppCompatActivity() {
     // Per-user call rate banner shown above the messages list
     private var cvRateBanner: com.google.android.material.card.MaterialCardView? = null
     private var tvRateBanner: TextView? = null
+    private var tvAudioRateTop: TextView? = null
+    private var tvVideoRateTop: TextView? = null
     // Cached call rates so the audio/video click handlers can run the
     // coin-balance gate without re-reading intent extras each time.
     // Fall-backs match the rate-banner defaults (10 audio, 60 video).
@@ -604,20 +606,17 @@ class ChatActivityInHouse : AppCompatActivity() {
         // Per-user call rate banner (shown when home opens chat with rate extras)
         cvRateBanner = findViewById(R.id.cv_rate_banner)
         tvRateBanner = findViewById(R.id.tv_rate_banner)
+        tvAudioRateTop = findViewById(R.id.tv_audio_rate_top)
+        tvVideoRateTop = findViewById(R.id.tv_video_rate_top)
         val audioRate = intent.getIntExtra("COIN_PER_MIN_AUDIO", -1)
         val videoRate = intent.getIntExtra("COIN_PER_MIN_VIDEO", -1)
         perMinAudioRate = if (audioRate > 0) audioRate else 10
         perMinVideoRate = if (videoRate > 0) videoRate else 60
-        if (audioRate > 0 || videoRate > 0) {
-            tvRateBanner?.text = getString(
-                R.string.rate_per_min_audio_video,
-                perMinAudioRate,
-                perMinVideoRate
-            )
-            cvRateBanner?.visibility = View.VISIBLE
-        } else {
-            cvRateBanner?.visibility = View.GONE
-        }
+        // Per-minute rates now render inline under the top-bar call buttons;
+        // the standalone rate banner is retired.
+        tvAudioRateTop?.text = "${perMinAudioRate}/min"
+        tvVideoRateTop?.text = "${perMinVideoRate}/min"
+        cvRateBanner?.visibility = View.GONE
 
         // Header (name + avatar) populated in [initPeerHeader], called after
         // [setupUserIds] so peerUserId is available for the store / profile-API fallback.
@@ -635,6 +634,28 @@ class ChatActivityInHouse : AppCompatActivity() {
         // T17 introduced.
         window.statusBarColor = ContextCompat.getColor(this, R.color.white)
         WindowInsetsControllerCompat(window, findViewById(R.id.main)).isAppearanceLightStatusBars = true
+        // Edge-to-edge: the wallpaper (on R.id.main) fills the whole screen incl. the
+        // bottom gesture strip (WhatsApp-style). Keep the TOP clean — the white top-bar
+        // card extends behind the status bar, and we pad its content down by the status
+        // inset; the transparent input bar is padded up by the nav inset so the field
+        // clears the gesture bar while the wallpaper still shows behind/below it.
+        val topBarContent = findViewById<View>(R.id.top_bar)
+        val inputContainer = findViewById<View>(R.id.message_input_container)
+        val baseTopPad = topBarContent.paddingTop
+        val baseInputBottomPad = inputContainer.paddingBottom
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { _, insets ->
+            val bars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            topBarContent.setPadding(
+                topBarContent.paddingLeft, baseTopPad + bars.top,
+                topBarContent.paddingRight, topBarContent.paddingBottom
+            )
+            inputContainer.setPadding(
+                inputContainer.paddingLeft, inputContainer.paddingTop,
+                inputContainer.paddingRight, baseInputBottomPad + bars.bottom
+            )
+            insets
+        }
+        androidx.core.view.ViewCompat.requestApplyInsets(findViewById(R.id.main))
 
         bannerAddFriend = findViewById(R.id.banner_add_friend)
         tvBannerAddFriendTitle = findViewById(R.id.tv_banner_add_friend_title)
@@ -4848,13 +4869,15 @@ class ChatActivityInHouse : AppCompatActivity() {
             mainHandler.post {
                 if (!isUiSafe()) return@post
                 // DISABLED - Gray for both buttons
-                cvAudioCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.light_grey))
+                cvAudioCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.chat_call_grey_bg))
                 ivAudioCall.setColorFilter(ContextCompat.getColor(this, R.color.grey_medium))
                 cvAudioCall.isEnabled = false
+                tvAudioRateTop?.setTextColor(ContextCompat.getColor(this, R.color.grey_medium))
                 
-                cvVideoCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.light_grey))
+                cvVideoCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.chat_call_grey_bg))
                 ivVideoCall.setColorFilter(ContextCompat.getColor(this, R.color.grey_medium))
                 cvVideoCall.isEnabled = false
+                tvVideoRateTop?.setTextColor(ContextCompat.getColor(this, R.color.grey_medium))
             }
             return
         }
@@ -4879,30 +4902,34 @@ class ChatActivityInHouse : AppCompatActivity() {
             if (isAudioEnabled) {
                 // ENABLED - Purple
                 Log.d("CallButtons", "Setting audio button to ENABLED (purple)")
-                cvAudioCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.colorAccent))
-                ivAudioCall.setColorFilter(ContextCompat.getColor(this, R.color.white))
+                cvAudioCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.chat_call_audio_bg))
+                ivAudioCall.setColorFilter(ContextCompat.getColor(this, R.color.colorAccent))
                 cvAudioCall.isEnabled = true
+                tvAudioRateTop?.setTextColor(ContextCompat.getColor(this, R.color.colorAccent))
             } else {
                 // DISABLED - Gray
                 Log.d("CallButtons", "Setting audio button to DISABLED (gray) - AudioEnabled: $isAudioEnabled")
-                cvAudioCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.light_grey))
+                cvAudioCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.chat_call_grey_bg))
                 ivAudioCall.setColorFilter(ContextCompat.getColor(this, R.color.grey_medium))
                 cvAudioCall.isEnabled = false
+                tvAudioRateTop?.setTextColor(ContextCompat.getColor(this, R.color.grey_medium))
             }
             
             // Video button state - enabled only if video is enabled (status = 1)
             if (isVideoEnabled) {
                 // ENABLED - Green
                 Log.d("CallButtons", "Setting video button to ENABLED (green)")
-                cvVideoCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.green))
-                ivVideoCall.setColorFilter(ContextCompat.getColor(this, R.color.white))
+                cvVideoCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.chat_call_video_bg))
+                ivVideoCall.setColorFilter(ContextCompat.getColor(this, R.color.purple))
                 cvVideoCall.isEnabled = true
+                tvVideoRateTop?.setTextColor(ContextCompat.getColor(this, R.color.purple))
             } else {
                 // DISABLED - Gray
                 Log.d("CallButtons", "Setting video button to DISABLED (gray) - VideoEnabled: $isVideoEnabled")
-                cvVideoCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.light_grey))
+                cvVideoCall.setCardBackgroundColor(ContextCompat.getColor(this, R.color.chat_call_grey_bg))
                 ivVideoCall.setColorFilter(ContextCompat.getColor(this, R.color.grey_medium))
                 cvVideoCall.isEnabled = false
+                tvVideoRateTop?.setTextColor(ContextCompat.getColor(this, R.color.grey_medium))
             }
         }
     }

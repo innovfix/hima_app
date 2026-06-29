@@ -340,74 +340,59 @@ class ChatListAdapter(
                 ?.getUserData()?.gender
                 ?.equals(DConstants.FEMALE, ignoreCase = true) == true
 
-            binding.btnAudioCall.background = activity.resources.getDrawable(
-                if (showAudio) R.drawable.button_audio_gradient else R.drawable.button_disabled_gradient,
-                null
+            // Circular call buttons (item_chat_conversation.xml): tinted circle +
+            // colored icon when available, grey circle + "Offline" label when not.
+            val accentColor = activity.getColor(R.color.colorAccent)
+            val purpleColor = activity.getColor(R.color.purple)
+            val greyIconColor = activity.getColor(R.color.grey_medium)
+            val rateTextColor = activity.getColor(R.color.black_light)
+
+            // Audio = call (both genders can call a male/female peer when online).
+            binding.btnAudioCall.setBackgroundResource(
+                if (showAudio) R.drawable.circle_bg_pink_light else R.drawable.circle_bg_grey
             )
-            // 2026-05-22 v22 — females can't video-call males (backend has no
-            // female→male video flow). Repurpose the second button as a MESSAGE
-            // button when the viewer is female: always enabled, opens the chat.
-            binding.btnVideoCall.background = activity.resources.getDrawable(
-                when {
-                    isViewerFemale -> R.drawable.button_video_gradient
-                    showVideo -> R.drawable.button_video_gradient
-                    else -> R.drawable.button_disabled_gradient
-                },
-                null
-            )
+            binding.ivAudioIcon.setImageResource(R.drawable.ic_phone)
+            binding.ivAudioIcon.setColorFilter(if (showAudio) accentColor else greyIconColor)
             binding.btnAudioCall.isEnabled = showAudio
-            binding.btnVideoCall.isEnabled = isViewerFemale || showVideo
             binding.btnAudioCall.isClickable = showAudio
-            binding.btnVideoCall.isClickable = isViewerFemale || showVideo
 
-            // Female viewer: swap the video-camera icon for a chat bubble.
-            if (isViewerFemale) {
-                binding.ivVideoIcon.setImageResource(R.drawable.ic_chat_bubble)
-            } else {
-                binding.ivVideoIcon.setImageResource(R.drawable.baseline_video_chat_24)
-            }
-
-            // Readable text & icon colors on both enabled gradient (white) and
-            // disabled grey background (darker grey) — white on grey is invisible.
-            binding.ivAudioIcon.setColorFilter(if (showAudio) whiteColor else disabledTextColor)
-            binding.ivVideoIcon.setColorFilter(
-                if (isViewerFemale || showVideo) whiteColor else disabledTextColor
+            // Video = call. Tinted purple circle + camera icon when the peer is
+            // available for video, grey circle + "Offline" otherwise.
+            binding.btnVideoCall.setBackgroundResource(
+                if (showVideo) R.drawable.circle_bg_purple_light else R.drawable.circle_bg_grey
             )
-            binding.tvAudioRate.setTextColor(if (showAudio) whiteColor else disabledTextColor)
-            binding.tvVideoRate.setTextColor(
-                if (isViewerFemale || showVideo) whiteColor else disabledTextColor
-            )
-            // The per-minute coin rate (e.g. "10/min") is the caller's cost.
-            // Only males pay for calls in this app — females are recipients
-            // (the call_male_user backend doesn't deduct anything from her).
-            // Showing "10/min" on the female's chat row implies she's about
-            // to spend coins she doesn't have, which is misleading.
+            binding.ivVideoIcon.setImageResource(R.drawable.ic_video_modern)
+            binding.ivVideoIcon.setColorFilter(if (showVideo) purpleColor else greyIconColor)
+            binding.btnVideoCall.isEnabled = showVideo
+            binding.btnVideoCall.isClickable = showVideo
 
+            // The per-minute coin rate is the caller's cost — only males pay, so
+            // coins/rate never show for the female recipient (she sees Online/Offline).
             binding.ivAudioCoin.visibility =
                 if (showAudio && !isViewerFemale) View.VISIBLE else View.GONE
             binding.ivVideoCoin.visibility =
                 if (showVideo && !isViewerFemale) View.VISIBLE else View.GONE
 
+            val offlineLabel = activity.getString(R.string.call_status_offline)
+            val onlineLabel = activity.getString(R.string.call_status_online)
             binding.tvAudioRate.text = when {
-                !showAudio -> activity.getString(R.string.call_unavailable)
-                isViewerFemale -> ""
+                !showAudio -> offlineLabel
+                isViewerFemale -> onlineLabel
                 else -> "${conversation.coinPerMinAudio}/min"
             }
+            binding.tvAudioRate.setTextColor(if (showAudio) rateTextColor else greyIconColor)
             binding.tvVideoRate.text = when {
-                isViewerFemale -> ""  // female viewer: button is "message", icon-only
-                !showVideo -> activity.getString(R.string.call_unavailable)
+                !showVideo -> offlineLabel
+                isViewerFemale -> onlineLabel
                 else -> "${conversation.coinPerMinVideo}/min"
             }
+            binding.tvVideoRate.setTextColor(if (showVideo) rateTextColor else greyIconColor)
 
             binding.btnAudioCall.setOnSingleClickListener {
                 if (showAudio) launchCall(conversation, "audio")
             }
             binding.btnVideoCall.setOnSingleClickListener {
-                if (isViewerFemale) {
-                    onItemClick(conversation)  // open chat with this male
-                } else if (showVideo) {
-                    launchCall(conversation, "video")
-                }
+                if (showVideo) launchCall(conversation, "video")
             }
 
             // Notify-when-online bell icon — tap to toggle subscription.

@@ -58,18 +58,15 @@ class CreatorChatFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         if (requireActivity() is MainActivity) {
-            // Segmented-pill tabs carry a rounded background, so push them below the
-            // status bar with top MARGIN (not padding) — padding would extend the pill
-            // background up into the status-bar area.
-            val baseMarginTop = (binding.tabsCreatorChat.layoutParams as ViewGroup.MarginLayoutParams).topMargin
-            ViewCompat.setOnApplyWindowInsetsListener(binding.tabsCreatorChat) { v, insets ->
+            // The "Messages" header is the topmost view now — push IT below the status
+            // bar with top padding; the tabs sit under the header and follow.
+            val baseHeaderPadTop = binding.chatHeader.paddingTop
+            ViewCompat.setOnApplyWindowInsetsListener(binding.chatHeader) { v, insets ->
                 val statusBarInset = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
-                val mlp = v.layoutParams as ViewGroup.MarginLayoutParams
-                mlp.topMargin = baseMarginTop + statusBarInset
-                v.layoutParams = mlp
+                v.setPadding(v.paddingLeft, baseHeaderPadTop + statusBarInset, v.paddingRight, v.paddingBottom)
                 insets
             }
-            ViewCompat.requestApplyInsets(binding.tabsCreatorChat)
+            ViewCompat.requestApplyInsets(binding.chatHeader)
         }
 
         binding.vpCreatorChat.adapter = object : FragmentStateAdapter(this) {
