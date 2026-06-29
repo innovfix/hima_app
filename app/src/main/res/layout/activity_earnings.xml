@@ -68,14 +68,25 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
-        android:text="@string/transactions"
+        android:text="@string/earnings"
         android:textColor="#111827"
-        android:textSize="20sp"
+        android:textSize="22sp"
         android:fontFamily="@font/poppins_semibold"
         android:letterSpacing="-0.01"
-        app:layout_constraintBottom_toBottomOf="@+id/cv_back"
         app:layout_constraintStart_toEndOf="@+id/cv_back"
         app:layout_constraintTop_toTopOf="@+id/cv_back" />
+
+    <TextView
+        android:id="@+id/tv_earnings_subtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Track your balance &amp; payouts"
+        android:textColor="@color/grey_medium"
+        android:textSize="13sp"
+        android:fontFamily="@font/poppins_regular"
+        app:layout_constraintStart_toStartOf="@+id/tv_earnings"
+        app:layout_constraintTop_toBottomOf="@+id/tv_earnings"
+        tools:ignore="HardcodedText" />
 
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/gl_earnings_top_margin"
@@ -89,9 +100,9 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="4dp"
-        app:cardBackgroundColor="@android:color/transparent"
+        app:cardCornerRadius="20dp"
+        app:cardElevation="2dp"
+        app:cardBackgroundColor="@color/white"
         app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
         app:layout_constraintStart_toStartOf="@id/gl_left_margin"
         app:layout_constraintTop_toBottomOf="@+id/gl_earnings_top_margin">
@@ -99,13 +110,15 @@
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="@drawable/current_balance_background"
-            android:padding="16dp">
+            android:background="@color/white"
+            android:padding="20dp">
 
             <ImageView
                 android:id="@+id/iv_wallet_icon"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="@drawable/circle_bg_accent"
+                android:padding="11dp"
                 android:src="@drawable/wallet"
                 android:contentDescription="@string/earnings"
                 app:tint="#FFFFFF"
@@ -116,60 +129,67 @@
                 android:id="@+id/tv_current_balance_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
+                android:layout_marginStart="14dp"
                 android:text="@string/current_balance"
-                android:textColor="#E0FFFFFF"
-                android:fontFamily="@font/poppins_medium"
-                android:textSize="12sp"
-                android:alpha="0.9"
+                android:textColor="#111827"
+                android:fontFamily="@font/poppins_semibold"
+                android:textSize="17sp"
                 app:layout_constraintStart_toEndOf="@+id/iv_wallet_icon"
-                app:layout_constraintTop_toTopOf="@+id/iv_wallet_icon"
-                app:layout_constraintBottom_toBottomOf="@+id/iv_wallet_icon" />
+                app:layout_constraintTop_toTopOf="@+id/iv_wallet_icon" />
 
             <TextView
-                android:id="@+id/tv_current_balance"
+                android:id="@+id/tv_balance_sub"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text=""
-                android:textColor="@color/white"
-                android:textSize="32sp"
-                android:letterSpacing="0.02"
-                android:fontFamily="@font/poppins_bold"
-                android:shadowColor="#40000000"
-                android:shadowDx="0"
-                android:shadowDy="2"
-                android:shadowRadius="4"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/iv_wallet_icon" />
+                android:layout_marginStart="14dp"
+                android:text="Available to withdraw"
+                android:textColor="@color/grey_medium"
+                android:fontFamily="@font/poppins_regular"
+                android:textSize="13sp"
+                app:layout_constraintStart_toEndOf="@+id/iv_wallet_icon"
+                app:layout_constraintTop_toBottomOf="@+id/tv_current_balance_title"
+                tools:ignore="HardcodedText" />
 
             <View
                 android:id="@+id/v_divider"
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:layout_marginTop="12dp"
-                android:background="#30FFFFFF"
+                android:layout_marginTop="16dp"
+                android:background="#ECECEF"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/tv_current_balance" />
+                app:layout_constraintTop_toBottomOf="@+id/iv_wallet_icon" />
+
+            <TextView
+                android:id="@+id/tv_current_balance"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text=""
+                android:textColor="@color/colorAccent"
+                android:textSize="34sp"
+                android:letterSpacing="0.01"
+                android:fontFamily="@font/poppins_bold"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/v_divider"
+                tools:text="₹1284.0" />
 
             <com.gmwapp.hima.widgets.DButton
                 android:id="@+id/btn_withdraw"
                 android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_marginTop="12dp"
+                android:layout_height="52dp"
+                android:layout_marginTop="16dp"
                 android:textAllCaps="false"
-                android:textSize="15sp"
+                android:textSize="16sp"
                 android:letterSpacing="0.02"
                 app:layout_constraintWidth_default="percent"
                 app:layout_constraintWidth_percent="1.0"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/v_divider"
-                android:background="@drawable/withdraw_button_bg"
-                android:elevation="4dp"
+                app:layout_constraintTop_toBottomOf="@+id/tv_current_balance"
+                android:background="@drawable/bg_btn_pink_pill"
                 android:fontFamily="@font/poppins_semibold"
                 android:text="@string/withdraw"
-                android:textColor="@color/pink"/>
+                android:textColor="@color/white" />
 
             <LinearLayout
                 android:id="@+id/ll_balance_hint_container"
@@ -177,11 +197,10 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="start"
+                android:visibility="gone"
                 android:layout_marginTop="8dp"
-                android:padding="10dp"
-                android:background="@drawable/info_hint_bg"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/v_divider">
+                app:layout_constraintTop_toBottomOf="@+id/btn_withdraw">
 
                 <ImageView
                     android:id="@+id/iv_balance"
@@ -189,7 +208,7 @@
                     android:layout_height="18dp"
                     android:layout_gravity="center_vertical"
                     android:src="@drawable/info"
-                    app:tint="#E0FFFFFF"
+                    app:tint="@color/grey_medium"
                     tools:ignore="MissingConstraints" />
 
                 <TextView
@@ -199,7 +218,7 @@
                     android:layout_weight="1"
                     android:text="@string/balance_hint_text"
                     android:layout_marginStart="8dp"
-                    android:textColor="#E0FFFFFF"
+                    android:textColor="@color/grey_medium"
                     android:fontFamily="@font/poppins_regular"
                     android:textSize="12sp"
                     android:lineSpacingExtra="2dp" />
@@ -207,6 +226,56 @@
 
         </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.cardview.widget.CardView>
+
+    <!-- Earnings History section header -->
+    <LinearLayout
+        android:id="@+id/ll_earnings_history_header"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        app:layout_constraintEnd_toEndOf="@id/gl_right_margin"
+        app:layout_constraintStart_toStartOf="@id/gl_left_margin"
+        app:layout_constraintTop_toBottomOf="@+id/cl_earnings">
+
+        <View
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:background="@drawable/circle_bg_green_light" />
+
+        <View
+            android:layout_width="10dp"
+            android:layout_height="10dp"
+            android:layout_marginStart="-22dp"
+            android:layout_marginEnd="12dp"
+            android:background="@drawable/circle_bg_green" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_semibold"
+                android:text="Earnings History"
+                android:textColor="#111827"
+                android:textSize="17sp"
+                tools:ignore="HardcodedText" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_regular"
+                android:text="Your recent payouts &amp; sessions"
+                android:textColor="@color/grey_medium"
+                android:textSize="13sp"
+                tools:ignore="HardcodedText" />
+        </LinearLayout>
+    </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_earnings"
@@ -216,7 +285,7 @@
         app:layout_constraintBottom_toTopOf="@+id/cl_help"
         app:layout_constraintEnd_toEndOf="@+id/gl_right_margin"
         app:layout_constraintStart_toStartOf="@+id/gl_left_margin"
-        app:layout_constraintTop_toBottomOf="@+id/cv_panDetails" />
+        app:layout_constraintTop_toBottomOf="@+id/ll_earnings_history_header" />
 
 
     <androidx.cardview.widget.CardView
