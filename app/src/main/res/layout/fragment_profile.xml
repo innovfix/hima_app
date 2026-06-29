@@ -79,7 +79,7 @@
         android:layout_height="0dp"
         android:fillViewport="true"
         android:overScrollMode="never"
-        android:paddingBottom="80dp"
+        android:paddingBottom="16dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -112,8 +112,8 @@
             android:layout_width="124dp"
             android:layout_height="80dp"
             android:layout_gravity="top|end"
-            android:layout_marginTop="44dp"
-            android:layout_marginEnd="8dp">
+            android:layout_marginTop="12dp"
+            android:layout_marginEnd="12dp">
 
             <ImageView
                 android:layout_width="24dp"
